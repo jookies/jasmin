@@ -177,6 +177,33 @@ class PublishConsumeTestCase(ConsumeTools):
         self.assertEqual(self.consumedMessages, 1)
         
     @defer.inlineCallbacks
+    def test_simple_publish_consume_by_topic(self):
+        yield self.connect()
+        
+        yield self.amqp.chan.exchange_declare(exchange='messaging', type='topic')
+
+        # Publish
+        yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01", content=Content(self.message))
+        
+        # Consume
+        yield self.amqp.named_queue_declare(queue="submit.sm_all")
+        yield self.amqp.chan.queue_bind(queue="submit.sm_all", exchange="messaging", routing_key="submit.sm.*")
+        yield self.amqp.chan.basic_consume(queue="submit.sm_all", no_ack=True, consumer_tag='qtag')
+        queue = yield self.amqp.client.queue('qtag')
+        
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        
+        queue.get().addCallback(self._callback, queue).addErrback(self._errback)
+        
+        yield exitDeferred        
+        yield queue.close()
+
+        yield self.amqp.disconnect()
+        
+        self.assertEqual(self.consumedMessages, 1)
+
+    @defer.inlineCallbacks
     def test_publish_consume_from_different_queues(self):
         yield self.connect()
         

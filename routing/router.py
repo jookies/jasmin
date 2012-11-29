@@ -4,6 +4,7 @@
 import logging
 import pickle
 from twisted.spread import pb
+from twisted.internet import defer
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable
 
 LOG_CATEGORY = "jasmin-router"
@@ -29,7 +30,28 @@ class RouterPB(pb.Root):
         self.users = []
         
         self.log.info('Router configured and ready.')
+    
+    @defer.inlineCallbacks
+    def addAmqpBroker(self, amqpBroker):
+        self.amqpBroker = amqpBroker
+        self.log.info('Added amqpBroker to RouterPB')
         
+        if self.amqpBroker.connected == False:
+            self.log.warn('AMQP Broker channel is not yet ready, waiting for it to become ready.')
+            yield self.amqpBroker.channelReady
+            self.log.info("AMQP Broker channel is ready now, let's go !")
+         
+        # @todo: the router must consume from deliver.sm.* and dlr.*   
+        # Subscribe to deliver.sm.* queues
+        #yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        #consumerTag = 'RouterPB'
+        #routingKey = 'deliver.sm.*'
+        #yield self.amqpBroker.named_queue_declare(queue="deliver_sm")
+        #yield self.amqpBroker.chan.queue_bind(queue="deliver_sm", exchange="messaging", routing_key=routingKey)
+        #yield self.amqpBroker.chan.basic_consume(queue="deliver_sm", no_ack=False, consumer_tag=consumerTag)
+        #deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+        #self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+
     def getMORoutingTable(self):
         return self.mo_routing_table
     def getMTRoutingTable(self):

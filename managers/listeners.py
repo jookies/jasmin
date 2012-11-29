@@ -92,7 +92,6 @@ class SMPPClientSMListener:
             qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
             qos_delay = datetime.now() - self.qos_last_submit_sm_at
             if qos_delay < qos_throughput_ysecond_td:
-                #qos_slow_down = 1 / float(((qos_throughput_ysecond_td - qos_delay).microseconds / 1000))
                 qos_slow_down = float((qos_throughput_ysecond_td - qos_delay).microseconds) / 1000000
                 # We're faster than submit_sm_throughput, slow down before taking a new message from the queue
                 self.log.debug("QoS: submit_sm_callback is faster (%s) than fixed throughput (%s), slowing down by %s seconds (message will be requeued)." % (
@@ -166,14 +165,14 @@ class SMPPClientSMListener:
         # Cancel any mapped rejectTimer to this message (in case this message was rejected in the past)
         self.clearRejectTimer(msgid)
 
-        self.log.debug("ACKing amqpMessage[%s]" % msgid)
+        self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]", msgid, amqpMessage.routing_key)
         # ACK the message in queue, this will remove it from the queue
         yield self.ackMessage(amqpMessage)
             
         # Send back submit_sm_resp to submit.sm.resp.CID queue
         content = SubmitSmRespContent(r.response, msgid, pickleProtocol = self.pickleProtocol)
         self.log.debug("Sending back SubmitSmRespContent[%s] with routing_key[%s]" % (msgid, amqpMessage.content.properties['reply-to']))
-        yield self.amqpBroker.publish(routing_key=amqpMessage.content.properties['reply-to'], content=content)
+        yield self.amqpBroker.publish(exchange='messaging', routing_key=amqpMessage.content.properties['reply-to'], content=content)
 
     def submit_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
@@ -189,13 +188,13 @@ class SMPPClientSMListener:
             print "Error in submit_sm_errback: %s" % (error)
             #return error
     
-    @defer.inlineCallbacks        
+    @defer.inlineCallbacks
     def deliver_sm_callback(self, smpp, pdu):
-        isDlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
+        pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
+        content = DeliverSmContent(pdu, pickleProtocol = self.pickleProtocol)
         
-        if isDlr is None:
+        if pdu.dlr is None:
             destination_queue = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
-            content = DeliverSmContent(pdu, pickleProtocol = self.pickleProtocol)
             self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                       (
                        self.SMPPClientFactory.config.id,
@@ -209,22 +208,20 @@ class SMPPClientSMListener:
                        ))
         else:
             destination_queue = 'dlr.%s' % self.SMPPClientFactory.config.id
-            pdu.dlr = isDlr
-            content = DeliverSmContent(pdu, pickleProtocol = self.pickleProtocol)
             self.log.info("DLR [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [stat:%s] [sdate:%s] [ddate:%s] [sub:%s] [dlvrd:%s] [err:%s] [content:%s]" % 
                       (
                        self.SMPPClientFactory.config.id,
                        content.properties['message-id'],
-                       isDlr['id'],
-                       isDlr['stat'],
-                       isDlr['sdate'],
-                       isDlr['ddate'],
-                       isDlr['sub'],
-                       isDlr['dlvrd'],
-                       isDlr['err'],
-                       isDlr['text'],
+                       pdu.dlr['id'],
+                       pdu.dlr['stat'],
+                       pdu.dlr['sdate'],
+                       pdu.dlr['ddate'],
+                       pdu.dlr['sub'],
+                       pdu.dlr['dlvrd'],
+                       pdu.dlr['err'],
+                       pdu.dlr['text'],
                        ))
 
         # Send back submit_sm_resp to submit.sm.resp.CID queue
         self.log.debug("Sending DeliverSmContent[%s] with routing_key[%s]" % (content.properties['message-id'], destination_queue))
-        yield self.amqpBroker.publish(routing_key=destination_queue, content=content)
+        yield self.amqpBroker.publish(exchange='messaging', routing_key=destination_queue, content=content)

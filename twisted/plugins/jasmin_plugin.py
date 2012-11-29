@@ -37,27 +37,30 @@ class JasminServiceMaker:
         # c.f: http://twistedmatrix.com/documents/current/core/howto/logging.htl#auto3
         log.PythonLoggingObserver().start()
 
+        # Start AMQP Broker
+        AMQPServiceConfigInstance = AmqpConfig(options['config'])
+        amqpBroker_f = AmqpFactory(AMQPServiceConfigInstance)
+        amqpBroker_f.preConnect()
+        amqpBroker = internet.TCPClient(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, amqpBroker_f)
+        amqpBroker.setServiceParent(top_service)
+
         # Start Router PB server
         RouterPBConfigInstance = RouterPBConfig(options['config'])
         RouterPB_f = RouterPB()
         RouterPB_f.setConfig(RouterPBConfigInstance)
         Router = internet.TCPServer(RouterPBConfigInstance.port, pb.PBServerFactory(RouterPB_f))
         Router.setServiceParent(top_service)
-
-        # Start AMQP Broker
-        AMQPServiceConfigInstance = AmqpConfig(options['config'])
-        amqpBroker_f = AmqpFactory(AMQPServiceConfigInstance)
-        amqpBroker_f.preConnect()        
-        amqpBroker = internet.TCPClient(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, amqpBroker_f)
-        amqpBroker.setServiceParent(top_service)
+        # AMQP Broker is used to listen to deliver_sm/dlr queues
+        RouterPB_f.addAmqpBroker(amqpBroker_f)
 
         # Start SMPP Client connector manager
         SMPPClientPBConfigInstance = SMPPClientPBConfig(options['config'])
         clientManager_f = SMPPClientManagerPB()
         clientManager_f.setConfig(SMPPClientPBConfigInstance)
-        clientManager_f.addAmqpBroker(amqpBroker_f)
         clientManager = internet.TCPServer(SMPPClientPBConfigInstance.port, pb.PBServerFactory(clientManager_f))
         clientManager.setServiceParent(top_service)
+        # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
+        clientManager_f.addAmqpBroker(amqpBroker_f)
         
         # Start HTTP Api
         httpApiConfigInstance = HTTPApiConfig(options['config'])

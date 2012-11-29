@@ -371,11 +371,11 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.start(self.defaultConfig.id)
 
         # Listen on the submit.sm.resp queue
-        queueName = 'submit.sm.resp.%s' % self.defaultConfig.id
+        routingKey_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
         consumerTag = 'test_submitSm'
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, consumer_tag=consumerTag)
-        deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        deliver_sm_q.get().addCallback(self.submit_sm_callback)
+        yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
+        queue = yield self.amqpBroker.client.queue(consumerTag)
+        queue.get().addCallback(self.submit_sm_callback)
 
         # Send submit_sm
         assertionKey = str(randint(10000, 99999999999))

@@ -97,25 +97,35 @@ class SMPPClientManagerPB(pb.Root):
             defer.returnValue(False)
 
         # Declare queues
-        # The connector shall listen to submit.sm.%cid queue
-        queue_submit_sm = 'submit.sm.%s' % c.id
-        self.log.info('Declaring submit_sm queue to listen to: %s', queue_submit_sm)
-        yield self.amqpBroker.named_queue_declare(queue=queue_submit_sm)
-        queue_submit_sm_resp = 'submit.sm.resp.%s' % c.id
-        self.log.info('Declaring submit_sm_resp queue to publish to: %s', queue_submit_sm_resp)
-        yield self.amqpBroker.named_queue_declare(queue=queue_submit_sm_resp)
-        queue_deliver_sm = 'deliver.sm.%s' % c.id
-        self.log.info('Declaring deliver_sm queue to publish to: %s', queue_deliver_sm)
-        yield self.amqpBroker.named_queue_declare(queue=queue_deliver_sm)
-        queue_dlr = 'dlr.%s' % c.id
-        self.log.info('Declaring dlr queue to publish to: %s', queue_dlr)
-        yield self.amqpBroker.named_queue_declare(queue=queue_dlr)
+        # First declare the messaging exchange
+        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        # submit.sm queue declaration and binding
+        routingKey_submit_sm = 'submit.sm.%s' % c.id
+        self.log.info('Declaring submit_sm queue to listen to: %s', routingKey_submit_sm)
+        yield self.amqpBroker.named_queue_declare(queue=routingKey_submit_sm)
+        yield self.amqpBroker.chan.queue_bind(queue=routingKey_submit_sm, exchange="messaging", routing_key=routingKey_submit_sm)
+        # submit.sm.resp queue declaration and binding
+        routingKey_submit_sm_resp = 'submit.sm.resp.%s' % c.id
+        self.log.info('Declaring submit_sm_resp queue to publish to: %s', routingKey_submit_sm_resp)
+        yield self.amqpBroker.named_queue_declare(queue=routingKey_submit_sm_resp)
+        yield self.amqpBroker.chan.queue_bind(queue=routingKey_submit_sm_resp, exchange="messaging", routing_key=routingKey_submit_sm_resp)
+        # deliver.sm queue declaration and binding
+        routingKey_deliver_sm = 'deliver.sm.%s' % c.id
+        self.log.info('Declaring deliver_sm queue to publish to: %s', routingKey_deliver_sm)
+        yield self.amqpBroker.named_queue_declare(queue=routingKey_deliver_sm)
+        yield self.amqpBroker.chan.queue_bind(queue=routingKey_deliver_sm, exchange="messaging", routing_key=routingKey_deliver_sm)
+        # dlr queue declaration and binding
+        routingKey_dlr = 'dlr.%s' % c.id
+        self.log.info('Declaring dlr queue to publish to: %s', routingKey_dlr)
+        yield self.amqpBroker.named_queue_declare(queue=routingKey_dlr)
+        yield self.amqpBroker.chan.queue_bind(queue=routingKey_dlr, exchange="messaging", routing_key=routingKey_dlr)
                 
         # Subscribe to submit.sm.%cid queue
+        # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
         consumerTag = 'SMPPClientFactory.%s' % c.id
-        self.log.info('SMPPClientFactory.%s is consuming from queue: %s', c.id, queue_submit_sm)
-        yield self.amqpBroker.chan.basic_consume(queue=queue_submit_sm, consumer_tag=consumerTag)
+        yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm, no_ack=False, consumer_tag=consumerTag)
         submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.log.info('SMPPClientFactory.%s is consuming from routing key: %s', c.id, routingKey_submit_sm)
         
         # Instanciate smpp client service manager
         serviceManager = SMPPClientService(c, self.config)
