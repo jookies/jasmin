@@ -33,27 +33,44 @@ class HTTPApiTestCases(TestCase):
         self.web = DummySite(HTTPApi(RouterPB_f, clientManager_f, httpApiConfigInstance))
 
 class SendTestCases(HTTPApiTestCases):
+    username = 'fourat'
+
     @defer.inlineCallbacks
     def test_send_with_correct_args(self):
-        response = yield self.web.get("send", {'username': 'fourat', 
+        response = yield self.web.get("send", {'username': self.username, 
                                                'password': 'incorrect',
                                                'to': '98700177',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure\"")
+        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+
+    @defer.inlineCallbacks
+    def test_send_with_incorrect_args(self):
+        response = yield self.web.get("send", {'username': self.username, 
+                                               'passwd': 'correct',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 400)
+        self.assertEqual(response.value(), "Error \"Mandatory argument [password] is not found.\"")
 
     @defer.inlineCallbacks
     def test_send_with_auth_success(self):
-        response = yield self.web.get("send", {'username': 'fourat', 
+        response = yield self.web.get("send", {'username': self.username, 
                                                'password': 'correct',
                                                'to': '98700177',
                                                'content': 'anycontent'})
-        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
         self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check log file for details\"")
 
     @defer.inlineCallbacks
     def test_send_without_args(self):
         response = yield self.web.get("send")
-        self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"'username'\"")
+        self.assertEqual(response.responseCode, 400)
+        self.assertEqual(response.value(), "Error \"Mandatory arguments not found, please refer to the HTTPAPI specifications.\"")
+        
+    @defer.inlineCallbacks
+    def test_send_with_some_args(self):
+        response = yield self.web.get("send", {'username': self.username})
+        self.assertEqual(response.responseCode, 400)
+        self.assertEqual(response.value(), "Error \"Mandatory argument [content] is not found.\"")

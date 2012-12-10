@@ -1,7 +1,4 @@
-class ValidationError(Exception):
-    """
-    An exception that is raised when url validation fails 
-    """
+from jasmin.protocols.http.errors import ValidationError
 
 class UrlArgsValidator:
     def __init__(self, request, fields):
@@ -10,6 +7,9 @@ class UrlArgsValidator:
         
     def validate(self):
         args = self.request.args
+        
+        if len(args) == 0:
+            raise ValidationError('Mandatory arguments not found, please refer to the HTTPAPI specifications.')
         
         for arg in args:
             value = args[arg][0]

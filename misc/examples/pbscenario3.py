@@ -26,18 +26,19 @@ def runScenario():
     try:
         # Now connect to SMPP Client management PB proxy
         proxy_smpp = SMPPClientManagerPBProxy()
-
         yield proxy_smpp.connect('127.0.0.1', 8989)
+
+        # Provision SMPPClientManagerPBProxy with a connector and start it
         connector1 = {'id':'abc', 'username':'smppclient1', 'reconnectOnConnectionFailure':True}
         config1 = SMPPClientConfig(**connector1)
         yield proxy_smpp.add(config1)
         yield proxy_smpp.start('abc')
         
-        # Now connect to SMPP Client management PB proxy
+        # Now connect to Router PB proxy
         proxy_router = RouterPBProxy()
         yield proxy_router.connect('127.0.0.1', 8988)
         
-        # Provision router with routes
+        # Provision RouterPBProxy with MT routes
         yield proxy_router.mtroute_add(DefaultRoute(Connector('abc')), 0)
         routes = yield proxy_router.mtroute_get_all()
         print "Configured routes: \n\t%s" % pickle.loads(routes)
@@ -48,6 +49,7 @@ def runScenario():
         users = yield proxy_router.user_get_all()
         print "Users: \n\t%s" % pickle.loads(users)
         
+        # Send a SMS MT through http interface
         c = yield getPage('http://127.0.0.1:1401/send?to=%2b21698700177&content=test&username=fourat&password=anypassword')
         print "SMS Id: \n\t%s" % c
                 

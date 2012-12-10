@@ -5,6 +5,7 @@ from smpp.pdu.constants import priority_flag_value_map
 from jasmin.protocols.http.validation import UrlArgsValidator
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
+from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -37,7 +38,7 @@ class Send(Resource):
             user = self.RouterPB.authenticateUser(username = request.args['username'][0], password = request.args['password'][0])
             if user is None:
                 self.log.debug("Authentication failure for username:%s and password:%s" % (request.args['username'][0], request.args['password'][0]))
-                raise Exception('Authentication failure')
+                raise AuthenticationError('Authentication failure for username:%s' % request.args['username'][0])
             
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
@@ -59,7 +60,7 @@ class Send(Resource):
             routedConnector = self.RouterPB.getMTRoutingTable().getConnectorFor(routable)
             if routedConnector is None:
                 self.log.debug("No route matched this SubmitSmPDU")
-                raise Exception('No route matches')
+                raise RouteNotFoundError()
             else:
                 self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
                 # Send SubmitSmPDU through smpp client manager PB server
@@ -67,12 +68,12 @@ class Send(Resource):
             
             # Build final response
             if not c.result:
-                raise Exception('Cannot send submit_sm, check log file for details')
+                raise ServerError('Cannot send submit_sm, check log file for details')
             else:
                 response = {'return': c.result, 'status': 200}
         except Exception, e:
             self.log.error("Error: %s" % e)
-            response = {'return': str(e), 'status': 403}
+            response = {'return': e.message, 'status': e.code}
         finally:
             self.log.debug("Returning %s to %s." % (response, request.getClientIP()))
             request.setResponseCode(response['status'])
