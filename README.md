@@ -20,7 +20,8 @@ high traffic loads and full in-memory execution.
 
 Documentation
 -------------
-```cd misc/doc
+```
+cd misc/doc
 make html
 ...
 ...
