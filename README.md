@@ -15,11 +15,17 @@ Jasmin is a very complete open source SMS Gateway with many enterprise-class fea
 * Supports easy creation and sending of specialized/binary SMS like mono Ringtones, WAP Push, Vcards
 * Supports concatenated SMS strings (long SMS)
 
-Jasmin is designed for performance, high traffic loads and full in-memory execution.
+Jasmin relies heavily on message queuing through message brokers (Using AMQP), it is designed for performance, 
+high traffic loads and full in-memory execution.
 
-Usage
------
-New documentation coming Soon.
+Documentation
+-------------
+```cd misc/doc
+make html
+...
+...
+Build finished. The HTML pages are in build/html.
+```
 
 License
 -------
