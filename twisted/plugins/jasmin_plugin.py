@@ -14,7 +14,8 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig
+from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig
+from jasmin.routing.throwers import deliverSmThrower
 
 class Options(usage.Options):
 
@@ -61,6 +62,14 @@ class JasminServiceMaker:
         clientManager.setServiceParent(top_service)
         # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
         clientManager_f.addAmqpBroker(amqpBroker_f)
+        
+        # Start deliverSmThrower
+        deliverThrowerConfigInstance = deliverSmThrowerConfig(options['config'])
+        deliverThrower = deliverSmThrower()
+        deliverThrower.setConfig(deliverThrowerConfigInstance)
+        deliverThrower.setServiceParent(top_service)
+        # AMQP Broker is used to listen to deliver_sm/dlr queues
+        deliverThrower.addAmqpBroker(amqpBroker_f)
         
         # Start HTTP Api
         httpApiConfigInstance = HTTPApiConfig(options['config'])

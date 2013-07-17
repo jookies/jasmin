@@ -5,7 +5,11 @@ import logging
 import pickle
 from twisted.spread import pb
 from twisted.internet import defer
+from txamqp.queue import Closed
+from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable
+from jasmin.routing.Routables import RoutableDeliverSm
+from jasmin.routing.jasminApi import Connector
 
 LOG_CATEGORY = "jasmin-router"
 
@@ -43,14 +47,67 @@ class RouterPB(pb.Root):
          
         # @todo: the router must consume from deliver.sm.* and dlr.*   
         # Subscribe to deliver.sm.* queues
-        #yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        #consumerTag = 'RouterPB'
-        #routingKey = 'deliver.sm.*'
-        #yield self.amqpBroker.named_queue_declare(queue="deliver_sm")
-        #yield self.amqpBroker.chan.queue_bind(queue="deliver_sm", exchange="messaging", routing_key=routingKey)
-        #yield self.amqpBroker.chan.basic_consume(queue="deliver_sm", no_ack=False, consumer_tag=consumerTag)
-        #deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        #self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        consumerTag = 'RouterPB'
+        routingKey = 'deliver.sm.*'
+        yield self.amqpBroker.named_queue_declare(queue="deliver_sm")
+        yield self.amqpBroker.chan.queue_bind(queue="deliver_sm", exchange="messaging", routing_key=routingKey)
+        yield self.amqpBroker.chan.basic_consume(queue="deliver_sm", no_ack=False, consumer_tag=consumerTag)
+        self.deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
+        self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+        
+    def rejectAndRequeueMessage(self, message):
+        msgid = message.content.properties['message-id']
+        
+        self.log.debug("Requeuing DeliverSmPDU[%s] without delay" % msgid)
+        return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=1)
+    def rejectMessage(self, message):
+        return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
+    def ackMessage(self, message):
+        return self.amqpBroker.chan.basic_ack(message.delivery_tag)
+
+    @defer.inlineCallbacks
+    def deliver_sm_callback(self, message):
+        """This callback is a queue listener
+        it is called whenever a message was consumed from queue
+        c.f. test_router.DeliverSmDeliveryTestCases for use cases
+        """
+        msgid = message.content.properties['message-id']
+        scid = message.content.properties['headers']['connector-id']
+        connector = Connector(scid)
+        DeliverSmPDU = pickle.loads(message.content.body)
+        self.log.debug("Callbacked a deliver_sm with a DeliverSmPDU[%s] (?): %s" % (msgid, DeliverSmPDU))
+
+        # @todo: Implement MO throttling here, same as in jasmin.managers.listeners.SMPPClientSMListener.submit_sm_callback
+        self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
+        
+        # Routing
+        routable = RoutableDeliverSm(DeliverSmPDU, connector)
+        routedConnector = self.getMORoutingTable().getConnectorFor(routable)
+        if routedConnector is None:
+            self.log.debug("No route matched this DeliverSmPDU with scid:%s and msgid:%s" % (scid, msgid))
+            yield self.rejectMessage(message)
+        else:
+            self.log.debug("Connector '%s' is set to be a route for this DeliverSmPDU" % routedConnector.cid)
+            yield self.ackMessage(message)
+            
+            # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
+            content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
+            self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (msgid, routedConnector.type, routedConnector.cid))
+            yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % routedConnector.type, content=content)
+    
+    def deliver_sm_errback(self, error):
+        """It appears that when closing a queue with the close() method it errbacks with
+        a txamqp.queue.Closed exception, didnt find a clean way to stop consuming a queue
+        without errbacking here so this is a workaround to make it clean, it can be considered
+        as a @TODO requiring knowledge of the queue api behaviour
+        """
+        if error.check(Closed) == None:
+            #@todo: implement this errback
+            # For info, this errback is called whenever:
+            # - an error has occured inside deliver_sm_callback
+            self.log.error("Error in deliver_sm_errback: %s" % error)
 
     def getMORoutingTable(self):
         return self.mo_routing_table

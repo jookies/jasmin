@@ -102,7 +102,7 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
         yield SMPPClientPBProxyTestCase.setUp(self)
 
         factory = Factory()
-        factory.protocol = DeliverSMSMSC      
+        factory.protocol = DeliverSMSMSC
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
     def tearDown(self):
@@ -115,7 +115,7 @@ class SMSCSimulatorDeliveryReceiptSM(SMPPClientPBProxyTestCase):
         yield SMPPClientPBProxyTestCase.setUp(self)
 
         factory = Factory()
-        factory.protocol = DeliveryReceiptSMSMSC      
+        factory.protocol = DeliveryReceiptSMSC      
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
     def tearDown(self):

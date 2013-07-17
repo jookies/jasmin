@@ -21,7 +21,11 @@ class HappySMSCRecorder(HappySMSC):
     def handleData(self, reqPDU):
         self.sendSuccessResponse(reqPDU)
         
-class DeliveryReceiptSMSMSC(HappySMSC):
+class DeliverSmSMSC(HappySMSC):
+    def trigger_deliver_sm(self, pdu):
+        self.sendPDU(pdu)
+        
+class DeliveryReceiptSMSC(HappySMSC):
     
     def __init__( self ):
         HappySMSC.__init__(self)

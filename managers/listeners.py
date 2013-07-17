@@ -39,13 +39,13 @@ class SMPPClientSMListener:
             t = self.rejectTimers[msgid]
             if t.active():
                 t.cancel()
-                del self.rejectTimers[msgid]
+            del self.rejectTimers[msgid]
 
     def clearRejectTimers(self):
         for msgid, timer in self.rejectTimers.items():
             if timer.active():
                 timer.cancel()
-                del self.rejectTimers[msgid]
+            del self.rejectTimers[msgid]
                 
     def clearQosTimer(self):
         if self.qosTimer is not None and self.qosTimer.called == False:
@@ -63,6 +63,9 @@ class SMPPClientSMListener:
             self.log.debug("Requeuing SubmitSmPDU[%s] in %s seconds" % (msgid, self.SMPPClientFactory.config.requeue_delay))
             t = reactor.callLater(self.SMPPClientFactory.config.requeue_delay, self.amqpBroker.chan.basic_reject, delivery_tag=message.delivery_tag, requeue=1)
 
+            # If any, clear timer before setting a new one
+            self.clearRejectTimer(msgid)
+            
             self.rejectTimers[msgid] = t
             return t
         else:
@@ -185,13 +188,12 @@ class SMPPClientSMListener:
             # For info, this errback is called whenever:
             # - an error has occured inside submit_sm_callback
             # - the qosTimer has been cancelled (self.clearQosTimer())
-            print "Error in submit_sm_errback: %s" % (error)
-            #return error
+            self.log.error("Error in submit_sm_errback: %s" % error)
     
     @defer.inlineCallbacks
     def deliver_sm_callback(self, smpp, pdu):
         pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
-        content = DeliverSmContent(pdu, pickleProtocol = self.pickleProtocol)
+        content = DeliverSmContent(pdu, self.SMPPClientFactory.config.id, pickleProtocol = self.pickleProtocol)
         
         if pdu.dlr is None:
             destination_queue = 'deliver.sm.%s' % self.SMPPClientFactory.config.id

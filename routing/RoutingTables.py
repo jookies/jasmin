@@ -25,6 +25,8 @@ class RoutingTable:
             raise InvalidRoutingTableParameterError("route must be of type '%s', '%s' was given" % (self.type, route.type))
         if order == 0 and route.type != 'default':
             raise InvalidRoutingTableParameterError("Route with order=0 must be a DefaultRoute")
+        if self.type == 'mo' and route.connector.type not in ['http', 'smpp']:
+            raise InvalidRoutingTableParameterError("MO Route does not accept a generic connector")
         
         # Replace older routes with the same given order
         for r in self.table:

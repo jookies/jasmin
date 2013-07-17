@@ -1,3 +1,5 @@
+import re
+
 class jasminApiObject():
     pass
 
@@ -13,5 +15,19 @@ class User(jasminApiObject):
         self.password = password
 
 class Connector(jasminApiObject):
+    type = 'generic'
+    
     def __init__(self, cid):
         self.cid = cid
+        
+class HttpConnector(Connector):
+    def __init__(self, cid, baseurl, method = 'GET'):
+        Connector.__init__(self, cid)
+        self.type = 'http'
+        self.baseurl = baseurl
+        self.method = method
+        
+class SmppConnector(Connector):
+    def __init__(self, cid):
+        Connector.__init__(self, cid)
+        self.type = 'smpp'

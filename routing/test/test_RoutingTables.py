@@ -102,10 +102,10 @@ class MORoutingTableTestCase(RoutingTableTests, TestCase):
     _routingTable = MORoutingTable
     
     def setUp(self):
-        self.connector1 = Connector('abc')
-        self.connector2 = Connector('def')
-        self.connector3 = Connector('ghi')
-        self.connector4 = Connector('jkl')
+        self.connector1 = HttpConnector('abc', 'http://127.0.0.1')
+        self.connector2 = HttpConnector('def', 'http://127.0.0.1')
+        self.connector3 = HttpConnector('ghi', 'http://127.0.0.1')
+        self.connector4 = HttpConnector('jkl', 'http://127.0.0.1')
         
         self.mt_filter1 = [SourceAddrFilter('^10\d+')]
         self.mt_filter2 = [DestinationAddrFilter('^90\d+')]
