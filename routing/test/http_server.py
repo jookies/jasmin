@@ -7,13 +7,19 @@ class LeafServer(Resource):
     isLeaf = True
     def render_GET(self, request):
         return 'render_GET'
+    def render_POST(self, request):
+        return 'render_POST'
 
 class AckServer(LeafServer):
     def render_GET(self, request):
         return 'ACK/Jasmin'
+    def render_POST(self, request):
+        return 'ACK/Jasmin'
 
 class NoAckServer(LeafServer):
     def render_GET(self, request):
+        return 'Anything'
+    def render_POST(self, request):
         return 'Anything'
 
 class TimeoutLeafServer(Resource):
@@ -22,10 +28,17 @@ class TimeoutLeafServer(Resource):
     def render_GET(self, request):
         time.sleep(self.hangTime)
         return 'render_GET'
+    def render_POST(self, request):
+        time.sleep(self.hangTime)
+        return 'render_POST'
 
 class Error404Server(Resource):
     isLeaf = True
     def render_GET(self, request):
+        request.setResponseCode(404)
+        request.finish()
+        return server.NOT_DONE_YET
+    def render_POST(self, request):
         request.setResponseCode(404)
         request.finish()
         return server.NOT_DONE_YET

@@ -4,7 +4,7 @@
 import pickle
 from twisted.spread import pb
 from twisted.internet import reactor
-from smpp.pdu.operations import SubmitSM
+from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 
 class SMPPClientManagerPBProxy:

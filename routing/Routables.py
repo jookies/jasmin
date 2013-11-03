@@ -1,5 +1,5 @@
 from datetime import datetime
-from smpp.pdu.pdu_types import PDURequest
+from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
 from jasmin.routing.jasminApi import *
 
 class InvalidRoutableParameterError(Exception):

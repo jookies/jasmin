@@ -3,11 +3,11 @@
 
 import logging
 import re
-from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, 
+from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, 
                                 RegisteredDelivery, RegisteredDeliveryReceipt, 
                                 AddrTon, AddrNpi, 
                                 PriorityFlag, ReplaceIfPresentFlag, DataCoding)
-from smpp.pdu.smpp_time import SMPPRelativeTime 
+from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime 
 from jasmin.config.tools import ConfigFile
 
 class ConfigUndefinedIdError(Exception):
@@ -16,6 +16,10 @@ class ConfigUndefinedIdError(Exception):
 
 class ConfigInvalidIdError(Exception):
     """Raised when a *Config class is initialized with an invalid ID syntax
+    """
+    
+class TypeMismatch(Exception):
+    """Raised when a *Config element has not a valid type
     """
 
 class SMPPClientConfig():
@@ -30,11 +34,15 @@ class SMPPClientConfig():
         self.id = kwargs.get('id')
         
         self.host = kwargs.get('host', '127.0.0.1')
+        if not isinstance(self.host, str):
+            raise TypeMismatch('host must be a string')
         self.port = kwargs.get('port', 2775)
+        if not isinstance(self.port, int):
+            raise TypeMismatch('port must be an integer')
         self.username = kwargs.get('username', 'smppclient')
         self.password = kwargs.get('password', 'password')
         self.systemType = kwargs.get('systemType', '')
-        self.log_file = kwargs.get('log_file', '/tmp/default-%s.log' % self.id)
+        self.log_file = kwargs.get('log_file', '/var/log/jasmin/default-%s.log' % self.id)
         self.log_level = kwargs.get('log_level', logging.INFO)
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = kwargs.get('log_dateformat', '%Y-%m-%d %H:%M:%S')
@@ -105,11 +113,14 @@ class SMPPClientConfig():
         self.requeue_delay = kwargs.get('requeue_delay', 120)
         self.submit_sm_throughput = 1
         
+        # DLR
+        self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
+        
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):
         ConfigFile.__init__(self, config_file)
         
         self.log_level = logging.getLevelName(self._get('service-smppclient', 'log_level', 'INFO'))
-        self.log_file = self._get('services-smppclient', 'log_file', '/tmp/service-smppclient.log')
+        self.log_file = self._get('services-smppclient', 'log_file', '/var/log/jasmin/service-smppclient.log')
         self.log_format = self._get('services-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('services-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')

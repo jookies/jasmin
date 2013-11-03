@@ -14,8 +14,10 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower
+from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmThrower, DLRThrower
+from jasmin.redis.configs import RedisForJasminConfig
+from jasmin.redis.client import ConnectionWithConfiguration
 
 class Options(usage.Options):
 
@@ -63,13 +65,30 @@ class JasminServiceMaker:
         # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
         clientManager_f.addAmqpBroker(amqpBroker_f)
         
+        # Connect to redis server
+        RedisForJasminConfigInstance = RedisForJasminConfig(options['config'])
+        rc = ConnectionWithConfiguration(RedisForJasminConfigInstance)
+        # Authenticate and select db
+        if RedisForJasminConfigInstance.password is not None:
+            rc.auth(RedisForJasminConfigInstance.password)
+            rc.select(RedisForJasminConfigInstance.dbid)
+        clientManager_f.addRedisClient(rc)
+
         # Start deliverSmThrower
         deliverThrowerConfigInstance = deliverSmThrowerConfig(options['config'])
         deliverThrower = deliverSmThrower()
         deliverThrower.setConfig(deliverThrowerConfigInstance)
         deliverThrower.setServiceParent(top_service)
-        # AMQP Broker is used to listen to deliver_sm/dlr queues
+        # AMQP Broker is used to listen to deliver_sm queue
         deliverThrower.addAmqpBroker(amqpBroker_f)
+        
+        # Start DLRThrower
+        DLRThrowerConfigInstance = DLRThrowerConfig(options['config'])
+        _DLRThrower = DLRThrower()
+        _DLRThrower.setConfig(DLRThrowerConfigInstance)
+        _DLRThrower.setServiceParent(top_service)
+        # AMQP Broker is used to listen to DLRThrower queue
+        _DLRThrower.addAmqpBroker(amqpBroker_f)
         
         # Start HTTP Api
         httpApiConfigInstance = HTTPApiConfig(options['config'])

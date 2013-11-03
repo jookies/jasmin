@@ -14,6 +14,7 @@ LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
 class SMPPClientManagerPB(pb.Root):
     def __init__(self):
+        self.rc = None
         self.amqpBroker = None
         self.connectors = []
         self.declared_queues = []
@@ -40,6 +41,11 @@ class SMPPClientManagerPB(pb.Root):
 
         self.log.info('Added amqpBroker to SMPPClientManagerPB')
         
+    def addRedisClient(self, rc):
+        self.rc = rc
+
+        self.log.info('Added Redis Client to SMPPClientManagerPB')
+
     def getConnector(self, cid):
         for c in self.connectors:
             if c['id'] == cid:
@@ -131,7 +137,7 @@ class SMPPClientManagerPB(pb.Root):
         serviceManager = SMPPClientService(c, self.config)
         
         # Instanciate a SM listener
-        smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), serviceManager.SMPPClientFactory, self.amqpBroker, submit_sm_q)
+        smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), serviceManager.SMPPClientFactory, self.amqpBroker, self.rc, submit_sm_q)
         
         # Deliver_sm are sent to smListener's deliver_sm callback method
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_callback
@@ -326,7 +332,8 @@ class SMPPClientManagerPB(pb.Root):
         return pickle.dumps(connector['config'], self.pickleProtocol)
     
     @defer.inlineCallbacks
-    def remote_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True):
+    def remote_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
+                         dlr_url = None, dlr_level = 1, dlr_method = 'POST'):
         """This will enqueue a submit_sm to a connector
         """
 
@@ -362,4 +369,21 @@ class SMPPClientManagerPB(pb.Root):
         c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period)
         yield self.amqpBroker.publish(routing_key=pubQueueName, content=c)
         
-        defer.returnValue(c['message-id'])
+        # Enqueue DLR request
+        if dlr_url is not None:
+            if self.rc is None or str(self.rc) == '<Redis Connection: Not connected>':
+                self.log.warn("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected." % c.properties['message-id'])
+            else:
+                self.log.debug('Setting DLR url (%s) and level (%s) for message id:%s, expiring in %s' % (dlr_url, dlr_level, c.properties['message-id'], connector['config'].dlr_expiry))
+                # Set values:
+                self.rc.set("%s:url" % c.properties['message-id'], dlr_url)
+                self.rc.set("%s:level" % c.properties['message-id'], dlr_level)
+                self.rc.set("%s:method" % c.properties['message-id'], dlr_method)
+                self.rc.set("%s:expiry" % c.properties['message-id'], connector['config'].dlr_expiry)
+                # Set expiration:
+                self.rc.expire("%s:url" % c.properties['message-id'], connector['config'].dlr_expiry)
+                self.rc.expire("%s:level" % c.properties['message-id'], connector['config'].dlr_expiry)
+                self.rc.expire("%s:method" % c.properties['message-id'], connector['config'].dlr_expiry)
+                self.rc.expire("%s:expiry" % c.properties['message-id'], connector['config'].dlr_expiry)
+        
+        defer.returnValue(c.properties['message-id'])

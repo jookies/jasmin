@@ -12,7 +12,6 @@ class UrlArgsValidator:
             raise ValidationError('Mandatory arguments not found, please refer to the HTTPAPI specifications.')
         
         for arg in args:
-            value = args[arg][0]
             # Check for unknown args
             if arg not in self.fields:
                 raise ValidationError("Argument [%s] is unknown." % arg)
@@ -22,7 +21,8 @@ class UrlArgsValidator:
                 fieldData = self.fields[field]
                     
                 if field in args:
-                    value = args[field][0]
+                    value = str(args[field][0])
+                    
                     # Validate known args
                     if 'pattern' in self.fields[field] and self.fields[field]['pattern'].match(value) is None:
                         raise ValidationError("Argument [%s] has an invalid value: [%s]." % (field, value))

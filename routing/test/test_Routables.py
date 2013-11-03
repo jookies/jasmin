@@ -4,7 +4,7 @@
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU, RoutableSubmitSm, RoutableDeliverSm, InvalidRoutableParameterError
-from smpp.pdu.operations import SubmitSM
+from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.routing.jasminApi import *
 
 class RoutablePDUTestCase(TestCase):

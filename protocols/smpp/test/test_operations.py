@@ -9,8 +9,8 @@ import binascii
 from twisted.trial.unittest import TestCase
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from smpp.pdu.pdu_types import CommandId, CommandStatus
-from smpp.pdu.operations import SubmitSM, DeliverSM
+from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 
 class OperationsTest(TestCase):
     source_addr         = '20203060'

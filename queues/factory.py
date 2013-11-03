@@ -36,7 +36,7 @@ class AmqpFactory(ClientFactory):
     
     def preConnect(self):
         """Initiate deferreds before connecting
-        these deferreds are initiated separately and not withing self._connect()
+        these deferreds are initiated separately and not within self._connect()
         because this one is not called when jasmin is ran as a twistd plugin.
         """
         

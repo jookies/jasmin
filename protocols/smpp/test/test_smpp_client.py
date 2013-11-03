@@ -18,9 +18,9 @@ from twisted.internet.protocol import Factory
 from twisted.python import log
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPClientFactory
-from smpp.pdu.pdu_types import CommandStatus
-from smpp.pdu.operations import *
-from smpp.pdu.error import *
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
+from jasmin.vendor.smpp.pdu.operations import *
+from jasmin.vendor.smpp.pdu.error import *
 
 class SimulatorTestCase(TestCase):
     protocol = HappySMSC

@@ -4,18 +4,21 @@
 import mock
 import pickle
 import time
+import urllib
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
 from twisted.web import server
 from twisted.web.client import getPage
 from jasmin.protocols.smpp.test.smsc_simulator import *
+from jasmin.redis.configs import RedisForJasminConfig
+from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.routing.router import RouterPB
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.test.http_server import AckServer
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower
+from jasmin.routing.configs import deliverSmThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmThrower, DLRThrower
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.smpp.configs import SMPPClientConfig
@@ -96,15 +99,33 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         self.CManagerServer = reactor.listenTCP(0, pb.PBServerFactory(self.clientManager_f))
         self.CManagerPort = self.CManagerServer.getHost().port
         
+        # Start DLRThrower
+        DLRThrowerConfigInstance = DLRThrowerConfig()
+        self.DLRThrower = DLRThrower()
+        self.DLRThrower.setConfig(DLRThrowerConfigInstance)
+        self.DLRThrower.addAmqpBroker(self.amqpBroker)
+        
+        # Connect to redis server
+        RedisForJasminConfigInstance = RedisForJasminConfig()
+        self.rc = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
+        # Authenticate and select db
+        if RedisForJasminConfigInstance.password is not None:
+            yield self.rc.auth(RedisForJasminConfigInstance.password)
+            yield self.rc.select(RedisForJasminConfigInstance.dbid)
+        # Connect CM with RC:
+        self.clientManager_f.addRedisClient(self.rc)
+        
         # Set a smpp client manager proxy instance
         self.SMPPClientManagerPBProxy = SMPPClientManagerPBProxy()
-
+    
+    @defer.inlineCallbacks
     def tearDown(self):
         HttpServerTestCase.tearDown(self)
         
         self.SMPPClientManagerPBProxy.disconnect()
         self.CManagerServer.stopListening()
         self.amqpClient.disconnect()
+        yield self.rc.disconnect()
         
 class LastClientFactory(Factory):
     lastClient = None
@@ -125,6 +146,23 @@ class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
                 
     def tearDown(self):
         SMPPClientManagerPBTestCase.tearDown(self)
+        
+        self.SMSCPort.stopListening()
+        
+class HappySMSCTestCase(SMPPClientManagerPBTestCase):
+    protocol = ManualDeliveryReceiptHappySMSC
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SMPPClientManagerPBTestCase.setUp(self)
+        
+        self.smsc_f = LastClientFactory()
+        self.smsc_f.protocol = self.protocol      
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
+                
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield SMPPClientManagerPBTestCase.tearDown(self)
         
         self.SMSCPort.stopListening()
     
@@ -257,6 +295,487 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
         # @todo: Should be a real uuid pattern testing 
         self.assertApproximates(len(c), 40, 10)
         
+class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield HappySMSCTestCase.setUp(self)
+        
+        # Start http servers
+        self.AckServerResource = AckServer()
+        self.AckServer = reactor.listenTCP(0, server.Site(self.AckServerResource))
+
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield HappySMSCTestCase.tearDown(self)
+        
+        self.AckServer.stopListening()
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level1(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 1
+        3. Wait for the level1 DLR (submit_sm_resp) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        
+        c1 = Connector('def')
+        u1 = User(1, Group(1), 'username', 'password')
+        yield self.user_add(u1)
+
+        yield self.mtroute_add(DefaultRoute(c1), 0)
+        
+        # Send a SMS MT through http interface and set delivery receipt callback in url
+        dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
+        method = 'GET'
+        postdata = None
+        params = urllib.urlencode({'to': '98700177', 
+                                   'username': u1.username, 
+                                   'password': u1.password, 
+                                   'content': 'test', 
+                                   'dlr-url': dlr_url,
+                                   'dlr-level': 1})
+        baseurl = 'http://127.0.0.1:1401/send'
+        if method == 'GET':
+            baseurl += '?%s' % params
+        else:
+            postdata = params
+        
+        # Now we'll create the connecter 'def'
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+
+        # Start the connector
+        yield self.SMPPClientManagerPBProxy.start(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = method, postdata = postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        self.assertEqual(msgStatus, 'Success')
+        
+        # Disconnect the connector
+        yield self.SMPPClientManagerPBProxy.stop(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'NONE':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level2(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 2
+        3. Wait for the level2 DLR (deliver_sm) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        
+        c1 = Connector('def')
+        u1 = User(1, Group(1), 'username', 'password')
+        yield self.user_add(u1)
+
+        yield self.mtroute_add(DefaultRoute(c1), 0)
+        
+        # Send a SMS MT through http interface and set delivery receipt callback in url
+        dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
+        method = 'GET'
+        postdata = None
+        params = urllib.urlencode({'to': '98700177', 
+                                   'username': u1.username, 
+                                   'password': u1.password, 
+                                   'content': 'test', 
+                                   'dlr-url': dlr_url,
+                                   'dlr-level': 2})
+        baseurl = 'http://127.0.0.1:1401/send'
+        if method == 'GET':
+            baseurl += '?%s' % params
+        else:
+            postdata = params
+        
+        # Now we'll create the connecter 'def'
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+
+        # Start the connector
+        yield self.SMPPClientManagerPBProxy.start(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = method, postdata = postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        self.assertEqual(msgStatus, 'Success')
+        
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Disconnect the connector
+        yield self.SMPPClientManagerPBProxy.stop(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'NONE':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level3(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 3
+        3. Wait for the level1 & level2 DLRs and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        
+        c1 = Connector('def')
+        u1 = User(1, Group(1), 'username', 'password')
+        yield self.user_add(u1)
+
+        yield self.mtroute_add(DefaultRoute(c1), 0)
+        
+        # Send a SMS MT through http interface and set delivery receipt callback in url
+        dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
+        method = 'GET'
+        postdata = None
+        params = urllib.urlencode({'to': '98700177', 
+                                   'username': u1.username, 
+                                   'password': u1.password, 
+                                   'content': 'test', 
+                                   'dlr-url': dlr_url,
+                                   'dlr-level': 3})
+        baseurl = 'http://127.0.0.1:1401/send'
+        if method == 'GET':
+            baseurl += '?%s' % params
+        else:
+            postdata = params
+        
+        # Now we'll create the connecter 'def'
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+
+        # Start the connector
+        yield self.SMPPClientManagerPBProxy.start(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = method, postdata = postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        self.assertEqual(msgStatus, 'Success')
+        
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Disconnect the connector
+        yield self.SMPPClientManagerPBProxy.stop(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'NONE':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 2)
+        # Message ID must be transmitted in the DLR
+        callArgs_level1 = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        callArgs_level2 = self.AckServerResource.render_POST.call_args_list[1][0][0].args
+        self.assertEqual(callArgs_level1['id'][0], msgId)
+        self.assertEqual(callArgs_level2['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level1_GET(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 1 using GET method
+        3. Wait for the level1 DLR (submit_sm_resp) and run tests
+        """
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        
+        c1 = Connector('def')
+        u1 = User(1, Group(1), 'username', 'password')
+        yield self.user_add(u1)
+
+        yield self.mtroute_add(DefaultRoute(c1), 0)
+        
+        # Send a SMS MT through http interface and set delivery receipt callback in url
+        dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
+        method = 'GET'
+        postdata = None
+        params = urllib.urlencode({'to': '98700177', 
+                                   'username': u1.username, 
+                                   'password': u1.password, 
+                                   'content': 'test', 
+                                   'dlr-url': dlr_url,
+                                   'dlr-level': 1,
+                                   'dlr-method': 'GET'})
+        baseurl = 'http://127.0.0.1:1401/send'
+        if method == 'GET':
+            baseurl += '?%s' % params
+        else:
+            postdata = params
+        
+        # Now we'll create the connecter 'def'
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+
+        # Start the connector
+        yield self.SMPPClientManagerPBProxy.start(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = method, postdata = postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        self.assertEqual(msgStatus, 'Success')
+        
+        # Disconnect the connector
+        yield self.SMPPClientManagerPBProxy.stop(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'NONE':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level2_GET(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 2 using GET method
+        3. Wait for the level2 DLR (deliver_sm) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        
+        c1 = Connector('def')
+        u1 = User(1, Group(1), 'username', 'password')
+        yield self.user_add(u1)
+
+        yield self.mtroute_add(DefaultRoute(c1), 0)
+        
+        # Send a SMS MT through http interface and set delivery receipt callback in url
+        dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
+        method = 'GET'
+        postdata = None
+        params = urllib.urlencode({'to': '98700177', 
+                                   'username': u1.username, 
+                                   'password': u1.password, 
+                                   'content': 'test', 
+                                   'dlr-url': dlr_url,
+                                   'dlr-level': 2,
+                                   'dlr-method': 'get'})
+        baseurl = 'http://127.0.0.1:1401/send'
+        if method == 'GET':
+            baseurl += '?%s' % params
+        else:
+            postdata = params
+        
+        # Now we'll create the connecter 'def'
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+
+        # Start the connector
+        yield self.SMPPClientManagerPBProxy.start(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = method, postdata = postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        self.assertEqual(msgStatus, 'Success')
+        
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Disconnect the connector
+        yield self.SMPPClientManagerPBProxy.stop(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'NONE':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level3_GET(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 3 using GET method
+        3. Wait for the level1 & level2 DLRs and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        
+        c1 = Connector('def')
+        u1 = User(1, Group(1), 'username', 'password')
+        yield self.user_add(u1)
+
+        yield self.mtroute_add(DefaultRoute(c1), 0)
+        
+        # Send a SMS MT through http interface and set delivery receipt callback in url
+        dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
+        method = 'GET'
+        postdata = None
+        params = urllib.urlencode({'to': '98700177', 
+                                   'username': u1.username, 
+                                   'password': u1.password, 
+                                   'content': 'test', 
+                                   'dlr-url': dlr_url,
+                                   'dlr-level': 3,
+                                   'dlr-method': 'gEt'})
+        baseurl = 'http://127.0.0.1:1401/send'
+        if method == 'GET':
+            baseurl += '?%s' % params
+        else:
+            postdata = params
+        
+        # Now we'll create the connecter 'def'
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+
+        # Start the connector
+        yield self.SMPPClientManagerPBProxy.start(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = method, postdata = postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        self.assertEqual(msgStatus, 'Success')
+        
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Disconnect the connector
+        yield self.SMPPClientManagerPBProxy.stop(c1.cid)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.SMPPClientManagerPBProxy.session_state(c1.cid)
+            if ssRet == 'NONE':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 2)
+        # Message ID must be transmitted in the DLR
+        callArgs_level1 = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
+        self.assertEqual(callArgs_level1['id'][0], msgId)
+        self.assertEqual(callArgs_level2['id'][0], msgId)
+
 class DeliverSmDeliveryTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     
     @defer.inlineCallbacks
@@ -302,7 +821,7 @@ class DeliverSmDeliveryTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Set the route
         yield self.moroute_add(DefaultRoute(c2_destination), 0)
         
-        # Now we'll create the connecter 'def' and send a MO to it
+        # Now we'll create the connecter 'abc'
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1_source.cid, port=c1_source.port)        
         yield self.SMPPClientManagerPBProxy.add(c1Config)

@@ -1,13 +1,15 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
-from smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
-from smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
-from smpp.pdu.pdu_types import CommandId
-from twisted.internet import defer, reactor
-from smpp.pdu.error import *
-from smpp.pdu.pdu_types import PDURequest
 import traceback
+import StringIO, binascii
+from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
+from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
+from jasmin.vendor.smpp.pdu.pdu_types import CommandId
+from jasmin.vendor.smpp.pdu.operations import *
+from twisted.internet import defer, reactor
+from jasmin.vendor.smpp.pdu.error import *
+from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
 
 LOG_CATEGORY="smpp.twisted.protocol"
 
@@ -129,7 +131,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
-
+            
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
             raise SMPPClientConnectionCorruptedError()

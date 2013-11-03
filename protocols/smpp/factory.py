@@ -6,7 +6,7 @@ from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
 from jasmin.protocols.smpp.protocol import SMPPClientProtocol
-from smpp.pdu.error import *
+from jasmin.vendor.smpp.pdu.error import *
 
 LOG_CATEGORY="smpp.twisted.protocol"
 
