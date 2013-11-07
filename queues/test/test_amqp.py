@@ -155,16 +155,18 @@ class PublishConsumeTestCase(ConsumeTools):
     def test_simple_publish_consume(self):
         yield self.connect()
         
-        # Publish
         yield self.amqp.named_queue_declare(queue="submit.sm.connector01")
-        yield self.amqp.publish(routing_key="submit.sm.connector01", content=Content(self.message))
         
         # Consume
         yield self.amqp.chan.basic_consume(queue="submit.sm.connector01", no_ack=True, consumer_tag='qtag')
         queue = yield self.amqp.client.queue('qtag')
         queue.get().addCallback(self._callback, queue).addErrback(self._errback)
         
+        # Publish
+        yield self.amqp.publish(routing_key="submit.sm.connector01", content=Content(self.message))
+
         # Wait for 2 seconds
+        # (give some time to the consumer to get its work done)
         exitDeferred = defer.Deferred()
         reactor.callLater(2, exitDeferred.callback, None)        
         yield exitDeferred        
@@ -181,9 +183,6 @@ class PublishConsumeTestCase(ConsumeTools):
         
         yield self.amqp.chan.exchange_declare(exchange='messaging', type='topic')
 
-        # Publish
-        yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01", content=Content(self.message))
-        
         # Consume
         yield self.amqp.named_queue_declare(queue="submit.sm_all")
         yield self.amqp.chan.queue_bind(queue="submit.sm_all", exchange="messaging", routing_key="submit.sm.*")
@@ -191,7 +190,11 @@ class PublishConsumeTestCase(ConsumeTools):
         queue = yield self.amqp.client.queue('qtag')
         queue.get().addCallback(self._callback, queue).addErrback(self._errback)
         
+        # Publish
+        yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01", content=Content(self.message))
+
         # Wait for 2 seconds
+        # (give some time to the consumer to get its work done)
         exitDeferred = defer.Deferred()
         reactor.callLater(2, exitDeferred.callback, None)        
         yield exitDeferred        
@@ -206,11 +209,8 @@ class PublishConsumeTestCase(ConsumeTools):
     def test_publish_consume_from_different_queues(self):
         yield self.connect()
         
-        # Publish
         yield self.amqp.named_queue_declare(queue="submit.sm.connector01")
         yield self.amqp.named_queue_declare(queue="deliver.sm.connector01")
-        yield self.amqp.publish(routing_key="submit.sm.connector01", content=Content(self.message))
-        yield self.amqp.publish(routing_key="deliver.sm.connector01", content=Content(self.message))
         
         # Consume
         yield self.amqp.chan.basic_consume(queue="submit.sm.connector01", no_ack=True, consumer_tag='submit_sm_consumer')
@@ -220,7 +220,12 @@ class PublishConsumeTestCase(ConsumeTools):
         self.submit_sm_q.get().addCallback(self._callback, self.submit_sm_q).addErrback(self._errback)
         self.deliver_sm_q.get().addCallback(self._callback, self.deliver_sm_q).addErrback(self._errback)
         
+        # Publish
+        yield self.amqp.publish(routing_key="submit.sm.connector01", content=Content(self.message))
+        yield self.amqp.publish(routing_key="deliver.sm.connector01", content=Content(self.message))
+
         # Wait for 2 seconds
+        # (give some time to the consumer to get its work done)
         exitDeferred = defer.Deferred()
         reactor.callLater(2, exitDeferred.callback, None)        
         yield exitDeferred                
