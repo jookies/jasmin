@@ -396,9 +396,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         reactor.callLater(2, waitingDeferred.callback, None)
         yield waitingDeferred
 
-        # We delete the queues before stopping the connector to let further
-        # tests run without having old messages in the queues, in normal
-        # situations, delQueues shall not be set to true
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
@@ -453,9 +450,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             counter += 1
         endAt = datetime.now()
         
-        # We delete the queues before stopping the connector to let further
-        # tests run without having old messages in the queues, in normal
-        # situations, delQueues shall not be set to true
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
@@ -495,9 +489,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         reactor.callLater(5, waitingDeferred.callback, None)
         yield waitingDeferred
         
-        # We delete the queues before stopping the connector to let further
-        # tests run without having old messages in the queues, in normal
-        # situations, delQueues shall not be set to true
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
