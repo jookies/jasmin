@@ -128,8 +128,8 @@ class SMPPClientSMListener:
             yield self.rejectMessage(message)
             defer.returnValue(False)
         # If the message has expired in the queue
-        if 'expiration' in message.content.properties:
-            expiration_datetime = parser.parse(message.content.properties['expiration'])
+        if 'headers' in message.content.properties and 'expiration' in message.content.properties['headers']:
+            expiration_datetime = parser.parse(message.content.properties['headers']['expiration'])
             if expiration_datetime < datetime.now():
                 self.log.info("Discarding expired message[%s]: expiration is %s" % (msgid, expiration_datetime))
                 yield self.rejectMessage(message)
@@ -161,7 +161,7 @@ class SMPPClientSMListener:
                            r.response.status,
                            amqpMessage.content.properties['priority'],
                            r.request.params['registered_delivery'].receipt,
-                           'none' if 'expiration' not in amqpMessage.content.properties else amqpMessage.content.properties['expiration'],
+                           'none' if 'headers' not in amqpMessage.content.properties or 'expiration' not in amqpMessage.content.properties['headers'] else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
                            r.request.params['short_message']
@@ -174,7 +174,7 @@ class SMPPClientSMListener:
                            r.response.status,
                            amqpMessage.content.properties['priority'],
                            r.request.params['registered_delivery'].receipt,
-                           'none' if 'expiration' not in amqpMessage.content.properties else amqpMessage.content.properties['expiration'],
+                           'none' if 'headers' not in amqpMessage.content.properties or 'expiration' not in amqpMessage.content.properties['headers'] else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
                            r.request.params['short_message']
@@ -225,7 +225,7 @@ class SMPPClientSMListener:
                 self.log.debug('There were no DLR request for msgid[%s].' % (msgid))
         else:
             self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
-         
+        
         # Send back submit_sm_resp to submit.sm.resp.CID queue
         # There's no actual listeners on this queue, it can be used to track submit_sm_resp messages from a 3rd party app
         content = SubmitSmRespContent(r.response, msgid, pickleProtocol = self.pickleProtocol)
@@ -251,6 +251,10 @@ class SMPPClientSMListener:
         content = DeliverSmContent(pdu, self.SMPPClientFactory.config.id, pickleProtocol = self.pickleProtocol)
         msgid = content.properties['message-id']
         
+        #self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]", msgid, amqpMessage.routing_key)
+        # ACK the message in queue, this will remove it from the queue
+        #yield self.ackMessage(amqpMessage)
+
         if pdu.dlr is None:
             destination_queue = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
             self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
@@ -320,7 +324,8 @@ class SMPPClientSMListener:
                        pdu.dlr['err'],
                        pdu.dlr['text'],
                        ))
-
+            
         # Send back deliver_sm to deliver.sm.CID queue
+        # RouterPB.deliver_sm_callback will consume the message and decide of its destination
         self.log.debug("Sending DeliverSmContent[%s] with routing_key[%s]" % (msgid, destination_queue))
         yield self.amqpBroker.publish(exchange='messaging', routing_key=destination_queue, content=content)

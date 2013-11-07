@@ -370,6 +370,14 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.add(self.defaultConfig)
         yield self.start(self.defaultConfig.id)
 
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.session_state(self.defaultConfig.id)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+
         # Listen on the submit.sm.resp queue
         routingKey_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
         consumerTag = 'test_submitSm'
@@ -382,11 +390,16 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = assertionKey
         msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
+        
+        # Wait 2 seconds
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(2, waitingDeferred.callback, None)
+        yield waitingDeferred
 
         # We delete the queues before stopping the connector to let further
         # tests run without having old messages in the queues, in normal
         # situations, delQueues shall not be set to true
-        yield self.stop(self.defaultConfig.id, delQueues=True)
+        yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
         ssRet = yield self.session_state(self.defaultConfig.id)
@@ -443,7 +456,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # We delete the queues before stopping the connector to let further
         # tests run without having old messages in the queues, in normal
         # situations, delQueues shall not be set to true
-        yield self.stop(localConfig.id, delQueues=True)
+        yield self.stop(localConfig.id)
 
         # Wait for unbound state
         ssRet = yield self.session_state(localConfig.id)
@@ -474,23 +487,18 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             SubmitSmPDU = copy.copy(self.SubmitSmPDU)
             SubmitSmPDU.params['validity_period'] = datetime.today() + delta
             
-            yield self.submit_sm(localConfig.id, SubmitSmPDU)
+            c = yield self.submit_sm(localConfig.id, SubmitSmPDU)
             submitCounter += 1
-            
-        receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
-        counter = 0
-        # Wait for delivery (of 5 submits) in 6 seconds max time
-        while len(receivedSubmits) < 5 and counter < 60:
-            receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
-            # Yielding to let the reactor turn on
-            yield self.session_state(localConfig.id)
-            time.sleep(0.1)
-            counter += 1
+        
+        # Wait 5 seconds
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(5, waitingDeferred.callback, None)
+        yield waitingDeferred
         
         # We delete the queues before stopping the connector to let further
         # tests run without having old messages in the queues, in normal
         # situations, delQueues shall not be set to true
-        yield self.stop(localConfig.id, delQueues=True)
+        yield self.stop(localConfig.id)
 
         # Wait for unbound state
         ssRet = yield self.session_state(localConfig.id)
@@ -519,6 +527,13 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         
         # Give the reactor a run
         yield self.session_state(self.defaultConfig.id)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.session_state(self.defaultConfig.id)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
 
         # Listen on the deliver.sm queue
         queueName = 'deliver.sm.%s' % self.defaultConfig.id
@@ -549,18 +564,26 @@ class ClientConnectorDeliveryReceiptTestCases(SMSCSimulatorDeliveryReceiptSM):
     def test_deliverSm_dlr(self):
         yield self.connect('127.0.0.1', self.pbPort)
 
-        yield self.add(self.defaultConfig)
-        yield self.start(self.defaultConfig.id)
-        
-        # Give the reactor a run
-        yield self.session_state(self.defaultConfig.id)
-
         # Listen on the deliver.sm queue
         queueName = 'dlr.%s' % self.defaultConfig.id
         consumerTag = 'test_deliverSm_dlr'
         yield self.amqpBroker.chan.basic_consume(queue=queueName, consumer_tag=consumerTag, no_ack=True)
         deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
         deliver_sm_q.get().addCallback(self.deliver_sm_callback)
+
+        # Add & start
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.session_state(self.defaultConfig.id)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+        
+        # Give the reactor a run
+        yield self.session_state(self.defaultConfig.id)
 
         yield self.stop(self.defaultConfig.id)
 

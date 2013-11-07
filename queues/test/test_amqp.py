@@ -140,13 +140,12 @@ class ConsumeTestCase(ConsumeTools):
         
         yield self.amqp.chan.basic_consume(queue="submit.sm.connector01", no_ack=True, consumer_tag='qtag')
         self.queue = yield self.amqp.client.queue('qtag')
-        
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        
         self.queue.get().addCallback(self._callback, self.queue).addErrback(self._errback)
         
-        yield exitDeferred
+        # Wait for 2 seconds
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)        
+        yield exitDeferred                
         
         yield self.queue.close()
         yield self.amqp.disconnect()
@@ -163,13 +162,13 @@ class PublishConsumeTestCase(ConsumeTools):
         # Consume
         yield self.amqp.chan.basic_consume(queue="submit.sm.connector01", no_ack=True, consumer_tag='qtag')
         queue = yield self.amqp.client.queue('qtag')
-        
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        
         queue.get().addCallback(self._callback, queue).addErrback(self._errback)
         
+        # Wait for 2 seconds
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)        
         yield exitDeferred        
+
         yield queue.close()
 
         yield self.amqp.disconnect()
@@ -190,13 +189,13 @@ class PublishConsumeTestCase(ConsumeTools):
         yield self.amqp.chan.queue_bind(queue="submit.sm_all", exchange="messaging", routing_key="submit.sm.*")
         yield self.amqp.chan.basic_consume(queue="submit.sm_all", no_ack=True, consumer_tag='qtag')
         queue = yield self.amqp.client.queue('qtag')
-        
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        
         queue.get().addCallback(self._callback, queue).addErrback(self._errback)
         
+        # Wait for 2 seconds
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)        
         yield exitDeferred        
+        
         yield queue.close()
 
         yield self.amqp.disconnect()
@@ -218,14 +217,14 @@ class PublishConsumeTestCase(ConsumeTools):
         yield self.amqp.chan.basic_consume(queue="deliver.sm.connector01", no_ack=True, consumer_tag='deliver_sm_consumer')
         self.submit_sm_q = yield self.amqp.client.queue('submit_sm_consumer')
         self.deliver_sm_q = yield self.amqp.client.queue('deliver_sm_consumer')
-        
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        
         self.submit_sm_q.get().addCallback(self._callback, self.submit_sm_q).addErrback(self._errback)
         self.deliver_sm_q.get().addCallback(self._callback, self.deliver_sm_q).addErrback(self._errback)
         
-        yield exitDeferred
+        # Wait for 2 seconds
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)        
+        yield exitDeferred                
+
         yield self.submit_sm_q.close()
         yield self.deliver_sm_q.close()
 

@@ -14,6 +14,7 @@ class AuthenticationTestCase(TestCase):
         self.RedisForJasminConfigInstance = RedisForJasminConfig()
         self.RedisForJasminConfigInstance.password = 'guest'        
         self.rc = yield ConnectionWithConfiguration(self.RedisForJasminConfigInstance)
+        yield self.rc._connected
 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -43,7 +44,8 @@ class RedisTestCase(TestCase):
         if RedisForJasminConfigInstance.password is not None:
             self.rc.auth(RedisForJasminConfigInstance.password)
             self.rc.select(RedisForJasminConfigInstance.dbid)
-
+        yield self.rc._connected
+        
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.rc.disconnect()

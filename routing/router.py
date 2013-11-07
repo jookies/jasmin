@@ -50,9 +50,10 @@ class RouterPB(pb.Root):
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         consumerTag = 'RouterPB'
         routingKey = 'deliver.sm.*'
-        yield self.amqpBroker.named_queue_declare(queue="deliver_sm")
-        yield self.amqpBroker.chan.queue_bind(queue="deliver_sm", exchange="messaging", routing_key=routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue="deliver_sm", no_ack=False, consumer_tag=consumerTag)
+        queueName = 'RouterPB_deliver_sm_all' # A local queue to RouterPB
+        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
+        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
         self.deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
         self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
@@ -70,7 +71,8 @@ class RouterPB(pb.Root):
     @defer.inlineCallbacks
     def deliver_sm_callback(self, message):
         """This callback is a queue listener
-        it is called whenever a message was consumed from queue
+        It will only decide where to send the input message and republish it to the routedConnector
+        The consumer will execute the remaining job of final delivery 
         c.f. test_router.DeliverSmDeliveryTestCases for use cases
         """
         msgid = message.content.properties['message-id']

@@ -38,9 +38,6 @@ class DLRContent(Content):
             raise InvalidParameterError("Invalid message_status: %s", message_status)
         if dlr_level not in [1, 2, 3]:
             raise InvalidParameterError("Invalid dlr_level: %s", dlr_level)
-        if dlr_level in [2, 3] and (id_smsc is None or sub is None or dlvrd is None or subdate is None or donedate is None or err is None or text is None):
-            raise UndefinedParameterError("dlr_level is %s but some parameters were not defined: id_smsc:%s sub:%s dlvrd:%s subdate:%s donedate:%s err:%s text:%s"
-                            % (dlr_level, id_smsc, sub, dlvrd, subdate, donedate, err, text))
         if method not in ['POST', 'GET']:
             raise InvalidParameterError('Invalid method: %s', method)
         
@@ -74,8 +71,9 @@ class SubmitSmContent(PDU):
         
         props['priority'] = priority
         props['message-id'] = msgid
-        props['expiration'] = expiration
         props['reply-to'] = replyto
+        if expiration is not None:
+            props['headers'] = {'expiration': expiration}
         PDU.__init__(self, body, properties = props)
         
 class SubmitSmRespContent(PDU):

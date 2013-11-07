@@ -61,7 +61,7 @@ class SendTestCases(HTTPApiTestCases):
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
-        self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check log file for details\"")
+        self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
     @defer.inlineCallbacks
     def test_send_with_priority(self):
@@ -77,7 +77,7 @@ class SendTestCases(HTTPApiTestCases):
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 500)
             # This is a normal error since SMPPClientManagerPB is not really running
-            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check log file for details\"")
+            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Priority definitions
         valid_priorities = {-1, 'a', 44, 4}
@@ -114,7 +114,7 @@ class SendTestCases(HTTPApiTestCases):
         for params['dlr-url'] in valid_urls:
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 500)
-            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check log file for details\"")
+            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # URL definitions
         invalid_urls = {'ftp://127.0.0.1/receipt',
@@ -133,10 +133,10 @@ class SendTestCases(HTTPApiTestCases):
     def test_send_without_args(self):
         response = yield self.web.get("send")
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory arguments not found, please refer to the HTTPAPI specifications.\"")
+        self.assertEqual(response.value(), "Error \"Mandatory argument [username] is not found.\"")
         
     @defer.inlineCallbacks
     def test_send_with_some_args(self):
         response = yield self.web.get("send", {'username': self.username})
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory argument [content] is not found.\"")
+        self.assertEqual(response.value(), "Error \"Mandatory argument [to] is not found.\"")

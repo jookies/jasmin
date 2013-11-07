@@ -367,7 +367,7 @@ class SMPPClientManagerPB(pb.Root):
         # Publishing a pickled PDU
         self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
         c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period)
-        yield self.amqpBroker.publish(routing_key=pubQueueName, content=c)
+        yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
         
         # Enqueue DLR request
         if dlr_url is not None:

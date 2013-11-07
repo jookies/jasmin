@@ -139,7 +139,7 @@ class Send(Resource):
                 response = {'return': c.result, 'status': 200}
         except Exception, e:
             self.log.error("Error: %s" % e)
-            response = {'return': e.message, 'status': 500}
+            response = {'return': e.message, 'status': e.code}
         finally:
             self.log.debug("Returning %s to %s." % (response, request.getClientIP()))
             request.setResponseCode(response['status'])

@@ -23,14 +23,13 @@ class SubmitSmContentTestCase(ContentTestCase):
         self.assertEquals(c.body, self.body)
         self.assertEquals(c['reply-to'], self.replyto)
         self.assertEquals(c['priority'], 1)
-        self.assertEquals(c['expiration'], self.expiration)
+        self.assertEquals(c['headers']['expiration'], self.expiration)
         self.assertNotEquals(c['message-id'], None)
         
     def test_minimal_arguments(self):
         c = SubmitSmContent(self.body, self.replyto)
         
         self.assertEquals(c['priority'], 1)
-        self.assertEquals(c['expiration'], None)
         self.assertNotEquals(c['message-id'], None)
 
     def test_unique_messageid(self):
@@ -133,7 +132,7 @@ class DLRContentTestCase(ContentTestCase):
         dlr_level = 1
         
         validStatuses = ['DELIVRD', 'EXPIRED', 'DELETED', 
-                                  'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD']
+                                  'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
         
         for status in validStatuses:
             c = DLRContent(status, msgid, dlr_url, dlr_level)
@@ -148,8 +147,6 @@ class DLRContentTestCase(ContentTestCase):
         
         c = DLRContent('DELIVRD', msgid, dlr_url, 1)
         self.assertEquals(c['headers']['level'], 1)
-        self.assertRaises(UndefinedParameterError, DLRContent, 'DELIVRD', msgid, dlr_url, 2)        
-        self.assertRaises(UndefinedParameterError, DLRContent, 'DELIVRD', msgid, dlr_url, 3)        
         self.assertRaises(InvalidParameterError, DLRContent, 'DELIVRD', msgid, dlr_url, 45)
         
     def test_method(self):

@@ -50,7 +50,13 @@ def runScenario():
             if c['id'] == 'SMPPCONNECTOR':
                 alreadyAdded = True
         if not alreadyAdded:
-            yield proxy_smpp.add(config1)
+            rAdd = yield proxy_smpp.add(config1)
+            if not rAdd:
+                raise Exception('Cannot add the connector')
+        
+        cDetails = yield proxy_smpp.connector_details('SMPPCONNECTOR')
+        if not cDetails:
+            raise Exception('SMPP Connector is not available')
         
         cDetails = yield proxy_smpp.connector_details('SMPPCONNECTOR')
         if cDetails['session_state'] != 'BOUND_TRX':

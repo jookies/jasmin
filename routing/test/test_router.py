@@ -5,6 +5,8 @@ import mock
 import pickle
 import time
 import urllib
+import string
+import random
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
@@ -30,6 +32,9 @@ from jasmin.routing.Filters import GroupFilter
 from jasmin.routing.jasminApi import Connector, SmppConnector, HttpConnector, Group, User
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for x in range(size))
 
 class RouterPBTestCase(unittest.TestCase):
     def setUp(self):
@@ -127,52 +132,13 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         self.amqpClient.disconnect()
         yield self.rc.disconnect()
         
-class LastClientFactory(Factory):
-    lastClient = None
-    def buildProtocol(self, addr):
-        self.lastClient = Factory.buildProtocol(self, addr)
-        return self.lastClient
-
-class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
-    protocol = DeliverSmSMSC
-    
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield SMPPClientManagerPBTestCase.setUp(self)
-        
-        self.smsc_f = LastClientFactory()
-        self.smsc_f.protocol = self.protocol      
-        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-                
-    def tearDown(self):
-        SMPPClientManagerPBTestCase.tearDown(self)
-        
-        self.SMSCPort.stopListening()
-        
-class HappySMSCTestCase(SMPPClientManagerPBTestCase):
-    protocol = ManualDeliveryReceiptHappySMSC
-    
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield SMPPClientManagerPBTestCase.setUp(self)
-        
-        self.smsc_f = LastClientFactory()
-        self.smsc_f.protocol = self.protocol      
-        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-                
-    @defer.inlineCallbacks
-    def tearDown(self):
-        yield SMPPClientManagerPBTestCase.tearDown(self)
-        
-        self.SMSCPort.stopListening()
-    
 class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_add_list_and_flush_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], Connector('abc')), 2)
-        yield self.mtroute_add(DefaultRoute(Connector('def')), 0)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], Connector(id_generator())), 2)
+        yield self.mtroute_add(DefaultRoute(Connector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
         
@@ -187,7 +153,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     def test_add_list_and_flush_mo_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.moroute_add(DefaultRoute(HttpConnector('def', 'http://127.0.0.1')), 0)
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
         listRet1 = yield self.moroute_get_all()
         listRet1 = pickle.loads(listRet1)
         
@@ -255,7 +221,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     def test_delivery(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         u2 = User(1, Group(1), 'username2', 'password2')
         yield self.user_add(u1)
@@ -274,27 +240,50 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '403')
         
-        # Since Connector('def') doesnt really exist, the message will not be routed
+        # Since Connector doesnt really exist, the message will not be routed
         # to a queue, a 500 error will be returned, and more details will be written
         # in smpp client manager log:
-        # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: def'
+        # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: '
         try:
             yield getPage(url_ok)
         except Exception, e:
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '500')
         
-        # Now we'll create the connecter 'def' and send an MT to it
+        # Now we'll create the connecter and send an MT to it
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid)        
         yield self.SMPPClientManagerPBProxy.add(c1Config)
-        
+
         # We should receive a msg id
         c = yield getPage(url_ok)
         self.assertEqual(c[:7], 'Success')
         # @todo: Should be a real uuid pattern testing 
         self.assertApproximates(len(c), 40, 10)
         
+class LastClientFactory(Factory):
+    lastClient = None
+    def buildProtocol(self, addr):
+        self.lastClient = Factory.buildProtocol(self, addr)
+        return self.lastClient
+
+class HappySMSCTestCase(SMPPClientManagerPBTestCase):
+    protocol = ManualDeliveryReceiptHappySMSC
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SMPPClientManagerPBTestCase.setUp(self)
+        
+        self.smsc_f = LastClientFactory()
+        self.smsc_f.protocol = self.protocol      
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
+                
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield SMPPClientManagerPBTestCase.tearDown(self)
+        
+        self.SMSCPort.stopListening()
+    
 class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def setUp(self):
@@ -321,7 +310,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         yield self.user_add(u1)
 
@@ -343,7 +332,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         else:
             postdata = params
         
-        # Now we'll create the connecter 'def'
+        # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -392,7 +381,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         yield self.user_add(u1)
 
@@ -414,7 +403,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         else:
             postdata = params
         
-        # Now we'll create the connecter 'def'
+        # Now we'll create the connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -436,12 +425,12 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         msgId = c[9:45]
         self.assertEqual(msgStatus, 'Success')
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 3 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
         reactor.callLater(3, exitDeferred.callback, None)
         yield exitDeferred
 
-        # Trigger a deliver_sm
+        # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
         # Disconnect the connector
@@ -471,7 +460,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         yield self.user_add(u1)
 
@@ -493,7 +482,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         else:
             postdata = params
         
-        # Now we'll create the connecter 'def'
+        # Now we'll create the connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -553,7 +542,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         yield self.user_add(u1)
 
@@ -576,7 +565,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         else:
             postdata = params
         
-        # Now we'll create the connecter 'def'
+        # Now we'll create the connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -625,7 +614,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         yield self.user_add(u1)
 
@@ -648,7 +637,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         else:
             postdata = params
         
-        # Now we'll create the connecter 'def'
+        # Now we'll create the connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -705,7 +694,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
         
-        c1 = Connector('def')
+        c1 = Connector(id_generator())
         u1 = User(1, Group(1), 'username', 'password')
         yield self.user_add(u1)
 
@@ -728,7 +717,7 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         else:
             postdata = params
         
-        # Now we'll create the connecter 'def'
+        # Now we'll create the connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1.cid, port = self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -776,6 +765,21 @@ class DeliveryReceiptTestCases(RouterPBProxy, HappySMSCTestCase):
         self.assertEqual(callArgs_level1['id'][0], msgId)
         self.assertEqual(callArgs_level2['id'][0], msgId)
 
+class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
+    protocol = DeliverSmSMSC
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SMPPClientManagerPBTestCase.setUp(self)
+        
+        self.smsc_f = LastClientFactory()
+        self.smsc_f.protocol = self.protocol      
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
+                
+    def tearDown(self):        
+        self.SMSCPort.stopListening()
+        return SMPPClientManagerPBTestCase.tearDown(self)
+        
 class DeliverSmDeliveryTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     
     @defer.inlineCallbacks
@@ -804,9 +808,9 @@ class DeliverSmDeliveryTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield DeliverSmSMSCTestCase.tearDown(self)
         self.AckServer.stopListening()
         yield self.deliverSmThrower.stopService()
+        yield DeliverSmSMSCTestCase.tearDown(self)
 
     @defer.inlineCallbacks
     def test_delivery_HttpConnector(self):
@@ -815,13 +819,13 @@ class DeliverSmDeliveryTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
 
         # Prepare for routing
-        c1_source = Connector('abc')
+        c1_source = Connector(id_generator())
         c1_source.port = self.SMSCPort.getHost().port
-        c2_destination = HttpConnector('def', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
         # Set the route
         yield self.moroute_add(DefaultRoute(c2_destination), 0)
         
-        # Now we'll create the connecter 'abc'
+        # Now we'll create the connector 1
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=c1_source.cid, port=c1_source.port)        
         yield self.SMPPClientManagerPBProxy.add(c1Config)
@@ -861,7 +865,7 @@ class DeliverSmDeliveryTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
                 break;
             else:
                 time.sleep(0.2)
-                
+
     @defer.inlineCallbacks
     def test_delivery_SmppConnector(self):
         pass
