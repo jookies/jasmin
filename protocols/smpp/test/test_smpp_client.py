@@ -395,7 +395,6 @@ class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
         smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
         smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
         smpp.startLongSubmitSmTransaction = mock.Mock(wraps=smpp.startLongSubmitSmTransaction)
-        smpp.endLongSubmitSmTransactionErr = mock.Mock(wraps=smpp.endLongSubmitSmTransactionErr)
         
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -431,7 +430,6 @@ class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
         self.assertEqual(recv2.status, CommandStatus.ESME_RINVESMCLASS)
         self.assertEqual(0, len(smpp.longSubmitSmTxns))
         self.assertEquals(1, smpp.startLongSubmitSmTransaction.call_count)
-        self.assertEquals(2, smpp.endLongSubmitSmTransactionErr.call_count)
         self.verifyUnbindSuccess(smpp, sent3, recv3)
         
 class LongSubmitSmGenerickNackTestCase(SimulatorTestCase):
@@ -498,6 +496,7 @@ class SubmitSmIncorrectlyBoundTestCase(SimulatorTestCase):
             pass
         else:
             self.assertTrue(False, "SMPPTransactionError not raised")
+    test_submit_sm_receiver_failure.skip = 'SMPPClientProtocol.endOutboundTransaction is changed to handle all errors in callback, no more errors will be raised'
             
 class DeliverSmAckTestCase(SimulatorTestCase):
     @defer.inlineCallbacks

@@ -5,7 +5,7 @@ import traceback
 import StringIO, binascii
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
-from jasmin.vendor.smpp.pdu.pdu_types import CommandId
+from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
@@ -40,6 +40,24 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.disconnect()
         if reason.check(SMPPRequestTimoutError):
             raise SMPPSessionInitTimoutError(str(reason))
+        
+    def endOutboundTransaction(self, respPDU):
+        txn = self.closeOutboundTransaction(respPDU.seqNum)
+        
+        # Any status of a SubmitSMResp must be handled as a normal status
+        if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
+            if not isinstance(respPDU, txn.request.requireAck):
+                txn.ackDeferred.errback(SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (type(respPDU), type(txn.request))))
+                return
+            #Do callback
+            txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
+            return
+        
+        if isinstance(respPDU, GenericNack):
+            txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
+            return
+        
+        txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
 
     def cancelOutboundTransactions(self, error):
         """Cancels LongSubmitSmTransactions when cancelling OutboundTransactions
@@ -87,50 +105,30 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def endLongSubmitSmTransaction(self, _SMPPOutboundTxnResult):
         reqPDU = _SMPPOutboundTxnResult.request
         respPDU = _SMPPOutboundTxnResult.response
-                
+        
+        # Do we have txn with the given ref ?
         if reqPDU.params['sar_msg_ref_num'] not in self.longSubmitSmTxns:
             raise ValueError('Transaction with sar_msg_ref_num [%s] was not found.' % reqPDU.params['sar_msg_ref_num'])
-        
+
         # Decrement pending ACKs
         if self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] > 0:
             self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] -= 1
             self.log.debug("Long submit_sm transaction with sar_msg_ref_num %s has been updated, nack_count: %s" 
-                           % (reqPDU.params['sar_msg_ref_num'], self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count']))
-        
+                            % (reqPDU.params['sar_msg_ref_num'], self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count']))
+
         # End the transaction if no more pending ACKs
         if self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] == 0:
             txn = self.closeLongSubmitSmTransaction(reqPDU.params['sar_msg_ref_num'])
-                
+                    
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
-            
+
     def endLongSubmitSmTransactionErr(self, failure):
         # Return on generick NACK
         try:
             failure.raiseException()
-        except SMPPTransactionError as error:
-            pass
-        except:
+        except SMPPClientConnectionCorruptedError as error:
             return
-
-        reqPDU = error.request
-        respPDU = error.response
-        
-        if reqPDU.params['sar_msg_ref_num'] not in self.longSubmitSmTxns:
-            raise ValueError('Transaction with sar_msg_ref_num [%s] was not found.' % reqPDU.params['sar_msg_ref_num'])
-        
-        # Decrement pending ACKs
-        if self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] > 0:
-            self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] -= 1
-            self.log.debug("Long submit_sm transaction with sar_msg_ref_num %s has been updated, nack_count: %s" 
-                           % (reqPDU.params['sar_msg_ref_num'], self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count']))
-        
-        # End the transaction if no more pending ACKs
-        if self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] == 0:
-            txn = self.closeLongSubmitSmTransaction(reqPDU.params['sar_msg_ref_num'])
-                
-            #Do callback
-            txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
             
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
@@ -152,9 +150,10 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 self.sendPDU(partedSmPdu)
                 # Not like parent protocol's sendPDU, we don't return per pdu
                 # deferred, we'll return per transaction deferred instead
-                outTxn = self.startOutboundTransaction(partedSmPdu, timeout).addCallbacks(
-                                                                                         self.endLongSubmitSmTransaction,
-                                                                                         self.endLongSubmitSmTransactionErr)
+                self.startOutboundTransaction(partedSmPdu, timeout).addCallbacks(
+                                                                                 self.endLongSubmitSmTransaction, 
+                                                                                 self.endLongSubmitSmTransactionErr
+                                                                                 )
                 
                 # Start a transaction using the first parted PDU
                 if first:

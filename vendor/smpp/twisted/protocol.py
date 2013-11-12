@@ -14,9 +14,6 @@ Copyright 2009-2010 Mozes, Inc.
    limitations under the License.
 """
 
-"""
-Updated code parts are marked with "Jasmin update" comment
-"""
 import struct, logging, sys, StringIO, binascii
 from enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple    
@@ -468,10 +465,8 @@ class SMPPClientProtocol( protocol.Protocol ):
     
     def endOutboundTransaction(self, respPDU):
         txn = self.closeOutboundTransaction(respPDU.seqNum)
-        
-        # Jasmin update:
-        # Any status of a SubmitSMResp must be handled as a normal status
-        if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
+                
+        if respPDU.status == CommandStatus.ESME_ROK:
             if not isinstance(respPDU, txn.request.requireAck):
                 txn.ackDeferred.errback(SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (type(respPDU), type(txn.request))))
                 return
@@ -482,9 +477,10 @@ class SMPPClientProtocol( protocol.Protocol ):
         if isinstance(respPDU, GenericNack):
             txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
             return
-        
+            
+        errCode = respPDU.status
         txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
-        
+                
     def endOutboundTransactionErr(self, reqPDU, error):
         self.log.exception(error)
         txn = self.closeOutboundTransaction(reqPDU.seqNum)
