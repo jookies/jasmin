@@ -11,6 +11,7 @@ from twisted.internet import reactor, task
 from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, DLRContent
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+import traceback
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
@@ -87,6 +88,7 @@ class SMPPClientSMListener:
         """
         msgid = message.content.properties['message-id']
         SubmitSmPDU = pickle.loads(message.content.body)
+
         self.log.debug("Callbacked a submit_sm with a SubmitSmPDU[%s] (?): %s" % (msgid, SubmitSmPDU))
 
         if self.qos_last_submit_sm_at is None:

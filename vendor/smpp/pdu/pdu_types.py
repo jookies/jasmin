@@ -13,6 +13,9 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
+"""
+Updated code parts are marked with "Jasmin update" comment
+"""
 from enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu import constants
@@ -140,13 +143,15 @@ class PDU(object):
                 self.params[mParam] = None
     
     def __repr__(self):
+        # Jasmin update:
+        # Displaying values with %r converter since %s doesnt work with unicode
         r = "PDU [command: %s, sequence_number: %s, command_status: %s" % (self.id, self.seqNum, self.status)
         for mParam in self.mandatoryParams:
             if mParam in self.params:
-                r += "\n%s: %s" % (mParam, self.params[mParam])
+                r += "\n%s: %r" % (mParam, self.params[mParam])
         for oParam in self.params.keys():
             if oParam not in self.mandatoryParams:
-                r += "\n%s: %s" % (oParam, self.params[oParam])                
+                r += "\n%s: %r" % (oParam, self.params[oParam])                
         r += '\n]'
         return r
         

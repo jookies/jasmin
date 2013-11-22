@@ -6,7 +6,8 @@ import re
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, 
                                 RegisteredDelivery, RegisteredDeliveryReceipt, 
                                 AddrTon, AddrNpi, 
-                                PriorityFlag, ReplaceIfPresentFlag, DataCoding)
+                                PriorityFlag, ReplaceIfPresentFlag, 
+                                DataCoding, DataCodingDefault)
 from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime 
 from jasmin.config.tools import ConfigFile
 
@@ -97,12 +98,25 @@ class SMPPClientConfig():
         self.validity_period = kwargs.get('validity_period', None)
         self.registered_delivery = kwargs.get('registered_delivery', RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED))
         self.replace_if_present_flag = kwargs.get('replace_if_present_flag', ReplaceIfPresentFlag.DO_NOT_REPLACE)
-        # when setting data_coding to DataCoding() an error is thrown, this was reported to mozes here:
-        # https://github.com/mozes/smpp.pdu/issues/12
-        # TODO: fix this
-        #self.data_coding = kwargs.get('data_coding', DataCoding())
         self.sm_default_msg_id = kwargs.get('sm_default_msg_id', 1)
-        
+
+        # 5.2.19 data_coding / c. There is no default setting for the data_coding parameter.
+        # Possible values:
+        # SMSC_DEFAULT_ALPHABET:     0x00 / 0
+        # IA5_ASCII:                 0x01 / 1
+        # OCTET_UNSPECIFIED:         0x02 / 2
+        # LATIN_1:                   0x03 / 3
+        # OCTET_UNSPECIFIED_COMMON:  0x04 / 4
+        # JIS:                       0x05 / 5
+        # CYRILLIC:                  0x06 / 6
+        # ISO_8859_8:                0x07 / 7
+        # UCS2:                      0x08 / 8
+        # PICTOGRAM:                 0x09 / 9
+        # ISO_2022_JP:               0x0a / 10
+        # EXTENDED_KANJI_JIS:        0x0d / 13
+        # KS_C_5601:                 0x0e / 14
+        self.data_coding = 0x0
+
         # These were added to preserve compatibility with smpp.twisted project
         self.addressTon = self.bind_addr_ton
         self.addressNpi = self.bind_addr_npi

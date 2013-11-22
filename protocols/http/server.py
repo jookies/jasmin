@@ -27,6 +27,7 @@ class Send(Resource):
             # Validation
             fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
                       'from'        :{'optional': True},
+                      'datacoding'  :{'optional': True,     'pattern': re.compile(r'^.{0|1|2|3|4|5|6|7|8|9|10|13|14}$')},
                       'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
@@ -36,6 +37,10 @@ class Send(Resource):
                       'dlr-method'  :{'optional': True,     'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'content'     :{'optional': False},
                       }
+            
+            # Decode content from utf8 to unicode
+            if 'content' in request.args:
+                request.args['content'] = [request.args['content'][0].decode('utf8')]
             
             # Set default for undefined request.arguments
             if 'dlr-url' in request.args:
@@ -72,8 +77,8 @@ class Send(Resource):
                 source_addr=None if 'from' not in request.args else request.args['from'][0],
                 destination_addr=request.args['to'][0],
                 short_message=request.args['content'][0],
-            )
-            self.log.debug("Built SubmitSmPDU: %s" % SubmitSmPDU)
+            )                
+            self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
             # Routing
             routedConnector = None # init
@@ -83,6 +88,11 @@ class Send(Resource):
                 self.log.debug("No route matched this SubmitSmPDU")
                 raise RouteNotFoundError()
             else:
+                # Set data_coding
+                if 'datacoding' in request.args:
+                    SubmitSmPDU.params['data_coding'] = int(request.args['datacoding'][0])
+                self.log.debug("SubmitSmPDU data_coding is set to %s" % SubmitSmPDU.params['data_coding'])
+
                 # Set priority
                 priority = 1
                 if 'priority' in request.args:

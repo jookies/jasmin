@@ -139,4 +139,4 @@ class SendTestCases(HTTPApiTestCases):
     def test_send_with_some_args(self):
         response = yield self.web.get("send", {'username': self.username})
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory argument [to] is not found.\"")
+        self.assertEqual(response.value()[:25], "Error \"Mandatory argument")

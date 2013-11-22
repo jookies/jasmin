@@ -22,6 +22,7 @@ from jasmin.vendor.smpp.pdu import smpp_time
 from jasmin.vendor.smpp.pdu import constants, pdu_types, operations
 from jasmin.vendor.smpp.pdu.error import PDUParseError, PDUCorruptError
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId
+from jasmin.vendor.smpp.pdu.pdu_types import DataCodingDefault
 
 class IEncoder(object):
 
@@ -142,7 +143,7 @@ class IntegerBaseEncoder(PDUNullableFieldEncoder):
         if value > self.max:
             raise ValueError("Value %d exceeds max %d" % (value, self.max))
         if value < self.min:
-            raise ValueError("Value %d is less than min %d" % (value, self.min))            
+            raise ValueError("Value %d is less than min %d" % (value, self.min))
         return struct.pack(self.sizeFmtMap[self.size], value)
         
     def _read(self, file):
@@ -176,7 +177,8 @@ class OctetStringEncoder(PDUNullableFieldEncoder):
         length = len(value)
         if self.getSize() is not None:
             if length != self.getSize():
-                raise ValueError("Value size %d does not match expected %d" % (length, self.getSize()))
+                raise ValueError("Value (%s) size %d does not match expected %d" % (value, length, self.getSize()))
+            
         return value
 
     def _read(self, file):
@@ -446,7 +448,11 @@ class DataCodingEncoder(Int1Encoder):
     def _encodeSchemeDataAsInt(self, dataCoding):
         if dataCoding.scheme == pdu_types.DataCodingScheme.GSM_MESSAGE_CLASS:
             return self._encodeGsmMsgSchemeDataAsInt(dataCoding)
-        raise ValueError("Unknown data coding scheme %s" % scheme)
+        # Jasmin update:
+        # As reported in https://github.com/mozes/smpp.pdu/issues/12
+        # raise ValueError("Unknown data coding scheme %s" % dataCoding.scheme)
+        #                                                    ~~~~~~~~~~~
+        raise ValueError("Unknown data coding scheme %s" % dataCoding.scheme)
         
     def _encodeGsmMsgSchemeDataAsInt(self, dataCoding):
         msgCodingName = str(dataCoding.schemeData.msgCoding)
@@ -712,11 +718,66 @@ class ShortMessageEncoder(IEncoder):
         if shortMessage is None:
             shortMessage = ''
         smLength = len(shortMessage)
+
         return self.smLengthEncoder.encode(smLength) + OctetStringEncoder(smLength).encode(shortMessage)
 
     def decode(self, file):
         smLength = self.smLengthEncoder.decode(file)
         return OctetStringEncoder(smLength).decode(file)
+
+# Jasmin update:
+# provide a new encoder for short_message that supports data_coding
+class MultiCodingShortMessageEncoder(ShortMessageEncoder):
+    smLengthEncoder = Int1Encoder(max=254)
+        
+    def encode(self, shortMessage, dataCoding = None):
+        if dataCoding is None:
+            return ShortMessageEncoder.encode(self, shortMessage)
+        
+        encoding = None
+        if shortMessage is None:
+            shortMessage = ''
+            
+        if dataCoding.schemeData == DataCodingDefault.SMSC_DEFAULT_ALPHABET:
+            smLength = len(shortMessage)
+            encoding = 'utf8'
+        elif dataCoding.schemeData == DataCodingDefault.IA5_ASCII:
+            smLength = len(shortMessage)
+            encoding = 'ascii'
+        elif dataCoding.schemeData == DataCodingDefault.OCTET_UNSPECIFIED:
+            smLength = len(shortMessage)
+        elif dataCoding.schemeData == DataCodingDefault.LATIN_1:
+            smLength = len(shortMessage)
+            encoding = 'latin1'
+        elif dataCoding.schemeData == DataCodingDefault.OCTET_UNSPECIFIED_COMMON:
+            smLength = len(shortMessage)
+        elif dataCoding.schemeData == DataCodingDefault.JIS:
+            smLength = len(shortMessage) * 2
+            encoding = 'shift_jis'
+        elif dataCoding.schemeData == DataCodingDefault.CYRILLIC:
+            smLength = len(shortMessage)
+            encoding = 'cyrillic'
+        elif dataCoding.schemeData == DataCodingDefault.ISO_8859_8:
+            smLength = len(shortMessage)
+            encoding = 'iso8859_8'
+        elif dataCoding.schemeData == DataCodingDefault.UCS2:
+            smLength = len(shortMessage) * 2
+            encoding = 'utf_16_be'
+        elif dataCoding.schemeData in [DataCodingDefault.PICTOGRAM, DataCodingDefault.EXTENDED_KANJI_JIS]:
+            smLength = len(shortMessage)
+            encoding = 'cp932'
+        elif dataCoding.schemeData == DataCodingDefault.ISO_2022_JP:
+            smLength = len(shortMessage)
+            encoding = 'iso2022_jp'
+        elif dataCoding.schemeData == DataCodingDefault.KS_C_5601:
+            smLength = len(shortMessage)
+            encoding = 'euc_kr'
+
+        if encoding is not None:
+            sm = shortMessage.encode(encoding)
+        else:
+            sm = shortMessage
+        return self.smLengthEncoder.encode(smLength) + OctetStringEncoder(smLength).encode(sm)
 
 class OptionEncoder(IEncoder):
 
@@ -849,7 +910,7 @@ class PDUEncoder(IEncoder):
         'replace_if_present_flag': ReplaceIfPresentFlagEncoder(),
         'data_coding': DataCodingEncoder(),
         'sm_default_msg_id': Int1Encoder(min=1, max=254, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVDFTMSGID),
-        'short_message': ShortMessageEncoder(),
+        'short_message': MultiCodingShortMessageEncoder(),
         'message_id': COctetStringEncoder(65, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVMSGID),
         # 'number_of_dests': Int1Encoder(max=254),
         # 'no_unsuccess': Int1Encoder(),
@@ -981,7 +1042,23 @@ class PDUEncoder(IEncoder):
         return optionalParams
         
     def encodeRequiredParams(self, paramList, encoderMap, params):
-        return string.join([encoderMap[paramName].encode(params[paramName]) for paramName in paramList], '')
+        # Jasmin update:
+        # Encode short_message using the provided data_coding
+        
+        data_coding = None
+        if 'short_message' in params:
+            data_coding = params['data_coding']
+        
+        encodedParams = []
+        for paramName in paramList:
+            if data_coding is not None and paramName == 'short_message':
+                encodedParam = encoderMap[paramName].encode(params[paramName], data_coding)
+            else:
+                encodedParam = encoderMap[paramName].encode(params[paramName])
+                
+            encodedParams.append(encodedParam)
+        
+        return string.join(encodedParams, '')
         
     def decodeRequiredParams(self, paramList, encoderMap, file):
         params = {}

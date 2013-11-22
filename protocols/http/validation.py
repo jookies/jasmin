@@ -21,7 +21,10 @@ class UrlArgsValidator:
                 fieldData = self.fields[field]
                     
                 if field in args:
-                    value = str(args[field][0])
+                    if isinstance(args[field][0], int):
+                        value = str(args[field][0])
+                    else:
+                        value = args[field][0]
                     
                     # Validate known args
                     if 'pattern' in self.fields[field] and self.fields[field]['pattern'].match(value) is None:

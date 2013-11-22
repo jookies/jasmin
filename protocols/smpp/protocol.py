@@ -1,11 +1,10 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
-import traceback
-import StringIO, binascii
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
-from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus
+from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCoding, DataCodingDefault
+from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
@@ -136,36 +135,46 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         if not isinstance( pdu, PDURequest ) or pdu.requireAck is None:
             raise SMPPClientError("Invalid PDU to send: %s" % pdu)
 
-        # Start a LongSubmitSmTransaction if pdu is a long submit_sm and send multiple
-        # pdus, each with an OutboundTransaction
-        # - Every OutboundTransaction is closed upon receiving the correct submit_sm_resp
-        # - Every LongSubmitSmTransaction is closed upong closing all included OutboundTransactions
-        if pdu.commandId == CommandId.submit_sm and 'sar_msg_ref_num' in pdu.params:
-            partedSmPdu = pdu
-            first = True
-            
-            # Iterate through parted PDUs
-            while True:
-                partedSmPdu.seqNum = self.claimSeqNum()
-                self.sendPDU(partedSmPdu)
-                # Not like parent protocol's sendPDU, we don't return per pdu
-                # deferred, we'll return per transaction deferred instead
-                self.startOutboundTransaction(partedSmPdu, timeout).addCallbacks(
-                                                                                 self.endLongSubmitSmTransaction, 
-                                                                                 self.endLongSubmitSmTransactionErr
-                                                                                 )
+        if pdu.commandId == CommandId.submit_sm:
+            # Convert data_coding from int to DataCoding object
+            if 'data_coding' in pdu.params and isinstance(pdu.params['data_coding'], int):
+                intVal = pdu.params['data_coding']
+                if intVal in data_coding_default_value_map:
+                    name = data_coding_default_value_map[intVal]
+                    pdu.params['data_coding'] = DataCoding(schemeData = getattr(DataCodingDefault, name))
+                else:
+                    pdu.params['data_coding'] = None
                 
-                # Start a transaction using the first parted PDU
-                if first:
-                    first = False
-                    txn = self.startLongSubmitSmTransaction(partedSmPdu, timeout)
-
-                try:
-                    # There still another PDU to go for
-                    partedSmPdu = partedSmPdu.nextPdu
-                except AttributeError:
-                    break
-
-            return txn
-        else:
-            return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)
+            # Start a LongSubmitSmTransaction if pdu is a long submit_sm and send multiple
+            # pdus, each with an OutboundTransaction
+            # - Every OutboundTransaction is closed upon receiving the correct submit_sm_resp
+            # - Every LongSubmitSmTransaction is closed upong closing all included OutboundTransactions
+            if 'sar_msg_ref_num' in pdu.params:
+                partedSmPdu = pdu
+                first = True
+                
+                # Iterate through parted PDUs
+                while True:
+                    partedSmPdu.seqNum = self.claimSeqNum()
+                    self.sendPDU(partedSmPdu)
+                    # Not like parent protocol's sendPDU, we don't return per pdu
+                    # deferred, we'll return per transaction deferred instead
+                    self.startOutboundTransaction(partedSmPdu, timeout).addCallbacks(
+                                                                                     self.endLongSubmitSmTransaction, 
+                                                                                     self.endLongSubmitSmTransactionErr
+                                                                                     )
+                    
+                    # Start a transaction using the first parted PDU
+                    if first:
+                        first = False
+                        txn = self.startLongSubmitSmTransaction(partedSmPdu, timeout)
+    
+                    try:
+                        # There still another PDU to go for
+                        partedSmPdu = partedSmPdu.nextPdu
+                    except AttributeError:
+                        break
+    
+                return txn
+        
+        return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)
