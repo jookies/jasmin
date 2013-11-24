@@ -7,7 +7,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCodin
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
-from jasmin.vendor.smpp.pdu.error import *
+from jasmin.protocols.smpp.error import *
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
 
 LOG_CATEGORY="smpp.twisted.protocol"
@@ -144,6 +144,10 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                     pdu.params['data_coding'] = DataCoding(schemeData = getattr(DataCodingDefault, name))
                 else:
                     pdu.params['data_coding'] = None
+                    
+            # short_message must be in unicode format
+            if not isinstance(pdu.params['short_message'], unicode):
+                raise ShortMessageCodingError("SubmitSm's short_message must be in unicode, found %s:%s" % (type(pdu.params['short_message']), pdu.params['short_message']))
                 
             # Start a LongSubmitSmTransaction if pdu is a long submit_sm and send multiple
             # pdus, each with an OutboundTransaction

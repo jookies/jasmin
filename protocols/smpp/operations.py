@@ -5,6 +5,7 @@
 import math
 import re
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 
 class SMPPOperationFactory():

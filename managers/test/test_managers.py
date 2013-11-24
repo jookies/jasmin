@@ -360,7 +360,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         self.SubmitSmPDU = opFactory.SubmitSM(
             source_addr='1423',
             destination_addr='98700177',
-            short_message='Hello world !',
+            short_message=u'Hello world !',
         )
         
     @defer.inlineCallbacks
@@ -386,7 +386,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         queue.get().addCallback(self.submit_sm_callback)
 
         # Send submit_sm
-        assertionKey = str(randint(10000, 99999999999))
+        assertionKey = unicode(randint(10000, 99999999999))
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = assertionKey
         msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
