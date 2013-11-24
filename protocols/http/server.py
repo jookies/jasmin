@@ -147,6 +147,10 @@ class Send(Resource):
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
                 response = {'return': c.result, 'status': 200}
+        except UnicodeError:
+            errMsg = "Invalid utf8 content: %s" % request.args['content'][0]
+            self.log.error(errMsg)
+            response = {'return': errMsg, 'status': 500}
         except Exception, e:
             self.log.error("Error: %s" % e)
             response = {'return': e.message, 'status': e.code}
