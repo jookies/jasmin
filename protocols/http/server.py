@@ -7,6 +7,8 @@ from jasmin.protocols.http.validation import UrlArgsValidator
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError
+from jasmin.vendor.smpp.pdu.pdu_types import DataCodingDefault
+from jasmin.vendor.messaging.sms.gsm0338 import decode
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -27,7 +29,7 @@ class Send(Resource):
             # Validation
             fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
                       'from'        :{'optional': True},
-                      'datacoding'  :{'optional': True,     'pattern': re.compile(r'^.{0|1|2|3|4|5|6|7|8|9|10|13|14}$')},
+                      'datacoding'  :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
                       'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
@@ -38,9 +40,9 @@ class Send(Resource):
                       'content'     :{'optional': False},
                       }
             
-            # Decode content from utf8 to unicode
-            if 'content' in request.args:
-                request.args['content'] = [request.args['content'][0].decode('utf8')]
+            # Default datacoding is 0 when not provided
+            if 'datacoding' not in request.args:
+                request.args['datacoding'] = ['0']
             
             # Set default for undefined request.arguments
             if 'dlr-url' in request.args:
@@ -74,9 +76,9 @@ class Send(Resource):
             
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
-                source_addr=None if 'from' not in request.args else request.args['from'][0],
-                destination_addr=request.args['to'][0],
-                short_message=request.args['content'][0],
+                source_addr = None if 'from' not in request.args else request.args['from'][0],
+                destination_addr = request.args['to'][0],
+                short_message = request.args['content'][0],
             )                
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
@@ -147,10 +149,6 @@ class Send(Resource):
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
                 response = {'return': c.result, 'status': 200}
-        except UnicodeError:
-            errMsg = "Invalid utf8 content: %s" % request.args['content'][0]
-            self.log.error(errMsg)
-            response = {'return': errMsg, 'status': 500}
         except Exception, e:
             self.log.error("Error: %s" % e)
             response = {'return': e.message, 'status': e.code}

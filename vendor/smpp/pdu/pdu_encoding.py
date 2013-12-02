@@ -23,6 +23,8 @@ from jasmin.vendor.smpp.pdu import constants, pdu_types, operations
 from jasmin.vendor.smpp.pdu.error import PDUParseError, PDUCorruptError
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId
 from jasmin.vendor.smpp.pdu.pdu_types import DataCodingDefault
+# Jasmin update:
+from jasmin.vendor.messaging.sms.gsm0338 import encode
 
 class IEncoder(object):
 
@@ -725,60 +727,6 @@ class ShortMessageEncoder(IEncoder):
         smLength = self.smLengthEncoder.decode(file)
         return OctetStringEncoder(smLength).decode(file)
 
-# Jasmin update:
-# provide a new encoder for short_message that supports data_coding
-class MultiCodingShortMessageEncoder(ShortMessageEncoder):
-    smLengthEncoder = Int1Encoder(max=254)
-        
-    def encode(self, shortMessage, dataCoding = None):
-        if dataCoding is None:
-            return ShortMessageEncoder.encode(self, shortMessage)
-        
-        encoding = None
-        if shortMessage is None:
-            shortMessage = ''
-            
-        if dataCoding.schemeData == DataCodingDefault.SMSC_DEFAULT_ALPHABET:
-            smLength = len(shortMessage)
-            encoding = 'utf8'
-        elif dataCoding.schemeData == DataCodingDefault.IA5_ASCII:
-            smLength = len(shortMessage)
-            encoding = 'ascii'
-        elif dataCoding.schemeData == DataCodingDefault.OCTET_UNSPECIFIED:
-            smLength = len(shortMessage)
-        elif dataCoding.schemeData == DataCodingDefault.LATIN_1:
-            smLength = len(shortMessage)
-            encoding = 'latin1'
-        elif dataCoding.schemeData == DataCodingDefault.OCTET_UNSPECIFIED_COMMON:
-            smLength = len(shortMessage)
-        elif dataCoding.schemeData == DataCodingDefault.JIS:
-            smLength = len(shortMessage) * 2
-            encoding = 'shift_jis'
-        elif dataCoding.schemeData == DataCodingDefault.CYRILLIC:
-            smLength = len(shortMessage)
-            encoding = 'cyrillic'
-        elif dataCoding.schemeData == DataCodingDefault.ISO_8859_8:
-            smLength = len(shortMessage)
-            encoding = 'iso8859_8'
-        elif dataCoding.schemeData == DataCodingDefault.UCS2:
-            smLength = len(shortMessage) * 2
-            encoding = 'utf_16_be'
-        elif dataCoding.schemeData in [DataCodingDefault.PICTOGRAM, DataCodingDefault.EXTENDED_KANJI_JIS]:
-            smLength = len(shortMessage)
-            encoding = 'cp932'
-        elif dataCoding.schemeData == DataCodingDefault.ISO_2022_JP:
-            smLength = len(shortMessage)
-            encoding = 'iso2022_jp'
-        elif dataCoding.schemeData == DataCodingDefault.KS_C_5601:
-            smLength = len(shortMessage)
-            encoding = 'euc_kr'
-
-        if encoding is not None:
-            sm = shortMessage.encode(encoding)
-        else:
-            sm = shortMessage
-        return self.smLengthEncoder.encode(smLength) + OctetStringEncoder(smLength).encode(sm)
-
 class OptionEncoder(IEncoder):
 
     def __init__(self):
@@ -909,8 +857,10 @@ class PDUEncoder(IEncoder):
         'registered_delivery': RegisteredDeliveryEncoder(),
         'replace_if_present_flag': ReplaceIfPresentFlagEncoder(),
         'data_coding': DataCodingEncoder(),
-        'sm_default_msg_id': Int1Encoder(min=1, max=254, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVDFTMSGID),
-        'short_message': MultiCodingShortMessageEncoder(),
+        # Jasmin update:
+        # Minimum for sm_default_msg_id can be 0 (reserved value)
+        'sm_default_msg_id': Int1Encoder(min=0, max=254, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVDFTMSGID),
+        'short_message': ShortMessageEncoder(),
         'message_id': COctetStringEncoder(65, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVMSGID),
         # 'number_of_dests': Int1Encoder(max=254),
         # 'no_unsuccess': Int1Encoder(),
@@ -1042,23 +992,7 @@ class PDUEncoder(IEncoder):
         return optionalParams
         
     def encodeRequiredParams(self, paramList, encoderMap, params):
-        # Jasmin update:
-        # Encode short_message using the provided data_coding
-        
-        data_coding = None
-        if 'short_message' in params:
-            data_coding = params['data_coding']
-        
-        encodedParams = []
-        for paramName in paramList:
-            if data_coding is not None and paramName == 'short_message':
-                encodedParam = encoderMap[paramName].encode(params[paramName], data_coding)
-            else:
-                encodedParam = encoderMap[paramName].encode(params[paramName])
-                
-            encodedParams.append(encodedParam)
-        
-        return string.join(encodedParams, '')
+        return string.join([encoderMap[paramName].encode(params[paramName]) for paramName in paramList], '')
         
     def decodeRequiredParams(self, paramList, encoderMap, file):
         params = {}

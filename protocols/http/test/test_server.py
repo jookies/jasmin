@@ -140,12 +140,3 @@ class SendTestCases(HTTPApiTestCases):
         response = yield self.web.get("send", {'username': self.username})
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
-        
-    @defer.inlineCallbacks
-    def test_send_with_invalid_utf8_content(self):
-        response = yield self.web.get("send", {'username': self.username, 
-                                               'passwd': 'correct',
-                                               'to': '98700177',
-                                               'content': '\xf0\x28\x8c\xbc'})
-        self.assertEqual(response.responseCode, 500)
-        self.assertEqual(response.value()[:28], "Error \"Invalid utf8 content:")

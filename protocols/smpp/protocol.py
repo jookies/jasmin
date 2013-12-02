@@ -7,7 +7,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCodin
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
-from jasmin.protocols.smpp.error import *
+from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
 
 LOG_CATEGORY="smpp.twisted.protocol"
@@ -128,6 +128,20 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             failure.raiseException()
         except SMPPClientConnectionCorruptedError as error:
             return
+        
+    def preSubmitSm(self, pdu):
+        """Will:
+        - Make validation steps
+        - Transform unparseable data (because SubmitSm may come from http-api through PB)
+        """
+        # Convert data_coding from int to DataCoding object
+        if 'data_coding' in pdu.params and isinstance(pdu.params['data_coding'], int):
+            intVal = pdu.params['data_coding']
+            if intVal in data_coding_default_value_map:
+                name = data_coding_default_value_map[intVal]
+                pdu.params['data_coding'] = DataCoding(schemeData = getattr(DataCodingDefault, name))
+            else:
+                pdu.params['data_coding'] = None
             
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
@@ -136,19 +150,6 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             raise SMPPClientError("Invalid PDU to send: %s" % pdu)
 
         if pdu.commandId == CommandId.submit_sm:
-            # Convert data_coding from int to DataCoding object
-            if 'data_coding' in pdu.params and isinstance(pdu.params['data_coding'], int):
-                intVal = pdu.params['data_coding']
-                if intVal in data_coding_default_value_map:
-                    name = data_coding_default_value_map[intVal]
-                    pdu.params['data_coding'] = DataCoding(schemeData = getattr(DataCodingDefault, name))
-                else:
-                    pdu.params['data_coding'] = None
-                    
-            # short_message must be in unicode format
-            if not isinstance(pdu.params['short_message'], unicode):
-                raise ShortMessageCodingError("SubmitSm's short_message must be in unicode, found %s:%s" % (type(pdu.params['short_message']), pdu.params['short_message']))
-                
             # Start a LongSubmitSmTransaction if pdu is a long submit_sm and send multiple
             # pdus, each with an OutboundTransaction
             # - Every OutboundTransaction is closed upon receiving the correct submit_sm_resp
@@ -160,6 +161,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 # Iterate through parted PDUs
                 while True:
                     partedSmPdu.seqNum = self.claimSeqNum()
+                    self.preSubmitSm(partedSmPdu)
                     self.sendPDU(partedSmPdu)
                     # Not like parent protocol's sendPDU, we don't return per pdu
                     # deferred, we'll return per transaction deferred instead
@@ -180,5 +182,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                         break
     
                 return txn
+            else:
+                self.preSubmitSm(pdu)
         
         return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)

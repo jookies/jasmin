@@ -5,7 +5,7 @@ from dateutil import parser
 from twisted.internet import defer
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
-from jasmin.protocols.smpp.error import *
+from jasmin.vendor.smpp.pdu.error import *
 from txamqp.queue import Closed
 from twisted.internet import reactor, task
 from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, DLRContent

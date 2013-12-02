@@ -5,7 +5,6 @@
 import math
 import re
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 
 class SMPPOperationFactory():
@@ -55,20 +54,35 @@ class SMPPOperationFactory():
         
         return self.lastLongSmSeqNum
 
-    def SubmitSM(self, **kwargs):
-        maxSmLength = 254
-        
-        if kwargs['short_message']:
-            longMessage = kwargs['short_message']
-            smLength = len(kwargs['short_message'])
-        else:
-            smLength = 0
+    def SubmitSM(self, short_message, **kwargs):
+        kwargs['short_message'] = short_message
+
+        # Set the max short message length depending on the
+        # coding (7, 8 or 16 bits)
+
+        # Default is 7 bits (c_ord is equal or lower than 127)
+        maxSmLength = 160
+        slicedMaxSmLength = 153
+        for c in kwargs['short_message']:
+            c_ord = ord(c)
+            if c_ord >= 256:
+                # 16 bits coding
+                maxSmLength = 70
+                slicedMaxSmLength = 67
+                break
+            elif c_ord >= 128:
+                # 8 bits coding
+                maxSmLength = 140
+                slicedMaxSmLength = maxSmLength - 6
+
+        longMessage = kwargs['short_message']
+        smLength = len(kwargs['short_message'])
         
         """if SM is longer than maxSmLength, build multiple SubmitSMs
         and link them
         """
         if smLength > maxSmLength:
-            sar_total_segments = int(math.ceil(smLength / float(maxSmLength)))
+            sar_total_segments = int(math.ceil(smLength / float(slicedMaxSmLength)))
             sar_msg_ref_num = self.claimLongSmSeqNum()
             
             for i in range(sar_total_segments):
@@ -82,7 +96,7 @@ class SMPPOperationFactory():
                     previousPdu = None
 
                 # Slice short_message and create the PDU
-                kwargs['short_message'] = longMessage[maxSmLength*i:maxSmLength*(i+1)]
+                kwargs['short_message'] = longMessage[slicedMaxSmLength*i:slicedMaxSmLength*(i+1)]
                 tmpPdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
                 tmpPdu.params['sar_total_segments'] = sar_total_segments
                 tmpPdu.params['sar_segment_seqnum'] = sar_segment_seqnum

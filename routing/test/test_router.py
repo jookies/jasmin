@@ -30,7 +30,7 @@ from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
 from jasmin.routing.Filters import GroupFilter
-from jasmin.routing.jasminApi import Connector, SmppConnector, HttpConnector, Group, User
+from jasmin.routing.jasminApi import Connector, HttpConnector, Group, User
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 
@@ -277,7 +277,7 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
         
         self.smsc_f = LastClientFactory()
         self.smsc_f.protocol = self.protocol      
-        self.SMSCPort = reactor.listenTCP(30600, self.smsc_f)
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
                 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -576,7 +576,7 @@ class AdvancedSubmitSmTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCa
         self.assertEqual(callArgs_level2['id'][0], msgId)
 
     @defer.inlineCallbacks
-    def test_test_delivery_empty_content(self):
+    def test_delivery_empty_content(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
         
@@ -590,126 +590,6 @@ class AdvancedSubmitSmTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCa
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
-
-    @defer.inlineCallbacks
-    def test_test_delivery_long_content(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector()
-        
-        # 161 char length content
-        self.params['content'] = '0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789.'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        # Send a MT
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
-        msgStatus = c[:7]
-        
-        yield self.stopSmppConnectors()
-
-        # Run tests
-        self.assertEqual(msgStatus, 'Success')        
-
-    @defer.inlineCallbacks
-    def test_test_delivery_long_content_with_inurl_dlr_level1(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector()
-        
-        # 161 char length content
-        self.params['content'] = '0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789.'
-        self.params['dlr-url'] = self.dlr_url
-        self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        # Send a MT
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
-        msgStatus = c[:7]
-        msgId = c[9:45]
-        
-        yield self.stopSmppConnectors()
-
-        # Run tests
-        self.assertEqual(msgStatus, 'Success')        
-        # A DLR must be sent to dlr_url
-        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
-        # Message ID must be transmitted in the DLR
-        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
-
-class SubmitSmCodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
-    _long_extension = '.................................................................................................................................................................................'
-    _simple_ascii = u'Simple and short !'
-    _long_ascii = u'Simple and long !%s' % _long_extension
-    _francais = u'tést tèsts'                                                  # 'français'          # (utf8 / 1 byte coding)
-    _long_francais = u'tést tèsts %s' % _long_extension                        # 'français ...'      # (utf8 / 1 byte coding)
-    _fr_ar = u'fran\xe7ais \u0639\u0631\u0628\u064a'                           # 'français عربي'     # (utf16 / 2 byte coding)
-    _long_fr_ar = u'fran\xe7ais \u0639\u0631\u0628\u064a %s' % _long_extension # 'français عربي ...' # (utf16 / 2 byte coding)
-    _kosme = u'\u03ba\u1f79\u03c3\u03bc\u03b5'                                 # 'κόσμε'             # (utf16 / 2 byte coding)
-    _rabbit = u'\u0623\u0631\u0646\u0628'                                      # 'أرنب'              # (utf16 / 2 byte coding)
-    _long_rabbit = u'\u0623\u0631\u0646\u0628 %s' % _long_extension            # 'أرنب ....'         # (utf16 / 2 byte coding)
-    
-    @defer.inlineCallbacks
-    def run_test(self, content, datacoding = None):        
-        yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector()
-        
-        # Set content
-        self.params['content'] = content
-        # Set datacoding
-        if datacoding is None and 'datacoding' in self.params:
-            del self.params['datacoding']
-        if datacoding is not None:
-            self.params['datacoding'] = datacoding
-        # Prepare baseurl
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
-        # Send a MT
-        # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
-        msgStatus = c[:7]
-        
-        yield self.stopSmppConnectors()
-        
-        # Run tests
-        self.assertEqual(msgStatus, 'Success')
-        datacoding_matrix = {}
-        datacoding_matrix[3] = {'schemeData': 'LATIN_1', 'encode': 'latin1'}
-        datacoding_matrix[8] = {'schemeData': 'UCS2', 'encode': 'utf_16_be'}
-        if datacoding is not None:
-            self.assertEqual(':'.join(['%x' % ord(c) for c in self.SMSCPort.factory.lastClient.lastSubmitSmPDU.params['short_message']]), 
-                             ':'.join(['%x' % ord(c) for c in content.decode('utf8').encode(datacoding_matrix[datacoding]['encode'])]))
-            self.assertEqual(str(self.SMSCPort.factory.lastClient.lastSubmitSmPDU.params['data_coding'].schemeData), datacoding_matrix[datacoding]['schemeData'])
-        else:
-            self.assertEqual(self.SMSCPort.factory.lastClient.lastSubmitSmPDU.params['short_message'], content)
-        
-    @defer.inlineCallbacks
-    def test_ascii(self):
-        yield self.run_test(content = self._simple_ascii.encode('ascii'))
-
-    @defer.inlineCallbacks
-    def test_long_ascii(self):
-        yield self.run_test(content = self._long_ascii.encode('ascii'))
-
-    @defer.inlineCallbacks
-    def test_latin1(self):
-        yield self.run_test(content = self._francais.encode('utf8'), datacoding = 3)
-
-    @defer.inlineCallbacks
-    def test_long_latin1(self):
-        yield self.run_test(content = self._long_francais.encode('utf8'), datacoding = 3)
-
-    @defer.inlineCallbacks
-    def test_ucs2(self):
-        yield self.run_test(content = self._rabbit.encode('utf8'), datacoding = 8)
-
-    @defer.inlineCallbacks
-    def test_long_ucs2(self):
-        yield self.run_test(content = self._long_rabbit.encode('utf8'), datacoding = 8)
-
-    @defer.inlineCallbacks
-    def test_ucs2_with_ascii(self):
-        yield self.run_test(content = self._fr_ar.encode('utf8'), datacoding = 8)
-        
-    @defer.inlineCallbacks
-    def test_long_ucs2_with_ascii(self):
-        yield self.run_test(content = self._long_fr_ar.encode('utf8'), datacoding = 8)
 
 class NoSubmitSmWhenReceiverIsBoundSMSC(SMPPClientManagerPBTestCase):
     protocol = NoSubmitSmWhenReceiverIsBoundSMSC

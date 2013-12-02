@@ -16,6 +16,7 @@ class Route:
     """Generick Route:
     
     Route contain a couple of [Filter(s), Connector]
+    When more than one Filter is given, matching these filters will use the AND operator
     """
     type = 'generick'
 
@@ -29,7 +30,7 @@ class Route:
                 raise InvalidRouteParameterError("filter must be an instance of Filter, %s found" % type(_filter))
             if not self.type in _filter.forRoutes:
                 raise InvalidRouteFilterError("filter types (%s) is not compatible with this route type (%s)" % (_filter.forRoutes, self.type))
-         
+        
         self.connector = connector
         self.filters = filters
         
