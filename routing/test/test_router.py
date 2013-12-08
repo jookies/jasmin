@@ -300,7 +300,8 @@ class SubmitSmTestCaseTools():
 
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=self.c1.cid, port = self.SMSCPort.getHost().port, bindOperation = bindOperation)
+        c1Config = SMPPClientConfig(id=self.c1.cid, port = self.SMSCPort.getHost().port, 
+                                    bindOperation = bindOperation)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector

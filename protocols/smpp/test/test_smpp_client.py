@@ -343,6 +343,10 @@ class SubmitSmTestCase(SimulatorTestCase):
         self.verifyUnbindSuccess(smpp, sent2, recv2)
 
 class LongSubmitSmTestCase(SimulatorTestCase):
+    def setUp(self):
+        SimulatorTestCase.setUp(self)
+        self.long_content_max_parts = self.opFactory.long_content_max_parts        
+    
     def prepareMocks(self, smpp):
         smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
         smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
@@ -388,6 +392,13 @@ class LongSubmitSmWithSARTestCase(LongSubmitSmTestCase):
         self.verifyUnbindSuccess(smpp, sent[nbrParts], recv[nbrParts])
         
 class LongSubmitSmWithUDHTestCase(LongSubmitSmTestCase):
+    def setUp(self):
+        LongSubmitSmTestCase.setUp(self)
+
+        # Reset opFactory with long_content_split = 'udh'
+        self.opFactory = SMPPOperationFactory(self.config, long_content_split = 'udh')
+        self.long_content_max_parts = self.opFactory.long_content_max_parts
+    
     def runAsserts(self, smpp, content, nbrParts):
         self.assertEquals(nbrParts + 1, smpp.PDUReceived.call_count)
         self.assertEquals(nbrParts + 1, smpp.sendPDU.call_count)
@@ -476,8 +487,8 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_8bit(self):
@@ -527,8 +538,8 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_16bit(self):
@@ -580,8 +591,8 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
 class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
     configArgs = {
@@ -590,7 +601,6 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         'reconnectOnConnectionFailure': False,
         'reconnectOnConnectionLoss': False,
         'username': 'smppclient1',
-        'longContentSplit': 'udh', # <--- This is where to set UDH splitting method
     }
     
     @defer.inlineCallbacks
@@ -641,8 +651,8 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_8bit(self):
@@ -692,8 +702,8 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_16bit(self):
@@ -745,8 +755,8 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
 class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
     configArgs = {
@@ -755,9 +765,15 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         'reconnectOnConnectionFailure': False,
         'reconnectOnConnectionLoss': False,
         'username': 'smppclient1',
-        'longContentMaxParts': 8,
     }
+    
+    def setUp(self):
+        LongSubmitSmWithSARTestCase.setUp(self)
 
+        # Reset opFactory with long_content_max_parts = 8
+        self.opFactory = SMPPOperationFactory(self.config, long_content_max_parts = 8)
+        self.long_content_max_parts = self.opFactory.long_content_max_parts
+    
     @defer.inlineCallbacks
     def test_long_submit_sm_7bit(self):
         client = SMPPClientFactory(self.config)
@@ -806,8 +822,8 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_8bit(self):
@@ -857,8 +873,8 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_16bit(self):
@@ -910,8 +926,8 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
 class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
     configArgs = {
@@ -920,9 +936,14 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         'reconnectOnConnectionFailure': False,
         'reconnectOnConnectionLoss': False,
         'username': 'smppclient1',
-        'longContentMaxParts': 8,
-        'longContentSplit': 'udh',
     }
+    
+    def setUp(self):
+        LongSubmitSmWithUDHTestCase.setUp(self)
+
+        # Reset opFactory with long_content_split = 'udh' and long_content_max_parts = 8
+        self.opFactory = SMPPOperationFactory(self.config, long_content_split = 'udh', long_content_max_parts = 8)
+        self.long_content_max_parts = self.opFactory.long_content_max_parts
 
     @defer.inlineCallbacks
     def test_long_submit_sm_7bit(self):
@@ -972,8 +993,8 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_8bit(self):
@@ -1023,8 +1044,8 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_16bit(self):
@@ -1076,8 +1097,8 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
-        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.long_content_max_parts + 1, smpp.sendPDU.call_count)
 
 class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
     protocol = ErrorOnSubmitSMSC

@@ -5,7 +5,7 @@ import struct
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCoding, DataCodingDefault
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
+from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map, esm_class_gsm_features_name_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
@@ -156,10 +156,17 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             # - Every OutboundTransaction is closed upon receiving the correct submit_sm_resp
             # - Every LongSubmitSmTransaction is closed upong closing all included OutboundTransactions
             
+            # UDH is set ?
+            UDHI_INDICATOR_SET = False
+            if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
+                for gsmFeature in pdu.params['esm_class'].gsmFeatures:
+                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        UDHI_INDICATOR_SET = True
+            
             # Discover any splitting method, otherwise, it is a single SubmitSm
             if 'sar_msg_ref_num' in pdu.params:
                 splitMethod = 'sar'
-            elif EsmClassGsmFeatures.UDHI_INDICATOR_SET in pdu.params['esm_class'].gsmFeatures and pdu.params['short_message'][:3] == '\x05\x00\x03':
+            elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
                 splitMethod = 'udh'
             else:
                 splitMethod = None

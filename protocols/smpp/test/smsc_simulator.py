@@ -52,8 +52,18 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
     """Will send a deliver_sm through trigger_DLR() method
     A submit_sm must be sent to this SMSC before requesting sendDeliverSM !
     """
+    submitRecords = []
     lastSubmitSmRestPDU = None
     lastSubmitSmPDU = None
+
+    def __init__(self):
+        HappySMSC.__init__(self)
+        
+    def sendSuccessResponse(self, reqPDU):
+        if str(reqPDU.commandId)[:5] == 'bind_':
+            self.submitRecords = []
+
+        HappySMSC.sendSuccessResponse(self, reqPDU)
 
     def sendSubmitSmResponse(self, reqPDU):
         self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, status=CommandStatus.ESME_ROK, message_id = str(random.randint(10000000, 9999999999)))
@@ -64,6 +74,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         self.sendSubmitSmResponse(reqPDU)
         
         self.lastSubmitSmPDU = reqPDU
+        self.submitRecords.append(reqPDU)
 
     def trigger_DLR(self):
         if self.lastSubmitSmRestPDU is None:

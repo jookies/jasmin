@@ -7,7 +7,7 @@ Test cases for jasmin.protocols.smpp.configs module.
 
 from twisted.trial.unittest import TestCase
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.configs import ConfigUndefinedIdError, ConfigInvalidIdError, InvalidValue
+from jasmin.protocols.smpp.configs import ConfigUndefinedIdError, ConfigInvalidIdError
 
 class SMPPClientConfigTest(TestCase):
     def test_id_is_mandatory(self):
@@ -18,6 +18,3 @@ class SMPPClientConfigTest(TestCase):
         
         for invalidId in invalidIds:
             self.assertRaises(ConfigInvalidIdError, SMPPClientConfig, id=invalidId)
-
-    def test_invalid_longContentSplit(self):
-        self.assertRaises(InvalidValue, SMPPClientConfig, id='validId', longContentSplit='anything')

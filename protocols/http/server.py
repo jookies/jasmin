@@ -7,19 +7,20 @@ from jasmin.protocols.http.validation import UrlArgsValidator
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError
-from jasmin.vendor.smpp.pdu.pdu_types import DataCodingDefault
-from jasmin.vendor.messaging.sms.gsm0338 import decode
 
 LOG_CATEGORY = "jasmin-http-api"
 
 class Send(Resource):
-    def __init__(self, RouterPB, SMPPClientManagerPB, log):
+    def __init__(self, HTTPApiConfig, RouterPB, SMPPClientManagerPB, log):
         Resource.__init__(self)
         
         self.SMPPClientManagerPB = SMPPClientManagerPB
         self.RouterPB = RouterPB
         self.log = log
-        self.opFactory = SMPPOperationFactory()
+        
+        # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
+        self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
+                                              long_content_split = HTTPApiConfig.long_content_split)
     
     def render(self, request):
         self.log.debug("Rendering /send response with args: %s from %s" % (request.args, request.getClientIP()))
@@ -79,6 +80,7 @@ class Send(Resource):
                 source_addr = None if 'from' not in request.args else request.args['from'][0],
                 destination_addr = request.args['to'][0],
                 short_message = request.args['content'][0],
+                data_coding = int(request.args['datacoding'][0]),
             )                
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
@@ -90,11 +92,6 @@ class Send(Resource):
                 self.log.debug("No route matched this SubmitSmPDU")
                 raise RouteNotFoundError()
             else:
-                # Set data_coding
-                if 'datacoding' in request.args:
-                    SubmitSmPDU.params['data_coding'] = int(request.args['datacoding'][0])
-                self.log.debug("SubmitSmPDU data_coding is set to %s" % SubmitSmPDU.params['data_coding'])
-
                 # Set priority
                 priority = 1
                 if 'priority' in request.args:
@@ -182,4 +179,4 @@ class HTTPApi(Resource):
 
         # Set http url routings
         self.log.debug("Setting http url routing for /send")
-        self.putChild('send', Send(self.RouterPB, self.SMPPClientManagerPB, self.log))
+        self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.log))

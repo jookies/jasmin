@@ -14,11 +14,14 @@ from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode,
 class SMPPOperationFactory():
     lastLongSmSeqNum = 0
     
-    def __init__(self, config = None):
+    def __init__(self, config = None, long_content_max_parts = 5, long_content_split = 'sar'):
         if config is not None:
             self.config = config
         else:
             self.config = SMPPClientConfig(**{'id':'anyid'})
+
+        self.long_content_max_parts = long_content_max_parts
+        self.long_content_split = long_content_split
         
     def _setConfigParamsInPDU(self, pdu, kwargs):
         """Check for PDU's mandatory parameters and try to set
@@ -88,8 +91,8 @@ class SMPPOperationFactory():
         if smLength > maxSmLength:
             total_segments = int(math.ceil(smLength / float(slicedMaxSmLength)))
             # Obey to configured longContentMaxParts
-            if total_segments > self.config.longContentMaxParts:
-                total_segments = self.config.longContentMaxParts
+            if total_segments > self.long_content_max_parts:
+                total_segments = self.long_content_max_parts
             
             msg_ref_num = self.claimLongSmSeqNum()
             
@@ -105,12 +108,12 @@ class SMPPOperationFactory():
 
                 kwargs['short_message'] = longMessage[slicedMaxSmLength*i:slicedMaxSmLength*(i+1)]
                 tmpPdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
-                if self.config.longContentSplit == 'sar':
+                if self.long_content_split == 'sar':
                     # Slice short_message and create the PDU using SAR options
                     tmpPdu.params['sar_total_segments'] = total_segments
                     tmpPdu.params['sar_segment_seqnum'] = segment_seqnum
                     tmpPdu.params['sar_msg_ref_num'] = msg_ref_num
-                elif self.config.longContentSplit == 'udh':
+                elif self.long_content_split == 'udh':
                     # Slice short_message and create the PDU using UDH options
                     tmpPdu.params['esm_class'] = EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT, [EsmClassGsmFeatures.UDHI_INDICATOR_SET])
                     if segment_seqnum < total_segments:

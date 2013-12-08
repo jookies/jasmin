@@ -23,10 +23,6 @@ class TypeMismatch(Exception):
     """Raised when a *Config element has not a valid type
     """
 
-class InvalidValue(Exception):
-    """Raised when a *Config element is set with an invalid value
-    """
-
 class SMPPClientConfig():
     def __init__(self, **kwargs):
         if kwargs.get('id', None) == None:
@@ -133,15 +129,7 @@ class SMPPClientConfig():
         
         # DLR
         self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
-        
-        # Long message splitting
-        self.longContentMaxParts = kwargs.get('longContentMaxParts', 5)
-        if not isinstance(self.longContentMaxParts, int):
-            raise TypeMismatch('longContentMaxParts must be an integer')
-        self.longContentSplit = kwargs.get('longContentSplit', 'sar')
-        if self.longContentSplit not in ['sar', 'udh']:
-            raise InvalidValue("longContentSplit must be 'sar' or 'udh'")
-        
+                
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):
         ConfigFile.__init__(self, config_file)

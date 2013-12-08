@@ -17,3 +17,7 @@ class HTTPApiConfig(ConfigFile):
         self.log_file = self._get('http-api', 'log_file', '/var/log/jasmin/http-api.log')
         self.log_format = self._get('http-api', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('http-api', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+        # Long message splitting
+        self.long_content_max_parts = self._get('http-api', 'long_content_max_parts', 5)
+        self.long_content_split = self._get('http-api', 'long_content_split', 'sar') # sar or udh
