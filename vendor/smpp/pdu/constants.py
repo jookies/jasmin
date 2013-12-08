@@ -395,6 +395,12 @@ replace_if_present_flap_name_map = {
 }
 replace_if_present_flap_value_map = dict([(val, key) for (key, val) in replace_if_present_flap_name_map.items()])
 
+more_messages_to_send_name_map = {
+    'NO_MORE_MESSAGES': 0x00,
+    'MORE_MESSAGES': 0x01,
+}
+more_messages_to_send_value_map = dict([(val, key) for (key, val) in more_messages_to_send_name_map.items()])
+
 data_coding_scheme_name_map = {
     'GSM_MESSAGE_CLASS': 0xf0,
 }

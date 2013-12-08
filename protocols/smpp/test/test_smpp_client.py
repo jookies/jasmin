@@ -349,6 +349,7 @@ class LongSubmitSmTestCase(SimulatorTestCase):
         smpp.startLongSubmitSmTransaction = mock.Mock(wraps=smpp.startLongSubmitSmTransaction)
         smpp.endLongSubmitSmTransaction = mock.Mock(wraps=smpp.endLongSubmitSmTransaction)
         
+class LongSubmitSmWithSARTestCase(LongSubmitSmTestCase):
     def runAsserts(self, smpp, content, nbrParts):
         self.assertEquals(nbrParts + 1, smpp.PDUReceived.call_count)
         self.assertEquals(nbrParts + 1, smpp.sendPDU.call_count)
@@ -367,7 +368,7 @@ class LongSubmitSmTestCase(SimulatorTestCase):
         # Assert SAR parameters
         sar_msg_ref_num = sent[0].params['sar_msg_ref_num']
         for i in range(nbrParts):
-            self.assertEqual(3, sent[i].params['sar_total_segments'])
+            self.assertEqual(nbrParts, sent[i].params['sar_total_segments'])
             self.assertEqual(i+1, sent[i].params['sar_segment_seqnum'])
             self.assertEqual(sar_msg_ref_num, sent[i].params['sar_msg_ref_num'])
             
@@ -386,7 +387,47 @@ class LongSubmitSmTestCase(SimulatorTestCase):
         # Assert unbind were successfull
         self.verifyUnbindSuccess(smpp, sent[nbrParts], recv[nbrParts])
         
-class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
+class LongSubmitSmWithUDHTestCase(LongSubmitSmTestCase):
+    def runAsserts(self, smpp, content, nbrParts):
+        self.assertEquals(nbrParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(nbrParts + 1, smpp.sendPDU.call_count)
+        recv = {}
+        sent = {}
+        for i in range(nbrParts + 1):
+            recv[i] = smpp.PDUReceived.call_args_list[i][0][0]
+            sent[i] = smpp.sendPDU.call_args_list[i][0][0]
+            
+        # Assert for received PDUs
+        for i in range(nbrParts):
+            self.assertTrue(isinstance(recv[i], SubmitSMResp))
+            self.assertTrue(isinstance(recv[i], sent[i].requireAck))
+            self.assertEqual(recv[i].status, CommandStatus.ESME_ROK)
+        
+        # Assert UDH parameters
+        msg_ref_num = sent[0].params['short_message'][3]
+        for i in range(nbrParts):
+            self.assertEqual(sent[i].params['short_message'][:3], '\x05\x00\x03')
+            self.assertEqual(nbrParts, struct.unpack('!B', sent[i].params['short_message'][4])[0])
+            self.assertEqual(i+1, struct.unpack('!B', sent[i].params['short_message'][5])[0])
+            self.assertEqual(msg_ref_num, sent[i].params['short_message'][3])
+            
+        # Assert no LongSubmitSm transactions are still open
+        self.assertEqual(0, len(smpp.longSubmitSmTxns))
+        # Assert transactions are being started and ended
+        self.assertEquals(1, smpp.startLongSubmitSmTransaction.call_count)
+        self.assertEquals(nbrParts, smpp.endLongSubmitSmTransaction.call_count)
+        
+        # Assert the content after concatenation is the same as original
+        concatenatedMsg = ''
+        for i in range(nbrParts):
+            # Remove UDH (6 bytes)
+            concatenatedMsg += sent[i].params['short_message'][6:]
+        self.assertEqual(concatenatedMsg, content)
+        
+        # Assert unbind were successfull
+        self.verifyUnbindSuccess(smpp, sent[nbrParts], recv[nbrParts])
+        
+class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
     @defer.inlineCallbacks
     def test_long_submit_sm_7bit(self):
         client = SMPPClientFactory(self.config)
@@ -396,7 +437,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(GSM0338, 459) # 459 = 153 * 3
+        content = self.composeMessage(GSM0338, 612) # 612 = 153 * 4
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -410,7 +451,198 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 153) # 3 parts
+        self.runAsserts(smpp, content, len(content) / 153)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 1530) # 1530 = 153 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 670) # 670 = 134 * 5
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 134)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 1340) # 1340 = 134 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 335) # 335 = 67 * 5
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 67)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 3350) # 3350 = 67 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
+    configArgs = {
+        'id': 'test-id',
+        'sessionInitTimerSecs': 0.1,
+        'reconnectOnConnectionFailure': False,
+        'reconnectOnConnectionLoss': False,
+        'username': 'smppclient1',
+        'longContentSplit': 'udh', # <--- This is where to set UDH splitting method
+    }
+    
+    @defer.inlineCallbacks
+    def test_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 765) # 765 = 153 * 5
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 153)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 1530) # 1530 = 153 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_8bit(self):
@@ -435,7 +667,33 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 134) # 3 parts
+        self.runAsserts(smpp, content, len(content) / 134)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 1340) # 1340 = 134 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
 
     @defer.inlineCallbacks
     def test_long_submit_sm_16bit(self):
@@ -447,7 +705,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
 
         # Send submit_sm
         UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
-        content = self.composeMessage(UCS2, 201) # 201 = 67 * 3
+        content = self.composeMessage(UCS2, 335) # 335 = 67 * 5
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -461,7 +719,365 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 67) # 3 parts
+        self.runAsserts(smpp, content, len(content) / 67)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 536) # 536 = 67 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
+    configArgs = {
+        'id': 'test-id',
+        'sessionInitTimerSecs': 0.1,
+        'reconnectOnConnectionFailure': False,
+        'reconnectOnConnectionLoss': False,
+        'username': 'smppclient1',
+        'longContentMaxParts': 8,
+    }
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 1224) # 1224 = 153 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 153)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 1530) # 1530 = 153 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 1072) # 1072 = 134 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 134)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 1340) # 1340 = 134 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 536) # 536 = 67 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 67)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 3350) # 3350 = 67 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
+    configArgs = {
+        'id': 'test-id',
+        'sessionInitTimerSecs': 0.1,
+        'reconnectOnConnectionFailure': False,
+        'reconnectOnConnectionLoss': False,
+        'username': 'smppclient1',
+        'longContentMaxParts': 8,
+        'longContentSplit': 'udh',
+    }
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 1224) # 1224 = 153 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 153)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(GSM0338, 1530) # 1530 = 153 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 0,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 1072) # 1072 = 134 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 134)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 1340) # 1340 = 134 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 536) # 536 = 67 * 8
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 67)
+
+    @defer.inlineCallbacks
+    def test_very_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 3350) # 3350 = 67 * 10
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(self.config.longContentMaxParts + 1, smpp.sendPDU.call_count)
 
 class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
     protocol = ErrorOnSubmitSMSC

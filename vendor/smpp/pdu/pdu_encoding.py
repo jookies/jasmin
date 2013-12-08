@@ -637,7 +637,7 @@ class NetworkTypeEncoder(IntegerWrapperEncoder):
     pduType = pdu_types.NetworkType
 
 class BearerTypeEncoder(IntegerWrapperEncoder):
-    fieldName = 'network_type'
+    fieldName = 'bearer_type'
     nameMap = constants.bearer_type_name_map
     valueMap = constants.bearer_type_value_map
     encoder = Int1Encoder()
@@ -665,7 +665,7 @@ class LanguageIndicatorEncoder(IntegerWrapperEncoder):
     pduType = pdu_types.LanguageIndicator
 
 class DisplayTimeEncoder(IntegerWrapperEncoder):
-    fieldName = 'language_indicator'
+    fieldName = 'display_time'
     nameMap = constants.display_time_name_map
     valueMap = constants.display_time_value_map
     encoder = Int1Encoder()
@@ -685,6 +685,13 @@ class DeliveryFailureReasonEncoder(IntegerWrapperEncoder):
     encoder = Int1Encoder()
     pduType = pdu_types.DeliveryFailureReason
 
+class MoreMessagesToSendEncoder(IntegerWrapperEncoder):
+    fieldName = 'more_messages_to_send'
+    nameMap = constants.more_messages_to_send_name_map
+    valueMap = constants.more_messages_to_send_value_map
+    encoder = Int1Encoder()
+    pduType = pdu_types.MoreMessagesToSend
+    
 class TimeEncoder(PDUNullableFieldEncoder):
     nullHex = '00'
     decodeNull = True
@@ -766,7 +773,7 @@ class OptionEncoder(IEncoder):
             #T.network_error_code: NetworkErrorCodeEncoder(),
             T.message_payload: OctetStringEncoder(self.getLength),
             T.delivery_failure_reason: DeliveryFailureReasonEncoder(),
-            #T.more_messages_to_send: MoreMessagesToSendEncoder(),
+            T.more_messages_to_send: MoreMessagesToSendEncoder(),
             T.message_state: MessageStateEncoder(),
             T.callback_num: CallbackNumEncoder(self.getLength),
             #T.callback_num_pres_ind: CallbackNumPresIndEncoder(),

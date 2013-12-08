@@ -2,10 +2,14 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
+import struct
 import math
 import re
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, 
+                                            EsmClassType, EsmClassGsmFeatures, 
+                                            MoreMessagesToSend)
 
 class SMPPOperationFactory():
     lastLongSmSeqNum = 0
@@ -82,11 +86,15 @@ class SMPPOperationFactory():
         and link them
         """
         if smLength > maxSmLength:
-            sar_total_segments = int(math.ceil(smLength / float(slicedMaxSmLength)))
-            sar_msg_ref_num = self.claimLongSmSeqNum()
+            total_segments = int(math.ceil(smLength / float(slicedMaxSmLength)))
+            # Obey to configured longContentMaxParts
+            if total_segments > self.config.longContentMaxParts:
+                total_segments = self.config.longContentMaxParts
             
-            for i in range(sar_total_segments):
-                sar_segment_seqnum = i+1
+            msg_ref_num = self.claimLongSmSeqNum()
+            
+            for i in range(total_segments):
+                segment_seqnum = i+1
                 
                 # Keep in memory previous PDU in order to set nextPdu in it later
                 try:
@@ -95,12 +103,29 @@ class SMPPOperationFactory():
                 except NameError:
                     previousPdu = None
 
-                # Slice short_message and create the PDU
                 kwargs['short_message'] = longMessage[slicedMaxSmLength*i:slicedMaxSmLength*(i+1)]
                 tmpPdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
-                tmpPdu.params['sar_total_segments'] = sar_total_segments
-                tmpPdu.params['sar_segment_seqnum'] = sar_segment_seqnum
-                tmpPdu.params['sar_msg_ref_num'] = sar_msg_ref_num
+                if self.config.longContentSplit == 'sar':
+                    # Slice short_message and create the PDU using SAR options
+                    tmpPdu.params['sar_total_segments'] = total_segments
+                    tmpPdu.params['sar_segment_seqnum'] = segment_seqnum
+                    tmpPdu.params['sar_msg_ref_num'] = msg_ref_num
+                elif self.config.longContentSplit == 'udh':
+                    # Slice short_message and create the PDU using UDH options
+                    tmpPdu.params['esm_class'] = EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT, [EsmClassGsmFeatures.UDHI_INDICATOR_SET])
+                    if segment_seqnum < total_segments:
+                        tmpPdu.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
+                    else:
+                        tmpPdu.params['more_messages_to_send'] = MoreMessagesToSend.NO_MORE_MESSAGES
+                    # UDH composition:
+                    udh = []
+                    udh.append(struct.pack('!B', 5)) # Length of User Data Header
+                    udh.append(struct.pack('!B', 0)) # Information Element Identifier, equal to 00 (Concatenated short messages, 8-bit reference number)
+                    udh.append(struct.pack('!B', 3)) # Length of the header, excluding the first two fields; equal to 03
+                    udh.append(struct.pack('!B', msg_ref_num))
+                    udh.append(struct.pack('!B', total_segments))
+                    udh.append(struct.pack('!B', segment_seqnum))
+                    tmpPdu.params['short_message'] = ''.join(udh) + kwargs['short_message']
                 
                 # - The first PDU is the one we return back
                 # - sar_msg_ref_num takes the seqnum of the initial submit_sm

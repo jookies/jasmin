@@ -1,6 +1,7 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
+import struct
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCoding, DataCodingDefault
@@ -8,7 +9,7 @@ from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
-from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
+from jasmin.vendor.smpp.pdu.pdu_types import PDURequest, EsmClassGsmFeatures
 
 LOG_CATEGORY="smpp.twisted.protocol"
 
@@ -69,32 +70,32 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             reqPDU = item['txn'].request
             
             self.log.exception(error)
-            txn = self.closeLongSubmitSmTransaction(reqPDU.params['sar_msg_ref_num'])
+            txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
             #Do errback
             txn.ackDeferred.errback(error)
             
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
-        if reqPDU.params['sar_msg_ref_num'] in self.longSubmitSmTxns:
-            raise ValueError('sar_msg_ref_num [%s] is already in progess.' % reqPDU.params['sar_msg_ref_num'])
+        if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
+            raise ValueError('msg_ref_num [%s] is already in progess.' % reqPDU.LongSubmitSm['msg_ref_num'])
         
         #Create callback deferred
         ackDeferred = defer.Deferred()
         #Create response timer
         timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
         #Save transaction
-        self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']] = {
+        self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
                                                                    'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
-                                                                   'nack_count' : reqPDU.params['sar_total_segments']
+                                                                   'nack_count' : reqPDU.LongSubmitSm['total_segments']
                                                                    }
-        self.log.debug("Long submit_sm transaction started with sar_msg_ref_num %s" % reqPDU.params['sar_msg_ref_num'])
+        self.log.debug("Long submit_sm transaction started with msg_ref_num %s" % reqPDU.LongSubmitSm['msg_ref_num'])
         return ackDeferred
     
-    def closeLongSubmitSmTransaction(self, sar_msg_ref_num):
-        self.log.debug("Long submit_sm transaction finished with sar_msg_ref_num %s" % sar_msg_ref_num)        
+    def closeLongSubmitSmTransaction(self, msg_ref_num):
+        self.log.debug("Long submit_sm transaction finished with msg_ref_num %s" % msg_ref_num)        
             
-        txn = self.longSubmitSmTxns[sar_msg_ref_num]['txn']
+        txn = self.longSubmitSmTxns[msg_ref_num]['txn']
         # Remove txn
-        del self.longSubmitSmTxns[sar_msg_ref_num]
+        del self.longSubmitSmTxns[msg_ref_num]
         # Cancel response timer
         if txn.timer.active():
             txn.timer.cancel()
@@ -106,18 +107,18 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         respPDU = _SMPPOutboundTxnResult.response
         
         # Do we have txn with the given ref ?
-        if reqPDU.params['sar_msg_ref_num'] not in self.longSubmitSmTxns:
-            raise ValueError('Transaction with sar_msg_ref_num [%s] was not found.' % reqPDU.params['sar_msg_ref_num'])
+        if reqPDU.LongSubmitSm['msg_ref_num'] not in self.longSubmitSmTxns:
+            raise ValueError('Transaction with msg_ref_num [%s] was not found.' % reqPDU.LongSubmitSm['msg_ref_num'])
 
         # Decrement pending ACKs
-        if self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] > 0:
-            self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] -= 1
-            self.log.debug("Long submit_sm transaction with sar_msg_ref_num %s has been updated, nack_count: %s" 
-                            % (reqPDU.params['sar_msg_ref_num'], self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count']))
+        if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] > 0:
+            self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] -= 1
+            self.log.debug("Long submit_sm transaction with msg_ref_num %s has been updated, nack_count: %s" 
+                            % (reqPDU.LongSubmitSm['msg_ref_num'], self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count']))
 
         # End the transaction if no more pending ACKs
-        if self.longSubmitSmTxns[reqPDU.params['sar_msg_ref_num']]['nack_count'] == 0:
-            txn = self.closeLongSubmitSmTransaction(reqPDU.params['sar_msg_ref_num'])
+        if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] == 0:
+            txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
                     
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
@@ -154,13 +155,36 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             # pdus, each with an OutboundTransaction
             # - Every OutboundTransaction is closed upon receiving the correct submit_sm_resp
             # - Every LongSubmitSmTransaction is closed upong closing all included OutboundTransactions
+            
+            # Discover any splitting method, otherwise, it is a single SubmitSm
             if 'sar_msg_ref_num' in pdu.params:
+                splitMethod = 'sar'
+            elif EsmClassGsmFeatures.UDHI_INDICATOR_SET in pdu.params['esm_class'].gsmFeatures and pdu.params['short_message'][:3] == '\x05\x00\x03':
+                splitMethod = 'udh'
+            else:
+                splitMethod = None
+            
+            if splitMethod is not None:
                 partedSmPdu = pdu
                 first = True
                 
                 # Iterate through parted PDUs
                 while True:
                     partedSmPdu.seqNum = self.claimSeqNum()
+
+                    # Set LongSubmitSm tracking flags in pdu:
+                    partedSmPdu.LongSubmitSm = {'msg_ref_num': None, 'total_segments': None, 'segment_seqnum': None}
+                    if splitMethod == 'sar':
+                        # Using SAR options:
+                        partedSmPdu.LongSubmitSm['msg_ref_num'] = partedSmPdu.params['sar_msg_ref_num']
+                        partedSmPdu.LongSubmitSm['total_segments'] = partedSmPdu.params['sar_total_segments']
+                        partedSmPdu.LongSubmitSm['segment_seqnum'] = partedSmPdu.params['sar_segment_seqnum']
+                    elif splitMethod == 'udh':
+                        # Using UDH options:
+                        partedSmPdu.LongSubmitSm['msg_ref_num'] = struct.unpack('!B', pdu.params['short_message'][3])[0]
+                        partedSmPdu.LongSubmitSm['total_segments'] = struct.unpack('!B', pdu.params['short_message'][4])[0]
+                        partedSmPdu.LongSubmitSm['segment_seqnum'] = struct.unpack('!B', pdu.params['short_message'][5])[0]
+
                     self.preSubmitSm(partedSmPdu)
                     self.sendPDU(partedSmPdu)
                     # Not like parent protocol's sendPDU, we don't return per pdu
