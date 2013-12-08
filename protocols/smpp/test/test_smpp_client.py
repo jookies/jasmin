@@ -21,6 +21,7 @@ from jasmin.protocols.smpp.factory import SMPPClientFactory
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.vendor.smpp.pdu.operations import *
 from jasmin.vendor.smpp.pdu.error import *
+from jasmin.routing.test.codepages import GSM0338, ISO8859_1
 
 class SimulatorTestCase(TestCase):
     protocol = HappySMSC
@@ -61,6 +62,15 @@ class SimulatorTestCase(TestCase):
         
     def tearDown(self):
         self.port.stopListening()
+        
+    def composeMessage(self, characters, length):
+        if length <= len(characters):
+            return ''.join(random.sample(characters, length))
+        else:
+            s = ''
+            while len(s) < length:
+                s += ''.join(random.sample(characters, len(characters)))
+            return s[:length]
     
     def verifyUnbindSuccess(self, smpp, sent, recv):
         self.assertTrue(isinstance(recv, UnbindResp))
@@ -333,23 +343,65 @@ class SubmitSmTestCase(SimulatorTestCase):
         self.verifyUnbindSuccess(smpp, sent2, recv2)
 
 class LongSubmitSmTestCase(SimulatorTestCase):
-    @defer.inlineCallbacks
-    def test_long_submit_sm_latin(self):
-        client = SMPPClientFactory(self.config)
-        # Connect and bind
-        yield client.connectAndBind()
-        smpp = client.smpp
-
+    def prepareMocks(self, smpp):
         smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
         smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
         smpp.startLongSubmitSmTransaction = mock.Mock(wraps=smpp.startLongSubmitSmTransaction)
         smpp.endLongSubmitSmTransaction = mock.Mock(wraps=smpp.endLongSubmitSmTransaction)
         
+    def runAsserts(self, smpp, content, nbrParts):
+        self.assertEquals(nbrParts + 1, smpp.PDUReceived.call_count)
+        self.assertEquals(nbrParts + 1, smpp.sendPDU.call_count)
+        recv = {}
+        sent = {}
+        for i in range(nbrParts + 1):
+            recv[i] = smpp.PDUReceived.call_args_list[i][0][0]
+            sent[i] = smpp.sendPDU.call_args_list[i][0][0]
+            
+        # Assert for received PDUs
+        for i in range(nbrParts):
+            self.assertTrue(isinstance(recv[i], SubmitSMResp))
+            self.assertTrue(isinstance(recv[i], sent[i].requireAck))
+            self.assertEqual(recv[i].status, CommandStatus.ESME_ROK)
+            
+        # Assert SAR parameters
+        sar_msg_ref_num = sent[0].params['sar_msg_ref_num']
+        for i in range(nbrParts):
+            self.assertEqual(3, sent[i].params['sar_total_segments'])
+            self.assertEqual(i+1, sent[i].params['sar_segment_seqnum'])
+            self.assertEqual(sar_msg_ref_num, sent[i].params['sar_msg_ref_num'])
+            
+        # Assert no LongSubmitSm transactions are still open
+        self.assertEqual(0, len(smpp.longSubmitSmTxns))
+        # Assert transactions are being started and ended
+        self.assertEquals(1, smpp.startLongSubmitSmTransaction.call_count)
+        self.assertEquals(nbrParts, smpp.endLongSubmitSmTransaction.call_count)
+        
+        # Assert the content after concatenation is the same as original
+        concatenatedMsg = ''
+        for i in range(nbrParts):
+            concatenatedMsg += sent[i].params['short_message']
+        self.assertEqual(concatenatedMsg, content)
+        
+        # Assert unbind were successfull
+        self.verifyUnbindSuccess(smpp, sent[nbrParts], recv[nbrParts])
+        
+class LongSubmitSmUsingSARTestCase(LongSubmitSmTestCase):
+    @defer.inlineCallbacks
+    def test_long_submit_sm_7bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
         # Send submit_sm
+        content = self.composeMessage(GSM0338, 459) # 459 = 153 * 3
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
-            short_message=self.concatenated2Msgs,
+            short_message=content,
+            data_coding = 0,
         )
         yield smpp.sendDataRequest(SubmitSmPDU)
         
@@ -358,35 +410,64 @@ class LongSubmitSmTestCase(SimulatorTestCase):
         
         ##############
         # Assertions :
-        self.assertEquals(3, smpp.PDUReceived.call_count)
-        self.assertEquals(3, smpp.sendPDU.call_count)
-        recv1 = smpp.PDUReceived.call_args_list[0][0][0]
-        recv2 = smpp.PDUReceived.call_args_list[1][0][0]
-        recv3 = smpp.PDUReceived.call_args_list[2][0][0]
-        sent1 = smpp.sendPDU.call_args_list[0][0][0]
-        sent2 = smpp.sendPDU.call_args_list[1][0][0]
-        sent3 = smpp.sendPDU.call_args_list[2][0][0]
-        self.assertTrue(isinstance(recv1, SubmitSMResp))
-        self.assertTrue(isinstance(recv1, sent1.requireAck))
-        self.assertEqual(recv1.status, CommandStatus.ESME_ROK)
-        self.assertEqual(2, sent1.params['sar_total_segments'])
-        self.assertEqual(2, sent2.params['sar_total_segments'])
-        self.assertEqual(1, sent1.params['sar_segment_seqnum'])
-        self.assertEqual(2, sent2.params['sar_segment_seqnum'])
-        self.assertEqual(sent1.params['sar_msg_ref_num'], sent2.params['sar_msg_ref_num'])
-        self.assertTrue(isinstance(recv2, SubmitSMResp))
-        self.assertTrue(isinstance(recv2, sent1.requireAck))
-        self.assertEqual(recv2.status, CommandStatus.ESME_ROK)
-        self.assertEqual(0, len(smpp.longSubmitSmTxns))
-        self.assertEquals(1, smpp.startLongSubmitSmTransaction.call_count)
-        self.assertEquals(2, smpp.endLongSubmitSmTransaction.call_count)
-        self.verifyUnbindSuccess(smpp, sent3, recv3)
+        self.runAsserts(smpp, content, len(content) / 153) # 3 parts
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_8bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        content = self.composeMessage(ISO8859_1, 402) # 402 = 134 * 3
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 3,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 134) # 3 parts
+
+    @defer.inlineCallbacks
+    def test_long_submit_sm_16bit(self):
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.prepareMocks(smpp)
+
+        # Send submit_sm
+        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        content = self.composeMessage(UCS2, 201) # 201 = 67 * 3
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=content,
+            data_coding = 8,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+        
+        ##############
+        # Assertions :
+        self.runAsserts(smpp, content, len(content) / 67) # 3 parts
 
 class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
     protocol = ErrorOnSubmitSMSC
     
     @defer.inlineCallbacks
-    def test_long_submit_sm_latin(self):
+    def test_long_submit_sm_gsm0338(self):
         client = SMPPClientFactory(self.config)
         # Connect and bind
         yield client.connectAndBind()
@@ -436,7 +517,7 @@ class LongSubmitSmGenerickNackTestCase(SimulatorTestCase):
     protocol = GenericNackNoSeqNumOnSubmitSMSC
     
     @defer.inlineCallbacks
-    def test_long_submit_sm_latin(self):
+    def test_long_submit_sm_gsm0338(self):
         client = SMPPClientFactory(self.config)
         # Connect and bind
         yield client.connectAndBind()

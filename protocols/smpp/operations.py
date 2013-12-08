@@ -54,26 +54,26 @@ class SMPPOperationFactory():
         
         return self.lastLongSmSeqNum
 
-    def SubmitSM(self, short_message, **kwargs):
+    def SubmitSM(self, short_message, data_coding = 0, **kwargs):
         kwargs['short_message'] = short_message
+        kwargs['data_coding'] = data_coding
 
+        # Possible data_coding values : 0,1,2,3,4,5,6,7,8,9,10,13,14
         # Set the max short message length depending on the
         # coding (7, 8 or 16 bits)
-
-        # Default is 7 bits (c_ord is equal or lower than 127)
-        maxSmLength = 160
-        slicedMaxSmLength = 153
-        for c in kwargs['short_message']:
-            c_ord = ord(c)
-            if c_ord >= 256:
-                # 16 bits coding
-                maxSmLength = 70
-                slicedMaxSmLength = 67
-                break
-            elif c_ord >= 128:
-                # 8 bits coding
-                maxSmLength = 140
-                slicedMaxSmLength = maxSmLength - 6
+        if kwargs['data_coding'] in [3, 6, 7, 10]:
+            # 8 bit coding
+            maxSmLength = 140
+            slicedMaxSmLength = maxSmLength - 6
+        elif kwargs['data_coding'] in [2, 4, 5, 8, 9, 13, 14]:
+            # 16 bit coding
+            maxSmLength = 70
+            slicedMaxSmLength = maxSmLength - 3
+        else:
+            # 7 bit coding is the default 
+            # for data_coding in [0, 1] or any other invalid value
+            maxSmLength = 160
+            slicedMaxSmLength = 153
 
         longMessage = kwargs['short_message']
         smLength = len(kwargs['short_message'])
