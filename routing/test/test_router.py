@@ -34,6 +34,15 @@ from jasmin.routing.jasminApi import Connector, HttpConnector, Group, User
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 
+def composeMessage(characters, length):
+    if length <= len(characters):
+        return ''.join(random.sample(characters, length))
+    else:
+        s = ''
+        while len(s) < length:
+            s += ''.join(random.sample(characters, len(characters)))
+        return s[:length]
+    
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
@@ -342,7 +351,7 @@ class SubmitSmTestCaseTools():
                 time.sleep(0.2)
 
     
-class AdvancedSubmitSmTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def setUp(self):
         yield HappySMSCTestCase.setUp(self)
@@ -591,6 +600,246 @@ class AdvancedSubmitSmTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCa
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
+
+class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield HappySMSCTestCase.setUp(self)
+        
+        # Start http servers
+        self.AckServerResource = AckServer()
+        self.AckServer = reactor.listenTCP(0, server.Site(self.AckServerResource))
+
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield HappySMSCTestCase.tearDown(self)
+        
+        self.AckServer.stopListening()
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level1(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 1
+        3. Wait for the level1 DLR (submit_sm_resp) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 1
+        self.params['content'] = composeMessage({'_'}, 200)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppConnectors()
+        
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')        
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level2(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 2
+        3. Wait for the level2 DLR (deliver_sm) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 1
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm containing a DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        yield self.stopSmppConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')        
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level3(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 3
+        3. Wait for the level1 & level2 DLRs and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 3
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        yield self.stopSmppConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')        
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 2)
+        # Message ID must be transmitted in the DLR
+        callArgs_level1 = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        callArgs_level2 = self.AckServerResource.render_POST.call_args_list[1][0][0].args
+        self.assertEqual(callArgs_level1['id'][0], msgId)
+        self.assertEqual(callArgs_level2['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level1_GET(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 1 using GET method
+        3. Wait for the level1 DLR (submit_sm_resp) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 1
+        self.params['dlr-method'] = 'GET'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppConnectors()
+        
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')        
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level2_GET(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 2 using GET method
+        3. Wait for the level2 DLR (deliver_sm) and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 2
+        self.params['dlr-method'] = 'GET'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm containing a DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        yield self.stopSmppConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')        
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        # Message ID must be transmitted in the DLR
+        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_delivery_with_inurl_dlr_level3_GET(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route and set a DLR callback for level 3 using GET method
+        3. Wait for the level1 & level2 DLRs and run tests
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 3
+        self.params['dlr-method'] = 'GET'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        yield self.stopSmppConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')        
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 2)
+        # Message ID must be transmitted in the DLR
+        callArgs_level1 = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
+        self.assertEqual(callArgs_level1['id'][0], msgId)
+        self.assertEqual(callArgs_level2['id'][0], msgId)
 
 class NoSubmitSmWhenReceiverIsBoundSMSC(SMPPClientManagerPBTestCase):
     protocol = NoSubmitSmWhenReceiverIsBoundSMSC
