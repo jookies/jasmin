@@ -282,7 +282,7 @@ class SMPPClientSMListener:
             pdu = pdus[1] # Take the first part as a base of work
             # 1. Remove message splitting information from pdu
             if splitMethod == 'sar':
-                del(pdu.params['sar_msg_ref_num'])
+                del(pdu.params['sar_segment_seqnum'])
                 del(pdu.params['sar_total_segments'])
                 del(pdu.params['sar_msg_ref_num'])
             else:

@@ -1119,6 +1119,47 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         yield self.stopConnector(source_connector)
 
     @defer.inlineCallbacks
+    def test_unordered_long_content_delivery_HttpConnector(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        # Connect to SMSC
+        #source_connector = Connector(id_generator())
+        source_connector = Connector(id_generator())
+        yield self.prepareRoutingsAndStartConnector(source_connector)
+        
+        # Send a deliver_sm from the SMSC
+        basePdu = DeliverSM(
+            source_addr = '1234',
+            destination_addr = '4567',
+            short_message = '',
+            sar_total_segments = 3,
+            sar_msg_ref_num = int(id_generator(size = 2, chars=string.digits)),
+        )
+        pdu_part1 = copy.deepcopy(basePdu)
+        pdu_part2 = copy.deepcopy(basePdu)
+        pdu_part3 = copy.deepcopy(basePdu)
+        pdu_part1.params['short_message'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part1.params['sar_segment_seqnum'] = 1
+        pdu_part2.params['short_message'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part2.params['sar_segment_seqnum'] = 2
+        pdu_part3.params['short_message'] = '__3rd_part_end.'
+        pdu_part3.params['sar_segment_seqnum'] = 3
+        yield self.triggerDeliverSmFromSMSC([pdu_part1, pdu_part3, pdu_part2])
+
+        # Run tests
+        # Destination connector must receive the message one time (no retries)
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        # Assert received args
+        receivedHttpReq = self.AckServerResource.last_request.args
+        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
+        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+
+        # Disconnector from SMSC
+        yield self.stopConnector(source_connector)
+
+    @defer.inlineCallbacks
     def test_delivery_SmppConnector(self):
         pass
     test_delivery_SmppConnector.skip = 'TODO: When SMPP Server will be implemented ?'
