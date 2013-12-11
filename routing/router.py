@@ -45,7 +45,6 @@ class RouterPB(pb.Root):
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
          
-        # @todo: the router must consume from deliver.sm.* and dlr.*   
         # Subscribe to deliver.sm.* queues
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         consumerTag = 'RouterPB'

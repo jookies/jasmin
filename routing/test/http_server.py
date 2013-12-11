@@ -11,9 +11,13 @@ class LeafServer(Resource):
         return 'render_POST'
 
 class AckServer(LeafServer):
+    last_request = None
+    
     def render_GET(self, request):
+        self.last_request = request
         return 'ACK/Jasmin'
     def render_POST(self, request):
+        self.last_request = request
         return 'ACK/Jasmin'
 
 class NoAckServer(LeafServer):

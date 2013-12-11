@@ -7,7 +7,7 @@ from twisted.internet import defer
 from twisted.web.client import getPage
 from txamqp.queue import Closed
 from twisted.internet import reactor
-
+from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
 
 class MessageAcknowledgementError(Exception):
     """Raised when destination end does not return 'ACK/Jasmin' back to
@@ -164,9 +164,9 @@ class deliverSmThrower(Thrower):
                 'origin-connector': message.content.properties['headers']['src-connector-id']}
         # Build optional arguments
         if RoutedDeliverSmContent.params['priority_flag'] is not None:
-            args['priority'] = RoutedDeliverSmContent.params['priority_flag']
+            args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
         if RoutedDeliverSmContent.params['data_coding'] is not None:
-            args['coding'] = RoutedDeliverSmContent.params['data_coding']
+            args['coding'] = data_coding_default_name_map[str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
         if RoutedDeliverSmContent.params['validity_period'] is not None:
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
         

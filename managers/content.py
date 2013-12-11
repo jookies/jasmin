@@ -84,7 +84,7 @@ class SubmitSmRespContent(PDU):
         PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
         
 class DeliverSmContent(PDU):
-    def __init__(self, body, cid, pickleProtocol = 2, prePickle = True):
+    def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True):
         props = {}
         
         props['message-id'] = self.randomUniqueId()
@@ -92,6 +92,6 @@ class DeliverSmContent(PDU):
         # For routing purpose, connector-id indicates the source connector of the PDU
         # the connector-id is used to instanciate RoutableDeliverSm when checking for
         # routes
-        props['headers'] = {'connector-id': cid}
+        props['headers'] = {'connector-id': sourceCid}
         
         PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)

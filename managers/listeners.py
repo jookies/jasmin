@@ -1,5 +1,6 @@
 import logging
 import pickle
+import struct
 from datetime import datetime, timedelta
 from dateutil import parser
 from twisted.internet import defer
@@ -245,30 +246,110 @@ class SMPPClientSMListener:
             # - an error has occured inside submit_sm_callback
             # - the qosTimer has been cancelled (self.clearQosTimer())
             self.log.error("Error in submit_sm_errback: %s" % error.getErrorMessage())
+       
+    @defer.inlineCallbacks     
+    def concatDeliverSMs(self, HSetReturn, splitMethod, total_segments, msg_ref_num, segment_seqnum):
+        hashKey = "longDeliverSm:%s" % (msg_ref_num)
+        if HSetReturn != 1:
+            self.log.warn('Error (%s) when trying to set hashKey %s' % (HSetReturn, hashKey))
+            return
+
+        # @TODO: longDeliverSm part expiry must be configurable
+        yield self.rc.expire(hashKey, 300)
+        
+        # This is the last part
+        if segment_seqnum == total_segments:
+            hvals = yield self.rc.hvals(hashKey)
+            if len(hvals) != total_segments:
+                self.log.warn('Received the last part (msg_ref_num:%s) and did not find all parts in redis, data lost !' % msg_ref_num)
+                return
+            
+            # Get PDUs
+            pdus = {}
+            for pickledValue in hvals:
+                value = pickle.loads(pickledValue)
+                pdus[value['segment_seqnum']] = value['pdu']
+            
+            # Build short_message
+            short_message = ''
+            for i in range(total_segments):
+                if splitMethod == 'sar':
+                    short_message += pdus[i+1].params['short_message']
+                else:
+                    short_message += pdus[i+1].params['short_message'][6:]
+                
+            # Build the final pdu and return it back to deliver_sm_callback
+            pdu = pdus[1] # Take the first part as a base of work
+            # 1. Remove message splitting information from pdu
+            if splitMethod == 'sar':
+                del(pdu.params['sar_msg_ref_num'])
+                del(pdu.params['sar_total_segments'])
+                del(pdu.params['sar_msg_ref_num'])
+            else:
+                pdu.params['esm_class'] = None
+            # 2. Set the new short_message
+            pdu.params['short_message'] = short_message
+            self.deliver_sm_callback(smpp = None, pdu = pdu)
     
     @defer.inlineCallbacks
     def deliver_sm_callback(self, smpp, pdu):
         pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
         content = DeliverSmContent(pdu, self.SMPPClientFactory.config.id, pickleProtocol = self.pickleProtocol)
         msgid = content.properties['message-id']
+        # Default destination
+        destination_queue = None
         
-        #self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]", msgid, amqpMessage.routing_key)
-        # ACK the message in queue, this will remove it from the queue
-        #yield self.ackMessage(amqpMessage)
-
         if pdu.dlr is None:
-            destination_queue = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
-            self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
-                      (
-                       self.SMPPClientFactory.config.id,
-                       msgid,
-                       pdu.status,
-                       pdu.params['priority_flag'],
-                       pdu.params['validity_period'],
-                       pdu.params['source_addr'],
-                       pdu.params['destination_addr'],
-                       pdu.params['short_message']
-                       ))
+            # We have a SMS-MO
+            # UDH is set ?
+            UDHI_INDICATOR_SET = False
+            if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
+                for gsmFeature in pdu.params['esm_class'].gsmFeatures:
+                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        UDHI_INDICATOR_SET = True
+                        break
+
+            # Is it a part of a long message ?
+            splitMethod = None
+            if 'sar_msg_ref_num' in pdu.params:
+                splitMethod = 'sar'
+                total_segments = pdu.params['sar_total_segments']
+                segment_seqnum = pdu.params['sar_segment_seqnum']
+                msg_ref_num = pdu.params['sar_msg_ref_num']
+                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
+            elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
+                splitMethod = 'udh'
+                total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
+                segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
+                msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
+                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
+            
+            if splitMethod is None:
+                # It's a simple short message
+                destination_queue = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
+                          (
+                           self.SMPPClientFactory.config.id,
+                           msgid,
+                           pdu.status,
+                           pdu.params['priority_flag'],
+                           pdu.params['validity_period'],
+                           pdu.params['source_addr'],
+                           pdu.params['destination_addr'],
+                           pdu.params['short_message']
+                           ))
+            else:
+                # Long message part received
+                if self.rc is None:
+                    self.warn('No valid RC were found while receiving a part of a long DeliverSm [queue-msgid:%s], MESSAGE IS LOST !' % msgid)
+                
+                # Save it to redis
+                hashKey = "longDeliverSm:%s" % (msg_ref_num)
+                hashValues = {'pdu': pdu, 
+                              'total_segments':total_segments, 
+                              'msg_ref_num':msg_ref_num, 
+                              'segment_seqnum':segment_seqnum}
+                self.rc.hset(hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(self.concatDeliverSMs, splitMethod, total_segments, msg_ref_num, segment_seqnum)
         else:
             # Check for DLR request
             if self.rc is not None:
@@ -325,8 +406,13 @@ class SMPPClientSMListener:
                        pdu.dlr['err'],
                        pdu.dlr['text'],
                        ))
-            
-        # Send back deliver_sm to deliver.sm.CID queue
-        # RouterPB.deliver_sm_callback will consume the message and decide of its destination
-        self.log.debug("Sending DeliverSmContent[%s] with routing_key[%s]" % (msgid, destination_queue))
-        yield self.amqpBroker.publish(exchange='messaging', routing_key=destination_queue, content=content)
+        
+        if destination_queue is not None:
+            # Send back deliver_sm to deliver.sm.CID queue
+            # RouterPB.deliver_sm_callback will consume the message and decide of its destination
+            self.log.debug("Sending DeliverSmContent[%s] with routing_key[%s]" % (msgid, destination_queue))
+            yield self.amqpBroker.publish(exchange='messaging', routing_key=destination_queue, content=content)
+        elif splitMethod is not None:
+            self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (msgid, total_segments))
+        else:
+            self.log.warn("DeliverSmContent[%s] not sent to any queue !" % msgid)
