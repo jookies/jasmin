@@ -191,10 +191,12 @@ class SMPPClientSMListener:
         
         # Check for DLR request
         if self.rc is not None:
-            dlr_url = yield self.rc.get("%s:url" % msgid)
-            dlr_level = yield self.rc.get("%s:level" % msgid)
-            dlr_expiry = yield self.rc.get("%s:expiry" % msgid)
-            dlr_method = yield self.rc.get("%s:method" % msgid)
+            pickledDlr = yield self.rc.get("dlr:%s" % msgid)
+            dlr = pickle.loads(pickledDlr)
+            dlr_url = dlr['url']
+            dlr_level = dlr['level']
+            dlr_method = dlr['method']
+            dlr_expiry = dlr['expiry']
             
             if dlr_level is not None and dlr_url is not None and dlr_method is not None:
                 if dlr_level in [1, 3]:
@@ -211,18 +213,15 @@ class SMPPClientSMListener:
                     # When level 3 is requested, the DLR will be removed when receiving a deliver_sm (terminal receipt)
                     if dlr_level == 1 or r.response.status != CommandStatus.ESME_ROK:
                         self.log.debug('Removing DLR request for msgid[%s]' % msgid)
-                        yield self.rc.delete("%s:url" % msgid)
-                        yield self.rc.delete("%s:level" % msgid)
-                        yield self.rc.delete("%s:method" % msgid)
-                        yield self.rc.delete("%s:expiry" % msgid)
+                        yield self.rc.delete("dlr:%s" % msgid)
                 else:
                     self.log.debug('Terminal level receipt is requested, will not send any DLR receipt at this level.')
                 
                 if dlr_level in [2, 3]:
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (r.response.params['message_id'],
                                                                                                       msgid, dlr_expiry))
-                    yield self.rc.set("%s:queue-msgid" % r.response.params['message_id'], msgid)
-                    yield self.rc.expire("%s:queue-msgid" % r.response.params['message_id'], dlr_expiry)
+                    yield self.rc.set("queue-msgid:%s" % r.response.params['message_id'], msgid)
+                    yield self.rc.expire("queue-msgid:%s" % r.response.params['message_id'], dlr_expiry)
             else:
                 self.log.debug('There were no DLR request for msgid[%s].' % (msgid))
         else:
@@ -353,12 +352,14 @@ class SMPPClientSMListener:
         else:
             # Check for DLR request
             if self.rc is not None:
-                submit_sm_queue_id = yield self.rc.get("%s:queue-msgid" % pdu.dlr['id'])
+                submit_sm_queue_id = yield self.rc.get("queue-msgid:%s" % pdu.dlr['id'])
 
                 if submit_sm_queue_id is not None:
-                    dlr_url = yield self.rc.get("%s:url" % submit_sm_queue_id)
-                    dlr_level = yield self.rc.get("%s:level" % submit_sm_queue_id)
-                    dlr_method = yield self.rc.get("%s:method" % submit_sm_queue_id)
+                    pickledDlr = yield self.rc.get("dlr:%s" % submit_sm_queue_id)
+                    dlr = pickle.loads(pickledDlr)
+                    dlr_url = dlr['url']
+                    dlr_level = dlr['level']
+                    dlr_method = dlr['method']
                     
                     if dlr_level is not None and dlr_url is not None and dlr_method is not None:
                         if dlr_level in [2, 3]:
@@ -377,11 +378,7 @@ class SMPPClientSMListener:
                             yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
                             
                             self.log.debug('Removing DLR request for msgid[%s]' % submit_sm_queue_id)
-                            yield self.rc.delete("%s:url" % submit_sm_queue_id)
-                            yield self.rc.delete("%s:level" % submit_sm_queue_id)
-                            yield self.rc.delete("%s:method" % submit_sm_queue_id)
-                            yield self.rc.delete("%s:expiry" % submit_sm_queue_id)
-                            yield self.rc.delete("%s:queue-msgid" % pdu.dlr['id'])
+                            yield self.rc.delete('dlr:%s' % submit_sm_queue_id)
                         else:
                             self.log.debug('SMS-C receipt is requested, will not send any DLR receipt at this level.')
                     else:

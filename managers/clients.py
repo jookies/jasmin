@@ -332,6 +332,10 @@ class SMPPClientManagerPB(pb.Root):
         return pickle.dumps(connector['config'], self.pickleProtocol)
     
     @defer.inlineCallbacks
+    def setKeyExpiry(self, callbackArg, key, expiry):
+        yield self.rc.expire(key, expiry)
+    
+    @defer.inlineCallbacks
     def remote_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
                          dlr_url = None, dlr_level = 1, dlr_method = 'POST'):
         """This will enqueue a submit_sm to a connector
@@ -375,15 +379,13 @@ class SMPPClientManagerPB(pb.Root):
                 self.log.warn("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected." % c.properties['message-id'])
             else:
                 self.log.debug('Setting DLR url (%s) and level (%s) for message id:%s, expiring in %s' % (dlr_url, dlr_level, c.properties['message-id'], connector['config'].dlr_expiry))
-                # Set values:
-                self.rc.set("%s:url" % c.properties['message-id'], dlr_url)
-                self.rc.set("%s:level" % c.properties['message-id'], dlr_level)
-                self.rc.set("%s:method" % c.properties['message-id'], dlr_method)
-                self.rc.set("%s:expiry" % c.properties['message-id'], connector['config'].dlr_expiry)
-                # Set expiration:
-                self.rc.expire("%s:url" % c.properties['message-id'], connector['config'].dlr_expiry)
-                self.rc.expire("%s:level" % c.properties['message-id'], connector['config'].dlr_expiry)
-                self.rc.expire("%s:method" % c.properties['message-id'], connector['config'].dlr_expiry)
-                self.rc.expire("%s:expiry" % c.properties['message-id'], connector['config'].dlr_expiry)
+                # Set values and callback expiration setting
+                hashKey = "dlr:%s" % (c.properties['message-id'])
+                hashValues = {'url': dlr_url, 
+                              'level':dlr_level, 
+                              'method':dlr_method, 
+                              'expiry':connector['config'].dlr_expiry}
+                self.rc.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
+                            self.setKeyExpiry, hashKey, connector['config'].dlr_expiry)
         
         defer.returnValue(c.properties['message-id'])
