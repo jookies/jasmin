@@ -4,3 +4,4 @@ txAMQP
 txredisapi
 pyOpenSSL
 twisted
+python-dateutil

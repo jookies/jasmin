@@ -18,5 +18,4 @@ services:
     - redis-server
 before_script:
     - sudo mkdir /var/log/jasmin;sudo chown `whoami` /var/log/jasmin
-    - sudo apt-get update -qq
-    - sudo apt-get install -qq python-dateutil
+    - sudo apt-get -y update
