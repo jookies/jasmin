@@ -11,7 +11,8 @@ script:
     # Normal tests
     - trial jasmin
     # Docs building test
-    - cd jasmin/misc/docs;make html
+    - ls -l
+    - cd misc/docs;ls -l;make html
 services:
     - rabbitmq
     - redis-server
