@@ -3,7 +3,9 @@ python:
     - "2.6"
     - "2.7"
 # Command to install dependencies
-install: "pip install -r REQUIREMENTS"
+install:
+    - pip install -r REQUIREMENTS
+    - pwd
 # Commands to run tests
 script:
     # Normal tests
