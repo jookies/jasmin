@@ -5,7 +5,7 @@ python:
 # Command to install dependencies
 install:
     - pip install -r REQUIREMENTS
-    - pwd
+    - export PYTHONPATH=$PYTHONPATH:/home/travis/build/fourat
 # Commands to run tests
 script:
     # Normal tests
