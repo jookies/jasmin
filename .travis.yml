@@ -6,8 +6,9 @@ python:
 install: "pip install -r REQUIREMENTS"
 # command to run tests
 script: trial jasmin
+services:
+    - rabbitmq
+    - redis-server
 before_script:
     - sudo apt-get update -qq
-    - sudo apt-get install rabbitmq-server redis-server python-twisted python-pip
-    - sudo service rabbitmq-server start
-    - sudo service redis-server start
+    - sudo apt-get install python-twisted python-pip
