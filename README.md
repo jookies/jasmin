@@ -31,3 +31,4 @@ Build finished. The HTML pages are in build/html.
 License
 -------
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
+[![Build Status](https://travis-ci.org/fourat/jasmin.png)](https://travis-ci.org/fourat/jasmin)
