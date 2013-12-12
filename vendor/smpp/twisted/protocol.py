@@ -22,7 +22,6 @@ from jasmin.vendor.smpp.pdu.operations import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest, PDUResponse, PDUDataRequest, CommandStatus
 from jasmin.vendor.smpp.pdu.error import *
-from asn2wrs import InstanceOfType
 
 LOG_CATEGORY="smpp.twisted.protocol"
 
