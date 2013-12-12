@@ -11,10 +11,12 @@ script:
     # Normal tests
     - trial jasmin
     # Docs building test
-    - cd misc/docs;make html
+    - pwd;ll
+    - cd jasmin/misc/docs;make html
 services:
     - rabbitmq
     - redis-server
 before_script:
     - sudo apt-get update -qq
-    - sudo apt-get install python-twisted
+    - sudo apt-get install python-twisted python-openssl
+    - sudo mkdir /var/log/jasmin;chown `whoami` /var/log/jasmin
