@@ -19,4 +19,4 @@ services:
 before_script:
     - sudo apt-get update -qq
     - sudo apt-get install python-twisted python-openssl
-    - sudo mkdir /var/log/jasmin;chown `whoami` /var/log/jasmin
+    - sudo mkdir /var/log/jasmin;sudo chown `whoami` /var/log/jasmin
