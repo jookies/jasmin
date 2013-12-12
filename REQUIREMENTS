@@ -2,3 +2,5 @@ enum
 mock
 txAMQP
 txredisapi
+pyOpenSSL
+twisted
