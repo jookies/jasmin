@@ -5,3 +5,4 @@ txredisapi
 pyOpenSSL
 twisted
 python-dateutil
+sphinx
