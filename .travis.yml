@@ -11,7 +11,7 @@ script:
     - trial jasmin.routing.test.test_encoding.LongSubmitSmCodingUsingSARTestCases
     #- trial jasmin
     # Docs building test
-    #- cd misc/doc;make html
+    - cd misc/doc;make html
 services:
     - rabbitmq
     - redis-server
