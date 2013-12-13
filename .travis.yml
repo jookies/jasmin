@@ -9,13 +9,12 @@ install:
 # Commands to run tests
 script:
     # Normal tests
-#    - trial jasmin
-    - trial jasmin.queues.test.test_amqp.ConnectTestCase
+    - trial jasmin
     # Docs building test
-    - ls -l
-    - cd misc/docs;ls -l;make html
+    - cd misc/doc;make html
 services:
     - rabbitmq
     - redis-server
 before_script:
     - sudo mkdir /var/log/jasmin;sudo chown `whoami` /var/log/jasmin
+    - sudo ln -s `pwd`/misc/config /etc/jasmin
