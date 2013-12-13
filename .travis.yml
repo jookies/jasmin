@@ -8,9 +8,10 @@ install:
 # Commands to run tests
 script:
     # Normal tests
-    - trial jasmin
+    - trial jasmin.routing.test.test_encoding.LongSubmitSmCodingUsingSARTestCases.test_CYRILLIC
+    #- trial jasmin
     # Docs building test
-    - cd misc/doc;make html
+    #- cd misc/doc;make html
 services:
     - rabbitmq
     - redis-server
