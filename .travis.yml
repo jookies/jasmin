@@ -8,8 +8,7 @@ install:
 # Commands to run tests
 script:
     # Normal tests
-    - trial jasmin.routing.test.test_encoding.LongSubmitSmCodingUsingSARTestCases
-    #- trial jasmin
+    - trial jasmin
     # Docs building test
     - cd misc/doc;make html
 services:
