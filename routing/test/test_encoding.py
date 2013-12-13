@@ -47,6 +47,11 @@ class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         
+        # Wait 1 seconds before stopping SmppConnectors
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
         yield self.stopSmppConnectors()
         
         # Run tests

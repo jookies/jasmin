@@ -192,13 +192,14 @@ class SMPPClientSMListener:
         # Check for DLR request
         if self.rc is not None:
             pickledDlr = yield self.rc.get("dlr:%s" % msgid)
-            dlr = pickle.loads(pickledDlr)
-            dlr_url = dlr['url']
-            dlr_level = dlr['level']
-            dlr_method = dlr['method']
-            dlr_expiry = dlr['expiry']
             
-            if dlr_level is not None and dlr_url is not None and dlr_method is not None:
+            if pickledDlr is not None:
+                dlr = pickle.loads(pickledDlr)
+                dlr_url = dlr['url']
+                dlr_level = dlr['level']
+                dlr_method = dlr['method']
+                dlr_expiry = dlr['expiry']
+
                 if dlr_level in [1, 3]:
                     self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s' % (msgid, dlr_url, dlr_level))
                     content = DLRContent(str(r.response.status), msgid, dlr_url, dlr_level, method = dlr_method)
@@ -240,6 +241,7 @@ class SMPPClientSMListener:
         as a @TODO requiring knowledge of the queue api behaviour
         """
         if error.check(Closed) == None:
+            print 'error'
             #@todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside submit_sm_callback
@@ -356,12 +358,13 @@ class SMPPClientSMListener:
 
                 if submit_sm_queue_id is not None:
                     pickledDlr = yield self.rc.get("dlr:%s" % submit_sm_queue_id)
-                    dlr = pickle.loads(pickledDlr)
-                    dlr_url = dlr['url']
-                    dlr_level = dlr['level']
-                    dlr_method = dlr['method']
                     
-                    if dlr_level is not None and dlr_url is not None and dlr_method is not None:
+                    if pickledDlr is not None:
+                        dlr = pickle.loads(pickledDlr)
+                        dlr_url = dlr['url']
+                        dlr_level = dlr['level']
+                        dlr_method = dlr['method']
+
                         if dlr_level in [2, 3]:
                             self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s' % (submit_sm_queue_id, dlr_url, dlr_level))
                             content = DLRContent(pdu.dlr['stat'], submit_sm_queue_id, dlr_url, dlr_level, 
