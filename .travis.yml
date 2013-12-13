@@ -3,7 +3,7 @@ python:
     - "2.7"
 # Command to install dependencies
 install:
-    - pip install -r REQUIREMENTS
+    - pip install -r requirements
     - export PYTHONPATH=$PYTHONPATH:/home/travis/build/fourat
 # Commands to run tests
 script:
