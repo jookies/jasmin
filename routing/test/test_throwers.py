@@ -144,7 +144,7 @@ class HTTPThrowingTestCases(deliverSmThrowerTestCase):
         
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        # Wait 9 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
+        # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
         exitDeferred = defer.Deferred()
         reactor.callLater(12, exitDeferred.callback, None)
         yield exitDeferred
@@ -168,7 +168,8 @@ class HTTPThrowingTestCases(deliverSmThrowerTestCase):
         
         self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
 
-class SMPPThrowingTestCases(deliverSmThrowerTestCase):
+#class SMPPThrowingTestCases(deliverSmThrowerTestCase):
+class SMPPThrowingTestCases():
     routingKey = 'deliver_sm_thrower.smpp'
 
     def test_throwing_smpp_connector(self):

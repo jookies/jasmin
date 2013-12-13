@@ -326,6 +326,11 @@ class SubmitSmTestCaseTools():
             else:
                 time.sleep(0.2)
 
+        # Wait 1 more second
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
         # Configuration
         self.method = 'GET'
         self.postdata = None
