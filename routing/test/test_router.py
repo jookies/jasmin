@@ -1159,7 +1159,6 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
 
-    @defer.inlineCallbacks
     def test_delivery_SmppConnector(self):
         pass
     test_delivery_SmppConnector.skip = 'TODO: When SMPP Server will be implemented ?'
