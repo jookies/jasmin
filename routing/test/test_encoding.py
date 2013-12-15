@@ -35,10 +35,10 @@ class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
         # Set content
         self.params['content'] = content
         # Set datacoding
-        if datacoding is None and 'datacoding' in self.params:
-            del self.params['datacoding']
+        if datacoding is None and 'coding' in self.params:
+            del self.params['coding']
         if datacoding is not None:
-            self.params['datacoding'] = datacoding
+            self.params['coding'] = datacoding
         # Prepare baseurl
         baseurl = 'http://127.0.0.1:%s/send?%s' % (port, urllib.urlencode(self.params))
         

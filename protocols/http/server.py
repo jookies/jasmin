@@ -41,9 +41,9 @@ class Send(Resource):
                       'content'     :{'optional': False},
                       }
             
-            # Default datacoding is 0 when not provided
+            # Default coding is 0 when not provided
             if 'coding' not in request.args:
-                request.args['datacoding'] = ['0']
+                request.args['coding'] = ['0']
             
             # Set default for undefined request.arguments
             if 'dlr-url' in request.args:
