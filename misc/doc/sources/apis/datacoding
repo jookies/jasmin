@@ -1,0 +1,46 @@
+.. list-table:: Data coding schemes
+   :widths: 15 5 30
+   :header-rows: 1
+
+   * - Bitmask
+     - **Value**
+     - Meaning
+   * - 0 0 0 0 0 0 0 0
+     - **0**
+     - SMSC Default Alphabet
+   * - 0 0 0 0 0 0 0 1
+     - **1**
+     - IA5 (CCITT T.50)/ASCII (ANSI X3.4)
+   * - 0 0 0 0 0 0 1 0
+     - **2**
+     - Octet unspecified (8-bit binary)
+   * - 0 0 0 0 0 0 1 1
+     - **3**
+     - Latin 1 (ISO-8859-1)
+   * - 0 0 0 0 0 1 0 0
+     - **4**
+     - Octet unspecified (8-bit binary)
+   * - 0 0 0 0 0 1 0 1
+     - **5**
+     - JIS (X 0208-1990)
+   * - 0 0 0 0 0 1 1 0
+     - **6**
+     - Cyrllic (ISO-8859-5)
+   * - 0 0 0 0 0 1 1 1
+     - **7**
+     - Latin/Hebrew (ISO-8859-8)
+   * - 0 0 0 0 1 0 0 0
+     - **8**
+     - UCS2 (ISO/IEC-10646)
+   * - 0 0 0 0 1 0 0 1
+     - **9**
+     - Pictogram Encoding
+   * - 0 0 0 0 1 0 1 0
+     - **10**
+     - ISO-2022-JP (Music Codes)
+   * - 0 0 0 0 1 1 0 1
+     - **13**
+     - Extended Kanji JIS(X 0212-1990)
+   * - 0 0 0 0 1 1 1 0
+     - **14**
+     - KS C 5601

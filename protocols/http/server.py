@@ -30,7 +30,7 @@ class Send(Resource):
             # Validation
             fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
                       'from'        :{'optional': True},
-                      'datacoding'  :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
                       'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
@@ -42,7 +42,7 @@ class Send(Resource):
                       }
             
             # Default datacoding is 0 when not provided
-            if 'datacoding' not in request.args:
+            if 'coding' not in request.args:
                 request.args['datacoding'] = ['0']
             
             # Set default for undefined request.arguments
@@ -80,7 +80,7 @@ class Send(Resource):
                 source_addr = None if 'from' not in request.args else request.args['from'][0],
                 destination_addr = request.args['to'][0],
                 short_message = request.args['content'][0],
-                data_coding = int(request.args['datacoding'][0]),
+                data_coding = int(request.args['coding'][0]),
             )                
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
@@ -90,7 +90,7 @@ class Send(Resource):
             routedConnector = self.RouterPB.getMTRoutingTable().getConnectorFor(routable)
             if routedConnector is None:
                 self.log.debug("No route matched this SubmitSmPDU")
-                raise RouteNotFoundError()
+                raise RouteNotFoundError("No route found")
             else:
                 # Set priority
                 priority = 1

@@ -4,18 +4,18 @@ The Jasmin Open source SMS gateway
 Jasmin is an open-source SMS Gateway with many enterprise-class features, Jasmin is built to be 
 easily customized to meet the specific needs of SMS exchange growing business.
 
-Jasmin is written in Python and Django for serving highly customized applications, SMS message delivery 
+Jasmin is written in Python and Django [1]_ for serving highly customized applications, SMS message delivery 
 can be done through HTTP and SMPP protocols, intelligent routing can be configured in real-time through
 cli interface or a web backend.
 
 Features
 ========
-* SMPP Client / Server
+* SMPP Client / Server [2]_
 * HTTP Client / Server
 * Based on AMQP broker for store&forward mechanisms
 * Advanced message routing/filtering (Simpls, Roundrobin, Failover, Leastcost ...)
 * Web ui for management
-* Supports Unicode (UTF-8) for sending out multilingual SMS
+* Supports Unicode (UTF-8 / 16) for sending out multilingual SMS
 * Supports easy creation and sending of specialized/binary SMS like mono Ringtones, WAP Push, Vcards
 * Supports concatenated SMS strings (long SMS)
 
@@ -34,10 +34,14 @@ Getting started
 Full contents
 =============
 .. toctree::
-   :maxdepth: 2
+   :titlesonly:
 
    apis/ja-http/index
 
 License
 =======
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
+
+.. rubric:: Footnotes
+.. [1] Web interface will come in v0.7
+.. [2] SMPP server is planned in v0.8
