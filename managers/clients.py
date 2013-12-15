@@ -137,7 +137,6 @@ class SMPPClientManagerPB(pb.Root):
         serviceManager = SMPPClientService(c, self.config)
         
         # Instanciate a SM listener
-        print self.rc
         smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), serviceManager.SMPPClientFactory, self.amqpBroker, self.rc, submit_sm_q)
         
         # Deliver_sm are sent to smListener's deliver_sm callback method
