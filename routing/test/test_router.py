@@ -46,7 +46,7 @@ def composeMessage(characters, length):
             s += ''.join(random.sample(characters, len(characters)))
         return s[:length]
     
-def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+def id_generator(size=12, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
 class RouterPBTestCase(unittest.TestCase):
