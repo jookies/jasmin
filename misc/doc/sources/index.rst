@@ -13,7 +13,9 @@ Features
 * SMPP Client / Server [2]_
 * HTTP Client / Server
 * Based on AMQP broker for store&forward mechanisms
-* Advanced message routing/filtering (Simpls, Roundrobin, Failover, Leastcost ...)
+* Advanced message routing : Simple & static, Roundrobin, Failover, Leastcost ..
+* Standard message filtering: TransparentFilter, ConnectorFilter, UserFilter ..
+* Advanced message filtering: EvalPyFilter
 * Web ui for management
 * Supports Unicode (UTF-8 / 16) for sending out multilingual SMS
 * Supports easy creation and sending of specialized/binary SMS like mono Ringtones, WAP Push, Vcards
