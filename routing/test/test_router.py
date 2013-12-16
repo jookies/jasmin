@@ -36,7 +36,6 @@ from jasmin.routing.jasminApi import Connector, HttpConnector, Group, User
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from jasmin.vendor.smpp.pdu.pdu_types import EsmClass, EsmClassMode, MoreMessagesToSend
-from jasmin.redis.test.client import RedisGenerickClient
 
 def composeMessage(characters, length):
     if length <= len(characters):
@@ -94,12 +93,6 @@ class HttpServerTestCase(RouterPBTestCase):
 class SMPPClientManagerPBTestCase(HttpServerTestCase):
     @defer.inlineCallbacks
     def setUp(self):
-        # Reset redis database
-        rgc = RedisGenerickClient()
-        yield rgc.rc._connected
-        yield rgc.rc.flushall()
-        yield rgc.rc.disconnect()
-        
         HttpServerTestCase.setUp(self)
         
         # Initiating config objects without any filename
