@@ -47,14 +47,19 @@ class RouterPB(pb.Root):
             self.log.info("AMQP Broker channel is ready now, let's go !")
          
         # Subscribe to deliver.sm.* queues
-        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        c = yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        print 'ED: %s' % c
         consumerTag = 'RouterPB.%s' % str(uuid.uuid4())
         routingKey = 'deliver.sm.*'
         queueName = 'RouterPB_deliver_sm_all' # A local queue to RouterPB
-        yield self.amqpBroker.named_queue_declare(queue=queueName)
-        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+        c = yield self.amqpBroker.named_queue_declare(queue=queueName)
+        print 'QD: %s' % c
+        c = yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
+        print 'QB: %s' % c
+        c = yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+        print 'BC: %s' % c
         self.deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+        print 'deliver_sm_q: %s' % self.deliver_sm_q
         self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
         
