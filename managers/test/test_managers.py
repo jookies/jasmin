@@ -218,6 +218,21 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         yield self.stopall()
 
     @defer.inlineCallbacks
+    def test_add_start_remove_add(self):
+        """Resolving issue/bug #1
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+        yield self.remove(self.defaultConfig.id)
+        addRet = yield self.add(self.defaultConfig)
+
+        self.assertEqual(True, addRet)
+        
+        yield self.stopall()
+
+    @defer.inlineCallbacks
     def test_startconnector_with_noretry_on_con_failure(self):
         """When starting a connector that will fail connecting to a server
         the service shall be stopped since no reconnection is set

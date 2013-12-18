@@ -1,7 +1,7 @@
 import pickle
 import logging
 import urllib
-import copy
+import uuid
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.web.client import getPage
@@ -22,7 +22,7 @@ class Thrower(Service):
         self.log_category = "abstract-thrower"
 
         self.exchangeName = 'messaging'
-        self.consumerTag = 'abstractThrower'
+        self.consumerTag = 'abstractThrower.%s' % str(uuid.uuid4())
         self.routingKey = 'abstract_thrower.http'
         self.queueName = 'abstract_thrower.http'
         self.callback = self.throwing_callback
