@@ -12,7 +12,7 @@ script:
     # Docs building test
     - cd misc/doc;make html
     # Report coverage
-    - coverage report --omit=/usr/*
+    - cd ../../;coverage report --omit=/usr/*
 services:
     - rabbitmq
     - redis-server
