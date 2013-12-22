@@ -155,6 +155,38 @@ class SMPPClientSMListener:
         msgid = amqpMessage.content.properties['message-id']
         
         if r.response.status == CommandStatus.ESME_ROK:
+            # UDH is set ?
+            UDHI_INDICATOR_SET = False
+            if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
+                for gsmFeature in r.request.params['esm_class'].gsmFeatures:
+                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        UDHI_INDICATOR_SET = True
+                        break
+
+            # What type of splitting ?
+            splitMethod = None
+            if 'sar_msg_ref_num' in r.request.params:
+                splitMethod = 'sar'
+            elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == '\x05\x00\x03':
+                splitMethod = 'udh'
+            
+            # Concatenate short_message
+            if splitMethod is not None:
+                _pdu = r.request
+                if splitMethod == 'sar':
+                    short_message = _pdu.params['short_message']
+                else:
+                    short_message = _pdu.params['short_message'][6:]
+                
+                while hasattr(_pdu, 'nextPdu'):
+                    _pdu = _pdu.nextPdu
+                    if splitMethod == 'sar':
+                        short_message+= _pdu.params['short_message']
+                    else:
+                        short_message+= _pdu.params['short_message'][6:]
+            else:
+                short_message = r.request.params['short_message']
+            
             self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (
                            self.SMPPClientFactory.config.id,
@@ -166,7 +198,7 @@ class SMPPClientSMListener:
                            'none' if 'headers' not in amqpMessage.content.properties or 'expiration' not in amqpMessage.content.properties['headers'] else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           r.request.params['short_message']
+                           short_message
                            ))
         else:
             self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 

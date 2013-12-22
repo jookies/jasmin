@@ -22,6 +22,10 @@ class ConfigInvalidIdError(Exception):
 class TypeMismatch(Exception):
     """Raised when a *Config element has not a valid type
     """
+    
+class UnknownValue(Exception):
+    """Raised when a *Config element has a valid type and inappropriate value
+    """
 
 class SMPPClientConfig():
     def __init__(self, **kwargs):
@@ -50,27 +54,41 @@ class SMPPClientConfig():
         
         # Timeout for response to bind request
         self.sessionInitTimerSecs = kwargs.get('sessionInitTimerSecs', 30)
+        if not isinstance(self.sessionInitTimerSecs, int) and not isinstance(self.sessionInitTimerSecs, float):
+            raise TypeMismatch('sessionInitTimerSecs must be an integer or float')
         
         # Enquire link interval
         self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 10)
+        if not isinstance(self.enquireLinkTimerSecs, int) and not isinstance(self.enquireLinkTimerSecs, float):
+            raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
         
         # Maximum time lapse allowed between transactions, after which period
         # of inactivity, the connection is considered as inactive and will reconnect 
         self.inactivityTimerSecs = kwargs.get('inactivityTimerSecs', 300)
+        if not isinstance(self.inactivityTimerSecs, int) and not isinstance(self.inactivityTimerSecs, float):
+            raise TypeMismatch('inactivityTimerSecs must be an integer or float')
         
         # Timeout for responses to any request PDU
         self.responseTimerSecs = kwargs.get('responseTimerSecs', 60)
+        if not isinstance(self.responseTimerSecs, int) and not isinstance(self.responseTimerSecs, float):
+            raise TypeMismatch('responseTimerSecs must be an integer or float')
         
         # Reconnection
         self.reconnectOnConnectionLoss = kwargs.get('reconnectOnConnectionLoss', True)
         self.reconnectOnConnectionFailure = kwargs.get('reconnectOnConnectionFailure', True)
         self.reconnectOnConnectionLossDelay = kwargs.get('reconnectOnConnectionLossDelay', 10)        
+        if not isinstance(self.reconnectOnConnectionLossDelay, int) and not isinstance(self.reconnectOnConnectionLossDelay, float):
+            raise TypeMismatch('reconnectOnConnectionLossDelay must be an integer or float')
         self.reconnectOnConnectionFailureDelay = kwargs.get('reconnectOnConnectionFailureDelay', 10)        
+        if not isinstance(self.reconnectOnConnectionFailureDelay, int) and not isinstance(self.reconnectOnConnectionFailureDelay, float):
+            raise TypeMismatch('reconnectOnConnectionFailureDelay must be an integer or float')
         
         # Timeout for reading a single PDU, this is the maximum lapse of time between
         # receiving PDU's header and its complete read, if the PDU reading timed out,
         # the connection is considered as 'corrupt' and will reconnect
         self.pduReadTimerSecs = kwargs.get('pduReadTimerSecs', 10)
+        if not isinstance(self.pduReadTimerSecs, int) and not isinstance(self.pduReadTimerSecs, float):
+            raise TypeMismatch('pduReadTimerSecs must be an integer or float')
         
         self.useSSL = kwargs.get('useSSL', False)
         self.SSLCertificateFile = kwargs.get('SSLCertificateFile', None)
@@ -80,6 +98,8 @@ class SMPPClientConfig():
         # - transmitter
         # - receiver
         self.bindOperation = kwargs.get('bindOperation', 'transceiver')
+        if self.bindOperation not in ['transceiver', 'transmitter', 'receiver']:
+            raise UnknownValue('Invalid bindOperation: %s' % self.bindOperation)
         
         # These are default parameters, c.f. _setConfigParamsInPDU method in SMPPOperationFactory
         self.service_type = kwargs.get('service_type', None)
@@ -115,7 +135,9 @@ class SMPPClientConfig():
         # ISO_2022_JP:               0x0a / 10
         # EXTENDED_KANJI_JIS:        0x0d / 13
         # KS_C_5601:                 0x0e / 14
-        self.data_coding = 0x0
+        self.data_coding = kwargs.get('data_coding', 0)
+        if self.data_coding not in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14]:
+            raise UnknownValue('Invalid data_coding: %s' % self.data_coding)
 
         # These were added to preserve compatibility with smpp.twisted project
         self.addressTon = self.bind_addr_ton
@@ -125,10 +147,16 @@ class SMPPClientConfig():
         # QoS
         # Rejected messages are requeued with a fixed delay
         self.requeue_delay = kwargs.get('requeue_delay', 120)
-        self.submit_sm_throughput = 1
+        if not isinstance(self.requeue_delay, int) and not isinstance(self.requeue_delay, float):
+            raise TypeMismatch('requeue_delay must be an integer or float')
+        self.submit_sm_throughput = kwargs.get('submit_sm_throughput', 1)
+        if not isinstance(self.submit_sm_throughput, int) and not isinstance(self.submit_sm_throughput, float):
+            raise TypeMismatch('submit_sm_throughput must be an integer or float')
         
         # DLR
         self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
+        if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
+            raise TypeMismatch('dlr_expiry must be an integer or float')
                 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):

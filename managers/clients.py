@@ -3,6 +3,7 @@
 
 import logging
 import pickle
+import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
@@ -128,10 +129,10 @@ class SMPPClientManagerPB(pb.Root):
                 
         # Subscribe to submit.sm.%cid queue
         # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
-        consumerTag = 'SMPPClientFactory.%s' % c.id
+        consumerTag = 'SMPPClientFactory-%s.%s' % (c.id, str(uuid.uuid4()))
         yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm, no_ack=False, consumer_tag=consumerTag)
         submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.log.info('SMPPClientFactory.%s is consuming from routing key: %s', c.id, routingKey_submit_sm)
+        self.log.info('%s is consuming from routing key: %s', consumerTag, routingKey_submit_sm)
         
         # Instanciate smpp client service manager
         serviceManager = SMPPClientService(c, self.config)

@@ -8,7 +8,7 @@ from twisted.internet import defer, reactor, ssl
 from jasmin.protocols.smpp.protocol import SMPPClientProtocol
 from jasmin.vendor.smpp.pdu.error import *
 
-LOG_CATEGORY="smpp.twisted.protocol"
+LOG_CATEGORY_BASE="smpp.client"
 
 class SmppClientIsNotConnected(Exception):
     """
@@ -26,7 +26,7 @@ class SMPPClientFactory(ClientFactory):
         self.config = config
                 
         # Set up a dedicated logger
-        self.log = logging.getLogger(LOG_CATEGORY)
+        self.log = logging.getLogger(LOG_CATEGORY_BASE+".%s" % config.id)
         self.log.setLevel(config.log_level)
         handler = logging.FileHandler(filename=config.log_file)
         formatter = logging.Formatter(config.log_format, config.log_date_format)
@@ -37,6 +37,14 @@ class SMPPClientFactory(ClientFactory):
             self.msgHandler = self.msgHandlerStub
         else:
             self.msgHandler = msgHandler
+    
+    def buildProtocol(self, addr):
+        """Provision protocol with the dedicated logger
+        """
+        proto = ClientFactory.buildProtocol(self, addr)
+        proto.log = self.log
+        
+        return proto
         
     def getConfig(self):
         return self.config

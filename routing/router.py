@@ -3,6 +3,7 @@
 
 import logging
 import pickle
+import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from txamqp.queue import Closed
@@ -47,7 +48,7 @@ class RouterPB(pb.Root):
          
         # Subscribe to deliver.sm.* queues
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        consumerTag = 'RouterPB'
+        consumerTag = 'RouterPB.%s' % str(uuid.uuid4())
         routingKey = 'deliver.sm.*'
         queueName = 'RouterPB_deliver_sm_all' # A local queue to RouterPB
         yield self.amqpBroker.named_queue_declare(queue=queueName)

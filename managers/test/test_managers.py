@@ -5,6 +5,7 @@ import copy
 import time
 import mock
 import pickle
+from testfixtures import LogCapture
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.python import log
@@ -214,6 +215,37 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         startRet = yield self.start(self.defaultConfig.id)
         
         self.assertEqual(True, startRet)
+        
+        yield self.stopall()
+
+    @defer.inlineCallbacks
+    def test_add_start_remove_add(self):
+        """Resolving issue/bug #1
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+        yield self.remove(self.defaultConfig.id)
+        addRet = yield self.add(self.defaultConfig)
+
+        self.assertEqual(True, addRet)
+        
+        yield self.stopall()
+
+    @defer.inlineCallbacks
+    def test_start_stop_iteration(self):
+        """Resolving issue/bug #5
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.add(self.defaultConfig)
+        
+        i = 0
+        while i < 5000:
+            yield self.start(self.defaultConfig.id)
+            yield self.stop(self.defaultConfig.id)
+            i+= 1
         
         yield self.stopall()
 
@@ -502,6 +534,102 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Setting validity period to only 2 seconds when throughput is 1 submit/s
         # will lead to rejecting 3 expired messages from the queue
         self.assertApproximates(len(self.SMSCPort.factory.lastClient.submitRecords), 2, 1)
+
+class LoggingTestCases(SMSCSimulatorRecorder):
+    receivedSubmitSmResp = None
+    
+    def submit_sm_callback(self, message):
+        self.receivedSubmitSmResp = pickle.loads(message.content.body)
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SMSCSimulatorRecorder.setUp(self)
+
+        self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
+        
+    @defer.inlineCallbacks
+    def send_long_submit_sm(self, long_content_split):
+        """Reference to #27:
+        When sending a long SMS, logger must write concatenated content
+        """
+        lc = LogCapture("jasmin-sm-listener")
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+
+        # Wait for 'BOUND_TRX' state
+        while True:
+            ssRet = yield self.session_state(self.defaultConfig.id)
+            if ssRet == 'BOUND_TRX':
+                break;
+            else:
+                time.sleep(0.2)
+
+        # Listen on the submit.sm.resp queue
+        routingKey_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
+        consumerTag = 'test_submitSm'
+        yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
+        queue = yield self.amqpBroker.client.queue(consumerTag)
+        queue.get().addCallback(self.submit_sm_callback)
+
+        # Build a long submit_sm
+        assertionKey = str(randint(10, 99)) * 100 + 'EOF' # 203 chars
+        config = SMPPClientConfig(id='defaultId')
+        opFactory = SMPPOperationFactory(config, long_content_split = long_content_split)
+        SubmitSmPDU = opFactory.SubmitSM(
+            source_addr='1423',
+            destination_addr='98700177',
+            short_message=assertionKey,
+        )
+
+        # Send submit_sm
+        yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU)
+        
+        # Wait 2 seconds
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(2, waitingDeferred.callback, None)
+        yield waitingDeferred
+
+        yield self.stop(self.defaultConfig.id)
+
+        # Wait for unbound state
+        ssRet = yield self.session_state(self.defaultConfig.id)
+        while ssRet != 'NONE':
+            time.sleep(0.2)
+            ssRet = yield self.session_state(self.defaultConfig.id)
+        
+        
+        # Assertions
+        # Take the lastClient (and unique one) and assert received messages
+        self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 2)
+        if long_content_split == 'udh':
+            concatenatedShortMessage = self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'][6:]
+            concatenatedShortMessage+= self.SMSCPort.factory.lastClient.submitRecords[1].params['short_message'][6:]
+        else:
+            concatenatedShortMessage = self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']
+            concatenatedShortMessage+= self.SMSCPort.factory.lastClient.submitRecords[1].params['short_message']
+        self.assertEqual(concatenatedShortMessage, assertionKey)
+        # Logged concatenated message
+        loggedSms = False
+        for record in lc.records:
+            if record.getMessage()[:6] == 'SMS-MT':
+                loggedSms = True
+                # Will raise ValueError if concatenatedShortMessage is not logged
+                record.getMessage().index('[content:%s]' % concatenatedShortMessage)
+                break
+        # This will assert if we had a SMS-MT logged
+        self.assertTrue(loggedSms)
+        # There were a connection to the SMSC
+        self.assertTrue(self.SMSCPort.factory.buildProtocol.called)
+        self.assertEqual(self.SMSCPort.factory.buildProtocol.call_count, 1)
+    
+        
+    def test_long_submitSm_sar(self):
+        return self.send_long_submit_sm('sar')
+
+    def test_long_submitSm_udh(self):
+        return self.send_long_submit_sm('udh')
 
 class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
     receivedDeliverSm = None
