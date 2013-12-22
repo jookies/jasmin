@@ -8,9 +8,11 @@ install:
 # Commands to run tests
 script:
     # Normal tests
-    - trial jasmin
+    - coverage run `which trial` jasmin
     # Docs building test
     - cd misc/doc;make html
+    # Report coverage
+    - coverage report --omit=/usr/*
 services:
     - rabbitmq
     - redis-server
