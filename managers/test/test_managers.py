@@ -550,7 +550,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
     @defer.inlineCallbacks
     def send_long_submit_sm(self, long_content_split):
         """Reference to #27:
-        Shen sending a long SMS, logger must write concatenated content
+        When sending a long SMS, logger must write concatenated content
         """
         lc = LogCapture("jasmin-sm-listener")
         yield self.connect('127.0.0.1', self.pbPort)
