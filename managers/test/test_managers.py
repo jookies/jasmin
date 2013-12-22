@@ -617,6 +617,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
                 loggedSms = True
                 # Will raise ValueError if concatenatedShortMessage is not logged
                 record.getMessage().index('[content:%s]' % concatenatedShortMessage)
+                break
         # This will assert if we had a SMS-MT logged
         self.assertTrue(loggedSms)
         # There were a connection to the SMSC
