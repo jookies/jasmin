@@ -7,9 +7,9 @@ install:
     - export PYTHONPATH=$PYTHONPATH:/home/travis/build/fourat
 # Commands to run tests
 script:
-    - whereis trial
+    - find / -name "trial"
     # Normal tests
-    - coverage run /usr/bin/trial jasmin
+    - coverage run /usr/sbin/trial jasmin
     # Docs building test
     - cd misc/doc;make html
     # Report coverage
