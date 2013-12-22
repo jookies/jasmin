@@ -7,14 +7,12 @@ install:
     - export PYTHONPATH=$PYTHONPATH:/home/travis/build/fourat
 # Commands to run tests
 script:
-    - ls -l /home/travis/virtualenv
-    - pwd
     # Normal tests
-    #- coverage run trial jasmin
+    - coverage run `which trial` jasmin
     # Docs building test
-    #- cd misc/doc;make html
+    - cd misc/doc;make html
     # Report coverage
-    #- coverage report --omit=/usr/*
+    - coverage report --omit=/usr/*
 services:
     - rabbitmq
     - redis-server
