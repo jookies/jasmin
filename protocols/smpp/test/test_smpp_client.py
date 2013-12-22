@@ -9,6 +9,8 @@ These are test cases for only Jasmin's code, smpp.twisted tests are not included
 import logging
 import mock
 import time
+import copy
+from testfixtures import LogCapture
 from jasmin.protocols.smpp.protocol import *
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
@@ -177,6 +179,48 @@ class NoBindResponseTestCase(SimulatorTestCase):
         client = SMPPClientFactory(self.config)
         # Connect and bind
         yield self.assertFailure(client.connectAndBind(), SMPPSessionInitTimoutError)
+        
+class LoggingTestCase(SimulatorTestCase):
+    
+    @defer.inlineCallbacks
+    def test_multiple_clients(self):
+        """Reference to #28:
+        SMPP client's logging does not work correctly with multiple connectors
+        """
+        args = self.configArgs.copy()
+        args['id'] = 'test-id-2'
+        args['port'] = self.testPort
+        args['bindOperation'] = 'transmitter'
+        args['log_level'] = self.configArgs.get('log_level', logging.DEBUG)
+        self.config2 = SMPPClientConfig(**args)
+        
+        client1 = SMPPClientFactory(self.config)
+        client2 = SMPPClientFactory(self.config2)
+
+        lc1 = LogCapture("smpp.client.%s" % client1.config.id)
+        lc2 = LogCapture("smpp.client.%s" % client2.config.id)
+
+        # Connect and bind
+        yield client1.connectAndBind()
+        yield client2.connectAndBind()
+
+        # Unbind & Disconnect
+        yield client1.disconnect()
+        yield client2.disconnect()
+        
+        # Assert logging of client1
+        bindRequestsCount = 0
+        for record in lc1.records:
+            if record.getMessage()[:30] == 'Requesting bind as transceiver':
+                bindRequestsCount+= 1
+        self.assertEqual(bindRequestsCount, 1)
+
+        # Assert logging of client2
+        bindRequestsCount = 0
+        for record in lc2.records:
+            if record.getMessage()[:30] == 'Requesting bind as transmitter':
+                bindRequestsCount+= 1
+        self.assertEqual(bindRequestsCount, 1)
         
 class ReconnectionOnConnectionFailureTestCase(SimulatorTestCase):
     configArgs = {

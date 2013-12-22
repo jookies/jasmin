@@ -6,3 +6,4 @@ pyOpenSSL
 twisted
 python-dateutil
 sphinx
+testfixtures

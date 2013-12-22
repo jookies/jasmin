@@ -2,6 +2,7 @@
 # See LICENSE for details.
 
 import struct
+import logging
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCoding, DataCodingDefault
@@ -10,12 +11,25 @@ from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest, EsmClassGsmFeatures
+from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 
 LOG_CATEGORY="smpp.twisted.protocol"
 
 class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def __init__( self ):
-        twistedSMPPClientProtocol.__init__(self)
+        self.recvBuffer = ""
+        self.connectionCorrupted = False
+        self.pduReadTimer = None
+        self.enquireLinkTimer = None
+        self.inactivityTimer = None
+        self.lastSeqNum = 0
+        self.dataRequestHandler = None
+        self.alertNotificationHandler = None
+        self.inTxns = {}
+        self.outTxns = {}
+        self.sessionState = SMPPSessionStates.NONE
+        self.encoder = PDUEncoder()
+        self.disconnectedDeferred = defer.Deferred()
         
         self.longSubmitSmTxns = {}
         
