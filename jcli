@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+"""Will start Jasmin configuration console
+"""
+
+from jasmin.cli.home import Home
+from twisted.internet import reactor
+
+if __name__ == "__main__":
+    reactor.callInThread(Home().cmdloop)
+    reactor.run()

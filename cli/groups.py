@@ -1,7 +1,7 @@
 from jasmin.cli.base import JasminCliApp
 
 class ManageGroups(JasminCliApp):
-    prompt = 'jcli (!g): '
+    prompt = 'jcli (g): '
     commands = ['do_show', 'do_remove', 'do_add']
     
     def do_show(self, arg = None):
