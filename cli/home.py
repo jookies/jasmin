@@ -21,16 +21,16 @@ class Home(JasminCliApp):
 
         if arg == 'user':
             # Go to ManageUsers nested app
-            napp = ManageUsers(router = self.router, smppcm = self.smppc)
+            napp = ManageUsers(router = self.router, smppcm = self.smppcm)
         elif arg == 'group':
             # Go to ManageGroups nested app
-            napp = ManageGroups(router = self.router, smppcm = self.smppc)
+            napp = ManageGroups(router = self.router, smppcm = self.smppcm)
         elif arg == 'router':
             # Go to ManageRouter nested app
-            napp = ManageRouter(router = self.router, smppcm = self.smppc)
+            napp = ManageRouter(router = self.router, smppcm = self.smppcm)
         elif arg == 'smppc':
             # Go to ManageSmppClient nested app
-            napp = ManageSmppClient(router = self.router, smppcm = self.smppc)
+            napp = ManageSmppClient(router = self.router, smppcm = self.smppcm)
         else:
             self.print_stdout('Invalid console, should be: user, group, router or smppcm')
             return
