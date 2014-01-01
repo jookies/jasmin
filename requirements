@@ -6,7 +6,6 @@ pyOpenSSL
 twisted
 python-dateutil
 sphinx
-cmd2
 
 # Requirements used for testing only:
 testfixtures
