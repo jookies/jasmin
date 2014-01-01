@@ -18,6 +18,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
                    'baseCommands': 'Control commands:',
                    'ruler': '=',}
     prompt = '>>> '
+    nestedApp = None
 
     baseCommands = ['quit', 'help']
     commands = []
@@ -158,10 +159,6 @@ class CmdProtocol(recvline.HistoricRecvLine):
                 self.lineBuffer = list(completetion)
                 self.lineBufferIndex = len(self.lineBuffer)
                 return self.sendData(data = None, prompt = False, append = completetion[len(cmd):])
-        elif arg is None:
-            # Complete or list available args
-            # @todo
-            pass
         
     def default(self, line):
         self.sendData('Incorrect command: %s, type help for a list of commands' % line)
