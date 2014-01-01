@@ -18,6 +18,11 @@ from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRTh
 from jasmin.routing.throwers import deliverSmThrower, DLRThrower
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
+from twisted.internet import protocol
+from jasmin.protocols.cli.factory import JCliFactory
+from jasmin.protocols.cli.configs import JCliConfig
+from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
+from twisted.conch.insults import insults
 
 class Options(usage.Options):
 
@@ -92,15 +97,21 @@ class JasminServiceMaker:
         
         # Start HTTP Api
         httpApiConfigInstance = HTTPApiConfig(options['config'])
-        httpApi = HTTPApi(RouterPB_f, clientManager_f, httpApiConfigInstance)
+        httpApi_f = HTTPApi(RouterPB_f, clientManager_f, httpApiConfigInstance)
         httpApi = internet.TCPServer(httpApiConfigInstance.port, 
-                                     server.Site(httpApi, 
+                                     server.Site(httpApi_f, 
                                                  logPath=httpApiConfigInstance.access_log
                                                  ), 
                                      interface=httpApiConfigInstance.bind
                                      )
         httpApi.setServiceParent(top_service)
         
+        # Start JCli server
+        JCliConfigInstance = JCliConfig(options['config'])
+        JCli_f = JCliFactory(JCliConfigInstance)
+        jcli = internet.TCPServer(JCliConfigInstance.port, JCli_f, interface=JCliConfigInstance.bind)
+        jcli.setServiceParent(top_service)
+
         return top_service
 
 service_maker = JasminServiceMaker()
