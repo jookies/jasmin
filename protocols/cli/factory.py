@@ -10,8 +10,9 @@ from twisted.conch.insults import insults
 LOG_CATEGORY_BASE="jcli"
 
 class JCliFactory(ServerFactory):
-    def __init__(self, config):
+    def __init__(self, config, SMPPClientManagerPB, RouterPB):
         self.config = config
+        self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB}
         # Protocol sessions are kept here:
         self.sessions = {}
         self.sessionRef = 0

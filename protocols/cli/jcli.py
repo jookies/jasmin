@@ -3,7 +3,7 @@
 
 from jasmin.protocols.cli.protocol import CmdProtocol
 from jasmin.protocols.cli.options import options
-from jasmin.protocols.cli.managers import UserManager, GroupManager, RouterManager, SmppcmManager
+from jasmin.protocols.cli.smppcm import SmppcmManager
 from optparse import make_option
 
 class JCliProtocol(CmdProtocol):
@@ -14,19 +14,19 @@ class JCliProtocol(CmdProtocol):
     def __init__(self, factory, log):
         CmdProtocol.__init__(self, factory, log)
         
-        self.managers = {'user': UserManager(), 'group': GroupManager(), 
-                         'router': RouterManager(), 'smppcm': SmppcmManager(), }
+        self.managers = {'user': None, 'group': None, 
+                         'router': None, 'smppcm': SmppcmManager(self, factory.pb), }
         
     def manageModule(self, moduleName, arg, opts):
         if opts.list is None and opts.add is None and opts.remove is None:
             return self.sendData('Missing required option: --list, --add or --remove')
         
         if opts.list:
-            return self.sendData(self.managers[moduleName].list())
+            self.managers[moduleName].list()
         if opts.add:
-            return self.sendData(self.managers[moduleName].add(arg, opts))
+            self.managers[moduleName].add(arg)
         if opts.remove:
-            return self.sendData(self.managers[moduleName].remove(arg, opts))
+            self.managers[moduleName].remove(arg, opts)
 
     @options([make_option('-l', '--list', action="store_true",
                           help="List users"),
@@ -56,8 +56,8 @@ class JCliProtocol(CmdProtocol):
                           help="List SMPP connectors"),
               make_option('-a', '--add', action="store_true",
                           help="Add SMPP connector"),
-              make_option('-r', '--remove', action="store_true",
-                          help="Remove SMPP connector"),], '')    
+              make_option('-r', '--remove', type="string", metavar="CID", 
+                          help="Remove SMPP connector using it's CID"),], '')
     def do_smppcm(self, arg, opts):
         'SMPP connector management'
         self.manageModule('smppcm', arg, opts)

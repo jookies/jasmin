@@ -18,7 +18,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
                    'baseCommands': 'Control commands:',
                    'ruler': '=',}
     prompt = '>>> '
-    nestedApp = None
+    lineCallback = None
 
     baseCommands = ['quit', 'help']
     commands = []
@@ -78,7 +78,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         if prompt is not False:
             if prompt is None:
                 prompt = self.prompt
-            self.terminal.write(self.prompt+append)
+            self.terminal.write(prompt+append)
         # Just append to the current line
         elif append != '':
             self.terminal.write(append)
@@ -90,7 +90,6 @@ class CmdProtocol(recvline.HistoricRecvLine):
         
         Similar to cmd.Cmd.parseline()
         """
-        line = line.strip()
         if not line:
             self.log.debug('[sref:%s] Parsed line returns: cmd=None, agr=None, line=%s' % (self.sessionRef, line))
             return None, None, line
@@ -105,10 +104,15 @@ class CmdProtocol(recvline.HistoricRecvLine):
         return cmd, arg, line
     
     def lineReceived(self, line):
+        line = line.strip()
         self.log.debug('[sref:%s] Received line: %s' % (self.sessionRef, line))
-        
+
         cmd, arg, line = self.parseline(line)
         
+        # lineCallback is defined when we're inside an interactive session with one command
+        if self.lineCallback is not None:
+            return self.lineCallback(cmd, arg, line)
+
         if not line:
             return self.sendData()
         if cmd is None or cmd not in self.findCommands():
@@ -159,7 +163,21 @@ class CmdProtocol(recvline.HistoricRecvLine):
                 self.lineBuffer = list(completetion)
                 self.lineBufferIndex = len(self.lineBuffer)
                 return self.sendData(data = None, prompt = False, append = completetion[len(cmd):])
+
+    def str2num(self, s):
+        'User input is always received as string, str2num will try to cast it to the right type (int or float)'
         
+        try:
+            return int(s)
+        except ValueError:
+            pass
+        
+        try:
+            return float(s)
+        except ValueError:
+            # Fallback to the original type
+            return s
+
     def default(self, line):
         self.sendData('Incorrect command: %s, type help for a list of commands' % line)
         

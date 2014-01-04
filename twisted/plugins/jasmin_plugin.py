@@ -108,7 +108,7 @@ class JasminServiceMaker:
         
         # Start JCli server
         JCliConfigInstance = JCliConfig(options['config'])
-        JCli_f = JCliFactory(JCliConfigInstance)
+        JCli_f = JCliFactory(JCliConfigInstance, clientManager_f, RouterPB_f)
         jcli = internet.TCPServer(JCliConfigInstance.port, JCli_f, interface=JCliConfigInstance.bind)
         jcli.setServiceParent(top_service)
 
