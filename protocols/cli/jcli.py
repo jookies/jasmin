@@ -18,9 +18,6 @@ class JCliProtocol(CmdProtocol):
                          'router': None, 'smppccm': SmppCCManager(self, factory.pb), }
         
     def manageModule(self, moduleName, arg, opts):
-        if opts.list is None and opts.add is None and opts.remove is None:
-            return self.sendData('Missing required option: --list, --add or --remove')
-        
         if opts.list:
             self.managers[moduleName].list()
         elif opts.add:
@@ -65,4 +62,8 @@ class JCliProtocol(CmdProtocol):
               ], '')
     def do_smppccm(self, arg, opts):
         'SMPP connector management'
+
+        if opts.list is None and opts.add is None and opts.remove is None and opts.show is None:
+            return self.sendData('Missing required option')
+        
         self.manageModule('smppccm', arg, opts)
