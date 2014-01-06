@@ -49,7 +49,7 @@ def ConnectorExist(fn):
         return self.protocol.sendData('Unknown connector ! %s' % opts.remove)
     return exist_connector_and_call
 
-class SmppcmManager(Manager):
+class SmppCCManager(Manager):
     def list(self):
         connectors = self.pb['smppcm'].remote_connector_list()
         counter = 0
