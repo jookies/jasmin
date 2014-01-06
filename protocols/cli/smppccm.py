@@ -1,7 +1,7 @@
 import pickle
 from twisted.internet import defer
 from jasmin.protocols.smpp.configs import SMPPClientConfigMap, SMPPClientConfig
-from jasmin.protocols.cli.managers import Manager, FilterSessionArgs
+from managers import Manager, FilterSessionArgs
 
 def SMPPClientConfigBuild(fn):
     'Parse args and try to build a SMPPClientConfig instance to pass it to fn'

@@ -1,9 +1,9 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
-from jasmin.protocols.cli.protocol import CmdProtocol
-from jasmin.protocols.cli.options import options
-from jasmin.protocols.cli.smppccm import SmppCCManager
+from protocol import CmdProtocol
+from options import options
+from smppccm import SmppCCManager
 from optparse import make_option
 
 class JCliProtocol(CmdProtocol):

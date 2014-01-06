@@ -3,7 +3,7 @@
 
 import logging
 from twisted.internet.protocol import ServerFactory
-from jasmin.protocols.cli.jcli import JCliProtocol
+from jcli import JCliProtocol
 from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
 from twisted.conch.insults import insults
 
