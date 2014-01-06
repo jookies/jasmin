@@ -18,7 +18,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
                    'baseCommands': 'Control commands:',
                    'ruler': '=',}
     prompt = '>>> '
-    lineCallback = None
+    sessionLineCallback = None
+    sessionCompletitions = None
 
     baseCommands = ['quit', 'help']
     commands = []
@@ -109,9 +110,9 @@ class CmdProtocol(recvline.HistoricRecvLine):
 
         cmd, arg, line = self.parseline(line)
         
-        # lineCallback is defined when we're inside an interactive session with one command
-        if self.lineCallback is not None:
-            return self.lineCallback(cmd, arg, line)
+        # sessionLineCallback is defined when we're inside an interactive session with one command
+        if self.sessionLineCallback is not None:
+            return self.sessionLineCallback(cmd, arg, line)
 
         if not line:
             return self.sendData()
@@ -128,13 +129,18 @@ class CmdProtocol(recvline.HistoricRecvLine):
         return func(arg)
     
     def findCommands(self, prefix = None):
+        if self.sessionCompletitions is not None:
+            completetions = self.sessionCompletitions
+        else:
+            completetions = self.commands+self.baseCommands
+        
         # No prefix finding, return all commands
         if prefix is None:
-            return self.commands+self.baseCommands
+            return completetions
         
         # Find commands by prefix
         foundCommands = []
-        for availableCmd in self.commands+self.baseCommands:
+        for availableCmd in completetions:
             
             if availableCmd.find(prefix) == 0:
                 foundCommands.append(availableCmd)

@@ -17,25 +17,38 @@ class Manager:
     # A prompt to display when inside an interactive session
     trxPrompt = '> '
     
-    def startSession(self, sessionHandler, annoucement = None):
+    def startSession(self, sessionHandler, annoucement = None, completitions = None):
         'Switch prompt and hand user inputs directly to sessionHandler'
 
-        self.protocol.lineCallback = sessionHandler
+        self.protocol.sessionLineCallback = sessionHandler
         self.backupPrompt = self.protocol.prompt
         self.protocol.prompt = self.trxPrompt
         self.sessBuffer = {}
-        # Dont provide completitions inside a session
-        self.protocol.keyHandlers['\t'] = self.handle_TAB
+        
+        # Adapt completitions handler for inside-session
+        if completitions is None:
+            # Dont provide completitions inside a session
+            self.protocol.keyHandlers['\t'] = self.handle_TAB
+        else:
+            # Provide local keywords for this session
+            self.protocol.sessionCompletitions = completitions
+            
         if annoucement is not None:
             self.protocol.sendData(annoucement)
 
     def stopSession(self):
         'Reset prompt and disable sessionHandler'
 
-        self.protocol.lineCallback = None
+        self.protocol.sessionLineCallback = None
         self.protocol.prompt = self.backupPrompt
         self.sessBuffer = {}
-        self.protocol.keyHandlers['\t'] = self.protocol.handle_TAB
+        
+        # Restore completitions handler
+        if self.protocol.sessionCompletitions is None:
+            self.protocol.keyHandlers['\t'] = self.protocol.handle_TAB
+        else:
+            self.protocol.sessionCompletitions = None
+            
         self.protocol.sendData()
     
     def handle_TAB(self):

@@ -1,6 +1,6 @@
 import pickle
 from twisted.internet import defer
-from jasmin.protocols.smpp.configs import SMPPClientConfigMap, SMPPClientConfig
+from jasmin.protocols.smpp.configs import SMPPClientConfigKeyMap, SMPPClientConfig
 from managers import Manager, FilterSessionArgs
 
 def SMPPClientConfigBuild(fn):
@@ -27,11 +27,11 @@ def SMPPClientConfigBuild(fn):
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         # Unknown key
-        if not SMPPClientConfigMap.has_key(cmd):
+        if not SMPPClientConfigKeyMap.has_key(cmd):
             return self.protocol.sendData('Unknown SMPPClientConfig key ! %s' % cmd)
         
         # Buffer key for later SMPPClientConfig initiating
-        SMPPClientConfigKey = SMPPClientConfigMap[cmd]
+        SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
         self.sessBuffer[SMPPClientConfigKey] = self.protocol.str2num(arg)
         
         return self.protocol.sendData()
@@ -86,7 +86,9 @@ class SmppCCManager(Manager):
             else:
                 self.protocol.sendData('Failed adding connector, check log for details')
     def add(self, arg):
-        return self.startSession(self.add_session, 'Adding a new connector: (ok: save, ko: exit)')
+        return self.startSession(self.add_session, 
+                                 annoucement = 'Adding a new connector: (ok: save, ko: exit)',
+                                 completitions = SMPPClientConfigKeyMap.keys())
     
     @ConnectorExist
     @defer.inlineCallbacks

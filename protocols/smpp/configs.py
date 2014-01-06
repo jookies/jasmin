@@ -11,6 +11,21 @@ from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassTy
 from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime 
 from jasmin.config.tools import ConfigFile
 
+# A config map between user-configuration keys and SMPPClientConfig keys.
+# user-configuration keys are used to simplify configuration through APIs (jcli)
+SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username': 'username',
+                       'password': 'password', 'systype': 'systemType', 'logfile': 'log_file', 'loglevel': 'log_level',
+                       'bind_to': 'sessionInitTimerSecs', 'elink_interval': 'enquireLinkTimerSecs', 'trx_to': 'inactivityTimerSecs', 
+                       'res_to': 'responseTimerSecs', 'con_loss_retry': 'reconnectOnConnectionLoss', 'con_fail_retry': 'reconnectOnConnectionFailure',
+                       'con_loss_delay': 'reconnectOnConnectionLossDelay', 'con_fail_delay': 'reconnectOnConnectionFailureDelay',
+                       'pdu_red_to': 'pduReadTimerSecs', 'bind': 'bindOperation', 'bind_ton': 'bind_addr_ton', 'bind_npi': 'bind_addr_npi',
+                       'src_ton': 'source_addr_ton', 'src_npi': 'source_addr_npi', 'dst_ton': 'dest_addr_ton', 'dst_npi': 'dest_addr_npi',
+                       'addr_range': 'address_range', 'src_addr': 'source_addr', 'esm_class': 'esm_class', 'proto_id': 'protocol_id', 
+                       'priority': 'priority_flag', 'validity': 'validity_period', 'dlr': 'registered_delivery', 'ripf': 'replace_if_present_flag',
+                       'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
+                       'dlr_expiry': 'dlr_expiry'
+                       }
+
 class ConfigUndefinedIdError(Exception):
     """Raised when a *Config class is initialized without ID
     """
@@ -26,21 +41,6 @@ class TypeMismatch(Exception):
 class UnknownValue(Exception):
     """Raised when a *Config element has a valid type and inappropriate value
     """
-
-# A config map between user-configuration keys and SMPPClientConfig keys.
-# user-configuration keys are used to simplify configuration through APIs (jcli)
-SMPPClientConfigMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username': 'username',
-                       'password': 'password', 'systype': 'systemType', 'logfile': 'log_file', 'loglevel': 'log_level',
-                       'bind_to': 'sessionInitTimerSecs', 'elink_interval': 'enquireLinkTimerSecs', 'trx_to': 'inactivityTimerSecs', 
-                       'res_to': 'responseTimerSecs', 'con_loss_retry': 'reconnectOnConnectionLoss', 'con_fail_retry': 'reconnectOnConnectionFailure',
-                       'con_loss_delay': 'reconnectOnConnectionLossDelay', 'con_fail_delay': 'reconnectOnConnectionFailureDelay',
-                       'pdu_red_to': 'pduReadTimerSecs', 'bind': 'bindOperation', 'bind_ton': 'bind_addr_ton', 'bind_npi': 'bind_addr_npi',
-                       'src_ton': 'source_addr_ton', 'src_npi': 'source_addr_npi', 'dst_ton': 'dest_addr_ton', 'dst_npi': 'dest_addr_npi',
-                       'addr_range': 'address_range', 'src_addr': 'source_addr', 'esm_class': 'esm_class', 'proto_id': 'protocol_id', 
-                       'priority': 'priority_flag', 'validity': 'validity_period', 'dlr': 'registered_delivery', 'ripf': 'replace_if_present_flag',
-                       'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
-                       'dlr_expiry': 'dlr_expiry'
-                       }
 
 class SMPPClientConfig():
     def __init__(self, **kwargs):
