@@ -1,4 +1,4 @@
-from jasmin.protocols.http.errors import ValidationError
+from errors import ValidationError
 
 class UrlArgsValidator:
     def __init__(self, request, fields):

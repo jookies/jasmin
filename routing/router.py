@@ -7,10 +7,10 @@ import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from txamqp.queue import Closed
-from jasmin.routing.content import RoutedDeliverSmContent
-from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable
-from jasmin.routing.Routables import RoutableDeliverSm
-from jasmin.routing.jasminApi import Connector
+from content import RoutedDeliverSmContent
+from RoutingTables import MORoutingTable, MTRoutingTable
+from Routables import RoutableDeliverSm
+from jasminApi import Connector
 
 LOG_CATEGORY = "jasmin-router"
 

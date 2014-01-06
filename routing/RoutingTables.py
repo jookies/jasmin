@@ -1,5 +1,5 @@
-from jasmin.routing.Routes import Route
-from jasmin.routing.Routables import Routable
+from Routes import Route
+from Routables import Routable
 
 class InvalidRoutingTableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for

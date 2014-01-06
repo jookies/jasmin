@@ -23,10 +23,12 @@ class JCliProtocol(CmdProtocol):
         
         if opts.list:
             self.managers[moduleName].list()
-        if opts.add:
+        elif opts.add:
             self.managers[moduleName].add(arg)
-        if opts.remove:
+        elif opts.remove:
             self.managers[moduleName].remove(arg, opts)
+        elif opts.show:
+            self.managers[moduleName].show(arg, opts)
 
     @options([make_option('-l', '--list', action="store_true",
                           help="List users"),
@@ -57,7 +59,10 @@ class JCliProtocol(CmdProtocol):
               make_option('-a', '--add', action="store_true",
                           help="Add SMPP connector"),
               make_option('-r', '--remove', type="string", metavar="CID", 
-                          help="Remove SMPP connector using it's CID"),], '')
+                          help="Remove SMPP connector using it's CID"),
+              make_option('-s', '--show', type="string", metavar="CID", 
+                          help="Show SMPP connector using it's CID"),
+              ], '')
     def do_smppccm(self, arg, opts):
         'SMPP connector management'
         self.manageModule('smppccm', arg, opts)

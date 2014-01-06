@@ -2,9 +2,9 @@
 # See LICENSE for details.
 
 import logging
-from jasmin.protocols.smpp.factory import SMPPClientFactory
+from factory import SMPPClientFactory
 from twisted.application import service
-from jasmin.protocols.smpp.configs import SMPPClientServiceConfig
+from configs import SMPPClientServiceConfig
 
 LOG_CATEGORY="jasmin-service-smpp"
 

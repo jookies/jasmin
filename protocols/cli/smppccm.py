@@ -98,7 +98,8 @@ class SmppCCManager(Manager):
         else:
             self.protocol.sendData('Failed removing connector, check log for details')
     
-    def show(self, arg):
+    @ConnectorExist
+    def show(self, arg, opts):
         pass
     
     def update(self, arg):

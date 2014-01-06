@@ -1,6 +1,6 @@
 from datetime import datetime
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
-from jasmin.routing.jasminApi import *
+from jasminApi import *
 
 class InvalidRoutableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for

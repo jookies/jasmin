@@ -9,8 +9,8 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.vendor.smpp.pdu.error import *
 from txamqp.queue import Closed
 from twisted.internet import reactor, task
-from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, DLRContent
-from jasmin.managers.configs import SMPPClientPBConfig
+from content import SubmitSmRespContent, DeliverSmContent, DLRContent
+from configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 
 LOG_CATEGORY = "jasmin-sm-listener"

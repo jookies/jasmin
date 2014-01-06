@@ -1,7 +1,7 @@
 import random
-from jasmin.routing.jasminApi import *
-from jasmin.routing.Filters import Filter
-from jasmin.routing.Routables import Routable
+from jasminApi import *
+from Filters import Filter
+from Routables import Routable
 
 class InvalidRouteParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for

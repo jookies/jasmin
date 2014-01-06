@@ -1,7 +1,7 @@
 import re
 import datetime
-from jasmin.routing.Routables import Routable
-from jasmin.routing.jasminApi import *
+from Routables import Routable
+from jasminApi import *
 
 class InvalidFilterParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for

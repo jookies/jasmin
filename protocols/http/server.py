@@ -3,10 +3,10 @@ import re
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-from jasmin.protocols.http.validation import UrlArgsValidator
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError
+from errors import AuthenticationError, ServerError, RouteNotFoundError
+from validation import UrlArgsValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 

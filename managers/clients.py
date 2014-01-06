@@ -7,9 +7,9 @@ import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
-from jasmin.managers.listeners import SMPPClientSMListener
-from jasmin.managers.configs import SMPPClientSMListenerConfig
-from jasmin.managers.content import SubmitSmContent
+from listeners import SMPPClientSMListener
+from configs import SMPPClientSMListenerConfig
+from content import SubmitSmContent
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
