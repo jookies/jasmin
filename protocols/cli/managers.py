@@ -17,12 +17,13 @@ class Manager:
     # A prompt to display when inside an interactive session
     trxPrompt = '> '
     
-    def startSession(self, sessionHandler, annoucement = None, completitions = None):
+    def startSession(self, sessionHandler, annoucement = None, completitions = None, sessionContext = None):
         'Switch prompt and hand user inputs directly to sessionHandler'
 
         self.protocol.sessionLineCallback = sessionHandler
         self.backupPrompt = self.protocol.prompt
         self.protocol.prompt = self.trxPrompt
+        self.sessionContext = sessionContext
         self.sessBuffer = {}
         
         # Adapt completitions handler for inside-session
@@ -41,6 +42,7 @@ class Manager:
 
         self.protocol.sessionLineCallback = None
         self.protocol.prompt = self.backupPrompt
+        self.sessionContext = None
         self.sessBuffer = {}
         
         # Restore completitions handler
