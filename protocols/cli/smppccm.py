@@ -66,7 +66,7 @@ def SMPPClientConfigBuild(fn):
                 return self.protocol.sendData('Error: %s' % str(e))
         # Unknown key
         if not SMPPClientConfigKeyMap.has_key(cmd):
-            return self.protocol.sendData('Unknown SMPPClientConfig key ! %s' % cmd)
+            return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
         
         # Buffer key for later SMPPClientConfig initiating
         SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
@@ -88,7 +88,7 @@ class ConnectorExist:
             if self.pb['smppcm'].getConnector(cid) is not None:
                 return fn(self, *args, **kwargs)
                 
-            return self.protocol.sendData('Unknown connector ! %s' % cid)
+            return self.protocol.sendData('Unknown connector: %s' % cid)
         return exist_connector_and_call
 
 class SmppCCManager(Manager):
@@ -152,8 +152,21 @@ class SmppCCManager(Manager):
     def update(self, arg):
         pass
     
-    def stop(self, arg):
-        pass
+    @ConnectorExist(cid_key='stop')
+    @defer.inlineCallbacks
+    def stop(self, arg, opts):
+        st = yield self.pb['smppcm'].remote_connector_stop(opts.stop)
     
-    def start(self, arg):
-        pass
+        if st:
+            self.protocol.sendData('Successfully stopped connector id:%s' % opts.stop)
+        else:
+            self.protocol.sendData('Failed stopping connector, check log for details')
+
+    @ConnectorExist(cid_key='start')
+    def start(self, arg, opts):
+        st = self.pb['smppcm'].remote_connector_start(opts.start)
+    
+        if st:
+            self.protocol.sendData('Successfully started connector id:%s' % opts.start)
+        else:
+            self.protocol.sendData('Failed starting connector, check log for details')

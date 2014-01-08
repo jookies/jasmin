@@ -26,6 +26,10 @@ class JCliProtocol(CmdProtocol):
             self.managers[moduleName].remove(arg, opts)
         elif opts.show:
             self.managers[moduleName].show(arg, opts)
+        elif opts.start:
+            self.managers[moduleName].start(arg, opts)
+        elif opts.stop:
+            self.managers[moduleName].stop(arg, opts)
 
     @options([make_option('-l', '--list', action="store_true",
                           help="List users"),
@@ -59,11 +63,16 @@ class JCliProtocol(CmdProtocol):
                           help="Remove SMPP connector using it's CID"),
               make_option('-s', '--show', type="string", metavar="CID", 
                           help="Show SMPP connector using it's CID"),
+              make_option('-1', '--start', type="string", metavar="CID", 
+                          help="Start SMPP connector using it's CID"),
+              make_option('-0', '--stop', type="string", metavar="CID", 
+                          help="Start SMPP connector using it's CID"),
               ], '')
     def do_smppccm(self, arg, opts):
         'SMPP connector management'
 
-        if opts.list is None and opts.add is None and opts.remove is None and opts.show is None:
+        if (opts.list is None and opts.add is None and opts.remove is None and 
+            opts.show is None and opts.start is None and opts.stop is None):
             return self.sendData('Missing required option')
         
         self.manageModule('smppccm', arg, opts)
