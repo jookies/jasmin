@@ -19,3 +19,6 @@ services:
 before_script:
     - sudo mkdir /var/log/jasmin;sudo chown `whoami` /var/log/jasmin
     - sudo ln -s `pwd`/misc/config /etc/jasmin
+before_install:
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq python-dev
