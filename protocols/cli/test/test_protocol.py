@@ -24,7 +24,6 @@ class ProtocolTestCases(unittest.TestCase):
         self.proto.dataReceived('%s\r\n' % command)
         receivedLines = self.getBuffer(True)
 
-        print receivedLines
         if expected is None:
             return
         else:

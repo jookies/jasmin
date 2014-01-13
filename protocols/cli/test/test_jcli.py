@@ -26,10 +26,12 @@ class jCliTestCases(ProtocolTestCases):
         self.tr = proto_helpers.StringTransport()
         self.proto.makeConnection(self.tr)
         # Test for greeting
-        self.assertReceivedLines(['Welcome to Jasmin console', 
-                             'Type help or ? to list commands.', 
-                             'Session ref: '], self.getBuffer(True))
+        self.assertReceivedLines([r'Welcome to Jasmin console', '', '',
+                             r'Type help or \? to list commands\.', '', '', '', '', '', 
+                             r'Session ref: ', '', ''], self.getBuffer(True))
     
 class SmppccmTestCase(jCliTestCases):
     def test_list(self):
-        return self._test('smppccm -l', ['Total: 0', 'jcli :'])
+        return self._test('smppccm -l', [r'smppccm -l', '', '', 
+                                         r'Total: 0', '', '', 
+                                         r'jcli : '])
