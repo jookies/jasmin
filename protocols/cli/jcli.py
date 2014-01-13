@@ -8,11 +8,11 @@ from optparse import make_option
 
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'
-    CmdProtocol.commands.extend(['user', 'group', 'router', 'smppccm'])
     prompt = 'jcli : '
     
     def __init__(self, factory, log):
         CmdProtocol.__init__(self, factory, log)
+        self.commands.extend(['user', 'group', 'router', 'smppccm'])
         
         self.managers = {'user': None, 'group': None, 
                          'router': None, 'smppccm': SmppCCManager(self, factory.pb), }

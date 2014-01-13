@@ -9,7 +9,9 @@ Introduction
 Jasmin is a very complete open source SMS Gateway with many enterprise-class features such as::
 * SMPP Client / Server
 * HTTP Client / Server
+* Console-based configuration, no service restart required
 * Based on AMQP broker for store&forward mechanisms and other queuing systems
+* Using Redis for in-memory DLR tracking
 * Advanced message routing/filtering (Simple, Roundrobin, Failover, Leastcost ...)
 * Web ui for management
 * Supports Unicode (UTF-8) for sending out multilingual SMS
