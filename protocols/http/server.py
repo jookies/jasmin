@@ -171,11 +171,12 @@ class HTTPApi(Resource):
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(config.log_level)
-        handler = logging.FileHandler(filename=config.log_file)
-        formatter = logging.Formatter(config.log_format, config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(config.log_level)
+            handler = logging.FileHandler(filename=config.log_file)
+            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
 
         # Set http url routings
         self.log.debug("Setting http url routing for /send")

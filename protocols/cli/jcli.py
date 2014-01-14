@@ -12,7 +12,14 @@ class JCliProtocol(CmdProtocol):
     
     def __init__(self, factory, log):
         CmdProtocol.__init__(self, factory, log)
-        self.commands.extend(['user', 'group', 'router', 'smppccm'])
+        if 'user' not in self.commands:
+            self.commands.append('user')
+        if 'group' not in self.commands:
+            self.commands.append('group')
+        if 'router' not in self.commands:
+            self.commands.append('router')
+        if 'smppccm' not in self.commands:
+            self.commands.append('smppccm')
         
         self.managers = {'user': None, 'group': None, 
                          'router': None, 'smppccm': SmppCCManager(self, factory.pb), }

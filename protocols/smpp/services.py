@@ -19,11 +19,12 @@ class SMPPClientService(service.Service):
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(self.SMPPClientServiceConfig.log_level)
-        handler = logging.FileHandler(filename=self.SMPPClientServiceConfig.log_file)
-        formatter = logging.Formatter(self.SMPPClientServiceConfig.log_format, self.SMPPClientServiceConfig.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.SMPPClientServiceConfig.log_level)
+            handler = logging.FileHandler(filename=self.SMPPClientServiceConfig.log_file)
+            formatter = logging.Formatter(self.SMPPClientServiceConfig.log_format, self.SMPPClientServiceConfig.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
 
         self.log.info('New SMPPClientService for [%s]', self.SMPPClientConfig.id)
 

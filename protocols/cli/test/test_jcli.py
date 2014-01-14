@@ -1,5 +1,5 @@
 from twisted.internet import reactor, defer
-from test_protocol import ProtocolTestCases
+from test_cmdprotocol import ProtocolTestCases
 from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.cli.configs import JCliConfig
 from jasmin.routing.router import RouterPB

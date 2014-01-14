@@ -49,7 +49,8 @@ class RedisForJasminFactory(redis.RedisFactory):
         else:
             handler = logging.NullHandler()
         
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.addHandler(handler)
     
 def makeConnection(host, port, dbid, poolsize, reconnect, isLazy, RedisForJasminConfig = None):
     uuid = "%s:%s" % (host, port)
