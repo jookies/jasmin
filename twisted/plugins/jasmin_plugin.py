@@ -18,11 +18,8 @@ from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRTh
 from jasmin.routing.throwers import deliverSmThrower, DLRThrower
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
-from twisted.internet import protocol
 from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.cli.configs import JCliConfig
-from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
-from twisted.conch.insults import insults
 
 class Options(usage.Options):
 
