@@ -12,6 +12,10 @@ class JCliProtocol(CmdProtocol):
     
     def __init__(self, factory, log):
         CmdProtocol.__init__(self, factory, log)
+        if 'persist' not in self.commands:
+            self.commands.append('persist')
+        if 'load' not in self.commands:
+            self.commands.append('load')
         if 'user' not in self.commands:
             self.commands.append('user')
         if 'group' not in self.commands:
@@ -88,3 +92,21 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
         
         self.manageModule('smppccm', arg, opts)
+        
+    @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
+                          help="Configuration profile, default: jcli-prod"),
+              ], '')
+    def do_persist(self, arg, opts):
+        'Persist current configuration profile to disk in PROFILE'
+        
+        config = {}
+        # 1. Get smppccm config
+        config['smppccm'] = self.managers['smppccm'].exportConfig()
+        
+        self.sendData('Persisting current configuration to %s profile' % opts.profile)
+
+    @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
+                          help="Configuration profile, default: jcli-prod"),
+              ], '')
+    def do_load(self, arg, opts):
+        'Load configuration PROFILE profile from disk'

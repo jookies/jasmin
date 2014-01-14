@@ -57,6 +57,8 @@ class BasicTestCase(jCliTestCases):
     def test_help(self):
         expectedList = ['Available commands:', 
                         '===================', 
+                        'persist\t\tPersist current configuration profile to disk in PROFILE', 
+                        'load\t\tLoad configuration PROFILE profile from disk', 
                         'user\t\tUser management', 
                         'group\t\tGroup management', 
                         'router\t\tRouter management', 

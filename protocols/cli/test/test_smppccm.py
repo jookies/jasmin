@@ -3,7 +3,7 @@ from test_jcli import jCliTestCases
     
 class SmppccmTestCase(jCliTestCases):
     # Wait delay for 
-    wait = 0.1
+    wait = 0.3
     
     def add_connector(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
