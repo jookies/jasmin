@@ -34,5 +34,3 @@ Build finished. The HTML pages are in build/html.
 License
 -------
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
-
-[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/8f52d66d68e127b3fc7599b9062a8ff6 "githalytics.com")](http://githalytics.com/jookies/jasmin)
