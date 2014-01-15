@@ -4,6 +4,7 @@
 import logging
 import pickle
 import uuid
+import time
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
@@ -12,6 +13,10 @@ from configs import SMPPClientSMListenerConfig
 from content import SubmitSmContent
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
+
+class ConfigProfileLoadingError(Exception):
+    """Raised for any error occurring while loading a configuration profile with remote_load
+    """
 
 class SMPPClientManagerPB(pb.Root):
     def __init__(self):
@@ -82,6 +87,76 @@ class SMPPClientManagerPB(pb.Root):
         
         self.log.debug('Deleting connector [%s] failed.', cid)
         return False
+    
+    def remote_persist(self, profile):
+        path = '%s/%s' % (self.config.store_path, profile)
+        self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))
+        
+        try:
+            # Prepare connectors for persistence
+            # Will persist config and service status only
+            connectors = []
+            for c in self.connectors:
+                connectors.append({'id': c['id'], 
+                                    'config': c['config'], 
+                                    'service_status':c['service'].running})
+            
+            # Write configuration with datetime stamp
+            fh = open(path,'w')
+            fh.write('Persisted on %s\n' % time.strftime("%c"))
+            fh.write(pickle.dumps(connectors, self.pickleProtocol))
+            fh.close()
+        except IOError:
+            self.log.error('Cannot persist to %s' % path)
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while persisting configuration: %s' % e)
+            return False
+
+        return True
+    
+    @defer.inlineCallbacks
+    def remote_load(self, profile):
+        path = '%s/%s' % (self.config.store_path, profile)
+        self.log.info('Loading/Activating [%s] profile configuration from %s' % (profile, path))
+
+        try:
+            # Load configuration from file
+            fh = open(path,'r')
+            lines = fh.readlines()
+            fh.close()
+            
+            # Remove current configuration
+            for c in self.connectors:
+                remRet = yield self.remote_connector_remove(c['id'])
+                if not remRet:
+                    raise ConfigProfileLoadingError('Error removing connector %s' % c['id'])
+                self.log.info('Removed connector [%s]' % c['id'])
+            
+            # Apply configuration
+            loadedConnectors = pickle.loads(''.join(lines[1:]))
+            for lc in loadedConnectors:
+                # Add connector
+                addRet = yield self.remote_connector_add(pickle.dumps(lc['config'], self.pickleProtocol))
+                if not addRet:
+                    raise ConfigProfileLoadingError('Error adding connector %s' % lc['id'])
+                
+                # Start it if it's service where started when persisted
+                if lc['service_status'] == 1:
+                    startRet = yield self.remote_connector_start(lc['id'])
+                    if not startRet:
+                        self.log.error('Error starting connector %s' % lc['id'])
+        except IOError:
+            self.log.error('Cannot load configuration from %s' % path)
+            defer.returnValue(False)
+        except ConfigProfileLoadingError, e:
+            self.log.error('Error while loading configuration: %s' % e)
+            defer.returnValue(False)
+        except Exception, e:
+            self.log.error('Unknown error occurred while loading configuration: %s' % e)
+            defer.returnValue(False)
+
+        defer.returnValue(True)
     
     @defer.inlineCallbacks
     def remote_connector_add(self, ClientConfig):

@@ -133,9 +133,6 @@ class ConnectorExist:
         return exist_connector_and_call
 
 class SmppCCManager(Manager):
-    def exportConfig(self):
-        return 'TODO'
-    
     def list(self, arg, opts):
         connectors = self.pb['smppcm'].remote_connector_list()
         counter = 0
@@ -163,7 +160,7 @@ class SmppCCManager(Manager):
     @SMPPClientConfigBuild
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
-        st = yield self.pb['smppcm'].remote_connector_add(pickle.dumps(SMPPClientConfigInstance))
+        st = yield self.pb['smppcm'].remote_connector_add(pickle.dumps(SMPPClientConfigInstance, 2))
         
         if st:
             self.protocol.sendData('Successfully added connector [%s]' % SMPPClientConfigInstance.id, prompt=False)

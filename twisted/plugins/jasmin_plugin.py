@@ -53,7 +53,8 @@ class JasminServiceMaker:
         RouterPBConfigInstance = RouterPBConfig(options['config'])
         RouterPB_f = RouterPB()
         RouterPB_f.setConfig(RouterPBConfigInstance)
-        Router = internet.TCPServer(RouterPBConfigInstance.port, pb.PBServerFactory(RouterPB_f))
+        Router = internet.TCPServer(RouterPBConfigInstance.port, pb.PBServerFactory(RouterPB_f), 
+                                    interface=RouterPBConfigInstance.bind)
         Router.setServiceParent(top_service)
         # AMQP Broker is used to listen to deliver_sm/dlr queues
         RouterPB_f.addAmqpBroker(amqpBroker_f)
@@ -62,7 +63,8 @@ class JasminServiceMaker:
         SMPPClientPBConfigInstance = SMPPClientPBConfig(options['config'])
         clientManager_f = SMPPClientManagerPB()
         clientManager_f.setConfig(SMPPClientPBConfigInstance)
-        clientManager = internet.TCPServer(SMPPClientPBConfigInstance.port, pb.PBServerFactory(clientManager_f))
+        clientManager = internet.TCPServer(SMPPClientPBConfigInstance.port, pb.PBServerFactory(clientManager_f), 
+                                           interface=SMPPClientPBConfigInstance.bind)
         clientManager.setServiceParent(top_service)
         # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
         clientManager_f.addAmqpBroker(amqpBroker_f)

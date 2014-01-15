@@ -8,7 +8,9 @@ class RouterPBConfig(ConfigFile):
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
+        self.bind = self._get('router', 'bind', '0.0.0.0')
         self.port = self._getint('router', 'port', 8988)
+        
         self.pickle_protocol = self._getint('router', 'pickle_protocol', 2)
 
         # Logging

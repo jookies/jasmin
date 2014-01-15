@@ -60,9 +60,3 @@ class Manager:
     def __init__(self, protocol, pb):
         self.protocol = protocol
         self.pb = pb
-        
-    def exportConfig(self):
-        raise NotImplementedError
-    
-    def loadConfig(self, config):
-        raise NotImplementedError

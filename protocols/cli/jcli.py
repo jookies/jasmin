@@ -25,6 +25,7 @@ class JCliProtocol(CmdProtocol):
         if 'smppccm' not in self.commands:
             self.commands.append('smppccm')
         
+        # Provision managers
         self.managers = {'user': None, 'group': None, 
                          'router': None, 'smppccm': SmppCCManager(self, factory.pb), }
         
@@ -98,12 +99,6 @@ class JCliProtocol(CmdProtocol):
               ], '')
     def do_persist(self, arg, opts):
         'Persist current configuration profile to disk in PROFILE'
-        
-        config = {}
-        # 1. Get smppccm config
-        config['smppccm'] = self.managers['smppccm'].exportConfig()
-        
-        self.sendData('Persisting current configuration to %s profile' % opts.profile)
 
     @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
                           help="Configuration profile, default: jcli-prod"),

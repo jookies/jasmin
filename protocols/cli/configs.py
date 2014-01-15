@@ -8,8 +8,9 @@ class JCliConfig(ConfigFile):
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
 
-        self.bind = self._getint('jcli', 'bind', '127.0.0.1')
+        self.bind = self._get('jcli', 'bind', '127.0.0.1')
         self.port = self._getint('jcli', 'port', 8990)
+        
         self.log_level = logging.getLevelName(self._get('jcli', 'log_level', 'INFO'))
         self.log_file = self._get('jcli', 'log_file', '/var/log/jasmin/jcli.log')
         self.log_format = self._get('jcli', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')

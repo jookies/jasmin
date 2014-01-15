@@ -33,6 +33,12 @@ class SMPPClientManagerPBProxy:
     def unpickle(self, obj):
         return pickle.loads(obj)
     
+    def persist(self, profile = "jcli-prod"):
+        return self.pb.callRemote('persist', profile)
+    
+    def load(self, profile = "jcli-prod"):
+        return self.pb.callRemote('load', profile)
+    
     def add(self, config):
         if self.isConnected == False:
             raise Exception("PB proxy is not connected !")
