@@ -16,6 +16,7 @@ def FilterSessionArgs(fn):
 class Manager:
     # A prompt to display when inside an interactive session
     trxPrompt = '> '
+    managerName = 'Undefined'
     
     def startSession(self, sessionHandler, annoucement = None, completitions = None, sessionContext = None):
         'Switch prompt and hand user inputs directly to sessionHandler'
@@ -56,6 +57,14 @@ class Manager:
     def handle_TAB(self):
         'Tab completition is disabled inside a session'
         self.lineBuffer = ''
+        
+    def persist(self, arg, opts):
+        'Must be implemeted by manager to persist current configuration to disk'
+        raise NotImplementedError
+
+    def load(self, arg, opts):
+        'Must be implemeted by manager to reload  current configuration to disk'
+        raise NotImplementedError
 
     def __init__(self, protocol, pb):
         self.protocol = protocol

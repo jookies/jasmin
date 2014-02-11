@@ -99,9 +99,19 @@ class JCliProtocol(CmdProtocol):
               ], '')
     def do_persist(self, arg, opts):
         'Persist current configuration profile to disk in PROFILE'
+        
+        for module, manager in self.managers.iteritems():
+            if manager is not None:
+                manager.persist(arg, opts)
+        self.sendData()
 
     @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
                           help="Configuration profile, default: jcli-prod"),
               ], '')
     def do_load(self, arg, opts):
         'Load configuration PROFILE profile from disk'
+        
+        for module, manager in self.managers.iteritems():
+            if manager is not None:
+                manager.load(arg, opts)
+        self.sendData()

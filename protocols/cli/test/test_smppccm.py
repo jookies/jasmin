@@ -314,3 +314,36 @@ class SmppccmTestCase(jCliTestCases):
                         'Total: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
+        
+    @defer.inlineCallbacks
+    def test_persist(self):
+        commands = [{'command': 'persist', 'expect': r'smppccm configuration persisted \(profile\:jcli-prod\)'}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_persist_profile(self):
+        commands = [{'command': 'persist -p testprofile', 'expect': r'smppccm configuration persisted \(profile\:testprofile\)'}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_load(self):
+        # Persist before load to avoid getting a failure
+        commands = [{'command': 'persist'}]
+        yield self._test(r'jcli : ', commands)
+
+        commands = [{'command': 'load', 'expect': r'smppccm configuration loaded \(profile\:jcli-prod\)'}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_load_profile(self):
+        # Persist before load to avoid getting a failure
+        commands = [{'command': 'persist -p testprofile'}]
+        yield self._test(r'jcli : ', commands)
+
+        commands = [{'command': 'load -p testprofile', 'expect': r'smppccm configuration loaded \(profile\:testprofile\)'}]
+        yield self._test(r'jcli : ', commands)
+        
+    @defer.inlineCallbacks
+    def test_load_unknown_profile(self):
+        commands = [{'command': 'load -p any_profile', 'expect': r'Failed to load smppccm configuration \(profile\:any_profile\)'}]
+        yield self._test(r'jcli : ', commands)

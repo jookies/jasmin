@@ -133,6 +133,23 @@ class ConnectorExist:
         return exist_connector_and_call
 
 class SmppCCManager(Manager):
+    managerName = 'smppccm'
+    
+    def persist(self, arg, opts):
+        if self.pb['smppcm'].remote_persist(opts.profile):
+            self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        else:
+            self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+    
+    @defer.inlineCallbacks
+    def load(self, arg, opts):
+        r = yield self.pb['smppcm'].remote_load(opts.profile)
+
+        if r:
+            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        else:
+            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+    
     def list(self, arg, opts):
         connectors = self.pb['smppcm'].remote_connector_list()
         counter = 0

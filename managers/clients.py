@@ -89,7 +89,7 @@ class SMPPClientManagerPB(pb.Root):
         return False
     
     def remote_persist(self, profile):
-        path = '%s/%s' % (self.config.store_path, profile)
+        path = '%s/%s.smppcm' % (self.config.store_path, profile)
         self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))
         
         try:
@@ -117,7 +117,7 @@ class SMPPClientManagerPB(pb.Root):
     
     @defer.inlineCallbacks
     def remote_load(self, profile):
-        path = '%s/%s' % (self.config.store_path, profile)
+        path = '%s/%s.smppcm' % (self.config.store_path, profile)
         self.log.info('Loading/Activating [%s] profile configuration from %s' % (profile, path))
 
         try:
@@ -146,8 +146,8 @@ class SMPPClientManagerPB(pb.Root):
                     startRet = yield self.remote_connector_start(lc['id'])
                     if not startRet:
                         self.log.error('Error starting connector %s' % lc['id'])
-        except IOError:
-            self.log.error('Cannot load configuration from %s' % path)
+        except IOError, e:
+            self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
             defer.returnValue(False)
         except ConfigProfileLoadingError, e:
             self.log.error('Error while loading configuration: %s' % e)
