@@ -6,7 +6,7 @@ class Group(jasminApiObject):
         self.gid = gid
 
 class User(jasminApiObject):
-    def __init__(self, uid, group, username = '', password = ''):
+    def __init__(self, uid, group, username, password):
         self.uid = uid
         self.group = group
         self.username = username

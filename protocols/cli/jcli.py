@@ -4,6 +4,8 @@
 from protocol import CmdProtocol
 from options import options
 from smppccm import SmppCCManager
+from usersm import UsersManager
+from groupsm import GroupsManager
 from optparse import make_option
 
 class JCliProtocol(CmdProtocol):
@@ -26,44 +28,62 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('smppccm')
         
         # Provision managers
-        self.managers = {'user': None, 'group': None, 
+        self.managers = {'user': UsersManager(self, factory.pb), 'group': GroupsManager(self, factory.pb), 
                          'router': None, 'smppccm': SmppCCManager(self, factory.pb), }
         
-    def manageModule(self, moduleName, arg, opts):
-        if opts.list:
-            self.managers[moduleName].list(arg, opts)
-        elif opts.add:
-            self.managers[moduleName].add(arg, opts)
-        elif opts.update:
-            self.managers[moduleName].update(arg, opts)
-        elif opts.remove:
-            self.managers[moduleName].remove(arg, opts)
-        elif opts.show:
-            self.managers[moduleName].show(arg, opts)
-        elif opts.start:
-            self.managers[moduleName].start(arg, opts)
-        elif opts.stop:
-            self.managers[moduleName].stop(arg, opts)
-
     @options([make_option('-l', '--list', action="store_true",
-                          help="List users"),
+                          help="List SMPP connectors"),
               make_option('-a', '--add', action="store_true",
-                          help="Add user"),
-              make_option('-r', '--remove', action="store_true",
-                          help="Remove user"),], '')    
+                          help="Add SMPP connector"),
+              make_option('-u', '--update', type="string", metavar="CID", 
+                          help="Update SMPP connector configuration using it's CID"),
+              make_option('-r', '--remove', type="string", metavar="CID", 
+                          help="Remove SMPP connector using it's CID"),
+              make_option('-s', '--show', type="string", metavar="CID", 
+                          help="Show SMPP connector using it's CID"),
+              ], '')
     def do_user(self, arg, opts):
         'User management'
-        self.manageModule('user', arg, opts)
+
+        if opts.list:
+            self.managers['user'].list(arg, opts)
+        elif opts.add:
+            self.managers['user'].add(arg, opts)
+        elif opts.update:
+            self.managers['user'].update(arg, opts)
+        elif opts.remove:
+            self.managers['user'].remove(arg, opts)
+        elif opts.show:
+            self.managers['user'].show(arg, opts)
+        else:
+            return self.sendData('Missing required option')
         
     @options([make_option('-l', '--list', action="store_true",
-                          help="List groups"),
+                          help="List SMPP connectors"),
               make_option('-a', '--add', action="store_true",
-                          help="Add group"),
-              make_option('-r', '--remove', action="store_true",
-                          help="Remove group"),], '')    
+                          help="Add SMPP connector"),
+              make_option('-u', '--update', type="string", metavar="CID", 
+                          help="Update SMPP connector configuration using it's CID"),
+              make_option('-r', '--remove', type="string", metavar="CID", 
+                          help="Remove SMPP connector using it's CID"),
+              make_option('-s', '--show', type="string", metavar="CID", 
+                          help="Show SMPP connector using it's CID"),
+              ], '')
     def do_group(self, arg, opts):
         'Group management'
-        self.manageModule('group', arg, opts)
+
+        if opts.list:
+            self.managers['group'].list(arg, opts)
+        elif opts.add:
+            self.managers['group'].add(arg, opts)
+        elif opts.update:
+            self.managers['group'].update(arg, opts)
+        elif opts.remove:
+            self.managers['group'].remove(arg, opts)
+        elif opts.show:
+            self.managers['group'].show(arg, opts)
+        else:
+            return self.sendData('Missing required option')
         
     def do_router(self, arg, opts = None):
         'Router management'
@@ -87,12 +107,22 @@ class JCliProtocol(CmdProtocol):
     def do_smppccm(self, arg, opts):
         'SMPP connector management'
 
-        if (opts.list is None and opts.add is None and opts.remove is None and 
-            opts.show is None and opts.start is None and opts.stop is None and
-            opts.update is None):
+        if opts.list:
+            self.managers['smppccm'].list(arg, opts)
+        elif opts.add:
+            self.managers['smppccm'].add(arg, opts)
+        elif opts.update:
+            self.managers['smppccm'].update(arg, opts)
+        elif opts.remove:
+            self.managers['smppccm'].remove(arg, opts)
+        elif opts.show:
+            self.managers['smppccm'].show(arg, opts)
+        elif opts.start:
+            self.managers['smppccm'].start(arg, opts)
+        elif opts.stop:
+            self.managers['smppccm'].stop(arg, opts)
+        else:
             return self.sendData('Missing required option')
-        
-        self.manageModule('smppccm', arg, opts)
         
     @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
                           help="Configuration profile, default: jcli-prod"),

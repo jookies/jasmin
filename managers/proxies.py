@@ -7,6 +7,15 @@ from twisted.internet import reactor
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 
+def ConnectedPB(fn):
+    'Check connection to PB before passing to session handler'
+    def check_cnx_and_call(self, *args, **kwargs):
+        if self.isConnected == False:
+            raise Exception("PB proxy is not connected !")
+        
+        return fn(self, *args, **kwargs)
+    return check_cnx_and_call
+
 class SMPPClientManagerPBProxy:
     pb = None
     isConnected = False
@@ -39,73 +48,53 @@ class SMPPClientManagerPBProxy:
     def load(self, profile = "jcli-prod"):
         return self.pb.callRemote('load', profile)
     
+    @ConnectedPB
     def add(self, config):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
         if isinstance(config, SMPPClientConfig) == False:
             raise Exception("Object is not an instance of SMPPClientConfig")
 
         return self.pb.callRemote('connector_add', self.pickle(config))
     
+    @ConnectedPB
     def remove(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_remove', cid)
     
+    @ConnectedPB
     def connector_list(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_list')
 
+    @ConnectedPB
     def start(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_start', cid)
 
+    @ConnectedPB
     def stop(self, cid, delQueues = False):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_stop', cid, delQueues)
 
+    @ConnectedPB
     def stopall(self, delQueues = False):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_stopall', delQueues)
 
+    @ConnectedPB
     def session_state(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('session_state', cid)
     
+    @ConnectedPB
     def service_status(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('service_status', cid)
     
+    @ConnectedPB
     def connector_details(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_details', cid)
     
+    @ConnectedPB
     def connector_config(self, cid):
         """Once the returned deferred is fired, a pickled SMPPClientConfig
         is obtained as a result (if success)"""
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_config', cid)
     
+    @ConnectedPB
     def submit_sm(self, cid, SubmitSmPDU):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
         if isinstance(SubmitSmPDU, SubmitSM) == False:
             raise Exception("Object is not an instance of SubmitSm")
         

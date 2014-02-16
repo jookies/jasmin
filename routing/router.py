@@ -11,6 +11,7 @@ from content import RoutedDeliverSmContent
 from RoutingTables import MORoutingTable, MTRoutingTable
 from Routables import RoutableDeliverSm
 from jasminApi import Connector
+from copy import copy
 
 LOG_CATEGORY = "jasmin-router"
 
@@ -34,6 +35,7 @@ class RouterPB(pb.Root):
         self.mo_routing_table = MORoutingTable()
         self.mt_routing_table = MTRoutingTable()
         self.users = []
+        self.groups = []
         
         self.log.info('Router configured and ready.')
     
@@ -130,6 +132,15 @@ class RouterPB(pb.Root):
         user = pickle.loads(user)
         self.log.debug('Adding a User: %s' % user)
         self.log.info('Adding a User (id:%s)' % user.uid)
+        
+        # Check if group exists
+        foundGroup = False
+        for _group in self.groups:
+            if _group.gid == user.group.gid:
+                foundGroup = True
+        if not foundGroup:
+            self.log.error("Group with id:%s not found, cancelling user adding." % user.group.gid)
+            return False
 
         # Replace existant users
         for _user in self.users:
@@ -137,7 +148,8 @@ class RouterPB(pb.Root):
                 self.users.remove(_user)
                 break 
 
-        return self.users.append(user)
+        self.users.append(user)
+        return True
     
     def remote_user_authenticate(self, username, password):
         self.log.debug('Authenticating with username:%s and password:%s' % (username, password))
@@ -145,14 +157,13 @@ class RouterPB(pb.Root):
 
         return self.authenticateUser(username, password, True)
     
-    def remote_user_remove(self, user):
-        user = pickle.loads(user)
-        self.log.debug('Removing a User: %s' % user)
-        self.log.info('Removing a User (id:%s)' % user.uid)
+    def remote_user_remove(self, uid):
+        self.log.debug('Removing a User with uid: %s' % uid)
+        self.log.info('Removing a User (id:%s)' % uid)
 
         # Remove user
         for _user in self.users:
-            if user.uid == _user.uid or user.username == _user.username:
+            if uid == _user.uid:
                 self.users.remove(_user)
                 break 
 
@@ -163,11 +174,77 @@ class RouterPB(pb.Root):
         
         return True
 
-    def remote_user_get_all(self):
+    def remote_user_get_all(self, gid = None):
         self.log.info('Getting all users')
         self.log.debug('Getting all users: %s' % self.users)
 
-        return pickle.dumps(self.users)
+        if gid is None:
+            return pickle.dumps(self.users)
+        else:
+            _users = []
+            for _user in self.users:
+                if _user.group.gid == gid:
+                    _users.append(_user)
+            
+            return pickle.dumps(_users)
+            
+    
+    def remote_group_add(self, group):
+        group = pickle.loads(group)
+        self.log.debug('Adding a Group: %s' % group)
+        self.log.info('Adding a Group (id:%s)' % group.gid)
+
+        # Replace existant groups
+        for _group in self.groups:
+            if group.gid == _group.gid:
+                self.groups.remove(_group)
+                break 
+
+        return self.groups.append(group)
+    
+    def remote_group_remove(self, gid):
+        self.log.debug('Removing a Group with gid: %s' % gid)
+        self.log.info('Removing a Group (id:%s)' % gid)
+
+        # Remove group
+        for _group in self.groups:
+            if gid == _group.gid:
+                # Remove users from this group
+                for _user in self.users:
+                    if _user.group.gid == _group.gid:
+                        self.log.info('Removing a User (id:%s) from the Group (id:%s)' % (_user.uid, gid))
+                        self.users.remove(_user)
+                        
+                # Safely remove this group
+                self.groups.remove(_group)
+                break
+        
+        return True
+
+    def remote_group_remove_all(self):
+        self.log.info('Removing all groups')
+        
+        # Remove group
+        for _group in self.groups:
+            self.log.debug('Removing a Group: %s' % _group)
+            self.log.info('Removing a Group (id:%s)' % _group.gid)
+            
+            # Remove users from this group
+            _users = copy(self.users)
+            for _user in _users:
+                if _user.group.gid == _group.gid:
+                    self.log.info('Removing a User (id:%s) from the Group (id:%s)' % (_user.uid, _group.gid))
+                    self.users.remove(_user)
+        
+        self.groups = []
+
+        return True
+
+    def remote_group_get_all(self):
+        self.log.info('Getting all groups')
+        self.log.debug('Getting all groups: %s' % self.groups)
+
+        return pickle.dumps(self.groups)
     
     def remote_mtroute_add(self, route, order):
         route = pickle.loads(route)

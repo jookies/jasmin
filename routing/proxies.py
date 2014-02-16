@@ -5,6 +5,15 @@ import pickle
 from twisted.spread import pb
 from twisted.internet import reactor
 
+def ConnectedPB(fn):
+    'Check connection to PB before passing to session handler'
+    def check_cnx_and_call(self, *args, **kwargs):
+        if self.isConnected == False:
+            raise Exception("PB proxy is not connected !")
+        
+        return fn(self, *args, **kwargs)
+    return check_cnx_and_call
+
 class RouterPBProxy:
     pb = None
     isConnected = False
@@ -31,68 +40,62 @@ class RouterPBProxy:
     def unpickle(self, obj):
         return pickle.loads(obj)
     
+    @ConnectedPB
     def user_add(self, user):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('user_add', self.pickle(user))
     
+    @ConnectedPB
     def user_authenticate(self, username, password):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('user_authenticate', username, password)
     
-    def user_remove(self, user):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
+    @ConnectedPB
+    def user_remove(self, uid):
+        return self.pb.callRemote('user_remove', uid)
 
-        return self.pb.callRemote('user_remove', self.pickle(user))
-
+    @ConnectedPB
     def user_remove_all(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('user_remove_all')
 
-    def user_get_all(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
+    @ConnectedPB
+    def user_get_all(self, gid = None):
+        return self.pb.callRemote('user_get_all', gid)
 
-        return self.pb.callRemote('user_get_all')
+    @ConnectedPB
+    def group_add(self, group):
+        return self.pb.callRemote('group_add', self.pickle(group))
+    
+    @ConnectedPB
+    def group_remove(self, gid):
+        return self.pb.callRemote('group_remove', gid)
 
+    @ConnectedPB
+    def group_remove_all(self):
+        return self.pb.callRemote('group_remove_all')
+
+    @ConnectedPB
+    def group_get_all(self):
+        return self.pb.callRemote('group_get_all')
+
+    @ConnectedPB
     def mtroute_add(self, route, order):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('mtroute_add', self.pickle(route), order)
     
+    @ConnectedPB
     def moroute_add(self, route, order):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('moroute_add', self.pickle(route), order)
     
+    @ConnectedPB
     def mtroute_flush(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('mtroute_flush')
     
+    @ConnectedPB
     def moroute_flush(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('moroute_flush')
     
+    @ConnectedPB
     def mtroute_get_all(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('mtroute_get_all')
     
+    @ConnectedPB
     def moroute_get_all(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('moroute_get_all')    

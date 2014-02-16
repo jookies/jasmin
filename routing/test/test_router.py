@@ -177,13 +177,104 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
         
-class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
+class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_add_user_without_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # This group will not be added to router
+        g1 = Group(1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        r = yield self.user_add(u1)
+        self.assertEqual(r, False)
+
+    @defer.inlineCallbacks
+    def test_authenticate(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+
+        r = yield self.user_authenticate('username', 'password')
+        self.assertNotEqual(r, None)
+        r = pickle.loads(r)
+        self.assertEqual(u1.uid, r.uid)
+        self.assertEqual(u1.username, r.username)
+        self.assertEqual(u1.password, r.password)
+        self.assertEqual(u1.group, g1)
+
+        r = yield self.user_authenticate('username', 'incorrect')
+        self.assertEqual(r, None)
+
+        r = yield self.user_authenticate('incorrect', 'password')
+        self.assertEqual(r, None)
+
+        r = yield self.user_authenticate('incorrect', 'incorrect')
+        self.assertEqual(r, None)
+        
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        g2 = Group(2)
+        yield self.group_add(g2)
+        g3 = Group(3)
+        yield self.group_add(g3)
+        
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(3, len(c))
+        
+        yield self.group_remove(1)
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        
+        yield self.group_remove_all()
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+    @defer.inlineCallbacks
+    def test_remove_not_empty_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username1', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+
+        yield self.group_remove_all()
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
     @defer.inlineCallbacks
     def test_add_list_and_remove_user(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        u1 = User(1, Group(1), 'username', 'password')
-        u2 = User(2, Group(1), 'username2', 'password')
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        u2 = User(2, g1, 'username2', 'password')
 
         yield self.user_add(u1)
         c = yield self.user_get_all()
@@ -195,7 +286,7 @@ class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
         c = pickle.loads(c)
         self.assertEqual(2, len(c))
         
-        yield self.user_remove(u1)
+        yield self.user_remove(u1.uid)
         c = yield self.user_get_all()
         c = pickle.loads(c)
         self.assertEqual(1, len(c))
@@ -207,16 +298,44 @@ class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(0, len(c))
         
     @defer.inlineCallbacks
+    def test_add_list_user_with_groups(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        g2 = Group(2)
+        yield self.group_add(g2)
+
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g2, 'username2', 'password')
+        yield self.user_add(u2)
+
+        # Get all users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        
+        # Get users from gid=1
+        c = yield self.user_get_all(1)
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+    @defer.inlineCallbacks
     def test_user_unicity(self):
         yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
         
         # Users are unique by uid or username
         # The below 3 samples must be saved as two users
         # the Router will replace a User if it finds the same
         # uid or username
-        u1 = User(1, Group(1), 'username', 'password')
-        u2 = User(2, Group(1), 'username', 'password')
-        u3 = User(2, Group(1), 'other', 'password')
+        u1 = User(1, g1, 'username', 'password')
+        u2 = User(2, g1, 'username', 'password')
+        u3 = User(2, g1, 'other', 'password')
 
         yield self.user_add(u1)
         yield self.user_add(u2)
@@ -234,9 +353,12 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
     def test_delivery(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
         c1 = Connector(id_generator())
-        u1 = User(1, Group(1), 'username', 'password')
-        u2 = User(1, Group(1), 'username2', 'password2')
+        u1 = User(1, g1, 'username', 'password')
+        u2 = User(1, g1, 'username2', 'password2')
         yield self.user_add(u1)
 
         yield self.mtroute_add(DefaultRoute(c1), 0)
@@ -305,8 +427,11 @@ class SubmitSmTestCaseTools():
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver'):
         # Routing stuff
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
         self.c1 = Connector(id_generator())
-        self.u1 = User(1, Group(1), 'username', 'password')
+        self.u1 = User(1, g1, 'username', 'password')
         yield self.user_add(self.u1)
         yield self.mtroute_add(DefaultRoute(self.c1), 0)
 
