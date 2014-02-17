@@ -171,7 +171,7 @@ class SmppCCManager(Manager):
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)        
         
-        self.protocol.sendData('Total: %s' % counter)
+        self.protocol.sendData('Total connectors: %s' % counter)
     
     @FilterSessionArgs
     @SMPPClientConfigBuild

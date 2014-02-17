@@ -32,15 +32,15 @@ class JCliProtocol(CmdProtocol):
                          'router': None, 'smppccm': SmppCCManager(self, factory.pb), }
         
     @options([make_option('-l', '--list', action="store_true",
-                          help="List SMPP connectors"),
+                          help="List all users or a group users when provided with GID"),
               make_option('-a', '--add', action="store_true",
-                          help="Add SMPP connector"),
-              make_option('-u', '--update', type="string", metavar="CID", 
-                          help="Update SMPP connector configuration using it's CID"),
-              make_option('-r', '--remove', type="string", metavar="CID", 
-                          help="Remove SMPP connector using it's CID"),
-              make_option('-s', '--show', type="string", metavar="CID", 
-                          help="Show SMPP connector using it's CID"),
+                          help="Add user"),
+              make_option('-u', '--update', type="string", metavar="UID", 
+                          help="Update user using it's UID"),
+              make_option('-r', '--remove', type="string", metavar="UID", 
+                          help="Remove user using it's UID"),
+              make_option('-s', '--show', type="string", metavar="UID", 
+                          help="Show user using it's UID"),
               ], '')
     def do_user(self, arg, opts):
         'User management'
@@ -59,15 +59,15 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
         
     @options([make_option('-l', '--list', action="store_true",
-                          help="List SMPP connectors"),
+                          help="List groups"),
               make_option('-a', '--add', action="store_true",
-                          help="Add SMPP connector"),
-              make_option('-u', '--update', type="string", metavar="CID", 
-                          help="Update SMPP connector configuration using it's CID"),
-              make_option('-r', '--remove', type="string", metavar="CID", 
-                          help="Remove SMPP connector using it's CID"),
-              make_option('-s', '--show', type="string", metavar="CID", 
-                          help="Show SMPP connector using it's CID"),
+                          help="Add group"),
+              make_option('-u', '--update', type="string", metavar="GID", 
+                          help="Update group using it's GID"),
+              make_option('-r', '--remove', type="string", metavar="GID", 
+                          help="Remove group using it's GID"),
+              make_option('-s', '--show', type="string", metavar="GID", 
+                          help="Show group using it's GID"),
               ], '')
     def do_group(self, arg, opts):
         'Group management'

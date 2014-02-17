@@ -200,7 +200,9 @@ class RouterPB(pb.Root):
                 self.groups.remove(_group)
                 break 
 
-        return self.groups.append(group)
+        self.groups.append(group)
+        
+        return True
     
     def remote_group_remove(self, gid):
         self.log.debug('Removing a Group with gid: %s' % gid)
