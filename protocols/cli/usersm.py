@@ -108,13 +108,19 @@ class UsersManager(Manager):
     managerName = 'user'
     
     def persist(self, arg, opts):
-        # @todo
-        raise NotImplementedError
-        
-    def load(self, arg, opts):
-        # @todo
-        raise NotImplementedError
+        if self.pb['router'].remote_persist(opts.profile, 'users'):
+            self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        else:
+            self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
     
+    def load(self, arg, opts):
+        r = self.pb['router'].remote_load(opts.profile, 'users')
+
+        if r:
+            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        else:
+            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            
     def list(self, arg, opts):
         if arg != '':
             gid = arg

@@ -8,6 +8,8 @@ class RouterPBConfig(ConfigFile):
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
+        self.store_path = self._get('router', 'store_path', '/etc/jasmin/store')
+
         self.bind = self._get('router', 'bind', '0.0.0.0')
         self.port = self._getint('router', 'port', 8988)
         

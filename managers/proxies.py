@@ -42,9 +42,11 @@ class SMPPClientManagerPBProxy:
     def unpickle(self, obj):
         return pickle.loads(obj)
     
+    @ConnectedPB
     def persist(self, profile = "jcli-prod"):
         return self.pb.callRemote('persist', profile)
     
+    @ConnectedPB
     def load(self, profile = "jcli-prod"):
         return self.pb.callRemote('load', profile)
     

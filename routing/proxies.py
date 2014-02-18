@@ -41,6 +41,14 @@ class RouterPBProxy:
         return pickle.loads(obj)
     
     @ConnectedPB
+    def persist(self, profile = "jcli-prod", scope = 'all'):
+        return self.pb.callRemote('persist', profile, scope)
+    
+    @ConnectedPB
+    def load(self, profile = "jcli-prod", scope = 'all'):
+        return self.pb.callRemote('load', profile, scope)
+    
+    @ConnectedPB
     def user_add(self, user):
         return self.pb.callRemote('user_add', self.pickle(user))
     

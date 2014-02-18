@@ -73,12 +73,20 @@ class BasicTestCase(jCliTestCases):
     
     @defer.inlineCallbacks
     def test_persist(self):
-        commands = [{'command': 'persist', 'expect': r'smppccm configuration persisted \(profile\:jcli-prod\)'}]
+        expectedList = [r'smppccm configuration persisted \(profile\:jcli-prod\)',
+                        r'group configuration persisted \(profile\:jcli-prod\)',
+                        r'user configuration persisted \(profile\:jcli-prod\)',
+                        ]
+        commands = [{'command': 'persist', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
     def test_persist_profile(self):
-        commands = [{'command': 'persist -p testprofile', 'expect': r'smppccm configuration persisted \(profile\:testprofile\)'}]
+        expectedList = [r'smppccm configuration persisted \(profile\:testprofile\)',
+                        r'group configuration persisted \(profile\:testprofile\)',
+                        r'user configuration persisted \(profile\:testprofile\)',
+                        ]
+        commands = [{'command': 'persist -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -87,7 +95,11 @@ class BasicTestCase(jCliTestCases):
         commands = [{'command': 'persist'}]
         yield self._test(r'jcli : ', commands)
 
-        commands = [{'command': 'load', 'expect': r'smppccm configuration loaded \(profile\:jcli-prod\)'}]
+        expectedList = [r'smppccm configuration loaded \(profile\:jcli-prod\)',
+                        r'group configuration loaded \(profile\:jcli-prod\)',
+                        r'user configuration loaded \(profile\:jcli-prod\)',
+                        ]
+        commands = [{'command': 'load', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -96,10 +108,15 @@ class BasicTestCase(jCliTestCases):
         commands = [{'command': 'persist -p testprofile'}]
         yield self._test(r'jcli : ', commands)
 
-        commands = [{'command': 'load -p testprofile', 'expect': r'smppccm configuration loaded \(profile\:testprofile\)'}]
+        expectedList = [r'smppccm configuration loaded \(profile\:testprofile\)',
+                        r'group configuration loaded \(profile\:testprofile\)',
+                        r'user configuration loaded \(profile\:testprofile\)',
+                        ]
+        commands = [{'command': 'load -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
         
     @defer.inlineCallbacks
     def test_load_unknown_profile(self):
-        commands = [{'command': 'load -p any_profile', 'expect': r'Failed to load smppccm configuration \(profile\:any_profile\)'}]
+        expectedList = [r'Failed to load smppccm configuration \(profile\:any_profile\)']
+        commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)

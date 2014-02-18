@@ -1,6 +1,7 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
+import time
 import logging
 import pickle
 import uuid
@@ -146,6 +147,92 @@ class RouterPB(pb.Root):
         self.log.debug('getGroup [%s] returned None', gid)
         return None
     
+    def remote_persist(self, profile, scope = 'all'):
+        # Scope dependency check
+        if scope == 'users':
+            scope = 'all'
+
+        try:
+            if scope in ['all', 'groups']:
+                # Persist groups configuration
+                path = '%s/%s.router-groups' % (self.config.store_path, profile)
+                self.log.info('Persisting current groups configuration to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.groups, self.pickleProtocol))
+                fh.close()
+
+            if scope in ['all', 'users']:
+                # Persist users configuration
+                path = '%s/%s.router-users' % (self.config.store_path, profile)
+                self.log.info('Persisting current users configuration to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.users, self.pickleProtocol))
+                fh.close()
+        except IOError:
+            self.log.error('Cannot persist to %s' % path)
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while persisting configuration: %s' % e)
+            return False
+
+        return True
+    
+    def remote_load(self, profile, scope = 'all'):
+        # Scope dependency check
+        if scope == 'users':
+            scope = 'all'
+            
+        try:
+            if scope in ['all', 'groups']:
+                # Load groups configuration
+                path = '%s/%s.router-groups' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile Groups configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Remove current configuration
+                self.log.info('Removing current Groups (%d)' % len(self.groups))
+                self.remote_group_remove_all()
+    
+                # Adding new groups
+                self.groups = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new Groups (%d)' % len(self.groups))
+
+            if scope in ['all', 'users']:
+                # Load users configuration
+                path = '%s/%s.router-users' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile Users configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Remove current configuration
+                self.log.info('Removing current Users (%d)' % len(self.users))
+                self.remote_user_remove_all()
+    
+                # Adding new groups
+                self.users = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new Users (%d)' % len(self.users))
+        except IOError, e:
+            self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while loading configuration: %s' % e)
+            return False
+
+        return True
+        
     def remote_user_add(self, user):
         user = pickle.loads(user)
         self.log.debug('Adding a User: %s' % user)

@@ -148,7 +148,7 @@ class SmppCCManager(Manager):
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
-    
+            
     def list(self, arg, opts):
         connectors = self.pb['smppcm'].remote_connector_list()
         counter = 0

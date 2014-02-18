@@ -2,6 +2,8 @@
 # Copyright 2012 Fourat Zouari <fourat@gmail.com>
 # See LICENSE for details.
 
+import glob
+import os
 import mock
 import pickle
 import time
@@ -54,11 +56,11 @@ class RouterPBTestCase(unittest.TestCase):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        RouterPBConfigInstance = RouterPBConfig()
+        self.RouterPBConfigInstance = RouterPBConfig()
         
         # Launch the router server
         self.pbRoot_f = RouterPB()
-        self.pbRoot_f.setConfig(RouterPBConfigInstance)
+        self.pbRoot_f.setConfig(self.RouterPBConfigInstance)
         self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(self.pbRoot_f))
         self.pbPort = self.PBServer.getHost().port
         
@@ -347,6 +349,172 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         u = yield self.user_authenticate('other', 'password')
         u = pickle.loads(u)
         self.assertEqual(u3.username, u.username)
+
+class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
+    def tearDown(self):
+        # Remove persisted configurations
+        filelist = glob.glob("%s/*" % self.RouterPBConfigInstance.store_path)
+        for f in filelist:
+            os.remove(f)
+            
+        return RouterPBTestCase.tearDown(self)
+    
+    @defer.inlineCallbacks
+    def test_persist_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        persistRet = yield self.persist()
+        
+        self.assertTrue(persistRet)
+
+    @defer.inlineCallbacks
+    def test_load_undefined_profile(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        loadRet = yield self.load()
+        
+        self.assertFalse(loadRet)
+
+    @defer.inlineCallbacks
+    def test_add_persist_and_load_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist
+        yield self.persist()
+
+        # Remove all users
+        yield self.user_remove_all()
+
+        # List and assert
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load()
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+    @defer.inlineCallbacks
+    def test_add_persist_and_load_profile(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist
+        yield self.persist('profile')
+
+        # Remove all users
+        yield self.user_remove_all()
+
+        # List and assert
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load('profile')
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+    @defer.inlineCallbacks
+    def test_persist_scope_groups(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist groups only
+        yield self.persist(scope='groups')
+
+        # Remove all users
+        yield self.user_remove_all()
+        # Remove all groups
+        yield self.group_remove_all()
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load(scope='groups') # Load with scope=all may also work
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
         
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
