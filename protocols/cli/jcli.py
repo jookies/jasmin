@@ -62,12 +62,12 @@ class JCliProtocol(CmdProtocol):
                           help="List groups"),
               make_option('-a', '--add', action="store_true",
                           help="Add group"),
-              make_option('-u', '--update', type="string", metavar="GID", 
-                          help="Update group using it's GID"),
+              #make_option('-u', '--update', type="string", metavar="GID", 
+              #            help="Update group using it's GID"),
               make_option('-r', '--remove', type="string", metavar="GID", 
                           help="Remove group using it's GID"),
-              make_option('-s', '--show', type="string", metavar="GID", 
-                          help="Show group using it's GID"),
+              #make_option('-s', '--show', type="string", metavar="GID", 
+              #            help="Show group using it's GID"),
               ], '')
     def do_group(self, arg, opts):
         'Group management'
@@ -76,12 +76,12 @@ class JCliProtocol(CmdProtocol):
             self.managers['group'].list(arg, opts)
         elif opts.add:
             self.managers['group'].add(arg, opts)
-        elif opts.update:
-            self.managers['group'].update(arg, opts)
+        #elif opts.update:
+        #    self.managers['group'].update(arg, opts)
         elif opts.remove:
             self.managers['group'].remove(arg, opts)
-        elif opts.show:
-            self.managers['group'].show(arg, opts)
+        #elif opts.show:
+        #    self.managers['group'].show(arg, opts)
         else:
             return self.sendData('Missing required option')
         

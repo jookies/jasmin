@@ -95,12 +95,11 @@ def SMPPClientConfigUpdate(fn):
         # Empty line
         if cmd is None:
             return self.protocol.sendData()
-        # Initiate JCliSMPPClientConfig with sessBuffer content
+        # Pass sessBuffer as updateLog to fn
         if cmd == 'ok':
             if len(self.sessBuffer) == 0:
                 return self.protocol.sendData('Nothing to save')
                
-            # Hand the instance to fn
             return fn(self, self.sessBuffer)
         else:
             # Unknown key
@@ -109,7 +108,7 @@ def SMPPClientConfigUpdate(fn):
             if cmd == 'cid':
                 return self.protocol.sendData('Connector id can not be modified !')
             
-            # Buffer key for later SMPPClientConfig initiating
+            # Buffer key for later (when receiving 'ok')
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
             self.sessBuffer[SMPPClientConfigKey] = self.protocol.str2num(arg)
             

@@ -17,7 +17,7 @@ def GroupBuild(fn):
         # Initiate jasmin.routing.jasminApi.Group with sessBuffer content
         if cmd == 'ok':
             if len(self.sessBuffer) != 1:
-                return self.protocol.sendData('You must set group id (uid) before saving !')
+                return self.protocol.sendData('You must set Group id (gid) before saving !')
                 
             group = {}
             for key, value in self.sessBuffer.iteritems():
@@ -39,6 +39,22 @@ def GroupBuild(fn):
             
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
+
+class GroupExist:
+    'Check if Group gid exist before passing it to fn'
+    def __init__(self, gid_key):
+        self.gid_key = gid_key
+    def __call__(self, fn):
+        gid_key = self.gid_key
+        def exist_connector_and_call(self, *args, **kwargs):
+            opts = args[1]
+            gid = getattr(opts, gid_key)
+    
+            if self.pb['router'].getGroup(gid) is not None:
+                return fn(self, *args, **kwargs)
+                
+            return self.protocol.sendData('Unknown Group: %s' % gid)
+        return exist_connector_and_call
 
 class GroupsManager(Manager):
     managerName = 'group'
@@ -64,7 +80,7 @@ class GroupsManager(Manager):
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)        
         
-        self.protocol.sendData('Total groups: %s' % counter)
+        self.protocol.sendData('Total Groups: %s' % counter)
     
     @FilterSessionArgs
     @GroupBuild
@@ -75,20 +91,17 @@ class GroupsManager(Manager):
             self.protocol.sendData('Successfully added Group [%s]' % (GroupInstance.gid), prompt=False)
             self.stopSession()
         else:
-            self.protocol.sendData('Failed adding group, check log for details')
+            self.protocol.sendData('Failed adding Group, check log for details')
     def add(self, arg, opts):
         return self.startSession(self.add_session,
-                                 annoucement='Adding a new group: (ok: save, ko: exit)',
+                                 annoucement='Adding a new Group: (ok: save, ko: exit)',
                                  completitions=GroupKeyMap.keys())
     
-    def update(self, arg, opts):
-        # @todo
-        raise NotImplementedError
-    
+    @GroupExist(gid_key='remove')
     def remove(self, arg, opts):
-        # @todo
-        raise NotImplementedError
-    
-    def show(self, arg, opts):
-        # @todo
-        raise NotImplementedError
+        st = self.pb['router'].remote_group_remove(opts.remove)
+        
+        if st:
+            self.protocol.sendData('Successfully removed Group id:%s' % opts.remove)
+        else:
+            self.protocol.sendData('Failed removing Group, check log for details')

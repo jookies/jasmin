@@ -21,7 +21,7 @@ class SmppccmTestCase(jCliTestCases):
         return self._test(finalPrompt, commands)
     
     def test_list(self):
-        commands = [{'command': 'smppccm -l', 'expect': r'Total: 0'}]
+        commands = [{'command': 'smppccm -l', 'expect': r'Total connectors: 0'}]
         return self._test(r'jcli : ', commands)
     
     @defer.inlineCallbacks
@@ -40,7 +40,7 @@ class SmppccmTestCase(jCliTestCases):
         yield self.add_connector(r'jcli : ', extraCommands)
     
     @defer.inlineCallbacks
-    def test_add_with_invalid_configkey(self):
+    def test_add_invalid_configkey_value(self):
         extraCommands = [{'command': 'cid operator_3'}, 
                          {'command': 'port 22e'}, 
                          {'command': 'ok', 'expect': r'Error\: port must be an integer', 'wait': self.wait}]
@@ -59,7 +59,7 @@ class SmppccmTestCase(jCliTestCases):
 
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
                         '#operator_4                          stopped None             0      0    ', 
-                        'Total: 1']
+                        'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
     
@@ -69,7 +69,7 @@ class SmppccmTestCase(jCliTestCases):
                          {'command': 'ko'}, ]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        commands = [{'command': 'smppccm -l', 'expect': r'Total: 0'}]
+        commands = [{'command': 'smppccm -l', 'expect': r'Total connectors: 0'}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -112,7 +112,7 @@ class SmppccmTestCase(jCliTestCases):
                         'bind_ton 0', 
                         'pdu_red_to 10', 
                         'src_ton 2']
-        commands = [{'command': 'smppccm -s operator_6', 'expect': expectedList}]
+        commands = [{'command': 'smppccm -s %s' % cid, 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
         
     @defer.inlineCallbacks
@@ -122,21 +122,23 @@ class SmppccmTestCase(jCliTestCases):
     
     @defer.inlineCallbacks
     def test_update_cid(self):
-        extraCommands = [{'command': 'cid operator_7'}]
+        cid = 'operator_7'
+        extraCommands = [{'command': 'cid %s' % cid}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        commands = [{'command': 'smppccm -u operator_7', 'expect': r'Updating connector id \[operator_7\]\: \(ok\: save, ko\: exit\)'},
+        commands = [{'command': 'smppccm -u operator_7', 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
                     {'command': 'cid 2222', 'expect': r'Connector id can not be modified !'}]
         yield self._test(r'> ', commands)
     
     @defer.inlineCallbacks
     def test_update(self):
-        extraCommands = [{'command': 'cid operator_8'}]
+        cid = 'operator_8'
+        extraCommands = [{'command': 'cid %s' % cid}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        commands = [{'command': 'smppccm -u operator_8', 'expect': r'Updating connector id \[operator_8\]\: \(ok\: save, ko\: exit\)'},
+        commands = [{'command': 'smppccm -u operator_8', 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
                     {'command': 'port 2222'},
-                    {'command': 'ok', 'expect': r'Successfully updated connector \[operator_8\]'}]
+                    {'command': 'ok', 'expect': r'Successfully updated connector \[%s\]' % cid}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -146,7 +148,7 @@ class SmppccmTestCase(jCliTestCases):
         yield self.add_connector(r'jcli : ', extraCommands)
 
         commands = [{'command': 'smppccm -u %s' % cid, 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
-                    {'command': 'port 222233'},
+                    {'command': 'port 122223'},
                     {'command': 'ok', 'expect': r'Successfully updated connector \[%s\]' % cid}]
         yield self._test(r'jcli : ', commands)
     
@@ -156,7 +158,7 @@ class SmppccmTestCase(jCliTestCases):
                         'submit_throughput 1', 
                         'elink_interval 10', 
                         'bind_to 30', 
-                        'port 222233', 
+                        'port 122223', 
                         'con_fail_retry 1', 
                         'password password', 
                         'src_addr None', 
@@ -184,7 +186,7 @@ class SmppccmTestCase(jCliTestCases):
                         'bind_ton 0', 
                         'pdu_red_to 10', 
                         'src_ton 2']
-        commands = [{'command': 'smppccm -s operator_9', 'expect': expectedList}]
+        commands = [{'command': 'smppccm -s %s' % cid, 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -198,7 +200,7 @@ class SmppccmTestCase(jCliTestCases):
         extraCommands = [{'command': 'cid %s' % cid}]
         yield self.add_connector(r'jcli : ', extraCommands)
     
-        commands = [{'command': 'smppccm -r %s' % cid, 'expect': r'Successfully removed connector id\:operator_10'}]
+        commands = [{'command': 'smppccm -r %s' % cid, 'expect': r'Successfully removed connector id\:%s' % cid}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -227,8 +229,16 @@ class SmppccmTestCase(jCliTestCases):
         # List
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
                         '#operator_12                         stopped None             0      0    ', 
-                        'Total: 1']
+                        'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+        # Remove
+        commands = [{'command': 'smppccm -r %s' % cid, 'expect': r'Successfully removed connector id\:%s' % cid}]
+        yield self._test(r'jcli : ', commands)
+
+        # List again
+        commands = [{'command': 'smppccm -l', 'expect': r'Total connectors: 0'}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -258,7 +268,7 @@ class SmppccmTestCase(jCliTestCases):
         # List
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
                         '#operator_14                         started None             1      0    ', 
-                        'Total: 1']
+                        'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -311,39 +321,6 @@ class SmppccmTestCase(jCliTestCases):
         # List
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
                         '#operator_16                         stopped None             1      1    ', 
-                        'Total: 1']
+                        'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
-        yield self._test(r'jcli : ', commands)
-        
-    @defer.inlineCallbacks
-    def test_persist(self):
-        commands = [{'command': 'persist', 'expect': r'smppccm configuration persisted \(profile\:jcli-prod\)'}]
-        yield self._test(r'jcli : ', commands)
-
-    @defer.inlineCallbacks
-    def test_persist_profile(self):
-        commands = [{'command': 'persist -p testprofile', 'expect': r'smppccm configuration persisted \(profile\:testprofile\)'}]
-        yield self._test(r'jcli : ', commands)
-
-    @defer.inlineCallbacks
-    def test_load(self):
-        # Persist before load to avoid getting a failure
-        commands = [{'command': 'persist'}]
-        yield self._test(r'jcli : ', commands)
-
-        commands = [{'command': 'load', 'expect': r'smppccm configuration loaded \(profile\:jcli-prod\)'}]
-        yield self._test(r'jcli : ', commands)
-
-    @defer.inlineCallbacks
-    def test_load_profile(self):
-        # Persist before load to avoid getting a failure
-        commands = [{'command': 'persist -p testprofile'}]
-        yield self._test(r'jcli : ', commands)
-
-        commands = [{'command': 'load -p testprofile', 'expect': r'smppccm configuration loaded \(profile\:testprofile\)'}]
-        yield self._test(r'jcli : ', commands)
-        
-    @defer.inlineCallbacks
-    def test_load_unknown_profile(self):
-        commands = [{'command': 'load -p any_profile', 'expect': r'Failed to load smppccm configuration \(profile\:any_profile\)'}]
         yield self._test(r'jcli : ', commands)

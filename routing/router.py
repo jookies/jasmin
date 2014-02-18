@@ -128,6 +128,24 @@ class RouterPB(pb.Root):
         
         return None
     
+    def getUser(self, uid):
+        for u in self.users:
+            if u.uid == uid:
+                self.log.debug('getUser [%s] returned a User', uid)
+                return u
+        
+        self.log.debug('getUser [%s] returned None', uid)
+        return None
+    
+    def getGroup(self, gid):
+        for g in self.groups:
+            if g.gid == gid:
+                self.log.debug('getGroup [%s] returned a Group', gid)
+                return g
+        
+        self.log.debug('getGroup [%s] returned None', gid)
+        return None
+    
     def remote_user_add(self, user):
         user = pickle.loads(user)
         self.log.debug('Adding a User: %s' % user)
@@ -165,7 +183,10 @@ class RouterPB(pb.Root):
         for _user in self.users:
             if uid == _user.uid:
                 self.users.remove(_user)
-                break 
+                return True
+        
+        self.log.error("User with id:%s not found, not removing it." % uid)
+        return False
 
     def remote_user_remove_all(self):
         self.log.info('Removing all users')
@@ -212,16 +233,18 @@ class RouterPB(pb.Root):
         for _group in self.groups:
             if gid == _group.gid:
                 # Remove users from this group
-                for _user in self.users:
+                _users = copy(self.users)
+                for _user in _users:
                     if _user.group.gid == _group.gid:
                         self.log.info('Removing a User (id:%s) from the Group (id:%s)' % (_user.uid, gid))
                         self.users.remove(_user)
                         
                 # Safely remove this group
                 self.groups.remove(_group)
-                break
+                return True
         
-        return True
+        self.log.error("Group with id:%s not found, not removing it." % gid)
+        return False
 
     def remote_group_remove_all(self):
         self.log.info('Removing all groups')
