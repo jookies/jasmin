@@ -72,8 +72,8 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.connector3 = Connector('ghi')
         self.connector4 = Connector('jkl')
         self.group100 = Group(100)
-        self.user1 = User(1, self.group100)
-        self.user2 = User(2, self.group100)
+        self.user1 = User(1, self.group100, 'username', 'password')
+        self.user2 = User(2, self.group100, 'username', 'password')
         
         self.mt_filter1 = [UserFilter(self.user1)]
         self.mt_filter2 = [DestinationAddrFilter('^10\d+')]

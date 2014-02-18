@@ -14,8 +14,8 @@ class RouteTestCase(TestCase):
         self.connector1 = Connector('abc')
         self.connector2 = Connector('def')
         self.group100 = Group(100)
-        self.user1 = User(1, self.group100)
-        self.user2 = User(2, self.group100)
+        self.user1 = User(1, self.group100, 'username', 'password')
+        self.user2 = User(2, self.group100, 'username', 'password')
         
         self.invalid_filter = [ConnectorFilter(self.connector1), UserFilter(self.user1)]
         self.simple_filter_mo = [ConnectorFilter(self.connector1)]

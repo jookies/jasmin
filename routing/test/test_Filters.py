@@ -17,7 +17,7 @@ class FilterTestCase(TestCase):
             short_message='hello world',
         )
         self.group = Group(100)
-        self.user = User(1, self.group)
+        self.user = User(1, self.group, 'username', 'password')
         self.routable = SimpleRoutablePDU(self.connector, self.PDU, self.user)
     
 class TransparentFilterTestCase(FilterTestCase):

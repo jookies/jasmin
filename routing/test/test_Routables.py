@@ -16,7 +16,7 @@ class RoutablePDUTestCase(TestCase):
             short_message='hello world',
         )
         self.connector = Connector('abc')
-        self.user = User(1, Group(100))
+        self.user = User(1, Group(100), 'username', 'password')
     
 class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
     
