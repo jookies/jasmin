@@ -58,14 +58,17 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.sendData(self.motd, False)
         self.sendData('Session ref: %s' % self.sessionRef, False)
         
-        self.log.info('[sref:%s] Started for %s:%s' % (self.sessionRef, self.peer.host, self.peer.port))
+        self.log.info('[sref:%s] New session started for %s:%s' % (self.sessionRef, self.peer.host, self.peer.port))
         
     def connectionLost(self, reason):
         recvline.HistoricRecvLine.connectionLost(self, reason)
 
         self.factory.sessionsOnline-= 1
         del self.factory.sessions[self.sessionRef]
-        self.log.info('[sref:%s] Stopped (%s).' % (self.sessionRef, reason.value))
+        if reason is not None:
+            self.log.info('[sref:%s] Session stopped (%s).' % (self.sessionRef, reason.value))
+        else:
+            self.log.info('[sref:%s] Session stopped.' % (self.sessionRef))
         
     def sendData(self, data = None, prompt = None, append = ''):
         self.log.debug('[sref:%s] Send data: %s' % (self.sessionRef, data))

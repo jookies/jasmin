@@ -7,6 +7,8 @@ import logging
 class JCliConfig(ConfigFile):
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
+        
+        self.load_profile = self._get('jcli', 'load_profile', 'jcli-prod')
 
         self.bind = self._get('jcli', 'bind', '127.0.0.1')
         self.port = self._getint('jcli', 'port', 8990)

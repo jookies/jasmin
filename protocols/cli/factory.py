@@ -7,6 +7,7 @@ from jcli import JCliProtocol
 from protocol import CmdProtocol
 from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
 from twisted.conch.insults import insults
+from twisted.test import proto_helpers
 
 class JCliTelnetTransport(TelnetTransport):
     def connectionLost(self, reason):
@@ -57,3 +58,15 @@ class JCliFactory(ServerFactory):
                                JCliProtocol,
                                factory = self,
                                log = self.log)
+        
+    def doStart(self):
+        ServerFactory.doStart(self)
+        
+        # Load configuration profile
+        self.log.info("OnStart loading configuration profile: '%s'" % self.config.load_profile)
+        proto = self.buildProtocol(('127.0.0.1', 0))
+        tr = proto_helpers.StringTransport()
+        proto.makeConnection(tr)
+        proto.dataReceived('load -p %s\r\n' % self.config.load_profile)
+        proto.dataReceived('quit\r\n')
+        proto.connectionLost(None)
