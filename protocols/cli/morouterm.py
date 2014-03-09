@@ -1,4 +1,11 @@
-from managers import Manager
+from managers import Manager, Session
+
+def RouteBuild(fn):
+    'Parse args and try to build a Route instance to pass it to fn'
+    def parse_args_and_call_with_instance(self, *args, **kwargs):
+        # @TODO: Build a route and pass it to fn
+        return fn(self, None)
+    return parse_args_and_call_with_instance
 
 class ConnectorsExist:
     'Check if connectors CIDs exist before passing it to fn'
@@ -53,10 +60,20 @@ class MoRouterManager(Manager):
     def list(self, arg, opts):
         raise NotImplementedError
     
+    @Session
+    @RouteBuild
+    def add_session(self, RouteInstance):
+        self.protocol.sendData('Test here')
     @RouteExist(order_key='add', subkey_position = 0, mustExist=False)
     @ConnectorsExist(cids_key='add', subkey_position = 2)
     def add(self, arg, opts):
         order, routename, connectors, filters = opts.add
+        return self.startSession(self.add_session,
+                                 annoucement='Adding a new Route: (ok: save, ko: exit)',
+                                 sessionContext={'order': order,
+                                                 'routename': routename,
+                                                 'connectors': connectors,
+                                                 'filters': filters})
     
     def flush(self, arg, opts):
         raise NotImplementedError

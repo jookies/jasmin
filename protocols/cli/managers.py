@@ -1,4 +1,4 @@
-def FilterSessionArgs(fn):
+def Session(fn):
     'Validate args before passing to session handler'
     def filter_cmd_and_call(self, *args, **kwargs):
         cmd = args[0]

@@ -1,5 +1,5 @@
 import pickle
-from managers import Manager, FilterSessionArgs
+from managers import Manager, Session
 from jasmin.routing.jasminApi import Group
 
 # A config map between console-configuration keys and Group keys.
@@ -88,7 +88,7 @@ class GroupsManager(Manager):
         
         self.protocol.sendData('Total Groups: %s' % counter)
     
-    @FilterSessionArgs
+    @Session
     @GroupBuild
     def add_session(self, GroupInstance):
         st = self.pb['router'].remote_group_add(pickle.dumps(GroupInstance, 2))

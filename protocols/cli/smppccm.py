@@ -1,7 +1,7 @@
 import pickle
 from twisted.internet import defer
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from managers import Manager, FilterSessionArgs
+from managers import Manager, Session
 from vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
                                        replace_if_present_flap_name_map, priority_flag_name_map)
 
@@ -172,7 +172,7 @@ class SmppCCManager(Manager):
         
         self.protocol.sendData('Total connectors: %s' % counter)
     
-    @FilterSessionArgs
+    @Session
     @SMPPClientConfigBuild
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
@@ -188,7 +188,7 @@ class SmppCCManager(Manager):
                                  annoucement='Adding a new connector: (ok: save, ko: exit)',
                                  completitions=SMPPClientConfigKeyMap.keys())
     
-    @FilterSessionArgs
+    @Session
     @SMPPClientConfigUpdate
     @defer.inlineCallbacks
     def update_session(self, updateLog):

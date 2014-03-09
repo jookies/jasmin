@@ -1,5 +1,5 @@
 import pickle
-from managers import Manager, FilterSessionArgs
+from managers import Manager, Session
 from jasmin.routing.jasminApi import User
 
 # A config map between console-configuration keys and User keys.
@@ -147,7 +147,7 @@ class UsersManager(Manager):
         else:
             self.protocol.sendData('Total Users in group [%s]: %s' % (gid, counter))
     
-    @FilterSessionArgs
+    @Session
     @UserBuild
     def add_session(self, UserInstance):
         st = self.pb['router'].remote_user_add(pickle.dumps(UserInstance, 2))
@@ -162,7 +162,7 @@ class UsersManager(Manager):
                                  annoucement='Adding a new User: (ok: save, ko: exit)',
                                  completitions=UserKeyMap.keys())
     
-    @FilterSessionArgs
+    @Session
     @UserUpdate
     def update_session(self, updateLog):
         user = self.pb['router'].getUser(self.sessionContext['uid'])
