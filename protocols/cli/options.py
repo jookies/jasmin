@@ -6,8 +6,8 @@ import pyparsing
 import optparse
 
 class OptionParser(optparse.OptionParser):
-    def __init__(self):
-        optparse.OptionParser.__init__(self, add_help_option=False)
+    def __init__(self, option_class=optparse.Option):
+        optparse.OptionParser.__init__(self, add_help_option=False, option_class=option_class)
     
     def error(self, msg):
         """error(msg : string)
