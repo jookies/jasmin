@@ -9,15 +9,12 @@ from usersm import UsersManager
 from groupsm import GroupsManager
 from morouterm import MoRouterManager
 from mtrouterm import MtRouterManager
+from filtersm import FiltersManager
 from optparse import make_option, Option, OptionValueError, OptParseError
 from copy import copy
 
 MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
 MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute']
-MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter', 
-             'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
-MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'DestinationAddrFilter', 
-             'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
 
 def check_moroute(option, opt, value):
     """Will check for correct moroute option syntax,
@@ -51,10 +48,11 @@ def check_moroute(option, opt, value):
             connectors.append(_connector)
         
         _filters = v[3].split(',')
-        for _filter in _filters:
-            if _filter not in MOFILTERS:
-                raise ValueError('Given FILTERNAME [%s] is not a valid MO filter' % _filter)
-            filters.append(_filter)
+        #for _filter in _filters:
+        #    if _filter not in MOFILTERS:
+        #        raise ValueError('Given FILTERNAME [%s] is not a valid MO filter' % _filter)
+        #    filters.append(_filter)
+        raise NotImplementedError('TODO')
         return order, routename, connectors, filters
     except ValueError, e:
         raise OptionValueError(
@@ -108,6 +106,8 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('user')
         if 'group' not in self.commands:
             self.commands.append('group')
+        if 'filter' not in self.commands:
+            self.commands.append('filter')
         if 'morouter' not in self.commands:
             self.commands.append('morouter')
         if 'mtrouter' not in self.commands:
@@ -118,7 +118,7 @@ class JCliProtocol(CmdProtocol):
         # Provision managers
         self.managers = {'user': UsersManager(self, factory.pb), 'group': GroupsManager(self, factory.pb), 
                          'morouter': MoRouterManager(self, factory.pb), 'mtrouter': MtRouterManager(self, factory.pb), 
-                         'smppccm': SmppCCManager(self, factory.pb), }
+                         'smppccm': SmppCCManager(self, factory.pb), 'filter': FiltersManager(self, None)}
         
     @options([make_option('-l', '--list', action="store_true",
                           help="List all users or a group users when provided with GID"),
@@ -174,6 +174,29 @@ class JCliProtocol(CmdProtocol):
         else:
             return self.sendData('Missing required option')
         
+    @options([make_option('-l', '--list', action="store_true",
+                          help="List filters"),
+              make_option('-a', '--add', action="store_true",
+                          help="Add filter"),
+              make_option('-r', '--remove', type="string", metavar="FID", 
+                          help="Remove filter using it's FID"),
+              make_option('-s', '--show', type="string", metavar="FID", 
+                          help="Show filter using it's FID"),
+              ], '')
+    def do_filter(self, arg, opts):
+        'Filter management'
+
+        if opts.list:
+            self.managers['filter'].list(arg, opts)
+        elif opts.add:
+            self.managers['filter'].add(arg, opts)
+        elif opts.remove:
+            self.managers['filter'].remove(arg, opts)
+        elif opts.show:
+            self.managers['filter'].show(arg, opts)
+        else:
+            return self.sendData('Missing required option')
+
     @jclioptions([make_option('-l', '--list', action="store_true",
                           help="List MO routes"),
               make_option('-a', '--add', type="moroute", metavar="ROUTE", 
