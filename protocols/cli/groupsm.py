@@ -46,7 +46,7 @@ class GroupExist:
         self.gid_key = gid_key
     def __call__(self, fn):
         gid_key = self.gid_key
-        def exist_connector_and_call(self, *args, **kwargs):
+        def exist_group_and_call(self, *args, **kwargs):
             opts = args[1]
             gid = getattr(opts, gid_key)
     
@@ -54,7 +54,7 @@ class GroupExist:
                 return fn(self, *args, **kwargs)
                 
             return self.protocol.sendData('Unknown Group: %s' % gid)
-        return exist_connector_and_call
+        return exist_group_and_call
 
 class GroupsManager(Manager):
     managerName = 'group'

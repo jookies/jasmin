@@ -12,85 +12,6 @@ from mtrouterm import MtRouterManager
 from filtersm import FiltersManager
 from optparse import make_option, Option, OptionValueError, OptParseError
 from copy import copy
-
-MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
-MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute']
-
-def check_moroute(option, opt, value):
-    """Will check for correct moroute option syntax,
-    the right syntax is as below:
-    ORDER:ROUTENAME:CID1,CID2,...:FILTERNAME1,FILTERNAME2,...;
-    """
-    try:
-        order = None
-        routename = None
-        connectors = []
-        filters = []
-        
-        if value[-1:] != ';':
-            raise ValueError('Route must end with a semi column (;)')
-        value = value[:-1]
-        
-        v = value.split(':')
-        if len(v) < 4:
-            raise ValueError('Incorrect syntax, a moroute must include an ORDER,\na ROUTENAME and at least one couple of CID and FILTERNAME, example: "33:StaticMORoute:MTN_SMPP:SourceAddrFilter;"')
-        
-        if not v[0].isdigit():
-            raise ValueError('Given ORDER [%s] is not an integer' % v[0])
-        order = int(v[0])
-        
-        if v[1] not in MOROUTES:
-            raise ValueError('Given ROUTENAME [%s] is not a valid moroute' % v[1])
-        routename = v[1]
-        
-        _connectors = v[2].split(',')
-        for _connector in _connectors:
-            connectors.append(_connector)
-        
-        _filters = v[3].split(',')
-        #for _filter in _filters:
-        #    if _filter not in MOFILTERS:
-        #        raise ValueError('Given FILTERNAME [%s] is not a valid MO filter' % _filter)
-        #    filters.append(_filter)
-        raise NotImplementedError('TODO')
-        return order, routename, connectors, filters
-    except ValueError, e:
-        raise OptionValueError(
-            "option %s: invalid moroute value: %s" % (opt, e))
-        
-class JcliOptions (Option):
-    # Add "moroute" option
-    Option.TYPES = Option.TYPES + ("moroute",)
-    Option.TYPE_CHECKER["moroute"] = check_moroute
-    
-def jclioptions(option_list, arg_desc="arg"):
-    '''This is a slightly modified version of cli's options where JcliOptions
-    is used when instanciating optionParser in order to add customized options
-    c.f. http://docs.python.org/2/library/optparse.html#adding-new-types
-    '''
-    if not isinstance(option_list, list):
-        option_list = [option_list]
-    for opt in option_list:
-        options_defined.append(pyparsing.Literal(opt.get_opt_string()))
-    def option_setup(func):
-        optionParser = OptionParser(option_class=JcliOptions)
-        for opt in option_list:
-            optionParser.add_option(opt)
-        optionParser.set_usage("%s [options] %s" % (func.__name__[3:], arg_desc))
-        optionParser._func = func
-        def new_func(instance, arg):
-            try:
-                opts, newArgList = optionParser.parse_args(arg.split())
-                newArgs = remaining_args(arg, newArgList)
-                arg = newArgs
-            except OptParseError as e:
-                instance.sendData(str(e))
-                return instance.sendData(optionParser.format_help())
-            return func(instance, arg, opts)
-        new_func.__doc__ = func.__doc__
-        new_func.__extended_doc__ = optionParser.format_help()
-        return new_func
-    return option_setup
         
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'
@@ -197,10 +118,14 @@ class JCliProtocol(CmdProtocol):
         else:
             return self.sendData('Missing required option')
 
-    @jclioptions([make_option('-l', '--list', action="store_true",
+    @options([make_option('-l', '--list', action="store_true",
                           help="List MO routes"),
-              make_option('-a', '--add', type="moroute", metavar="ROUTE", 
+              make_option('-a', '--add', action="store_true",
                           help="Add a new MO route"),
+              make_option('-r', '--remove', type="string", metavar="ORDER", 
+                          help="Remove MO route using it's ORDER"),
+              make_option('-s', '--show', type="string", metavar="ORDER", 
+                          help="Show MO route using it's ORDER"),
               make_option('-f', '--flush', action="store_true",
                           help="Flush MO routing table"),
               ], '')
@@ -211,6 +136,10 @@ class JCliProtocol(CmdProtocol):
             self.managers['morouter'].list(arg, opts)
         elif opts.add:
             self.managers['morouter'].add(arg, opts)
+        elif opts.remove:
+            self.managers['morouter'].remove(arg, opts)
+        elif opts.show:
+            self.managers['morouter'].show(arg, opts)
         elif opts.flush:
             self.managers['morouter'].flush(arg, opts)
         else:

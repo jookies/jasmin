@@ -1,5 +1,7 @@
 from managers import Manager
 
+MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute']
+
 class MtRouterManager(Manager):
     managerName = 'mtrouter'
     

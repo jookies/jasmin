@@ -21,8 +21,13 @@ FilterKeyMap = {'fid': 'fid', 'type': 'type'}
 FILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter', 
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
 
+MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter', 
+             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
+MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'DestinationAddrFilter', 
+             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
+
 def FilterBuild(fn):
-    '''Parse args and try to build a filters from  one of the filters in 
+    '''Parse args and try to build a filter from  one of the filters in 
        jasmin.routing.Filters instance to pass it to fn'''
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
@@ -79,6 +84,7 @@ def FilterBuild(fn):
                 for _filter in FILTERS:
                     if arg.lower() == _filter.lower():
                         _type = _filter
+                        break
                 
                 if _type is None:
                     return self.protocol.sendData('Unknown Filter type:%s, available types: %s' % (arg, ', '.join(FILTERS)))
@@ -213,7 +219,7 @@ class FiltersManager(Manager):
             # Write configuration with datetime stamp
             fh = open(path,'w')
             fh.write('Persisted on %s\n' % time.strftime("%c"))
-            fh.write(pickle.dumps(self.filters))
+            fh.write(pickle.dumps(self.filters, 2))
             fh.close()
         except IOError:
             return self.protocol.sendData('Cannot persist to %s' % path)
@@ -244,14 +250,21 @@ class FiltersManager(Manager):
         counter = 0
         
         if (len(self.filters)) > 0:
-            self.protocol.sendData("#%s %s %s" % ('Filter id'.ljust(16),
+            self.protocol.sendData("#%s %s %s %s" % ('Filter id'.ljust(16),
                                                                         'Type'.ljust(22),
+                                                                        'Routes'.ljust(6),
                                                                         'Description'.ljust(32),
                                                                         ), prompt=False)
             for fid, _filter in self.filters.iteritems():
                 counter += 1
-                self.protocol.sendData("#%s %s %s" % (str(fid).ljust(16),
+                routes = ''
+                if _filter.__class__.__name__ in MOFILTERS:
+                    routes+= 'MO '
+                if _filter.__class__.__name__ in MTFILTERS:
+                    routes+= 'MT'
+                self.protocol.sendData("#%s %s %s %s" % (str(fid).ljust(16),
                                                                   str(_filter.__class__.__name__).ljust(22),
+                                                                  routes.ljust(6),
                                                                   repr(_filter).ljust(32),
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)        

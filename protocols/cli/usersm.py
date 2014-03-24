@@ -54,7 +54,7 @@ class UserExist:
         self.uid_key = uid_key
     def __call__(self, fn):
         uid_key = self.uid_key
-        def exist_connector_and_call(self, *args, **kwargs):
+        def exist_user_and_call(self, *args, **kwargs):
             opts = args[1]
             uid = getattr(opts, uid_key)
     
@@ -62,7 +62,7 @@ class UserExist:
                 return fn(self, *args, **kwargs)
                 
             return self.protocol.sendData('Unknown User: %s' % uid)
-        return exist_connector_and_call
+        return exist_user_and_call
 
 def UserUpdate(fn):
     '''Get User and log update requests passing to fn
