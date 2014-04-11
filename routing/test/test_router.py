@@ -24,8 +24,8 @@ from jasmin.routing.router import RouterPB
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.test.http_server import AckServer
-from jasmin.routing.configs import deliverSmThrowerConfig, DLRThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower, DLRThrower
+from jasmin.routing.configs import deliverSmHttpThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmHttpThrower, DLRThrower
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.smpp.configs import SMPPClientConfig
@@ -635,7 +635,7 @@ class SubmitSmTestCaseTools():
             self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
 
     @defer.inlineCallbacks
-    def stopSmppConnectors(self):
+    def stopSmppClientConnectors(self):
         # Disconnect the connector
         yield self.SMPPClientManagerPBProxy.stop(self.c1.cid)
         # Wait for 'BOUND_TRX' state
@@ -682,7 +682,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -720,7 +720,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -758,7 +758,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -791,7 +791,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -830,7 +830,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -869,7 +869,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -892,7 +892,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -938,7 +938,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         reactor.callLater(3, exitDeferred.callback, None)
         yield exitDeferred
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -976,7 +976,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -1014,7 +1014,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -1047,7 +1047,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -1086,7 +1086,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -1125,7 +1125,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -1182,7 +1182,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -1221,23 +1221,23 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
+        deliverSmHttpThrowerConfigInstance = deliverSmHttpThrowerConfig()
         # Lower the timeout config to pass the timeout tests quickly
-        deliverSmThrowerConfigInstance.timeout = 2
-        deliverSmThrowerConfigInstance.retryDelay = 1
-        deliverSmThrowerConfigInstance.maxRetries = 2
+        deliverSmHttpThrowerConfigInstance.timeout = 2
+        deliverSmHttpThrowerConfigInstance.retryDelay = 1
+        deliverSmHttpThrowerConfigInstance.maxRetries = 2
         
-        # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        # Launch the deliverSmHttpThrower
+        self.deliverSmHttpThrower = deliverSmHttpThrower()
+        self.deliverSmHttpThrower.setConfig(deliverSmHttpThrowerConfigInstance)
         
-        # Add the broker to the deliverSmThrower
-        yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
+        # Add the broker to the deliverSmHttpThrower
+        yield self.deliverSmHttpThrower.addAmqpBroker(self.amqpBroker)
 
     @defer.inlineCallbacks
     def tearDown(self):
         self.AckServer.stopListening()
-        yield self.deliverSmThrower.stopService()
+        yield self.deliverSmHttpThrower.stopService()
         yield DeliverSmSMSCTestCase.tearDown(self)
         
     @defer.inlineCallbacks
@@ -1452,6 +1452,6 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
 
-    def test_delivery_SmppConnector(self):
+    def test_delivery_SmppClientConnector(self):
         pass
-    test_delivery_SmppConnector.skip = 'TODO: When SMPP Server will be implemented ?'
+    test_delivery_SmppClientConnector.skip = 'TODO: When SMPP Server will be implemented ?'

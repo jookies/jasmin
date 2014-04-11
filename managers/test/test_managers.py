@@ -112,19 +112,6 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
         SMPPClientPBProxyTestCase.tearDown(self)
         return self.SMSCPort.stopListening()
 
-class SMSCSimulatorDeliveryReceiptSM(SMPPClientPBProxyTestCase):
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield SMPPClientPBProxyTestCase.setUp(self)
-
-        factory = Factory()
-        factory.protocol = DeliveryReceiptSMSC      
-        self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
-
-    def tearDown(self):
-        SMPPClientPBProxyTestCase.tearDown(self)
-        return self.SMSCPort.stopListening()
-
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     def tearDown(self):
         # Remove persisted configurations
@@ -770,49 +757,6 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         self.assertTrue(self.receivedDeliverSm is not None)
         self.assertIsInstance(self.receivedDeliverSm, DeliverSM)
         
-class ClientConnectorDeliveryReceiptTestCases(SMSCSimulatorDeliveryReceiptSM):
-    receivedDeliverSm = None
-    
-    def deliver_sm_callback(self, message):
-        self.receivedDeliverSm = pickle.loads(message.content.body)
-    
-    @defer.inlineCallbacks
-    def test_deliverSm_dlr(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-
-        # Listen on the deliver.sm queue
-        queueName = 'dlr.%s' % self.defaultConfig.id
-        consumerTag = 'test_deliverSm_dlr'
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, consumer_tag=consumerTag, no_ack=True)
-        deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        deliver_sm_q.get().addCallback(self.deliver_sm_callback)
-
-        # Add & start
-        yield self.add(self.defaultConfig)
-        yield self.start(self.defaultConfig.id)
-        # Wait for 'BOUND_TRX' state
-        while True:
-            ssRet = yield self.session_state(self.defaultConfig.id)
-            if ssRet == 'BOUND_TRX':
-                break;
-            else:
-                time.sleep(0.2)
-        
-        # Give the reactor a run
-        yield self.session_state(self.defaultConfig.id)
-
-        yield self.stop(self.defaultConfig.id)
-
-        # Wait for unbound state
-        ssRet = yield self.session_state(self.defaultConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(self.defaultConfig.id)
-
-        # Assertions
-        self.assertTrue(self.receivedDeliverSm is not None)
-        self.assertTrue(self.receivedDeliverSm.dlr['stat'] == 'DELIVRD')
-
 class ClientConnectorStatusTestCases(SMSCSimulator):
     
     @defer.inlineCallbacks

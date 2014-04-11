@@ -25,7 +25,7 @@ class HttpConnector(Connector):
         self.baseurl = baseurl
         self.method = method
         
-class SmppConnector(Connector):
+class SmppClientConnector(Connector):
     def __init__(self, cid):
         Connector.__init__(self, cid)
-        self.type = 'smpp'
+        self.type = 'smppc'

@@ -2,14 +2,14 @@
 Receiving SMS-MO
 ################
 
-**SMS-MO** messages (**M**\obile **O**\riginated) are delivered as **HTTP GET/POST** from Jasmin's *deliverSmThrower service* to the destination http 
+**SMS-MO** messages (**M**\obile **O**\riginated) are delivered as **HTTP GET/POST** from Jasmin's *deliverSmHttpThrower service* to the destination http 
 connector. 
 
 The parameters below are transmitted for each SMS-MO, the receiving end must provide an url (set in **jasminApi.HttpConnector.baseurl**) and parse the
 below parameters using GET or POST method (depends on **jasminApi.HttpConnector.method**).
 
 The receiving end must reply back using a "**200 OK**" status header **and** a body containing an **acknowledgement** of receiving the SMS-MO, if one or both of
-these conditions are not met, the *deliverSmThrower service* will consider reshipment of the same message if **config/deliversm-thrower/max_retries** is not reached, 
+these conditions are not met, the *deliverSmHttpThrower service* will consider reshipment of the same message if **config/deliversm-thrower/max_retries** is not reached, 
 (see :ref:`configuration_deliversm-thrower`).
 
 In order to acknowledge SMS-MO receipt, the receiving end must reply back with **exactly** the following html body content: **ACK/Jasmin**
@@ -19,7 +19,7 @@ In order to acknowledge SMS-MO receipt, the receiving end must reply back with *
 
 HTTP Parameters
 ===============
-When receiving an URL call from Jasmin's *deliverSmThrower service*, the below parameters are delivered (at least *Always* present ones).
+When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the below parameters are delivered (at least *Always* present ones).
 
 +------------------+--------------------------------------+--------------------------------------+----------+--------------------------------------------+
 | Parameter name   | Value/Pattern                        | Example(s)                           | Presence | Description                                |
@@ -47,15 +47,15 @@ When receiving an URL call from Jasmin's *deliverSmThrower service*, the below p
 | content          | Text                                 | Hello world !                        | Always   | Content of the message                     |
 +------------------+--------------------------------------+--------------------------------------+----------+--------------------------------------------+
 
-.. note:: When receiving multiple parts of a long SMS-MO, *deliverSmThrower service* will concatenate the content of all the parts and then throw one http call with 
+.. note:: When receiving multiple parts of a long SMS-MO, *deliverSmHttpThrower service* will concatenate the content of all the parts and then throw one http call with 
           concatenated *content*. 
 
 Processing
 ==========
-The flowchart below describes how message delivery is done inside deliverSmThrower service:
+The flowchart below describes how message delivery is done inside deliverSmHttpThrower service:
 
 .. figure:: resources/sms-mo-flowchart.png
-   :alt: MO delivery flowchart as processed by deliverSmThrower service
+   :alt: MO delivery flowchart as processed by deliverSmHttpThrower service
    :align: Center
    
 .. _configuration_deliversm-thrower:
@@ -63,7 +63,7 @@ The flowchart below describes how message delivery is done inside deliverSmThrow
 jasmin.cfg / deliversm-thrower
 ==============================
 
-The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **deliversm-thrower** where all deliverSmThrower service related config elements are:
+The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **deliversm-thrower** where all deliverSmHttpThrower service related config elements are:
 
 .. code-block:: ini
    :linenos:

@@ -21,19 +21,19 @@ class RouterPBConfig(ConfigFile):
         self.log_format = self._get('router', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('router', 'log_date_format', '%Y-%m-%d %H:%M:%S')
         
-class deliverSmThrowerConfig(ConfigFile):
+class deliverSmHttpThrowerConfig(ConfigFile):
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
-        self.timeout = self._getint('deliversm-thrower', 'timeout', 30)
-        self.retryDelay = self._getint('deliversm-thrower', 'retry_delay', 30)
-        self.maxRetries = self._getint('deliversm-thrower', 'max_retries', 3)
+        self.timeout = self._getint('deliversm-httpthrower', 'timeout', 30)
+        self.retryDelay = self._getint('deliversm-httpthrower', 'retry_delay', 30)
+        self.maxRetries = self._getint('deliversm-httpthrower', 'max_retries', 3)
         
         # Logging
-        self.log_level = logging.getLevelName(self._get('deliversm-thrower', 'log_level', 'INFO'))
-        self.log_file = self._get('deliversm-thrower', 'log_file', '/var/log/jasmin/deliversm-thrower.log')
-        self.log_format = self._get('deliversm-thrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
-        self.log_date_format = self._get('deliversm-thrower', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+        self.log_level = logging.getLevelName(self._get('deliversm-httpthrower', 'log_level', 'INFO'))
+        self.log_file = self._get('deliversm-httpthrower', 'log_file', '/var/log/jasmin/deliversm-httpthrower.log')
+        self.log_format = self._get('deliversm-httpthrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_date_format = self._get('deliversm-httpthrower', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
 class DLRThrowerConfig(ConfigFile):
     def __init__(self, config_file = None):

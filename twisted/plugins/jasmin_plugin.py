@@ -14,8 +14,8 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower, DLRThrower
+from jasmin.routing.configs import RouterPBConfig, deliverSmHttpThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmHttpThrower, DLRThrower
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.protocols.cli.factory import JCliFactory
@@ -78,9 +78,9 @@ class JasminServiceMaker:
             rc.select(RedisForJasminConfigInstance.dbid)
         clientManager_f.addRedisClient(rc)
 
-        # Start deliverSmThrower
-        deliverThrowerConfigInstance = deliverSmThrowerConfig(options['config'])
-        deliverThrower = deliverSmThrower()
+        # Start deliverSmHttpThrower
+        deliverThrowerConfigInstance = deliverSmHttpThrowerConfig(options['config'])
+        deliverThrower = deliverSmHttpThrower()
         deliverThrower.setConfig(deliverThrowerConfigInstance)
         deliverThrower.setServiceParent(top_service)
         # AMQP Broker is used to listen to deliver_sm queue

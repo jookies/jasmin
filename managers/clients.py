@@ -217,7 +217,7 @@ class SMPPClientManagerPB(pb.Root):
         smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), serviceManager.SMPPClientFactory, self.amqpBroker, self.rc, submit_sm_q)
         
         # Deliver_sm are sent to smListener's deliver_sm callback method
-        serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_callback
+        serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event
 
         self.connectors.append({'id':c.id,
                                 'config':c,
@@ -320,11 +320,11 @@ class SMPPClientManagerPB(pb.Root):
             yield self.amqpBroker.chan.queue_delete(queue=submitSmQueueName)
 
         # Stop timers in message listeners
-        self.log.debug('Clearing sm_listener timers in connecotr [%s]', cid)
+        self.log.debug('Clearing sm_listener timers in connector [%s]', cid)
         yield connector['sm_listener'].clearAllTimers()
         
         # Stop the queue consumer
-        self.log.debug('Stopping submit_sm_q consumer in connecotr [%s]', cid)
+        self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
         yield connector['submit_sm_q'].close()
         
         # Stop SMPP connector

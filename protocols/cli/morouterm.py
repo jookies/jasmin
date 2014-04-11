@@ -2,7 +2,7 @@ import inspect
 import pickle
 from managers import Manager, Session
 from filtersm import MOFILTERS
-from jasmin.routing.jasminApi import SmppConnector
+from jasmin.routing.jasminApi import SmppClientConnector
 from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute)
 
 MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
@@ -100,7 +100,7 @@ def MORouteBuild(fn):
                     if c is None:
                         return self.protocol.sendData('Unknown cid: %s' % (arg))
                     else:
-                        arg = SmppConnector(arg)
+                        arg = SmppClientConnector(arg) # Can be a HttpConnector also
                     
                 # Validate connectors
                 if cmd == 'connectors':
@@ -114,7 +114,7 @@ def MORouteBuild(fn):
                         if c is None:
                             return self.protocol.sendData('Unknown cid: %s' % (cid))
                         else:
-                            arg.append(SmppConnector(cid))
+                            arg.append(SmppClientConnector(cid)) # Can be a HttpConnector also
 
                 # Validate filters
                 if cmd == 'filters':
