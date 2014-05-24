@@ -19,26 +19,42 @@ class RoutingTable:
             raise InvalidRoutingTableParameterError("route is not an instance of Route")
         if not isinstance(order, int):
             raise InvalidRoutingTableParameterError("order is not an integer")
-        if self.type == 'mo' and route.connector.type not in ['http', 'smpps']:
-            raise InvalidRoutingTableParameterError("incorrect connector '%s' type for MO Route" % (route.connector.type))
-        if self.type == 'mt' and route.connector.type not in ['smppc']:
-            raise InvalidRoutingTableParameterError("incorrect connector '%s' type for MT Route" % (route.connector.type))
+        if self.type == 'mo':
+            if type(route.connector) is not list:
+                if route.connector.type not in ['http', 'smpps']:
+                    raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MO Route" % (route.connector.cid, route.connector.type))
+            else:
+                for connector in route.connector:
+                    if connector.type not in ['http', 'smpps']:
+                        raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MO Route" % (connector.cid, connector.type))
+        if self.type == 'mt':
+            if type(route.connector) is not list:
+                if route.connector.type not in ['smppc']:
+                    raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MT Route" % (route.connector.cid, route.connector.type))
+            else:
+                for connector in route.connector:
+                    if connector.type not in ['smppc']:
+                        raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MT Route" % (connector.cid, connector.type))
         if order < 0:
             raise InvalidRoutingTableParameterError("order must be 0 (default route) or greater")
         if order != 0 and route.type != self.type:
             raise InvalidRoutingTableParameterError("route must be of type '%s', '%s' was given" % (self.type, route.type))
         if order == 0 and route.type != 'default':
             raise InvalidRoutingTableParameterError("Route with order=0 must be a DefaultRoute")
-        if self.type == 'mo' and route.connector.type not in ['http', 'smpp']:
-            raise InvalidRoutingTableParameterError("MO Route does not accept a generic connector")
         
         # Replace older routes with the same given order
-        for r in self.table:
-            if r.keys()[0] == order:
-                self.table.remove(r)
+        self.remove(order)
 
         self.table.append({order: route})
         self.table.sort(reverse=True)
+        
+    def remove(self, order):
+        for r in self.table:
+            if r.keys()[0] == order:
+                self.table.remove(r)
+                return True
+            
+        return False
         
     def getAll(self):
         return self.table

@@ -147,16 +147,34 @@ class RouterPB(pb.Root):
         self.log.debug('getGroup [%s] returned None', gid)
         return None
     
+    def getMORoute(self, order):
+        moroutes = self.mo_routing_table.getAll()
+        
+        for e in moroutes:
+            if order == e.keys()[0]:
+                self.log.debug('getMORoute [%s] returned a MORoute', order)
+                return e[order]
+        
+        self.log.debug('getMORoute [%s] returned None', order)
+        return None
+    
+    def getMTRoute(self, order):
+        mtroutes = self.mt_routing_table.getAll()
+        
+        for e in mtroutes:
+            if order == e.keys()[0]:
+                self.log.debug('getMTRoute [%s] returned a MTRoute', order)
+                return e[order]
+        
+        self.log.debug('getMTRoute [%s] returned None', order)
+        return None
+    
     def remote_persist(self, profile, scope = 'all'):
-        # Scope dependency check
-        if scope == 'users':
-            scope = 'all'
-
         try:
             if scope in ['all', 'groups']:
                 # Persist groups configuration
                 path = '%s/%s.router-groups' % (self.config.store_path, profile)
-                self.log.info('Persisting current groups configuration to [%s] profile in %s' % (profile, path))
+                self.log.info('Persisting current Groups configuration to [%s] profile in %s' % (profile, path))
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
@@ -167,12 +185,23 @@ class RouterPB(pb.Root):
             if scope in ['all', 'users']:
                 # Persist users configuration
                 path = '%s/%s.router-users' % (self.config.store_path, profile)
-                self.log.info('Persisting current users configuration to [%s] profile in %s' % (profile, path))
+                self.log.info('Persisting current Users configuration to [%s] profile in %s' % (profile, path))
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s\n' % time.strftime("%c"))
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
+                fh.close()
+
+            if scope in ['all', 'moroutes']:
+                # Persist users configuration
+                path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
+                self.log.info('Persisting current MORoutingTable to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
                 fh.close()
         except IOError:
             self.log.error('Cannot persist to %s' % path)
@@ -184,10 +213,6 @@ class RouterPB(pb.Root):
         return True
     
     def remote_load(self, profile, scope = 'all'):
-        # Scope dependency check
-        if scope == 'users':
-            scope = 'all'
-            
         try:
             if scope in ['all', 'groups']:
                 # Load groups configuration
@@ -224,6 +249,20 @@ class RouterPB(pb.Root):
                 # Adding new groups
                 self.users = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new Users (%d)' % len(self.users))
+
+            if scope in ['all', 'moroutes']:
+                # Load users configuration
+                path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile MO Routes configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Adding new MO Routes
+                self.mo_routing_table = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new MORoutingTable with %d routes' % len(self.mo_routing_table.getAll()))
         except IOError, e:
             self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
             return False
@@ -390,6 +429,16 @@ class RouterPB(pb.Root):
         
         return True
     
+    def remote_moroute_remove(self, order):
+        self.log.info('Removing MO Route [%s]', order)
+        
+        return self.mo_routing_table.remove(order)
+
+    def remote_mtroute_remove(self, order):
+        self.log.info('Removing MT Route [%s]', order)
+        
+        return self.mt_routing_table.remove(order)
+
     def remote_mtroute_flush(self):
         self.log.info('Flushing MT Routing table')
 

@@ -2,7 +2,6 @@ import inspect
 import pickle
 from managers import Manager, Session
 from filtersm import MOFILTERS
-from jasmin.routing.jasminApi import SmppClientConnector
 from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute)
 
 MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
@@ -86,9 +85,11 @@ def MORouteBuild(fn):
             else:
                 # DefaultRoute's order is always zero
                 if cmd == 'order':
-                    if arg != 0 and 'type' in self.sessBuffer and self.sessBuffer['type'] == 'DefaultRoute':
+                    if arg != '0' and 'type' in self.sessBuffer and self.sessBuffer['type'] == 'DefaultRoute':
                         self.sessBuffer['order'] = 0
                         return self.protocol.sendData('Route order forced to 0 since it is a DefaultRoute')
+                    elif arg == '0' and 'type' in self.sessBuffer and self.sessBuffer['type'] != 'DefaultRoute':
+                        return self.protocol.sendData('This route order (0) is reserved for DefaultRoute only')
                     elif not arg.isdigit() or int(arg) < 0:
                         return self.protocol.sendData('Route order must be a positive integer')
                     else:
@@ -96,11 +97,11 @@ def MORouteBuild(fn):
                     
                 # Validate connector
                 if cmd == 'connector':
-                    c = self.pb['smppcm'].getConnector(arg)
-                    if c is None:
+                    if arg not in  self.protocol.managers['httpccm'].httpccs:
                         return self.protocol.sendData('Unknown cid: %s' % (arg))
                     else:
-                        arg = SmppClientConnector(arg) # Can be a HttpConnector also
+                        # Pass ready HttpConnector instance
+                        arg = self.protocol.managers['httpccm'].httpccs[arg]
                     
                 # Validate connectors
                 if cmd == 'connectors':
@@ -110,11 +111,11 @@ def MORouteBuild(fn):
 
                     arg = []
                     for cid in CIDs:
-                        c = self.pb['smppcm'].getConnector(cid)
-                        if c is None:
+                        if cid not in self.protocol.managers['httpccm'].httpccs:
                             return self.protocol.sendData('Unknown cid: %s' % (cid))
                         else:
-                            arg.append(SmppClientConnector(cid)) # Can be a HttpConnector also
+                            # Pass ready HttpConnector instance
+                            arg.append(self.protocol.managers['httpccm'].httpccs[cid])
 
                 # Validate filters
                 if cmd == 'filters':
@@ -151,33 +152,84 @@ class MORouteExist:
         def exist_moroute_and_call(self, *args, **kwargs):
             opts = args[1]
             order = getattr(opts, order_key)
+            
+            if not order.isdigit() or int(order) < 0:
+                return self.protocol.sendData('MO Route order must be a positive integer')
     
-            raise NotImplementedError('TODO (ORDER:%s)' % order)
-            #if self.pb['router'].getUser(order) is not None:
-            #    return fn(self, *args, **kwargs)
+            if self.pb['router'].getMORoute(int(order)) is not None:
+                return fn(self, *args, **kwargs)
                 
-            return self.protocol.sendData('No mo routes at order %s' % order)
+            return self.protocol.sendData('Unknown MO Route: %s' % order)
         return exist_moroute_and_call
     
 class MoRouterManager(Manager):
     managerName = 'morouter'
     
     def persist(self, arg, opts):
-        print 'NotImplemented persist method in %s manager' % self.managerName
-        
+        if self.pb['router'].remote_persist(opts.profile, 'moroutes'):
+            self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        else:
+            self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+    
     def load(self, arg, opts):
-        print 'NotImplemented persist method in %s manager' % self.managerName
-            
+        r = self.pb['router'].remote_load(opts.profile, 'moroutes')
+
+        if r:
+            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        else:
+            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+           
     def list(self, arg, opts):
-        raise NotImplementedError
+        moroutes = pickle.loads(self.pb['router'].remote_moroute_get_all())
+        counter = 0
+        
+        if (len(moroutes)) > 0:
+            self.protocol.sendData("#%s %s %s %s" % ('MO Route order'.ljust(16),
+                                                                        'Type'.ljust(23),
+                                                                        'Connector ID(s)'.ljust(32),
+                                                                        'Filter(s)'.ljust(64),
+                                                                        ), prompt=False)
+            for e in moroutes:
+                order = e.keys()[0]
+                moroute = e[order]
+                counter += 1
+                
+                connectors = ''
+                # Prepare display for connectors
+                if type(moroute.connector) is list:
+                    for c in moroute.connector:
+                        if connectors != '':
+                            connectors+= ', '
+                        connectors+= c.cid
+                else:
+                    connectors = moroute.connector.cid
+                    
+                filters = ''
+                # Prepare display for filters
+                for f in moroute.filters:
+                    if filters != '':
+                        filters+= ', '
+                    filters+= repr(f)
+
+                self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(16),
+                                                                  str(moroute.__class__.__name__).ljust(23),
+                                                                  connectors.ljust(32),
+                                                                  filters.ljust(64),
+                                                                  ), prompt=False)
+                self.protocol.sendData(prompt=False)        
+        
+        self.protocol.sendData('Total MO Routes: %s' % counter)
     
     @Session
     @MORouteBuild
     def add_session(self, order, RouteInstance):
-        self.pb['router'].remote_moroute_add(pickle.dumps(RouteInstance, 2), order)
+        st = self.pb['router'].remote_moroute_add(pickle.dumps(RouteInstance, 2), order)
         
-        self.protocol.sendData('Successfully added MORoute [%s] with order:%s' % (RouteInstance.__class__.__name__, order), prompt=False)
-        self.stopSession()
+        if st:
+            self.protocol.sendData('Successfully added MORoute [%s] with order:%s' % (RouteInstance.__class__.__name__, order), prompt=False)
+            self.stopSession()
+        else:
+            self.protocol.sendData('Failed adding MORoute, check log for details')
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Route: (ok: save, ko: exit)',
@@ -185,11 +237,19 @@ class MoRouterManager(Manager):
     
     @MORouteExist(order_key='remove')
     def remove(self, arg, opts):
-        raise NotImplementedError
+        st = self.pb['router'].remote_moroute_remove(int(opts.remove))
+        
+        if st:
+            self.protocol.sendData('Successfully removed MO Route with order:%s' % opts.remove)
+        else:
+            self.protocol.sendData('Failed removing MO Route, check log for details')
     
     @MORouteExist(order_key='show')
     def show(self, arg, opts):
-        raise NotImplementedError
+        r = self.pb['router'].getMORoute(int(opts.show))
+        self.protocol.sendData(str(r))
         
     def flush(self, arg, opts):
-        raise NotImplementedError
+        tableSize = len(pickle.loads(self.pb['router'].remote_moroute_get_all()))
+        self.pb['router'].remote_moroute_flush()
+        self.protocol.sendData('Successfully flushed MO Route table (%s flushed entries)' % tableSize)

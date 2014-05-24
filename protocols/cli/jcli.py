@@ -10,6 +10,7 @@ from groupsm import GroupsManager
 from morouterm import MoRouterManager
 from mtrouterm import MtRouterManager
 from filtersm import FiltersManager
+from httpccm import HttpccManager
 from optparse import make_option, Option, OptionValueError, OptParseError
 from copy import copy
         
@@ -35,11 +36,14 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('mtrouter')
         if 'smppccm' not in self.commands:
             self.commands.append('smppccm')
+        if 'httpccm' not in self.commands:
+            self.commands.append('httpccm')
         
         # Provision managers
         self.managers = {'user': UsersManager(self, factory.pb), 'group': GroupsManager(self, factory.pb), 
                          'morouter': MoRouterManager(self, factory.pb), 'mtrouter': MtRouterManager(self, factory.pb), 
-                         'smppccm': SmppCCManager(self, factory.pb), 'filter': FiltersManager(self, None)}
+                         'smppccm': SmppCCManager(self, factory.pb), 'filter': FiltersManager(self),
+                         'httpccm': HttpccManager(self)}
         
     @options([make_option('-l', '--list', action="store_true",
                           help="List all users or a group users when provided with GID"),
@@ -115,6 +119,29 @@ class JCliProtocol(CmdProtocol):
             self.managers['filter'].remove(arg, opts)
         elif opts.show:
             self.managers['filter'].show(arg, opts)
+        else:
+            return self.sendData('Missing required option')
+
+    @options([make_option('-l', '--list', action="store_true",
+                          help="List HTTP client connectors"),
+              make_option('-a', '--add', action="store_true",
+                          help="Add a new HTTP client connector"),
+              make_option('-r', '--remove', type="string", metavar="CID", 
+                          help="Remove HTTP client connector using it's CID"),
+              make_option('-s', '--show', type="string", metavar="CID", 
+                          help="Show HTTP client connector using it's CID"),
+              ], '')
+    def do_httpccm(self, arg, opts = None):
+        'HTTP client connector management'
+
+        if opts.list:
+            self.managers['httpccm'].list(arg, opts)
+        elif opts.add:
+            self.managers['httpccm'].add(arg, opts)
+        elif opts.remove:
+            self.managers['httpccm'].remove(arg, opts)
+        elif opts.show:
+            self.managers['httpccm'].show(arg, opts)
         else:
             return self.sendData('Missing required option')
 

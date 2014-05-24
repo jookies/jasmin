@@ -87,7 +87,7 @@ def FilterBuild(fn):
                         break
                 
                 if _type is None:
-                    return self.protocol.sendData('Unknown Filter type:%s, available types: %s' % (arg, ', '.join(FILTERS)))
+                    return self.protocol.sendData('Unknown Filter type: "%s", available types: %s' % (arg, ', '.join(FILTERS)))
                 
                 # Before setting a new filter class, remove any previous filter
                 # sessBuffer keys
@@ -212,6 +212,13 @@ class FiltersManager(Manager):
     managerName = 'filter'
     filters = {}
     
+    def __init__(self, protocol):
+        Manager.__init__(self, protocol, None)
+        
+        # Load filters from disk on each instanciation with a jcli session
+        # Since there's no PB, the filters belong to the current jcli session context
+        self._load(protocol.factory.config.load_profile)
+    
     def persist(self, arg, opts):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, opts.profile)
         
@@ -229,7 +236,12 @@ class FiltersManager(Manager):
         self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         
     def load(self, arg, opts):
-        path = '%s/%s.filters' % (CONFIG_STORE_PATH, opts.profile)
+        self._load(opts.profile)
+
+        self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        
+    def _load(self, profile):
+        path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
 
         try:
             # Load configuration from file
@@ -243,8 +255,6 @@ class FiltersManager(Manager):
             return self.protocol.sendData('Cannot load configuration from %s: %s' % (path, str(e)))
         except Exception, e:
             return self.protocol.sendData('Unknown error occurred while loading configuration: %s' % e)
-
-        self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
                     
     def list(self, arg, opts):
         counter = 0

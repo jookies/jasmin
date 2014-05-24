@@ -19,6 +19,9 @@ class Route:
     When more than one Filter is given, matching these filters will use the AND operator
     """
     type = 'generick'
+    _str = 'generick'
+    filters = []
+    connector = None
 
     def __init__(self, filters, connector):
         if not isinstance(connector, Connector):
@@ -33,6 +36,10 @@ class Route:
         
         self.connector = connector
         self.filters = filters
+        self._str = '%s to cid:%s' % (self.__class__.__name__, connector.cid)
+        
+    def __str__(self):
+        return self._str
         
     def getConnector(self):
         return self.connector
@@ -59,6 +66,7 @@ class DefaultRoute(Route):
             raise InvalidRouteParameterError("connector is not an instance of Connector")
 
         self.connector = connector
+        self._str = '%s to cid:%s' % (self.__class__.__name__, connector.cid)
 
     def matchFilters(self, routable):
         return self.getConnector()
@@ -101,6 +109,16 @@ class RoundrobinRoute():
         self.connector = connectors
         self.filters = filters
         
+        connectorList_str = ''
+        for c in connectors:
+            if connectorList_str != '':
+                connectorList_str+= '\n'
+            connectorList_str+= '\t- %s' % c.cid
+        self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__, len(connectors), connectorList_str)
+        
+    def __str__(self):
+        return self._str
+
     def getConnector(self):
         return random.choice(self.connector)
 

@@ -226,7 +226,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
             helpText = self.helpHeaders['commands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['commands'])
             for cmd in self.commands:
                 helpText+= "\n"
-                helpText+= '%s\t\t' % cmd
+                helpText+= '%s' % cmd.ljust(20)
                 doc = getattr(self, 'do_' + cmd).__doc__
                 if doc:
                     helpText+= str(doc)
@@ -237,7 +237,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
             helpText+= '\n\n'+self.helpHeaders['baseCommands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['baseCommands'])
             for cmd in self.baseCommands:
                 helpText+= "\n"
-                helpText+= '%s\t\t' % cmd
+                helpText+= '%s' % cmd.ljust(20)
                 doc = getattr(self, 'do_' + cmd).__doc__
                 if doc:
                     helpText+= str(doc)
