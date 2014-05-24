@@ -19,6 +19,10 @@ class RoutingTable:
             raise InvalidRoutingTableParameterError("route is not an instance of Route")
         if not isinstance(order, int):
             raise InvalidRoutingTableParameterError("order is not an integer")
+        if self.type == 'mo' and route.connector.type not in ['http', 'smpps']:
+            raise InvalidRoutingTableParameterError("incorrect connector '%s' type for MO Route" % (route.connector.type))
+        if self.type == 'mt' and route.connector.type not in ['smppc']:
+            raise InvalidRoutingTableParameterError("incorrect connector '%s' type for MT Route" % (route.connector.type))
         if order < 0:
             raise InvalidRoutingTableParameterError("order must be 0 (default route) or greater")
         if order != 0 and route.type != self.type:

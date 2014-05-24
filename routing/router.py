@@ -9,7 +9,7 @@ from twisted.spread import pb
 from twisted.internet import defer
 from txamqp.queue import Closed
 from content import RoutedDeliverSmContent
-from RoutingTables import MORoutingTable, MTRoutingTable
+from RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
 from Routables import RoutableDeliverSm
 from jasminApi import Connector
 from copy import copy
@@ -363,14 +363,32 @@ class RouterPB(pb.Root):
         self.log.debug('Adding a MT Route, order = %s, route = %s' % (order, route))
         self.log.info('Adding a MT Route with order %s', order)
 
-        return self.mt_routing_table.add(route, order)
+        try:
+            self.mt_routing_table.add(route, order)
+        except InvalidRoutingTableParameterError, e:
+            self.log.error('Cannot add MT Route: %s' % (str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while adding MT Route: %s' % (str(e)))
+            return False
+        
+        return True
     
     def remote_moroute_add(self, route, order):
         route = pickle.loads(route)
         self.log.debug('Adding a MO Route, order = %s, route = %s' % (order, route))
         self.log.info('Adding a MO Route with order %s', order)
 
-        return self.mo_routing_table.add(route, order)
+        try:
+            self.mo_routing_table.add(route, order)
+        except InvalidRoutingTableParameterError, e:
+            self.log.error('Cannot add MO Route: %s' % (str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while adding MO Route: %s' % (str(e)))
+            return False
+        
+        return True
     
     def remote_mtroute_flush(self):
         self.log.info('Flushing MT Routing table')

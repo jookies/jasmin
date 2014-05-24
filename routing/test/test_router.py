@@ -34,7 +34,7 @@ from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
 from jasmin.routing.Filters import GroupFilter
-from jasmin.routing.jasminApi import Connector, HttpConnector, Group, User
+from jasmin.routing.jasminApi import *
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from jasmin.vendor.smpp.pdu.pdu_types import EsmClass, EsmClassMode, MoreMessagesToSend
@@ -152,8 +152,8 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     def test_add_list_and_flush_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], Connector(id_generator())), 2)
-        yield self.mtroute_add(DefaultRoute(Connector(id_generator())), 0)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
         
@@ -179,6 +179,29 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
         
+class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_add_mt_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        r = yield self.mtroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        self.assertFalse(r)
+        r = yield self.mtroute_add(DefaultRoute(Connector(id_generator())), 0)
+        self.assertFalse(r)
+        r = yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        self.assertTrue(r)
+        
+    @defer.inlineCallbacks
+    def test_add_mo_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        r = yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        self.assertTrue(r)
+        r = yield self.moroute_add(DefaultRoute(Connector(id_generator())), 0)
+        self.assertFalse(r)
+        r = yield self.moroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        self.assertFalse(r)
+
 class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_add_user_without_group(self):
@@ -524,7 +547,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         g1 = Group(1)
         yield self.group_add(g1)
         
-        c1 = Connector(id_generator())
+        c1 = SmppClientConnector(id_generator())
         u1 = User(1, g1, 'username', 'password')
         u2 = User(1, g1, 'username2', 'password2')
         yield self.user_add(u1)
@@ -598,7 +621,7 @@ class SubmitSmTestCaseTools():
         g1 = Group(1)
         yield self.group_add(g1)
         
-        self.c1 = Connector(id_generator())
+        self.c1 = SmppClientConnector(id_generator())
         self.u1 = User(1, g1, 'username', 'password')
         yield self.user_add(self.u1)
         yield self.mtroute_add(DefaultRoute(self.c1), 0)

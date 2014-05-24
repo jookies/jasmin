@@ -19,13 +19,15 @@ class Connector(jasminApiObject):
         self.cid = cid
         
 class HttpConnector(Connector):
+    type = 'http'
+
     def __init__(self, cid, baseurl, method = 'GET'):
         Connector.__init__(self, cid)
-        self.type = 'http'
         self.baseurl = baseurl
         self.method = method
         
 class SmppClientConnector(Connector):
+    type = 'smppc'
+    
     def __init__(self, cid):
         Connector.__init__(self, cid)
-        self.type = 'smppc'
