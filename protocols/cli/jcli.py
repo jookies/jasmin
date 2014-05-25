@@ -172,10 +172,32 @@ class JCliProtocol(CmdProtocol):
         else:
             return self.sendData('Missing required option')
         
+    @options([make_option('-l', '--list', action="store_true",
+                          help="List MT routes"),
+              make_option('-a', '--add', action="store_true",
+                          help="Add a new MT route"),
+              make_option('-r', '--remove', type="string", metavar="ORDER", 
+                          help="Remove MT route using it's ORDER"),
+              make_option('-s', '--show', type="string", metavar="ORDER", 
+                          help="Show MT route using it's ORDER"),
+              make_option('-f', '--flush', action="store_true",
+                          help="Flush MT routing table"),
+              ], '')
     def do_mtrouter(self, arg, opts = None):
         'MT Router management'
 
-        pass
+        if opts.list:
+            self.managers['mtrouter'].list(arg, opts)
+        elif opts.add:
+            self.managers['mtrouter'].add(arg, opts)
+        elif opts.remove:
+            self.managers['mtrouter'].remove(arg, opts)
+        elif opts.show:
+            self.managers['mtrouter'].show(arg, opts)
+        elif opts.flush:
+            self.managers['mtrouter'].flush(arg, opts)
+        else:
+            return self.sendData('Missing required option')
     
     @options([make_option('-l', '--list', action="store_true",
                           help="List SMPP connectors"),

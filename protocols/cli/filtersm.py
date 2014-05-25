@@ -245,8 +245,8 @@ class FiltersManager(Manager):
             self._load(opts.profile)
             
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
-        except Exception, e:
-            self.protocol.sendData('Config loading error: %s' % str(e))
+        except:
+            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         
     def _load(self, profile):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
@@ -260,9 +260,9 @@ class FiltersManager(Manager):
             # Apply configuration
             self.filters = pickle.loads(''.join(lines[1:]))
         except IOError, e:
-            raise Exception('Cannot load configuration from %s: %s' % (path, str(e)))
+            raise Exception('Cannot load from %s: %s' % (path, str(e)))
         except Exception, e:
-            raise Exception('Unknown error occurred while loading configuration: %s' % e)
+            raise Exception('Unknown error while loading configuration: %s' % e)
                     
     def list(self, arg, opts):
         counter = 0
