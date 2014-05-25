@@ -82,7 +82,7 @@ class BasicTestCase(CmdProtocolTestCases):
                         '', 
                         'Control commands:', 
                         '=================', 
-                        'quit\t\tDisconnect from console', 
-                        'help\t\tList available commands with "help" or detailed help with "help cmd".']
+                        'quit                Disconnect from console', 
+                        'help                List available commands with "help" or detailed help with "help cmd".']
         commands = [{'command': 'help', 'expect': expectedList}]
         return self._test('>>> ', commands)

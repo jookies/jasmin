@@ -67,10 +67,10 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
     _routingTable = MTRoutingTable    
     
     def setUp(self):
-        self.connector1 = Connector('abc')
-        self.connector2 = Connector('def')
-        self.connector3 = Connector('ghi')
-        self.connector4 = Connector('jkl')
+        self.connector1 = SmppClientConnector('abc')
+        self.connector2 = SmppClientConnector('def')
+        self.connector3 = SmppClientConnector('ghi')
+        self.connector4 = SmppClientConnector('jkl')
         self.group100 = Group(100)
         self.user1 = User(1, self.group100, 'username', 'password')
         self.user2 = User(2, self.group100, 'username', 'password')

@@ -10,7 +10,7 @@ from jasmin.routing.router import RouterPB
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.routing.jasminApi import User, Group, Connector
+from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.Routes import DefaultRoute
 
 class HTTPApiTestCases(TestCase):
@@ -22,7 +22,7 @@ class HTTPApiTestCases(TestCase):
         
         # Provision Router with User and Route
         RouterPB_f.users.append(User(1, Group(1), 'fourat', 'correct'))
-        RouterPB_f.mt_routing_table.add(DefaultRoute(Connector('abc')), 0)
+        RouterPB_f.mt_routing_table.add(DefaultRoute(SmppClientConnector('abc')), 0)
 
         # Instanciate a SMPPClientManagerPB (a requirement for HTTPApi)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()

@@ -217,7 +217,12 @@ class FiltersManager(Manager):
         
         # Load filters from disk on each instanciation with a jcli session
         # Since there's no PB, the filters belong to the current jcli session context
-        self._load(protocol.factory.config.load_profile)
+        try:
+            self._load(protocol.factory.config.load_profile)
+            
+            protocol.log.info('%s configuration loaded (profile:%s)' % (self.managerName, protocol.factory.config.load_profile))
+        except Exception, e:
+            protocol.log.error('Config loading error: %s' % str(e))
     
     def persist(self, arg, opts):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, opts.profile)
@@ -236,9 +241,12 @@ class FiltersManager(Manager):
         self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         
     def load(self, arg, opts):
-        self._load(opts.profile)
-
-        self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        try:
+            self._load(opts.profile)
+            
+            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        except Exception, e:
+            self.protocol.sendData('Config loading error: %s' % str(e))
         
     def _load(self, profile):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
@@ -252,9 +260,9 @@ class FiltersManager(Manager):
             # Apply configuration
             self.filters = pickle.loads(''.join(lines[1:]))
         except IOError, e:
-            return self.protocol.sendData('Cannot load configuration from %s: %s' % (path, str(e)))
+            raise Exception('Cannot load configuration from %s: %s' % (path, str(e)))
         except Exception, e:
-            return self.protocol.sendData('Unknown error occurred while loading configuration: %s' % e)
+            raise Exception('Unknown error occurred while loading configuration: %s' % e)
                     
     def list(self, arg, opts):
         counter = 0

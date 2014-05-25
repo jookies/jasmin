@@ -57,17 +57,20 @@ class BasicTestCase(jCliTestCases):
     def test_help(self):
         expectedList = ['Available commands:', 
                         '===================', 
-                        'persist\t\tPersist current configuration profile to disk in PROFILE', 
-                        'load\t\tLoad configuration PROFILE profile from disk', 
-                        'user\t\tUser management', 
-                        'group\t\tGroup management', 
-                        'router\t\tRouter management', 
-                        'smppccm\t\tSMPP connector management', 
+                        'persist             Persist current configuration profile to disk in PROFILE', 
+                        'load                Load configuration PROFILE profile from disk', 
+                        'user                User management', 
+                        'group               Group management', 
+                        'filter              Filter management', 
+                        'morouter            MO Router management', 
+                        'mtrouter            MT Router management', 
+                        'smppccm             SMPP connector management', 
+                        'httpccm             HTTP client connector management', 
                         '', 
                         'Control commands:', 
                         '=================', 
-                        'quit\t\tDisconnect from console', 
-                        'help\t\tList available commands with "help" or detailed help with "help cmd".']
+                        'quit                Disconnect from console', 
+                        'help                List available commands with "help" or detailed help with "help cmd".']
         commands = [{'command': 'help', 'expect': expectedList}]
         return self._test('jcli : ', commands)
     
