@@ -41,7 +41,7 @@ class HttpConnector(Connector):
             raise jasminApiInvalidParamError('HttpConnector cid syntax is invalid')
         # Validate method
         if method.lower() not in ['get', 'post']:
-            raise jasminApiInvalidParamError('HttpConnector methid syntax is invalid, must be GET or POST')
+            raise jasminApiInvalidParamError('HttpConnector method syntax is invalid, must be GET or POST')
         # Validate baseurl
         regex = re.compile(
                            #r'^(?:http|ftp)s?://' # http:// or https://
