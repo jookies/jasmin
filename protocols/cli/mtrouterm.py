@@ -116,7 +116,7 @@ def MTRouteBuild(fn):
                             return self.protocol.sendData('Unknown cid: %s' % (cid))
                         else:
                             # Make instance of SmppClientConnector
-                            arg.append(SmppClientConnector(self.pb['smppcm'].getConnector(arg)['id']))
+                            arg.append(SmppClientConnector(self.pb['smppcm'].getConnector(cid)['id']))
 
                 # Validate filters
                 if cmd == 'filters':

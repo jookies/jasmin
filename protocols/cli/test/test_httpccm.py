@@ -88,7 +88,7 @@ class BasicTestCases(HttpccTestCases):
         commands = [{'command': 'httpccm -u %s' % cid, 'expect': 'no such option\: -u'}]
         return self._test(r'jcli : ', commands)
 
-    def test_remove_invalid_fid(self):
+    def test_remove_invalid_cid(self):
         commands = [{'command': 'httpccm -r invalid_cid', 'expect': r'Unknown Httpcc\: invalid_cid'}]
         return self._test(r'jcli : ', commands)
     

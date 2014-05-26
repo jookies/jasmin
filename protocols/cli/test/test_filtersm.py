@@ -147,7 +147,7 @@ class FilterTypingTestCases(FiltersTestCases):
     def test_add_TransparentFilter(self):
         ftype = 'TransparentFilter'
         _str_ = '%s' % ftype
-        _repr_ = '<TransparentFilter>'
+        _repr_ = '<%s>' % ftype
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
