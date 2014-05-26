@@ -146,7 +146,7 @@ class FilterTypingTestCases(FiltersTestCases):
             
     def test_add_TransparentFilter(self):
         ftype = 'TransparentFilter'
-        _str_ = 'TransparentFilter'
+        _str_ = '%s' % ftype
         _repr_ = '<TransparentFilter>'
         
         # Add filter
@@ -158,15 +158,15 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = ['%s' % _str_]
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s      MO MT  <%s>' % (ftype, ftype),  
+                        '#filter_id        %s      MO MT  %s' % (ftype, _repr_),  
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
     def test_add_UserFilter(self):
         uid = '1'
         ftype = 'UserFilter'
-        _str_ = ['UserFilter:', 'uid = %s' % uid]
-        _repr_ = '<UserFilter>'
+        _str_ = ['%s:' % ftype, 'uid = %s' % uid]
+        _repr_ = '<%s \(uid=%s\)>' % (ftype, uid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -178,15 +178,15 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s             MT     <%s \(uid=%s\)>' % (ftype, ftype, uid), 
+                        '#filter_id        %s             MT     %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
     def test_add_GroupFilter(self):
         gid = '1'
         ftype = 'GroupFilter'
-        _str_ = ['GroupFilter:', 'gid = %s' % gid]
-        _repr_ = '<GroupFilter>'
+        _str_ = ['%s:' % ftype, 'gid = %s' % gid]
+        _repr_ = '<%s \(gid=%s\)>' % (ftype, gid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -198,15 +198,15 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s            MT     <%s \(gid=%s\)>' % (ftype, ftype, gid), 
+                        '#filter_id        %s            MT     %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
     def test_add_ConnectorFilter(self):
         cid = '1'
         ftype = 'ConnectorFilter'
-        _str_ = ['ConnectorFilter:', 'cid = %s' % cid]
-        _repr_ = '<ConnectorFilter>'
+        _str_ = ['%s:' % ftype, 'cid = %s' % cid]
+        _repr_ = '<%s \(cid=%s\)>' % (ftype, cid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -218,15 +218,15 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s        MO     <%s \(cid=%s\)>' % (ftype, ftype, cid), 
+                        '#filter_id        %s        MO     %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
     def test_add_SourceAddrFilter(self):
         source_addr = '16'
         ftype = 'SourceAddrFilter'
-        _str_ = ['SourceAddrFilter:', 'source_addr = %s' % source_addr]
-        _repr_ = '<SourceAddrFilter>'
+        _str_ = ['%s:' % ftype, 'source_addr = %s' % source_addr]
+        _repr_ = '<%s \(src_addr=%s\)>' % (ftype, source_addr)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -238,15 +238,15 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s       MO     <%s \(src_addr=%s\)>' % (ftype, ftype, source_addr), 
+                        '#filter_id        %s       MO     %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
     def test_add_DestinationAddrFilter(self):
         destination_addr = '16'
         ftype = 'DestinationAddrFilter'
-        _str_ = ['DestinationAddrFilter:', 'destination_addr = %s' % destination_addr]
-        _repr_ = '<DestinationAddrFilter>'
+        _str_ = ['%s:' % ftype, 'destination_addr = %s' % destination_addr]
+        _repr_ = '<%s \(dst_addr=%s\)>' % (ftype, destination_addr)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -258,15 +258,15 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s  MO MT  <%s \(dst_addr=%s\)>' % (ftype, ftype, destination_addr), 
+                        '#filter_id        %s  MO MT  %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
     def test_add_ShortMessageFilter(self):
         short_message = 'Hello'
         ftype = 'ShortMessageFilter'
-        _str_ = ['ShortMessageFilter:', 'short_message = %s' % short_message]
-        _repr_ = '<ShortMessageFilter>'
+        _str_ = ['%s:' % ftype, 'short_message = %s' % short_message]
+        _repr_ = '<%s \(msg=%s\)>' % (ftype, short_message)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -278,7 +278,7 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s     MO MT  <%s \(msg=%s\)>' % (ftype, ftype, short_message), 
+                        '#filter_id        %s     MO MT  %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
@@ -287,8 +287,8 @@ class FilterTypingTestCases(FiltersTestCases):
         rightBorder = '2016-05-02'
         dateInterval = '%s;%s' % (leftBorder, rightBorder)
         ftype = 'DateIntervalFilter'
-        _str_ = ['DateIntervalFilter:', 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
-        _repr_ = '<DateIntervalFilter>'
+        _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
+        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -300,7 +300,7 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s     MO MT  <%s \(%s,%s\)>' % (ftype, ftype, leftBorder, rightBorder), 
+                        '#filter_id        %s     MO MT  %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
@@ -309,8 +309,8 @@ class FilterTypingTestCases(FiltersTestCases):
         rightBorder = '14:00:00'
         timeInterval = '%s;%s' % (leftBorder, rightBorder)
         ftype = 'TimeIntervalFilter'
-        _str_ = ['TimeIntervalFilter:', 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
-        _repr_ = '<TimeIntervalFilter>'
+        _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
+        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -322,7 +322,7 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s     MO MT  <%s \(%s,%s\)>' % (ftype, ftype, leftBorder, rightBorder), 
+                        '#filter_id        %s     MO MT  %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
@@ -332,8 +332,8 @@ class FilterTypingTestCases(FiltersTestCases):
         open(pyCodeFile, 'w')
         
         ftype = 'EvalPyFilter'
-        _str_ = ['EvalPyFilter:', '']
-        _repr_ = '<EvalPyFilter>'
+        _str_ = ['%s:' % ftype, '']
+        _repr_ = '<%s \(pyCode= ..\)>' % ftype
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -345,7 +345,7 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s           MO MT  <%s \(pyCode= ..\)>' % (ftype, ftype), 
+                        '#filter_id        %s           MO MT  %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
         
@@ -354,8 +354,7 @@ class FilterTypingTestCases(FiltersTestCases):
         
     def test_add_EvalPyFilter_withCode(self):
         pyCodeFile = 'pyCode.py'
-        pyCode = """
-# Will filter all messages having 'hello world' in their content
+        pyCode = """# Will filter all messages having 'hello world' in their content
 if routable.pdu.params['short_message'] == 'hello world':
     result = True
 else:
@@ -367,8 +366,9 @@ else:
             f.write(pyCode)
         
         ftype = 'EvalPyFilter'
-        _str_ = ['EvalPyFilter:', '']
-        _repr_ = '<EvalPyFilter>'
+        _str_ = ['%s:' % ftype]
+        _str_.extend([y for y in (re.escape(x.strip()) for x in pyCode.splitlines()) if y])
+        _repr_ = '<%s \(pyCode=%s ..\)>' % (ftype, pyCode[:10].replace('\n', ''))
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -380,7 +380,7 @@ else:
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_id        %s           MO MT  <%s \(pyCode=%s ..\)>' % (ftype, ftype, pyCode[:10].replace('\n', '')), 
+                        '#filter_id        %s           MO MT  %s' % (ftype, _repr_), 
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
         
