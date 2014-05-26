@@ -68,10 +68,11 @@ class HttpccManager(Manager):
     used to simplify route adding syntax by creating reusable httpccs, these httpccs are saved in
     self.httpccs'''
     managerName = 'httpcc'
-    httpccs = {}
     
     def __init__(self, protocol):
         Manager.__init__(self, protocol, None)
+        
+        self.httpccs = {}
         
         # Load httpccs from disk on each instanciation with a jcli session
         # Since there's no PB, the httpcs belong to the current jcli session context

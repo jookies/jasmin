@@ -187,7 +187,7 @@ class DateIntervalFilter(Filter):
         Filter.__init__(self, dateInterval = dateInterval)
         
         self._repr = '<%s (%s,%s)>' % (self.__class__.__name__, dateInterval[0], dateInterval[1])
-        self._str = '%s:\Left border = %s\nRight border = %s' % (self.__class__.__name__, dateInterval[0], dateInterval[1])
+        self._str = '%s:\nLeft border = %s\nRight border = %s' % (self.__class__.__name__, dateInterval[0], dateInterval[1])
 
     def match(self, routable):
         Filter.match(self, routable)
@@ -199,7 +199,7 @@ class TimeIntervalFilter(Filter):
         Filter.__init__(self, timeInterval = timeInterval)
         
         self._repr = '<%s (%s,%s)>' % (self.__class__.__name__, timeInterval[0], timeInterval[1])
-        self._str = '%s:\Left border = %s\nRight border = %s' % (self.__class__.__name__, timeInterval[0], timeInterval[1])
+        self._str = '%s:\nLeft border = %s\nRight border = %s' % (self.__class__.__name__, timeInterval[0], timeInterval[1])
 
     def match(self, routable):
         Filter.match(self, routable)

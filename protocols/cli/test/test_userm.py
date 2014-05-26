@@ -1,6 +1,6 @@
 from test_jcli import jCliTestCases
     
-class UserTestCase(jCliTestCases):
+class UserTestCases(jCliTestCases):
     def add_user(self, finalPrompt, extraCommands = [], GID = None, Username = None):
         sessionTerminated = False
         commands = []
@@ -27,6 +27,8 @@ class UserTestCase(jCliTestCases):
             commands.append({'command': 'ok', 'expect': r'Successfully added User \['})
 
         return self._test(finalPrompt, commands)
+    
+class BasicTestCases(UserTestCases):
     
     def test_list(self):
         commands = [{'command': 'user -l', 'expect': r'Total Users: 0'}]

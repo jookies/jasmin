@@ -1,6 +1,6 @@
 from test_jcli import jCliTestCases
     
-class GroupTestCase(jCliTestCases):
+class GroupTestCases(jCliTestCases):
     def add_group(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
@@ -15,6 +15,8 @@ class GroupTestCase(jCliTestCases):
             commands.append({'command': 'ok', 'expect': r'Successfully added Group \['})
 
         return self._test(finalPrompt, commands)
+    
+class BasicTestCases(GroupTestCases):
     
     def test_list(self):
         commands = [{'command': 'group -l', 'expect': r'Total Groups: 0'}]

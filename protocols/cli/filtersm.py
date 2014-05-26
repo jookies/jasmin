@@ -173,8 +173,12 @@ def FilterBuild(fn):
                             
                         # Test compilation of the script
                         compile(pyCode, '', 'exec')
-                    except (IOError, SyntaxError), e:
-                        return self.protocol.sendData('%s' % str(e))
+                    except IOError, e:
+                        return self.protocol.sendData('[IO]: %s' % str(e))
+                    except SyntaxError, e:
+                        return self.protocol.sendData('[Syntax]: %s' % str(e))
+                    except e:
+                        return self.protocol.sendData('[Unknown]: %s' % str(e))
                     
                     arg = pyCode
 
@@ -210,10 +214,11 @@ class FiltersManager(Manager):
     used to simplify route adding syntax by creating reusable filters, these filters are saved in
     self.filters'''
     managerName = 'filter'
-    filters = {}
     
     def __init__(self, protocol):
         Manager.__init__(self, protocol, None)
+        
+        self.filters = {}
         
         # Load filters from disk on each instanciation with a jcli session
         # Since there's no PB, the filters belong to the current jcli session context

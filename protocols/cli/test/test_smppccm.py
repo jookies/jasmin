@@ -1,7 +1,7 @@
 from twisted.internet import defer
 from test_jcli import jCliTestCases
     
-class SmppccmTestCase(jCliTestCases):
+class SmppccmTestCases(jCliTestCases):
     # Wait delay for 
     wait = 0.3
     
@@ -19,6 +19,8 @@ class SmppccmTestCase(jCliTestCases):
             commands.append({'command': 'ok', 'expect': r'Successfully added connector \[', 'wait': self.wait})
 
         return self._test(finalPrompt, commands)
+    
+class BasicTestCases(SmppccmTestCases):
     
     def test_list(self):
         commands = [{'command': 'smppccm -l', 'expect': r'Total connectors: 0'}]
