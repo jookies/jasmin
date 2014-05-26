@@ -6,7 +6,7 @@ pyOpenSSL
 twisted
 sphinx
 pyparsing
-dateutil
+python-dateutil
 
 # Requirements used for testing only:
 testfixtures
