@@ -42,6 +42,21 @@ class RoutingTableTests():
         routing_t.add(self.mt_route3, 2)
     
         self.assertEqual(routing_t.getAll()[0].values()[0], self.mt_route3)
+        
+    def test_remove_route(self):
+        routing_t = self._routingTable()
+        routing_t.add(self.mt_route2, 2)
+        routing_t.add(self.mt_route1, 1)
+        routing_t.add(self.mt_route4, 0)
+        self.assertEqual(len(routing_t.getAll()), 3)
+        
+        # Remove non existent route
+        r = routing_t.remove(3)
+        self.assertFalse(r)
+        
+        # List after removing one route 
+        routing_t.remove(1)
+        self.assertEqual(len(routing_t.getAll()), 2)
 
     def test_default_route(self):
         routing_t = self._routingTable()

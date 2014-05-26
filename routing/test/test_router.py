@@ -165,6 +165,22 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(0, len(listRet2))
         
     @defer.inlineCallbacks
+    def test_add_list_and_remove_mt_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        listRet1 = yield self.mtroute_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtroute_remove(2)
+        listRet2 = yield self.mtroute_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(2, len(listRet1))
+        self.assertEqual(1, len(listRet2))
+
+    @defer.inlineCallbacks
     def test_add_list_and_flush_mo_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
@@ -179,6 +195,21 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
         
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_mo_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        listRet1 = yield self.moroute_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtroute_remove(0)
+        listRet2 = yield self.mtroute_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(1, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+
 class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_add_mt_route(self):

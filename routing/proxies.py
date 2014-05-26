@@ -93,6 +93,14 @@ class RouterPBProxy:
         return self.pb.callRemote('moroute_add', self.pickle(route), order)
     
     @ConnectedPB
+    def mtroute_remove(self, order):
+        return self.pb.callRemote('mtroute_remove', order)
+
+    @ConnectedPB
+    def moroute_remove(self, order):
+        return self.pb.callRemote('moroute_remove', order)
+
+    @ConnectedPB
     def mtroute_flush(self):
         return self.pb.callRemote('mtroute_flush')
     
