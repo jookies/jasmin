@@ -430,7 +430,7 @@ class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertFalse(loadRet)
 
     @defer.inlineCallbacks
-    def test_add_persist_and_load_default(self):
+    def test_add_users_and_groups_persist_and_load_default(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
         # Add users and groups
@@ -471,6 +471,91 @@ class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(2, len(c))
         # List groups
         c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+    @defer.inlineCallbacks
+    def test_add_all_persist_and_load_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # Add mo route
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1/any')), 0)
+        
+        # Add mt route
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mo routes
+        c = yield self.moroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mt routes
+        c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist
+        yield self.persist()
+
+        # Remove all users
+        yield self.user_remove_all()
+        # Remove all group
+        yield self.group_remove_all()
+        # Remove all mo routes
+        yield self.moroute_flush()
+        # Remove all mt routes
+        yield self.mtroute_flush()
+
+        # List and assert
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List mo routes
+        c = yield self.moroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List mt routes
+        c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load()
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mo routes
+        c = yield self.moroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mt routes
+        c = yield self.mtroute_get_all()
         c = pickle.loads(c)
         self.assertEqual(1, len(c))
 
@@ -570,6 +655,76 @@ class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
         c = pickle.loads(c)
         self.assertEqual(1, len(c))
         
+    @defer.inlineCallbacks
+    def test_persitance_flag(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Initially, all config is already persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+        
+        # Make config modifications and assert is_persisted()
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # Persist
+        yield self.persist()
+        
+        # Config is now persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Add mo route
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1/any')), 0)
+        
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        # Add mt route
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        
+        # Persist
+        yield self.persist()
+
+        # Config is now persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Remove all users
+        yield self.user_remove_all()
+        # Remove all group
+        yield self.group_remove_all()
+        # Remove all mo routes
+        yield self.moroute_flush()
+        # Remove all mt routes
+        yield self.mtroute_flush()
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        # Load
+        yield self.load()
+
+        # Config is now persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
     def test_delivery(self):

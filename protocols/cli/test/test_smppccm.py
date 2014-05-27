@@ -325,4 +325,4 @@ class BasicTestCases(SmppccmTestCases):
                         '#operator_16                         stopped None             1      1    ', 
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
-        yield self._test(r'jcli : ', commands)
+        yield self._test(r'jcli : ', commands)    

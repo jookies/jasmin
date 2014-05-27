@@ -35,8 +35,8 @@ class jCliTestCases(ProtocolTestCases):
         clientManager_f.addAmqpBroker(self.amqpBroker)
         
         # Connect to jCli server through a fake network transport
-        JCliConfigInstance = JCliConfig()
-        self.JCli_f = JCliFactory(JCliConfigInstance, clientManager_f, RouterPB_f)
+        self.JCliConfigInstance = JCliConfig()
+        self.JCli_f = JCliFactory(self.JCliConfigInstance, clientManager_f, RouterPB_f)
         self.proto = self.JCli_f.buildProtocol(('127.0.0.1', 0))
         self.tr = proto_helpers.StringTransport()
         self.proto.makeConnection(self.tr)
@@ -49,7 +49,7 @@ class jCliTestCases(ProtocolTestCases):
     def tearDown(self):
         self.amqpClient.disconnect()
         
-class BasicTestCase(jCliTestCases):
+class BasicTestCases(jCliTestCases):
     def test_quit(self):
         commands = [{'command': 'quit'}]
         return self._test(None, commands)
@@ -74,20 +74,30 @@ class BasicTestCase(jCliTestCases):
         commands = [{'command': 'help', 'expect': expectedList}]
         return self._test('jcli : ', commands)
     
+class PersistanceTestCases(jCliTestCases):
+
     @defer.inlineCallbacks
     def test_persist(self):
-        expectedList = [r'smppccm configuration persisted \(profile\:jcli-prod\)',
+        expectedList = [r'mtrouter configuration persisted \(profile:jcli-prod\)',
+                        r'filter configuration persisted \(profile\:jcli-prod\)',
                         r'group configuration persisted \(profile\:jcli-prod\)',
+                        r'smppcc configuration persisted \(profile\:jcli-prod\)',
+                        r'httpcc configuration persisted \(profile\:jcli-prod\)',
                         r'user configuration persisted \(profile\:jcli-prod\)',
+                        r'morouter configuration persisted \(profile\:jcli-prod\)',
                         ]
         commands = [{'command': 'persist', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
     def test_persist_profile(self):
-        expectedList = [r'smppccm configuration persisted \(profile\:testprofile\)',
+        expectedList = [r'mtrouter configuration persisted \(profile:testprofile\)',
+                        r'filter configuration persisted \(profile\:testprofile\)',
                         r'group configuration persisted \(profile\:testprofile\)',
+                        r'smppcc configuration persisted \(profile\:testprofile\)',
+                        r'httpcc configuration persisted \(profile\:testprofile\)',
                         r'user configuration persisted \(profile\:testprofile\)',
+                        r'morouter configuration persisted \(profile\:testprofile\)',
                         ]
         commands = [{'command': 'persist -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -98,9 +108,13 @@ class BasicTestCase(jCliTestCases):
         commands = [{'command': 'persist'}]
         yield self._test(r'jcli : ', commands)
 
-        expectedList = [r'smppccm configuration loaded \(profile\:jcli-prod\)',
+        expectedList = [r'mtrouter configuration loaded \(profile\:jcli-prod\)',
+                        r'filter configuration loaded \(profile\:jcli-prod\)',
                         r'group configuration loaded \(profile\:jcli-prod\)',
+                        r'smppcc configuration loaded \(profile\:jcli-prod\)',
+                        r'httpcc configuration loaded \(profile\:jcli-prod\)',
                         r'user configuration loaded \(profile\:jcli-prod\)',
+                        r'morouter configuration loaded \(profile\:jcli-prod\)',
                         ]
         commands = [{'command': 'load', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -111,15 +125,135 @@ class BasicTestCase(jCliTestCases):
         commands = [{'command': 'persist -p testprofile'}]
         yield self._test(r'jcli : ', commands)
 
-        expectedList = [r'smppccm configuration loaded \(profile\:testprofile\)',
+        expectedList = [r'mtrouter configuration loaded \(profile\:testprofile\)',
+                        r'filter configuration loaded \(profile\:testprofile\)',
                         r'group configuration loaded \(profile\:testprofile\)',
+                        r'smppcc configuration loaded \(profile\:testprofile\)',
+                        r'httpcc configuration loaded \(profile\:testprofile\)',
                         r'user configuration loaded \(profile\:testprofile\)',
+                        r'morouter configuration loaded \(profile\:testprofile\)',
                         ]
         commands = [{'command': 'load -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
         
     @defer.inlineCallbacks
     def test_load_unknown_profile(self):
-        expectedList = [r'Failed to load smppccm configuration \(profile\:any_profile\)']
+        expectedList = [r'Failed to load mtrouter configuration \(profile\:any_profile\)',
+                        r'Failed to load filter configuration \(profile\:any_profile\)',
+                        r'Failed to load group configuration \(profile\:any_profile\)',
+                        r'Failed to load smppcc configuration \(profile\:any_profile\)',
+                        r'Failed to load httpcc configuration \(profile\:any_profile\)',
+                        r'Failed to load user configuration \(profile\:any_profile\)',
+                        r'Failed to load morouter configuration \(profile\:any_profile\)',
+                        ]
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
+        
+class LoadingTestCases(jCliTestCases):
+    """The 2 test cases below will ensure that persisted configurations to the default profile
+    will be automatically loaded if jCli restarts
+    """
+    
+    @defer.inlineCallbacks
+    def test_01_persist_all_configurations(self):
+        # Add Group
+        commands = [{'command': 'group -a'},
+                    {'command': 'gid g1'},
+                    {'command': 'ok', 'expect': 'Successfully added Group'}]
+        yield self._test(r'jcli : ', commands)
+        # Add User
+        commands = [{'command': 'user -a'},
+                    {'command': 'gid g1'},
+                    {'command': 'uid u1'},
+                    {'command': 'username fourat'},
+                    {'command': 'password fouratpwd'},
+                    {'command': 'ok', 'expect': 'Successfully added User'}]
+        yield self._test(r'jcli : ', commands)
+        # Add HTTP Connector
+        commands = [{'command': 'httpccm -a'},
+                    {'command': 'url http://127.0.0.1'},
+                    {'command': 'method POST'},
+                    {'command': 'cid http1'},
+                    {'command': 'ok', 'expect': 'Successfully added Httpcc'}]
+        yield self._test(r'jcli : ', commands)
+        # Add SMPP Connector
+        commands = [{'command': 'smppccm -a'},
+                    {'command': 'cid smpp1'},
+                    {'command': 'ok', 'expect': 'Successfully added connector', 'wait': 0.2}]
+        yield self._test(r'jcli : ', commands)
+        # Add Filter for MT route
+        commands = [{'command': 'filter -a'},
+                    {'command': 'type UserFilter'},
+                    {'command': 'uid u1'},
+                    {'command': 'fid fMT1'},
+                    {'command': 'ok', 'expect': 'Successfully added Filter'}]
+        yield self._test(r'jcli : ', commands)
+        # Add Filter for MO route
+        commands = [{'command': 'filter -a'},
+                    {'command': 'type ConnectorFilter'},
+                    {'command': 'cid smpp1'},
+                    {'command': 'fid fMO1'},
+                    {'command': 'ok', 'expect': 'Successfully added Filter'}]
+        yield self._test(r'jcli : ', commands)
+        # Add Default MO route
+        commands = [{'command': 'morouter -a'},
+                    {'command': 'type defaultroute'},
+                    {'command': 'connector http1'},
+                    {'command': 'ok', 'expect': 'Successfully added MORoute'}]
+        yield self._test(r'jcli : ', commands)
+        # Add static MO route
+        commands = [{'command': 'morouter -a'},
+                    {'command': 'type staticmoroute'},
+                    {'command': 'filters fMO1'},
+                    {'command': 'order 100'},
+                    {'command': 'connector http1'},
+                    {'command': 'ok', 'expect': 'Successfully added MORoute'}]
+        yield self._test(r'jcli : ', commands)
+        # Add Default MT route
+        commands = [{'command': 'mtrouter -a'},
+                    {'command': 'type defaultroute'},
+                    {'command': 'connector smpp1'},
+                    {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
+        yield self._test(r'jcli : ', commands)
+        # Add static MT route
+        commands = [{'command': 'mtrouter -a'},
+                    {'command': 'type staticmtroute'},
+                    {'command': 'filters fMT1'},
+                    {'command': 'order 100'},
+                    {'command': 'connector smpp1'},
+                    {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
+        yield self._test(r'jcli : ', commands)
+        
+        # Finally persist to disk
+        commands = [{'command': 'persist'}]
+        yield self._test(r'jcli : ', commands)
+        
+    @defer.inlineCallbacks
+    def test_02_check_automatic_load_after_jcli_reboot(self):
+        # The conf loading on startup is made through JCliFactory.doStart() method
+        # and is emulated below:
+        yield self.sendCommand('load -p %s' % self.JCliConfigInstance.load_profile, 0.2)
+        # Clear buffer before beginning asserts
+        self.tr.clear()
+
+        # Assert Group
+        yield self.sendCommand('group -l')
+        self.assertEqual(self.getBuffer(True)[9], 'Total Groups: 1')
+        # Assert User
+        yield self.sendCommand('user -l')
+        self.assertEqual(self.getBuffer(True)[9], 'Total Users: 1')
+        # Assert HTTP Connector
+        yield self.sendCommand('httpccm -l')
+        self.assertEqual(self.getBuffer(True)[9], 'Total Httpccs: 1')
+        # Assert SMPP Connector
+        yield self.sendCommand('smppccm -l')
+        self.assertEqual(self.getBuffer(True)[9], 'Total connectors: 1')
+        # Assert Filters
+        yield self.sendCommand('filter -l')
+        self.assertEqual(self.getBuffer(True)[12], 'Total Filters: 2')
+        # Assert MO Routes
+        yield self.sendCommand('morouter -l')
+        self.assertEqual(self.getBuffer(True)[12], 'Total MO Routes: 2')
+        # Assert MT Routes
+        yield self.sendCommand('mtrouter -l')
+        self.assertEqual(self.getBuffer(True)[12], 'Total MT Routes: 2')

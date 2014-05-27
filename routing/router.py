@@ -38,8 +38,11 @@ class RouterPB(pb.Root):
         self.users = []
         self.groups = []
         
+        # Persistence flag, accessed through remote_is_persisted
+        self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
+        
         self.log.info('Router configured and ready.')
-    
+        
     @defer.inlineCallbacks
     def addAmqpBroker(self, amqpBroker):
         self.amqpBroker = amqpBroker
@@ -182,6 +185,9 @@ class RouterPB(pb.Root):
                 fh.write(pickle.dumps(self.groups, self.pickleProtocol))
                 fh.close()
 
+                # Set persistance state to True
+                self.persistanceState['users'] = True
+
             if scope in ['all', 'users']:
                 # Persist users configuration
                 path = '%s/%s.router-users' % (self.config.store_path, profile)
@@ -193,8 +199,11 @@ class RouterPB(pb.Root):
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
                 fh.close()
 
+                # Set persistance state to True
+                self.persistanceState['groups'] = True
+
             if scope in ['all', 'moroutes']:
-                # Persist users configuration
+                # Persist moroutes configuration
                 path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MORoutingTable to [%s] profile in %s' % (profile, path))
     
@@ -203,6 +212,24 @@ class RouterPB(pb.Root):
                 fh.write('Persisted on %s\n' % time.strftime("%c"))
                 fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
                 fh.close()
+                
+                # Set persistance state to True
+                self.persistanceState['moroutes'] = True
+
+            if scope in ['all', 'mtroutes']:
+                # Persist mtroutes configuration
+                path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
+                self.log.info('Persisting current MTRoutingTable to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
+                fh.close()
+                
+                # Set persistance state to True
+                self.persistanceState['mtroutes'] = True
+
         except IOError:
             self.log.error('Cannot persist to %s' % path)
             return False
@@ -232,6 +259,9 @@ class RouterPB(pb.Root):
                 self.groups = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new Groups (%d)' % len(self.groups))
 
+                # Set persistance state to True
+                self.persistanceState['groups'] = True
+
             if scope in ['all', 'users']:
                 # Load users configuration
                 path = '%s/%s.router-users' % (self.config.store_path, profile)
@@ -250,8 +280,11 @@ class RouterPB(pb.Root):
                 self.users = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new Users (%d)' % len(self.users))
 
+                # Set persistance state to True
+                self.persistanceState['users'] = True
+
             if scope in ['all', 'moroutes']:
-                # Load users configuration
+                # Load moroutes configuration
                 path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile MO Routes configuration from %s' % (profile, path))
     
@@ -263,6 +296,27 @@ class RouterPB(pb.Root):
                 # Adding new MO Routes
                 self.mo_routing_table = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new MORoutingTable with %d routes' % len(self.mo_routing_table.getAll()))
+
+                # Set persistance state to True
+                self.persistanceState['moroutes'] = True
+
+            if scope in ['all', 'mtroutes']:
+                # Load mtroutes configuration
+                path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile MT Routes configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Adding new MT Routes
+                self.mt_routing_table = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new MTRoutingTable with %d routes' % len(self.mt_routing_table.getAll()))
+
+                # Set persistance state to True
+                self.persistanceState['mtroutes'] = True
+
         except IOError, e:
             self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
             return False
@@ -270,6 +324,13 @@ class RouterPB(pb.Root):
             self.log.error('Unknown error occurred while loading configuration: %s' % e)
             return False
 
+        return True
+        
+    def remote_is_persisted(self):
+        for k, v in self.persistanceState.iteritems():
+            if not v:
+                return False
+            
         return True
         
     def remote_user_add(self, user):
@@ -293,6 +354,10 @@ class RouterPB(pb.Root):
                 break 
 
         self.users.append(user)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['users'] = False
+
         return True
     
     def remote_user_authenticate(self, username, password):
@@ -312,6 +377,10 @@ class RouterPB(pb.Root):
                 return True
         
         self.log.error("User with id:%s not found, not removing it." % uid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['users'] = False
+
         return False
 
     def remote_user_remove_all(self):
@@ -319,6 +388,9 @@ class RouterPB(pb.Root):
         
         self.users = []
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['users'] = False
+
         return True
 
     def remote_user_get_all(self, gid = None):
@@ -349,6 +421,9 @@ class RouterPB(pb.Root):
 
         self.groups.append(group)
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['groups'] = False
+
         return True
     
     def remote_group_remove(self, gid):
@@ -370,6 +445,10 @@ class RouterPB(pb.Root):
                 return True
         
         self.log.error("Group with id:%s not found, not removing it." % gid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['groups'] = False
+
         return False
 
     def remote_group_remove_all(self):
@@ -388,6 +467,9 @@ class RouterPB(pb.Root):
                     self.users.remove(_user)
         
         self.groups = []
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['groups'] = False
 
         return True
 
@@ -411,6 +493,9 @@ class RouterPB(pb.Root):
             self.log.error('Unknown error occurred while adding MT Route: %s' % (str(e)))
             return False
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['mtroutes'] = False
+
         return True
     
     def remote_moroute_add(self, route, order):
@@ -427,25 +512,40 @@ class RouterPB(pb.Root):
             self.log.error('Unknown error occurred while adding MO Route: %s' % (str(e)))
             return False
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['moroutes'] = False
+
         return True
     
     def remote_moroute_remove(self, order):
         self.log.info('Removing MO Route [%s]', order)
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['moroutes'] = False
+
         return self.mo_routing_table.remove(order)
 
     def remote_mtroute_remove(self, order):
         self.log.info('Removing MT Route [%s]', order)
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['mtroutes'] = False
+
         return self.mt_routing_table.remove(order)
 
     def remote_mtroute_flush(self):
         self.log.info('Flushing MT Routing table')
 
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['mtroutes'] = False
+
         return self.mt_routing_table.flush()
     
     def remote_moroute_flush(self):
         self.log.info('Flushing MO Routing table')
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['moroutes'] = False
 
         return self.mo_routing_table.flush()
     

@@ -2,6 +2,7 @@
 # See LICENSE for details.
 
 import logging
+from twisted.internet import reactor, defer
 from twisted.internet.protocol import ServerFactory
 from jcli import JCliProtocol
 from protocol import CmdProtocol
@@ -59,9 +60,20 @@ class JCliFactory(ServerFactory):
                                factory = self,
                                log = self.log)
         
+    @defer.inlineCallbacks
     def doStart(self):
         ServerFactory.doStart(self)
         
+        # Wait for AMQP to get ready
+        self.log.info("Waiting for AMQP to get ready")
+        yield self.pb['smppcm'].amqpBroker.channelReady
+        # Wait some more time
+        # Loading smppccm configuration with jCli would result in an error
+        # without waiting some time before, this is a workaround (@TODO)
+        waitDeferred = defer.Deferred()
+        reactor.callLater(0.3, waitDeferred.callback, None)
+        yield waitDeferred
+
         # Load configuration profile
         self.log.info("OnStart loading configuration profile: '%s'" % self.config.load_profile)
         proto = self.buildProtocol(('127.0.0.1', 0))

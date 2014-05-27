@@ -132,7 +132,7 @@ class ConnectorExist:
         return exist_connector_and_call
 
 class SmppCCManager(Manager):
-    managerName = 'smppccm'
+    managerName = 'smppcc'
     
     def persist(self, arg, opts):
         if self.pb['smppcm'].remote_persist(opts.profile):

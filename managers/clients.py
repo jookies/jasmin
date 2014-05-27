@@ -26,6 +26,9 @@ class SMPPClientManagerPB(pb.Root):
         self.declared_queues = []
         self.pickleProtocol = 2
         
+        # Persistence flag, accessed through remote_is_persisted
+        self.persisted = True
+
     def setConfig(self, SMPPClientPBConfig):
         self.config = SMPPClientPBConfig
 
@@ -89,7 +92,7 @@ class SMPPClientManagerPB(pb.Root):
         return False
     
     def remote_persist(self, profile):
-        path = '%s/%s.smppcm' % (self.config.store_path, profile)
+        path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))
         
         try:
@@ -106,6 +109,9 @@ class SMPPClientManagerPB(pb.Root):
             fh.write('Persisted on %s\n' % time.strftime("%c"))
             fh.write(pickle.dumps(connectors, self.pickleProtocol))
             fh.close()
+
+            # Set persistance state to True
+            self.persisted = True
         except IOError:
             self.log.error('Cannot persist to %s' % path)
             return False
@@ -117,7 +123,7 @@ class SMPPClientManagerPB(pb.Root):
     
     @defer.inlineCallbacks
     def remote_load(self, profile):
-        path = '%s/%s.smppcm' % (self.config.store_path, profile)
+        path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Loading/Activating [%s] profile configuration from %s' % (profile, path))
 
         try:
@@ -146,6 +152,9 @@ class SMPPClientManagerPB(pb.Root):
                     startRet = yield self.remote_connector_start(lc['id'])
                     if not startRet:
                         self.log.error('Error starting connector %s' % lc['id'])
+
+            # Set persistance state to True
+            self.persisted = True
         except IOError, e:
             self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
             defer.returnValue(False)
@@ -158,6 +167,9 @@ class SMPPClientManagerPB(pb.Root):
 
         defer.returnValue(True)
     
+    def remote_is_persisted(self):
+        return self.persisted
+        
     @defer.inlineCallbacks
     def remote_connector_add(self, ClientConfig):
         """This will add a new connector to self.connectors
@@ -227,6 +239,10 @@ class SMPPClientManagerPB(pb.Root):
                         })
        
         self.log.info('Added a new connector: %s', c.id)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         defer.returnValue(True)
     
     @defer.inlineCallbacks
@@ -249,11 +265,15 @@ class SMPPClientManagerPB(pb.Root):
         
         if self.delConnector(cid):
             self.log.info('Removed connector [%s]', cid)
+            # Set persistance state to False (pending for persistance)
+            self.persisted = False
             defer.returnValue(True)
         else:
             self.log.error('Error removing connector [%s], cid not found', cid)
             defer.returnValue(False)
             
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
         defer.returnValue(True)
     
     def remote_connector_list(self):
@@ -297,6 +317,10 @@ class SMPPClientManagerPB(pb.Root):
                 )
 
         self.log.info('Started connector [%s]', cid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         return True
     
     @defer.inlineCallbacks
@@ -331,6 +355,10 @@ class SMPPClientManagerPB(pb.Root):
         connector['service'].stopService()
         
         self.log.info('Stopped connector [%s]', cid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         defer.returnValue(True)
     
     def remote_connector_stopall(self, delQueues = False):
@@ -342,6 +370,9 @@ class SMPPClientManagerPB(pb.Root):
         for connector in self.connectors:
             self.remote_connector_stop(connector['id'], delQueues)
 
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         return True
     
     def remote_service_status(self, cid):

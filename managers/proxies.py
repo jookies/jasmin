@@ -51,6 +51,10 @@ class SMPPClientManagerPBProxy:
         return self.pb.callRemote('load', profile)
     
     @ConnectedPB
+    def is_persisted(self):
+        return self.pb.callRemote('is_persisted')
+    
+    @ConnectedPB
     def add(self, config):
         if isinstance(config, SMPPClientConfig) == False:
             raise Exception("Object is not an instance of SMPPClientConfig")

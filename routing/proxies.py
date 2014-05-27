@@ -49,6 +49,10 @@ class RouterPBProxy:
         return self.pb.callRemote('load', profile, scope)
     
     @ConnectedPB
+    def is_persisted(self):
+        return self.pb.callRemote('is_persisted')
+    
+    @ConnectedPB
     def user_add(self, user):
         return self.pb.callRemote('user_add', self.pickle(user))
     

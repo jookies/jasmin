@@ -207,6 +207,34 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
         self.assertEqual(1, len(listRet))
         self.assertEqual(self.defaultConfig.id, listRet[0]['id'])
 
+    @defer.inlineCallbacks
+    def test_persitance_flag(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Initially, all config is already persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Make modifications and assert
+        yield self.add(self.defaultConfig)
+                
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+        yield self.persist('profile')
+
+        # Now it's persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Remove and assert
+        yield self.remove(self.defaultConfig.id)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+        yield self.persist('profile')
+
 class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_add_and_list(self):
