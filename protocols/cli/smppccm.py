@@ -2,7 +2,7 @@ import pickle
 from twisted.internet import defer
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from managers import Manager, Session
-from vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
+from jasmin.vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
                                        replace_if_present_flap_name_map, priority_flag_name_map)
 
 # A config map between console-configuration keys and SMPPClientConfig keys.

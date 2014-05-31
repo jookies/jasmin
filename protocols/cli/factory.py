@@ -30,10 +30,8 @@ class CmdFactory(ServerFactory):
                 
         # Init protocol
         self.protocol = lambda: JCliTelnetTransport(TelnetBootstrapProtocol,
-                               insults.ServerProtocol,
-                               CmdProtocol,
-                               factory = self,
-                               log = self.log)
+                                                    insults.ServerProtocol,
+                                                    CmdProtocol)
         
 class JCliFactory(ServerFactory):
     def __init__(self, config, SMPPClientManagerPB, RouterPB):
@@ -44,7 +42,7 @@ class JCliFactory(ServerFactory):
         self.sessionRef = 0
         self.sessionsOnline = 0
                 
-        # Set up a dedicated logger
+        # Set up and configure a dedicated logger
         self.log = logging.getLogger('jcli')
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
@@ -55,11 +53,9 @@ class JCliFactory(ServerFactory):
         
         # Init protocol
         self.protocol = lambda: JCliTelnetTransport(TelnetBootstrapProtocol,
-                               insults.ServerProtocol,
-                               JCliProtocol,
-                               factory = self,
-                               log = self.log)
-        
+                                                    insults.ServerProtocol,
+                                                    JCliProtocol)
+
     @defer.inlineCallbacks
     def doStart(self):
         ServerFactory.doStart(self)

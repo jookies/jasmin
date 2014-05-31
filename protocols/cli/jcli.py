@@ -18,8 +18,12 @@ class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'
     prompt = 'jcli : '
     
-    def __init__(self, factory, log):
-        CmdProtocol.__init__(self, factory, log)
+    def __init__(self, log_category = 'jcli'):
+        CmdProtocol.__init__(self, log_category)
+            
+    def connectionMade(self):
+        CmdProtocol.connectionMade(self)
+
         if 'persist' not in self.commands:
             self.commands.append('persist')
         if 'load' not in self.commands:
@@ -38,11 +42,11 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('smppccm')
         if 'httpccm' not in self.commands:
             self.commands.append('httpccm')
-        
+
         # Provision managers
-        self.managers = {'user': UsersManager(self, factory.pb), 'group': GroupsManager(self, factory.pb), 
-                         'morouter': MoRouterManager(self, factory.pb), 'mtrouter': MtRouterManager(self, factory.pb), 
-                         'smppccm': SmppCCManager(self, factory.pb), 'filter': FiltersManager(self),
+        self.managers = {'user': UsersManager(self, self.factory.pb), 'group': GroupsManager(self, self.factory.pb), 
+                         'morouter': MoRouterManager(self, self.factory.pb), 'mtrouter': MtRouterManager(self, self.factory.pb), 
+                         'smppccm': SmppCCManager(self, self.factory.pb), 'filter': FiltersManager(self),
                          'httpccm': HttpccManager(self)}
         
     @options([make_option('-l', '--list', action="store_true",

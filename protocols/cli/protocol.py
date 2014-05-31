@@ -2,6 +2,7 @@
 # See LICENSE for details.
 
 import string
+import logging
 from twisted.conch import recvline
 
 IDENTCHARS = string.ascii_letters + string.digits + '_'
@@ -24,11 +25,10 @@ class CmdProtocol(recvline.HistoricRecvLine):
     baseCommands = ['quit', 'help']
     commands = []
     
-    def __init__(self, factory, log):
+    def __init__(self, log_category = 'CmdServer'):
         recvline.HistoricRecvLine.__init__(self)
         
-        self.factory = factory
-        self.log = log
+        self.log = logging.getLogger(log_category)
         
     def initializeScreen(self):
         'Overrides twisted.conch.recvline.RecvLine.initializeScreen() to not to show prompt'
