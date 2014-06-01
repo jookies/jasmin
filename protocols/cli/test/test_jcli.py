@@ -25,18 +25,42 @@ class jCliTestCases(ProtocolTestCases):
 
         # Instanciate a RouterPB (a requirement for JCliFactory)
         RouterPBConfigInstance = RouterPBConfig()
-        RouterPB_f = RouterPB()
-        RouterPB_f.setConfig(RouterPBConfigInstance)
+        self.RouterPB_f = RouterPB()
+        self.RouterPB_f.setConfig(RouterPBConfigInstance)
 
         # Instanciate a SMPPClientManagerPB (a requirement for JCliFactory)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
-        clientManager_f = SMPPClientManagerPB()
-        clientManager_f.setConfig(SMPPClientPBConfigInstance)
-        clientManager_f.addAmqpBroker(self.amqpBroker)
+        self.clientManager_f = SMPPClientManagerPB()
+        self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
+        self.clientManager_f.addAmqpBroker(self.amqpBroker)
+        
+    def tearDown(self):
+        self.amqpClient.disconnect()
+      
+class jCliWitAuthTestCases(jCliTestCases):
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield jCliTestCases.setUp(self)
         
         # Connect to jCli server through a fake network transport
         self.JCliConfigInstance = JCliConfig()
-        self.JCli_f = JCliFactory(self.JCliConfigInstance, clientManager_f, RouterPB_f)
+        self.JCli_f = JCliFactory(self.JCliConfigInstance, self.clientManager_f, self.RouterPB_f)
+        self.proto = self.JCli_f.buildProtocol(('127.0.0.1', 0))
+        self.tr = proto_helpers.StringTransport()
+        self.proto.makeConnection(self.tr)
+        # Test for greeting
+        receivedLines = self.getBuffer(True)
+        self.assertRegexpMatches(receivedLines[0], r'Authentication required.')
+
+class jCliWithoutAuthTestCases(jCliTestCases):
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield jCliTestCases.setUp(self)
+        
+        # Connect to jCli server through a fake network transport
+        self.JCliConfigInstance = JCliConfig()
+        self.JCliConfigInstance.authentication = False
+        self.JCli_f = JCliFactory(self.JCliConfigInstance, self.clientManager_f, self.RouterPB_f)
         self.proto = self.JCli_f.buildProtocol(('127.0.0.1', 0))
         self.tr = proto_helpers.StringTransport()
         self.proto.makeConnection(self.tr)
@@ -46,10 +70,7 @@ class jCliTestCases(ProtocolTestCases):
         self.assertRegexpMatches(receivedLines[3], r'Type help or \? to list commands\.')
         self.assertRegexpMatches(receivedLines[9], r'Session ref: ')
         
-    def tearDown(self):
-        self.amqpClient.disconnect()
-        
-class BasicTestCases(jCliTestCases):
+class BasicTestCases(jCliWithoutAuthTestCases):
     def test_quit(self):
         commands = [{'command': 'quit'}]
         return self._test(None, commands)
@@ -74,7 +95,7 @@ class BasicTestCases(jCliTestCases):
         commands = [{'command': 'help', 'expect': expectedList}]
         return self._test('jcli : ', commands)
     
-class PersistanceTestCases(jCliTestCases):
+class PersistanceTestCases(jCliWithoutAuthTestCases):
 
     @defer.inlineCallbacks
     def test_persist(self):
@@ -149,7 +170,7 @@ class PersistanceTestCases(jCliTestCases):
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
         
-class LoadingTestCases(jCliTestCases):
+class LoadingTestCases(jCliWithoutAuthTestCases):
     """The 2 test cases below will ensure that persisted configurations to the default profile
     will be automatically loaded if jCli restarts
     """

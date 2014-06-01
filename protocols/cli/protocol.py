@@ -36,12 +36,22 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.terminal.reset()
         self.setInsertMode()
         
+    def terminalSize(self, width, height):
+        self.width = width
+        self.height = height
+        self.drawInputLine()
+                
     def drawInputLine(self):
         'Overrides twisted.conch.recvline.RecvLine.drawInputLine() to reset prompt'
 
         self.terminal.write(self.prompt + ''.join(self.lineBuffer))
         
-    def connectionMade(self):
+    def drawMotd(self):
+        # Welcome to jcli
+        self.sendData(self.motd, False)
+        self.sendData('Session ref: %s' % self.sessionRef, False)
+
+    def connectionMade(self, motd = True):
         recvline.HistoricRecvLine.connectionMade(self)
         
         # Get transport
@@ -54,9 +64,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.sessionRef = self.factory.sessionRef
         self.factory.sessions[self.sessionRef] = self
         
-        # Welcome to jcli
-        self.sendData(self.motd, False)
-        self.sendData('Session ref: %s' % self.sessionRef, False)
+        if motd:
+            self.drawMotd()
         
         self.log.info('[sref:%s] New session started for %s:%s' % (self.sessionRef, self.peer.host, self.peer.port))
         

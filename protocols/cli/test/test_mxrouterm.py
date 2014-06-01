@@ -1,14 +1,14 @@
 import re
 from twisted.internet import defer
-from test_jcli import jCliTestCases
+from test_jcli import jCliWithoutAuthTestCases
     
-class MxRouterTestCases(jCliTestCases):
+class MxRouterTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def setUp(self):
         """Will add http and smpp connectors as well as some filters in
         order to run tests for morouterm and mtrouterm
         """
-        yield jCliTestCases.setUp(self)
+        yield jCliWithoutAuthTestCases.setUp(self)
         
         # Add an httpcc (cid = http1)
         commands = [{'command': 'httpccm -a'},

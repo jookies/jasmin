@@ -1,7 +1,7 @@
 from twisted.internet import defer
-from test_jcli import jCliTestCases
+from test_jcli import jCliWithoutAuthTestCases
     
-class SmppccmTestCases(jCliTestCases):
+class SmppccmTestCases(jCliWithoutAuthTestCases):
     # Wait delay for 
     wait = 0.3
     

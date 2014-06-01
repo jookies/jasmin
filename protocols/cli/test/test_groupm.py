@@ -1,6 +1,6 @@
-from test_jcli import jCliTestCases
+from test_jcli import jCliWithoutAuthTestCases
     
-class GroupTestCases(jCliTestCases):
+class GroupTestCases(jCliWithoutAuthTestCases):
     def add_group(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []

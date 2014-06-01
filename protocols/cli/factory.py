@@ -9,7 +9,7 @@ from protocol import CmdProtocol
 from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
 from twisted.conch.insults import insults
 from twisted.test import proto_helpers
-
+    
 class JCliTelnetTransport(TelnetTransport):
     def connectionLost(self, reason):
         'Overrides TelnetTransport.connectionLost() to prevent errbacks'
@@ -50,6 +50,7 @@ class JCliFactory(ServerFactory):
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+        
         
         # Init protocol
         self.protocol = lambda: JCliTelnetTransport(TelnetBootstrapProtocol,

@@ -1,8 +1,8 @@
 import re
-from test_jcli import jCliTestCases
+from test_jcli import jCliWithoutAuthTestCases
 from test.test_support import unlink
     
-class FiltersTestCases(jCliTestCases):
+class FiltersTestCases(jCliWithoutAuthTestCases):
     def add_filter(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []

@@ -1,6 +1,6 @@
-from test_jcli import jCliTestCases
+from test_jcli import jCliWithoutAuthTestCases
     
-class HttpccTestCases(jCliTestCases):
+class HttpccTestCases(jCliWithoutAuthTestCases):
     def add_httpcc(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []

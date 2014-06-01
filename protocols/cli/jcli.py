@@ -2,6 +2,7 @@
 # See LICENSE for details.
 
 import pyparsing
+from passlib.hash import sha256_crypt
 from protocol import CmdProtocol
 from options import options, options_defined, OptionParser, remaining_args
 from smppccm import SmppCCManager
@@ -20,10 +21,26 @@ class JCliProtocol(CmdProtocol):
     
     def __init__(self, log_category = 'jcli'):
         CmdProtocol.__init__(self, log_category)
-            
-    def connectionMade(self):
-        CmdProtocol.connectionMade(self)
 
+        # Init authentication
+        self.authentication = {'username': None, 'password': None, 'printedPassword': None, 'auth': False}
+                    
+    def connectionMade(self):
+        # Provision security
+        if not self.factory.config.authentication:
+            # Will not require an authentication from client
+            self.authentication = {'username': 'Anonymous', 'password': None, 'printedPassword': None, 'auth': True}
+
+        # Call CmdProtocol.connectionMade() depending on the security policy
+        if self.authentication['auth']:
+            CmdProtocol.connectionMade(self)
+        elif self.authentication['username'] is None:
+            self.oldPrompt = self.prompt
+            self.prompt = 'Username: '
+            CmdProtocol.connectionMade(self, False)
+            self.terminal.write('Authentication required.\n\n')
+
+        # Provision commands
         if 'persist' not in self.commands:
             self.commands.append('persist')
         if 'load' not in self.commands:
@@ -49,6 +66,56 @@ class JCliProtocol(CmdProtocol):
                          'smppccm': SmppCCManager(self, self.factory.pb), 'filter': FiltersManager(self),
                          'httpccm': HttpccManager(self)}
         
+    def lineReceived(self, line):
+        "Go to CmdProtocol.lineReceived when authenticated only"
+        
+        if self.authentication['auth']:
+            return CmdProtocol.lineReceived(self, line)
+        elif self.authentication['username'] is None:
+            return self.AUTH_username(line)
+        elif self.authentication['password'] is None:
+            return self.AUTH_password(line)
+        
+    def handle_TAB(self):
+        "TABulation is only enabled when authenticated"
+        
+        if self.authentication['auth']:
+            return CmdProtocol.handle_TAB(self)
+        
+    def AUTH_username(self, username):
+        "Save typed username and prompt for password"
+
+        username = username.strip()
+        if username:
+            self.authentication['username'] = username
+            self.prompt = 'Password: '
+            self.log.debug('[sref:%s] Received AUTH Username: %s' % (self.sessionRef, self.authentication['username']))
+        
+        return self.sendData()
+
+    def AUTH_password(self, password):
+        """Authentify Username & Password against configured (jasmin.cfg) credentials
+        """
+
+        self.authentication['password'] = password.strip()
+        self.authentication['printedPassword'] = ''
+        for ch in password:
+            self.authentication['printedPassword']+= '*'
+        self.log.debug('[sref:%s] Received AUTH Password: %s' % (self.sessionRef, self.authentication['printedPassword']))
+        
+        # Authentication check against configured admin
+        if self.authentication['username'] == self.factory.config.admin_username and sha256_crypt.verify(self.authentication['password'], self.factory.config.admin_password):
+            # Authenticated user
+            self.authentication['auth'] = True
+            self.prompt = self.oldPrompt
+            self.drawMotd()
+        else:
+            self.prompt = 'Username: '
+            self.authentication = {'username': None, 'password': None, 'printedPassword': None, 'auth': False}
+            return self.sendData('Incorrect Username/Password.\n')
+        
+        return self.sendData()
+
     @options([make_option('-l', '--list', action="store_true",
                           help="List all users or a group users when provided with GID"),
               make_option('-a', '--add', action="store_true",

@@ -1,6 +1,6 @@
-from test_jcli import jCliTestCases
+from test_jcli import jCliWithoutAuthTestCases
     
-class UserTestCases(jCliTestCases):
+class UserTestCases(jCliWithoutAuthTestCases):
     def add_user(self, finalPrompt, extraCommands = [], GID = None, Username = None):
         sessionTerminated = False
         commands = []
