@@ -25,21 +25,6 @@ class JCliProtocol(CmdProtocol):
         # Init authentication
         self.authentication = {'username': None, 'password': None, 'printedPassword': None, 'auth': False}
                     
-    def connectionMade(self):
-        # Provision security
-        if not self.factory.config.authentication:
-            # Will not require an authentication from client
-            self.authentication = {'username': 'Anonymous', 'password': None, 'printedPassword': None, 'auth': True}
-
-        # Call CmdProtocol.connectionMade() depending on the security policy
-        if self.authentication['auth']:
-            CmdProtocol.connectionMade(self)
-        elif self.authentication['username'] is None:
-            self.oldPrompt = self.prompt
-            self.prompt = 'Username: '
-            CmdProtocol.connectionMade(self, False)
-            self.terminal.write('Authentication required.\n\n')
-
         # Provision commands
         if 'persist' not in self.commands:
             self.commands.append('persist')
@@ -59,6 +44,21 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('smppccm')
         if 'httpccm' not in self.commands:
             self.commands.append('httpccm')
+
+    def connectionMade(self):
+        # Provision security
+        if not self.factory.config.authentication:
+            # Will not require an authentication from client
+            self.authentication = {'username': 'Anonymous', 'password': None, 'printedPassword': None, 'auth': True}
+
+        # Call CmdProtocol.connectionMade() depending on the security policy
+        if self.authentication['auth']:
+            CmdProtocol.connectionMade(self)
+        elif self.authentication['username'] is None:
+            self.oldPrompt = self.prompt
+            self.prompt = 'Username: '
+            CmdProtocol.connectionMade(self, False)
+            self.terminal.write('Authentication required.\n\n')
 
         # Provision managers
         self.managers = {'user': UsersManager(self, self.factory.pb), 'group': GroupsManager(self, self.factory.pb), 

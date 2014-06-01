@@ -23,11 +23,11 @@ class CmdProtocol(recvline.HistoricRecvLine):
     sessionCompletitions = None
 
     baseCommands = ['quit', 'help']
-    commands = []
     
     def __init__(self, log_category = 'CmdServer'):
         recvline.HistoricRecvLine.__init__(self)
         
+        self.commands = []        
         self.log = logging.getLogger(log_category)
         
     def initializeScreen(self):

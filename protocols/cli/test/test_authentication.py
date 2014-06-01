@@ -1,8 +1,8 @@
 import random
-from test_jcli import jCliWitAuthTestCases
+from test_jcli import jCliWithAuthTestCases
 from passlib.hash import sha256_crypt
     
-class AuthenticationTestCases(jCliWitAuthTestCases):
+class AuthenticationTestCases(jCliWithAuthTestCases):
     
     def test_password_prompt(self):
         commands = [{'command': 'AnyUsername'}]

@@ -37,7 +37,7 @@ class jCliTestCases(ProtocolTestCases):
     def tearDown(self):
         self.amqpClient.disconnect()
       
-class jCliWitAuthTestCases(jCliTestCases):
+class jCliWithAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks
     def setUp(self):
         yield jCliTestCases.setUp(self)

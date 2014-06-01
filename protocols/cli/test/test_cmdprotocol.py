@@ -37,7 +37,6 @@ class ProtocolTestCases(unittest.TestCase):
             
             # Get buffer and assert for `expect`
             receivedLines = self.getBuffer(True)
-            #print cmd['command'], receivedLines
             
             # First line is the command itself
             self.assertEqual(receivedLines[0], cmd['command'])
