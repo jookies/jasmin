@@ -1,6 +1,6 @@
 import random
 from test_jcli import jCliWithAuthTestCases
-from passlib.hash import sha256_crypt
+from hashlib import md5
     
 class AuthenticationTestCases(jCliWithAuthTestCases):
     
@@ -15,7 +15,7 @@ class AuthenticationTestCases(jCliWithAuthTestCases):
     
     def test_auth_success(self):
         testPassword = 'AnyPassword%s' % random.randrange(100, 200)
-        self.JCliConfigInstance.admin_password = sha256_crypt.encrypt(testPassword)
+        self.JCliConfigInstance.admin_password = md5(testPassword).digest()
         
         commands = [{'command': self.JCliConfigInstance.admin_username},
                     {'command': testPassword, 'expect': 'Welcome to Jasmin console'}]

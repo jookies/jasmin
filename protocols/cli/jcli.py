@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 import pyparsing
-from passlib.hash import sha256_crypt
+from hashlib import md5
 from protocol import CmdProtocol
 from options import options, options_defined, OptionParser, remaining_args
 from smppccm import SmppCCManager
@@ -103,7 +103,7 @@ class JCliProtocol(CmdProtocol):
         self.log.debug('[sref:%s] Received AUTH Password: %s' % (self.sessionRef, self.authentication['printedPassword']))
         
         # Authentication check against configured admin
-        if self.authentication['username'] == self.factory.config.admin_username and sha256_crypt.verify(self.authentication['password'], self.factory.config.admin_password):
+        if self.authentication['username'] == self.factory.config.admin_username and md5(self.authentication['password']).digest() == self.factory.config.admin_password:
             # Authenticated user
             self.authentication['auth'] = True
             self.prompt = self.oldPrompt

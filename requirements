@@ -7,7 +7,6 @@ twisted
 sphinx
 pyparsing
 python-dateutil
-passlib
 
 # Requirements used for testing only:
 testfixtures

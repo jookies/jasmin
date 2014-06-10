@@ -15,7 +15,7 @@ class JCliConfig(ConfigFile):
         
         self.authentication = self._getint('jcli', 'authentication', True)
         self.admin_username = self._get('jcli', 'admin_username', 'jcliadmin')
-        self.admin_password = self._get('jcli', 'admin_password', '$5$rounds=110000$yJ5/o9LVv2KQoNt.$hMvTuXlgZbuSEQwZiGqiHF4IiyHYwda2TSCotloB2p9')
+        self.admin_password = self._get('jcli', 'admin_password', '79e9b0aa3f3e7c53e916f7ac47439bcb').decode('hex')
 
         self.log_level = logging.getLevelName(self._get('jcli', 'log_level', 'INFO'))
         self.log_file = self._get('jcli', 'log_file', '/var/log/jasmin/jcli.log')
