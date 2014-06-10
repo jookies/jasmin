@@ -25,6 +25,7 @@ class jCliTestCases(ProtocolTestCases):
 
         # Instanciate a RouterPB (a requirement for JCliFactory)
         RouterPBConfigInstance = RouterPBConfig()
+        RouterPBConfigInstance.authentication = False
         self.RouterPB_f = RouterPB()
         self.RouterPB_f.setConfig(RouterPBConfigInstance)
 

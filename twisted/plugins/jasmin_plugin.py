@@ -59,7 +59,16 @@ class JasminServiceMaker:
         RouterPBConfigInstance = RouterPBConfig(options['config'])
         RouterPB_f = RouterPB()
         RouterPB_f.setConfig(RouterPBConfigInstance)
-        Router = internet.TCPServer(RouterPBConfigInstance.port, pb.PBServerFactory(RouterPB_f), 
+        # Set authentication portal
+        p = portal.Portal(JasminPBRealm(RouterPB_f))
+        if RouterPBConfigInstance.authentication:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser(RouterPBConfigInstance.admin_username, RouterPBConfigInstance.admin_password)
+            p.registerChecker(c)
+        else:
+            p.registerChecker(AllowAnonymousAccess())
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        Router = internet.TCPServer(RouterPBConfigInstance.port, pb.PBServerFactory(jPBPortalRoot), 
                                     interface=RouterPBConfigInstance.bind)
         Router.setServiceParent(top_service)
         # AMQP Broker is used to listen to deliver_sm/dlr queues

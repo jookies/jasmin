@@ -166,13 +166,13 @@ class MoRouterManager(Manager):
     managerName = 'morouter'
     
     def persist(self, arg, opts):
-        if self.pb['router'].remote_persist(opts.profile, 'moroutes'):
+        if self.pb['router'].perspective_persist(opts.profile, 'moroutes'):
             self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
     
     def load(self, arg, opts):
-        r = self.pb['router'].remote_load(opts.profile, 'moroutes')
+        r = self.pb['router'].perspective_load(opts.profile, 'moroutes')
 
         if r:
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
@@ -180,7 +180,7 @@ class MoRouterManager(Manager):
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
            
     def list(self, arg, opts):
-        moroutes = pickle.loads(self.pb['router'].remote_moroute_get_all())
+        moroutes = pickle.loads(self.pb['router'].perspective_moroute_get_all())
         counter = 0
         
         if (len(moroutes)) > 0:
@@ -223,7 +223,7 @@ class MoRouterManager(Manager):
     @Session
     @MORouteBuild
     def add_session(self, order, RouteInstance):
-        st = self.pb['router'].remote_moroute_add(pickle.dumps(RouteInstance, 2), order)
+        st = self.pb['router'].perspective_moroute_add(pickle.dumps(RouteInstance, 2), order)
         
         if st:
             self.protocol.sendData('Successfully added MORoute [%s] with order:%s' % (RouteInstance.__class__.__name__, order), prompt=False)
@@ -237,7 +237,7 @@ class MoRouterManager(Manager):
     
     @MORouteExist(order_key='remove')
     def remove(self, arg, opts):
-        st = self.pb['router'].remote_moroute_remove(int(opts.remove))
+        st = self.pb['router'].perspective_moroute_remove(int(opts.remove))
         
         if st:
             self.protocol.sendData('Successfully removed MO Route with order:%s' % opts.remove)
@@ -250,6 +250,6 @@ class MoRouterManager(Manager):
         self.protocol.sendData(str(r))
         
     def flush(self, arg, opts):
-        tableSize = len(pickle.loads(self.pb['router'].remote_moroute_get_all()))
-        self.pb['router'].remote_moroute_flush()
+        tableSize = len(pickle.loads(self.pb['router'].perspective_moroute_get_all()))
+        self.pb['router'].perspective_moroute_flush()
         self.protocol.sendData('Successfully flushed MO Route table (%s flushed entries)' % tableSize)

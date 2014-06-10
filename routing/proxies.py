@@ -4,6 +4,14 @@
 import pickle
 from twisted.spread import pb
 from twisted.internet import reactor
+from twisted.cred.credentials import UsernamePassword, Anonymous
+from twisted.spread.pb import RemoteReference
+
+class ConnectError(Exception):
+    pass
+
+class InvalidConnectResponseError(Exception):
+    pass
 
 def ConnectedPB(fn):
     'Check connection to PB before passing to session handler'
@@ -19,20 +27,28 @@ class RouterPBProxy:
     isConnected = False
     pickleProtocol = 2
     
-    def connect(self, host, port):
+    def connect(self, host, port, username = None, password = None):
         # Launch a client
         self.pbClientFactory = pb.PBClientFactory()
         reactor.connectTCP(host, port, self.pbClientFactory)
         
-        return self.pbClientFactory.getRootObject( ).addCallback(self._connected)
+        if username is None and password is None:
+            return self.pbClientFactory.login(Anonymous()).addCallback(self._connected)
+        else:
+            return self.pbClientFactory.login(UsernamePassword(username, password)).addCallback(self._connected)
     
     def disconnect(self):
         self.isConnected = False
         return self.pbClientFactory.disconnect()
     
     def _connected(self, rootObj):
-        self.isConnected = True
-        self.pb = rootObj
+        if isinstance(rootObj, RemoteReference):
+            self.isConnected = True
+            self.pb = rootObj
+        elif type(rootObj) == tuple and type(rootObj[0]) == bool and rootObj[0] is False and type(rootObj[1]) == str:
+            raise ConnectError(rootObj[1])
+        else:
+            raise InvalidConnectResponseError(rootObj)
         
     def pickle(self, obj):
         return pickle.dumps(obj, self.pickleProtocol)

@@ -60,13 +60,13 @@ class GroupsManager(Manager):
     managerName = 'group'
     
     def persist(self, arg, opts):
-        if self.pb['router'].remote_persist(opts.profile, 'groups'):
+        if self.pb['router'].perspective_persist(opts.profile, 'groups'):
             self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
     
     def load(self, arg, opts):
-        r = self.pb['router'].remote_load(opts.profile, 'groups')
+        r = self.pb['router'].perspective_load(opts.profile, 'groups')
 
         if r:
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
@@ -74,7 +74,7 @@ class GroupsManager(Manager):
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
 
     def list(self, arg, opts):
-        groups = pickle.loads(self.pb['router'].remote_group_get_all())
+        groups = pickle.loads(self.pb['router'].perspective_group_get_all())
         counter = 0
         
         if (len(groups)) > 0:
@@ -91,7 +91,7 @@ class GroupsManager(Manager):
     @Session
     @GroupBuild
     def add_session(self, GroupInstance):
-        st = self.pb['router'].remote_group_add(pickle.dumps(GroupInstance, 2))
+        st = self.pb['router'].perspective_group_add(pickle.dumps(GroupInstance, 2))
         
         if st:
             self.protocol.sendData('Successfully added Group [%s]' % (GroupInstance.gid), prompt=False)
@@ -105,7 +105,7 @@ class GroupsManager(Manager):
     
     @GroupExist(gid_key='remove')
     def remove(self, arg, opts):
-        st = self.pb['router'].remote_group_remove(opts.remove)
+        st = self.pb['router'].perspective_group_remove(opts.remove)
         
         if st:
             self.protocol.sendData('Successfully removed Group id:%s' % opts.remove)

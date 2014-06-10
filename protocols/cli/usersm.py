@@ -108,13 +108,13 @@ class UsersManager(Manager):
     managerName = 'user'
     
     def persist(self, arg, opts):
-        if self.pb['router'].remote_persist(opts.profile, 'users'):
+        if self.pb['router'].perspective_persist(opts.profile, 'users'):
             self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
     
     def load(self, arg, opts):
-        r = self.pb['router'].remote_load(opts.profile, 'users')
+        r = self.pb['router'].perspective_load(opts.profile, 'users')
 
         if r:
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
@@ -126,7 +126,7 @@ class UsersManager(Manager):
             gid = arg
         else:
             gid = None
-        users = pickle.loads(self.pb['router'].remote_user_get_all(gid))
+        users = pickle.loads(self.pb['router'].perspective_user_get_all(gid))
         counter = 0
         
         if (len(users)) > 0:
@@ -150,7 +150,7 @@ class UsersManager(Manager):
     @Session
     @UserBuild
     def add_session(self, UserInstance):
-        st = self.pb['router'].remote_user_add(pickle.dumps(UserInstance, 2))
+        st = self.pb['router'].perspective_user_add(pickle.dumps(UserInstance, 2))
         
         if st:
             self.protocol.sendData('Successfully added User [%s] to Group [%s]' % (UserInstance.uid, UserInstance.group.gid), prompt=False)
@@ -183,7 +183,7 @@ class UsersManager(Manager):
     
     @UserExist(uid_key='remove')
     def remove(self, arg, opts):
-        st = self.pb['router'].remote_user_remove(opts.remove)
+        st = self.pb['router'].perspective_user_remove(opts.remove)
         
         if st:
             self.protocol.sendData('Successfully removed User id:%s' % opts.remove)

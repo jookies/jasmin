@@ -12,6 +12,7 @@ import string
 import random
 import copy
 import struct
+from hashlib import md5
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
@@ -41,7 +42,8 @@ from jasmin.vendor.smpp.pdu.pdu_types import EsmClass, EsmClassMode, MoreMessage
 from twisted.cred import portal
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot 
-from twisted.cred.checkers import AllowAnonymousAccess
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from jasmin.routing.proxies import ConnectError
 
 def composeMessage(characters, length):
     if length <= len(characters):
@@ -56,7 +58,7 @@ def id_generator(size=12, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
 class RouterPBTestCase(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, authentication = False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
@@ -65,7 +67,15 @@ class RouterPBTestCase(unittest.TestCase):
         # Launch the router server
         self.pbRoot_f = RouterPB()
         self.pbRoot_f.setConfig(self.RouterPBConfigInstance)
-        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(self.pbRoot_f))
+        p = portal.Portal(JasminPBRealm(self.pbRoot_f))
+        if not authentication:
+            p.registerChecker(AllowAnonymousAccess())
+        else:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser('test_user', md5('test_password').digest())
+            p.registerChecker(c)
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
         
     def tearDown(self):
@@ -154,6 +164,41 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         self.CManagerServer.stopListening()
         self.amqpClient.disconnect()
         yield self.rc.disconnect()
+        
+class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def setUp(self, authentication=False):
+        yield RouterPBTestCase.setUp(self, authentication=True)
+        
+    @defer.inlineCallbacks
+    def test_connect_success(self):
+        yield self.connect('127.0.0.1', self.pbPort, 'test_user', 'test_password')
+
+    @defer.inlineCallbacks
+    def test_connect_failure(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Authentication error test_anyuser')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
+
+    @defer.inlineCallbacks
+    def test_connect_non_anonymous(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort)
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Anonymous connection is not authorized !')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
         
 class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks

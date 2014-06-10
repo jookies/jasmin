@@ -167,13 +167,13 @@ class MtRouterManager(Manager):
     managerName = 'mtrouter'
     
     def persist(self, arg, opts):
-        if self.pb['router'].remote_persist(opts.profile, 'mtroutes'):
+        if self.pb['router'].perspective_persist(opts.profile, 'mtroutes'):
             self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
     
     def load(self, arg, opts):
-        r = self.pb['router'].remote_load(opts.profile, 'mtroutes')
+        r = self.pb['router'].perspective_load(opts.profile, 'mtroutes')
 
         if r:
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
@@ -181,7 +181,7 @@ class MtRouterManager(Manager):
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
            
     def list(self, arg, opts):
-        mtroutes = pickle.loads(self.pb['router'].remote_mtroute_get_all())
+        mtroutes = pickle.loads(self.pb['router'].perspective_mtroute_get_all())
         counter = 0
         
         if (len(mtroutes)) > 0:
@@ -224,7 +224,7 @@ class MtRouterManager(Manager):
     @Session
     @MTRouteBuild
     def add_session(self, order, RouteInstance):
-        st = self.pb['router'].remote_mtroute_add(pickle.dumps(RouteInstance, 2), order)
+        st = self.pb['router'].perspective_mtroute_add(pickle.dumps(RouteInstance, 2), order)
         
         if st:
             self.protocol.sendData('Successfully added MTRoute [%s] with order:%s' % (RouteInstance.__class__.__name__, order), prompt=False)
@@ -238,7 +238,7 @@ class MtRouterManager(Manager):
     
     @MTRouteExist(order_key='remove')
     def remove(self, arg, opts):
-        st = self.pb['router'].remote_mtroute_remove(int(opts.remove))
+        st = self.pb['router'].perspective_mtroute_remove(int(opts.remove))
         
         if st:
             self.protocol.sendData('Successfully removed MT Route with order:%s' % opts.remove)
@@ -251,6 +251,6 @@ class MtRouterManager(Manager):
         self.protocol.sendData(str(r))
         
     def flush(self, arg, opts):
-        tableSize = len(pickle.loads(self.pb['router'].remote_mtroute_get_all()))
-        self.pb['router'].remote_mtroute_flush()
+        tableSize = len(pickle.loads(self.pb['router'].perspective_mtroute_get_all()))
+        self.pb['router'].perspective_mtroute_flush()
         self.protocol.sendData('Successfully flushed MT Route table (%s flushed entries)' % tableSize)

@@ -16,7 +16,7 @@ from copy import copy
 
 LOG_CATEGORY = "jasmin-router"
 
-class RouterPB(pb.Root):
+class RouterPB(pb.Avatar):
     def setConfig(self, RouterPBConfig):
         self.config = RouterPBConfig
 
@@ -38,10 +38,18 @@ class RouterPB(pb.Root):
         self.users = []
         self.groups = []
         
-        # Persistence flag, accessed through remote_is_persisted
+        # Persistence flag, accessed through perspective_is_persisted
         self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
         
         self.log.info('Router configured and ready.')
+        
+    def setAvatar(self, avatar):
+        if type(avatar) is str:
+            self.log.info('Authenticated Avatar: %s' % avatar)
+        else:
+            self.log.info('Anonymous connection')
+        
+        self.avatar = avatar
         
     @defer.inlineCallbacks
     def addAmqpBroker(self, amqpBroker):
@@ -172,7 +180,7 @@ class RouterPB(pb.Root):
         self.log.debug('getMTRoute [%s] returned None', order)
         return None
     
-    def remote_persist(self, profile, scope = 'all'):
+    def perspective_persist(self, profile, scope = 'all'):
         try:
             if scope in ['all', 'groups']:
                 # Persist groups configuration
@@ -239,7 +247,7 @@ class RouterPB(pb.Root):
 
         return True
     
-    def remote_load(self, profile, scope = 'all'):
+    def perspective_load(self, profile, scope = 'all'):
         try:
             if scope in ['all', 'groups']:
                 # Load groups configuration
@@ -253,7 +261,7 @@ class RouterPB(pb.Root):
     
                 # Remove current configuration
                 self.log.info('Removing current Groups (%d)' % len(self.groups))
-                self.remote_group_remove_all()
+                self.perspective_group_remove_all()
     
                 # Adding new groups
                 self.groups = pickle.loads(''.join(lines[1:]))
@@ -274,7 +282,7 @@ class RouterPB(pb.Root):
     
                 # Remove current configuration
                 self.log.info('Removing current Users (%d)' % len(self.users))
-                self.remote_user_remove_all()
+                self.perspective_user_remove_all()
     
                 # Adding new groups
                 self.users = pickle.loads(''.join(lines[1:]))
@@ -326,14 +334,14 @@ class RouterPB(pb.Root):
 
         return True
         
-    def remote_is_persisted(self):
+    def perspective_is_persisted(self):
         for k, v in self.persistanceState.iteritems():
             if not v:
                 return False
             
         return True
         
-    def remote_user_add(self, user):
+    def perspective_user_add(self, user):
         user = pickle.loads(user)
         self.log.debug('Adding a User: %s' % user)
         self.log.info('Adding a User (id:%s)' % user.uid)
@@ -360,13 +368,13 @@ class RouterPB(pb.Root):
 
         return True
     
-    def remote_user_authenticate(self, username, password):
+    def perspective_user_authenticate(self, username, password):
         self.log.debug('Authenticating with username:%s and password:%s' % (username, password))
         self.log.info('Authentication request with username:%s' % username)
 
         return self.authenticateUser(username, password, True)
     
-    def remote_user_remove(self, uid):
+    def perspective_user_remove(self, uid):
         self.log.debug('Removing a User with uid: %s' % uid)
         self.log.info('Removing a User (id:%s)' % uid)
 
@@ -383,7 +391,7 @@ class RouterPB(pb.Root):
 
         return False
 
-    def remote_user_remove_all(self):
+    def perspective_user_remove_all(self):
         self.log.info('Removing all users')
         
         self.users = []
@@ -393,7 +401,7 @@ class RouterPB(pb.Root):
 
         return True
 
-    def remote_user_get_all(self, gid = None):
+    def perspective_user_get_all(self, gid = None):
         self.log.info('Getting all users')
         self.log.debug('Getting all users: %s' % self.users)
 
@@ -408,7 +416,7 @@ class RouterPB(pb.Root):
             return pickle.dumps(_users)
             
     
-    def remote_group_add(self, group):
+    def perspective_group_add(self, group):
         group = pickle.loads(group)
         self.log.debug('Adding a Group: %s' % group)
         self.log.info('Adding a Group (id:%s)' % group.gid)
@@ -426,7 +434,7 @@ class RouterPB(pb.Root):
 
         return True
     
-    def remote_group_remove(self, gid):
+    def perspective_group_remove(self, gid):
         self.log.debug('Removing a Group with gid: %s' % gid)
         self.log.info('Removing a Group (id:%s)' % gid)
 
@@ -451,7 +459,7 @@ class RouterPB(pb.Root):
 
         return False
 
-    def remote_group_remove_all(self):
+    def perspective_group_remove_all(self):
         self.log.info('Removing all groups')
         
         # Remove group
@@ -473,13 +481,13 @@ class RouterPB(pb.Root):
 
         return True
 
-    def remote_group_get_all(self):
+    def perspective_group_get_all(self):
         self.log.info('Getting all groups')
         self.log.debug('Getting all groups: %s' % self.groups)
 
         return pickle.dumps(self.groups)
     
-    def remote_mtroute_add(self, route, order):
+    def perspective_mtroute_add(self, route, order):
         route = pickle.loads(route)
         self.log.debug('Adding a MT Route, order = %s, route = %s' % (order, route))
         self.log.info('Adding a MT Route with order %s', order)
@@ -498,7 +506,7 @@ class RouterPB(pb.Root):
 
         return True
     
-    def remote_moroute_add(self, route, order):
+    def perspective_moroute_add(self, route, order):
         route = pickle.loads(route)
         self.log.debug('Adding a MO Route, order = %s, route = %s' % (order, route))
         self.log.info('Adding a MO Route with order %s', order)
@@ -517,7 +525,7 @@ class RouterPB(pb.Root):
 
         return True
     
-    def remote_moroute_remove(self, order):
+    def perspective_moroute_remove(self, order):
         self.log.info('Removing MO Route [%s]', order)
         
         # Set persistance state to False (pending for persistance)
@@ -525,7 +533,7 @@ class RouterPB(pb.Root):
 
         return self.mo_routing_table.remove(order)
 
-    def remote_mtroute_remove(self, order):
+    def perspective_mtroute_remove(self, order):
         self.log.info('Removing MT Route [%s]', order)
         
         # Set persistance state to False (pending for persistance)
@@ -533,7 +541,7 @@ class RouterPB(pb.Root):
 
         return self.mt_routing_table.remove(order)
 
-    def remote_mtroute_flush(self):
+    def perspective_mtroute_flush(self):
         self.log.info('Flushing MT Routing table')
 
         # Set persistance state to False (pending for persistance)
@@ -541,7 +549,7 @@ class RouterPB(pb.Root):
 
         return self.mt_routing_table.flush()
     
-    def remote_moroute_flush(self):
+    def perspective_moroute_flush(self):
         self.log.info('Flushing MO Routing table')
 
         # Set persistance state to False (pending for persistance)
@@ -549,7 +557,7 @@ class RouterPB(pb.Root):
 
         return self.mo_routing_table.flush()
     
-    def remote_mtroute_get_all(self):
+    def perspective_mtroute_get_all(self):
         self.log.info('Getting MT Routing table')
         
         routes = self.mt_routing_table.getAll()
@@ -557,7 +565,7 @@ class RouterPB(pb.Root):
 
         return pickle.dumps(routes, self.pickleProtocol)
     
-    def remote_moroute_get_all(self):
+    def perspective_moroute_get_all(self):
         self.log.info('Getting MO Routing table')
 
         routes = self.mo_routing_table.getAll()

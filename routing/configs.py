@@ -13,6 +13,10 @@ class RouterPBConfig(ConfigFile):
         self.bind = self._get('router', 'bind', '0.0.0.0')
         self.port = self._getint('router', 'port', 8988)
         
+        self.authentication = self._getbool('router', 'authentication', True)
+        self.admin_username = self._get('router', 'admin_username', 'radmin')
+        self.admin_password = self._get('router', 'admin_password', "82a606ca5a0deea2b5777756788af5c8").decode('hex')
+
         self.pickle_protocol = self._getint('router', 'pickle_protocol', 2)
 
         # Logging
