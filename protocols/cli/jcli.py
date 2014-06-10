@@ -13,7 +13,6 @@ from mtrouterm import MtRouterManager
 from filtersm import FiltersManager
 from httpccm import HttpccManager
 from optparse import make_option, Option, OptionValueError, OptParseError
-from copy import copy
         
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'

@@ -135,14 +135,14 @@ class SmppCCManager(Manager):
     managerName = 'smppcc'
     
     def persist(self, arg, opts):
-        if self.pb['smppcm'].remote_persist(opts.profile):
+        if self.pb['smppcm'].perspective_persist(opts.profile):
             self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
     
     @defer.inlineCallbacks
     def load(self, arg, opts):
-        r = yield self.pb['smppcm'].remote_load(opts.profile)
+        r = yield self.pb['smppcm'].perspective_load(opts.profile)
 
         if r:
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
@@ -150,7 +150,7 @@ class SmppCCManager(Manager):
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
             
     def list(self, arg, opts):
-        connectors = self.pb['smppcm'].remote_connector_list()
+        connectors = self.pb['smppcm'].perspective_connector_list()
         counter = 0
         
         if (len(connectors)) > 0:
@@ -176,7 +176,7 @@ class SmppCCManager(Manager):
     @SMPPClientConfigBuild
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
-        st = yield self.pb['smppcm'].remote_connector_add(pickle.dumps(SMPPClientConfigInstance, 2))
+        st = yield self.pb['smppcm'].perspective_connector_add(pickle.dumps(SMPPClientConfigInstance, 2))
         
         if st:
             self.protocol.sendData('Successfully added connector [%s]' % SMPPClientConfigInstance.id, prompt=False)
@@ -199,11 +199,11 @@ class SmppCCManager(Manager):
         
         if connector['config'].PendingRestart and connectorDetails['service_status'] == 1:
             self.protocol.sendData('Restarting connector [%s] for updates to take effect ...' % self.sessionContext['cid'], prompt=False)
-            st = yield self.pb['smppcm'].remote_connector_stop(self.sessionContext['cid'])
+            st = yield self.pb['smppcm'].perspective_connector_stop(self.sessionContext['cid'])
             if not st:
                 self.protocol.sendData('Failed stopping connector, check log for details', prompt=False)
             else:
-                self.pb['smppcm'].remote_connector_start(self.sessionContext['cid'])
+                self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
         
         self.protocol.sendData('Successfully updated connector [%s]' % self.sessionContext['cid'], prompt=False)
         self.stopSession()
@@ -217,7 +217,7 @@ class SmppCCManager(Manager):
     @ConnectorExist(cid_key='remove')
     @defer.inlineCallbacks
     def remove(self, arg, opts):
-        st = yield self.pb['smppcm'].remote_connector_remove(opts.remove)
+        st = yield self.pb['smppcm'].perspective_connector_remove(opts.remove)
         
         if st:
             self.protocol.sendData('Successfully removed connector id:%s' % opts.remove)
@@ -234,7 +234,7 @@ class SmppCCManager(Manager):
     @ConnectorExist(cid_key='stop')
     @defer.inlineCallbacks
     def stop(self, arg, opts):
-        st = yield self.pb['smppcm'].remote_connector_stop(opts.stop)
+        st = yield self.pb['smppcm'].perspective_connector_stop(opts.stop)
     
         if st:
             self.protocol.sendData('Successfully stopped connector id:%s' % opts.stop)
@@ -243,7 +243,7 @@ class SmppCCManager(Manager):
 
     @ConnectorExist(cid_key='start')
     def start(self, arg, opts):
-        st = self.pb['smppcm'].remote_connector_start(opts.start)
+        st = self.pb['smppcm'].perspective_connector_start(opts.start)
     
         if st:
             self.protocol.sendData('Successfully started connector id:%s' % opts.start)

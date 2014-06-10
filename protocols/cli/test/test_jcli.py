@@ -30,6 +30,7 @@ class jCliTestCases(ProtocolTestCases):
 
         # Instanciate a SMPPClientManagerPB (a requirement for JCliFactory)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        SMPPClientPBConfigInstance.authentication = False
         self.clientManager_f = SMPPClientManagerPB()
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
         self.clientManager_f.addAmqpBroker(self.amqpBroker)

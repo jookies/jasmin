@@ -38,6 +38,10 @@ from jasmin.routing.jasminApi import *
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from jasmin.vendor.smpp.pdu.pdu_types import EsmClass, EsmClassMode, MoreMessagesToSend
+from twisted.cred import portal
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.spread.pb import JasminPBPortalRoot 
+from twisted.cred.checkers import AllowAnonymousAccess
 
 def composeMessage(characters, length):
     if length <= len(characters):
@@ -77,6 +81,7 @@ class HttpServerTestCase(RouterPBTestCase):
         # need to run the tests
         httpApiConfigInstance = HTTPApiConfig()
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        SMPPClientPBConfigInstance.authentication = False
         
         # Smpp client manager is required for HTTPApi instanciation
         self.clientManager_f = SMPPClientManagerPB()
@@ -116,7 +121,10 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         
         # Setup smpp client manager pb
         self.clientManager_f.addAmqpBroker(self.amqpBroker)
-        self.CManagerServer = reactor.listenTCP(0, pb.PBServerFactory(self.clientManager_f))
+        p = portal.Portal(JasminPBRealm(self.clientManager_f))
+        p.registerChecker(AllowAnonymousAccess())
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        self.CManagerServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.CManagerPort = self.CManagerServer.getHost().port
         
         # Start DLRThrower

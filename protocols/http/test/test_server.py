@@ -26,6 +26,7 @@ class HTTPApiTestCases(TestCase):
 
         # Instanciate a SMPPClientManagerPB (a requirement for HTTPApi)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        SMPPClientPBConfigInstance.authentication = False
         clientManager_f = SMPPClientManagerPB()
         clientManager_f.setConfig(SMPPClientPBConfigInstance)
         

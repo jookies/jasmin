@@ -26,6 +26,7 @@ def runScenario():
         
         proxy = SMPPClientManagerPBProxy()
 
+        # Anonymous connection used
         yield proxy.connect('127.0.0.1', 8989)
         yield proxy.add(SMPPClientConfig(**connector1))
         yield proxy.add(SMPPClientConfig(**connector2))

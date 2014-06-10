@@ -7,6 +7,7 @@ import mock
 import pickle
 import glob
 import os
+from hashlib import md5
 from testfixtures import LogCapture
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
@@ -22,14 +23,20 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from random import randint
 from datetime import datetime, timedelta
+from twisted.cred import portal
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.spread.pb import JasminPBPortalRoot 
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from jasmin.managers.proxies import ConnectError
 
 class SMPPClientPBTestCase(unittest.TestCase):
     @defer.inlineCallbacks
-    def setUp(self):
+    def setUp(self, authentication = False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
         self.SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        self.SMPPClientPBConfigInstance.authentication = authentication
         AMQPServiceConfigInstance = AmqpConfig()
         AMQPServiceConfigInstance.reconnectOnConnectionLoss = False
         
@@ -45,7 +52,15 @@ class SMPPClientPBTestCase(unittest.TestCase):
         pbRoot = SMPPClientManagerPB()
         pbRoot.setConfig(self.SMPPClientPBConfigInstance)
         pbRoot.addAmqpBroker(self.amqpBroker)
-        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(pbRoot))
+        p = portal.Portal(JasminPBRealm(pbRoot))
+        if not authentication:
+            p.registerChecker(AllowAnonymousAccess())
+        else:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser('test_user', md5('test_password').digest())
+            p.registerChecker(c)
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
         
         # Default SMPPClientConfig
@@ -111,6 +126,41 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
     def tearDown(self):
         SMPPClientPBProxyTestCase.tearDown(self)
         return self.SMSCPort.stopListening()
+    
+class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
+    @defer.inlineCallbacks
+    def setUp(self, authentication=False):
+        yield SMPPClientPBProxyTestCase.setUp(self, authentication=True)
+        
+    @defer.inlineCallbacks
+    def test_connect_success(self):
+        yield self.connect('127.0.0.1', self.pbPort, 'test_user', 'test_password')
+
+    @defer.inlineCallbacks
+    def test_connect_failure(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Authentication error test_anyuser')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
+
+    @defer.inlineCallbacks
+    def test_connect_non_anonymous(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort)
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Anonymous connection is not authorized !')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
 
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     def tearDown(self):

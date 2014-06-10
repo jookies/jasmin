@@ -133,7 +133,7 @@ class Send(Resource):
                 ########################################################
                 # Send SubmitSmPDU through smpp client manager PB server
                 self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
-                c = self.SMPPClientManagerPB.remote_submit_sm(routedConnector.cid, 
+                c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid, 
                                                               SubmitSmPDU, 
                                                               priority, 
                                                               pickled = False, 

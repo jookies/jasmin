@@ -20,6 +20,10 @@ from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.cli.configs import JCliConfig
+from twisted.cred import portal
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.spread.pb import JasminPBPortalRoot 
 
 class Options(usage.Options):
 
@@ -42,6 +46,7 @@ class JasminServiceMaker:
         # c.f: http://twistedmatrix.com/documents/current/core/howto/logging.htl#auto3
         log.PythonLoggingObserver().start()
 
+        ########################################################
         # Start AMQP Broker
         AMQPServiceConfigInstance = AmqpConfig(options['config'])
         amqpBroker_f = AmqpFactory(AMQPServiceConfigInstance)
@@ -49,6 +54,7 @@ class JasminServiceMaker:
         amqpBroker = internet.TCPClient(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, amqpBroker_f)
         amqpBroker.setServiceParent(top_service)
 
+        ########################################################
         # Start Router PB server
         RouterPBConfigInstance = RouterPBConfig(options['config'])
         RouterPB_f = RouterPB()
@@ -59,16 +65,28 @@ class JasminServiceMaker:
         # AMQP Broker is used to listen to deliver_sm/dlr queues
         RouterPB_f.addAmqpBroker(amqpBroker_f)
 
+        ########################################################
         # Start SMPP Client connector manager
         SMPPClientPBConfigInstance = SMPPClientPBConfig(options['config'])
         clientManager_f = SMPPClientManagerPB()
         clientManager_f.setConfig(SMPPClientPBConfigInstance)
-        clientManager = internet.TCPServer(SMPPClientPBConfigInstance.port, pb.PBServerFactory(clientManager_f), 
+        # Set authentication portal
+        p = portal.Portal(JasminPBRealm(clientManager_f))
+        if SMPPClientPBConfigInstance.authentication:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser(SMPPClientPBConfigInstance.admin_username, SMPPClientPBConfigInstance.admin_password)
+            p.registerChecker(c)
+        else:
+            p.registerChecker(AllowAnonymousAccess())
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        # Launch SMPPClientManagerPB Server
+        clientManager = internet.TCPServer(SMPPClientPBConfigInstance.port, pb.PBServerFactory(jPBPortalRoot), 
                                            interface=SMPPClientPBConfigInstance.bind)
         clientManager.setServiceParent(top_service)
         # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
         clientManager_f.addAmqpBroker(amqpBroker_f)
         
+        ########################################################
         # Connect to redis server
         RedisForJasminConfigInstance = RedisForJasminConfig(options['config'])
         rc = ConnectionWithConfiguration(RedisForJasminConfigInstance)
@@ -78,6 +96,7 @@ class JasminServiceMaker:
             rc.select(RedisForJasminConfigInstance.dbid)
         clientManager_f.addRedisClient(rc)
 
+        ########################################################
         # Start deliverSmHttpThrower
         deliverThrowerConfigInstance = deliverSmHttpThrowerConfig(options['config'])
         deliverThrower = deliverSmHttpThrower()
@@ -86,6 +105,7 @@ class JasminServiceMaker:
         # AMQP Broker is used to listen to deliver_sm queue
         deliverThrower.addAmqpBroker(amqpBroker_f)
         
+        ########################################################
         # Start DLRThrower
         DLRThrowerConfigInstance = DLRThrowerConfig(options['config'])
         _DLRThrower = DLRThrower()
@@ -94,6 +114,7 @@ class JasminServiceMaker:
         # AMQP Broker is used to listen to DLRThrower queue
         _DLRThrower.addAmqpBroker(amqpBroker_f)
         
+        ########################################################
         # Start HTTP Api
         httpApiConfigInstance = HTTPApiConfig(options['config'])
         httpApi_f = HTTPApi(RouterPB_f, clientManager_f, httpApiConfigInstance)
@@ -105,6 +126,7 @@ class JasminServiceMaker:
                                      )
         httpApi.setServiceParent(top_service)
         
+        ########################################################
         # Start JCli server
         JCliConfigInstance = JCliConfig(options['config'])
         JCli_f = JCliFactory(JCliConfigInstance, clientManager_f, RouterPB_f)
