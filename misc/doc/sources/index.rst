@@ -37,6 +37,7 @@ Full contents
 =============
 .. toctree::
    :titlesonly:
+   :maxdepth: 2
 
    apis/ja-http/index
 
