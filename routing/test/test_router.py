@@ -787,15 +787,17 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         yield self.group_add(g1)
         
         c1 = SmppClientConnector(id_generator())
-        u1 = User(1, g1, 'username', 'password')
-        u2 = User(1, g1, 'username2', 'password2')
+        u1_password = 'password'
+        u1 = User(1, g1, 'username', u1_password)
+        u2_password = 'password'
+        u2 = User(1, g1, 'username2', u2_password)
         yield self.user_add(u1)
 
         yield self.mtroute_add(DefaultRoute(c1), 0)
         
         # Send a SMS MT through http interface
-        url_ko = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u2.username, u2.password)
-        url_ok = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u1.username, u1.password)
+        url_ko = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u2.username, u1_password)
+        url_ok = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u1.username, u2_password)
         
         # Incorrect username/password will lead to '403 Forbidden' error
         lastErrorStatus = 200
@@ -861,7 +863,8 @@ class SubmitSmTestCaseTools():
         yield self.group_add(g1)
         
         self.c1 = SmppClientConnector(id_generator())
-        self.u1 = User(1, g1, 'username', 'password')
+        user_password = 'password'
+        self.u1 = User(1, g1, 'username', user_password)
         yield self.user_add(self.u1)
         yield self.mtroute_add(DefaultRoute(self.c1), 0)
 
@@ -886,7 +889,7 @@ class SubmitSmTestCaseTools():
         self.postdata = None
         self.params = {'to': '98700177', 
                         'username': self.u1.username, 
-                        'password': self.u1.password, 
+                        'password': user_password, 
                         'content': 'test'}
 
         if hasattr(self, 'AckServer'):

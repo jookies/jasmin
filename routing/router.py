@@ -13,6 +13,7 @@ from RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTablePar
 from Routables import RoutableDeliverSm
 from jasminApi import Connector
 from copy import copy
+from hashlib import md5
 
 LOG_CATEGORY = "jasmin-router"
 
@@ -132,7 +133,7 @@ class RouterPB(pb.Avatar):
         return self.mt_routing_table
     def authenticateUser(self, username, password, pickled = False):
         for _user in self.users:
-            if _user.username == username and _user.password == password:
+            if _user.username == username and _user.password == md5(password).digest():
                 if pickled:
                     return pickle.dumps(_user, self.pickleProtocol)
                 else:

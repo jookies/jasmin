@@ -1,4 +1,5 @@
 import re
+from hashlib import md5
 
 class jasminApiInvalidParamError(Exception):
     """Raised when trying to instanciate a jasminApi object with invalid parameter
@@ -16,7 +17,10 @@ class User(jasminApiObject):
         self.uid = uid
         self.group = group
         self.username = username
-        self.password = password
+        if type(password) == str:
+            self.password = md5(password).digest()
+        else:
+            self.password = password
 
 class Connector(jasminApiObject):
     type = 'generic'
