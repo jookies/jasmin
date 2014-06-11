@@ -75,6 +75,19 @@ class JCliProtocol(CmdProtocol):
         elif self.authentication['password'] is None:
             return self.AUTH_password(line)
         
+    def characterReceived(self, ch, moreCharactersComing):
+        if self.mode == 'insert':
+            self.lineBuffer.insert(self.lineBufferIndex, ch)
+        else:
+            self.lineBuffer[self.lineBufferIndex:self.lineBufferIndex+1] = [ch]
+        self.lineBufferIndex += 1
+        
+        # Dont print back chars if password is being entered
+        if not self.authentication['auth'] and self.authentication['username'] is not None and self.authentication['password'] is None:
+            return
+        else:
+            self.terminal.write(ch)
+        
     def handle_TAB(self):
         "TABulation is only enabled when authenticated"
         
