@@ -39,7 +39,9 @@ class ProtocolTestCases(unittest.TestCase):
             receivedLines = self.getBuffer(True)
             
             # First line is the command itself
-            self.assertEqual(receivedLines[0], cmd['command'])
+            # 'noecho' is used when there's no echo back from the server while typing (e.g. password input)
+            if 'noecho' not in cmd:
+                self.assertEqual(receivedLines[0], cmd['command'])
 
             # Assert reply
             if 'expect' in cmd:

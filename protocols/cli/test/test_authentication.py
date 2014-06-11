@@ -10,7 +10,7 @@ class AuthenticationTestCases(jCliWithAuthTestCases):
     
     def test_auth_failure(self):
         commands = [{'command': 'AnyUsername'},
-                    {'command': 'AnyPassword%s' % random.randrange(100, 200), 'expect': 'Incorrect Username/Password.'}]
+                    {'command': 'AnyPassword%s' % random.randrange(100, 200), 'expect': 'Incorrect Username/Password.', 'noecho': True}]
         return self._test(r'Username: ', commands)
     
     def test_auth_success(self):
@@ -18,5 +18,5 @@ class AuthenticationTestCases(jCliWithAuthTestCases):
         self.JCliConfigInstance.admin_password = md5(testPassword).digest()
         
         commands = [{'command': self.JCliConfigInstance.admin_username},
-                    {'command': testPassword, 'expect': 'Welcome to Jasmin console'}]
+                    {'command': testPassword, 'expect': 'Welcome to Jasmin console', 'noecho': True}]
         return self._test(r'jcli : ', commands)
