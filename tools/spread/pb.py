@@ -48,7 +48,7 @@ class _JellyableAvatarMixin:
             return False, 'Authentication error %s' % username
         else:
             # Fallback solution when err is not known
-            self.log.err('Unknown authentication error: %s' % err)
+            self.log.error('Unknown authentication error: %s' % err)
             return False, 'Unknown authentication error: %s' % err
 
 class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):

@@ -29,6 +29,8 @@ class Options(usage.Options):
 
     optParameters = [
         ['config', 'c', '/etc/jasmin/jasmin.cfg', 'Jasmin configuration file'],
+        ['username', 'u', None, 'jCli username used to load configuration profile on startup'],
+        ['password', 'p', None, 'jCli password used to load configuration profile on startup'],
         ]
     
 class JasminServiceMaker:
@@ -137,8 +139,9 @@ class JasminServiceMaker:
         
         ########################################################
         # Start JCli server
+        loadConfigProfileWithCreds = {'username': options['username'], 'password': options['password']}
         JCliConfigInstance = JCliConfig(options['config'])
-        JCli_f = JCliFactory(JCliConfigInstance, clientManager_f, RouterPB_f)
+        JCli_f = JCliFactory(JCliConfigInstance, clientManager_f, RouterPB_f, loadConfigProfileWithCreds)
         jcli = internet.TCPServer(JCliConfigInstance.port, JCli_f, interface=JCliConfigInstance.bind)
         jcli.setServiceParent(top_service)
         

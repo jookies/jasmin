@@ -9,6 +9,7 @@ from protocol import CmdProtocol
 from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
 from twisted.conch.insults import insults
 from twisted.test import proto_helpers
+from hashlib import md5
     
 class JCliTelnetTransport(TelnetTransport):
     def connectionLost(self, reason):
@@ -34,14 +35,16 @@ class CmdFactory(ServerFactory):
                                                     CmdProtocol)
         
 class JCliFactory(ServerFactory):
-    def __init__(self, config, SMPPClientManagerPB, RouterPB):
+    def __init__(self, config, SMPPClientManagerPB, RouterPB, loadConfigProfileWithCreds = {'username': None, 'password': None}):
         self.config = config
         self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB}
         # Protocol sessions are kept here:
         self.sessions = {}
         self.sessionRef = 0
         self.sessionsOnline = 0
-                
+        # When defined, configuration profile will be loaded on startup
+        self.loadConfigProfileWithCreds = loadConfigProfileWithCreds
+              
         # Set up and configure a dedicated logger
         self.log = logging.getLogger('jcli')
         if len(self.log.handlers) != 1:
@@ -72,10 +75,29 @@ class JCliFactory(ServerFactory):
         yield waitDeferred
 
         # Load configuration profile
-        self.log.info("OnStart loading configuration profile: '%s'" % self.config.load_profile)
         proto = self.buildProtocol(('127.0.0.1', 0))
         tr = proto_helpers.StringTransport()
         proto.makeConnection(tr)
+
+        if self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None and self.loadConfigProfileWithCreds['password'] is not None:
+            self.log.info("OnStart loading configuration profile: '%s' with username: '%s'" % (self.config.load_profile, 
+                                                                                               self.loadConfigProfileWithCreds['username']))
+            
+            if self.loadConfigProfileWithCreds['username'] != self.config.admin_username or md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password:
+                self.log.error("Authentication error, cannot load configuration profile with provided username: '%s'" % self.loadConfigProfileWithCreds['username'])
+                proto.connectionLost(None)
+                defer.returnValue(False)
+                
+            proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['username'])
+            proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['password'])
+        elif self.config.authentication:
+            self.log.error('Authentication is required and no credentials were given, config. profile will not be loaded')
+            proto.connectionLost(None)
+            defer.returnValue(False)
+        else:
+            self.log.info("OnStart loading configuration profile: '%s' without credentials (auth. is not required)" % (self.config.load_profile))
+            
         proto.dataReceived('load -p %s\r\n' % self.config.load_profile)
         proto.dataReceived('quit\r\n')
         proto.connectionLost(None)
+        defer.returnValue(False)
