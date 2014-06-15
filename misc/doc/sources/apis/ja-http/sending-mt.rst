@@ -19,38 +19,69 @@ HTTP request parameters
 =======================
 When calling Jasmin's URL from an application, the below parameters must be passed (at least mandatory ones), the api will return a message id on success, see :ref:`http_response`. 
 
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| Parameter name | Value/Pattern                                | Example(s)                     | Presence  | Description                                                        |
-+================+==============================================+================================+===========+====================================================================+
-| **to**         | Msisdn with or without international prefix  | +21620203060, 20203060         | Mandatory | Destination address, only one address is supported per request     |
-|                |                                              |                                |           |                                                                    |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **from**       | Msisdn with or without international prefix, | +21620203060, 20203060, Jasmin | Optional  | Originating address, In case rewriting of the sender's address is  |
-|                | alphanumeric value                           |                                |           | supported/permitted by the SMS-C used to transmit the message,     |
-|                |                                              |                                |           | this number is transmitted as the originating address.             |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **coding**     | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13 or 14   | 1                              | Optional  | Sets the Data Coding Scheme bits, default is 0, accepts values all |
-|                |                                              |                                |           | allowed values in SMPP protocol [1]_                               |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **username**   | Text (30 char. max)                          | jasmin_user                    | Mandatory | Username for Jasmin account.                                       |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **password**   | Text (30 char. max)                          | jasmin_pass                    | Mandatory | Password for Jasmin account.                                       |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **priority**   | 1, 2 or 3                                    | 2                              | Optional  | Default is 1 (lowest priority)                                     |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **dlr**        | yes or no                                    | yes                            | Optional  | Default is no (no DLR will be tracked)                             |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **dlr-url**    | HTTP(s) URL                                  | http://127.0.0.1/app/dlr.php   | Mandatory | If a DLR is requested (dlr = 'yes'), dlr-url MUST be set, if not,  |
-|                |                                              |                                | *if dlr*  | dlr value is reconsidered as 'no'                                  |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **dlr-level**  | 1, 2 or 3                                    | 2                              | Mandatory | 1: SMS-C level, 2: Terminal level, 3: Both                         |
-|                |                                              |                                | *if dlr*  |                                                                    |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **dlr-method** | GET or POST                                  | GET                            | Mandatory | DLR is transmitted through http to a third party application using |
-|                |                                              |                                | *if dlr*  | GET or POST method.                                                |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
-| **content**    | Text                                         | Hello world !                  | Mandatory | Content to be sent                                                 |
-+----------------+----------------------------------------------+--------------------------------+-----------+--------------------------------------------------------------------+
+.. list-table:: ja-http sending SMS parameters
+   :header-rows: 1
+
+   * - Parameter
+     - Value / Pattern
+     - Example(s)
+     - Presence
+     - Description / Notes
+   * - **to**
+     - Msisdn with or without international prefix
+     - 20203050
+     - Mandatory
+     - Destination address, only one address is supported per request
+   * - **from**
+     - Msisdn with or without international prefix, alphanumeric value
+     - 20203050, Jasmin
+     - Optional
+     - Originating address, In case rewriting of the sender's address is supported or permitted by the SMS-C used to transmit the message, this number is transmitted as the originating address
+   * - **coding**
+     - 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13 or 14
+     - 1
+     - Optional
+     - Sets the Data Coding Scheme bits, default is 0, accepts values all allowed values in SMPP protocol [1]_
+   * - **username**
+     - Text (30 char. max)
+     - jasmin_user
+     - Mandatory
+     - Username for Jasmin user account.
+   * - **password**
+     - Text (30 char. max)
+     - jasmin_pass
+     - Mandatory
+     - Password for Jasmin user account.
+   * - **priority**
+     - 1, 2 or 3
+     - 2
+     - Optional
+     - Default is 1 (lowest priority)
+   * - **dlr**
+     - yes or no
+     - yes
+     - Optional
+     - Default is no (no DLR will be tracked)
+   * - **dlr-url**
+     - HTTP(s) URL
+     - http://host/dlr.php
+     - Mandatory *if dlr*
+     - If a DLR is requested (dlr = ‘yes’), dlr-url MUST be set, if not, dlr value is reconsidered as ‘no’
+   * - **dlr-level**
+     - 1, 2 or 3
+     - 2
+     - Mandatory *if dlr*
+     - 1: SMS-C level, 2: Terminal level, 3: Both
+   * - **dlr-method**
+     - GET or POST
+     - GET
+     - Mandatory *if dlr*
+     - DLR is transmitted through http to a third party application using GET or POST method.
+   * - **content**
+     - Text
+     - Hello world !
+     - Mandatory
+     - Content to be sent
 
 .. _http_response:
 
@@ -117,7 +148,7 @@ Here is an example of how to request acknowledgement when sending a SMS:
 .. literalinclude:: example_send_dlr2.py
    :language: python
 
-And more cases:
+And more use cases:
 
 .. literalinclude:: example_send_misc.py
    :language: python
@@ -178,4 +209,4 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 
 .. rubric:: Footnotes
 .. [1]
-.. include:: ../datacoding
+.. include:: ../datacoding.table

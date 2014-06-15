@@ -20,8 +20,8 @@ SMS Messages can be transmitted using HTTP protocol, the following requirements 
 What You Can Do with the API
 ============================
 The ja-http API allows you to send and receive SMS through Jasmin's connectors.
-Receive http callbacks when SMS-MT is received (or not) on mobile station, send and receive long (more than 160 characters) SMS, 
-unicode content and receive http callbacks when a mobile station send you a SMS-MO.
+Receive http callbacks for delivery notification when SMS-MT is received (or not) on mobile station, send and receive long 
+(more than 160 characters) SMS, unicode content and receive http callbacks when a mobile station send you a SMS-MO.
 
 .. toctree::
    :titlesonly:
