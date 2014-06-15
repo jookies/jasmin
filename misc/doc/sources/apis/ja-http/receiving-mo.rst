@@ -107,18 +107,23 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    log_date_format    = %Y-%m-%d %H:%M:%S
 
 .. list-table:: [http-api] configuration section
-   :widths: 10 40
+   :widths: 10 10 80
    :header-rows: 1
 
    * - Element
+     - Default
      - Description
    * - timeout
+     - 30
      - Sets socket timeout in seconds for outgoing client http connections.
    * - retry_delay
+     - 30
      - Define how many seconds should pass within the HTTP queuing for retrying a failed HTTP request.
    * - max_retries
+     - 3
      - Define how many retries should be performed for failing HTTP requests of SMS-MO.
    * - log_*
+     - 
      - Python's logging module configuration.
      
 .. rubric:: Footnotes

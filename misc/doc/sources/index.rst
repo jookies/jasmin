@@ -41,6 +41,7 @@ Full contents
    :titlesonly:
    :maxdepth: 2
 
+   management/jcli/index
    apis/ja-http/index
 
 License

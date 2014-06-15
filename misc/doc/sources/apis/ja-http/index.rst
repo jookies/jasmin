@@ -1,6 +1,6 @@
-#######################
-Using http API: ja-http
-#######################
+########
+HTTP API
+########
 
 This document is targeted at software designers/programmers wishing to integrate SMS messaging as a function 
 into their applications, e.g. in connection with WEB-server, unified messaging, information services etc..

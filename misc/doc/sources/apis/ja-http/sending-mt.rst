@@ -189,22 +189,29 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    log_date_format    = %Y-%m-%d %H:%M:%S
 
 .. list-table:: [http-api] configuration section
-   :widths: 10 40
+   :widths: 10 10 80
    :header-rows: 1
 
    * - Element
+     - Default
      - Description
    * - bind
+     - 0.0.0.0
      - The HTTP API listener will only bind to this specified address, given 0.0.0.0 the listener will bind on all interfaces.
    * - port
+     - 1401
      - The binding TCP port.
    * - long_content_max_parts
+     - 5
      - If the message to be sent is to be split into several parts. This is the maximum number of individual SMS-MT messages that can be used.
    * - long_content_split
+     - sar
      - Splitting method: 'udh': Will split using 6-byte long User Data Header, 'sar': Will split using sar_total_segments, sar_segment_seqnum, and sar_msg_ref_num options.
    * - access_log
+     - /var/log/jasmin/http-access.log
      - Where to log all http requests (and errors).
    * - log_*
+     - 
      - Python's logging module configuration.
 
 .. rubric:: Footnotes
