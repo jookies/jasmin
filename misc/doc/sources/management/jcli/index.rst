@@ -1,6 +1,6 @@
-##############
-Management CLI
-##############
+#######################
+Management CLI overview
+#######################
 
 jCli is Jasmin's CLI interface, it is an advanced console to manage and configure everything needed to start messaging 
 through Jasmin, from user to connector and message routing management.
@@ -277,94 +277,3 @@ It is possible to load to a defined profile::
    jcli : load -p testing
 
 .. note:: When loading a profile, any defined current runtime configuration will lost and replaced by this profile configuration
-
-.. _jCli_Modules:
-
-jCli Modules
-************
-
-As shown in the architecture figure :ref:`architecture`, jCli is mainly composed of management modules interfacing two 
-Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is identified as a manager of defined scope:
-
- * User management
- * Group management
- * etc ..
-
-.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitate the reuse 
-          of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector may be created 
-          once and used many times in MO Routes.
-
-User manager
-============
-
-The User manager module is accessible through the **user** command and is providing the following features:
-
- * List all users or only users from a defined GID (Group ID)
- * Add a user
- * Update a user
- * Remove a user
- * Show a user profile
-
-Group manager
-=============
-
-The Group manager module is accessible through the **group** command and is providing the following features:
-
- * List all groups
- * Add a group
- * Remove a group
-
-MO router manager
-=================
-
-The MO Router manager module is accessible through the **morouter** command and is providing the following features:
-
- * List MO Routes
- * Add a MO Route
- * Remove a MO Route
- * Show a MO Route details
- * Flush all MO Routes
-
-MT router manager
-=================
-
-The MT Router manager module is accessible through the **mtrouter** command and is providing the following features:
-
- * List MT Routes
- * Add a MT Route
- * Remove a MT Route
- * Show a MT Route details
- * Flush all MT Routes
-
-SMPP Client connector manager
-=============================
-
-The SMPP Client connector manager module is accessible through the **smppccm** command and is providing the following features:
-
- * List all SMPP Client connectors
- * Add a SMPP Client connectorr
- * Update a SMPP Client connector
- * Remove a SMPP Client connector
- * Show a SMPP Client connector details
- * Start a SMPP Client connector
- * Stop a SMPP Client connector
-
-Filter manager
-==============
-
-The Filter manager module is accessible through the **filter** command and is providing the following features:
-
- * List all filters
- * Add a filter
- * Remove a filter
- * Show a filter details
-
-HTTP Client connector manager
-=============================
-
-The HTTP Client connector manager module is accessible through the **httpccm** command and is providing the following features:
-
- * List all HTTP Client connectors
- * Add a HTTP Client connector
- * Remove a HTTP Client connector
- * Show a HTTP Client connector details
