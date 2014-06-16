@@ -8,9 +8,7 @@ through Jasmin, from user to connector and message routing management.
 jCli is multi-profile configurator where it is possible to create a testing, staging and production profiles to hold 
 different set of configurations depending on the desired execution environment.
 
-Introduction
-============
-jCli is accessible using telnet client, in order to connect to jCli and start managing Jasmin, the following requirements 
+In order to connect to jCli and start managing Jasmin, the following requirements 
 must be met:
 
  * You need a jCli admin account
@@ -20,14 +18,72 @@ Jasmin management through jCli is done using different modules (user, group, fil
 these are detailed in :ref:`jCli_Modules`, before going to this part, you have to understand how to:
 
  * :ref:`configuration_jcli`: Configure jCli to be able to change it's binding host and port, authentication and logging parameters
- * :ref:`jCli_1st_Cnx_Authentication`: Authenticate to jCli and discover basic commands to navigate through the console
+ * :ref:`jCli_1st_Cnx_Authentication`: Authenticate to jCli anOn Jasmin startupd discover basic commands to navigate through the console
  * :ref:`jCli_Profiles_And_Persistence`: Know how to persist to disk the current configuration before restarting or load a 
    specific configuration profile to run test scenarios fox example
+
+.. _architecture:
+
+Architecture
+************
+
+The Jasmin CLI interface is designed to be a user interactive interface on front of the Perspective brokers provided by Jasmin.
+
+.. figure:: /gfx/jcli-architecture.png
+   :alt: Jasmin CLI architecture
+   :align: center
+   
+   Jasmin CLI architecture
+
+In the above figure, evert Jasmin CLI module (blue boxes) is connected to its perspective broker, and below you find more details 
+on the Perspective brokers used and the actions they are exposing:
+
+ * **SMPPClientManagerPB** which provides the following actions:
+
+    #. **persist**: Persist current configuration to disk
+    #. **load**: Load configuration from disk
+    #. **is_persisted**: Used to check if the current configuration is persisted or not
+    #. **connector_add**: Add a SMPP Client connector
+    #. **connector_remove**: Remove a SMPP Client connector
+    #. **connector_list**: List all SMPP Client connectors
+    #. **connector_start**: Start a SMPP Client connector
+    #. **connector_stop**: Stop a SMPP Client connector
+    #. **connector_stopall**: Stop all SMPP Client connectors
+    #. **service_status**: Return a SMPP Client connector service status (running or not)
+    #. **session_state**: Return a SMPP Client connector session state (SMPP binding status)
+    #. **connector_details**: Get all details for a gived SMPP Client connector
+    #. **connector_config**: Returns a SMPP Client connector configuration
+    #. **submit_sm**: Send a submit_sm *
+
+ * **RouterPB** which provides the following actions:
+
+    #. **persist**: Persist current configuration to disk
+    #. **load**: Load configuration from disk
+    #. **is_persisted**: Used to check if the current configuration is persisted or not
+    #. **user_add**: Add a new user
+    #. **user_authenticate**: Authenticate username/password with the existent users *
+    #. **user_remove**: Remove a user
+    #. **user_remove_all**: Remove all users
+    #. **user_get_all**: Get all users
+    #. **group_add**: Add a group
+    #. **group_remove**: Remove a group
+    #. **group_remove_all**: Remove all groups
+    #. **group_get_all**: Get all groups
+    #. **mtroute_add**: Add a new MT route
+    #. **moroute_add**: Add a new MO route
+    #. **mtroute_remove**: Remove a MT route
+    #. **moroute_remove**: Remove a MO route
+    #. **mtroute_flush**: Flush MT routes
+    #. **moroute_flush**: Flush MO routes
+    #. **mtroute_get_all**: Get all MT routes
+    #. **moroute_get_all**: Get all MO routes
+
+.. note:: (*): These actions are not exposed through jCli
 
 .. _configuration_jcli:
 
 Configuration
-=============
+*************
 
 The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **jcli** where all JCli interface related config elements are:
 
@@ -77,10 +133,12 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 
      - Python's logging module configuration.
 
+.. warning:: Don't set **authentication** to False if you're not sure about what you are doing
+
 .. _jCli_1st_Cnx_Authentication:
 
 First connection & authentication
-=================================
+*********************************
 
 In order to connect to jCli, initiate a telnet session with the hostname/ip and port of jCli as set in 
 :ref:`configuration_jcli`::
@@ -105,7 +163,7 @@ Once successfully connected, you'll get a welcome message, your session id (Sess
 where you can start typing your commands and use :ref:`jCli_Modules`.
 
 Available commands:
--------------------
+===================
 
 Using tabulation will help you discover the available commands::
 
@@ -146,7 +204,7 @@ you need help for, example::
      -s UID, --show=UID    Show user using it's UID
 
 Interactivity:
---------------
+==============
 
 When running a command you may enter an interactive session, for example, adding a user with **user -a** will 
 start an interactive session where you have to indicate the user parameters, the prompt will be changed from 
@@ -173,9 +231,140 @@ order in entering these parameters, and you may use a simple TABULATION to get t
 .. _jCli_Profiles_And_Persistence:
 
 Profiles and persistence
-========================
+************************
+
+Everything done using the Jasmin console will be set in runtime memory, and it will remain there untill Jasmin is 
+stopped, that's where persistence is needed.
+
+Persist
+=======
+
+Typing **persist** command below will persist runtime configuration to disk using the default profile set in :ref:`configuration_jcli`::
+
+   jcli : persist
+   mtrouter configuration persisted (profile:jcli-prod)
+   filter configuration persisted (profile:jcli-prod)
+   group configuration persisted (profile:jcli-prod)
+   smppcc configuration persisted (profile:jcli-prod)
+   httpcc configuration persisted (profile:jcli-prod)
+   user configuration persisted (profile:jcli-prod)
+   morouter configuration persisted (profile:jcli-prod)
+
+It is possible to persist to a defined profile::
+
+   jcli : persist -p testing
+
+.. important:: On Jasmin startup, only the profile set in **load_profile** (c.f. :ref:`configuration_jcli`) will be concerned 
+               by automatic loading, any other profile can only be manually loaded through **load -p AnyProfile**
+
+Load
+====
+
+Like **persist** command, there's a **load** command which will loaded a configuration profile from disk, typing **load** 
+command below will load the default profil set in :ref:`configuration_jcli` from disk::
+
+   jcli : load
+   mtrouter configuration loaded (profile:jcli-prod)
+   filter configuration loaded (profile:jcli-prod)
+   group configuration loaded (profile:jcli-prod)
+   smppcc configuration loaded (profile:jcli-prod)
+   httpcc configuration loaded (profile:jcli-prod)
+   user configuration loaded (profile:jcli-prod)
+   morouter configuration loaded (profile:jcli-prod)
+
+It is possible to load to a defined profile::
+
+   jcli : load -p testing
+
+.. note:: When loading a profile, any defined current runtime configuration will lost and replaced by this profile configuration
 
 .. _jCli_Modules:
 
 jCli Modules
+************
+
+As shown in the architecture figure :ref:`architecture`, jCli is mainly composed of management modules interfacing two 
+Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is identified as a manager of defined scope:
+
+ * User management
+ * Group management
+ * etc ..
+
+.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitate the reuse 
+          of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector may be created 
+          once and used many times in MO Routes.
+
+User manager
 ============
+
+The User manager module is accessible through the **user** command and is providing the following features:
+
+ * List all users or only users from a defined GID (Group ID)
+ * Add a user
+ * Update a user
+ * Remove a user
+ * Show a user profile
+
+Group manager
+=============
+
+The Group manager module is accessible through the **group** command and is providing the following features:
+
+ * List all groups
+ * Add a group
+ * Remove a group
+
+MO router manager
+=================
+
+The MO Router manager module is accessible through the **morouter** command and is providing the following features:
+
+ * List MO Routes
+ * Add a MO Route
+ * Remove a MO Route
+ * Show a MO Route details
+ * Flush all MO Routes
+
+MT router manager
+=================
+
+The MT Router manager module is accessible through the **mtrouter** command and is providing the following features:
+
+ * List MT Routes
+ * Add a MT Route
+ * Remove a MT Route
+ * Show a MT Route details
+ * Flush all MT Routes
+
+SMPP Client connector manager
+=============================
+
+The SMPP Client connector manager module is accessible through the **smppccm** command and is providing the following features:
+
+ * List all SMPP Client connectors
+ * Add a SMPP Client connectorr
+ * Update a SMPP Client connector
+ * Remove a SMPP Client connector
+ * Show a SMPP Client connector details
+ * Start a SMPP Client connector
+ * Stop a SMPP Client connector
+
+Filter manager
+==============
+
+The Filter manager module is accessible through the **filter** command and is providing the following features:
+
+ * List all filters
+ * Add a filter
+ * Remove a filter
+ * Show a filter details
+
+HTTP Client connector manager
+=============================
+
+The HTTP Client connector manager module is accessible through the **httpccm** command and is providing the following features:
+
+ * List all HTTP Client connectors
+ * Add a HTTP Client connector
+ * Remove a HTTP Client connector
+ * Show a HTTP Client connector details

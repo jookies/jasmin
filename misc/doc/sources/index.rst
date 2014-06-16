@@ -11,7 +11,7 @@ an API, cli interface or a web backend.
 Web backend is written in Django [1]_ and is providing advanced tools for managing and monitoring the gateway.
 
 Features
-========
+********
 * SMPP Client / Server [2]_
 * HTTP Client / Server
 * Based on AMQP broker for store&forward mechanisms
@@ -26,7 +26,7 @@ Features
 Jasmin is designed for **performance**, **high traffic loads** and **full in-memory execution**.
 
 Getting started
-===============
+***************
 .. hlist::
    :columns: 2
    
@@ -36,16 +36,15 @@ Getting started
    * :doc:`apis/ja-http/index` -- HTTP API technical specification
 
 Full contents
-=============
+*************
 .. toctree::
-   :titlesonly:
    :maxdepth: 2
 
    management/jcli/index
    apis/ja-http/index
 
 License
-=======
+*******
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
 
 .. rubric:: Footnotes
