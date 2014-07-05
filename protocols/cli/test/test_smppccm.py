@@ -325,4 +325,195 @@ class BasicTestCases(SmppccmTestCases):
                         '#operator_16                         stopped None             1      1    ', 
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
-        yield self._test(r'jcli : ', commands)    
+        yield self._test(r'jcli : ', commands)
+    
+class ParameterValuesTestCases(SmppccmTestCases):
+    
+    @defer.inlineCallbacks
+    def test_log_level(self):
+        # Set loglevel to WARNING
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'loglevel 30'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set loglevel to WARNING with non numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'loglevel WARNING'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set loglevel to invalid numeric value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'loglevel 31'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_boolean_con_loss_retry(self):
+        # Set to True
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'con_loss_retry 1'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to False
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'con_loss_retry No'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'con_loss_retry 31'},
+                         {'command': 'ok', 'expect': r'Error: reconnectOnConnectionLoss must be a boolean'}]
+        yield self.add_connector(r'>', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_boolean_con_fail_retry(self):
+        # Set to True
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'con_fail_retry 1'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to False
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'con_fail_retry No'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'con_fail_retry 31'},
+                         {'command': 'ok', 'expect': r'Error: reconnectOnConnectionFailure must be a boolean'}]
+        yield self.add_connector(r'>', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_src_ton(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_ton_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'src_ton 3'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'src_ton 300'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'src_ton NATIONAL'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_dst_ton(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_ton_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'dst_ton 3'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'dst_ton 300'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'dst_ton NATIONAL'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_bind_ton(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_ton_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'bind_ton 3'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'bind_ton 300'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'bind_ton NATIONAL'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_src_npi(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_npi_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'src_npi 3'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'src_npi 5'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'src_npi WAP_CLIENT_ID'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_dst_npi(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_npi_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'dst_npi 3'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'dst_npi 5'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'dst_npi WAP_CLIENT_ID'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_bind_npi(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_npi_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'bind_npi 3'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'bind_npi 5'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'bind_npi WAP_CLIENT_ID'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_priority(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.priority_flag_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'priority 2'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'priority 5'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'priority LEVEL_0'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_ripf(self):
+        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.replace_if_present_flap_name_map)
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'ripf 0'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid numeric value
+        extraCommands = [{'command': 'cid operator_2'},
+                         {'command': 'ripf 5'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        
+        # Set to invalid value
+        extraCommands = [{'command': 'cid operator_3'},
+                         {'command': 'ripf DO_NOT_REPLACE'}]
+        yield self.add_connector(r'jcli : ', extraCommands)

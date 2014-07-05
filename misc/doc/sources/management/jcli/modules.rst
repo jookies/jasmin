@@ -5,13 +5,13 @@ Management CLI Modules
 ######################
 
 As shown in the architecture figure :ref:`architecture`, jCli is mainly composed of management modules interfacing two 
-Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is identified as a manager of defined scope:
+Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is identified as a manager of a defined scope:
 
  * User management
  * Group management
  * etc ..
 
-.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitate the reuse 
+.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitating the reuse 
           of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector may be created 
           once and used many times in MO Routes.
 
@@ -388,6 +388,212 @@ The SMPP Client connector manager module is accessible through the **smppccm** c
      - Start SMPP connector using it's CID
    * - -0 CID, --stop=CID
      - Start SMPP connector using it's CID
+
+A SMPP Client connector is used to send/receive SMS through SMPP v3.4 protocol, it is directly connected to MO and MT routers to 
+provide end-to-end message delivery.
+
+Adding a new SMPP Client connector requires knowledge of the parameters detailed in the listing below:
+
+.. _smppcc_params:
+
+.. list-table:: SMPP Client connector parameters
+   :widths: 10 80 10
+   :header-rows: 1
+
+   * - Parameter
+     - Description
+     - Default
+   * - **cid**
+     - Connector ID (must be unique)
+     - 
+   * - **logfile**
+     - 
+     - /var/log/jasmin/default-**<cid>**.log
+   * - **loglevel**
+     - Logging numeric level: 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICCAL 
+     - 20
+   * - **host**
+     - Server that runs SMSC
+     - 127.0.0.1
+   * - **port**
+     - The port number for the connection to the SMSC.
+     - 2775
+   * - **username**
+     - 
+     - smppclient
+   * - **password**
+     - 
+     - password
+   * - **bind**
+     - Bind type: transceiver, receiver or transmitter
+     - transceiver
+   * - **bind_to**
+     - Timeout for response to bind request
+     - 30
+   * - **trx_to**
+     - Maximum time lapse allowed between transactions, after which, the connection is considered as inactive and will reconnect
+     - 300
+   * - **res_to**
+     - Timeout for responses to any request PDU
+     - 60
+   * - **pdu_red_to**
+     - Timeout for reading a single PDU, this is the maximum lapse of time between receiving PDU's header and its complete read, if the PDU reading timed out, the connection is considered as 'corrupt' and will reconnect
+     - 10
+   * - **con_loss_retry**
+     - Reconnect on connection loss ? (yes, no)
+     - yes
+   * - **con_loss_delay**
+     - Reconnect delay on connection loss (seconds)
+     - 10
+   * - **con_fail_retry**
+     - Reconnect on connection failure ? (yes, no)
+     - yes
+   * - **con_fail_delay**
+     - Reconnect delay on connection failure (seconds)
+     - 10
+   * - **src_addr**
+     - Default source adress of each SMS-MT if not set while sending it, can be numeric or alphanumeric, when not defined it will take SMSC default
+     - *Not defined*
+   * - **src_ton**
+     - Source address TON setting for the link: 0=Unknown, 1=International, 2=National, 3=Network specific, 4=Subscriber number, 5=Alphanumeric, 6=Abbreviated
+     - 2
+   * - **src_npi**
+     - Source address NPI setting for the link: 0=Unknown, 1=ISDN, 3=Data, 4=Telex, 6=Land mobile, 8=National, 9=Private, 10=Ermes, 14=Internet, 18=WAP Client ID
+     - 1
+   * - **dst_ton**
+     - Destination address TON setting for the link: 0=Unknown, 1=International, 2=National, 3=Network specific, 4=Subscriber number, 5=Alphanumeric, 6=Abbreviated
+     - 1
+   * - **dst_npi**
+     - Destination address NPI setting for the link: 0=Unknown, 1=ISDN, 3=Data, 4=Telex, 6=Land mobile, 8=National, 9=Private, 10=Ermes, 14=Internet, 18=WAP Client ID
+     - 1
+   * - **bind_ton**
+     - Bind address TON setting for the link: 0=Unknown, 1=International, 2=National, 3=Network specific, 4=Subscriber number, 5=Alphanumeric, 6=Abbreviated
+     - 0
+   * - **bind_npi**
+     - Bind address NPI setting for the link: 0=Unknown, 1=ISDN, 3=Data, 4=Telex, 6=Land mobile, 8=National, 9=Private, 10=Ermes, 14=Internet, 18=WAP Client ID
+     - 1
+   * - **validity**
+     - Default validity period of each SMS-MT if not set while sending it, when not defined it will take SMSC default (seconds)
+     - *Not defined*
+   * - **priority**
+     - SMS-MT default priority if not set while sending it: 0, 1, 2 or 3
+     - 0
+   * - **requeue_delay**
+     - Delay to be considered when requeuing a rejected message
+     - 120
+   * - **addr_range**
+     - Indicates which MS's can send messages to this connector, seems to be an informative value
+     - *Not defined*
+   * - **systype**
+     - The system_type parameter is used to categorize the type of ESME that is binding to the SMSC. Examples include “VMS” (voice mail system) and “OTA” (over-the-air activation system).
+     - *Not defined*
+   * - **dlr_expiry**
+     - When a SMS-MT is not acked, it will remain waiting in memory for *dlr_expiry* seconds, after this period, any received ACK will be ignored
+     - 86400
+   * - **submit_throughput**
+     - Active SMS-MT throttling in MPS (Messages per second)
+     - 1
+   * - **proto_id**
+     - Used to indicate protocol id in SMS-MT and SMS-MO
+     - *Not defined*
+   * - **coding**
+     - Default coding of each SMS-MT if not set while sending it: 0=SMSC Default, 1=IA5 ASCII, 2=Octet unspecified, 3=Latin1, 4=Octet unspecified common, 5=JIS, 6=Cyrillic, 7=ISO-8859-8, 8=UCS2, 9=Pictogram, 10=ISO-2022-JP, 13=Extended Kanji Jis, 14=KS C 5601
+     - 0
+   * - **elink_interval**
+     - Enquire link interval (seconds)
+     - 10
+   * - **def_msg_id**
+     - Specifies the SMSC index of a pre-defined ('canned') message.
+     - 0
+   * - **ripf**
+     - Replace if present flag: 0=Do not replace, 1=Replace
+     - 0
+
+.. note:: When adding a SMPP Client connector, only it's **cid** is required, all the other parameters will 
+         be set to their respective defaults.
+
+.. note:: Connector restart is required only when changing the following parameters: **host**, **port**, **username**, 
+         **password**, **systemType**, **logfile**, **loglevel**; any other change is applied without requiring connector 
+         to be restarted.
+
+Here’s an example of adding a new **transmitter** SMPP Client connector with **cid=Demo**::
+
+   jcli : smppccm -a
+   Adding a new connector: (ok: save, ko: exit)
+   > cid Demo
+   > bind transmitter
+   > ok
+   Successfully added connector [Demo]
+
+All the above parameters can be displayed after connector creation::
+
+   jcli : smppccm -s Demo
+   ripf 0
+   con_fail_delay 10
+   dlr_expiry 86400
+   coding 0
+   submit_throughput 1
+   elink_interval 10
+   bind_to 30
+   port 2775
+   con_fail_retry 1
+   password password
+   src_addr None
+   bind_npi 1
+   addr_range None
+   dst_ton 1
+   res_to 60
+   def_msg_id 0
+   priority 0
+   con_loss_retry 1
+   username smppclient
+   dst_npi 1
+   validity None
+   requeue_delay 120
+   host 127.0.0.1
+   src_npi 1
+   trx_to 300
+   logfile /var/log/jasmin/default-Demo.log
+   systype 
+   cid Demo
+   loglevel 20
+   bind transmitter
+   proto_id None
+   con_loss_delay 10
+   bind_ton 0
+   pdu_red_to 10
+   src_ton 2   
+
+.. note:: From the example above, you can see that showing a connector details will return all it's parameters 
+          even those you did not enter while creating/updating the connector, they will take their respective 
+          default values as explained in :ref:`smppcc_params`
+
+Listing connectors will show currently added SMPP Client connectors with their CID, Service/Session state and 
+start/stop counters::
+
+   jcli : smppccm -l
+   #Connector id                        Service Session          Starts Stops
+   #888                                 stopped None             0      0    
+   #Demo                                stopped None             0      0    
+   Total connectors: 2
+
+Updating an existent connector is the same as creating a new one, simply type **smppccm -u <cid>** where **cid** 
+is the connector id you want to update, you'll run into a new interactive session to enter the parameters you 
+want to update (c.f. :ref:`smppcc_params`).
+
+Here’s an example of updating SMPP Client connector's host::
+
+   jcli : smppccm -u Demo
+   Updating connector id [Demo]: (ok: save, ko: exit)
+   > host 10.10.1.2
+   > ok
+   Successfully updated connector [Demo]
+
+More control commands:
+
+* **smppccm -1 <cid>**: Start connector
+* **smppccm -0 <cid>**: Stop connector
+* **smppccm -r <cid>**: Remove connector (unrecoverable)
 
 .. _filter_manager:
 

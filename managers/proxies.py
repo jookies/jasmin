@@ -130,7 +130,7 @@ class SMPPClientManagerPBProxy:
         if SubmitSmPDU.params['validity_period'] != None:
             validity_period = SubmitSmPDU.params['validity_period'].strftime('%Y-%m-%d %H:%M:%S')
         else:
-            # Validity period is not set, the SMS-C will set its own default vperiod to this message
+            # Validity period is not set, the SMS-C will set its own default validity_period to this message
             validity_period = None
 
         return self.pb.callRemote('submit_sm', cid, 

@@ -62,8 +62,8 @@ class SMPPClientConfig():
         if not isinstance(self.enquireLinkTimerSecs, int) and not isinstance(self.enquireLinkTimerSecs, float):
             raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
         
-        # Maximum time lapse allowed between transactions, after which period
-        # of inactivity, the connection is considered as inactive and will reconnect 
+        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive 
+        # and will reconnect 
         self.inactivityTimerSecs = kwargs.get('inactivityTimerSecs', 300)
         if not isinstance(self.inactivityTimerSecs, int) and not isinstance(self.inactivityTimerSecs, float):
             raise TypeMismatch('inactivityTimerSecs must be an integer or float')
@@ -75,7 +75,11 @@ class SMPPClientConfig():
         
         # Reconnection
         self.reconnectOnConnectionLoss = kwargs.get('reconnectOnConnectionLoss', True)
+        if not isinstance(self.reconnectOnConnectionLoss, bool):
+            raise TypeMismatch('reconnectOnConnectionLoss must be a boolean')
         self.reconnectOnConnectionFailure = kwargs.get('reconnectOnConnectionFailure', True)
+        if not isinstance(self.reconnectOnConnectionFailure, bool):
+            raise TypeMismatch('reconnectOnConnectionFailure must be a boolean')
         self.reconnectOnConnectionLossDelay = kwargs.get('reconnectOnConnectionLossDelay', 10)        
         if not isinstance(self.reconnectOnConnectionLossDelay, int) and not isinstance(self.reconnectOnConnectionLossDelay, float):
             raise TypeMismatch('reconnectOnConnectionLossDelay must be an integer or float')

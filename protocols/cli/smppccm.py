@@ -78,9 +78,19 @@ def SMPPClientConfigBuild(fn):
             if not SMPPClientConfigKeyMap.has_key(cmd):
                 return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
             
+            # Cast to boolean
+            if cmd in ['con_loss_retry', 'con_fail_retry']:
+                if arg.lower() in ['yes', 'y', '1']:
+                    arg = True
+                elif arg.lower() in ['no', 'n', '0']:
+                    arg = False
+            
             # Buffer key for later SMPPClientConfig initiating
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            self.sessBuffer[SMPPClientConfigKey] = self.protocol.str2num(arg)
+            if isinstance(arg, str):
+                self.sessBuffer[SMPPClientConfigKey] = self.protocol.str2num(arg)
+            else:
+                self.sessBuffer[SMPPClientConfigKey] = arg
             
             return self.protocol.sendData()
     return parse_args_and_call_with_instance

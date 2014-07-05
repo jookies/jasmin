@@ -3,24 +3,23 @@ Management CLI overview
 #######################
 
 jCli is Jasmin's CLI interface, it is an advanced console to manage and configure everything needed to start messaging 
-through Jasmin, from user to connector and message routing management.
+through Jasmin, from users to connectors and message routing management.
 
 jCli is multi-profile configurator where it is possible to create a testing, staging and production profiles to hold 
-different set of configurations depending on the desired execution environment.
+different sets of configurations depending on the desired execution environment.
 
-In order to connect to jCli and start managing Jasmin, the following requirements 
-must be met:
+In order to connect to jCli and start managing Jasmin, the following requirements must be met:
 
  * You need a jCli admin account
  * You need to have a connection to jCli's tcp port
 
-Jasmin management through jCli is done using different modules (user, group, filters, smpp connectors, http connectors ...), 
+Jasmin management through jCli is done using different modules (users, groups, filters, smpp connectors, http connectors ...), 
 these are detailed in :ref:`jCli_Modules`, before going to this part, you have to understand how to:
 
  * :ref:`configuration_jcli`: Configure jCli to be able to change it's binding host and port, authentication and logging parameters
- * :ref:`jCli_1st_Cnx_Authentication`: Authenticate to jCli anOn Jasmin startupd discover basic commands to navigate through the console
+ * :ref:`jCli_1st_Cnx_Authentication`: Authenticate to jCli and discover basic commands to navigate through the console
  * :ref:`jCli_Profiles_And_Persistence`: Know how to persist to disk the current configuration before restarting or load a 
-   specific configuration profile to run test scenarios fox example
+   specific configuration profile to run test scenarios for example
 
 .. _architecture:
 
@@ -35,7 +34,7 @@ The Jasmin CLI interface is designed to be a user interactive interface on front
    
    Jasmin CLI architecture
 
-In the above figure, evert Jasmin CLI module (blue boxes) is connected to its perspective broker, and below you find more details 
+In the above figure, every Jasmin CLI module (blue boxes) is connected to its perspective broker, and below you find more details 
 on the Perspective brokers used and the actions they are exposing:
 
  * **SMPPClientManagerPB** which provides the following actions:
@@ -85,7 +84,7 @@ on the Perspective brokers used and the actions they are exposing:
 Configuration
 *************
 
-The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **jcli** where all JCli interface related config elements are:
+The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contains a **jcli** section where all JCli interface related config elements are:
 
 .. code-block:: ini
    :linenos:
@@ -145,8 +144,8 @@ In order to connect to jCli, initiate a telnet session with the hostname/ip and 
 
    telnet 127.0.0.1 8990
 
-And depending on whether **authentication** is set to True or False in :ref:`configuration_jcli`, you may 
-have to authenticate using the **admin_username** and **admin_password**, here's an example of an authenticated 
+And depending on whether **authentication** is set to True or False, you may have to authenticate using 
+the **admin_username** and **admin_password**, here's an example of an authenticated 
 connection::
 
    Authentication required.
@@ -167,9 +166,10 @@ Available commands:
 
 Using tabulation will help you discover the available commands::
 
+   jcli : [TABULATION]
    persist load user group filter morouter mtrouter smppccm httpccm quit help
 
-Or type **help** and you'll get detailed listing of the available commands with a description for each one::
+Or type **help** and you'll get detailed listing of the available commands with comprehensive descriptions::
 
    jcli : help
    Available commands:
@@ -190,7 +190,7 @@ Or type **help** and you'll get detailed listing of the available commands with 
    help                List available commands with "help" or detailed help with "help cmd".
 
 More detailed help for a specific command can be obtained running **help cmd** where **cmd** is the command 
-you need help for, example::
+you need help for::
 
    jcli : help user
    User management
@@ -233,8 +233,8 @@ order in entering these parameters, and you may use a simple TABULATION to get t
 Profiles and persistence
 ************************
 
-Everything done using the Jasmin console will be set in runtime memory, and it will remain there untill Jasmin is 
-stopped, that's where persistence is needed.
+Everything done using the Jasmin console will be set in runtime memory, and it will remain there until Jasmin is 
+stopped, that's where persistence is needed to keep the same configuration when restarting.
 
 Persist
 =======
