@@ -208,13 +208,17 @@ class TimeIntervalFilter(Filter):
             
 class EvalPyFilter(Filter):
     def __init__(self, pyCode):
-        self.node = compile(pyCode, '', 'exec')
+        self.node = None
+        self.pyCode = pyCode
         
         self._repr = '<%s (pyCode=%s ..)>' % (self.__class__.__name__, pyCode[:10].replace('\n', ''))
         self._str = '%s:\n%s' % (self.__class__.__name__, pyCode)
 
     def match(self, routable):
         Filter.match(self, routable)
+        
+        if self.node is None:
+            self.node = compile(self.pyCode, '', 'exec')
 
         glo = {'routable': routable, 'result': False}
         eval(self.node, {}, glo)

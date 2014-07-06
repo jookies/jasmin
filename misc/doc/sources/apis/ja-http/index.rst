@@ -236,13 +236,16 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 
      - Python's logging module configuration.
 
+.. _receiving_sms-mo:
+
 Receiving SMS-MO
 ****************
 
 **SMS-MO** incoming messages (**M**\obile **O**\riginated) are forwarded by Jasmin to defined URLs using simple **HTTP GET/POST**, the forwarding is 
 made by *deliverSmHttpThrower* service, and the URL of the receiving endpoint is selected through a route checking process.
 
-Receiving endpoint is a third party application which acts on the messages received and potentially generates replies.
+Receiving endpoint is a third party application which acts on the messages received and potentially generates replies, (:ref:`httpccm_manager` for more details about 
+HTTP Client connector management).
 
 The parameters below are transmitted for each SMS-MO, the receiving end point must provide an url (set in **jasminApi.HttpConnector.baseurl**) and parse the
 below parameters using GET or POST method (depends on **jasminApi.HttpConnector.method**).
@@ -320,7 +323,7 @@ Processing
 ==========
 The flowchart below describes how message delivery and retrying policy are done inside *deliverSmHttpThrower* service:
 
-.. figure:: resources/sms-mo-flowchart.png
+.. figure:: /resources/ja-http/sms-mo-flowchart.png
    :alt: MO delivery flowchart as processed by deliverSmHttpThrower service
    :align: Center
    
@@ -477,7 +480,7 @@ Processing
 ==========
 The flowchart below describes how dlr delivery and retrying policy is done inside DLRThrower service:
 
-.. figure:: resources/dlr-flowchart.png
+.. figure:: /resources/ja-http/dlr-flowchart.png
    :alt: DLR delivery flowchart as processed by DLRThrower service
    :align: Center
 

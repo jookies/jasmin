@@ -386,3 +386,303 @@ else:
         
         # Delete pyCode file
         unlink(pyCodeFile)
+
+class FilterPersistenceTestCases(FiltersTestCases):
+
+    def test_TransparentFilter(self):
+        ftype = 'TransparentFilter'
+        _str_ = '%s' % ftype
+        _repr_ = '<%s>' % ftype
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype}]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = ['%s' % _str_]
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s      MO MT  %s' % (ftype, _repr_),  
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_UserFilter(self):
+        uid = '1'
+        ftype = 'UserFilter'
+        _str_ = ['%s:' % ftype, 'uid = %s' % uid]
+        _repr_ = '<%s \(uid=%s\)>' % (ftype, uid)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'uid %s' % uid},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s             MT     %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_GroupFilter(self):
+        gid = '1'
+        ftype = 'GroupFilter'
+        _str_ = ['%s:' % ftype, 'gid = %s' % gid]
+        _repr_ = '<%s \(gid=%s\)>' % (ftype, gid)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'gid %s' % gid},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s            MT     %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_ConnectorFilter(self):
+        cid = '1'
+        ftype = 'ConnectorFilter'
+        _str_ = ['%s:' % ftype, 'cid = %s' % cid]
+        _repr_ = '<%s \(cid=%s\)>' % (ftype, cid)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'cid %s' % cid},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s        MO     %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_SourceAddrFilter(self):
+        source_addr = '16'
+        ftype = 'SourceAddrFilter'
+        _str_ = ['%s:' % ftype, 'source_addr = %s' % source_addr]
+        _repr_ = '<%s \(src_addr=%s\)>' % (ftype, source_addr)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'source_addr %s' % source_addr},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s       MO     %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_DestinationAddrFilter(self):
+        destination_addr = '16'
+        ftype = 'DestinationAddrFilter'
+        _str_ = ['%s:' % ftype, 'destination_addr = %s' % destination_addr]
+        _repr_ = '<%s \(dst_addr=%s\)>' % (ftype, destination_addr)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'destination_addr %s' % destination_addr},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s  MO MT  %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_ShortMessageFilter(self):
+        short_message = 'Hello'
+        ftype = 'ShortMessageFilter'
+        _str_ = ['%s:' % ftype, 'short_message = %s' % short_message]
+        _repr_ = '<%s \(msg=%s\)>' % (ftype, short_message)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'short_message %s' % short_message},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s     MO MT  %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_DateIntervalFilter(self):
+        leftBorder = '2016-05-01'
+        rightBorder = '2016-05-02'
+        dateInterval = '%s;%s' % (leftBorder, rightBorder)
+        ftype = 'DateIntervalFilter'
+        _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
+        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'dateInterval %s' % dateInterval},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s     MO MT  %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_TimeIntervalFilter(self):
+        leftBorder = '08:00:00'
+        rightBorder = '14:00:00'
+        timeInterval = '%s;%s' % (leftBorder, rightBorder)
+        ftype = 'TimeIntervalFilter'
+        _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
+        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'timeInterval %s' % timeInterval},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s     MO MT  %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+
+    def test_EvalPyFilter(self):
+        pyCodeFile = 'pyCode.py'
+        # Create an empty pyCode file
+        open(pyCodeFile, 'w')
+        
+        ftype = 'EvalPyFilter'
+        _str_ = ['%s:' % ftype, '']
+        _repr_ = '<%s \(pyCode= ..\)>' % ftype
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'pyCode %s' % pyCodeFile},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s           MO MT  %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+        
+        # Delete pyCode file
+        unlink(pyCodeFile)
+        
+    def test_EvalPyFilter_withCode(self):
+        pyCodeFile = 'pyCode.py'
+        pyCode = """# Will filter all messages having 'hello world' in their content
+if routable.pdu.params['short_message'] == 'hello world':
+    result = True
+else:
+    result = False
+"""
+        
+        # Create an pyCode file
+        with open(pyCodeFile, 'w') as f:
+            f.write(pyCode)
+        
+        ftype = 'EvalPyFilter'
+        _str_ = ['%s:' % ftype]
+        _str_.extend([y for y in (re.escape(x.strip()) for x in pyCode.splitlines()) if y])
+        _repr_ = '<%s \(pyCode=%s ..\)>' % (ftype, pyCode[:10].replace('\n', ''))
+        
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'pyCode %s' % pyCodeFile},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+        
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description', 
+                        '#filter_id        %s           MO MT  %s' % (ftype, _repr_), 
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
+        
+        # Delete pyCode file
+        unlink(pyCodeFile)

@@ -28,7 +28,7 @@ Architecture
 
 The Jasmin CLI interface is designed to be a user interactive interface on front of the Perspective brokers provided by Jasmin.
 
-.. figure:: /gfx/jcli-architecture.png
+.. figure:: /resources/management/jcli-architecture.png
    :alt: Jasmin CLI architecture
    :align: center
    

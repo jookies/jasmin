@@ -33,16 +33,17 @@ Getting started
    * **TODO** -- Install and run Jasmin gateway
    * **TODO** -- Running basic SMS and routing scenarios
    * **TODO** -- Basic push/pull SMS application
-   * :doc:`apis/ja-http/index` -- HTTP API technical specification
+   * :doc:`/apis/ja-http/index` -- HTTP API technical specification
 
 Full contents
 *************
 .. toctree::
    :maxdepth: 2
 
-   management/jcli/index
-   management/jcli/modules
-   apis/ja-http/index
+   /management/jcli/index
+   /management/jcli/modules
+   /routing/index
+   /apis/ja-http/index
 
 License
 *******

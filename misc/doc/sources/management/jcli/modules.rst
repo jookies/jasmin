@@ -170,6 +170,8 @@ SMS MO, here the basics of Jasmin MO routing mechanism:
  #. When a **MORoute** is considered (its **Filters** are validated against a received SMS MO), Jasmin will use 
     its **Connector** to send the SMS MO.
 
+Check :doc:`/routing/index` for more details about Jasmin's routing.
+
 When adding a MO Route, the following parameters are required:
 
  * **type**: One of the supported MO Routes: DefaultRoute, StaticMORoute, RandomRoundrobinMORoute
@@ -242,6 +244,11 @@ It is possible to obtain more information of a defined route by typing **moroute
    jcli : morouter -s 0
    DefaultRoute to cid:http_default
 
+More control commands:
+
+* **morouter -r <order>**: Remove route at defined *order*
+* **morouter -f**: Flush MORoutingTable (unrecoverable)
+
 .. _mtrouter_manager:
 
 MT router manager
@@ -288,6 +295,8 @@ SMS MT, here the basics of Jasmin MT routing mechanism:
     with an **AND** boolean operator)
  #. When a **MTRoute** is considered (its **Filters** are validated against an outgoing SMS MT), Jasmin will use 
     its **Connector** to send the SMS MT.
+
+Check :doc:`/routing/index` for more details about Jasmin's routing.
 
 When adding a MT Route, the following parameters are required:
 
@@ -360,6 +369,11 @@ It is possible to obtain more information of a defined route by typing **mtroute
    
    jcli : mtrouter -s 0
    DefaultRoute to cid:smppcc_default
+
+More control commands:
+
+* **mtrouter -r <order>**: Remove route at defined *order*
+* **mtrouter -f**: Flush MTRoutingTable (unrecoverable)
 
 .. _smppccm_manager:
 
@@ -591,8 +605,8 @@ Here’s an example of updating SMPP Client connector's host::
 
 More control commands:
 
-* **smppccm -1 <cid>**: Start connector
-* **smppccm -0 <cid>**: Stop connector
+* **smppccm -1 <cid>**: Start connector and try to connect
+* **smppccm -0 <cid>**: Stop connector and disconnect
 * **smppccm -r <cid>**: Remove connector (unrecoverable)
 
 .. _filter_manager:
@@ -617,12 +631,212 @@ The Filter manager module is accessible through the **filter** command and is pr
    * - -s FID, --show=FID
      - Show filter using it's FID
 
+Filters are used by MO/MT routers to help decide on which route a message must be delivered, the following 
+flowchart provides details of the routing process:
+
+.. figure:: /resources/routing/routing-process.png
+   :alt: MO and MT routing process flow
+   :align: Center
+   
+   Routing process flow
+
+Jasmin provides many Filters offering advanced flexibilities to message routing:
+ 
+.. list-table:: Jasmin Filters
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Name
+     - Routes
+     - Description
+   * - **TransparentFilter**
+     - All
+     - This filter will always match any message criteria
+   * - **ConnectorFilter**
+     - MO
+     - Will match the source connector of a message
+   * - **UserFilter**
+     - MT
+     - Will match the owner of a MT message
+   * - **GroupFilter**
+     - MT
+     - Will match the owner's group of a MT message
+   * - **SourceAddrFilter**
+     - MO
+     - Will match the source address of a MO message
+   * - **DestinationAddrFilter**
+     - All
+     - Will match the source address of a message
+   * - **ShortMessageFilter**
+     - All
+     - Will match the content of a message
+   * - **DateIntervalFilter**
+     - All
+     - Will match the date of a message
+   * - **TimeIntervalFilter**
+     - All
+     - Will match the time of a message
+   * - **EvalPyFilter**
+     - All
+     - Will pass the message to a third party python script for user-defined filtering
+
+Check :doc:`/routing/index` for more details about Jasmin's routing.
+
+When adding a Filter, the following parameters are required:
+
+ * **type**: One of the supported Filters: TransparentFilter, ConnectorFilter, UserFilter, GroupFilter, SourceAddrFilter, 
+   DestinationAddrFilter, ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter, EvalPyFilter
+ * **fid**: Filter id (must be unique)
+
+When choosing the Filter **type**, additionnal parameters may be added to the above required parameters:
+
+.. list-table:: Filters parameters
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Name
+     - Example
+     - Parameters
+   * - **TransparentFilter**
+     - 
+     - No parameters are required
+   * - **ConnectorFilter**
+     - smpp-01
+     - **cid** of the connector to match
+   * - **UserFilter**
+     - bobo
+     - **uid** of the user to match
+   * - **GroupFilter**
+     - partners
+     - **gid** of the group to match
+   * - **SourceAddrFilter**
+     - ^20\d+
+     - **source_addr**: Regular expression to match source address
+   * - **DestinationAddrFilter**
+     - ^85111$
+     - **destination_addr**: Regular expression to match destination address
+   * - **ShortMessageFilter**
+     - ^hello.*$
+     - **short_message**: Regular expression to match message content
+   * - **DateIntervalFilter**
+     - 2014-09-18;2014-09-28
+     - **dateInterval**: Two dates separated by ; (date format is YYYY-MM-DD)
+   * - **TimeIntervalFilter**
+     - 08:00:00;18:00:00
+     - **timeInterval**: Two timestamps separated by ; (timestamp format is HH:MM:SS)
+   * - **EvalPyFilter**
+     - /root/thirdparty.py
+     - **pyCode**: Path to a python script, (:ref:`external_buslogig_filters` for more details)
+
+Here's an example of adding a **TransparentFilter** ::
+
+   jcli : filter -a
+   Adding a new Filter: (ok: save, ko: exit)
+   type fid
+   > type transparentfilter
+   > fid TF
+   > ok
+   Successfully added Filter [TransparentFilter] with fid:TF
+
+Here's an example of adding a **SourceAddrFilter** ::
+
+   jcli : filter -a
+   Adding a new Filter: (ok: save, ko: exit)
+   > type sourceaddrfilter
+   jasmin.routing.Filters.SourceAddrFilter arguments:
+   source_addr
+   > source_addr ^20\d+
+   > ok
+   You must set these options before saving: type, fid, source_addr
+   > fid From20*
+   > ok
+   Successfully added Filter [SourceAddrFilter] with fid:From20*
+
+Here's an example of adding a **TimeIntervalFilter** ::
+
+   jcli : filter -a
+   Adding a new Filter: (ok: save, ko: exit)
+   > fid WorkingHours
+   > type timeintervalfilter
+   jasmin.routing.Filters.TimeIntervalFilter arguments:
+   timeInterval
+   > timeInterval 08:00:00;18:00:00
+   > ok
+   Successfully added Filter [TimeIntervalFilter] with fid:WorkingHours
+
+It is possible to list filters with::
+
+   jcli : filter -l
+   #Filter id        Type                   Routes Description                     
+   #StartWithHello   ShortMessageFilter     MO MT  <ShortMessageFilter (msg=^hello.*$)>
+   #ExternalPy       EvalPyFilter           MO MT  <EvalPyFilter (pyCode= ..)>     
+   #To85111          DestinationAddrFilter  MO MT  <DestinationAddrFilter (dst_addr=^85111$)>
+   #September2014    DateIntervalFilter     MO MT  <DateIntervalFilter (2014-09-01,2014-09-30)>
+   #WorkingHours     TimeIntervalFilter     MO MT  <TimeIntervalFilter (08:00:00,18:00:00)>
+   #TF               TransparentFilter      MO MT  <TransparentFilter>             
+   #From20*          SourceAddrFilter       MO     <SourceAddrFilter (src_addr=^20\d+)>
+   Total Filters: 7
+
+It is possible to obtain more information of a specific filter by typing **filter -s <fid>**::
+
+   jcli : filter -s September2014
+   DateIntervalFilter:
+   Left border = 2014-09-01
+   Right border = 2014-09-30
+
+More control commands:
+
+* **filter -r <fid>**: Remove filter
+
+.. _external_buslogig_filters:
+
+External business logic
+=======================
+
+In addition to predefined filters listed above (:ref:`filter_manager`), it is possible to extend 
+filtering with external scripts written in Python using the **EvalPyFilter**.
+
+Here's a very simple example where an **EvalPyFilter** is matching the connector **cid** of a message:
+
+**First, write an external python script**:
+
+.. code-block:: python
+
+   # File @ /opt/jasmin-scripts/routing/abc-connector.py
+   if routable.connector.cid == 'abc':
+       result = True
+   else:
+       result = False
+
+**Second, create an EvalPyFilter with the python script**::
+
+   jcli : filter -a
+   Adding a new Filter: (ok: save, ko: exit)
+   > type EvalPyFilter
+   jasmin.routing.Filters.EvalPyFilter arguments:
+   pyCode
+   > pyCode /opt/jasmin-scripts/routing/abc-connector.py
+   > fid SimpleThirdParty
+   > ok
+   Successfully added Filter [EvalPyFilter] with fid:SimpleThirdParty
+
+This example will provide an **EvalPyFilter** (SimpleThirdParty) that will match any message coming from 
+the connector with **cid** = abc.
+
+Using **EvalPyFilter** is as simple as the shown example, when the python script is called it will get the 
+following global variables set:
+
+* **routable**: one of the *jasmin.routing.Routables.Routable* inheriters (:ref:`routable` for more details)
+* **result**: (default to *False*) It will be read by Jasmin router at the end of the script execution to check
+  if the filter is matching the message passed through the routable variable, matched=True / unmatched=False
+
 .. _httpccm_manager:
 
 HTTP Client connector manager
 *****************************
 
-The HTTP Client connector manager module is accessible through the **httpccm** command and is providing the following features:
+The HTTP Client connector manager module is accessible through the **httpccm** command and is providing the 
+following features:
 
 .. list-table:: **httpccm** command line options
    :widths: 10 90
@@ -638,3 +852,37 @@ The HTTP Client connector manager module is accessible through the **httpccm** c
      - Remove HTTP client connector using it's CID
    * - -s FID, --show=FID
      - Show HTTP client connector using it's CID
+
+A HTTP Client connector is used in SMS-MO routing, it is called with the message parameters when it is returned 
+by a matched MO Route (:ref:`receiving_sms-mo` for more details).
+
+When adding a HTTP Client connector, the following parameters are required:
+
+ * **cid**: Connector id (must be unique)
+ * **url**: URL to be called with message parameters
+ * **method**: Calling method (GET or POST)
+
+Here's an example of adding a new HTTP Client connector::
+
+   jcli : httpccm -a
+   Adding a new Httpcc: (ok: save, ko: exit)
+   > url http://10.10.20.125/receive-sms/mo.php
+   > method GET
+   > cid HTTP-01
+   > ok
+   Successfully added Httpcc [HttpConnector] with cid:HTTP-01
+
+All the above parameters can be displayed after Connector creation::
+
+   jcli : httpccm -s HTTP-01
+   HttpConnector:
+   cid = HTTP-01
+   baseurl = http://10.10.20.125/receive-sms/mo.php
+   method = GET
+
+Listing Connectors will show currently added Connectors with their CID, Type, Method and Url::
+
+   jcli : httpccm -l
+   #Httpcc id        Type                   Method URL
+   #HTTP-01          HttpConnector          GET    http://10.10.20.125/receive-sms/mo.php
+   Total Httpccs: 1
