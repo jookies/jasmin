@@ -199,4 +199,7 @@ else:
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
-        self.assertRaises(SyntaxError, self._filter, "def class anything ...")
+    
+    def test_syntax_error(self):
+        f = EvalPyFilter("def class anything ...")
+        self.assertRaises(SyntaxError, f.match, self.routable)

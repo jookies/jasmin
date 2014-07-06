@@ -1,3 +1,4 @@
+import os
 import re
 from test_jcli import jCliWithoutAuthTestCases
 from test.test_support import unlink
@@ -388,6 +389,19 @@ else:
         unlink(pyCodeFile)
 
 class FilterPersistenceTestCases(FiltersTestCases):
+
+    def tearDown(self):
+        FiltersTestCases.tearDown(self)
+        
+        # Delete any previously persisted configuration
+        persistenceFolder = self.RouterPBConfigInstance.store_path
+        for the_file in os.listdir(persistenceFolder):
+            if the_file[:1] == '.':
+                # Dont delete any hidden file
+                pass
+            file_path = os.path.join(persistenceFolder, the_file)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
 
     def test_TransparentFilter(self):
         ftype = 'TransparentFilter'

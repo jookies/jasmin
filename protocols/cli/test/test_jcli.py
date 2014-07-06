@@ -24,10 +24,10 @@ class jCliTestCases(ProtocolTestCases):
         yield self.amqpBroker.getChannelReadyDeferred()
 
         # Instanciate a RouterPB (a requirement for JCliFactory)
-        RouterPBConfigInstance = RouterPBConfig()
-        RouterPBConfigInstance.authentication = False
+        self.RouterPBConfigInstance = RouterPBConfig()
+        self.RouterPBConfigInstance.authentication = False
         self.RouterPB_f = RouterPB()
-        self.RouterPB_f.setConfig(RouterPBConfigInstance)
+        self.RouterPB_f.setConfig(self.RouterPBConfigInstance)
 
         # Instanciate a SMPPClientManagerPB (a requirement for JCliFactory)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
@@ -176,6 +176,10 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
     """The 2 test cases below will ensure that persisted configurations to the default profile
     will be automatically loaded if jCli restarts
     """
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield jCliWithoutAuthTestCases.setUp(self)
     
     @defer.inlineCallbacks
     def test_01_persist_all_configurations(self):
