@@ -830,6 +830,11 @@ following global variables set:
 * **result**: (default to *False*) It will be read by Jasmin router at the end of the script execution to check
   if the filter is matching the message passed through the routable variable, matched=True / unmatched=False
 
+.. note:: It is possible to check for any parameter of the SMPP PDU: TON, NPI, PROTOCOL_ID ... since it is provided through 
+          the **routable** object.
+.. note:: Using **EvalPyFilter** offers the possibility to call external webservices, databases ... for powerfull 
+          routing or even for logging, rating & billing through external third party systems.
+
 .. _httpccm_manager:
 
 HTTP Client connector manager
