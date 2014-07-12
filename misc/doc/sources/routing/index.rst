@@ -1,5 +1,3 @@
-TODO: redo sms-mo-flowchart.png with yEd
-
 ##################
 The message router
 ##################
