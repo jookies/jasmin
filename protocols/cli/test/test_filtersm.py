@@ -396,9 +396,9 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Delete any previously persisted configuration
         persistenceFolder = self.RouterPBConfigInstance.store_path
         for the_file in os.listdir(persistenceFolder):
-            if the_file[:1] == '.':
+            if the_file == '.gitignore':
                 # Dont delete any hidden file
-                pass
+                continue
             file_path = os.path.join(persistenceFolder, the_file)
             if os.path.isfile(file_path):
                 os.unlink(file_path)
