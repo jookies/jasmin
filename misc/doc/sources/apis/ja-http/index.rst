@@ -242,7 +242,7 @@ Receiving SMS-MO
 ****************
 
 **SMS-MO** incoming messages (**M**\obile **O**\riginated) are forwarded by Jasmin to defined URLs using simple **HTTP GET/POST**, the forwarding is 
-made by *deliverSmHttpThrower* service, and the URL of the receiving endpoint is selected through a route checking process.
+made by *deliverSmHttpThrower* service, and the URL of the receiving endpoint is selected through a route checking process (c.f. :doc:`/routing/index`).
 
 Receiving endpoint is a third party application which acts on the messages received and potentially generates replies, (:ref:`httpccm_manager` for more details about 
 HTTP Client connector management).
