@@ -16,9 +16,9 @@ In order to connect to jCli and start managing Jasmin, the following requirement
 Jasmin management through jCli is done using different modules (users, groups, filters, smpp connectors, http connectors ...), 
 these are detailed in :ref:`jCli_Modules`, before going to this part, you have to understand how to:
 
- * :ref:`configuration_jcli`: Configure jCli to be able to change it's binding host and port, authentication and logging parameters
- * :ref:`jCli_1st_Cnx_Authentication`: Authenticate to jCli and discover basic commands to navigate through the console
- * :ref:`jCli_Profiles_And_Persistence`: Know how to persist to disk the current configuration before restarting or load a 
+ * :ref:`Configure <configuration_jcli>` jCli to change it's binding host and port, authentication and logging parameters,
+ * :ref:`Authenticate <jCli_1st_Cnx_Authentication>` to jCli and discover basic commands to navigate through the console,
+ * :ref:`Know how <jCli_Profiles_And_Persistence>` to persist to disk the current configuration before restarting or load a 
    specific configuration profile to run test scenarios for example
 
 .. _architecture:

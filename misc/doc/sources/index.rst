@@ -5,7 +5,7 @@ The Jasmin Open source SMS gateway
 Jasmin is an open-source SMS Gateway with many enterprise-class features, Jasmin is built to be 
 easily customized to meet the specific needs of messaging exchange growing business.
 
-Jasmin is written in Python and Twisted framework for serving highly customized applications, SMS message delivery 
+Jasmin is written in Python and Twisted framework for serving highly scalable applications, SMS message delivery 
 can be done through HTTP and SMPP protocols, intelligent routing can be configured in real-time through
 an API, cli interface or a web backend.
 
