@@ -43,8 +43,9 @@ Full contents
 
    /management/jcli/index
    /management/jcli/modules
-   /routing/index
    /apis/ja-http/index
+   /routing/index
+   /messaging/index
 
 License
 *******

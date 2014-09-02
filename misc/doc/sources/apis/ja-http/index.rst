@@ -366,6 +366,8 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 
      - Python's logging module configuration.
 
+.. _receiving_dlr:
+
 Receiving DLR
 *************
 
