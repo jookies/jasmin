@@ -3,10 +3,10 @@ import re
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-from jasmin.protocols.http.validation import UrlArgsValidator
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError
+from errors import AuthenticationError, ServerError, RouteNotFoundError
+from validation import UrlArgsValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -133,7 +133,7 @@ class Send(Resource):
                 ########################################################
                 # Send SubmitSmPDU through smpp client manager PB server
                 self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
-                c = self.SMPPClientManagerPB.remote_submit_sm(routedConnector.cid, 
+                c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid, 
                                                               SubmitSmPDU, 
                                                               priority, 
                                                               pickled = False, 
@@ -171,11 +171,12 @@ class HTTPApi(Resource):
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(config.log_level)
-        handler = logging.FileHandler(filename=config.log_file)
-        formatter = logging.Formatter(config.log_format, config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(config.log_level)
+            handler = logging.FileHandler(filename=config.log_file)
+            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
 
         # Set http url routings
         self.log.debug("Setting http url routing for /send")

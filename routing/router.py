@@ -1,30 +1,31 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
+import time
 import logging
 import pickle
 import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from txamqp.queue import Closed
-from jasmin.routing.content import RoutedDeliverSmContent
-from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable
-from jasmin.routing.Routables import RoutableDeliverSm
-from jasmin.routing.jasminApi import Connector
+from content import RoutedDeliverSmContent
+from RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
+from Routables import RoutableDeliverSm
+from jasminApi import Connector
+from copy import copy
+from hashlib import md5
 
 LOG_CATEGORY = "jasmin-router"
 
-class RouterPB(pb.Root):
+class RouterPB(pb.Avatar):
     def setConfig(self, RouterPBConfig):
         self.config = RouterPBConfig
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(self.config.log_level)
-        handler = logging.FileHandler(filename=self.config.log_file)
-        formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = logging.FileHandler(filename=self.config.log_file)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
         
         # Set pickleProtocol
         self.pickleProtocol = self.config.pickle_protocol
@@ -33,9 +34,21 @@ class RouterPB(pb.Root):
         self.mo_routing_table = MORoutingTable()
         self.mt_routing_table = MTRoutingTable()
         self.users = []
+        self.groups = []
+        
+        # Persistence flag, accessed through perspective_is_persisted
+        self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
         
         self.log.info('Router configured and ready.')
-    
+        
+    def setAvatar(self, avatar):
+        if type(avatar) is str:
+            self.log.info('Authenticated Avatar: %s' % avatar)
+        else:
+            self.log.info('Anonymous connection')
+        
+        self.avatar = avatar
+        
     @defer.inlineCallbacks
     def addAmqpBroker(self, amqpBroker):
         self.amqpBroker = amqpBroker
@@ -117,7 +130,7 @@ class RouterPB(pb.Root):
         return self.mt_routing_table
     def authenticateUser(self, username, password, pickled = False):
         for _user in self.users:
-            if _user.username == username and _user.password == password:
+            if _user.username == username and _user.password == md5(password).digest():
                 if pickled:
                     return pickle.dumps(_user, self.pickleProtocol)
                 else:
@@ -125,10 +138,220 @@ class RouterPB(pb.Root):
         
         return None
     
-    def remote_user_add(self, user):
+    def getUser(self, uid):
+        for u in self.users:
+            if u.uid == uid:
+                self.log.debug('getUser [%s] returned a User', uid)
+                return u
+        
+        self.log.debug('getUser [%s] returned None', uid)
+        return None
+    
+    def getGroup(self, gid):
+        for g in self.groups:
+            if g.gid == gid:
+                self.log.debug('getGroup [%s] returned a Group', gid)
+                return g
+        
+        self.log.debug('getGroup [%s] returned None', gid)
+        return None
+    
+    def getMORoute(self, order):
+        moroutes = self.mo_routing_table.getAll()
+        
+        for e in moroutes:
+            if order == e.keys()[0]:
+                self.log.debug('getMORoute [%s] returned a MORoute', order)
+                return e[order]
+        
+        self.log.debug('getMORoute [%s] returned None', order)
+        return None
+    
+    def getMTRoute(self, order):
+        mtroutes = self.mt_routing_table.getAll()
+        
+        for e in mtroutes:
+            if order == e.keys()[0]:
+                self.log.debug('getMTRoute [%s] returned a MTRoute', order)
+                return e[order]
+        
+        self.log.debug('getMTRoute [%s] returned None', order)
+        return None
+    
+    def perspective_persist(self, profile, scope = 'all'):
+        try:
+            if scope in ['all', 'groups']:
+                # Persist groups configuration
+                path = '%s/%s.router-groups' % (self.config.store_path, profile)
+                self.log.info('Persisting current Groups configuration to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.groups, self.pickleProtocol))
+                fh.close()
+
+                # Set persistance state to True
+                self.persistanceState['users'] = True
+
+            if scope in ['all', 'users']:
+                # Persist users configuration
+                path = '%s/%s.router-users' % (self.config.store_path, profile)
+                self.log.info('Persisting current Users configuration to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.users, self.pickleProtocol))
+                fh.close()
+
+                # Set persistance state to True
+                self.persistanceState['groups'] = True
+
+            if scope in ['all', 'moroutes']:
+                # Persist moroutes configuration
+                path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
+                self.log.info('Persisting current MORoutingTable to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
+                fh.close()
+                
+                # Set persistance state to True
+                self.persistanceState['moroutes'] = True
+
+            if scope in ['all', 'mtroutes']:
+                # Persist mtroutes configuration
+                path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
+                self.log.info('Persisting current MTRoutingTable to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
+                fh.close()
+                
+                # Set persistance state to True
+                self.persistanceState['mtroutes'] = True
+
+        except IOError:
+            self.log.error('Cannot persist to %s' % path)
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while persisting configuration: %s' % e)
+            return False
+
+        return True
+    
+    def perspective_load(self, profile, scope = 'all'):
+        try:
+            if scope in ['all', 'groups']:
+                # Load groups configuration
+                path = '%s/%s.router-groups' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile Groups configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Remove current configuration
+                self.log.info('Removing current Groups (%d)' % len(self.groups))
+                self.perspective_group_remove_all()
+    
+                # Adding new groups
+                self.groups = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new Groups (%d)' % len(self.groups))
+
+                # Set persistance state to True
+                self.persistanceState['groups'] = True
+
+            if scope in ['all', 'users']:
+                # Load users configuration
+                path = '%s/%s.router-users' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile Users configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Remove current configuration
+                self.log.info('Removing current Users (%d)' % len(self.users))
+                self.perspective_user_remove_all()
+    
+                # Adding new groups
+                self.users = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new Users (%d)' % len(self.users))
+
+                # Set persistance state to True
+                self.persistanceState['users'] = True
+
+            if scope in ['all', 'moroutes']:
+                # Load moroutes configuration
+                path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile MO Routes configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Adding new MO Routes
+                self.mo_routing_table = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new MORoutingTable with %d routes' % len(self.mo_routing_table.getAll()))
+
+                # Set persistance state to True
+                self.persistanceState['moroutes'] = True
+
+            if scope in ['all', 'mtroutes']:
+                # Load mtroutes configuration
+                path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile MT Routes configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Adding new MT Routes
+                self.mt_routing_table = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new MTRoutingTable with %d routes' % len(self.mt_routing_table.getAll()))
+
+                # Set persistance state to True
+                self.persistanceState['mtroutes'] = True
+
+        except IOError, e:
+            self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while loading configuration: %s' % e)
+            return False
+
+        return True
+        
+    def perspective_is_persisted(self):
+        for k, v in self.persistanceState.iteritems():
+            if not v:
+                return False
+            
+        return True
+        
+    def perspective_user_add(self, user):
         user = pickle.loads(user)
         self.log.debug('Adding a User: %s' % user)
         self.log.info('Adding a User (id:%s)' % user.uid)
+        
+        # Check if group exists
+        foundGroup = False
+        for _group in self.groups:
+            if _group.gid == user.group.gid:
+                foundGroup = True
+        if not foundGroup:
+            self.log.error("Group with id:%s not found, cancelling user adding." % user.group.gid)
+            return False
 
         # Replace existant users
         for _user in self.users:
@@ -136,63 +359,203 @@ class RouterPB(pb.Root):
                 self.users.remove(_user)
                 break 
 
-        return self.users.append(user)
+        self.users.append(user)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['users'] = False
+
+        return True
     
-    def remote_user_authenticate(self, username, password):
+    def perspective_user_authenticate(self, username, password):
         self.log.debug('Authenticating with username:%s and password:%s' % (username, password))
         self.log.info('Authentication request with username:%s' % username)
 
         return self.authenticateUser(username, password, True)
     
-    def remote_user_remove(self, user):
-        user = pickle.loads(user)
-        self.log.debug('Removing a User: %s' % user)
-        self.log.info('Removing a User (id:%s)' % user.uid)
+    def perspective_user_remove(self, uid):
+        self.log.debug('Removing a User with uid: %s' % uid)
+        self.log.info('Removing a User (id:%s)' % uid)
 
         # Remove user
         for _user in self.users:
-            if user.uid == _user.uid or user.username == _user.username:
+            if uid == _user.uid:
                 self.users.remove(_user)
-                break 
+                return True
+        
+        self.log.error("User with id:%s not found, not removing it." % uid)
 
-    def remote_user_remove_all(self):
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['users'] = False
+
+        return False
+
+    def perspective_user_remove_all(self):
         self.log.info('Removing all users')
         
         self.users = []
         
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['users'] = False
+
         return True
 
-    def remote_user_get_all(self):
+    def perspective_user_get_all(self, gid = None):
         self.log.info('Getting all users')
         self.log.debug('Getting all users: %s' % self.users)
 
-        return pickle.dumps(self.users)
+        if gid is None:
+            return pickle.dumps(self.users)
+        else:
+            _users = []
+            for _user in self.users:
+                if _user.group.gid == gid:
+                    _users.append(_user)
+            
+            return pickle.dumps(_users)
+            
     
-    def remote_mtroute_add(self, route, order):
+    def perspective_group_add(self, group):
+        group = pickle.loads(group)
+        self.log.debug('Adding a Group: %s' % group)
+        self.log.info('Adding a Group (id:%s)' % group.gid)
+
+        # Replace existant groups
+        for _group in self.groups:
+            if group.gid == _group.gid:
+                self.groups.remove(_group)
+                break 
+
+        self.groups.append(group)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['groups'] = False
+
+        return True
+    
+    def perspective_group_remove(self, gid):
+        self.log.debug('Removing a Group with gid: %s' % gid)
+        self.log.info('Removing a Group (id:%s)' % gid)
+
+        # Remove group
+        for _group in self.groups:
+            if gid == _group.gid:
+                # Remove users from this group
+                _users = copy(self.users)
+                for _user in _users:
+                    if _user.group.gid == _group.gid:
+                        self.log.info('Removing a User (id:%s) from the Group (id:%s)' % (_user.uid, gid))
+                        self.users.remove(_user)
+                        
+                # Safely remove this group
+                self.groups.remove(_group)
+                return True
+        
+        self.log.error("Group with id:%s not found, not removing it." % gid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['groups'] = False
+
+        return False
+
+    def perspective_group_remove_all(self):
+        self.log.info('Removing all groups')
+        
+        # Remove group
+        for _group in self.groups:
+            self.log.debug('Removing a Group: %s' % _group)
+            self.log.info('Removing a Group (id:%s)' % _group.gid)
+            
+            # Remove users from this group
+            _users = copy(self.users)
+            for _user in _users:
+                if _user.group.gid == _group.gid:
+                    self.log.info('Removing a User (id:%s) from the Group (id:%s)' % (_user.uid, _group.gid))
+                    self.users.remove(_user)
+        
+        self.groups = []
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['groups'] = False
+
+        return True
+
+    def perspective_group_get_all(self):
+        self.log.info('Getting all groups')
+        self.log.debug('Getting all groups: %s' % self.groups)
+
+        return pickle.dumps(self.groups)
+    
+    def perspective_mtroute_add(self, route, order):
         route = pickle.loads(route)
         self.log.debug('Adding a MT Route, order = %s, route = %s' % (order, route))
         self.log.info('Adding a MT Route with order %s', order)
 
-        return self.mt_routing_table.add(route, order)
+        try:
+            self.mt_routing_table.add(route, order)
+        except InvalidRoutingTableParameterError, e:
+            self.log.error('Cannot add MT Route: %s' % (str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while adding MT Route: %s' % (str(e)))
+            return False
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['mtroutes'] = False
+
+        return True
     
-    def remote_moroute_add(self, route, order):
+    def perspective_moroute_add(self, route, order):
         route = pickle.loads(route)
         self.log.debug('Adding a MO Route, order = %s, route = %s' % (order, route))
         self.log.info('Adding a MO Route with order %s', order)
 
-        return self.mo_routing_table.add(route, order)
+        try:
+            self.mo_routing_table.add(route, order)
+        except InvalidRoutingTableParameterError, e:
+            self.log.error('Cannot add MO Route: %s' % (str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while adding MO Route: %s' % (str(e)))
+            return False
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['moroutes'] = False
+
+        return True
     
-    def remote_mtroute_flush(self):
+    def perspective_moroute_remove(self, order):
+        self.log.info('Removing MO Route [%s]', order)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['moroutes'] = False
+
+        return self.mo_routing_table.remove(order)
+
+    def perspective_mtroute_remove(self, order):
+        self.log.info('Removing MT Route [%s]', order)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['mtroutes'] = False
+
+        return self.mt_routing_table.remove(order)
+
+    def perspective_mtroute_flush(self):
         self.log.info('Flushing MT Routing table')
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['mtroutes'] = False
 
         return self.mt_routing_table.flush()
     
-    def remote_moroute_flush(self):
+    def perspective_moroute_flush(self):
         self.log.info('Flushing MO Routing table')
+
+        # Set persistance state to False (pending for persistance)
+        self.persistanceState['moroutes'] = False
 
         return self.mo_routing_table.flush()
     
-    def remote_mtroute_get_all(self):
+    def perspective_mtroute_get_all(self):
         self.log.info('Getting MT Routing table')
         
         routes = self.mt_routing_table.getAll()
@@ -200,7 +563,7 @@ class RouterPB(pb.Root):
 
         return pickle.dumps(routes, self.pickleProtocol)
     
-    def remote_moroute_get_all(self):
+    def perspective_moroute_get_all(self):
         self.log.info('Getting MO Routing table')
 
         routes = self.mo_routing_table.getAll()

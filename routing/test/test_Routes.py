@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import copy
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routes import *
@@ -14,12 +11,53 @@ class RouteTestCase(TestCase):
         self.connector1 = Connector('abc')
         self.connector2 = Connector('def')
         self.group100 = Group(100)
-        self.user1 = User(1, self.group100)
-        self.user2 = User(2, self.group100)
+        self.user1 = User(1, self.group100, 'username', 'password')
+        self.user2 = User(2, self.group100, 'username', 'password')
         
         self.invalid_filter = [ConnectorFilter(self.connector1), UserFilter(self.user1)]
         self.simple_filter_mo = [ConnectorFilter(self.connector1)]
         self.simple_filter_mt = [UserFilter(self.user1)]
+        
+class RouteStrTestCase(RouteTestCase):
+    def test_StaticMTRoute(self):
+        s = StaticMTRoute(self.simple_filter_mt, self.connector2)
+        self.assertEqual(str(s), 'StaticMTRoute to cid:def')
+    
+    def test_StaticMORoute(self):
+        s = StaticMORoute(self.simple_filter_mo, self.connector2)
+        self.assertEqual(str(s), 'StaticMORoute to cid:def')
+    
+    def test_DefaultRoute(self):
+        s = DefaultRoute(self.connector2)
+        self.assertEqual(str(s), 'DefaultRoute to cid:def')
+    
+    def test_RandomRoundrobinMTRouteTestCase(self):
+        s = RandomRoundrobinMTRoute(self.simple_filter_mt, [self.connector1, self.connector2])
+        self.assertEqual(str(s), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- abc\n\t- def')
+
+    def test_RandomRoundrobinMORouteTestCase(self):
+        s = RandomRoundrobinMORoute(self.simple_filter_mo, [self.connector1, self.connector2])
+        self.assertEqual(str(s), 'RandomRoundrobinMORoute to 2 connectors:\n\t- abc\n\t- def')
+    
+    def test_FailoverMTRouteTestCase(self):
+        pass
+    test_FailoverMTRouteTestCase.skip = 'This route type is not implemented yet'
+    
+    def test_FailoverMORouteTestCase(self):
+        pass
+    test_FailoverMORouteTestCase.skip = 'This route type is not implemented yet'
+    
+    def test_LeastCostMORouteTestCase(self):
+        pass
+    test_LeastCostMORouteTestCase.skip = 'This route type is not implemented yet'
+    
+    def test_LeastCostMTRouteTestCase(self):
+        pass
+    test_LeastCostMTRouteTestCase.skip = 'This route type is not implemented yet'
+    
+    def test_BestQualityMTRouteTestCase(self):
+        pass
+    test_BestQualityMTRouteTestCase.skip = 'This route type is not implemented yet'
     
 class AnyStaticRouteTestCase(RouteTestCase):
     def test_standard(self):

@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from twisted.trial.unittest import TestCase
 from jasmin.routing.RoutingTables import *
 from jasmin.routing.Routes import *
@@ -42,6 +39,21 @@ class RoutingTableTests():
         routing_t.add(self.mt_route3, 2)
     
         self.assertEqual(routing_t.getAll()[0].values()[0], self.mt_route3)
+        
+    def test_remove_route(self):
+        routing_t = self._routingTable()
+        routing_t.add(self.mt_route2, 2)
+        routing_t.add(self.mt_route1, 1)
+        routing_t.add(self.mt_route4, 0)
+        self.assertEqual(len(routing_t.getAll()), 3)
+        
+        # Remove non existent route
+        r = routing_t.remove(3)
+        self.assertFalse(r)
+        
+        # List after removing one route 
+        routing_t.remove(1)
+        self.assertEqual(len(routing_t.getAll()), 2)
 
     def test_default_route(self):
         routing_t = self._routingTable()
@@ -67,13 +79,13 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
     _routingTable = MTRoutingTable    
     
     def setUp(self):
-        self.connector1 = Connector('abc')
-        self.connector2 = Connector('def')
-        self.connector3 = Connector('ghi')
-        self.connector4 = Connector('jkl')
+        self.connector1 = SmppClientConnector('abc')
+        self.connector2 = SmppClientConnector('def')
+        self.connector3 = SmppClientConnector('ghi')
+        self.connector4 = SmppClientConnector('jkl')
         self.group100 = Group(100)
-        self.user1 = User(1, self.group100)
-        self.user2 = User(2, self.group100)
+        self.user1 = User(1, self.group100, 'username', 'password')
+        self.user2 = User(2, self.group100, 'username', 'password')
         
         self.mt_filter1 = [UserFilter(self.user1)]
         self.mt_filter2 = [DestinationAddrFilter('^10\d+')]

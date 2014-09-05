@@ -4,7 +4,10 @@ txAMQP
 txredisapi
 pyOpenSSL
 twisted
-python-dateutil
 sphinx
+pyparsing
+python-dateutil
+
+# Requirements used for testing only:
 testfixtures
 coverage

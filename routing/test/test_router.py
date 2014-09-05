@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*- 
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
+import glob
+import os
 import mock
 import pickle
 import time
@@ -10,6 +9,7 @@ import string
 import random
 import copy
 import struct
+from hashlib import md5
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
@@ -22,8 +22,8 @@ from jasmin.routing.router import RouterPB
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.test.http_server import AckServer
-from jasmin.routing.configs import deliverSmThrowerConfig, DLRThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower, DLRThrower
+from jasmin.routing.configs import deliverSmHttpThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmHttpThrower, DLRThrower
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.smpp.configs import SMPPClientConfig
@@ -32,10 +32,15 @@ from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
 from jasmin.routing.Filters import GroupFilter
-from jasmin.routing.jasminApi import Connector, HttpConnector, Group, User
+from jasmin.routing.jasminApi import *
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from jasmin.vendor.smpp.pdu.pdu_types import EsmClass, EsmClassMode, MoreMessagesToSend
+from twisted.cred import portal
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.spread.pb import JasminPBPortalRoot 
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from jasmin.routing.proxies import ConnectError
 
 def composeMessage(characters, length):
     if length <= len(characters):
@@ -50,16 +55,24 @@ def id_generator(size=12, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
 class RouterPBTestCase(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, authentication = False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        RouterPBConfigInstance = RouterPBConfig()
+        self.RouterPBConfigInstance = RouterPBConfig()
         
         # Launch the router server
         self.pbRoot_f = RouterPB()
-        self.pbRoot_f.setConfig(RouterPBConfigInstance)
-        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(self.pbRoot_f))
+        self.pbRoot_f.setConfig(self.RouterPBConfigInstance)
+        p = portal.Portal(JasminPBRealm(self.pbRoot_f))
+        if not authentication:
+            p.registerChecker(AllowAnonymousAccess())
+        else:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser('test_user', md5('test_password').digest())
+            p.registerChecker(c)
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
         
     def tearDown(self):
@@ -75,6 +88,7 @@ class HttpServerTestCase(RouterPBTestCase):
         # need to run the tests
         httpApiConfigInstance = HTTPApiConfig()
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        SMPPClientPBConfigInstance.authentication = False
         
         # Smpp client manager is required for HTTPApi instanciation
         self.clientManager_f = SMPPClientManagerPB()
@@ -114,7 +128,10 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         
         # Setup smpp client manager pb
         self.clientManager_f.addAmqpBroker(self.amqpBroker)
-        self.CManagerServer = reactor.listenTCP(0, pb.PBServerFactory(self.clientManager_f))
+        p = portal.Portal(JasminPBRealm(self.clientManager_f))
+        p.registerChecker(AllowAnonymousAccess())
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        self.CManagerServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.CManagerPort = self.CManagerServer.getHost().port
         
         # Start DLRThrower
@@ -145,13 +162,48 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         self.amqpClient.disconnect()
         yield self.rc.disconnect()
         
+class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def setUp(self, authentication=False):
+        yield RouterPBTestCase.setUp(self, authentication=True)
+        
+    @defer.inlineCallbacks
+    def test_connect_success(self):
+        yield self.connect('127.0.0.1', self.pbPort, 'test_user', 'test_password')
+
+    @defer.inlineCallbacks
+    def test_connect_failure(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Authentication error test_anyuser')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
+
+    @defer.inlineCallbacks
+    def test_connect_non_anonymous(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort)
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Anonymous connection is not authorized !')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
+        
 class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_add_list_and_flush_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], Connector(id_generator())), 2)
-        yield self.mtroute_add(DefaultRoute(Connector(id_generator())), 0)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
         
@@ -162,6 +214,22 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(2, len(listRet1))
         self.assertEqual(0, len(listRet2))
         
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_mt_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        listRet1 = yield self.mtroute_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtroute_remove(2)
+        listRet2 = yield self.mtroute_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(2, len(listRet1))
+        self.assertEqual(1, len(listRet2))
+
     @defer.inlineCallbacks
     def test_add_list_and_flush_mo_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -177,13 +245,142 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
         
-class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_mo_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        listRet1 = yield self.moroute_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtroute_remove(0)
+        listRet2 = yield self.mtroute_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(1, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+
+class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_add_mt_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        r = yield self.mtroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        self.assertFalse(r)
+        r = yield self.mtroute_add(DefaultRoute(Connector(id_generator())), 0)
+        self.assertFalse(r)
+        r = yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        self.assertTrue(r)
+        
+    @defer.inlineCallbacks
+    def test_add_mo_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        r = yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        self.assertTrue(r)
+        r = yield self.moroute_add(DefaultRoute(Connector(id_generator())), 0)
+        self.assertFalse(r)
+        r = yield self.moroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        self.assertFalse(r)
+
+class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_add_user_without_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # This group will not be added to router
+        g1 = Group(1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        r = yield self.user_add(u1)
+        self.assertEqual(r, False)
+
+    @defer.inlineCallbacks
+    def test_authenticate(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+
+        r = yield self.user_authenticate('username', 'password')
+        self.assertNotEqual(r, None)
+        r = pickle.loads(r)
+        self.assertEqual(u1.uid, r.uid)
+        self.assertEqual(u1.username, r.username)
+        self.assertEqual(u1.password, r.password)
+        self.assertEqual(u1.group, g1)
+
+        r = yield self.user_authenticate('username', 'incorrect')
+        self.assertEqual(r, None)
+
+        r = yield self.user_authenticate('incorrect', 'password')
+        self.assertEqual(r, None)
+
+        r = yield self.user_authenticate('incorrect', 'incorrect')
+        self.assertEqual(r, None)
+        
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        g2 = Group(2)
+        yield self.group_add(g2)
+        g3 = Group(3)
+        yield self.group_add(g3)
+        
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(3, len(c))
+        
+        yield self.group_remove(1)
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        
+        yield self.group_remove_all()
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+    @defer.inlineCallbacks
+    def test_remove_not_empty_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username1', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+
+        yield self.group_remove_all()
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
     @defer.inlineCallbacks
     def test_add_list_and_remove_user(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        u1 = User(1, Group(1), 'username', 'password')
-        u2 = User(2, Group(1), 'username2', 'password')
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        u2 = User(2, g1, 'username2', 'password')
 
         yield self.user_add(u1)
         c = yield self.user_get_all()
@@ -195,7 +392,7 @@ class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
         c = pickle.loads(c)
         self.assertEqual(2, len(c))
         
-        yield self.user_remove(u1)
+        yield self.user_remove(u1.uid)
         c = yield self.user_get_all()
         c = pickle.loads(c)
         self.assertEqual(1, len(c))
@@ -207,16 +404,44 @@ class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(0, len(c))
         
     @defer.inlineCallbacks
+    def test_add_list_user_with_groups(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        g2 = Group(2)
+        yield self.group_add(g2)
+
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g2, 'username2', 'password')
+        yield self.user_add(u2)
+
+        # Get all users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        
+        # Get users from gid=1
+        c = yield self.user_get_all(1)
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+    @defer.inlineCallbacks
     def test_user_unicity(self):
         yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
         
         # Users are unique by uid or username
         # The below 3 samples must be saved as two users
         # the Router will replace a User if it finds the same
         # uid or username
-        u1 = User(1, Group(1), 'username', 'password')
-        u2 = User(2, Group(1), 'username', 'password')
-        u3 = User(2, Group(1), 'other', 'password')
+        u1 = User(1, g1, 'username', 'password')
+        u2 = User(2, g1, 'username', 'password')
+        u3 = User(2, g1, 'other', 'password')
 
         yield self.user_add(u1)
         yield self.user_add(u2)
@@ -228,22 +453,348 @@ class AuthenticationTestCases(RouterPBProxy, RouterPBTestCase):
         u = yield self.user_authenticate('other', 'password')
         u = pickle.loads(u)
         self.assertEqual(u3.username, u.username)
+
+class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
+    def tearDown(self):
+        # Remove persisted configurations
+        filelist = glob.glob("%s/*" % self.RouterPBConfigInstance.store_path)
+        for f in filelist:
+            os.remove(f)
+            
+        return RouterPBTestCase.tearDown(self)
+    
+    @defer.inlineCallbacks
+    def test_persist_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
         
+        persistRet = yield self.persist()
+        
+        self.assertTrue(persistRet)
+
+    @defer.inlineCallbacks
+    def test_load_undefined_profile(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        loadRet = yield self.load()
+        
+        self.assertFalse(loadRet)
+
+    @defer.inlineCallbacks
+    def test_add_users_and_groups_persist_and_load_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist
+        yield self.persist()
+
+        # Remove all users
+        yield self.user_remove_all()
+
+        # List and assert
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load()
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+    @defer.inlineCallbacks
+    def test_add_all_persist_and_load_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # Add mo route
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1/any')), 0)
+        
+        # Add mt route
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mo routes
+        c = yield self.moroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mt routes
+        c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist
+        yield self.persist()
+
+        # Remove all users
+        yield self.user_remove_all()
+        # Remove all group
+        yield self.group_remove_all()
+        # Remove all mo routes
+        yield self.moroute_flush()
+        # Remove all mt routes
+        yield self.mtroute_flush()
+
+        # List and assert
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List mo routes
+        c = yield self.moroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List mt routes
+        c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load()
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mo routes
+        c = yield self.moroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mt routes
+        c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+    @defer.inlineCallbacks
+    def test_add_persist_and_load_profile(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist
+        yield self.persist('profile')
+
+        # Remove all users
+        yield self.user_remove_all()
+
+        # List and assert
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load('profile')
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+    @defer.inlineCallbacks
+    def test_persist_scope_groups(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add users and groups
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(2, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+        # Persist groups only
+        yield self.persist(scope='groups')
+
+        # Remove all users
+        yield self.user_remove_all()
+        # Remove all groups
+        yield self.group_remove_all()
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+
+        # Load
+        yield self.load(scope='groups') # Load with scope=all may also work
+
+        # List users
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List groups
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        
+    @defer.inlineCallbacks
+    def test_persitance_flag(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Initially, all config is already persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+        
+        # Make config modifications and assert is_persisted()
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+        
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        u2 = User(2, g1, 'username2', 'password')
+        yield self.user_add(u2)
+        
+        # Persist
+        yield self.persist()
+        
+        # Config is now persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Add mo route
+        yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1/any')), 0)
+        
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        # Add mt route
+        yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
+        
+        # Persist
+        yield self.persist()
+
+        # Config is now persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Remove all users
+        yield self.user_remove_all()
+        # Remove all group
+        yield self.group_remove_all()
+        # Remove all mo routes
+        yield self.moroute_flush()
+        # Remove all mt routes
+        yield self.mtroute_flush()
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        # Load
+        yield self.load()
+
+        # Config is now persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
     def test_delivery(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        c1 = Connector(id_generator())
-        u1 = User(1, Group(1), 'username', 'password')
-        u2 = User(1, Group(1), 'username2', 'password2')
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        c1 = SmppClientConnector(id_generator())
+        u1_password = 'password'
+        u1 = User(1, g1, 'username', u1_password)
+        u2_password = 'password'
+        u2 = User(1, g1, 'username2', u2_password)
         yield self.user_add(u1)
 
         yield self.mtroute_add(DefaultRoute(c1), 0)
         
         # Send a SMS MT through http interface
-        url_ko = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u2.username, u2.password)
-        url_ok = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u1.username, u1.password)
+        url_ko = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u2.username, u1_password)
+        url_ok = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u1.username, u2_password)
         
         # Incorrect username/password will lead to '403 Forbidden' error
         lastErrorStatus = 200
@@ -305,8 +856,12 @@ class SubmitSmTestCaseTools():
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver'):
         # Routing stuff
-        self.c1 = Connector(id_generator())
-        self.u1 = User(1, Group(1), 'username', 'password')
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        self.c1 = SmppClientConnector(id_generator())
+        user_password = 'password'
+        self.u1 = User(1, g1, 'username', user_password)
         yield self.user_add(self.u1)
         yield self.mtroute_add(DefaultRoute(self.c1), 0)
 
@@ -331,7 +886,7 @@ class SubmitSmTestCaseTools():
         self.postdata = None
         self.params = {'to': '98700177', 
                         'username': self.u1.username, 
-                        'password': self.u1.password, 
+                        'password': user_password, 
                         'content': 'test'}
 
         if hasattr(self, 'AckServer'):
@@ -342,7 +897,7 @@ class SubmitSmTestCaseTools():
             self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
 
     @defer.inlineCallbacks
-    def stopSmppConnectors(self):
+    def stopSmppClientConnectors(self):
         # Disconnect the connector
         yield self.SMPPClientManagerPBProxy.stop(self.c1.cid)
         # Wait for 'BOUND_TRX' state
@@ -389,7 +944,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -427,7 +982,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -465,7 +1020,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -498,7 +1053,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -537,7 +1092,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -576,7 +1131,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -599,7 +1154,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -645,7 +1200,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         reactor.callLater(3, exitDeferred.callback, None)
         yield exitDeferred
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -683,7 +1238,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -721,7 +1276,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -754,7 +1309,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
         
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -793,7 +1348,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -832,7 +1387,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -889,7 +1444,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        yield self.stopSmppConnectors()
+        yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')        
@@ -928,23 +1483,23 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
+        deliverSmHttpThrowerConfigInstance = deliverSmHttpThrowerConfig()
         # Lower the timeout config to pass the timeout tests quickly
-        deliverSmThrowerConfigInstance.timeout = 2
-        deliverSmThrowerConfigInstance.retryDelay = 1
-        deliverSmThrowerConfigInstance.maxRetries = 2
+        deliverSmHttpThrowerConfigInstance.timeout = 2
+        deliverSmHttpThrowerConfigInstance.retryDelay = 1
+        deliverSmHttpThrowerConfigInstance.maxRetries = 2
         
-        # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        # Launch the deliverSmHttpThrower
+        self.deliverSmHttpThrower = deliverSmHttpThrower()
+        self.deliverSmHttpThrower.setConfig(deliverSmHttpThrowerConfigInstance)
         
-        # Add the broker to the deliverSmThrower
-        yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
+        # Add the broker to the deliverSmHttpThrower
+        yield self.deliverSmHttpThrower.addAmqpBroker(self.amqpBroker)
 
     @defer.inlineCallbacks
     def tearDown(self):
         self.AckServer.stopListening()
-        yield self.deliverSmThrower.stopService()
+        yield self.deliverSmHttpThrower.stopService()
         yield DeliverSmSMSCTestCase.tearDown(self)
         
     @defer.inlineCallbacks
@@ -1159,6 +1714,6 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
 
-    def test_delivery_SmppConnector(self):
+    def test_delivery_SmppClientConnector(self):
         pass
-    test_delivery_SmppConnector.skip = 'TODO: When SMPP Server will be implemented ?'
+    test_delivery_SmppClientConnector.skip = 'TODO: When SMPP Server will be implemented ?'

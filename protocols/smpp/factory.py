@@ -1,11 +1,8 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import logging
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from jasmin.protocols.smpp.protocol import SMPPClientProtocol
+from protocol import SMPPClientProtocol
 from jasmin.vendor.smpp.pdu.error import *
 
 LOG_CATEGORY_BASE="smpp.client"
@@ -27,11 +24,12 @@ class SMPPClientFactory(ClientFactory):
                 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_BASE+".%s" % config.id)
-        self.log.setLevel(config.log_level)
-        handler = logging.FileHandler(filename=config.log_file)
-        formatter = logging.Formatter(config.log_format, config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(config.log_level)
+            handler = logging.FileHandler(filename=config.log_file)
+            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
 
         if msgHandler is None:
             self.msgHandler = self.msgHandlerStub

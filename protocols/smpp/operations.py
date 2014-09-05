@@ -1,12 +1,9 @@
 # -*- test-case-name: jasmin.test.test_operations -*-
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import struct
 import math
 import re
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
-from jasmin.protocols.smpp.configs import SMPPClientConfig
+from configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, 
                                             EsmClassType, EsmClassGsmFeatures, 
                                             MoreMessagesToSend)

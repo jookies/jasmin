@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU
 from jasmin.routing.jasminApi import *
@@ -17,7 +14,7 @@ class FilterTestCase(TestCase):
             short_message='hello world',
         )
         self.group = Group(100)
-        self.user = User(1, self.group)
+        self.user = User(1, self.group, 'username', 'password')
         self.routable = SimpleRoutablePDU(self.connector, self.PDU, self.user)
     
 class TransparentFilterTestCase(FilterTestCase):
@@ -199,4 +196,7 @@ else:
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
-        self.assertRaises(SyntaxError, self._filter, "def class anything ...")
+    
+    def test_syntax_error(self):
+        f = EvalPyFilter("def class anything ...")
+        self.assertRaises(SyntaxError, f.match, self.routable)

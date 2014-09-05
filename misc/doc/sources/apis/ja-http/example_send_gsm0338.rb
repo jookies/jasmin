@@ -1,3 +1,5 @@
+# Sending simple message using Ruby
+
 require 'net/http'
 
 uri = URI('http://127.0.0.1:1401/send')

@@ -1,36 +1,51 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import logging
 import pickle
 import uuid
+import time
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
-from jasmin.managers.listeners import SMPPClientSMListener
-from jasmin.managers.configs import SMPPClientSMListenerConfig
-from jasmin.managers.content import SubmitSmContent
+from listeners import SMPPClientSMListener
+from configs import SMPPClientSMListenerConfig
+from content import SubmitSmContent
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
-class SMPPClientManagerPB(pb.Root):
+class ConfigProfileLoadingError(Exception):
+    """Raised for any error occurring while loading a configuration profile with perspective_load
+    """
+
+class SMPPClientManagerPB(pb.Avatar):
     def __init__(self):
+        self.avatar = None
         self.rc = None
         self.amqpBroker = None
         self.connectors = []
         self.declared_queues = []
         self.pickleProtocol = 2
         
+        # Persistence flag, accessed through perspective_is_persisted
+        self.persisted = True
+        
+    def setAvatar(self, avatar):
+        if type(avatar) is str:
+            self.log.info('Authenticated Avatar: %s' % avatar)
+        else:
+            self.log.info('Anonymous connection')
+        
+        self.avatar = avatar
+
     def setConfig(self, SMPPClientPBConfig):
         self.config = SMPPClientPBConfig
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(self.config.log_level)
-        handler = logging.FileHandler(filename=self.config.log_file)
-        formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = logging.FileHandler(filename=self.config.log_file)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
         
         # Set pickleProtocol
         self.pickleProtocol = self.config.pickle_protocol
@@ -82,8 +97,87 @@ class SMPPClientManagerPB(pb.Root):
         self.log.debug('Deleting connector [%s] failed.', cid)
         return False
     
+    def perspective_persist(self, profile):
+        path = '%s/%s.smppccs' % (self.config.store_path, profile)
+        self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))
+        
+        try:
+            # Prepare connectors for persistence
+            # Will persist config and service status only
+            connectors = []
+            for c in self.connectors:
+                connectors.append({'id': c['id'], 
+                                    'config': c['config'], 
+                                    'service_status':c['service'].running})
+            
+            # Write configuration with datetime stamp
+            fh = open(path,'w')
+            fh.write('Persisted on %s\n' % time.strftime("%c"))
+            fh.write(pickle.dumps(connectors, self.pickleProtocol))
+            fh.close()
+
+            # Set persistance state to True
+            self.persisted = True
+        except IOError:
+            self.log.error('Cannot persist to %s' % path)
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while persisting configuration: %s' % e)
+            return False
+
+        return True
+    
     @defer.inlineCallbacks
-    def remote_connector_add(self, ClientConfig):
+    def perspective_load(self, profile):
+        path = '%s/%s.smppccs' % (self.config.store_path, profile)
+        self.log.info('Loading/Activating [%s] profile configuration from %s' % (profile, path))
+
+        try:
+            # Load configuration from file
+            fh = open(path,'r')
+            lines = fh.readlines()
+            fh.close()
+            
+            # Remove current configuration
+            for c in self.connectors:
+                remRet = yield self.perspective_connector_remove(c['id'])
+                if not remRet:
+                    raise ConfigProfileLoadingError('Error removing connector %s' % c['id'])
+                self.log.info('Removed connector [%s]' % c['id'])
+            
+            # Apply configuration
+            loadedConnectors = pickle.loads(''.join(lines[1:]))
+            for lc in loadedConnectors:
+                # Add connector
+                addRet = yield self.perspective_connector_add(pickle.dumps(lc['config'], self.pickleProtocol))
+                if not addRet:
+                    raise ConfigProfileLoadingError('Error adding connector %s' % lc['id'])
+                
+                # Start it if it's service where started when persisted
+                if lc['service_status'] == 1:
+                    startRet = yield self.perspective_connector_start(lc['id'])
+                    if not startRet:
+                        self.log.error('Error starting connector %s' % lc['id'])
+
+            # Set persistance state to True
+            self.persisted = True
+        except IOError, e:
+            self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
+            defer.returnValue(False)
+        except ConfigProfileLoadingError, e:
+            self.log.error('Error while loading configuration: %s' % e)
+            defer.returnValue(False)
+        except Exception, e:
+            self.log.error('Unknown error occurred while loading configuration: %s' % e)
+            defer.returnValue(False)
+
+        defer.returnValue(True)
+    
+    def perspective_is_persisted(self):
+        return self.persisted
+        
+    @defer.inlineCallbacks
+    def perspective_connector_add(self, ClientConfig):
         """This will add a new connector to self.connectors
         and get a listener on submit.sm.%cid queue, this listener will be
         started and stopped when the connector will get started and stopped
@@ -141,7 +235,7 @@ class SMPPClientManagerPB(pb.Root):
         smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), serviceManager.SMPPClientFactory, self.amqpBroker, self.rc, submit_sm_q)
         
         # Deliver_sm are sent to smListener's deliver_sm callback method
-        serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_callback
+        serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event
 
         self.connectors.append({'id':c.id,
                                 'config':c,
@@ -151,10 +245,14 @@ class SMPPClientManagerPB(pb.Root):
                         })
        
         self.log.info('Added a new connector: %s', c.id)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         defer.returnValue(True)
     
     @defer.inlineCallbacks
-    def remote_connector_remove(self, cid):
+    def perspective_connector_remove(self, cid):
         """This will stop and remove a connector from self.connectors"""
         
         self.log.debug('Removing connector [%s]', cid)
@@ -173,14 +271,18 @@ class SMPPClientManagerPB(pb.Root):
         
         if self.delConnector(cid):
             self.log.info('Removed connector [%s]', cid)
+            # Set persistance state to False (pending for persistance)
+            self.persisted = False
             defer.returnValue(True)
         else:
             self.log.error('Error removing connector [%s], cid not found', cid)
             defer.returnValue(False)
             
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
         defer.returnValue(True)
     
-    def remote_connector_list(self):
+    def perspective_connector_list(self):
         """This will return only connector IDs since returning an already copyed SMPPClientConfig
         would be a headache"""
         
@@ -195,7 +297,7 @@ class SMPPClientManagerPB(pb.Root):
         self.log.info('Returning a list of %s connectors', len(connectorList))
         return connectorList
     
-    def remote_connector_start(self, cid):
+    def perspective_connector_start(self, cid):
         """This will start a service by adding IService to IServiceCollection
         """
         
@@ -221,10 +323,14 @@ class SMPPClientManagerPB(pb.Root):
                 )
 
         self.log.info('Started connector [%s]', cid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         return True
     
     @defer.inlineCallbacks
-    def remote_connector_stop(self, cid, delQueues = False):
+    def perspective_connector_stop(self, cid, delQueues = False):
         """This will stop a service by detaching IService to IServiceCollection
         """
 
@@ -244,31 +350,38 @@ class SMPPClientManagerPB(pb.Root):
             yield self.amqpBroker.chan.queue_delete(queue=submitSmQueueName)
 
         # Stop timers in message listeners
-        self.log.debug('Clearing sm_listener timers in connecotr [%s]', cid)
+        self.log.debug('Clearing sm_listener timers in connector [%s]', cid)
         yield connector['sm_listener'].clearAllTimers()
         
         # Stop the queue consumer
-        self.log.debug('Stopping submit_sm_q consumer in connecotr [%s]', cid)
+        self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
         yield connector['submit_sm_q'].close()
         
         # Stop SMPP connector
         connector['service'].stopService()
         
         self.log.info('Stopped connector [%s]', cid)
+
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         defer.returnValue(True)
     
-    def remote_connector_stopall(self, delQueues = False):
+    def perspective_connector_stopall(self, delQueues = False):
         """This will stop all services by detaching IService to IServiceCollection
         """
 
         self.log.debug('Stopping all connectors')
 
         for connector in self.connectors:
-            self.remote_connector_stop(connector['id'], delQueues)
+            self.perspective_connector_stop(connector['id'], delQueues)
 
+        # Set persistance state to False (pending for persistance)
+        self.persisted = False
+        
         return True
     
-    def remote_service_status(self, cid):
+    def perspective_service_status(self, cid):
         """This will return the IService running status
         """
 
@@ -284,7 +397,7 @@ class SMPPClientManagerPB(pb.Root):
 
         return service_status
         
-    def remote_session_state(self, cid):
+    def perspective_session_state(self, cid):
         """This will return the session state of a client connector
         """
 
@@ -306,7 +419,7 @@ class SMPPClientManagerPB(pb.Root):
             # So we just return back the string of it
             return str(session_state)
         
-    def remote_connector_details(self, cid):
+    def perspective_connector_details(self, cid):
         """This will return the connector details
         """
 
@@ -319,7 +432,7 @@ class SMPPClientManagerPB(pb.Root):
         
         return self.getConnectorDetails(cid)
     
-    def remote_connector_config(self, cid):
+    def perspective_connector_config(self, cid):
         """This will return the connector SMPPClientConfig object
         """
 
@@ -337,7 +450,7 @@ class SMPPClientManagerPB(pb.Root):
         yield self.rc.expire(key, expiry)
     
     @defer.inlineCallbacks
-    def remote_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
+    def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
                          dlr_url = None, dlr_level = 1, dlr_method = 'POST'):
         """This will enqueue a submit_sm to a connector
         """

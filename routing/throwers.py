@@ -40,7 +40,7 @@ class Thrower(Service):
         if error.check(Closed) == None:
             # @todo: implement this errback
             # For info, this errback is called whenever:
-            # - an error has occured inside deliver_sm_callback
+            # - an error has occured inside throwing_callback
             self.log.error("Error in throwing_errback_errback: %s" % error)
     
     def clearRequeueTimer(self, msgid):
@@ -71,11 +71,12 @@ class Thrower(Service):
 
         # Set up a dedicated logger
         self.log = logging.getLogger(self.log_category)
-        self.log.setLevel(self.config.log_level)
-        handler = logging.FileHandler(filename=self.config.log_file)
-        formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = logging.FileHandler(filename=self.config.log_file)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
         
         self.log.info('Thrower configured and ready.')
 
@@ -122,23 +123,20 @@ class Thrower(Service):
     def ackMessage(self, message):
         return self.amqpBroker.chan.basic_ack(message.delivery_tag)
             
-class deliverSmThrower(Thrower):
-    """This is a deliver_sm thrower for HTTP and SMPP:
-    once the SMPP server is running, the callback must switch between
-    http and smpp (sub)callbacks
+class deliverSmHttpThrower(Thrower):
+    """This is a deliver_sm thrower for HTTP
     """
-    name = 'deliverSmThrower'
+    name = 'deliverSmHttpThrower'
     
     def __init__(self):
         Thrower.__init__(self)
 
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
-        self.consumerTag = 'deliverSmThrower'
+        self.consumerTag = 'deliverSmHttpThrower'
         self.routingKey = 'deliver_sm_thrower.http'
         self.queueName = 'deliver_sm_thrower.http'
         
-        # Subject to change (see the deliverSmThrower class comment)
         self.callback = self.http_throwing_callback
     
     @defer.inlineCallbacks
@@ -148,7 +146,7 @@ class deliverSmThrower(Thrower):
         msgid = message.content.properties['message-id']
         dc = pickle.loads(message.content.properties['headers']['dst-connector'])
         RoutedDeliverSmContent = pickle.loads(message.content.body)
-        self.log.debug('Got one message (msgid:%s)to throw: %s' % (msgid, RoutedDeliverSmContent))
+        self.log.debug('Got one message (msgid:%s) to throw: %s' % (msgid, RoutedDeliverSmContent))
         
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
@@ -182,7 +180,7 @@ class deliverSmThrower(Thrower):
 
             self.log.debug('Calling %s with args %s using %s method.' % (dc.baseurl, args, dc.method))
             content = yield getPage(baseurl, method = dc.method, postdata = postdata, 
-                          timeout = self.config.timeout, agent = 'Jasmin gateway/1.0 deliverSmThrower',
+                          timeout = self.config.timeout, agent = 'Jasmin gateway/1.0 deliverSmHttpThrower',
                           headers = {'Content-Type'     : 'application/x-www-form-urlencoded',
                                      'Accept'           : 'text/plain'})
             self.log.info('Throwed message [msgid:%s] to connector [cid:%s] using http to %s.' % (msgid, dc.cid, dc.baseurl))
@@ -233,7 +231,7 @@ class DLRThrower(Thrower):
         method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
         DLRContent = message.content.body
-        self.log.debug('Got one message (msgid:%s)to throw: %s' % (msgid, DLRContent))
+        self.log.debug('Got one message (msgid:%s) to throw: %s' % (msgid, DLRContent))
         
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
