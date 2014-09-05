@@ -12,10 +12,15 @@ script:
     # Docs building test
     - cd misc/doc;make html
     # Report coverage
-    - coverage report --omit=/usr/*
+    - cd ../../;coverage report --omit=/usr/*,/home/travis/virtualenv/*
 services:
     - rabbitmq
     - redis-server
 before_script:
-    - sudo mkdir /var/log/jasmin;sudo chown `whoami` /var/log/jasmin
+    - sudo mkdir /var/log/jasmin
+    - sudo chown `whoami` /var/log/jasmin
     - sudo ln -s `pwd`/misc/config /etc/jasmin
+    - sudo chown `whoami` /etc/jasmin/store
+before_install:
+    - sudo apt-get update -qq
+    - sudo apt-get install -qq python-dev

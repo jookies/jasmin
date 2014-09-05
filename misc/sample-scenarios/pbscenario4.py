@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 """
 An example of scenario with the following actions:
  1. Add and start a connector

@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU, RoutableSubmitSm, RoutableDeliverSm, InvalidRoutableParameterError
@@ -16,7 +13,7 @@ class RoutablePDUTestCase(TestCase):
             short_message='hello world',
         )
         self.connector = Connector('abc')
-        self.user = User(1, Group(100))
+        self.user = User(1, Group(100), 'username', 'password')
     
 class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
     

@@ -1,10 +1,10 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import copy
 import time
 import mock
 import pickle
+import glob
+import os
+from hashlib import md5
 from testfixtures import LogCapture
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
@@ -20,14 +20,20 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from random import randint
 from datetime import datetime, timedelta
+from twisted.cred import portal
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.spread.pb import JasminPBPortalRoot 
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from jasmin.managers.proxies import ConnectError
 
 class SMPPClientPBTestCase(unittest.TestCase):
     @defer.inlineCallbacks
-    def setUp(self):
+    def setUp(self, authentication = False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        self.SMPPClientPBConfigInstance = SMPPClientPBConfig()
+        self.SMPPClientPBConfigInstance.authentication = authentication
         AMQPServiceConfigInstance = AmqpConfig()
         AMQPServiceConfigInstance.reconnectOnConnectionLoss = False
         
@@ -41,9 +47,17 @@ class SMPPClientPBTestCase(unittest.TestCase):
         
         # Launch the client manager server
         pbRoot = SMPPClientManagerPB()
-        pbRoot.setConfig(SMPPClientPBConfigInstance)
+        pbRoot.setConfig(self.SMPPClientPBConfigInstance)
         pbRoot.addAmqpBroker(self.amqpBroker)
-        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(pbRoot))
+        p = portal.Portal(JasminPBRealm(pbRoot))
+        if not authentication:
+            p.registerChecker(AllowAnonymousAccess())
+        else:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser('test_user', md5('test_password').digest())
+            p.registerChecker(c)
+        jPBPortalRoot = JasminPBPortalRoot(p)
+        self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
         
         # Default SMPPClientConfig
@@ -109,19 +123,164 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
     def tearDown(self):
         SMPPClientPBProxyTestCase.tearDown(self)
         return self.SMSCPort.stopListening()
-
-class SMSCSimulatorDeliveryReceiptSM(SMPPClientPBProxyTestCase):
+    
+class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
-    def setUp(self):
-        yield SMPPClientPBProxyTestCase.setUp(self)
+    def setUp(self, authentication=False):
+        yield SMPPClientPBProxyTestCase.setUp(self, authentication=True)
+        
+    @defer.inlineCallbacks
+    def test_connect_success(self):
+        yield self.connect('127.0.0.1', self.pbPort, 'test_user', 'test_password')
 
-        factory = Factory()
-        factory.protocol = DeliveryReceiptSMSC      
-        self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
+    @defer.inlineCallbacks
+    def test_connect_failure(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Authentication error test_anyuser')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
 
+    @defer.inlineCallbacks
+    def test_connect_non_anonymous(self):
+        try:
+            yield self.connect('127.0.0.1', self.pbPort)
+        except ConnectError, e:
+            self.assertEqual(str(e), 'Anonymous connection is not authorized !')
+        except Exception, e:
+            self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
+        else:
+            self.assertTrue(False, "ConnectError not raised")
+            
+        self.assertFalse(self.isConnected)
+
+class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     def tearDown(self):
-        SMPPClientPBProxyTestCase.tearDown(self)
-        return self.SMSCPort.stopListening()
+        # Remove persisted configurations
+        filelist = glob.glob("%s/*" % self.SMPPClientPBConfigInstance.store_path)
+        for f in filelist:
+            os.remove(f)
+            
+        return SMPPClientPBProxyTestCase.tearDown(self)
+    
+    @defer.inlineCallbacks
+    def test_persist_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        persistRet = yield self.persist()
+        
+        self.assertTrue(persistRet)
+
+    @defer.inlineCallbacks
+    def test_load_undefined_profile(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        loadRet = yield self.load()
+        
+        self.assertFalse(loadRet)
+
+    @defer.inlineCallbacks
+    def test_add_start_persist_and_load_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add, start and persist
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+        yield self.persist()
+
+        # Remove and assert
+        remRet = yield self.remove(self.defaultConfig.id)
+        self.assertTrue(remRet)
+
+        # List and assert
+        listRet = yield self.connector_list()
+        self.assertEqual(0, len(listRet))
+
+        # Load, list and assert service status is started
+        yield self.load()
+        listRet = yield self.connector_list()
+        self.assertEqual(1, len(listRet))
+        self.assertEqual(1, listRet[0]['service_status'])
+
+        # Stop (to avoid 'Reactor was unclean' error)
+        yield self.stop(self.defaultConfig.id)
+
+    @defer.inlineCallbacks
+    def test_add_persist_and_load_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add and persist
+        yield self.add(self.defaultConfig)
+        yield self.persist()
+
+        # Remove and assert
+        remRet = yield self.remove(self.defaultConfig.id)
+        self.assertTrue(remRet)
+
+        # List and assert
+        listRet = yield self.connector_list()
+        self.assertEqual(0, len(listRet))
+
+        # Load, list and assert
+        yield self.load()
+        listRet = yield self.connector_list()
+        self.assertEqual(1, len(listRet))
+        self.assertEqual(self.defaultConfig.id, listRet[0]['id'])
+
+    @defer.inlineCallbacks
+    def test_add_persist_and_load_profile(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add and persist
+        yield self.add(self.defaultConfig)
+        yield self.persist('profile')
+
+        # Remove and assert
+        remRet = yield self.remove(self.defaultConfig.id)
+        self.assertTrue(remRet)
+
+        # List and assert
+        listRet = yield self.connector_list()
+        self.assertEqual(0, len(listRet))
+
+        # Load, list and assert
+        yield self.load('profile')
+        listRet = yield self.connector_list()
+        self.assertEqual(1, len(listRet))
+        self.assertEqual(self.defaultConfig.id, listRet[0]['id'])
+
+    @defer.inlineCallbacks
+    def test_persitance_flag(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Initially, all config is already persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Make modifications and assert
+        yield self.add(self.defaultConfig)
+                
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+        yield self.persist('profile')
+
+        # Now it's persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Remove and assert
+        yield self.remove(self.defaultConfig.id)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+        yield self.persist('profile')
 
 class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -673,49 +832,6 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         self.assertTrue(self.receivedDeliverSm is not None)
         self.assertIsInstance(self.receivedDeliverSm, DeliverSM)
         
-class ClientConnectorDeliveryReceiptTestCases(SMSCSimulatorDeliveryReceiptSM):
-    receivedDeliverSm = None
-    
-    def deliver_sm_callback(self, message):
-        self.receivedDeliverSm = pickle.loads(message.content.body)
-    
-    @defer.inlineCallbacks
-    def test_deliverSm_dlr(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-
-        # Listen on the deliver.sm queue
-        queueName = 'dlr.%s' % self.defaultConfig.id
-        consumerTag = 'test_deliverSm_dlr'
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, consumer_tag=consumerTag, no_ack=True)
-        deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        deliver_sm_q.get().addCallback(self.deliver_sm_callback)
-
-        # Add & start
-        yield self.add(self.defaultConfig)
-        yield self.start(self.defaultConfig.id)
-        # Wait for 'BOUND_TRX' state
-        while True:
-            ssRet = yield self.session_state(self.defaultConfig.id)
-            if ssRet == 'BOUND_TRX':
-                break;
-            else:
-                time.sleep(0.2)
-        
-        # Give the reactor a run
-        yield self.session_state(self.defaultConfig.id)
-
-        yield self.stop(self.defaultConfig.id)
-
-        # Wait for unbound state
-        ssRet = yield self.session_state(self.defaultConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(self.defaultConfig.id)
-
-        # Assertions
-        self.assertTrue(self.receivedDeliverSm is not None)
-        self.assertTrue(self.receivedDeliverSm.dlr['stat'] == 'DELIVRD')
-
 class ClientConnectorStatusTestCases(SMSCSimulator):
     
     @defer.inlineCallbacks

@@ -1,32 +1,53 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
-import datetime
 import pickle
 from twisted.spread import pb
 from twisted.internet import reactor
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from twisted.cred.credentials import UsernamePassword, Anonymous
+from twisted.spread.pb import RemoteReference
+
+class ConnectError(Exception):
+    pass
+
+class InvalidConnectResponseError(Exception):
+    pass
+
+def ConnectedPB(fn):
+    'Check connection to PB before passing to session handler'
+    def check_cnx_and_call(self, *args, **kwargs):
+        if self.isConnected == False:
+            raise Exception("PB proxy is not connected !")
+        
+        return fn(self, *args, **kwargs)
+    return check_cnx_and_call
 
 class SMPPClientManagerPBProxy:
     pb = None
     isConnected = False
     pickleProtocol = 2
     
-    def connect(self, host, port):
+    def connect(self, host, port, username = None, password = None):
         # Launch a client
         self.pbClientFactory = pb.PBClientFactory()
         reactor.connectTCP(host, port, self.pbClientFactory)
         
-        return self.pbClientFactory.getRootObject( ).addCallback(self._connected)
+        if username is None and password is None:
+            return self.pbClientFactory.login(Anonymous()).addCallback(self._connected)
+        else:
+            return self.pbClientFactory.login(UsernamePassword(username, password)).addCallback(self._connected)
     
     def disconnect(self):
         self.isConnected = False
         return self.pbClientFactory.disconnect()
     
     def _connected(self, rootObj):
-        self.isConnected = True
-        self.pb = rootObj
+        if isinstance(rootObj, RemoteReference):
+            self.isConnected = True
+            self.pb = rootObj
+        elif type(rootObj) == tuple and type(rootObj[0]) == bool and rootObj[0] is False and type(rootObj[1]) == str:
+            raise ConnectError(rootObj[1])
+        else:
+            raise InvalidConnectResponseError(rootObj)
         
     def pickle(self, obj):
         return pickle.dumps(obj, self.pickleProtocol)
@@ -34,73 +55,65 @@ class SMPPClientManagerPBProxy:
     def unpickle(self, obj):
         return pickle.loads(obj)
     
+    @ConnectedPB
+    def persist(self, profile = "jcli-prod"):
+        return self.pb.callRemote('persist', profile)
+    
+    @ConnectedPB
+    def load(self, profile = "jcli-prod"):
+        return self.pb.callRemote('load', profile)
+    
+    @ConnectedPB
+    def is_persisted(self):
+        return self.pb.callRemote('is_persisted')
+    
+    @ConnectedPB
     def add(self, config):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
         if isinstance(config, SMPPClientConfig) == False:
             raise Exception("Object is not an instance of SMPPClientConfig")
 
         return self.pb.callRemote('connector_add', self.pickle(config))
     
+    @ConnectedPB
     def remove(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_remove', cid)
     
+    @ConnectedPB
     def connector_list(self):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_list')
 
+    @ConnectedPB
     def start(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_start', cid)
 
+    @ConnectedPB
     def stop(self, cid, delQueues = False):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_stop', cid, delQueues)
 
+    @ConnectedPB
     def stopall(self, delQueues = False):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_stopall', delQueues)
 
+    @ConnectedPB
     def session_state(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('session_state', cid)
     
+    @ConnectedPB
     def service_status(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('service_status', cid)
     
+    @ConnectedPB
     def connector_details(self, cid):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_details', cid)
     
+    @ConnectedPB
     def connector_config(self, cid):
         """Once the returned deferred is fired, a pickled SMPPClientConfig
         is obtained as a result (if success)"""
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
-
         return self.pb.callRemote('connector_config', cid)
     
+    @ConnectedPB
     def submit_sm(self, cid, SubmitSmPDU):
-        if self.isConnected == False:
-            raise Exception("PB proxy is not connected !")
         if isinstance(SubmitSmPDU, SubmitSM) == False:
             raise Exception("Object is not an instance of SubmitSm")
         
@@ -114,7 +127,7 @@ class SMPPClientManagerPBProxy:
         if SubmitSmPDU.params['validity_period'] != None:
             validity_period = SubmitSmPDU.params['validity_period'].strftime('%Y-%m-%d %H:%M:%S')
         else:
-            # Validity period is not set, the SMS-C will set its own default vperiod to this message
+            # Validity period is not set, the SMS-C will set its own default validity_period to this message
             validity_period = None
 
         return self.pb.callRemote('submit_sm', cid, 

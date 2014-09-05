@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import logging
 import re
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, 
@@ -33,10 +30,10 @@ class SMPPClientConfig():
             raise ConfigUndefinedIdError('SMPPClientConfig must have an id')
         
         idcheck = re.compile(r'^[A-Za-z0-9_-]{3,25}$')
-        if idcheck.match(kwargs.get('id')) == None:
+        if idcheck.match(str(kwargs.get('id'))) == None:
             raise ConfigInvalidIdError('SMPPClientConfig id syntax is invalid')
             
-        self.id = kwargs.get('id')
+        self.id = str(kwargs.get('id'))
         
         self.host = kwargs.get('host', '127.0.0.1')
         if not isinstance(self.host, str):
@@ -62,8 +59,8 @@ class SMPPClientConfig():
         if not isinstance(self.enquireLinkTimerSecs, int) and not isinstance(self.enquireLinkTimerSecs, float):
             raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
         
-        # Maximum time lapse allowed between transactions, after which period
-        # of inactivity, the connection is considered as inactive and will reconnect 
+        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive 
+        # and will reconnect 
         self.inactivityTimerSecs = kwargs.get('inactivityTimerSecs', 300)
         if not isinstance(self.inactivityTimerSecs, int) and not isinstance(self.inactivityTimerSecs, float):
             raise TypeMismatch('inactivityTimerSecs must be an integer or float')
@@ -75,7 +72,11 @@ class SMPPClientConfig():
         
         # Reconnection
         self.reconnectOnConnectionLoss = kwargs.get('reconnectOnConnectionLoss', True)
+        if not isinstance(self.reconnectOnConnectionLoss, bool):
+            raise TypeMismatch('reconnectOnConnectionLoss must be a boolean')
         self.reconnectOnConnectionFailure = kwargs.get('reconnectOnConnectionFailure', True)
+        if not isinstance(self.reconnectOnConnectionFailure, bool):
+            raise TypeMismatch('reconnectOnConnectionFailure must be a boolean')
         self.reconnectOnConnectionLossDelay = kwargs.get('reconnectOnConnectionLossDelay', 10)        
         if not isinstance(self.reconnectOnConnectionLossDelay, int) and not isinstance(self.reconnectOnConnectionLossDelay, float):
             raise TypeMismatch('reconnectOnConnectionLossDelay must be an integer or float')
@@ -156,7 +157,7 @@ class SMPPClientConfig():
         # DLR
         self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
         if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
-            raise TypeMismatch('dlr_expiry must be an integer or float')
+            raise TypeMismatch('dlr_expiry must be an integer or float')        
                 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):

@@ -9,8 +9,8 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.vendor.smpp.pdu.error import *
 from txamqp.queue import Closed
 from twisted.internet import reactor, task
-from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, DLRContent
-from jasmin.managers.configs import SMPPClientPBConfig
+from content import SubmitSmRespContent, DeliverSmContent, DLRContent
+from configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 
 LOG_CATEGORY = "jasmin-sm-listener"
@@ -32,11 +32,12 @@ class SMPPClientSMListener:
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(self.config.log_level)
-        handler = logging.FileHandler(filename=self.config.log_file)
-        formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = logging.FileHandler(filename=self.config.log_file)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
         
     def clearRejectTimer(self, msgid):
         if msgid in self.rejectTimers:
@@ -148,10 +149,10 @@ class SMPPClientSMListener:
             defer.returnValue(False)
 
         self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
-        yield self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU).addCallback(self.submit_sm_resp_callback, message)
+        yield self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU).addCallback(self.submit_sm_resp_event, message)
 
     @defer.inlineCallbacks
-    def submit_sm_resp_callback(self, r, amqpMessage):
+    def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
         
         if r.response.status == CommandStatus.ESME_ROK:
@@ -311,7 +312,7 @@ class SMPPClientSMListener:
                 else:
                     short_message += pdus[i+1].params['short_message'][6:]
                 
-            # Build the final pdu and return it back to deliver_sm_callback
+            # Build the final pdu and return it back to deliver_sm_event
             pdu = pdus[1] # Take the first part as a base of work
             # 1. Remove message splitting information from pdu
             if splitMethod == 'sar':
@@ -322,15 +323,13 @@ class SMPPClientSMListener:
                 pdu.params['esm_class'] = None
             # 2. Set the new short_message
             pdu.params['short_message'] = short_message
-            self.deliver_sm_callback(smpp = None, pdu = pdu)
+            self.deliver_sm_event(smpp = None, pdu = pdu)
     
     @defer.inlineCallbacks
-    def deliver_sm_callback(self, smpp, pdu):
+    def deliver_sm_event(self, smpp, pdu):
         pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
         content = DeliverSmContent(pdu, self.SMPPClientFactory.config.id, pickleProtocol = self.pickleProtocol)
         msgid = content.properties['message-id']
-        # Default destination
-        destination_queue = None
         
         if pdu.dlr is None:
             # We have a SMS-MO
@@ -359,7 +358,10 @@ class SMPPClientSMListener:
             
             if splitMethod is None:
                 # It's a simple short message
-                destination_queue = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                self.log.debug("Publishing DeliverSmContent[%s] with routing_key[%s]" % (msgid, routing_key))
+                yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
+                
                 self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (
                            self.SMPPClientFactory.config.id,
@@ -383,6 +385,8 @@ class SMPPClientSMListener:
                               'msg_ref_num':msg_ref_num, 
                               'segment_seqnum':segment_seqnum}
                 self.rc.hset(hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(self.concatDeliverSMs, splitMethod, total_segments, msg_ref_num, segment_seqnum)
+                
+                self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (msgid, total_segments))
         else:
             # Check for DLR request
             if self.rc is not None:
@@ -423,9 +427,6 @@ class SMPPClientSMListener:
             else:
                 self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
 
-            # Send back deliver_sm to dlr.CID queue
-            # There's no actual listeners on this queue, it can be used to track DLRs messages from a 3rd party app
-            destination_queue = 'dlr.%s' % self.SMPPClientFactory.config.id
             self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [submitted/delivered messages:%s/%s] [err:%s] [content:%s]" % 
                       (
                        self.SMPPClientFactory.config.id,
@@ -438,13 +439,3 @@ class SMPPClientSMListener:
                        pdu.dlr['err'],
                        pdu.dlr['text'],
                        ))
-        
-        if destination_queue is not None:
-            # Send back deliver_sm to deliver.sm.CID queue
-            # RouterPB.deliver_sm_callback will consume the message and decide of its destination
-            self.log.debug("Sending DeliverSmContent[%s] with routing_key[%s]" % (msgid, destination_queue))
-            yield self.amqpBroker.publish(exchange='messaging', routing_key=destination_queue, content=content)
-        elif splitMethod is not None:
-            self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (msgid, total_segments))
-        else:
-            self.log.warn("DeliverSmContent[%s] not sent to any queue !" % msgid)

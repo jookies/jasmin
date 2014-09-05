@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 """
 Test cases for AmqpFactory
 These are test cases for only Jasmin's code, smpp.twisted tests are not included here

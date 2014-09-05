@@ -1,22 +1,19 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import mock
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
-from jasmin.routing.configs import deliverSmThrowerConfig, DLRThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower, DLRThrower
+from jasmin.routing.configs import deliverSmHttpThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmHttpThrower, DLRThrower
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.managers.content import DLRContent
-from jasmin.routing.jasminApi import HttpConnector, SmppConnector
+from jasmin.routing.jasminApi import HttpConnector, SmppClientConnector
 from jasmin.vendor.smpp.pdu.operations import DeliverSM
 from twisted.web.resource import Resource
 from jasmin.routing.test.http_server import LeafServer, TimeoutLeafServer, AckServer, NoAckServer, Error404Server
 from twisted.web import server
 
-class deliverSmThrowerTestCase(unittest.TestCase):
+class deliverSmHttpThrowerTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self):
         # Initiating config objects without any filename
@@ -32,18 +29,18 @@ class deliverSmThrowerTestCase(unittest.TestCase):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
+        deliverSmHttpThrowerConfigInstance = deliverSmHttpThrowerConfig()
         # Lower the timeout config to pass the timeout tests quickly
-        deliverSmThrowerConfigInstance.timeout = 2
-        deliverSmThrowerConfigInstance.retry_delay = 1
-        deliverSmThrowerConfigInstance.max_retries = 2
+        deliverSmHttpThrowerConfigInstance.timeout = 2
+        deliverSmHttpThrowerConfigInstance.retry_delay = 1
+        deliverSmHttpThrowerConfigInstance.max_retries = 2
         
-        # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        # Launch the deliverSmHttpThrower
+        self.deliverSmHttpThrower = deliverSmHttpThrower()
+        self.deliverSmHttpThrower.setConfig(deliverSmHttpThrowerConfigInstance)
         
-        # Add the broker to the deliverSmThrower
-        yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
+        # Add the broker to the deliverSmHttpThrower
+        yield self.deliverSmHttpThrower.addAmqpBroker(self.amqpBroker)
         
         # Test vars:
         self.testDeliverSMPdu = DeliverSM(
@@ -61,14 +58,14 @@ class deliverSmThrowerTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.amqpBroker.disconnect()
-        yield self.deliverSmThrower.stopService()
+        yield self.deliverSmHttpThrower.stopService()
 
-class HTTPThrowingTestCases(deliverSmThrowerTestCase):
+class HTTPThrowingTestCases(deliverSmHttpThrowerTestCase):
     routingKey = 'deliver_sm_thrower.http'
     
     @defer.inlineCallbacks
     def setUp(self):
-        yield deliverSmThrowerTestCase.setUp(self)
+        yield deliverSmHttpThrowerTestCase.setUp(self)
         
         # Start http servers
         self.Error404ServerResource = Error404Server()
@@ -86,7 +83,7 @@ class HTTPThrowingTestCases(deliverSmThrowerTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield deliverSmThrowerTestCase.tearDown(self)
+        yield deliverSmHttpThrowerTestCase.tearDown(self)
         self.Error404Server.stopListening()
         self.AckServer.stopListening()
         self.NoAckServer.stopListening()
@@ -144,7 +141,7 @@ class HTTPThrowingTestCases(deliverSmThrowerTestCase):
         
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
+        # Wait 12 seconds (timeout is set to 2 seconds in deliverSmHttpThrowerTestCase.setUp(self)
         exitDeferred = defer.Deferred()
         reactor.callLater(12, exitDeferred.callback, None)
         yield exitDeferred
@@ -168,7 +165,7 @@ class HTTPThrowingTestCases(deliverSmThrowerTestCase):
         
         self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
 
-#class SMPPThrowingTestCases(deliverSmThrowerTestCase):
+#class SMPPThrowingTestCases(deliverSmHttpThrowerTestCase):
 class SMPPThrowingTestCases():
     routingKey = 'deliver_sm_thrower.smpp'
 
@@ -198,11 +195,11 @@ class DLRThrowerTestCase(unittest.TestCase):
         DLRThrowerConfigInstance.retry_delay = 1
         DLRThrowerConfigInstance.max_retries = 2
         
-        # Launch the deliverSmThrower
+        # Launch the deliverSmHttpThrower
         self.DLRThrower = DLRThrower()
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
         
-        # Add the broker to the deliverSmThrower
+        # Add the broker to the deliverSmHttpThrower
         self.DLRThrower.addAmqpBroker(self.amqpBroker)
 
         # Start http servers
@@ -282,7 +279,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         message_status = 'DELIVRD'
         self.publishDLRContent(message_status, msgid, dlr_url, dlr_level)
 
-        # Wait 9 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
+        # Wait 9 seconds (timeout is set to 2 seconds in deliverSmHttpThrowerTestCase.setUp(self)
         exitDeferred = defer.Deferred()
         reactor.callLater(12, exitDeferred.callback, None)
         yield exitDeferred

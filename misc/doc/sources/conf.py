@@ -31,7 +31,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Jasmin gateway'
-copyright = u'2013, Jasmin'
+copyright = u'2015, Jasmin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -81,7 +81,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'solar'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -239,7 +239,7 @@ texinfo_documents = [
 epub_title = u'jasmin'
 epub_author = u'Fourat ZOUARI'
 epub_publisher = u'Fourat ZOUARI'
-epub_copyright = u'2013, Fourat ZOUARI'
+epub_copyright = u'2014, Fourat ZOUARI'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
