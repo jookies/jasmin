@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from jasmin.vendor.smpp.twisted.tests.smsc_simulator import *
 from jasmin.vendor.smpp.pdu.pdu_types import *
 import random

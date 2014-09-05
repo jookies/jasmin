@@ -1,7 +1,4 @@
 # -*- test-case-name: jasmin.test.test_operations -*-
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import struct
 import math
 import re

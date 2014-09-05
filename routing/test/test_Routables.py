@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU, RoutableSubmitSm, RoutableDeliverSm, InvalidRoutableParameterError

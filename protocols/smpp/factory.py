@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import logging
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory

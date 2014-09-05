@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import pickle
 from twisted.spread import pb
 from twisted.internet import reactor

@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import logging
 from factory import SMPPClientFactory
 from twisted.application import service

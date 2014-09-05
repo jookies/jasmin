@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*- 
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
 
 import random
 import urllib

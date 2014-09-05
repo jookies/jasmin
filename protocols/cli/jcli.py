@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import pyparsing
 from hashlib import md5
 from protocol import CmdProtocol

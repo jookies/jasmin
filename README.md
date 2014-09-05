@@ -23,6 +23,9 @@ high traffic loads and full in-memory execution.
 
 Documentation
 -------------
+
+Build it locally:
+
 ```
 cd misc/doc
 make html

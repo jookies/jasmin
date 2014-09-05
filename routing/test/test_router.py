@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*- 
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 import glob
 import os
 import mock

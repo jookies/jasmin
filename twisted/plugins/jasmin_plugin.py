@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from zope.interface import implements
 from twisted.python import usage, log
 from twisted.plugin import IPlugin

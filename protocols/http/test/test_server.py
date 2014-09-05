@@ -1,6 +1,3 @@
-# Copyright 2012 Fourat Zouari <fourat@gmail.com>
-# See LICENSE for details.
-
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 from twisted_web_test_utils import DummySite
