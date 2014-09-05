@@ -32,18 +32,19 @@ Getting started
    :columns: 2
    
    * **TODO** -- Install and run Jasmin gateway
-   * **TODO** -- Running basic SMS and routing scenarios
-   * **TODO** -- Basic push/pull SMS application
+   * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application
    * :doc:`/apis/ja-http/index` -- HTTP API technical specification
+   * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
 
 Full contents
 *************
 .. toctree::
    :maxdepth: 2
 
+   /programming-examples/index
+   /apis/ja-http/index
    /management/jcli/index
    /management/jcli/modules
-   /apis/ja-http/index
    /routing/index
    /messaging/index
 
