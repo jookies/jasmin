@@ -27,7 +27,7 @@ Architecture
 ![Jasmin SMS Gateway high level design](https://github.com/jookies/jasmin/raw/master/misc/doc/sources/resources/architecture/hld.png)
 
 Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
-and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
+and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`, a event-driven networking engine.
 
 Documentation
 -------------
