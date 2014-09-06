@@ -21,6 +21,14 @@ Jasmin is a very complete open source SMS Gateway with many enterprise-class fea
 Jasmin relies heavily on message queuing through message brokers (Using AMQP), it is designed for performance, 
 high traffic loads and full in-memory execution.
 
+Architecture
+------------
+
+![Jasmin SMS Gateway high level design](https://github.com/jookies/jasmin/raw/master/misc/doc/sources/resources/architecture/hld.png)
+
+Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
+and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
+
 Documentation
 -------------
 

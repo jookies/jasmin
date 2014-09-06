@@ -41,6 +41,7 @@ Full contents
 .. toctree::
    :maxdepth: 2
 
+   /architecture/index
    /programming-examples/index
    /apis/ja-http/index
    /management/jcli/index
