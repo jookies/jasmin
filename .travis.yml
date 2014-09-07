@@ -14,8 +14,6 @@ script:
     # Report coverage
     - coverage report --omit=/usr/*,/home/travis/virtualenv/*
     # Pylint code analysis and rating
-    - export PYLINTRC=./misc/pylint/pylintrc
-    - chmod +x ./misc/pylint/run.sh
     - ./misc/pylint/run.sh
 services:
     - rabbitmq
@@ -25,6 +23,8 @@ before_script:
     - sudo chown `whoami` /var/log/jasmin
     - sudo ln -s `pwd`/misc/config /etc/jasmin
     - sudo chown `whoami` /etc/jasmin/store
+    - export PYLINTRC=./misc/pylint/pylintrc
+    - chmod +x ./misc/pylint/run.sh
 before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -qq python-dev
