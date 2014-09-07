@@ -1,8 +1,14 @@
+"""
+Config file handler for 'amqp-broker' section in jasmin.conf
+"""
+
 import logging
 import txamqp
 from jasmin.config.tools import ConfigFile
 
 class AmqpConfig(ConfigFile):
+    "Config handler for 'amqp-broker' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
@@ -26,4 +32,6 @@ class AmqpConfig(ConfigFile):
         self.reconnectOnConnectionFailureDelay = self._getint('amqp-broker', 'connection_failure_retry_delay', 10)
     
     def getSpec(self):
+        "Will return the specifications from self.spec file"
+        
         return txamqp.spec.load(self.spec)

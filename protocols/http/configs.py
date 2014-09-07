@@ -1,7 +1,13 @@
+"""
+Config file handler for 'http-api' section in jasmin.conf
+"""
+
 import logging
 from jasmin.config.tools import ConfigFile
 
 class HTTPApiConfig(ConfigFile):
+    "Config handler for 'http-api' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         

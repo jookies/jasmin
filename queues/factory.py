@@ -1,9 +1,8 @@
 import logging
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor
-from twisted.internet.defer import Deferred
 from txamqp.client import TwistedDelegate
-from protocol import AmqpProtocol
+from jasmin.queues.protocol import AmqpProtocol
 
 LOG_CATEGORY = "jasmin-amqp-factory"
 

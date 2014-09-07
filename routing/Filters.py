@@ -1,7 +1,7 @@
-import re
+#pylint: disable-msg=W0401,W0611
 import datetime
-from Routables import Routable
-from jasminApi import *
+from jasmin.routing.Routables import Routable
+from jasmin.routing.jasminApi import *
 
 class InvalidFilterParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for

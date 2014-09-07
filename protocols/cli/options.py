@@ -26,7 +26,7 @@ def remaining_args(oldArgs, newArgList):
     >>> remaining_args('-f bar   bar   cow', ['bar', 'cow'])
     'bar   cow'
     '''
-    pattern = '\s+'.join(re.escape(a) for a in newArgList) + '\s*$'
+    pattern = r'\s+'.join(re.escape(a) for a in newArgList) + r'\s*$'
     matchObj = re.search(pattern, oldArgs)
     return oldArgs[matchObj.start():]
    

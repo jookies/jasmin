@@ -3,7 +3,7 @@ import struct
 import math
 import re
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
-from configs import SMPPClientConfig
+from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, 
                                             EsmClassType, EsmClassGsmFeatures, 
                                             MoreMessagesToSend)
@@ -82,9 +82,8 @@ class SMPPOperationFactory():
         longMessage = kwargs['short_message']
         smLength = len(kwargs['short_message'])
         
-        """if SM is longer than maxSmLength, build multiple SubmitSMs
-        and link them
-        """
+        # if SM is longer than maxSmLength, build multiple SubmitSMs
+        # and link them
         if smLength > maxSmLength:
             total_segments = int(math.ceil(smLength / float(slicedMaxSmLength)))
             # Obey to configured longContentMaxParts

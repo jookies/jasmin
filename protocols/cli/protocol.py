@@ -4,6 +4,20 @@ from twisted.conch import recvline
 
 IDENTCHARS = string.ascii_letters + string.digits + '_'
 
+def str2num(s):
+    'User input is always received as string, str2num will try to cast it to the right type (int or float)'
+    
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    
+    try:
+        return float(s)
+    except ValueError:
+        # Fallback to the original type
+        return s
+
 class CmdProtocol(recvline.HistoricRecvLine):
     """CmdProtocol is a ported/simplified version of cmd module that
     can be served through a socket server
@@ -56,8 +70,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
         # Get peer
         self.peer = transport.getPeer()
         # Save session to factory
-        self.factory.sessionRef+= 1
-        self.factory.sessionsOnline+= 1
+        self.factory.sessionRef += 1
+        self.factory.sessionsOnline += 1
         self.sessionRef = self.factory.sessionRef
         self.factory.sessions[self.sessionRef] = self
         
@@ -69,7 +83,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
     def connectionLost(self, reason):
         recvline.HistoricRecvLine.connectionLost(self, reason)
 
-        self.factory.sessionsOnline-= 1
+        self.factory.sessionsOnline -= 1
         del self.factory.sessions[self.sessionRef]
         if reason is not None:
             self.log.info('[sref:%s] Session stopped (%s).' % (self.sessionRef, reason.value))
@@ -107,7 +121,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
             line = 'help ' + line[1:]
 
         i, n = 0, len(line)
-        while i < n and line[i] in self.identchars: i = i+1
+        while i < n and line[i] in self.identchars:
+            i = i+1
         cmd, arg = line[:i], line[i:].strip()
         
         self.log.debug('[sref:%s] Parsed line returns: cmd=%s, agr=%s, line=%s' % (self.sessionRef, cmd, arg, line))
@@ -165,7 +180,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         if cmd is None:
             # list available commands
             return self.sendData('\n'+' '.join(self.findCommands()))
-        elif cmd is not None and arg=='':
+        elif cmd is not None and arg == '':
             # Complete or list available commands
             completions = self.findCommands(cmd)
             
@@ -178,20 +193,6 @@ class CmdProtocol(recvline.HistoricRecvLine):
                 self.lineBuffer = list(completetion)
                 self.lineBufferIndex = len(self.lineBuffer)
                 return self.sendData(data = None, prompt = False, append = completetion[len(cmd):])
-
-    def str2num(self, s):
-        'User input is always received as string, str2num will try to cast it to the right type (int or float)'
-        
-        try:
-            return int(s)
-        except ValueError:
-            pass
-        
-        try:
-            return float(s)
-        except ValueError:
-            # Fallback to the original type
-            return s
 
     def default(self, line):
         self.sendData('Incorrect command: %s, type help for a list of commands' % line)
@@ -215,12 +216,12 @@ class CmdProtocol(recvline.HistoricRecvLine):
                 # Do we have any docstring ?
                 doc = getattr(self, 'do_' + arg).__doc__
                 if doc:
-                    DOC+= doc
+                    DOC += doc
 
                 # Do we have any extended doc from options ?
                 extended_doc = getattr(self, 'do_' + arg).__extended_doc__
                 if extended_doc:
-                    DOC+= '\n'+extended_doc
+                    DOC += '\n'+extended_doc
 
             except Exception:
                 if DOC == '':
@@ -231,23 +232,23 @@ class CmdProtocol(recvline.HistoricRecvLine):
             # Get commands first
             helpText = self.helpHeaders['commands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['commands'])
             for cmd in self.commands:
-                helpText+= "\n"
-                helpText+= '%s' % cmd.ljust(20)
+                helpText += "\n"
+                helpText += '%s' % cmd.ljust(20)
                 doc = getattr(self, 'do_' + cmd).__doc__
                 if doc:
-                    helpText+= str(doc)
+                    helpText += str(doc)
                 else:
-                    helpText+= "%s" % str(self.nohelp % (cmd,))
+                    helpText += "%s" % str(self.nohelp % (cmd,))
                 
             # Then get baseCommands
-            helpText+= '\n\n'+self.helpHeaders['baseCommands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['baseCommands'])
+            helpText += '\n\n'+self.helpHeaders['baseCommands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['baseCommands'])
             for cmd in self.baseCommands:
-                helpText+= "\n"
-                helpText+= '%s' % cmd.ljust(20)
+                helpText += "\n"
+                helpText += '%s' % cmd.ljust(20)
                 doc = getattr(self, 'do_' + cmd).__doc__
                 if doc:
-                    helpText+= str(doc)
+                    helpText += str(doc)
                 else:
-                    helpText+= "%s" % str(self.nohelp % (cmd,))
+                    helpText += "%s" % str(self.nohelp % (cmd,))
 
             return self.sendData(helpText)

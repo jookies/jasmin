@@ -7,21 +7,28 @@ from twisted.cred.credentials import UsernamePassword, Anonymous
 from twisted.spread.pb import RemoteReference
 
 class ConnectError(Exception):
+    'Raised when PB connection can not be established'
     pass
 
 class InvalidConnectResponseError(Exception):
+    'Raised when an invalid response is received when trying to establish PB connection'
     pass
 
-def ConnectedPB(fn):
-    'Check connection to PB before passing to session handler'
+def ConnectedPB(fCallback):
+    '''
+    Used as a decorator to check for PB connection, it will raise an exception
+    if connection is not established
+    '''
     def check_cnx_and_call(self, *args, **kwargs):
         if self.isConnected == False:
             raise Exception("PB proxy is not connected !")
         
-        return fn(self, *args, **kwargs)
+        return fCallback(self, *args, **kwargs)
     return check_cnx_and_call
 
 class SMPPClientManagerPBProxy:
+    'This is a proxy to SMPPClientManagerPB perspective broker'
+    
     pb = None
     isConnected = False
     pickleProtocol = 2
@@ -32,9 +39,15 @@ class SMPPClientManagerPBProxy:
         reactor.connectTCP(host, port, self.pbClientFactory)
         
         if username is None and password is None:
-            return self.pbClientFactory.login(Anonymous()).addCallback(self._connected)
+            return self.pbClientFactory.login(
+                                              Anonymous()
+                                              ).addCallback(self._connected)
         else:
-            return self.pbClientFactory.login(UsernamePassword(username, password)).addCallback(self._connected)
+            return self.pbClientFactory.login(
+                                              UsernamePassword(
+                                                               username, 
+                                                               password)
+                                              ).addCallback(self._connected)
     
     def disconnect(self):
         self.isConnected = False
@@ -44,7 +57,8 @@ class SMPPClientManagerPBProxy:
         if isinstance(rootObj, RemoteReference):
             self.isConnected = True
             self.pb = rootObj
-        elif type(rootObj) == tuple and type(rootObj[0]) == bool and rootObj[0] is False and type(rootObj[1]) == str:
+        elif (type(rootObj) == tuple and type(rootObj[0]) == bool 
+              and rootObj[0] is False and type(rootObj[1]) == str):
             raise ConnectError(rootObj[1])
         else:
             raise InvalidConnectResponseError(rootObj)
@@ -125,9 +139,12 @@ class SMPPClientManagerPBProxy:
             
         # Set the message validity date
         if SubmitSmPDU.params['validity_period'] != None:
-            validity_period = SubmitSmPDU.params['validity_period'].strftime('%Y-%m-%d %H:%M:%S')
+            validity_period = SubmitSmPDU.params[
+                                                 'validity_period'
+                                                 ].strftime('%Y-%m-%d %H:%M:%S')
         else:
-            # Validity period is not set, the SMS-C will set its own default validity_period to this message
+            # Validity period is not set, the SMS-C will set its own default 
+            # validity_period to this message
             validity_period = None
 
         return self.pb.callRemote('submit_sm', cid, 

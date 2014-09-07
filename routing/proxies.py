@@ -5,21 +5,28 @@ from twisted.cred.credentials import UsernamePassword, Anonymous
 from twisted.spread.pb import RemoteReference
 
 class ConnectError(Exception):
+    'Raised when PB connection can not be established'
     pass
 
 class InvalidConnectResponseError(Exception):
+    'Raised when an invalid response is received when trying to establish PB connection'
     pass
 
-def ConnectedPB(fn):
-    'Check connection to PB before passing to session handler'
+def ConnectedPB(fCallback):
+    '''
+    Used as a decorator to check for PB connection, it will raise an exception
+    if connection is not established
+    '''
     def check_cnx_and_call(self, *args, **kwargs):
         if self.isConnected == False:
             raise Exception("PB proxy is not connected !")
         
-        return fn(self, *args, **kwargs)
+        return fCallback(self, *args, **kwargs)
     return check_cnx_and_call
 
 class RouterPBProxy:
+    'This is a proxy to RouterPB perspective broker'
+
     pb = None
     isConnected = False
     pickleProtocol = 2

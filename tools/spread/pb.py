@@ -62,11 +62,11 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
     """
     implements(IUsernameHashedPassword)
     
-    def __init__(self, portal, broker, username, challenge):
+    def __init__(self, portal, broker, username, _challenge):
         self.portal = portal
         self.broker = broker
         self.username = username
-        self.challenge = challenge
+        self.challenge = _challenge
         
         # Will use the PBFactory's logger
         self.log = self.portal.realm.PBFactory.log

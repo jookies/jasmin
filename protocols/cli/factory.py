@@ -1,8 +1,8 @@
 import logging
 from twisted.internet import reactor, defer
 from twisted.internet.protocol import ServerFactory
-from jcli import JCliProtocol
-from protocol import CmdProtocol
+from jasmin.protocols.cli.jcli import JCliProtocol
+from jasmin.protocols.cli.protocol import CmdProtocol
 from twisted.conch.telnet import TelnetTransport, TelnetBootstrapProtocol
 from twisted.conch.insults import insults
 from twisted.test import proto_helpers
@@ -32,7 +32,7 @@ class CmdFactory(ServerFactory):
                                                     CmdProtocol)
         
 class JCliFactory(ServerFactory):
-    def __init__(self, config, SMPPClientManagerPB, RouterPB, loadConfigProfileWithCreds = {'username': None, 'password': None}):
+    def __init__(self, config, SMPPClientManagerPB, RouterPB, loadConfigProfileWithCreds = {'username', 'password'}):
         self.config = config
         self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB}
         # Protocol sessions are kept here:

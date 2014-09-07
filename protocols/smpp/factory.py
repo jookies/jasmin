@@ -1,11 +1,12 @@
+#pylint: disable-msg=W0401,W0611
 import logging
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from protocol import SMPPClientProtocol
+from jasmin.protocols.smpp.protocol import SMPPClientProtocol
 from jasmin.vendor.smpp.pdu.error import *
 
-LOG_CATEGORY_BASE="smpp.client"
+LOG_CATEGORY_BASE = "smpp.client"
 
 class SmppClientIsNotConnected(Exception):
     """

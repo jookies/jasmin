@@ -153,7 +153,7 @@ class deliverSmHttpThrower(Thrower):
         
         if dc.type != 'http':
             self.log.error('Rejecting message [msgid:%s] because destination connector [dcid:%s] is not http (type were %s)' % (msgid, dc.cid, dc.type))
-            yield self.rejectMessage(message, 'http')
+            yield self.rejectMessage(message)
             defer.returnValue(None)
         
         # Build mandatory arguments

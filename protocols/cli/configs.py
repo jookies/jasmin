@@ -1,7 +1,13 @@
+"""
+Config file handler for 'jcli' section in jasmin.conf
+"""
+
 from jasmin.config.tools import ConfigFile
 import logging
 
 class JCliConfig(ConfigFile):
+    "Config handler for 'jcli' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         

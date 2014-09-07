@@ -1,7 +1,13 @@
+"""
+Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower'  section in jasmin.conf
+"""
+
 import logging
 from jasmin.config.tools import ConfigFile
 
 class RouterPBConfig(ConfigFile):
+    "Config handler for 'router' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
@@ -23,6 +29,8 @@ class RouterPBConfig(ConfigFile):
         self.log_date_format = self._get('router', 'log_date_format', '%Y-%m-%d %H:%M:%S')
         
 class deliverSmHttpThrowerConfig(ConfigFile):
+    "Config handler for 'deliversm-httpthrower' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
@@ -37,6 +45,8 @@ class deliverSmHttpThrowerConfig(ConfigFile):
         self.log_date_format = self._get('deliversm-httpthrower', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
 class DLRThrowerConfig(ConfigFile):
+    "Config handler for 'dlr-thrower' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         

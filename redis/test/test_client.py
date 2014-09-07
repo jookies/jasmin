@@ -10,19 +10,19 @@ class AuthenticationTestCase(TestCase):
         # Connect to redis server
         self.RedisForJasminConfigInstance = RedisForJasminConfig()
         self.RedisForJasminConfigInstance.password = 'guest'        
-        self.rc = yield ConnectionWithConfiguration(self.RedisForJasminConfigInstance)
-        yield self.rc._connected
+        self.redisClient = yield ConnectionWithConfiguration(self.RedisForJasminConfigInstance)
+        yield self.redisClient._connected
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield self.rc.disconnect()
+        yield self.redisClient.disconnect()
         
     @defer.inlineCallbacks
     def test_auth(self):
         try:
             # Authenticate and select db
-            yield self.rc.auth(self.RedisForJasminConfigInstance.password)
-            yield self.rc.select(self.RedisForJasminConfigInstance.dbid)
+            yield self.redisClient.auth(self.RedisForJasminConfigInstance.password)
+            yield self.redisClient.select(self.RedisForJasminConfigInstance.dbid)
         except Exception, e:
             self.assertEqual(type(e), redis.ResponseError)
             self.assertEqual(str(e), 'ERR Client sent AUTH, but no password is set')
@@ -36,37 +36,37 @@ class RedisTestCase(TestCase):
         # No auth
         RedisForJasminConfigInstance.password = None
         
-        self.rc = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
+        self.redisClient = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
         # Authenticate and select db
         if RedisForJasminConfigInstance.password is not None:
-            self.rc.auth(RedisForJasminConfigInstance.password)
-            self.rc.select(RedisForJasminConfigInstance.dbid)
-        yield self.rc._connected
+            self.redisClient.auth(RedisForJasminConfigInstance.password)
+            self.redisClient.select(RedisForJasminConfigInstance.dbid)
+        yield self.redisClient._connected
         
     @defer.inlineCallbacks
     def tearDown(self):
-        yield self.rc.disconnect()
+        yield self.redisClient.disconnect()
 
 class DataTestCase(RedisTestCase):
     @defer.inlineCallbacks
     def test_set_get_string(self):
-        yield self.rc.set('foo', 'bar')
-        g = yield self.rc.get('foo')
+        yield self.redisClient.set('foo', 'bar')
+        g = yield self.redisClient.get('foo')
         
         self.assertEqual(g, 'bar')
         
     @defer.inlineCallbacks
     def test_set_get_list(self):
-        yield self.rc.set('foo:url', 'url of foo')
-        yield self.rc.set('foo:level', 'level of foo')
-        yield self.rc.set('bar:url', 'url of bar')
-        yield self.rc.set('bar:level', 'level of bar')
+        yield self.redisClient.set('foo:url', 'url of foo')
+        yield self.redisClient.set('foo:level', 'level of foo')
+        yield self.redisClient.set('bar:url', 'url of bar')
+        yield self.redisClient.set('bar:level', 'level of bar')
         
-        g = yield self.rc.get('foo:url')
+        g = yield self.redisClient.get('foo:url')
         self.assertEqual(g, 'url of foo')
-        g = yield self.rc.get('foo:level')
+        g = yield self.redisClient.get('foo:level')
         self.assertEqual(g, 'level of foo')
-        g = yield self.rc.get('bar:url')
+        g = yield self.redisClient.get('bar:url')
         self.assertEqual(g, 'url of bar')
-        g = yield self.rc.get('bar:level')
+        g = yield self.redisClient.get('bar:level')
         self.assertEqual(g, 'level of bar')

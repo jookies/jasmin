@@ -1,6 +1,6 @@
 import pickle
 import time
-from managers import Manager, Session
+from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.routing.jasminApi import HttpConnector
 
 # A config map between console-configuration keys and Httpcc keys.
@@ -10,9 +10,9 @@ HttpccKeyMap = {'cid': 'cid', 'url': 'baseurl', 'method': 'method'}
 # Persist and Load are using CONFIG_STORE_PATH for persisting/loading httpc connectors
 CONFIG_STORE_PATH = '/etc/jasmin/store'
 
-def HttpccBuild(fn):
+def HttpccBuild(fCallback):
     '''Parse args and try to build a filter from  one of the filters in 
-       jasmin.routing.Filters instance to pass it to fn'''
+       jasmin.routing.Filters instance to pass it to fCallback'''
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -30,8 +30,8 @@ def HttpccBuild(fn):
                 httpcc[key] = value
             try:
                 HttpccInstance = HttpConnector(**httpcc)
-                # Hand the instance to fn
-                return fn(self, httpcc['cid'], HttpccInstance)
+                # Hand the instance to fCallback
+                return fCallback(self, httpcc['cid'], HttpccInstance)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
@@ -47,10 +47,10 @@ def HttpccBuild(fn):
     return parse_args_and_call_with_instance
 
 class HttpccExist:
-    'Check if httpcc cid exist before passing it to fn'
+    'Check if httpcc cid exist before passing it to fCallback'
     def __init__(self, cid_key):
         self.cid_key = cid_key
-    def __call__(self, fn):
+    def __call__(self, fCallback):
         cid_key = self.cid_key
         def exist_httpcc_and_call(self, *args, **kwargs):
             opts = args[1]
@@ -58,7 +58,7 @@ class HttpccExist:
     
             for _httpccId in self.httpccs.iterkeys():
                 if cid == _httpccId:
-                    return fn(self, *args, **kwargs)                
+                    return fCallback(self, *args, **kwargs)                
                 
             return self.protocol.sendData('Unknown Httpcc: %s' % cid)
         return exist_httpcc_and_call

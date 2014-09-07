@@ -142,13 +142,13 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         
         # Connect to redis server
         RedisForJasminConfigInstance = RedisForJasminConfig()
-        self.rc = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
+        self.redisClient = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
         # Authenticate and select db
         if RedisForJasminConfigInstance.password is not None:
-            yield self.rc.auth(RedisForJasminConfigInstance.password)
-            yield self.rc.select(RedisForJasminConfigInstance.dbid)
+            yield self.redisClient.auth(RedisForJasminConfigInstance.password)
+            yield self.redisClient.select(RedisForJasminConfigInstance.dbid)
         # Connect CM with RC:
-        self.clientManager_f.addRedisClient(self.rc)
+        self.clientManager_f.addRedisClient(self.redisClient)
         
         # Set a smpp client manager proxy instance
         self.SMPPClientManagerPBProxy = SMPPClientManagerPBProxy()
@@ -160,7 +160,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         self.SMPPClientManagerPBProxy.disconnect()
         self.CManagerServer.stopListening()
         self.amqpClient.disconnect()
-        yield self.rc.disconnect()
+        yield self.redisClient.disconnect()
         
 class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks

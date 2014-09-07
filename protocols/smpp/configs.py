@@ -3,9 +3,7 @@ import re
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, 
                                 RegisteredDelivery, RegisteredDeliveryReceipt, 
                                 AddrTon, AddrNpi, 
-                                PriorityFlag, ReplaceIfPresentFlag, 
-                                DataCoding, DataCodingDefault)
-from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime 
+                                PriorityFlag, ReplaceIfPresentFlag)
 from jasmin.config.tools import ConfigFile
 
 class ConfigUndefinedIdError(Exception):

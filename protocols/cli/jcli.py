@@ -1,15 +1,14 @@
-import pyparsing
 from hashlib import md5
-from protocol import CmdProtocol
-from options import options, options_defined, OptionParser, remaining_args
-from smppccm import SmppCCManager
-from usersm import UsersManager
-from groupsm import GroupsManager
-from morouterm import MoRouterManager
-from mtrouterm import MtRouterManager
-from filtersm import FiltersManager
-from httpccm import HttpccManager
-from optparse import make_option, Option, OptionValueError, OptParseError
+from optparse import make_option
+from jasmin.protocols.cli.options import options
+from jasmin.protocols.cli.protocol import CmdProtocol
+from jasmin.protocols.cli.smppccm import SmppCCManager
+from jasmin.protocols.cli.usersm import UsersManager
+from jasmin.protocols.cli.groupsm import GroupsManager
+from jasmin.protocols.cli.morouterm import MoRouterManager
+from jasmin.protocols.cli.mtrouterm import MtRouterManager
+from jasmin.protocols.cli.filtersm import FiltersManager
+from jasmin.protocols.cli.httpccm import HttpccManager
         
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'
@@ -108,8 +107,8 @@ class JCliProtocol(CmdProtocol):
 
         self.authentication['password'] = password.strip()
         self.authentication['printedPassword'] = ''
-        for ch in password:
-            self.authentication['printedPassword']+= '*'
+        for _ in password:
+            self.authentication['printedPassword'] += '*'
         self.log.debug('[sref:%s] Received AUTH Password: %s' % (self.sessionRef, self.authentication['printedPassword']))
         
         # Authentication check against configured admin
@@ -320,7 +319,7 @@ class JCliProtocol(CmdProtocol):
     def do_persist(self, arg, opts):
         'Persist current configuration profile to disk in PROFILE'
         
-        for module, manager in self.managers.iteritems():
+        for _, manager in self.managers.iteritems():
             if manager is not None:
                 manager.persist(arg, opts)
         self.sendData()
@@ -331,7 +330,7 @@ class JCliProtocol(CmdProtocol):
     def do_load(self, arg, opts):
         'Load configuration PROFILE profile from disk'
         
-        for module, manager in self.managers.iteritems():
+        for _, manager in self.managers.iteritems():
             if manager is not None:
                 manager.load(arg, opts)
         self.sendData()

@@ -1,4 +1,4 @@
-def Session(fn):
+def Session(fCallback):
     'Validate args before passing to session handler'
     def filter_cmd_and_call(self, *args, **kwargs):
         cmd = args[0]
@@ -10,7 +10,7 @@ def Session(fn):
         if cmd == 'quit':
             return self.protocol.sendData('Exit session before quitting')
         
-        return fn(self, *args, **kwargs)
+        return fCallback(self, *args, **kwargs)
     return filter_cmd_and_call
 
 class Manager:

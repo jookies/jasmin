@@ -1,6 +1,7 @@
+#pylint: disable-msg=W0401,W0611
 from datetime import datetime
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
-from jasminApi import *
+from jasmin.routing.jasminApi import *
 
 class InvalidRoutableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for

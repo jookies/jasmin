@@ -1,7 +1,8 @@
+#pylint: disable-msg=W0401,W0611
 import random
-from jasminApi import *
-from Filters import Filter
-from Routables import Routable
+from jasmin.routing.jasminApi import *
+from jasmin.routing.Filters import Filter
+from jasmin.routing.Routables import Routable
 
 class InvalidRouteParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
@@ -112,8 +113,8 @@ class RoundrobinRoute():
         connectorList_str = ''
         for c in connectors:
             if connectorList_str != '':
-                connectorList_str+= '\n'
-            connectorList_str+= '\t- %s' % c.cid
+                connectorList_str += '\n'
+            connectorList_str += '\t- %s' % c.cid
         self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__, len(connectors), connectorList_str)
         
     def __str__(self):
@@ -139,7 +140,7 @@ class FailoverMORoute(MORoute):
     """
     def __init__(self, filters, connector):
         MORoute.__init__(self, filters, connector)
-        raise NotImplemented
+        raise NotImplementedError
     
 class FailoverMTRoute(MTRoute):
     # @todo: Work in progress
@@ -148,7 +149,7 @@ class FailoverMTRoute(MTRoute):
     """
     def __init__(self, filters, connector):
         MORoute.__init__(self, filters, connector)
-        raise NotImplemented
+        raise NotImplementedError
     
 class LeastCostMTRoute(MTRoute):
     # @todo: Work in progress
@@ -156,7 +157,7 @@ class LeastCostMTRoute(MTRoute):
     """
     def __init__(self, filters, connector):
         MORoute.__init__(self, filters, connector)
-        raise NotImplemented
+        raise NotImplementedError
 
 class BestQualityMTRoute(MTRoute):
     # @todo: Work in progress
@@ -166,4 +167,4 @@ class BestQualityMTRoute(MTRoute):
     """
     def __init__(self, filters, connector):
         MORoute.__init__(self, filters, connector)
-        raise NotImplemented
+        raise NotImplementedError

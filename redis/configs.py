@@ -1,7 +1,13 @@
+"""
+Config file handler for 'redis-client' section in jasmin.conf
+"""
+
 from jasmin.config.tools import ConfigFile
 import logging
 
 class RedisForJasminConfig(ConfigFile):
+    "Config handler for 'redis-client' section"
+
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         

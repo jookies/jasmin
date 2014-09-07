@@ -1,12 +1,12 @@
 import pickle
-from managers import Manager, Session
+from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.routing.jasminApi import Group
 
 # A config map between console-configuration keys and Group keys.
 GroupKeyMap = {'gid': 'gid'}
 
-def GroupBuild(fn):
-    'Parse args and try to build a jasmin.routing.jasminApi.Group instance to pass it to fn'
+def GroupBuild(fCallback):
+    'Parse args and try to build a jasmin.routing.jasminApi.Group instance to pass it to fCallback'
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -24,8 +24,8 @@ def GroupBuild(fn):
                 group[key] = value
             try:
                 GroupInstance = Group(**group)
-                # Hand the instance to fn
-                return fn(self, GroupInstance)
+                # Hand the instance to fCallback
+                return fCallback(self, GroupInstance)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
@@ -41,17 +41,17 @@ def GroupBuild(fn):
     return parse_args_and_call_with_instance
 
 class GroupExist:
-    'Check if Group gid exist before passing it to fn'
+    'Check if Group gid exist before passing it to fCallback'
     def __init__(self, gid_key):
         self.gid_key = gid_key
-    def __call__(self, fn):
+    def __call__(self, fCallback):
         gid_key = self.gid_key
         def exist_group_and_call(self, *args, **kwargs):
             opts = args[1]
             gid = getattr(opts, gid_key)
     
             if self.pb['router'].getGroup(gid) is not None:
-                return fn(self, *args, **kwargs)
+                return fCallback(self, *args, **kwargs)
                 
             return self.protocol.sendData('Unknown Group: %s' % gid)
         return exist_group_and_call

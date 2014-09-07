@@ -11,8 +11,14 @@ script:
     - coverage run `which trial` jasmin
     # Docs building test
     - cd misc/doc;make html
+    - cd ../../
+    # Pylint code analysis and rating
+    - export PYLINTRC=./.pylintrc
+    - pylint jasmin|tee /dev/stderr > /tmp/pylint-outcome
+    - RATE=$(grep "Your code has been rated" /tmp/pylint-outcome |awk '{print $7}'|grep -o '[0-9]\+.[0-9]\+')
+    - if [ $(echo "$RATE > 8" |bc) -eq 1 ]; then exit 0;else exit 1;fi
     # Report coverage
-    - cd ../../;coverage report --omit=/usr/*,/home/travis/virtualenv/*
+    - coverage report --omit=/usr/*,/home/travis/virtualenv/*
 services:
     - rabbitmq
     - redis-server
@@ -24,3 +30,4 @@ before_script:
 before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -qq python-dev
+    - sudo apt-get install -qq pylint

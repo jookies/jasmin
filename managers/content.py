@@ -1,3 +1,7 @@
+"""
+Multiple classes extending of txamqp.content.Content
+"""
+
 import uuid
 import pickle
 from txamqp.content import Content
@@ -6,11 +10,19 @@ class InvalidParameterError(Exception):
     """Raised when a parameter is invalid
     """
 
+def randomUniqueId():
+    "Returns a UUID4 unique message id"
+    msgid = str(uuid.uuid4())
+    
+    return msgid
+
 class UndefinedParameterError(Exception):
     """Raised when a parameter is undefined
     """
 
 class PDU(Content):
+    "A generick SMPP PDU Content"
+    
     pickleProtocol = 2
     
     def __init__(self, body = "", children = None, properties = None, pickleProtocol = 2, prePickle = False):
@@ -20,13 +32,10 @@ class PDU(Content):
             body = pickle.dumps(body, self.pickleProtocol)
 
         Content.__init__(self, body, children, properties)
-            
-    def randomUniqueId(self):
-        msgid = str(uuid.uuid4())
-        
-        return msgid
-    
+
 class DLRContent(Content):
+    "A DLR Content holding information about the origin SubmitSm and receipt acknowledgment details"
+
     def __init__(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '', 
                  dlvrd = '', subdate = '', donedate = '', err = '', text = '', method = 'POST', trycount = 0):
         properties = {}
@@ -58,6 +67,8 @@ class DLRContent(Content):
         Content.__init__(self, msgid, properties = properties)
         
 class SubmitSmContent(PDU):
+    "A SMPP SubmitSm Content"
+
     def __init__(self, body, replyto, priority = 1, expiration = None, msgid = None):
         props = {}
         
@@ -65,9 +76,10 @@ class SubmitSmContent(PDU):
         if isinstance(priority, int) == False:
             raise InvalidParameterError("Invalid priority argument: %s" % priority)
         if priority < 0 or priority > 3:
-            raise InvalidParameterError("Priority must be set from 0 to 3, it is actually set to %s" % priority)
+            raise InvalidParameterError("Priority must be set from 0 to 3, it is actually set to %s" % 
+                                        priority)
         if msgid is None:
-            msgid = self.randomUniqueId()
+            msgid = randomUniqueId()
         
         props['priority'] = priority
         props['message-id'] = msgid
@@ -77,6 +89,8 @@ class SubmitSmContent(PDU):
         PDU.__init__(self, body, properties = props)
         
 class SubmitSmRespContent(PDU):
+    "A SMPP SubmitSmResp Content"
+
     def __init__(self, body, msgid, pickleProtocol = 2, prePickle = True):
         props = {}
         
@@ -84,10 +98,12 @@ class SubmitSmRespContent(PDU):
         PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
         
 class DeliverSmContent(PDU):
+    "A SMPP DeliverSm Content"
+
     def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True):
         props = {}
         
-        props['message-id'] = self.randomUniqueId()
+        props['message-id'] = randomUniqueId()
         
         # For routing purpose, connector-id indicates the source connector of the PDU
         # the connector-id is used to instanciate RoutableDeliverSm when checking for

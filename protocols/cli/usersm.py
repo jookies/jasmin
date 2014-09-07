@@ -1,12 +1,13 @@
 import pickle
-from managers import Manager, Session
+from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.protocol import str2num
 from jasmin.routing.jasminApi import User
 
 # A config map between console-configuration keys and User keys.
 UserKeyMap = {'uid': 'uid', 'gid': 'gid', 'username': 'username', 'password': 'password'}
 
-def UserBuild(fn):
-    'Parse args and try to build a jasmin.routing.jasminApi.User instance to pass it to fn'
+def UserBuild(fCallback):
+    'Parse args and try to build a jasmin.routing.jasminApi.User instance to pass it to fCallback'
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -24,8 +25,8 @@ def UserBuild(fn):
                 user[key] = value
             try:
                 UserInstance = User(**user)
-                # Hand the instance to fn
-                return fn(self, UserInstance)
+                # Hand the instance to fCallback
+                return fCallback(self, UserInstance)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
@@ -49,24 +50,24 @@ def UserBuild(fn):
     return parse_args_and_call_with_instance
 
 class UserExist:
-    'Check if user uid exist before passing it to fn'
+    'Check if user uid exist before passing it to fCallback'
     def __init__(self, uid_key):
         self.uid_key = uid_key
-    def __call__(self, fn):
+    def __call__(self, fCallback):
         uid_key = self.uid_key
         def exist_user_and_call(self, *args, **kwargs):
             opts = args[1]
             uid = getattr(opts, uid_key)
     
             if self.pb['router'].getUser(uid) is not None:
-                return fn(self, *args, **kwargs)
+                return fCallback(self, *args, **kwargs)
                 
             return self.protocol.sendData('Unknown User: %s' % uid)
         return exist_user_and_call
 
-def UserUpdate(fn):
-    '''Get User and log update requests passing to fn
-    The log will be handed to fn when 'ok' is received'''
+def UserUpdate(fCallback):
+    '''Get User and log update requests passing to fCallback
+    The log will be handed to fCallback when 'ok' is received'''
     def log_update_requests_and_call(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -74,12 +75,12 @@ def UserUpdate(fn):
         # Empty line
         if cmd is None:
             return self.protocol.sendData()
-        # Pass sessBuffer as updateLog to fn
+        # Pass sessBuffer as updateLog to fCallback
         if cmd == 'ok':
             if len(self.sessBuffer) == 0:
                 return self.protocol.sendData('Nothing to save')
                
-            return fn(self, self.sessBuffer)
+            return fCallback(self, self.sessBuffer)
         else:
             # Unknown key
             if not UserKeyMap.has_key(cmd):
@@ -99,7 +100,7 @@ def UserUpdate(fn):
             else:
                 # Buffer key for later (when receiving 'ok')
                 UserKey = UserKeyMap[cmd]
-                self.sessBuffer[UserKey] = self.protocol.str2num(arg)
+                self.sessBuffer[UserKey] = str2num(arg)
             
             return self.protocol.sendData()
     return log_update_requests_and_call

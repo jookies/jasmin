@@ -570,9 +570,9 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
                 time.sleep(0.2)
 
         # Listen on the submit.sm.resp queue
-        routingKey_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
+        routing_key_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
         consumerTag = 'test_submitSm'
-        yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
+        yield self.amqpBroker.chan.basic_consume(queue=routing_key_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
         queue = yield self.amqpBroker.client.queue(consumerTag)
         queue.get().addCallback(self.submit_sm_callback)
 
@@ -726,9 +726,9 @@ class LoggingTestCases(SMSCSimulatorRecorder):
                 time.sleep(0.2)
 
         # Listen on the submit.sm.resp queue
-        routingKey_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
+        routing_key_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
         consumerTag = 'test_submitSm'
-        yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
+        yield self.amqpBroker.chan.basic_consume(queue=routing_key_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
         queue = yield self.amqpBroker.client.queue(consumerTag)
         queue.get().addCallback(self.submit_sm_callback)
 

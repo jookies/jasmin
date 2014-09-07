@@ -5,10 +5,10 @@ import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from txamqp.queue import Closed
-from content import RoutedDeliverSmContent
-from RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
-from Routables import RoutableDeliverSm
-from jasminApi import Connector
+from jasmin.routing.content import RoutedDeliverSmContent
+from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
+from jasmin.routing.Routables import RoutableDeliverSm
+from jasmin.routing.jasminApi import Connector
 from copy import copy
 from hashlib import md5
 
@@ -333,7 +333,7 @@ class RouterPB(pb.Avatar):
         return True
         
     def perspective_is_persisted(self):
-        for k, v in self.persistanceState.iteritems():
+        for _, v in self.persistanceState.iteritems():
             if not v:
                 return False
             

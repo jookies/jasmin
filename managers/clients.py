@@ -5,20 +5,22 @@ import time
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
-from listeners import SMPPClientSMListener
-from configs import SMPPClientSMListenerConfig
-from content import SubmitSmContent
+from jasmin.managers.listeners import SMPPClientSMListener
+from jasmin.managers.configs import SMPPClientSMListenerConfig
+from jasmin.managers.content import SubmitSmContent
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
 class ConfigProfileLoadingError(Exception):
-    """Raised for any error occurring while loading a configuration profile with perspective_load
+    """
+    Raised for any error occurring while loading a configuration 
+    profile with perspective_load
     """
 
 class SMPPClientManagerPB(pb.Avatar):
     def __init__(self):
         self.avatar = None
-        self.rc = None
+        self.redisClient = None
         self.amqpBroker = None
         self.connectors = []
         self.declared_queues = []
@@ -43,7 +45,8 @@ class SMPPClientManagerPB(pb.Avatar):
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
             handler = logging.FileHandler(filename=self.config.log_file)
-            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            formatter = logging.Formatter(self.config.log_format, 
+                                          self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
         
@@ -57,8 +60,8 @@ class SMPPClientManagerPB(pb.Avatar):
 
         self.log.info('Added amqpBroker to SMPPClientManagerPB')
         
-    def addRedisClient(self, rc):
-        self.rc = rc
+    def addRedisClient(self, redisClient):
+        self.redisClient = redisClient
 
         self.log.info('Added Redis Client to SMPPClientManagerPB')
 
@@ -201,38 +204,52 @@ class SMPPClientManagerPB(pb.Avatar):
         # First declare the messaging exchange
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         # submit.sm queue declaration and binding
-        routingKey_submit_sm = 'submit.sm.%s' % c.id
-        self.log.info('Declaring submit_sm queue to listen to: %s', routingKey_submit_sm)
-        yield self.amqpBroker.named_queue_declare(queue=routingKey_submit_sm)
-        yield self.amqpBroker.chan.queue_bind(queue=routingKey_submit_sm, exchange="messaging", routing_key=routingKey_submit_sm)
+        routing_key_submit_sm = 'submit.sm.%s' % c.id
+        self.log.info('Declaring submit_sm queue to listen to: %s', routing_key_submit_sm)
+        yield self.amqpBroker.named_queue_declare(queue=routing_key_submit_sm)
+        yield self.amqpBroker.chan.queue_bind(queue=routing_key_submit_sm, 
+                                              exchange="messaging", 
+                                              routing_key=routing_key_submit_sm)
         # submit.sm.resp queue declaration and binding
-        routingKey_submit_sm_resp = 'submit.sm.resp.%s' % c.id
-        self.log.info('Declaring submit_sm_resp queue to publish to: %s', routingKey_submit_sm_resp)
-        yield self.amqpBroker.named_queue_declare(queue=routingKey_submit_sm_resp)
-        yield self.amqpBroker.chan.queue_bind(queue=routingKey_submit_sm_resp, exchange="messaging", routing_key=routingKey_submit_sm_resp)
+        routing_key_submit_sm_resp = 'submit.sm.resp.%s' % c.id
+        self.log.info('Declaring submit_sm_resp queue to publish to: %s', routing_key_submit_sm_resp)
+        yield self.amqpBroker.named_queue_declare(queue=routing_key_submit_sm_resp)
+        yield self.amqpBroker.chan.queue_bind(queue=routing_key_submit_sm_resp, 
+                                              exchange="messaging", 
+                                              routing_key=routing_key_submit_sm_resp)
         # deliver.sm queue declaration and binding
-        routingKey_deliver_sm = 'deliver.sm.%s' % c.id
-        self.log.info('Declaring deliver_sm queue to publish to: %s', routingKey_deliver_sm)
-        yield self.amqpBroker.named_queue_declare(queue=routingKey_deliver_sm)
-        yield self.amqpBroker.chan.queue_bind(queue=routingKey_deliver_sm, exchange="messaging", routing_key=routingKey_deliver_sm)
+        routing_key_deliver_sm = 'deliver.sm.%s' % c.id
+        self.log.info('Declaring deliver_sm queue to publish to: %s', routing_key_deliver_sm)
+        yield self.amqpBroker.named_queue_declare(queue=routing_key_deliver_sm)
+        yield self.amqpBroker.chan.queue_bind(queue=routing_key_deliver_sm, 
+                                              exchange="messaging", 
+                                              routing_key=routing_key_deliver_sm)
         # dlr queue declaration and binding
-        routingKey_dlr = 'dlr.%s' % c.id
-        self.log.info('Declaring dlr queue to publish to: %s', routingKey_dlr)
-        yield self.amqpBroker.named_queue_declare(queue=routingKey_dlr)
-        yield self.amqpBroker.chan.queue_bind(queue=routingKey_dlr, exchange="messaging", routing_key=routingKey_dlr)
+        routing_key_dlr = 'dlr.%s' % c.id
+        self.log.info('Declaring dlr queue to publish to: %s', routing_key_dlr)
+        yield self.amqpBroker.named_queue_declare(queue=routing_key_dlr)
+        yield self.amqpBroker.chan.queue_bind(queue=routing_key_dlr, 
+                                              exchange="messaging", 
+                                              routing_key=routing_key_dlr)
                 
         # Subscribe to submit.sm.%cid queue
         # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
         consumerTag = 'SMPPClientFactory-%s.%s' % (c.id, str(uuid.uuid4()))
-        yield self.amqpBroker.chan.basic_consume(queue=routingKey_submit_sm, no_ack=False, consumer_tag=consumerTag)
+        yield self.amqpBroker.chan.basic_consume(queue=routing_key_submit_sm, 
+                                                 no_ack=False, 
+                                                 consumer_tag=consumerTag)
         submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.log.info('%s is consuming from routing key: %s', consumerTag, routingKey_submit_sm)
+        self.log.info('%s is consuming from routing key: %s', consumerTag, routing_key_submit_sm)
         
         # Instanciate smpp client service manager
         serviceManager = SMPPClientService(c, self.config)
         
         # Instanciate a SM listener
-        smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), serviceManager.SMPPClientFactory, self.amqpBroker, self.rc, submit_sm_q)
+        smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), 
+                                          serviceManager.SMPPClientFactory, 
+                                          self.amqpBroker, 
+                                          self.redisClient, 
+                                          submit_sm_q)
         
         # Deliver_sm are sent to smListener's deliver_sm callback method
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event
@@ -447,7 +464,7 @@ class SMPPClientManagerPB(pb.Avatar):
     
     @defer.inlineCallbacks
     def setKeyExpiry(self, callbackArg, key, expiry):
-        yield self.rc.expire(key, expiry)
+        yield self.redisClient.expire(key, expiry)
     
     @defer.inlineCallbacks
     def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
@@ -489,17 +506,22 @@ class SMPPClientManagerPB(pb.Avatar):
         
         # Enqueue DLR request
         if dlr_url is not None:
-            if self.rc is None or str(self.rc) == '<Redis Connection: Not connected>':
-                self.log.warn("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected." % c.properties['message-id'])
+            if self.redisClient is None or str(self.redisClient) == '<Redis Connection: Not connected>':
+                self.log.warn("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected." % 
+                              c.properties['message-id'])
             else:
-                self.log.debug('Setting DLR url (%s) and level (%s) for message id:%s, expiring in %s' % (dlr_url, dlr_level, c.properties['message-id'], connector['config'].dlr_expiry))
+                self.log.debug('Setting DLR url (%s) and level (%s) for message id:%s, expiring in %s' % 
+                               (dlr_url, 
+                                dlr_level, 
+                                c.properties['message-id'], 
+                                connector['config'].dlr_expiry))
                 # Set values and callback expiration setting
                 hashKey = "dlr:%s" % (c.properties['message-id'])
                 hashValues = {'url': dlr_url, 
                               'level':dlr_level, 
                               'method':dlr_method, 
                               'expiry':connector['config'].dlr_expiry}
-                self.rc.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
+                self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
                             self.setKeyExpiry, hashKey, connector['config'].dlr_expiry)
         
         defer.returnValue(c.properties['message-id'])

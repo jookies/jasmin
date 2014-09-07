@@ -2,7 +2,7 @@ import logging
 import txredisapi as redis
 from twisted.internet import reactor
 from twisted.internet import defer
-from configs import RedisForJasminConfig
+from jasmin.redis.configs import RedisForJasminConfig
 
 LOG_CATEGORY = "jasmin-redis-client"
 
@@ -52,11 +52,11 @@ class RedisForJasminFactory(redis.RedisFactory):
         if len(self.log.handlers) != 1:
             self.log.addHandler(handler)
     
-def makeConnection(host, port, dbid, poolsize, reconnect, isLazy, RedisForJasminConfig = None):
+def makeConnection(host, port, dbid, poolsize, reconnect, isLazy, _RedisForJasminConfig = None):
     uuid = "%s:%s" % (host, port)
-    factory = RedisForJasminFactory(uuid, None, poolsize, isLazy, redis.ConnectionHandler, RedisForJasminConfig)
+    factory = RedisForJasminFactory(uuid, None, poolsize, isLazy, redis.ConnectionHandler, _RedisForJasminConfig)
     factory.continueTrying = reconnect
-    for x in xrange(poolsize):
+    for _ in xrange(poolsize):
         reactor.connectTCP(host, port, factory)
 
     if isLazy:
@@ -67,15 +67,15 @@ def makeConnection(host, port, dbid, poolsize, reconnect, isLazy, RedisForJasmin
 def SimpleConnection(host="127.0.0.1", port=6379, dbid=None, reconnect=True):
     return makeConnection(host, port, dbid, 1, reconnect, False)
 
-def ConnectionWithConfiguration(RedisForJasminConfig):
-    if RedisForJasminConfig.password is not None:
+def ConnectionWithConfiguration(_RedisForJasminConfig):
+    if _RedisForJasminConfig.password is not None:
         # If password is set, don't select dbid at connection, this will be done after authentication
         dbid = None
     else:
-        dbid = RedisForJasminConfig.dbid
+        dbid = _RedisForJasminConfig.dbid
     
-    return makeConnection(RedisForJasminConfig.host, RedisForJasminConfig.port, dbid, 
-                          RedisForJasminConfig.poolsize, True, True, RedisForJasminConfig)
+    return makeConnection(_RedisForJasminConfig.host, _RedisForJasminConfig.port, dbid, 
+                          _RedisForJasminConfig.poolsize, True, True, _RedisForJasminConfig)
 
 @defer.inlineCallbacks
 def main():

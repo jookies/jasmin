@@ -1,7 +1,7 @@
 import inspect
 import pickle
-from managers import Manager, Session
-from filtersm import MTFILTERS
+from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import SmppClientConnector
 from jasmin.routing.Routes import (DefaultRoute, StaticMTRoute, RandomRoundrobinMTRoute)
 
@@ -10,9 +10,9 @@ MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute']
 # A config map between console-configuration keys and Route keys.
 MTRouteKeyMap = {'order': 'order', 'type': 'type'}
 
-def MTRouteBuild(fn):
+def MTRouteBuild(fCallback):
     '''Parse args and try to build a route from  one of the routes in 
-       jasmin.routing.Routes instance to pass it to fn'''
+       jasmin.routing.Routes instance to pass it to fCallback'''
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -35,8 +35,8 @@ def MTRouteBuild(fn):
                 # Instanciate a Route
                 RouteInstance = self.sessBuffer['route_class'](**route)
                     
-                # Hand the instance to fn
-                return fn(self, self.sessBuffer['order'], RouteInstance)
+                # Hand the instance to fCallback
+                return fCallback(self, self.sessBuffer['order'], RouteInstance)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
@@ -145,10 +145,10 @@ def MTRouteBuild(fn):
     return parse_args_and_call_with_instance
 
 class MTRouteExist:
-    'Check if a mt route exist with a given order before passing it to fn'
+    'Check if a mt route exist with a given order before passing it to fCallback'
     def __init__(self, order_key):
         self.order_key = order_key
-    def __call__(self, fn):
+    def __call__(self, fCallback):
         order_key = self.order_key
         def exist_mtroute_and_call(self, *args, **kwargs):
             opts = args[1]
@@ -158,7 +158,7 @@ class MTRouteExist:
                 return self.protocol.sendData('MT Route order must be a positive integer')
     
             if self.pb['router'].getMTRoute(int(order)) is not None:
-                return fn(self, *args, **kwargs)
+                return fCallback(self, *args, **kwargs)
                 
             return self.protocol.sendData('Unknown MT Route: %s' % order)
         return exist_mtroute_and_call
@@ -200,8 +200,8 @@ class MtRouterManager(Manager):
                 if type(mtroute.connector) is list:
                     for c in mtroute.connector:
                         if connectors != '':
-                            connectors+= ', '
-                        connectors+= c.cid
+                            connectors += ', '
+                        connectors += c.cid
                 else:
                     connectors = mtroute.connector.cid
                     
@@ -209,8 +209,8 @@ class MtRouterManager(Manager):
                 # Prepare display for filters
                 for f in mtroute.filters:
                     if filters != '':
-                        filters+= ', '
-                    filters+= repr(f)
+                        filters += ', '
+                    filters += repr(f)
 
                 self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(16),
                                                                   str(mtroute.__class__.__name__).ljust(23),

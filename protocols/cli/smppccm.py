@@ -1,9 +1,10 @@
 import pickle
 from twisted.internet import defer
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from managers import Manager, Session
+from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
                                        replace_if_present_flap_name_map, priority_flag_name_map)
+from jasmin.protocols.cli.protocol import str2num
 
 # A config map between console-configuration keys and SMPPClientConfig keys.
 SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username': 'username',
@@ -21,23 +22,25 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'logfile', 'loglevel']
 
+def castToBuiltInType(key, value):
+    'Will cast value to the correct type depending on the key'
+    
+    if isinstance(value, bool):
+        return 1 if value else 0
+    if key in ['bind_npi', 'dst_npi', 'src_npi']:
+        return addr_npi_name_map[str(value)]
+    if key in ['bind_ton', 'dst_ton', 'src_ton']:
+        return addr_ton_name_map[str(value)]
+    if key == 'ripf':
+        return replace_if_present_flap_name_map[str(value)]
+    if key == 'priority':
+        return priority_flag_name_map[str(value)]
+    return value
+
 class JCliSMPPClientConfig(SMPPClientConfig):
     'Overload SMPPClientConfig with getters and setters for JCli'
     PendingRestart = False
 
-    def castToBuiltInType(self, key, value):
-        if isinstance(value, bool):
-            return 1 if value else 0
-        if key in ['bind_npi', 'dst_npi', 'src_npi']:
-            return addr_npi_name_map[str(value)]
-        if key in ['bind_ton', 'dst_ton', 'src_ton']:
-            return addr_ton_name_map[str(value)]
-        if key == 'ripf':
-            return replace_if_present_flap_name_map[str(value)]
-        if key == 'priority':
-            return priority_flag_name_map[str(value)]
-        return value
-    
     def set(self, key, value):
         setattr(self, key, value)
         
@@ -47,11 +50,11 @@ class JCliSMPPClientConfig(SMPPClientConfig):
     def getAll(self):
         r = {}
         for key, value in SMPPClientConfigKeyMap.iteritems():
-            r[key] = self.castToBuiltInType(key, getattr(self, value))
+            r[key] = castToBuiltInType(key, getattr(self, value))
         return r
 
-def SMPPClientConfigBuild(fn):
-    'Parse args and try to build a JCliSMPPClientConfig instance to pass it to fn'
+def SMPPClientConfigBuild(fCallback):
+    'Parse args and try to build a JCliSMPPClientConfig instance to pass it to fCallback'
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -69,8 +72,8 @@ def SMPPClientConfigBuild(fn):
                 connector[key] = value
             try:
                 SMPPClientConfigInstance = JCliSMPPClientConfig(**connector)
-                # Hand the instance to fn
-                return fn(self, SMPPClientConfigInstance)
+                # Hand the instance to fCallback
+                return fCallback(self, SMPPClientConfigInstance)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
@@ -88,16 +91,16 @@ def SMPPClientConfigBuild(fn):
             # Buffer key for later SMPPClientConfig initiating
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
             if isinstance(arg, str):
-                self.sessBuffer[SMPPClientConfigKey] = self.protocol.str2num(arg)
+                self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
             else:
                 self.sessBuffer[SMPPClientConfigKey] = arg
             
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
-def SMPPClientConfigUpdate(fn):
-    '''Get connector configuration and log update requests passing to fn
-    The log will be handed to fn when 'ok' is received'''
+def SMPPClientConfigUpdate(fCallback):
+    '''Get connector configuration and log update requests passing to fCallback
+    The log will be handed to fCallback when 'ok' is received'''
     def log_update_requests_and_call(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -105,12 +108,12 @@ def SMPPClientConfigUpdate(fn):
         # Empty line
         if cmd is None:
             return self.protocol.sendData()
-        # Pass sessBuffer as updateLog to fn
+        # Pass sessBuffer as updateLog to fCallback
         if cmd == 'ok':
             if len(self.sessBuffer) == 0:
                 return self.protocol.sendData('Nothing to save')
                
-            return fn(self, self.sessBuffer)
+            return fCallback(self, self.sessBuffer)
         else:
             # Unknown key
             if not SMPPClientConfigKeyMap.has_key(cmd):
@@ -120,23 +123,23 @@ def SMPPClientConfigUpdate(fn):
             
             # Buffer key for later (when receiving 'ok')
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            self.sessBuffer[SMPPClientConfigKey] = self.protocol.str2num(arg)
+            self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
             
             return self.protocol.sendData()
     return log_update_requests_and_call
 
 class ConnectorExist:
-    'Check if connector cid exist before passing it to fn'
+    'Check if connector cid exist before passing it to fCallback'
     def __init__(self, cid_key):
         self.cid_key = cid_key
-    def __call__(self, fn):
+    def __call__(self, fCallback):
         cid_key = self.cid_key
         def exist_connector_and_call(self, *args, **kwargs):
             opts = args[1]
             cid = getattr(opts, cid_key)
     
             if self.pb['smppcm'].getConnector(cid) is not None:
-                return fn(self, *args, **kwargs)
+                return fCallback(self, *args, **kwargs)
                 
             return self.protocol.sendData('Unknown connector: %s' % cid)
         return exist_connector_and_call

@@ -1,16 +1,15 @@
+#pylint: disable-msg=W0401,W0611
 import struct
-import logging
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
-from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, DataCoding, DataCodingDefault
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map, esm_class_gsm_features_name_map
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
+from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
-from jasmin.vendor.smpp.pdu.pdu_types import PDURequest, EsmClassGsmFeatures
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 
-LOG_CATEGORY="smpp.twisted.protocol"
+LOG_CATEGORY = "smpp.twisted.protocol"
 
 class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def __init__( self ):
@@ -138,7 +137,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         # Return on generick NACK
         try:
             failure.raiseException()
-        except SMPPClientConnectionCorruptedError as error:
+        except SMPPClientConnectionCorruptedError as _:
             return
         
     def preSubmitSm(self, pdu):

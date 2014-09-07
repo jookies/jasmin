@@ -1,9 +1,9 @@
 import logging
-from factory import SMPPClientFactory
+from jasmin.protocols.smpp.factory import SMPPClientFactory
 from twisted.application import service
-from configs import SMPPClientServiceConfig
+from jasmin.protocols.smpp.configs import SMPPClientServiceConfig
 
-LOG_CATEGORY="jasmin-service-smpp"
+LOG_CATEGORY = "jasmin-service-smpp"
 
 class SMPPClientService(service.Service):
     def __init__(self, SMPPClientConfig, config):

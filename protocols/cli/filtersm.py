@@ -1,9 +1,9 @@
+#pylint: disable-msg=W0401,W0611
 import inspect
-import re
 import pickle
 import time
 from dateutil import parser
-from managers import Manager, Session
+from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     ConnectorFilter, SourceAddrFilter, DestinationAddrFilter,
@@ -26,9 +26,9 @@ MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'Destin
 MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'DestinationAddrFilter', 
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
 
-def FilterBuild(fn):
+def FilterBuild(fCallback):
     '''Parse args and try to build a filter from  one of the filters in 
-       jasmin.routing.Filters instance to pass it to fn'''
+       jasmin.routing.Filters instance to pass it to fCallback'''
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -66,8 +66,8 @@ def FilterBuild(fn):
                 else:
                     FilterInstance = self.sessBuffer['filter_class']()
                     
-                # Hand the instance to fn
-                return fn(self, self.sessBuffer['fid'], FilterInstance)
+                # Hand the instance to fCallback
+                return fCallback(self, self.sessBuffer['fid'], FilterInstance)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
@@ -138,8 +138,8 @@ def FilterBuild(fn):
                         return self.protocol.sendData('%s option value must be composed of 2 values with a ";" separator.' % (cmd))
                     
                     # Regex validation
-                    re_time = re.compile('^\d{2}:\d{2}:\d{2}$')
-                    re_date = re.compile('^\d{4}-\d{2}-\d{2}$')
+                    re_time = re.compile(r'^\d{2}:\d{2}:\d{2}$')
+                    re_date = re.compile(r'^\d{4}-\d{2}-\d{2}$')
                     
                     # Validate format and type
                     for l in limits:
@@ -193,10 +193,10 @@ def FilterBuild(fn):
     return parse_args_and_call_with_instance
 
 class FilterExist:
-    'Check if filter fid exist before passing it to fn'
+    'Check if filter fid exist before passing it to fCallback'
     def __init__(self, fid_key):
         self.fid_key = fid_key
-    def __call__(self, fn):
+    def __call__(self, fCallback):
         fid_key = self.fid_key
         def exist_filter_and_call(self, *args, **kwargs):
             opts = args[1]
@@ -204,7 +204,7 @@ class FilterExist:
     
             for _filterId in self.filters.iterkeys():
                 if fid == _filterId:
-                    return fn(self, *args, **kwargs)                
+                    return fCallback(self, *args, **kwargs)                
                 
             return self.protocol.sendData('Unknown Filter: %s' % fid)
         return exist_filter_and_call
@@ -282,9 +282,9 @@ class FiltersManager(Manager):
                 counter += 1
                 routes = ''
                 if _filter.__class__.__name__ in MOFILTERS:
-                    routes+= 'MO '
+                    routes += 'MO '
                 if _filter.__class__.__name__ in MTFILTERS:
-                    routes+= 'MT'
+                    routes += 'MT'
                 self.protocol.sendData("#%s %s %s %s" % (str(fid).ljust(16),
                                                                   str(_filter.__class__.__name__).ljust(22),
                                                                   routes.ljust(6),

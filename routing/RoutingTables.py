@@ -1,14 +1,14 @@
-from Routes import Route
-from Routables import Routable
+from jasmin.routing.Routes import Route
+from jasmin.routing.Routables import Routable
 
 class InvalidRoutingTableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
     validating inputs
     """
 
-"""Generick Routing table
-"""
 class RoutingTable:
+    """Generick Routing table
+    """
     type = 'generick'
     
     def __init__(self):
@@ -78,12 +78,10 @@ class RoutingTable:
         
         return None
     
-"""MT Routing table
-"""
 class MTRoutingTable(RoutingTable):
+    "MT Routing table"
     type = 'mt'
     
-"""MO Routing table
-"""
 class MORoutingTable(RoutingTable):
+    "MO Routing table"
     type = 'mo'
