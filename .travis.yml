@@ -7,17 +7,16 @@ install:
     - export PYTHONPATH=$PYTHONPATH:$(cd `pwd`;cd ..;pwd)
 # Commands to run tests
 script:
-    # Pylint code analysis and rating
-    - export PYLINTRC=./.pylintrc
-    - pylint jasmin|tee /dev/stderr > /tmp/pylint-outcome
-    - RATE=$(grep "Your code has been rated" /tmp/pylint-outcome |awk '{print $7}'|grep -o '[0-9]\+.[0-9]\+')
-    - if [ $(echo "$RATE > 8" |bc) -eq 1 ]; then exit 0;else exit 1;fi
-    # Report coverage
-    - coverage report --omit=/usr/*,/home/travis/virtualenv/*
-    # Docs building test
-    - cd misc/doc;make html;cd ../../
     # Normal tests
     - coverage run `which trial` jasmin
+    # Docs building test
+    - cd misc/doc;make html;cd ../../
+    # Report coverage
+    - coverage report --omit=/usr/*,/home/travis/virtualenv/*
+    # Pylint code analysis and rating
+    - export PYLINTRC=./misc/pylint/pylintrc
+    - chmod +x ./misc/pylint/run.sh
+    - ./misc/pylint/run.sh
 services:
     - rabbitmq
     - redis-server
