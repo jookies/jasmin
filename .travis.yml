@@ -31,3 +31,4 @@ before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -qq python-dev
     - sudo apt-get install -qq pylint
+    - sudo apt-get install -qq bc
