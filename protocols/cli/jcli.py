@@ -125,15 +125,15 @@ class JCliProtocol(CmdProtocol):
         return self.sendData()
 
     @options([make_option('-l', '--list', action="store_true",
-                          help="List all users or a group users when provided with GID"),
+                          help = "List all users or a group users when provided with GID"),
               make_option('-a', '--add', action="store_true",
-                          help="Add user"),
+                          help = "Add user"),
               make_option('-u', '--update', type="string", metavar="UID", 
-                          help="Update user using it's UID"),
+                          help = "Update user using it's UID"),
               make_option('-r', '--remove', type="string", metavar="UID", 
-                          help="Remove user using it's UID"),
+                          help = "Remove user using it's UID"),
               make_option('-s', '--show', type="string", metavar="UID", 
-                          help="Show user using it's UID"),
+                          help = "Show user using it's UID"),
               ], '')
     def do_user(self, arg, opts):
         'User management'
@@ -152,15 +152,15 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
         
     @options([make_option('-l', '--list', action="store_true",
-                          help="List groups"),
+                          help = "List groups"),
               make_option('-a', '--add', action="store_true",
-                          help="Add group"),
+                          help = "Add group"),
               #make_option('-u', '--update', type="string", metavar="GID", 
-              #            help="Update group using it's GID"),
+              #            help = "Update group using it's GID"),
               make_option('-r', '--remove', type="string", metavar="GID", 
-                          help="Remove group using it's GID"),
+                          help = "Remove group using it's GID"),
               #make_option('-s', '--show', type="string", metavar="GID", 
-              #            help="Show group using it's GID"),
+              #            help = "Show group using it's GID"),
               ], '')
     def do_group(self, arg, opts):
         'Group management'
@@ -179,13 +179,13 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
         
     @options([make_option('-l', '--list', action="store_true",
-                          help="List filters"),
+                          help = "List filters"),
               make_option('-a', '--add', action="store_true",
-                          help="Add filter"),
+                          help = "Add filter"),
               make_option('-r', '--remove', type="string", metavar="FID", 
-                          help="Remove filter using it's FID"),
+                          help = "Remove filter using it's FID"),
               make_option('-s', '--show', type="string", metavar="FID", 
-                          help="Show filter using it's FID"),
+                          help = "Show filter using it's FID"),
               ], '')
     def do_filter(self, arg, opts):
         'Filter management'
@@ -202,13 +202,13 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
 
     @options([make_option('-l', '--list', action="store_true",
-                          help="List HTTP client connectors"),
+                          help = "List HTTP client connectors"),
               make_option('-a', '--add', action="store_true",
-                          help="Add a new HTTP client connector"),
+                          help = "Add a new HTTP client connector"),
               make_option('-r', '--remove', type="string", metavar="CID", 
-                          help="Remove HTTP client connector using it's CID"),
+                          help = "Remove HTTP client connector using it's CID"),
               make_option('-s', '--show', type="string", metavar="CID", 
-                          help="Show HTTP client connector using it's CID"),
+                          help = "Show HTTP client connector using it's CID"),
               ], '')
     def do_httpccm(self, arg, opts = None):
         'HTTP client connector management'
@@ -225,15 +225,15 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
 
     @options([make_option('-l', '--list', action="store_true",
-                          help="List MO routes"),
+                          help = "List MO routes"),
               make_option('-a', '--add', action="store_true",
-                          help="Add a new MO route"),
+                          help = "Add a new MO route"),
               make_option('-r', '--remove', type="string", metavar="ORDER", 
-                          help="Remove MO route using it's ORDER"),
+                          help = "Remove MO route using it's ORDER"),
               make_option('-s', '--show', type="string", metavar="ORDER", 
-                          help="Show MO route using it's ORDER"),
+                          help = "Show MO route using it's ORDER"),
               make_option('-f', '--flush', action="store_true",
-                          help="Flush MO routing table"),
+                          help = "Flush MO routing table"),
               ], '')
     def do_morouter(self, arg, opts = None):
         'MO Router management'
@@ -252,15 +252,15 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
         
     @options([make_option('-l', '--list', action="store_true",
-                          help="List MT routes"),
+                          help = "List MT routes"),
               make_option('-a', '--add', action="store_true",
-                          help="Add a new MT route"),
+                          help = "Add a new MT route"),
               make_option('-r', '--remove', type="string", metavar="ORDER", 
-                          help="Remove MT route using it's ORDER"),
+                          help = "Remove MT route using it's ORDER"),
               make_option('-s', '--show', type="string", metavar="ORDER", 
-                          help="Show MT route using it's ORDER"),
+                          help = "Show MT route using it's ORDER"),
               make_option('-f', '--flush', action="store_true",
-                          help="Flush MT routing table"),
+                          help = "Flush MT routing table"),
               ], '')
     def do_mtrouter(self, arg, opts = None):
         'MT Router management'
@@ -279,19 +279,19 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
     
     @options([make_option('-l', '--list', action="store_true",
-                          help="List SMPP connectors"),
+                          help = "List SMPP connectors"),
               make_option('-a', '--add', action="store_true",
-                          help="Add SMPP connector"),
+                          help = "Add SMPP connector"),
               make_option('-u', '--update', type="string", metavar="CID", 
-                          help="Update SMPP connector configuration using it's CID"),
+                          help = "Update SMPP connector configuration using it's CID"),
               make_option('-r', '--remove', type="string", metavar="CID", 
-                          help="Remove SMPP connector using it's CID"),
+                          help = "Remove SMPP connector using it's CID"),
               make_option('-s', '--show', type="string", metavar="CID", 
-                          help="Show SMPP connector using it's CID"),
+                          help = "Show SMPP connector using it's CID"),
               make_option('-1', '--start', type="string", metavar="CID", 
-                          help="Start SMPP connector using it's CID"),
+                          help = "Start SMPP connector using it's CID"),
               make_option('-0', '--stop', type="string", metavar="CID", 
-                          help="Start SMPP connector using it's CID"),
+                          help = "Start SMPP connector using it's CID"),
               ], '')
     def do_smppccm(self, arg, opts):
         'SMPP connector management'
@@ -314,7 +314,7 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
         
     @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
-                          help="Configuration profile, default: jcli-prod"),
+                          help = "Configuration profile, default: jcli-prod"),
               ], '')
     def do_persist(self, arg, opts):
         'Persist current configuration profile to disk in PROFILE'
@@ -325,7 +325,7 @@ class JCliProtocol(CmdProtocol):
         self.sendData()
 
     @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
-                          help="Configuration profile, default: jcli-prod"),
+                          help = "Configuration profile, default: jcli-prod"),
               ], '')
     def do_load(self, arg, opts):
         'Load configuration PROFILE profile from disk'

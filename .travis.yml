@@ -25,8 +25,8 @@ before_script:
     - sudo chown `whoami` /etc/jasmin/store
     - export PYLINTRC=./misc/pylint/pylintrc
     - chmod +x ./misc/pylint/run.sh
+    - sudo apt-get install -qq pylint
+    - sudo apt-get install -qq bc
 before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -qq python-dev
-    - sudo apt-get install -qq pylint
-    - sudo apt-get install -qq bc

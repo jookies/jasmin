@@ -63,8 +63,13 @@ class HttpConnector(Connector):
         self.baseurl = baseurl
         self.method = method
         
-        self._repr = '<%s (cid=%s, baseurl=%s, method=%s)>' % (self.__class__.__name__, self.cid, self.baseurl, self.method)
-        self._str = '%s:\ncid = %s\nbaseurl = %s\nmethod = %s' % (self.__class__.__name__, self.cid, self.baseurl, self.method)
+        self._repr = '<%s (cid=%s, baseurl=%s, method=%s)>' % (self.__class__.__name__, 
+                                                               self.cid, self.baseurl, 
+                                                               self.method)
+        self._str = '%s:\ncid = %s\nbaseurl = %s\nmethod = %s' % (self.__class__.__name__, 
+                                                                  self.cid, 
+                                                                  self.baseurl, 
+                                                                  self.method)
         
 class SmppClientConnector(Connector):
     type = 'smppc'
