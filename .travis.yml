@@ -3,7 +3,8 @@ python:
     - "2.7"
 # Command to install dependencies
 install:
-    - pip install -r requirements
+    - pip install -r install-requirements
+    - pip install -r test-requirements
     - export PYTHONPATH=$PYTHONPATH:$(cd `pwd`;cd ..;pwd)
 # Commands to run tests
 script:
@@ -25,8 +26,7 @@ before_script:
     - sudo chown `whoami` /etc/jasmin/store
     - export PYLINTRC=./misc/pylint/pylintrc
     - chmod +x ./misc/pylint/run.sh
-    - sudo apt-get install -qq pylint
-    - sudo apt-get install -qq bc
+    - sudo apt-get install -qq pylint bc
 before_install:
     - sudo apt-get update -qq
-    - sudo apt-get install -qq python-dev
+    - sudo apt-get install -qq python-dev libffi-dev

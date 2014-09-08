@@ -1,12 +1,15 @@
-[![Build Status](https://travis-ci.org/fourat/jasmin.png)](https://travis-ci.org/fourat/jasmin)
 Jasmin - Open source SMS gateway
 ================================
-Work in progress, no stable releases yet
 
+|jasmin-ci|_
+
+.. |jasmin-ci| image:: https://travis-ci.org/fourat/jasmin.png
+.. _jasmin-ci: https://travis-ci.org/fourat/jasmin
 
 Introduction
 ------------
-Jasmin is a very complete open source SMS Gateway with many enterprise-class features such as::
+Jasmin is a very complete open source SMS Gateway with many enterprise-class features such as:
+
 * SMPP Client / Server
 * HTTP Client / Server
 * Console-based configuration, no service restart required
@@ -24,23 +27,23 @@ high traffic loads and full in-memory execution.
 Architecture
 ------------
 
-![Jasmin SMS Gateway high level design](https://github.com/jookies/jasmin/raw/master/misc/doc/sources/resources/architecture/hld.png)
+.. figure:: https://github.com/jookies/jasmin/raw/master/misc/doc/sources/resources/architecture/hld.png
+   :alt: HLD Architecture
+   :align: Center
 
 Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
-and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`, a event-driven networking engine.
+and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
 
 Documentation
 -------------
 
-Build it locally:
+Build it locally::
 
-```
-cd misc/doc
-make html
-...
-...
-Build finished. The HTML pages are in build/html.
-```
+  $ cd misc/doc
+  $ make html
+  ...
+  ...
+  Build finished. The HTML pages are in build/html.
 
 License
 -------
