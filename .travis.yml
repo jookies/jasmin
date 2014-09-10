@@ -13,7 +13,7 @@ script:
     # Cleaning before going for further tests
     - sudo /etc/init.d/jasmin stop;sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:
-    - sudo chmod -R 777 /var/log/jasmin
+    - sudo chmod -R 777 /var/log/jasmin /etc/jasmin/store
     - coverage run `which trial` jasmin
     # Docs building test:
     - cd misc/doc;make html;cd ../../
