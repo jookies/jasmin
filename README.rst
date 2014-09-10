@@ -58,7 +58,9 @@ Or locally via downloaded package::
 Documentation
 -------------
 
-Build it locally::
+The documentation is at: http://jasmin.readthedocs.org
+
+If you still need to build it locally::
 
   $ cd misc/doc
   $ make html

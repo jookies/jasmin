@@ -10,7 +10,8 @@ script:
     # Service startup test:
     - sudo /etc/init.d/jasmin start
     - sleep 20
-    - sudo /etc/init.d/jasmin stop
+    # Cleaning before going for further tests
+    - sudo /etc/init.d/jasmin stop;sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:
     - coverage run `which trial` jasmin
     # Docs building test:
