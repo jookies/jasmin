@@ -34,6 +34,27 @@ Architecture
 Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
 and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
 
+Installation
+------------
+
+System requirements:
+
+* **Python**: Minimum version is 2.7
+* header files and a static library for Python, Ubuntu package name: **python-dev**
+* Foreign Function Interface library (development files), Ubuntu package name: **libffi-dev**
+* Secure Sockets Layer toolkit - development files, Ubuntu package name: **libssl-dev**
+* **pip**: Python package installer, needed if you are going to install *jasmin* from `the Python Package Index <https://pypi.python.org/pypi>`_
+
+Once requirements are met, you can install:
+
+Via pip::
+
+    pip install jasmin
+
+Or locally via downloaded package::
+
+    python setup.py install
+
 Documentation
 -------------
 
