@@ -826,7 +826,7 @@ the connector with **cid** = abc.
 Using **EvalPyFilter** is as simple as the shown example, when the python script is called it will get the 
 following global variables set:
 
-* **routable**: one of the *jasmin.routing.Routables.Routable* inheriters (:ref:`routable` for more details)
+* **routable**: one of the *jasmin.routing.Routables.Routable* inheriters (:ref:`Route_Routable` for more details)
 * **result**: (default to *False*) It will be read by Jasmin router at the end of the script execution to check
   if the filter is matching the message passed through the routable variable, matched=True / unmatched=False
 

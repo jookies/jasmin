@@ -1,15 +1,15 @@
-import sys
-import os
-import pwd
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
 
 install_reqs = parse_requirements('install-requirements')
 test_reqs = parse_requirements('test-requirements')
 
+# Dynamically calculate the version based on jasmin.RELEASE.
+release = __import__('jasmin').get_release()
+
 setup(
     name="jasmin",
-    version="0.4.0-alpha",
+    version=release,
     author="Fourat ZOUARI",
     author_email="fourat@gmail.com",
     url="https://github.com/jookies/jasmin",
