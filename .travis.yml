@@ -3,7 +3,7 @@ python:
     - "2.7"
 # Command to install dependencies
 install:
-    - useradd jasmin
+    - sudo useradd jasmin
     - python setup.py sdist
     - pip install dist/jasmin-0.4.0-alpha.tar.gz
 # Commands to run tests
