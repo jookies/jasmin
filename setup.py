@@ -4,20 +4,8 @@ import pwd
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
 
-RUNTIME_USER = 'jasmin'
 install_reqs = parse_requirements('install-requirements')
 test_reqs = parse_requirements('test-requirements')
-
-# Pre-install checklist
-if "install" in sys.argv:
-    try:
-        # (1) RUNTIME_USER must already exist
-        pwnam = pwd.getpwnam(RUNTIME_USER)
-    except KeyError:
-        print 'Pre-install checklist error:'
-        print 'User %s does not exist, will be created ..' % RUNTIME_USER
-        print 'Installation cancelled'
-        sys.exit(1)
 
 setup(
     name="jasmin",
@@ -52,22 +40,3 @@ setup(
                 ('/etc/jasmin/store', []),
                 ('/var/log/jasmin', [])],
 )
-
-def rchown(path, uid, gid):
-    "Will recursively chown path"
-    os.chown(path, uid, gid)
-    for item in os.listdir(path):
-        itempath = os.path.join(path, item)
-        if os.path.isfile(itempath):
-            os.chown(itempath, uid, gid)
-        elif os.path.isdir(itempath):
-            os.chown(itempath, uid, gid)
-            rchown(itempath, uid, gid)
-
-# Post-install actions
-if "install" in sys.argv:
-    # (1) data_files must be owned by the RUNTIME_USER
-    data_file_folders = ['/etc/jasmin', '/var/log/jasmin']
-    for folder in data_file_folders:
-        if os.path.exists(folder):
-            rchown(folder, pwnam.pw_uid, pwnam.pw_gid)

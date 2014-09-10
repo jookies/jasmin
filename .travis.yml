@@ -3,7 +3,6 @@ python:
     - "2.7"
 # Command to install dependencies
 install:
-    - sudo useradd jasmin
     - python setup.py sdist
     - pip install dist/jasmin-0.4.0-alpha.tar.gz
 # Commands to run tests
@@ -28,3 +27,5 @@ before_install:
     - sudo apt-get update -qq
     # jasmin requirement
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
+    - sudo mkdir -p /var/log/jasmin /etc/jasmin /etc/jasmin/resources /etc/jasmin/store
+    - sudo chown `whoami` /var/log/jasmin /etc/jasmin /etc/jasmin/resources /etc/jasmin/store
