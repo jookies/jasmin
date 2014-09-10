@@ -1,10 +1,7 @@
 Jasmin - Open source SMS gateway
 ================================
 
-|jasmin-ci|_
-
-.. |jasmin-ci| image:: https://travis-ci.org/fourat/jasmin.png
-.. _jasmin-ci: https://travis-ci.org/fourat/jasmin
+|ci| |docs|
 
 Introduction
 ------------
@@ -71,3 +68,13 @@ If you still need to build it locally::
 License
 -------
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
+
+.. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png
+    :alt: Build status
+    :scale: 100%
+    :target: https://travis-ci.org/jookies/jasmin
+
+.. |docs| image:: https://readthedocs.org/projects/jasmin/badge/?version=latest
+    :alt: Documentation status
+    :scale: 100%
+    :target: http://jasmin.readthedocs.org
