@@ -3,9 +3,9 @@ python:
     - "2.7"
 # Command to install dependencies
 install:
-    - pip install -r install-requirements
-    - pip install -r test-requirements
-    - export PYTHONPATH=$PYTHONPATH:$(cd `pwd`;cd ..;pwd)
+    - useradd jasmin
+    - python setup.py sdist
+    - pip install dist/jasmin-0.4.0-alpha.tar.gz
 # Commands to run tests
 script:
     # Normal tests
@@ -20,13 +20,11 @@ services:
     - rabbitmq
     - redis-server
 before_script:
-    - sudo mkdir /var/log/jasmin
-    - sudo chown `whoami` /var/log/jasmin
-    - sudo ln -s `pwd`/misc/config /etc/jasmin
-    - sudo chown `whoami` /etc/jasmin/store
+    # pylint requirements
+    - sudo apt-get install -qq pylint bc
     - export PYLINTRC=./misc/pylint/pylintrc
     - chmod +x ./misc/pylint/run.sh
-    - sudo apt-get install -qq pylint bc
 before_install:
     - sudo apt-get update -qq
+    # jasmin requirement
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
