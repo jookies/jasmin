@@ -45,7 +45,7 @@ System requirements:
 * Secure Sockets Layer toolkit - development files, Ubuntu package name: **libssl-dev**
 * **pip**: Python package installer, needed if you are going to install *jasmin* from `the Python Package Index <https://pypi.python.org/pypi>`_
 
-Once requirements are met, you can install:
+Once the above requirements are met, you can install:
 
 Via pip::
 
