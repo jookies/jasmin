@@ -6,7 +6,7 @@
 MAJOR = 0
 MINOR = 4
 PATCH = 0
-META = 'beta'
+META = 'alpha'
 
 def get_version():
     return '%s.%s' % (MAJOR, MINOR)
