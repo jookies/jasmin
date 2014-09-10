@@ -19,6 +19,8 @@ services:
     - rabbitmq
     - redis-server
 before_script:
+    # Test requirements
+    - pip install -r test-requirements
     # pylint requirements
     - sudo apt-get install -qq pylint bc
     - export PYLINTRC=./misc/pylint/pylintrc
