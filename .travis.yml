@@ -5,29 +5,40 @@ python:
 install:
     - python setup.py sdist
     - pip install dist/jasmin-0.4.0-alpha.tar.gz
-# Commands to run tests
+# Commands to run tests:
 script:
-    # Normal tests
+    # Service startup test:
+    - sudo /etc/init.d/jasmin start
+    - sleep 20
+    - sudo /etc/init.d/jasmin stop
+    # Trial tests and coverage:
     - coverage run `which trial` jasmin
-    # Docs building test
+    # Docs building test:
     - cd misc/doc;make html;cd ../../
-    # Report coverage
+    # Report coverage:
     - coverage report --omit=/usr/*,/home/travis/virtualenv/*
-    # Pylint code analysis and rating
+    # Pylint code analysis and rating:
     - ./misc/pylint/run.sh
 services:
     - rabbitmq
     - redis-server
 before_script:
-    # Test requirements
+    # Test requirements:
     - pip install -r test-requirements
-    # pylint requirements
+    # pylint requirements:
     - sudo apt-get install -qq pylint bc
     - export PYLINTRC=./misc/pylint/pylintrc
     - chmod +x ./misc/pylint/run.sh
 before_install:
     - sudo apt-get update -qq
-    # jasmin requirement
+    # jasmin requirement:
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
-    - sudo mkdir -p /var/log/jasmin /etc/jasmin /etc/jasmin/resources /etc/jasmin/store
-    - sudo chown `whoami` /var/log/jasmin /etc/jasmin /etc/jasmin/resources /etc/jasmin/store
+    - sudo useradd jasmin
+    - sudo mkdir -p /var/log/jasmin /etc/jasmin /etc/jasmin/resources /etc/jasmin/store /var/run/jasmin
+    - sudo chown -R jasmin. /var/log/jasmin /etc/jasmin /var/run/jasmin
+    # jasmin service startup testing requirement:
+    - sudo cp misc/init-script/jasmin /etc/init.d/
+    - sudo JASMIN_UID=$(id -u jasmin)
+    - sudo JASMIN_GID=$(id -g jasmin)
+    - sudo sed -i 's/UID=1001/UID='"$JASMIN_UID"'/g' /etc/init.d/jasmin
+    - sudo sed -i 's/GID=1002/GID='"$JASMIN_GID"'/g' /etc/init.d/jasmin
