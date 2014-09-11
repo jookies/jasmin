@@ -23,7 +23,11 @@ UID=1001 # jasmin uid
 GID=1002 # jasmin gid
 
 # Exit if the package is not installed
-[ -x $DAEMON ] || exit 0
+[ -x $DAEMON ] || exit 1
+
+# Exit if UID or GID do not exist
+getent passwd "$UID" || exit 21
+getent group "$GID" || exit 22
 
 # Read configuration variable file if it is present
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME

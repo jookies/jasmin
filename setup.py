@@ -36,7 +36,9 @@ setup(
     ],
     platforms='POSIX',
     data_files=[('/etc/jasmin', ['misc/config/jasmin.cfg']),
-                ('/etc/jasmin/resource', ['misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 'misc/config/resource/amqp0-9-1.xml']),
+                ('/etc/jasmin/resource', [
+                    'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
+                    'misc/config/resource/amqp0-9-1.xml'],),
                 ('/etc/jasmin/store', []),
                 ('/var/run/jasmin', []),
                 ('/var/log/jasmin', [])],
