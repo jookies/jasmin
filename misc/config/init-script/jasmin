@@ -28,6 +28,7 @@ GROUP=jasmin
 getent passwd "$USER" >/dev/null || exit 11
 getent group "$GROUP" >/dev/null || exit 12
 
+whereis twistd
 # Exit if the package is not installed
 [ -x $DAEMON ] || exit 20
 
