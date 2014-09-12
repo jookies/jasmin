@@ -74,7 +74,7 @@ setup(
     ],
     platforms='POSIX',
     data_files=[('/etc/jasmin', ['misc/config/jasmin.cfg']),
-                ('/etc/resource', [
+                ('/etc/jasmin/resource', [
                     'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
                     'misc/config/resource/amqp0-9-1.xml'],),
                 ('/etc/init.d', ['misc/init-script/jasmin']),],
