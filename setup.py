@@ -19,6 +19,7 @@ if "install" in sys.argv:
     # 2. Check if system folders are created
     sysdirs = ['/etc/jasmin', 
                 '/etc/jasmin/resource', 
+                '/etc/jasmin/init-script', 
                 '/etc/jasmin/store', 
                 '/var/log/jasmin', 
                 '/var/run/jasmin',]
@@ -33,7 +34,7 @@ if "install" in sys.argv:
         sys.exit(3)
 
     # 4. Check if sysdirs are owned by jasmin user
-    for sysdir in sysdirs[2:]:
+    for sysdir in sysdirs[3:]:
         if pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
             print '%s is not owned by jasmin user !' % sysdir
             sys.exit(4)
@@ -77,5 +78,5 @@ setup(
                 ('/etc/jasmin/resource', [
                     'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
                     'misc/config/resource/amqp0-9-1.xml'],),
-                ('/etc/init.d', ['misc/init-script/jasmin']),],
+                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmin']),],
 )

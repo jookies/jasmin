@@ -36,6 +36,6 @@ before_install:
     # jasmin requirement:
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
     - sudo useradd jasmin
-    - sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/store /var/run/jasmin
-    - sudo chown `whoami` /etc/jasmin /etc/jasmin/resource
+    - sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/init-script /etc/jasmin/store /var/run/jasmin
+    - sudo chown `whoami` /etc/jasmin /etc/jasmin/resource /etc/jasmin/init-script
     - sudo chown jasmin. /var/log/jasmin /etc/jasmin/store /var/run/jasmin
