@@ -8,7 +8,7 @@ install:
 # Commands to run tests:
 script:
     # Service startup test:
-    - sudo /etc/init.d/jasmin start
+    - sudo ln -s /home/travis/virtualenv/python2.7.8/bin/twistd /usr/bin/;sudo /etc/init.d/jasmin start
     - sleep 20
     # Cleaning before going for further tests
     - sudo /etc/init.d/jasmin stop;sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
