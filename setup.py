@@ -33,7 +33,7 @@ if "install" in sys.argv:
         sys.exit(3)
 
     # 4. Check if sysdirs are owned by jasmin user
-    for sysdir in sysdirs[1:]:
+    for sysdir in sysdirs[2:]:
         if pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
             print '%s is not owned by jasmin user !' % sysdir
             sys.exit(4)
