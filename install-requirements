@@ -1,11 +1,9 @@
 enum>=0.4.4
 pyasn1>=0.1.7
-mock>=1.0.0
 txAMQP>=0.6.2
 txredisapi>=1.0
 pyOpenSSL>=0.13
 twisted>=13.0.0
-sphinx>=1.1.0
 pyparsing>=2.0.0
 python-dateutil>=2.0
 service_identity>=14.0.0

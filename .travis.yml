@@ -36,12 +36,6 @@ before_install:
     # jasmin requirement:
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
     - sudo useradd jasmin
-    - sudo mkdir -p /var/log/jasmin /etc/jasmin /etc/jasmin/resources /etc/jasmin/store /var/run/jasmin
+    - sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/store /var/run/jasmin
     - sudo chown `whoami` /etc/jasmin
-    - sudo chown jasmin. /var/log/jasmin /etc/jasmin/store /var/run/jasmin
-    # jasmin service startup testing requirement:
-    - sudo cp misc/init-script/jasmin /etc/init.d/
-    - JASMIN_UID=$(sudo id -u jasmin)
-    - JASMIN_GID=$(sudo id -g jasmin)
-    - sudo sed -i 's/UID=1001/UID='"$JASMIN_UID"'/g' /etc/init.d/jasmin
-    - sudo sed -i 's/GID=1002/GID='"$JASMIN_GID"'/g' /etc/init.d/jasmin
+    - sudo chown jasmin. /var/log/jasmin /etc/jasmin/resource /etc/jasmin/store /var/run/jasmin

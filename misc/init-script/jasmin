@@ -16,18 +16,24 @@ DESC="$TWSTD_COMMAND (Twisted application)"
 NAME=$TWSTD_COMMAND
 DAEMON=/usr/bin/twistd
 DAEMON_ARGS=""
-PIDFILE=/var/run/jasmin/$NAME.pid
-SCRIPTNAME=/etc/init.d/$NAME
-LOGFILE=/var/log/jasmin/twistd-$NAME.log
-UID=1001 # jasmin uid
-GID=1002 # jasmin gid
+PIDDIR=/var/run/jasmin
+PIDFILE="$PIDDIR/$NAME.pid"
+LOGDIR=/var/log/jasmin
+LOGFILE="$LOGDIR/twistd-$NAME.log"
+SCRIPTNAME="/etc/init.d/$NAME"
+USER=jasmin
+GROUP=jasmin
+
+# Exit if USER or GROUP do not exist
+getent passwd "$USER" >/dev/null || exit 11
+getent group "$GROUP" >/dev/null || exit 12
 
 # Exit if the package is not installed
-[ -x $DAEMON ] || exit 1
+[ -x $DAEMON ] || exit 20
 
-# Exit if UID or GID do not exist
-getent passwd "$UID" || exit 21
-getent group "$GID" || exit 22
+# Exit if system folders do not exist
+[ -d $PIDDIR ] || exit 31
+[ -d $LOGDIR ] || exit 32
 
 # Read configuration variable file if it is present
 [ -r /etc/default/$NAME ] && . /etc/default/$NAME
@@ -45,8 +51,8 @@ do_start()
 	start-stop-daemon --start --quiet --pidfile $PIDFILE  --exec $DAEMON --test > /dev/null \
 		|| return 1
 	start-stop-daemon --start --quiet --pidfile $PIDFILE  --exec $DAEMON -- \
-                --uid=$UID \
-                --gid=$GID \
+                --uid=$(id -u $USER) \
+                --gid=$(id -g $GROUP) \
                 --pidfile=$PIDFILE \
                 --logfile=$LOGFILE \
                 $TWSTD_COMMAND \
