@@ -1,7 +1,7 @@
 Jasmin - Open source SMS gateway
 ================================
 
-|python_ver| |license| |current_version| |ci| |docs| |downloads| |status|
+|python_ver| |current_version| |ci| |docs| |downloads| |status|
 
 Introduction
 ------------
@@ -55,11 +55,6 @@ Jasmin is released under the terms of the [Apache License Version 2]. See **`LIC
 
 .. |python_ver| image:: https://pypip.in/py_versions/jasmin/badge.svg
     :alt: Python version
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
-.. |license| image:: https://pypip.in/license/jasmin/badge.svg
-    :alt: Jasmin license
     :scale: 100%
     :target: https://pypi.python.org/pypi/jasmin
 
