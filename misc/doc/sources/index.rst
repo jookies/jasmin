@@ -31,7 +31,7 @@ Getting started
 .. hlist::
    :columns: 2
    
-   * **TODO** -- Install and run Jasmin gateway
+   * :doc:`/installation/index` -- Install and run Jasmin SMS Gateway
    * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application
    * :doc:`/apis/ja-http/index` -- HTTP API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
@@ -42,6 +42,7 @@ Full contents
    :maxdepth: 2
 
    /architecture/index
+   /installation/index
    /programming-examples/index
    /apis/ja-http/index
    /management/jcli/index
