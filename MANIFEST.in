@@ -1,0 +1,9 @@
+# Source distribution files.
+include README.rst
+include LICENSE
+include *-requirements
+recursive-include misc *
+
+# Prune stray bytecode files.
+global-exclude *.pyc
+prune misc/doc/build
