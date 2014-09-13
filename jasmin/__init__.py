@@ -4,9 +4,9 @@
 """Jasmin SMS Gateway by Fourat ZOUARI <fourat@gmail.com>"""
 
 MAJOR = 0
-MINOR = 4
+MINOR = 5
 PATCH = 0
-META = 'alpha'
+META = 'beta'
 
 def get_version():
     return '%s.%s' % (MAJOR, MINOR)
