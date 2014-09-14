@@ -63,7 +63,7 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13 or 14
      - 1
      - Optional
-     - Sets the Data Coding Scheme bits, default is 0, accepts values all allowed values in SMPP protocol [2]_
+     - Sets the Data Coding Scheme bits, default is 0, accepts values all allowed values in SMPP protocol [1]_
    * - **username**
      - Text (30 char. max)
      - jasmin_user
@@ -526,6 +526,5 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - Python's logging module configuration.
 
 .. rubric:: Footnotes
-.. [1] Account management is planned in v0.5, including user credit and privilege management
-.. [2]
+.. [1]
 .. include:: ../datacoding.table

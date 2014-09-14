@@ -1,3 +1,7 @@
+"""
+A set of objects used by Jasmin to manage users, groups and connectors in memory (no database storage)
+"""
+
 import re
 from hashlib import md5
 
@@ -5,15 +9,130 @@ class jasminApiInvalidParamError(Exception):
     """Raised when trying to instanciate a jasminApi object with invalid parameter
     """
 
-class jasminApiObject():
+class jasminApiCredentialError(Exception):
+    """Raised for ant Credential-related error
+    """
+
+class jasminApiGenerick():
     pass
 
-class Group(jasminApiObject):
-    def __init__(self, gid):
-        self.gid = gid
+class CredentialGenerick(jasminApiGenerick):
+    """A generick credential object"""
+    authorizations = {}
+    value_filters = {}
+    defaults = {}
+    quotas = {}
+    
+    def setAuthorization(self, key, value):
+        if key in self.authorizations:
+            self.authorizations[key] = value
+        else:
+            raise jasminApiCredentialError('%s is not a valid Authorization' % key)
 
-class User(jasminApiObject):
-    def __init__(self, uid, group, username, password):
+    def getAuthorization(self, key):
+        if key in self.authorizations:
+            return self.authorizations[key]
+        else:
+            raise jasminApiCredentialError('%s is not a valid Authorization' % key)
+
+    def setValueFilter(self, key, value):
+        if key in self.value_filters:
+            self.value_filters[key] = value
+        else:
+            raise jasminApiCredentialError('%s is not a valid Filter' % key)
+
+    def getValueFilter(self, key):
+        if key in self.value_filters:
+            return self.value_filters[key]
+        else:
+            raise jasminApiCredentialError('%s is not a valid Filter' % key)
+
+    def setDefaultValue(self, key, value):
+        if key in self.defaults:
+            self.defaults[key] = value
+        else:
+            raise jasminApiCredentialError('%s is not a valid Default value' % key)
+
+    def getDefaultValue(self, key):
+        if key in self.defaults:
+            return self.defaults[key]
+        else:
+            raise jasminApiCredentialError('%s is not a valid Default value' % key)
+
+    def setQuota(self, key, value):
+        if key in self.quotas:
+            self.quotas[key] = value
+        else:
+            raise jasminApiCredentialError('%s is not a valid Quata key' % key)
+
+    def getQuota(self, key):
+        if key in self.quotas:
+            return self.quotas[key]
+        else:
+            raise jasminApiCredentialError('%s is not a valid Quota key' % key)
+
+class MoMessagingCredential(CredentialGenerick):
+    """Credential set for receiving MO messages"""
+    
+    authorizations = {}
+        
+    quotas = {}
+
+    def __init__(self):
+        self.authorizations = {'receive': True,}
+            
+        self.quotas = {'balance': None, 'submit_sm_count': None}
+
+class MtMessagingCredential(CredentialGenerick):
+    """Credential set for sending MT Messages"""
+    
+    authorizations = {}
+    value_filters = {}
+    defaults = {}
+    quotas = {}
+    
+    def __init__(self):
+        self.authorizations = {'send': True,
+                          'long_content': True,
+                          'set_dlr_level': True,
+                          'set_dlr_method': True,
+                          'set_source_address': True,
+                          'set_priority': True,
+                         }
+        
+        self.value_filters = {'destination_address': r'.*',
+                         'source_address': r'.*',
+                         'priority': r'[123]',
+                         'content': r'.*'
+                         }
+        
+        self.defaults = {'source_address': None,
+                    'priority': 1,
+                    'dlr': 'no',
+                    'dlr_level': 1,
+                    }
+        
+        self.quotas = {'balance': None, 'submit_sm_count': None}
+
+class Group(jasminApiGenerick):
+    """Every user must have a group"""
+    
+    def __init__(self, gid, mo_credential = None, mt_credential = None):
+        self.gid = gid
+        
+        self.mo_credential = mo_credential
+        self.mt_credential = mt_credential
+        
+        # When not set, mo and mt credentials are set to defaults
+        if self.mo_credential is None:
+            self.mo_credential = MoMessagingCredential()
+        if self.mt_credential is None:
+            self.mt_credential = MtMessagingCredential()
+
+class User(jasminApiGenerick):
+    """Jasmin user"""
+    
+    def __init__(self, uid, group, username, password, mo_credential = None, mt_credential = None):
         self.uid = uid
         self.group = group
         self.username = username
@@ -22,7 +141,118 @@ class User(jasminApiObject):
         else:
             self.password = password
 
-class Connector(jasminApiObject):
+        self.mo_credential = mo_credential
+        self.mt_credential = mt_credential
+    
+    def getMOAuthorization(self, key):
+        """Will return Authorization boolean for key
+        """
+        value = None
+        if self.mo_credential is not None:
+            value = self.mo_credential.getAuthorization(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mo_credential.getAuthorization(key)
+        else:
+            return value
+
+    def getMTAuthorization(self, key):
+        """Will return Authorization boolean for key
+        """
+        value = None
+        if self.mt_credential is not None:
+            value = self.mt_credential.getAuthorization(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mt_credential.getAuthorization(key)
+        else:
+            return value
+
+    def getMOValueFilter(self, key):
+        """Will return Value filter for key
+        """
+        value = None
+        if self.mo_credential is not None:
+            value = self.mo_credential.getValueFilter(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mo_credential.getValueFilter(key)
+        else:
+            return value
+
+    def getMTValueFilter(self, key):
+        """Will return Value filter for key
+        """
+        value = None
+        if self.mt_credential is not None:
+            value = self.mt_credential.getValueFilter(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mt_credential.getValueFilter(key)
+        else:
+            return value
+
+    def getMODefault(self, key):
+        """Will return Default value for key
+        """
+        value = None
+        if self.mo_credential is not None:
+            value = self.mo_credential.getDefaultValue(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mo_credential.getDefaultValue(key)
+        else:
+            return value
+
+    def getMTDefault(self, key):
+        """Will return Default value for key
+        """
+        value = None
+        if self.mt_credential is not None:
+            value = self.mt_credential.getDefaultValue(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mt_credential.getDefaultValue(key)
+        else:
+            return value
+
+    def getMOQuota(self, key):
+        """Will return Quota for key
+        """
+        value = None
+        if self.mo_credential is not None:
+            value = self.mo_credential.getQuota(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mo_credential.getQuota(key)
+        else:
+            return value
+
+    def getMTQuota(self, key):
+        """Will return Quota for key
+        """
+        value = None
+        if self.mt_credential is not None:
+            value = self.mt_credential.getQuota(key)
+        
+        # If value is None (not set), we check if it is set in group wide context
+        if value is None:
+            return self.group.mt_credential.getQuota(key)
+        else:
+            return value
+
+class Connector(jasminApiGenerick):
+    """
+    This is a generick connector, it's used through its implementations
+    """
+    
     type = 'generic'
     _str = '%s Connector' % type
     _repr = '%s Connector>' % type
@@ -36,6 +266,8 @@ class Connector(jasminApiObject):
         return self._str
         
 class HttpConnector(Connector):
+    """This is a HTTP Client connector used to throw router SMS MOs"""
+    
     type = 'http'
 
     def __init__(self, cid, baseurl, method = 'GET'):
@@ -72,6 +304,8 @@ class HttpConnector(Connector):
                                                                   self.method)
         
 class SmppClientConnector(Connector):
+    """This is a SMPP Client connector"""
+    
     type = 'smppc'
     
     def __init__(self, cid):
