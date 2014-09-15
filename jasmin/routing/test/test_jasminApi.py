@@ -9,6 +9,7 @@ class GroupTestCase(TestCase):
         g = Group('GID')
         
         self.assertEqual(g.gid, 'GID')
+        self.assertEqual(str(g), g.gid)
     
     def test_with_credentials(self):
         mo_c = MoMessagingCredential()
@@ -29,6 +30,7 @@ class UserTestCase(TestCase):
         u = User('UID', self.group, 'foo', 'bar')
         
         self.assertEqual(u.uid, 'UID')
+        self.assertEqual(str(u), u.username)
     
     def test_with_credentials(self):
         mo_c = MoMessagingCredential()
@@ -50,7 +52,7 @@ class UserAndCredentialsTestCase(TestCase):
         mt_c = MtMessagingCredential()
         mt_c.setAuthorization('send', False)
         mt_c.setValueFilter('source_address', '^S.*')
-        mt_c.setDefaultValue('priority', 2)
+        mt_c.setDefaultValue('source_address', 'SunHotel')
         mt_c.setQuota('balance', 2)
         
         # Define a GID group with custom messaging credentials
@@ -65,7 +67,7 @@ class UserAndCredentialsTestCase(TestCase):
         self.assertEqual(u.getMOQuota('balance'), 3)
         self.assertEqual(u.getMTAuthorization('send'), False)
         self.assertEqual(u.getMTValueFilter('source_address'), '^S.*')
-        self.assertEqual(u.getMTDefault('priority'), 2)
+        self.assertEqual(u.getMTDefault('source_address'), 'SunHotel')
         self.assertEqual(u.getMTQuota('balance'), 2)
 
     def test_with_user_level_credentials(self):
@@ -78,12 +80,12 @@ class UserAndCredentialsTestCase(TestCase):
         # user-level values are None
         self.assertEqual(u.getMOQuota('balance'), 3)
         self.assertEqual(u.getMTQuota('balance'), 2)
+        self.assertEqual(u.getMTDefault('source_address'), 'SunHotel')
 
         # Credentials are taken from user-level scope, ignoring group-level credentials
         self.assertEqual(u.getMOAuthorization('receive'), True)
         self.assertEqual(u.getMTAuthorization('send'), True)
         self.assertEqual(u.getMTValueFilter('source_address'), '.*')
-        self.assertEqual(u.getMTDefault('priority'), 1)
 
 class MoMessagingCredentialTestCase(TestCase):
     messaging_cred_class = 'MoMessagingCredential'
@@ -138,9 +140,6 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getValueFilter('priority'), r'[123]')
         self.assertEqual(mc.getValueFilter('content'), r'.*')
         self.assertEqual(mc.getDefaultValue('source_address'), None)
-        self.assertEqual(mc.getDefaultValue('priority'), 1)
-        self.assertEqual(mc.getDefaultValue('dlr'), 'no')
-        self.assertEqual(mc.getDefaultValue('dlr_level'), 1)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
 
@@ -169,12 +168,6 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getValueFilter('content'), r'^C.*')
         mc.setDefaultValue('source_address', 'JasminGateway')
         self.assertEqual(mc.getDefaultValue('source_address'), 'JasminGateway')
-        mc.setDefaultValue('priority', '2')
-        self.assertEqual(mc.getDefaultValue('priority'), '2')
-        mc.setDefaultValue('dlr', 'yes')
-        self.assertEqual(mc.getDefaultValue('dlr'), 'yes')
-        mc.setDefaultValue('dlr_level', '2')
-        self.assertEqual(mc.getDefaultValue('dlr_level'), '2')
         mc.setQuota('balance', 100)
         self.assertEqual(mc.getQuota('balance'), 100)
         mc.setQuota('submit_sm_count', 10000)
@@ -204,6 +197,14 @@ class HttpConnectorTestCase(TestCase):
         self.assertEqual(c.cid, 'CID')
         self.assertEqual(c.baseurl, 'http://127.0.0.1/api/receive-mo')
         self.assertEqual(c.method, 'GET')
+        self.assertEqual(str(c), '%s:\ncid = %s\nbaseurl = %s\nmethod = %s' % ('HttpConnector', 
+                                                                  c.cid, 
+                                                                  c.baseurl, 
+                                                                  c.method))
+        self.assertEqual(repr(c), '<%s (cid=%s, baseurl=%s, method=%s)>' % ('HttpConnector', 
+                                                               c.cid, 
+                                                               c.baseurl, 
+                                                               c.method))
     
     def test_set_method(self):
         c = HttpConnector('CID', 'http://127.0.0.1/api/receive-mo', 'POST')

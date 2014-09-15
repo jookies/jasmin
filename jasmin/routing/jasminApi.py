@@ -106,11 +106,7 @@ class MtMessagingCredential(CredentialGenerick):
                          'content': r'.*'
                          }
         
-        self.defaults = {'source_address': None,
-                    'priority': 1,
-                    'dlr': 'no',
-                    'dlr_level': 1,
-                    }
+        self.defaults = {'source_address': None,}
         
         self.quotas = {'balance': None, 'submit_sm_count': None}
 
@@ -129,6 +125,9 @@ class Group(jasminApiGenerick):
         if self.mt_credential is None:
             self.mt_credential = MtMessagingCredential()
 
+    def __str__(self):
+        return self.gid
+
 class User(jasminApiGenerick):
     """Jasmin user"""
     
@@ -144,6 +143,9 @@ class User(jasminApiGenerick):
         self.mo_credential = mo_credential
         self.mt_credential = mt_credential
     
+    def __str__(self):
+        return self.username
+
     def getMOAuthorization(self, key):
         """Will return Authorization boolean for key
         """
@@ -296,7 +298,8 @@ class HttpConnector(Connector):
         self.method = method
         
         self._repr = '<%s (cid=%s, baseurl=%s, method=%s)>' % (self.__class__.__name__, 
-                                                               self.cid, self.baseurl, 
+                                                               self.cid, 
+                                                               self.baseurl, 
                                                                self.method)
         self._str = '%s:\ncid = %s\nbaseurl = %s\nmethod = %s' % (self.__class__.__name__, 
                                                                   self.cid, 

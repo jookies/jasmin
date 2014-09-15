@@ -147,6 +147,9 @@ Otherwise, an error is returned:
    * - **403**
      - Error "Authentication failure for username:_"
      - Authentication error
+   * - **403**
+     - Error "Authorization failed for username:_"
+     - Credentials validation error
    * - **412**
      - Error "No route found"
      - Message routing error
