@@ -81,7 +81,7 @@ class MoMessagingCredential(CredentialGenerick):
     def __init__(self):
         self.authorizations = {'receive': True,}
             
-        self.quotas = {'balance': None, 'submit_sm_count': None}
+        self.quotas = {'deliver_sm_count': None}
 
 class MtMessagingCredential(CredentialGenerick):
     """Credential set for sending MT Messages"""
@@ -108,7 +108,7 @@ class MtMessagingCredential(CredentialGenerick):
         
         self.defaults = {'source_address': None,}
         
-        self.quotas = {'balance': None, 'submit_sm_count': None}
+        self.quotas = {'balance': None, 'early_decrement_balance_percent': None, 'submit_sm_count': None}
 
 class Group(jasminApiGenerick):
     """Every user must have a group"""

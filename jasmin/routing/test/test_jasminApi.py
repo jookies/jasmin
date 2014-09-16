@@ -47,13 +47,13 @@ class UserAndCredentialsTestCase(TestCase):
         
         mo_c = MoMessagingCredential()
         mo_c.setAuthorization('receive', False)
-        mo_c.setQuota('balance', 3)
         
         mt_c = MtMessagingCredential()
         mt_c.setAuthorization('send', False)
         mt_c.setValueFilter('source_address', '^S.*')
         mt_c.setDefaultValue('source_address', 'SunHotel')
         mt_c.setQuota('balance', 2)
+        mt_c.setQuota('early_decrement_balance_percent', 10)
         
         # Define a GID group with custom messaging credentials
         self.group = Group('GID', mo_c, mt_c)
@@ -64,11 +64,11 @@ class UserAndCredentialsTestCase(TestCase):
         
         # Credentials are inherited from group
         self.assertEqual(u.getMOAuthorization('receive'), False)
-        self.assertEqual(u.getMOQuota('balance'), 3)
         self.assertEqual(u.getMTAuthorization('send'), False)
         self.assertEqual(u.getMTValueFilter('source_address'), '^S.*')
         self.assertEqual(u.getMTDefault('source_address'), 'SunHotel')
         self.assertEqual(u.getMTQuota('balance'), 2)
+        self.assertEqual(u.getMTQuota('early_decrement_balance_percent'), 10)
 
     def test_with_user_level_credentials(self):
         mo_c = MoMessagingCredential()
@@ -78,8 +78,8 @@ class UserAndCredentialsTestCase(TestCase):
         
         # Credentials are still inherited from group, this is because the
         # user-level values are None
-        self.assertEqual(u.getMOQuota('balance'), 3)
         self.assertEqual(u.getMTQuota('balance'), 2)
+        self.assertEqual(u.getMTQuota('early_decrement_balance_percent'), 10)
         self.assertEqual(u.getMTDefault('source_address'), 'SunHotel')
 
         # Credentials are taken from user-level scope, ignoring group-level credentials
@@ -94,18 +94,15 @@ class MoMessagingCredentialTestCase(TestCase):
         mc = getattr(jasminApi, self.messaging_cred_class)()
 
         self.assertEqual(mc.getAuthorization('receive'), True)
-        self.assertEqual(mc.getQuota('balance'), None)
-        self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('deliver_sm_count'), None)
 
     def test_set_and_get(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
         
         mc.setAuthorization('receive', False)
         self.assertEqual(mc.getAuthorization('receive'), False)
-        mc.setQuota('balance', 100)
-        self.assertEqual(mc.getQuota('balance'), 100)
-        mc.setQuota('submit_sm_count', 10000)
-        self.assertEqual(mc.getQuota('submit_sm_count'), 10000)
+        mc.setQuota('deliver_sm_count', 10000)
+        self.assertEqual(mc.getQuota('deliver_sm_count'), 10000)
     
     def test_get_invalid_key(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
