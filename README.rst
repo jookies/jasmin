@@ -34,12 +34,12 @@ and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-
 Getting started
 ---------------
 
-Refer to `Installation steps <http://jasmin.readthedocs.org/en/latest/installation/index.html>`_ to get Jasmin gateway up and running quickly with a simple SMS sending scenario.
+Refer to `Installation steps <http://docs.jasminsms.com/en/latest/installation/index.html>`_ to get Jasmin gateway up and running quickly with a simple SMS sending scenario.
 
 Documentation
 -------------
 
-The documentation is at: http://jasmin.readthedocs.org
+The documentation is at: http://docs.jasminsms.com
 
 If you still need to build it locally::
 
@@ -71,7 +71,7 @@ Jasmin is released under the terms of the [Apache License Version 2]. See **`LIC
 .. |docs| image:: https://readthedocs.org/projects/jasmin/badge/?version=latest
     :alt: Documentation status
     :scale: 100%
-    :target: http://jasmin.readthedocs.org
+    :target: http://docs.jasminsms.com
 
 .. |downloads| image:: https://pypip.in/download/jasmin/badge.svg
     :alt: Downloads through pypi
