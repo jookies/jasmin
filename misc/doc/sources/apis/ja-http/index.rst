@@ -144,6 +144,9 @@ Otherwise, an error is returned:
    * - **400**
      - Error "Mandatory argument _ is not found."
      - Request parameters validation error
+   * - **400**
+     - *dynamic messages*
+     - Credentials validation error
    * - **403**
      - Error "Authentication failure for username:_"
      - Authentication error

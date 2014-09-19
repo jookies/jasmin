@@ -281,6 +281,8 @@ SMS MT, here the basics of Jasmin MT routing mechanism:
 
      * **Filters**: One or many filters (c.f. :ref:`filter_manager`)
      * **Connector**: One connector (can be *many* in some situations)
+     * **Rate**: For billing purpose, the rate of sending one message through this route; it can be zero
+       to mark the route as FREE (NOT RATED) (c.f. :doc:`/billing/index`)
 
  #. There's many objects inheriting **MTRoute** to provide flexible ways to route messages:
 
@@ -313,6 +315,7 @@ Here's an example of adding a **DefaultRoute** to a SMPP Client Connector (smppc
    jasmin.routing.Routes.DefaultRoute arguments:
    connector
    > connector smppcc_default
+   > rate 0.0
    > ok
    Successfully added MTRoute [DefaultRoute] with order:0
 
@@ -329,6 +332,7 @@ Here's an example of adding a **StaticMTRoute** to a SMPP Client Connector (smpp
    > filters filter_1;filter_2
    > order 10
    > connector smppcc_1
+   > rate 0.0
    > ok
    Successfully added MTRoute [StaticMTRoute] with order:10
 
@@ -342,16 +346,17 @@ Here's an example of adding a **RandomRoundrobinMTRoute** to two SMPP Client Con
    filters, connectors
    > filters filter_3
    > connectors smppcc_2;smppcc_3
+   > rate 0.0
    > ok
    Successfully added MTRoute [RandomRoundrobinMTRoute] with order:20
 
 Once the above MT Routes are added to **MTRoutingTable**, it is possible to list these routes::
 
    jcli : mtrouter -l
-   #MT Route order   Type                    Connector ID(s)     Filter(s)
-   #20               RandomRoundrobinMTRoute smppcc_2, smppcc_3  <TransparentFilter>
-   #10               StaticMTRoute           smppcc_1            <TransparentFilter>, <TransparentFilter>
-   #0                DefaultRoute            smppcc_default
+   #MT Route order   Type                    Rate    Connector ID(s)     Filter(s)
+   #20               RandomRoundrobinMTRoute 0.00    smppcc_2, smppcc_3  <TransparentFilter>
+   #10               StaticMTRoute           0.00    smppcc_1            <TransparentFilter>, <TransparentFilter>
+   #0                DefaultRoute            0.00    smppcc_default
    Total MT Routes: 3
 
 .. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and 
@@ -363,12 +368,13 @@ It is possible to obtain more information of a defined route by typing **mtroute
    RandomRoundrobinMTRoute to 2 connectors:
       - smppcc_2
       - smppcc_3
+   NOT RATED
    
    jcli : mtrouter -s 10
-   StaticMTRoute to cid:smppcc_1
+   StaticMTRoute to cid:smppcc_1 NOT RATED
    
    jcli : mtrouter -s 0
-   DefaultRoute to cid:smppcc_default
+   DefaultRoute to cid:smppcc_default NOT RATED
 
 More control commands:
 

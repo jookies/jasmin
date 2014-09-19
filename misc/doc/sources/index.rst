@@ -48,6 +48,7 @@ Full contents
    /management/jcli/index
    /management/jcli/modules
    /routing/index
+   /billing/index
    /messaging/index
 
 License

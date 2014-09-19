@@ -1,3 +1,7 @@
+"""
+More info: http://docs.jasminsms.com/en/latest/routing/index.html
+"""
+
 from jasmin.routing.Routes import Route
 from jasmin.routing.Routables import Routable
 

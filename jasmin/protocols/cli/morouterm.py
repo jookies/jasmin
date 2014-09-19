@@ -73,8 +73,12 @@ def MORouteBuild(fCallback):
 
                 # Show Route help and save Route args
                 RouteClassArgs = inspect.getargspec(self.sessBuffer['route_class'].__init__).args
-                # Remove 'self' from args
-                del(RouteClassArgs[0])
+                if 'self' in RouteClassArgs:
+                    # Remove 'self' from args
+                    RouteClassArgs.remove('self')
+                if 'rate' in RouteClassArgs:
+                    # MO Routes are not rated
+                    RouteClassArgs.remove('rate')
                 self.sessBuffer['route_args'] = RouteClassArgs
                 
                 if len(RouteClassArgs) > 0:

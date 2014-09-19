@@ -9,7 +9,7 @@ class GroupTestCase(TestCase):
         g = Group('GID')
         
         self.assertEqual(g.gid, 'GID')
-        self.assertEqual(str(g), g.gid)
+        self.assertEqual(str(g), str(g.gid))
     
     def test_with_credentials(self):
         mo_c = MoMessagingCredential()

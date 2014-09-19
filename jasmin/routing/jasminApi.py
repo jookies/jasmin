@@ -126,7 +126,7 @@ class Group(jasminApiGenerick):
             self.mt_credential = MtMessagingCredential()
 
     def __str__(self):
-        return self.gid
+        return str(self.gid)
 
 class User(jasminApiGenerick):
     """Jasmin user"""

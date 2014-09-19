@@ -141,6 +141,7 @@ We'll configure a default route to send all SMS through our newly created DEMO_C
 	jasmin.routing.Routes.DefaultRoute arguments:
 	connector
 	> connector DEMO_CONNECTOR
+	> rate 0.00
 	> ok
 	Successfully added MTRoute [DefaultRoute] with order:0
 

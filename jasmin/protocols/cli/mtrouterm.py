@@ -74,8 +74,9 @@ def MTRouteBuild(fCallback):
 
                 # Show Route help and save Route args
                 RouteClassArgs = inspect.getargspec(self.sessBuffer['route_class'].__init__).args
-                # Remove 'self' from args
-                del(RouteClassArgs[0])
+                if 'self' in RouteClassArgs:
+                    # Remove 'self' from args
+                    RouteClassArgs.remove('self')
                 self.sessBuffer['route_args'] = RouteClassArgs
                 
                 if len(RouteClassArgs) > 0:
@@ -103,6 +104,13 @@ def MTRouteBuild(fCallback):
                     else:
                         # Make instance of SmppClientConnector
                         arg = SmppClientConnector(self.pb['smppcm'].getConnector(arg)['id'])
+                
+                # Validate rate and convert it to float
+                if cmd == 'rate':
+                    try:
+                        arg = float(arg)
+                    except ValueError:
+                        return self.protocol.sendData('Incorrect rate (must be float): %s' % (arg))
                     
                 # Validate connectors
                 if cmd == 'connectors':
@@ -185,8 +193,9 @@ class MtRouterManager(Manager):
         counter = 0
         
         if (len(mtroutes)) > 0:
-            self.protocol.sendData("#%s %s %s %s" % ('MT Route order'.ljust(16),
+            self.protocol.sendData("#%s %s %s %s %s" % ('MT Route order'.ljust(16),
                                                                         'Type'.ljust(23),
+                                                                        'Rate'.ljust(7),
                                                                         'Connector ID(s)'.ljust(32),
                                                                         'Filter(s)'.ljust(64),
                                                                         ), prompt=False)
@@ -212,8 +221,12 @@ class MtRouterManager(Manager):
                         filters += ', '
                     filters += repr(f)
 
-                self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(16),
+                # Prepare display for rate
+                rate = str('%.2f' % mtroute.getRate())
+                
+                self.protocol.sendData("#%s %s %s %s %s" % (str(order).ljust(16),
                                                                   str(mtroute.__class__.__name__).ljust(23),
+                                                                  rate.ljust(7),
                                                                   connectors.ljust(32),
                                                                   filters.ljust(64),
                                                                   ), prompt=False)

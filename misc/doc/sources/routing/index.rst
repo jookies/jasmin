@@ -67,10 +67,10 @@ MT Routing
 Having the below MT routing table set through a jCli console session::
 
    jcli : mtrouter -l
-   #MT Route order   Type                    Connector ID(s)                  Filter(s)                                                       
-   #100              RandomRoundrobinMTRoute smpp_1, smpp_2                   <DestinationAddrFilter (dst_addr=^\+33\d+)>                     
-   #91               StaticMTRoute           smpp_4                           <GroupFilter (gid=G2)>, <TimeIntervalFilter (08:00:00,18:00:00)>
-   #90               StaticMTRoute           smpp_3                           <GroupFilter (gid=G2)>                                          
+   #MT Route order   Type                    Rate    Connector ID(s)                  Filter(s)                                                       
+   #100              RandomRoundrobinMTRoute 0.00    smpp_1, smpp_2                   <DestinationAddrFilter (dst_addr=^\+33\d+)>                     
+   #91               StaticMTRoute           0.00    smpp_4                           <GroupFilter (gid=G2)>, <TimeIntervalFilter (08:00:00,18:00:00)>
+   #90               StaticMTRoute           0.00    smpp_3                           <GroupFilter (gid=G2)>                                          
    Total MT Routes: 3
 
 The following routing cases are considered:
@@ -206,7 +206,6 @@ There's a lot of things you can do by extending the **Route** class, here's a bu
 
 * *Failover route*: Will always return the same connector when it is up, and will fail over/back between master and backup connectors depending on 
   their status
-* *Least cost routing*: Implement a message rating system to always return the least cost route for a given message
 * *Best quality routing*: Implement a connector scoring system to always return the best quality route for a given message
 
 .. _Route_multiple_con:

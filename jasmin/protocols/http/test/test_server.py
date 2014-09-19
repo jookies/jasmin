@@ -69,7 +69,7 @@ class SendTestCases(HTTPApiTestCases):
                   'content': 'anycontent'}
 
         # Priority definitions
-        valid_priorities = {0, 1, 2, 3}
+        valid_priorities = {1, 2, 3}
         
         for params['priority'] in valid_priorities:
             response = yield self.web.get("send", params)
@@ -84,7 +84,7 @@ class SendTestCases(HTTPApiTestCases):
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
-            self.assertEqual(response.value(), "Error \"Argument [priority] has an invalid value: [%s].\"" % params['priority'])
+            self.assertEqual(response.value(), "Error \"Value filter failed for username [%s] (priority filter mismatch).\"" % params['username'])
 
     @defer.inlineCallbacks
     def test_send_with_inurl_dlr(self):

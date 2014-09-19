@@ -72,13 +72,13 @@ class CredentialValidator:
     def _checkSendFilters(self):
         "MT Filters check"
         
-        if not re.match(self.user.getMTValueFilter('destination_address'), self.request.args['to'][0]):
+        if not re.match(self.user.getMTValueFilter('destination_address'), str(self.request.args['to'][0])):
             raise CredentialValidationError('Value filter failed for username [%s] (destination_address filter mismatch).' % self.user)
-        if 'from' in self.request.args and not re.match(self.user.getMTValueFilter('source_address'), self.request.args['from'][0]):
+        if 'from' in self.request.args and not re.match(self.user.getMTValueFilter('source_address'), str(self.request.args['from'][0])):
             raise CredentialValidationError('Value filter failed for username [%s] (source_address filter mismatch).' % self.user)
-        if 'priority' in self.request.args and not re.match(self.user.getMTValueFilter('priority'), self.request.args['priority'][0]):
+        if 'priority' in self.request.args and not re.match(self.user.getMTValueFilter('priority'), str(self.request.args['priority'][0])):
             raise CredentialValidationError('Value filter failed for username [%s] (priority filter mismatch).' % self.user)
-        if not re.match(self.user.getMTValueFilter('content'), self.request.args['content'][0]):
+        if not re.match(self.user.getMTValueFilter('content'), str(self.request.args['content'][0])):
             raise CredentialValidationError('Value filter failed for username [%s] (content filter mismatch).' % self.user)
 
     def updatePDUWithSendDefaults(self, SubmitSmPDU):

@@ -19,7 +19,7 @@ class CredentialValidationError(HttpApiError):
     Raised when user credential validation fails  (jasmin.protocols.http.validation.CredentialValidator)
     """
     def __init__(self, message):
-        HttpApiError.__init__(self, 403, message)
+        HttpApiError.__init__(self, 400, message)
 
 class ServerError(HttpApiError):
     """

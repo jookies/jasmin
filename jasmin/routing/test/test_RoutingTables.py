@@ -1,3 +1,4 @@
+#pylint: disable-msg=W0401,W0611
 from twisted.trial.unittest import TestCase
 from jasmin.routing.RoutingTables import *
 from jasmin.routing.Routes import *
@@ -90,9 +91,9 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.mt_filter1 = [UserFilter(self.user1)]
         self.mt_filter2 = [DestinationAddrFilter('^10\d+')]
         self.transparent_filter = [TransparentFilter()]
-        self.mt_route1 = StaticMTRoute(self.mt_filter1, self.connector1)
-        self.mt_route2 = StaticMTRoute(self.mt_filter2, self.connector2)
-        self.mt_route3 = StaticMTRoute(self.transparent_filter, self.connector3)
+        self.mt_route1 = StaticMTRoute(self.mt_filter1, self.connector1, 0.0)
+        self.mt_route2 = StaticMTRoute(self.mt_filter2, self.connector2, 0.0)
+        self.mt_route3 = StaticMTRoute(self.transparent_filter, self.connector3, 0.0)
         self.mt_route4 = DefaultRoute(self.connector4)
         
         self.PDU_dst_1 = SubmitSM(

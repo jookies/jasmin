@@ -202,7 +202,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     def test_add_list_and_flush_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator()), 0.0), 2)
         yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
@@ -218,7 +218,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     def test_add_list_and_remove_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator()), 0.0), 2)
         yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
