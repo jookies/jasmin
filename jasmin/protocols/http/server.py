@@ -39,14 +39,12 @@ class Send(Resource):
                       'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
                       'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
-                      # Priority validation pattern is set through CredentialValidator since
-                      # it can be a user-privilege
-                      'priority'    :{'optional': True,},
+                      # Priority validation pattern can be validated/filtered further more through CredentialValidator
+                      'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
                       'dlr'         :{'optional': False,    'pattern': re.compile(r'^(yes|no)$')},
                       'dlr-url'     :{'optional': True,     'pattern': re.compile(r'^(http|https)\://.*$')},
-                      # DLR Level validation pattern is set through CredentialValidator since
-                      # it can be a user-privilege
-                      'dlr-level'   :{'optional': True,},
+                      # DLR Level validation pattern can be validated/filtered further more through CredentialValidator
+                      'dlr-level'   :{'optional': True,     'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  :{'optional': True,     'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'content'     :{'optional': False},
                       }
@@ -110,9 +108,9 @@ class Send(Resource):
                 raise RouteNotFoundError("No route found")
             else:
                 # Set priority
-                priority = 1
+                priority = 0
                 if 'priority' in updated_request.args:
-                    priority = updated_request.args['priority'][0]
+                    priority = int(updated_request.args['priority'][0])
                     SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[priority]
                 self.log.debug("SubmitSmPDU priority is set to %s" % priority)
 

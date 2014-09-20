@@ -102,7 +102,7 @@ class MtMessagingCredential(CredentialGenerick):
         
         self.value_filters = {'destination_address': r'.*',
                          'source_address': r'.*',
-                         'priority': r'[123]',
+                         'priority': r'^[0-3]$',
                          'content': r'.*'
                          }
         

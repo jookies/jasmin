@@ -75,10 +75,10 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - Mandatory
      - Password for Jasmin user account.
    * - **priority**
-     - 1, 2 or 3
+     - 0, 1, 2 or 3
      - 2
      - Optional
-     - Default is 1 (lowest priority)
+     - Default is 0 (lowest priority)
    * - **dlr**
      - yes or no
      - yes
