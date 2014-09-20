@@ -72,7 +72,6 @@ class SendTestCases(HTTPApiTestCases):
         valid_priorities = {0, 1, 2, 3}
         
         for params['priority'] in valid_priorities:
-            print params
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 500)
             # This is a normal error since SMPPClientManagerPB is not really running

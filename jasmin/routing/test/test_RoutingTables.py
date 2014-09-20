@@ -14,12 +14,12 @@ class RoutingTableTests():
         routing_t.add(self.mt_route1, 1)
         routing_t.add(self.mt_route4, 0)
         
-        c = routing_t.getConnectorFor(self.routable_matching_route1)
-        self.assertEqual(c, self.connector1)
-        c = routing_t.getConnectorFor(self.routable_matching_route2)
-        self.assertEqual(c, self.connector2)
-        c = routing_t.getConnectorFor(self.routable_notmatching_any)
-        self.assertEqual(c, self.connector4)
+        c = routing_t.getRouteFor(self.routable_matching_route1)
+        self.assertEqual(c.getConnector(), self.connector1)
+        c = routing_t.getRouteFor(self.routable_matching_route2)
+        self.assertEqual(c.getConnector(), self.connector2)
+        c = routing_t.getRouteFor(self.routable_notmatching_any)
+        self.assertEqual(c.getConnector(), self.connector4)
         
     def test_routing_table_order(self):
         routing_t = self._routingTable()

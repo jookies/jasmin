@@ -227,7 +227,7 @@ The **RoutingTable** class is extended by destination-specific child classes (MO
 * **getAll()**: Will return all the provisioned routes
 * **flush()**: Will remove all provisioned routes
 
-The **getConnectorFor(routable)** will get the right route to consider for a given routable, this method will iterate through all the provisioned 
+The **getRouteFor(routable)** will get the right route to consider for a given routable, this method will iterate through all the provisioned 
 routes in descendant order to call their respective **matchFilters(routable)** method. 
 
 .. figure:: /resources/routing/RoutingTable.png

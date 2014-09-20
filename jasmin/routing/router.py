@@ -99,11 +99,16 @@ class RouterPB(pb.Avatar):
         
         # Routing
         routable = RoutableDeliverSm(DeliverSmPDU, connector)
-        routedConnector = self.getMORoutingTable().getConnectorFor(routable)
-        if routedConnector is None:
+        route = self.getMORoutingTable().getRouteFor(routable)
+        if route is None:
             self.log.debug("No route matched this DeliverSmPDU with scid:%s and msgid:%s" % (scid, msgid))
             yield self.rejectMessage(message)
         else:
+            # Get connector from selected route
+            self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+            routedConnector = route.getConnector()
+
+            
             self.log.debug("Connector '%s' is set to be a route for this DeliverSmPDU" % routedConnector.cid)
             yield self.ackMessage(message)
             

@@ -1,3 +1,7 @@
+"""
+This is the http server module serving the /send API
+"""
+
 import logging
 import re
 from twisted.web.resource import Resource
@@ -23,6 +27,10 @@ class Send(Resource):
                                               long_content_split = HTTPApiConfig.long_content_split)
     
     def render(self, request):
+        """
+        /send request processing
+        """
+        
         self.log.debug("Rendering /send response with args: %s from %s" % (
                                                                            request.args, 
                                                                            request.getClientIP()))
@@ -102,11 +110,15 @@ class Send(Resource):
             # Routing
             routedConnector = None # init
             routable = RoutableSubmitSm(SubmitSmPDU, user)
-            routedConnector = self.RouterPB.getMTRoutingTable().getConnectorFor(routable)
-            if routedConnector is None:
+            route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
+            if route is None:
                 self.log.debug("No route matched this SubmitSmPDU")
                 raise RouteNotFoundError("No route found")
             else:
+                # Get connector from selected route
+                self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+                routedConnector = route.getConnector()
+                
                 # Set priority
                 priority = 0
                 if 'priority' in updated_request.args:
@@ -161,6 +173,12 @@ class Send(Resource):
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
                 response = {'return': c.result, 'status': 200}
+
+                # Route billing processing
+                # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then 
+                # user will be billed for the selected route rate.
+                
+                # [RULE 2] if user's submit_sm_count is not unlimited (!=None) then decrement it
         except Exception, e:
             self.log.error("Error: %s" % e)
             
