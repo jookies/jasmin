@@ -41,3 +41,10 @@ class RouteNotFoundError(HttpApiError):
     """
     def __init__(self, message = None):
         HttpApiError.__init__(self, 412, message)
+
+class ChargingError(HttpApiError):
+    """
+    Raised on any occuring error while charging user
+    """
+    def __init__(self, message = None):
+        HttpApiError.__init__(self, 403, message)

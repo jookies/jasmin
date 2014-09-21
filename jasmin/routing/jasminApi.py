@@ -147,7 +147,7 @@ class User(jasminApiGenerick):
         return self.username
 
     def getMOAuthorization(self, key):
-        """Will return Authorization boolean for key
+        """Will return Authorization boolean for key from user, if not possible, then from group
         """
         value = None
         if self.mo_credential is not None:
@@ -160,7 +160,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMTAuthorization(self, key):
-        """Will return Authorization boolean for key
+        """Will return Authorization boolean for key from user, if not possible, then from group
         """
         value = None
         if self.mt_credential is not None:
@@ -173,7 +173,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMOValueFilter(self, key):
-        """Will return Value filter for key
+        """Will return Value filter for key from user, if not possible, then from group
         """
         value = None
         if self.mo_credential is not None:
@@ -186,7 +186,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMTValueFilter(self, key):
-        """Will return Value filter for key
+        """Will return Value filter for key from user, if not possible, then from group
         """
         value = None
         if self.mt_credential is not None:
@@ -199,7 +199,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMODefault(self, key):
-        """Will return Default value for key
+        """Will return Default value for key from user, if not possible, then from group
         """
         value = None
         if self.mo_credential is not None:
@@ -212,7 +212,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMTDefault(self, key):
-        """Will return Default value for key
+        """Will return Default value for key from user, if not possible, then from group
         """
         value = None
         if self.mt_credential is not None:
@@ -225,7 +225,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMOQuota(self, key):
-        """Will return Quota for key
+        """Will return Quota for key from user, if not possible, then from group
         """
         value = None
         if self.mo_credential is not None:
@@ -238,7 +238,7 @@ class User(jasminApiGenerick):
             return value
 
     def getMTQuota(self, key):
-        """Will return Quota for key
+        """Will return Quota for key from user, if not possible, then from group
         """
         value = None
         if self.mt_credential is not None:
@@ -249,6 +249,36 @@ class User(jasminApiGenerick):
             return self.group.mt_credential.getQuota(key)
         else:
             return value
+
+    def updateMTQuota(self, key, updateValue):
+        """Will update MT Quota for user if having sufficient quota, otherwise group quota is considered
+        """
+        current_user_value = None
+        if self.mt_credential is not None:
+            current_user_value = self.mt_credential.getQuota(key)
+        # Update user quota if
+        # User have unlimited quota (current_user_value = None)
+        # or User have limited but sufficient quota
+        if current_user_value is None:
+            # Unlimited quota: no updates can be done
+            return
+        if current_user_value >= 0 and current_user_value + updateValue >= 0:
+            new_value = current_user_value + updateValue
+            return self.mt_credential.setQuota(key, new_value)
+        
+        current_group_value = self.group.mt_credential.getQuota(key)
+        # Update group quota if
+        # Group have unlimited quota (current_user_value = None)
+        # or Group have limited but sufficient quota
+        if current_group_value is None:
+            # Unlimited quota: no updates can be done
+            return
+        if current_group_value >= 0 and current_group_value + updateValue >= 0:
+            new_value = current_group_value + updateValue
+            return self.group.mt_credential.setQuota(key, new_value)
+        
+        # If no updates are possible, raise an exception
+        raise jasminApiCredentialError('Cannot update MTQuota [key:%s] [uValue:%s]' % (key, updateValue))
 
 class Connector(jasminApiGenerick):
     """

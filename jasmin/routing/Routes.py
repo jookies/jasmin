@@ -4,6 +4,7 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 
 #pylint: disable-msg=W0401,W0611
 import random
+from jasmin.routing.Bills import MTSMSBill
 from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import Filter
 from jasmin.routing.Routables import Routable
@@ -62,6 +63,41 @@ class Route:
     
     def getRate(self):
         return self.rate
+    
+    def getBillFor(self, user):
+        """This will return the exact bill for user depending on his defined quotas
+        """
+        
+        if not isinstance(user, User):
+            raise InvalidRouteParameterError("user is not an instance of User")
+        
+        # Init
+        bill = MTSMSBill()
+
+        # Route billing processing
+        # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then 
+        # user will be billed for the selected route rate.
+        if self.getRate() > 0 and user.getMTQuota('balance') is not None:
+            early_decrement_balance_percent = user.getMTQuota('early_decrement_balance_percent')
+            route_rate = self.getRate()
+            # if early_decrement_balance_percent is defined then user will be:
+            # - First: billed early_decrement_balance_percent % of the route rate on submit_sm
+            # - Second: billed for the rest of the route rate on submit_sm_resp reception
+            # If early_decrement_balance_percent is None (undefined) then the route rate will be
+            # billed on submit_sm with no care about submit_sm_resp
+            if early_decrement_balance_percent is not None:
+                bill.setAmount('submit_sm', route_rate * early_decrement_balance_percent)
+                bill.setAmount('submit_sm_resp', route_rate - bill['submit_sm'])
+            else:
+                bill.setAmount('submit_sm', route_rate)
+                bill.setAmount('submit_sm_resp', 0)
+        
+        # [RULE 2] if user's submit_sm_count is not unlimited (!=None) then decrement it when sending
+        # submit_sm
+        if user.getMTQuota('submit_sm_count') is not None:
+            bill.setAction('decrement_submit_sm_count', 1)
+        
+        return bill
     
     def matchFilters(self, routable):
         """If filters matche routable, the connector will be returned, if not, None will be returned

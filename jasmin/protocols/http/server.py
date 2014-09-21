@@ -9,7 +9,7 @@ from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError
+from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError, ChargingError
 from jasmin.protocols.http.validation import UrlArgsValidator, CredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
@@ -157,6 +157,17 @@ class Send(Resource):
                     dlr_level_text = 'No'
                     dlr_method = None
 
+                # Pre-sending submit_sm: Billing processing
+                bill = route.getBillFor(user)
+                charging_requirements = []
+                # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+                charging_requirements.append(bill.getTotalAmounts() >= user.getMTQuota('balance'))
+                # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm)
+                charging_requirements.append(bill.getAction('decrement_submit_sm') >= user.getMTQuota('submit_sm_count'))
+
+                if self.RouterPB.chargeUser(user, bill, charging_requirements) is None:
+                    raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+
                 ########################################################
                 # Send SubmitSmPDU through smpp client manager PB server
                 self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
@@ -173,12 +184,6 @@ class Send(Resource):
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
                 response = {'return': c.result, 'status': 200}
-
-                # Route billing processing
-                # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then 
-                # user will be billed for the selected route rate.
-                
-                # [RULE 2] if user's submit_sm_count is not unlimited (!=None) then decrement it
         except Exception, e:
             self.log.error("Error: %s" % e)
             

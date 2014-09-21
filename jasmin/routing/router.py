@@ -5,6 +5,7 @@ import uuid
 from twisted.spread import pb
 from twisted.internet import defer
 from txamqp.queue import Closed
+from jasmin.routing.jasminApi import jasminApiCredentialError
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
 from jasmin.routing.Routables import RoutableDeliverSm
@@ -133,32 +134,63 @@ class RouterPB(pb.Avatar):
         return self.mo_routing_table
     def getMTRoutingTable(self):
         return self.mt_routing_table
-    def authenticateUser(self, username, password, pickled = False):
+    def authenticateUser(self, username, password, return_pickled = False):
+        """Authenticate a user agains username and password and return user object or None
+        """
         for _user in self.users:
             if _user.username == username and _user.password == md5(password).digest():
-                if pickled:
+                self.log.debug('authenticateUser [username:%s] returned a User', username)
+                if return_pickled:
                     return pickle.dumps(_user, self.pickleProtocol)
                 else:
                     return _user
         
+        self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
+    def chargeUser(self, uid, bill, requirements = []):
+        """Will charge the user using the bill object after checking requirements
+        """
+        user = self.getUser(uid)
+        if user is None:
+            self.log.error("User [uid:%s] not found for charging" % uid)
+        
+        # Verify user-defined requirements
+        for requirement in requirements:
+            if not requirement:
+                self.log.warn("Charging requirement not met for user [uid:%s]" % uid)
+                return None
+        
+        try:
+            # Charge user
+            if bill.getAmount('submit_sm') > 0:
+                user.updateMTQuota('balance', bill.getAmount('submit_sm'))
+                self.log.info('User [uid:%s] charged for submit_sm amount: %s' % (uid, bill.getAmount('submit_sm')))
+            # Decrement counts
+            if bill.getAction('decrement_submit_sm') > 0:
+                user.updateMTQuota('submit_sm_count', bill.getAmount('decrement_submit_sm'))
+                self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (uid, bill.getAction('decrement_submit_sm')))
+        except jasminApiCredentialError, e:
+            self.log.error("Error charging user [uid:%s]: %s" % (uid, e.getMessage()))
+            return None
+        
+        return True
     
     def getUser(self, uid):
-        for u in self.users:
-            if u.uid == uid:
-                self.log.debug('getUser [%s] returned a User', uid)
-                return u
+        for _user in self.users:
+            if _user.uid == uid:
+                self.log.debug('getUser [uid:%s] returned a User', uid)
+                return _user
         
-        self.log.debug('getUser [%s] returned None', uid)
+        self.log.debug('getUser [uid:%s] returned None', uid)
         return None
     
     def getGroup(self, gid):
-        for g in self.groups:
-            if g.gid == gid:
-                self.log.debug('getGroup [%s] returned a Group', gid)
-                return g
+        for _group in self.groups:
+            if _group.gid == gid:
+                self.log.debug('getGroup [gid:%s] returned a Group', gid)
+                return _group
         
-        self.log.debug('getGroup [%s] returned None', gid)
+        self.log.debug('getGroup [gid:%s] returned None', gid)
         return None
     
     def getMORoute(self, order):
@@ -166,10 +198,10 @@ class RouterPB(pb.Avatar):
         
         for e in moroutes:
             if order == e.keys()[0]:
-                self.log.debug('getMORoute [%s] returned a MORoute', order)
+                self.log.debug('getMORoute [order:%s] returned a MORoute', order)
                 return e[order]
         
-        self.log.debug('getMORoute [%s] returned None', order)
+        self.log.debug('getMORoute [order:%s] returned None', order)
         return None
     
     def getMTRoute(self, order):
@@ -177,10 +209,10 @@ class RouterPB(pb.Avatar):
         
         for e in mtroutes:
             if order == e.keys()[0]:
-                self.log.debug('getMTRoute [%s] returned a MTRoute', order)
+                self.log.debug('getMTRoute [order:%s] returned a MTRoute', order)
                 return e[order]
         
-        self.log.debug('getMTRoute [%s] returned None', order)
+        self.log.debug('getMTRoute [order:%s] returned None', order)
         return None
     
     def perspective_persist(self, profile, scope = 'all'):

@@ -153,6 +153,9 @@ Otherwise, an error is returned:
    * - **403**
      - Error "Authorization failed for username:_"
      - Credentials validation error
+   * - **403**
+     - Error "Cannot charge submit_sm, check RouterPB log file for details"
+     - User charging error
    * - **412**
      - Error "No route found"
      - Message routing error
