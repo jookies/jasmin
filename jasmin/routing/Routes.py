@@ -77,8 +77,8 @@ class Route:
         # Route billing processing
         # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then 
         # user will be billed for the selected route rate.
-        if self.getRate() > 0 and user.getMTQuota('balance') is not None:
-            early_decrement_balance_percent = user.getMTQuota('early_decrement_balance_percent')
+        if self.getRate() > 0 and user.mt_credential.getQuota('balance') is not None:
+            early_decrement_balance_percent = user.mt_credential.getQuota('early_decrement_balance_percent')
             route_rate = self.getRate()
             # if early_decrement_balance_percent is defined then user will be:
             # - First: billed early_decrement_balance_percent % of the route rate on submit_sm
@@ -86,15 +86,15 @@ class Route:
             # If early_decrement_balance_percent is None (undefined) then the route rate will be
             # billed on submit_sm with no care about submit_sm_resp
             if early_decrement_balance_percent is not None:
-                bill.setAmount('submit_sm', route_rate * early_decrement_balance_percent)
-                bill.setAmount('submit_sm_resp', route_rate - bill['submit_sm'])
+                bill.setAmount('submit_sm', route_rate * early_decrement_balance_percent / 100)
+                bill.setAmount('submit_sm_resp', route_rate - bill.getAmount('submit_sm'))
             else:
                 bill.setAmount('submit_sm', route_rate)
                 bill.setAmount('submit_sm_resp', 0)
         
         # [RULE 2] if user's submit_sm_count is not unlimited (!=None) then decrement it when sending
         # submit_sm
-        if user.getMTQuota('submit_sm_count') is not None:
+        if user.mt_credential.getQuota('submit_sm_count') is not None:
             bill.setAction('decrement_submit_sm_count', 1)
         
         return bill

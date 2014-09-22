@@ -160,10 +160,18 @@ class Send(Resource):
                 # Pre-sending submit_sm: Billing processing
                 bill = route.getBillFor(user)
                 charging_requirements = []
-                # Ensure user have enough balance to pay submit_sm and submit_sm_resp
-                charging_requirements.append(bill.getTotalAmounts() >= user.getMTQuota('balance'))
-                # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm)
-                charging_requirements.append(bill.getAction('decrement_submit_sm') >= user.getMTQuota('submit_sm_count'))
+                u_balance = user.mt_credential.getQuota('balance')
+                u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
+                if u_balance is not None:
+                    # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+                    charging_requirements.append({'condition': bill.getTotalAmounts() <= u_balance,
+                                                  'error_message': 'Not enough balance (%s) for charging: %s' % 
+                                                  (u_balance, bill.getTotalAmounts())})
+                if u_subsm_count is not None:
+                    # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
+                    charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
+                                                  'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % 
+                                                  (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
                 if self.RouterPB.chargeUser(user, bill, charging_requirements) is None:
                     raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')

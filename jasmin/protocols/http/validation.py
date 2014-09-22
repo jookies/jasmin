@@ -56,37 +56,41 @@ class CredentialValidator:
     def _checkSendAuthorizations(self):
         "MT Authorizations check"
         
-        if not self.user.getMTAuthorization('send'):
+        if not self.user.mt_credential.getAuthorization('send'):
             raise CredentialValidationError('Authorization failed for username [%s] (Can not send MT messages).' % self.user)
-        if hasattr(self.submit_sm, 'nextPdu') and not self.user.getMTAuthorization('long_content'):
+        if hasattr(self.submit_sm, 'nextPdu') and not self.user.mt_credential.getAuthorization('long_content'):
             raise CredentialValidationError('Authorization failed for username [%s] (Long content is not authorized).' % self.user)
-        if 'dlr-level' in self.request.args and not self.user.getMTAuthorization('set_dlr_level'):
+        if 'dlr-level' in self.request.args and not self.user.mt_credential.getAuthorization('set_dlr_level'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting dlr level is not authorized).' % self.user)
-        if 'dlr-method' in self.request.args and not self.user.getMTAuthorization('set_dlr_method'):
+        if 'dlr-method' in self.request.args and not self.user.mt_credential.getAuthorization('set_dlr_method'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting dlr method is not authorized).' % self.user)
-        if 'from' in self.request.args and not self.user.getMTAuthorization('set_source_address'):
+        if 'from' in self.request.args and not self.user.mt_credential.getAuthorization('set_source_address'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting source address is not authorized).' % self.user)
-        if 'priority' in self.request.args and not self.user.getMTAuthorization('set_priority'):
+        if 'priority' in self.request.args and not self.user.mt_credential.getAuthorization('set_priority'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting priority is not authorized).' % self.user)
         
     def _checkSendFilters(self):
         "MT Filters check"
         
-        if not re.match(self.user.getMTValueFilter('destination_address'), str(self.request.args['to'][0])):
+        if (self.user.mt_credential.getValueFilter('destination_address') is None or 
+            not re.match(self.user.mt_credential.getValueFilter('destination_address'), str(self.request.args['to'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (destination_address filter mismatch).' % self.user)
-        if 'from' in self.request.args and not re.match(self.user.getMTValueFilter('source_address'), str(self.request.args['from'][0])):
+        if 'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or 
+                                            not re.match(self.user.mt_credential.getValueFilter('source_address'), str(self.request.args['from'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (source_address filter mismatch).' % self.user)
-        if 'priority' in self.request.args and not re.match(self.user.getMTValueFilter('priority'), str(self.request.args['priority'][0])):
+        if 'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or 
+                                                not re.match(self.user.mt_credential.getValueFilter('priority'), str(self.request.args['priority'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (priority filter mismatch).' % self.user)
-        if not re.match(self.user.getMTValueFilter('content'), str(self.request.args['content'][0])):
+        if (self.user.mt_credential.getValueFilter('content') is None or 
+            not re.match(self.user.mt_credential.getValueFilter('content'), str(self.request.args['content'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (content filter mismatch).' % self.user)
 
     def updatePDUWithSendDefaults(self, SubmitSmPDU):
         """Will update SubmitSmPDU.params from User credential defaults whenever a 
         SubmitSmPDU.params item is None"""
         
-        if self.user.getMTDefault('source_address') is not None and SubmitSmPDU.params['source_address'] is None:
-            SubmitSmPDU.params['source_address'] = self.user.getMTDefault('source_address')
+        if self.user.mt_credential.getDefaultValue('source_address') is not None and SubmitSmPDU.params['source_addr'] is None:
+            SubmitSmPDU.params['source_addr'] = self.user.mt_credential.getDefaultValue('source_address')
         
         return SubmitSmPDU
     

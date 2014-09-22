@@ -816,7 +816,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         
         # Now we'll create the connecter and send an MT to it
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=c1.cid)        
+        c1Config = SMPPClientConfig(id=c1.cid)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # We should receive a msg id
@@ -839,7 +839,7 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
         yield SMPPClientManagerPBTestCase.setUp(self)
         
         self.smsc_f = LastClientFactory()
-        self.smsc_f.protocol = self.protocol      
+        self.smsc_f.protocol = self.protocol
         self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
                 
     @defer.inlineCallbacks
@@ -907,7 +907,6 @@ class SubmitSmTestCaseTools():
                 break;
             else:
                 time.sleep(0.2)
-
     
 class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks

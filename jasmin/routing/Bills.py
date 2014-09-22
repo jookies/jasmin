@@ -60,4 +60,4 @@ class MTSMSBill(Bill):
 
         self.amounts['submit_sm'] = 0.0
         self.amounts['submit_sm_resp'] = 0.0
-        self.actions['decrement_submit_sm'] = 0
+        self.actions['decrement_submit_sm_count'] = 0

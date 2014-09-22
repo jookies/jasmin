@@ -147,31 +147,36 @@ class RouterPB(pb.Avatar):
         
         self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
-    def chargeUser(self, uid, bill, requirements = []):
+    def chargeUser(self, user, bill, requirements = []):
         """Will charge the user using the bill object after checking requirements
         """
-        user = self.getUser(uid)
-        if user is None:
-            self.log.error("User [uid:%s] not found for charging" % uid)
+        # Check if User is already existent in Router ?
+        _user = self.getUser(user.uid)
+        if _user is None:
+            self.log.error("User [uid:%s] not found for charging" % user.uid)
         
         # Verify user-defined requirements
         for requirement in requirements:
-            if not requirement:
-                self.log.warn("Charging requirement not met for user [uid:%s]" % uid)
+            if not requirement['condition']:
+                self.log.warn(requirement['error_message'])
                 return None
         
-        try:
-            # Charge user
-            if bill.getAmount('submit_sm') > 0:
-                user.updateMTQuota('balance', bill.getAmount('submit_sm'))
-                self.log.info('User [uid:%s] charged for submit_sm amount: %s' % (uid, bill.getAmount('submit_sm')))
-            # Decrement counts
-            if bill.getAction('decrement_submit_sm') > 0:
-                user.updateMTQuota('submit_sm_count', bill.getAmount('decrement_submit_sm'))
-                self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (uid, bill.getAction('decrement_submit_sm')))
-        except jasminApiCredentialError, e:
-            self.log.error("Error charging user [uid:%s]: %s" % (uid, e.getMessage()))
-            return None
+        # Charge _user
+        if bill.getAmount('submit_sm') > 0 and _user.mt_credential.getQuota('balance') is not None:
+            if _user.mt_credential.getQuota('balance') < bill.getAmount('submit_sm'):
+                self.log.info('User [uid:%s] have no sufficient balance (%s) for submit_sm charging: %s' 
+                              % (user.uid, _user.mt_credential.getQuota('balance'), bill.getAmount('submit_sm')))
+                return None
+            _user.mt_credential.updateQuota('balance', -bill.getAmount('submit_sm'))
+            self.log.info('User [uid:%s] charged for submit_sm amount: %s' % (user.uid, bill.getAmount('submit_sm')))
+        # Decrement counts
+        if bill.getAction('decrement_submit_sm_count') > 0 and _user.mt_credential.getQuota('submit_sm_count') is not None:
+            if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction('decrement_submit_sm_count'):
+                self.log.info('User [uid:%s] have no sufficient submit_sm_count (%s) for submit_sm charging: %s' 
+                              % (user.uid, _user.mt_credential.getQuota('submit_sm_count'), bill.getAction('decrement_submit_sm_count')))
+                return None
+            _user.mt_credential.updateQuota('submit_sm_count', -bill.getAction('decrement_submit_sm_count'))
+            self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (user.uid, bill.getAction('decrement_submit_sm_count')))
         
         return True
     

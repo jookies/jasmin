@@ -2,6 +2,7 @@
 A set of objects used by Jasmin to manage users, groups and connectors in memory (no database storage)
 """
 
+import copy
 import re
 from hashlib import md5
 
@@ -65,6 +66,12 @@ class CredentialGenerick(jasminApiGenerick):
         else:
             raise jasminApiCredentialError('%s is not a valid Quata key' % key)
 
+    def updateQuota(self, key, difference):
+        if key in self.quotas:
+            self.quotas[key]+= difference
+        else:
+            raise jasminApiCredentialError('%s is not a valid Quata key' % key)
+
     def getQuota(self, key):
         if key in self.quotas:
             return self.quotas[key]
@@ -74,30 +81,21 @@ class CredentialGenerick(jasminApiGenerick):
 class MoMessagingCredential(CredentialGenerick):
     """Credential set for receiving MO messages"""
     
-    authorizations = {}
-        
-    quotas = {}
-
-    def __init__(self):
-        self.authorizations = {'receive': True,}
+    def __init__(self, default_authorizations = None):
+        self.authorizations = {'receive': default_authorizations,}
             
         self.quotas = {'deliver_sm_count': None}
 
 class MtMessagingCredential(CredentialGenerick):
     """Credential set for sending MT Messages"""
     
-    authorizations = {}
-    value_filters = {}
-    defaults = {}
-    quotas = {}
-    
-    def __init__(self):
-        self.authorizations = {'send': True,
-                          'long_content': True,
-                          'set_dlr_level': True,
-                          'set_dlr_method': True,
-                          'set_source_address': True,
-                          'set_priority': True,
+    def __init__(self, default_authorizations = None):
+        self.authorizations = {'send': default_authorizations,
+                          'long_content': default_authorizations,
+                          'set_dlr_level': default_authorizations,
+                          'set_dlr_method': default_authorizations,
+                          'set_source_address': default_authorizations,
+                          'set_priority': default_authorizations,
                          }
         
         self.value_filters = {'destination_address': r'.*',
@@ -121,9 +119,9 @@ class Group(jasminApiGenerick):
         
         # When not set, mo and mt credentials are set to defaults
         if self.mo_credential is None:
-            self.mo_credential = MoMessagingCredential()
+            self.mo_credential = MoMessagingCredential(default_authorizations = True)
         if self.mt_credential is None:
-            self.mt_credential = MtMessagingCredential()
+            self.mt_credential = MtMessagingCredential(default_authorizations = True)
 
     def __str__(self):
         return str(self.gid)
@@ -142,143 +140,22 @@ class User(jasminApiGenerick):
 
         self.mo_credential = mo_credential
         self.mt_credential = mt_credential
+
+        # When no credentials are defined, take a deepcopy of group's credentials if defined, otherwise
+        # instanciate virgin credentials for user
+        if self.mo_credential is None:
+            if self.group.mo_credential is not None:
+                self.mo_credential = copy.deepcopy(self.group.mo_credential)
+            else:
+                self.mo_credential = MoMessagingCredential(default_authorizations = True)
+        if self.mt_credential is None:
+            if self.group.mt_credential is not None:
+                self.mt_credential = copy.deepcopy(self.group.mt_credential)
+            else:
+                self.mt_credential = MtMessagingCredential(default_authorizations = True)
     
     def __str__(self):
         return self.username
-
-    def getMOAuthorization(self, key):
-        """Will return Authorization boolean for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mo_credential is not None:
-            value = self.mo_credential.getAuthorization(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mo_credential.getAuthorization(key)
-        else:
-            return value
-
-    def getMTAuthorization(self, key):
-        """Will return Authorization boolean for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mt_credential is not None:
-            value = self.mt_credential.getAuthorization(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mt_credential.getAuthorization(key)
-        else:
-            return value
-
-    def getMOValueFilter(self, key):
-        """Will return Value filter for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mo_credential is not None:
-            value = self.mo_credential.getValueFilter(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mo_credential.getValueFilter(key)
-        else:
-            return value
-
-    def getMTValueFilter(self, key):
-        """Will return Value filter for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mt_credential is not None:
-            value = self.mt_credential.getValueFilter(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mt_credential.getValueFilter(key)
-        else:
-            return value
-
-    def getMODefault(self, key):
-        """Will return Default value for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mo_credential is not None:
-            value = self.mo_credential.getDefaultValue(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mo_credential.getDefaultValue(key)
-        else:
-            return value
-
-    def getMTDefault(self, key):
-        """Will return Default value for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mt_credential is not None:
-            value = self.mt_credential.getDefaultValue(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mt_credential.getDefaultValue(key)
-        else:
-            return value
-
-    def getMOQuota(self, key):
-        """Will return Quota for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mo_credential is not None:
-            value = self.mo_credential.getQuota(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mo_credential.getQuota(key)
-        else:
-            return value
-
-    def getMTQuota(self, key):
-        """Will return Quota for key from user, if not possible, then from group
-        """
-        value = None
-        if self.mt_credential is not None:
-            value = self.mt_credential.getQuota(key)
-        
-        # If value is None (not set), we check if it is set in group wide context
-        if value is None:
-            return self.group.mt_credential.getQuota(key)
-        else:
-            return value
-
-    def updateMTQuota(self, key, updateValue):
-        """Will update MT Quota for user if having sufficient quota, otherwise group quota is considered
-        """
-        current_user_value = None
-        if self.mt_credential is not None:
-            current_user_value = self.mt_credential.getQuota(key)
-        # Update user quota if
-        # User have unlimited quota (current_user_value = None)
-        # or User have limited but sufficient quota
-        if current_user_value is None:
-            # Unlimited quota: no updates can be done
-            return
-        if current_user_value >= 0 and current_user_value + updateValue >= 0:
-            new_value = current_user_value + updateValue
-            return self.mt_credential.setQuota(key, new_value)
-        
-        current_group_value = self.group.mt_credential.getQuota(key)
-        # Update group quota if
-        # Group have unlimited quota (current_user_value = None)
-        # or Group have limited but sufficient quota
-        if current_group_value is None:
-            # Unlimited quota: no updates can be done
-            return
-        if current_group_value >= 0 and current_group_value + updateValue >= 0:
-            new_value = current_group_value + updateValue
-            return self.group.mt_credential.setQuota(key, new_value)
-        
-        # If no updates are possible, raise an exception
-        raise jasminApiCredentialError('Cannot update MTQuota [key:%s] [uValue:%s]' % (key, updateValue))
 
 class Connector(jasminApiGenerick):
     """
