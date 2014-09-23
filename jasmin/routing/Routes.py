@@ -4,7 +4,7 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 
 #pylint: disable-msg=W0401,W0611
 import random
-from jasmin.routing.Bills import MTSMSBill
+from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import Filter
 from jasmin.routing.Routables import Routable
@@ -72,7 +72,7 @@ class Route:
             raise InvalidRouteParameterError("user is not an instance of User")
         
         # Init
-        bill = MTSMSBill()
+        bill = SubmitSmBill(user)
 
         # Route billing processing
         # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then 

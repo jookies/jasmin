@@ -30,7 +30,7 @@ class PDU(Content):
         
         if prePickle == True:
             body = pickle.dumps(body, self.pickleProtocol)
-
+        
         Content.__init__(self, body, children, properties)
 
 class DLRContent(Content):
@@ -69,7 +69,7 @@ class DLRContent(Content):
 class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
-    def __init__(self, body, replyto, priority = 1, expiration = None, msgid = None):
+    def __init__(self, body, replyto, priority = 1, expiration = None, msgid = None, submit_sm_resp_bill = None):
         props = {}
         
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -84,8 +84,11 @@ class SubmitSmContent(PDU):
         props['priority'] = priority
         props['message-id'] = msgid
         props['reply-to'] = replyto
+        if submit_sm_resp_bill is not None:
+            props['headers'] = {'submit_sm_resp_bill': submit_sm_resp_bill}
         if expiration is not None:
-            props['headers'] = {'expiration': expiration}
+            props['headers']['expiration'] = expiration
+
         PDU.__init__(self, body, properties = props)
         
 class SubmitSmRespContent(PDU):
@@ -111,3 +114,14 @@ class DeliverSmContent(PDU):
         props['headers'] = {'connector-id': sourceCid}
         
         PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
+
+class SubmitSmRespBillContent(Content):
+    "A Bill Content holding amount to be charged to user (uid)"
+    
+    def __init__(self, bid, uid, amount):
+        properties = {}
+        
+        properties['message-id'] = bid
+        properties['headers'] = {'user-id': uid, 'amount': str(amount)}
+        
+        Content.__init__(self, bid, properties = properties)

@@ -72,6 +72,22 @@ class RouterPB(pb.Avatar):
         self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
         
+        # Subscribe to bill_request.submit_sm_resp.* queues
+        yield self.amqpBroker.chan.exchange_declare(exchange='billing', type='topic')
+        consumerTag = 'RouterPB.%s' % str(uuid.uuid4())
+        routingKey = 'bill_request.submit_sm_resp.*'
+        queueName = 'RouterPB_bill_request_submit_sm_resp_all' # A local queue to RouterPB
+        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="billing", routing_key=routingKey)
+        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+        self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.bill_request_submit_sm_resp_q.get().addCallback(
+                                                             self.bill_request_submit_sm_resp_callback
+                                                             ).addErrback(
+                                                                          self.bill_request_submit_sm_resp_errback
+                                                                          )
+        self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+
     def rejectAndRequeueMessage(self, message):
         msgid = message.content.properties['message-id']
         
@@ -129,6 +145,51 @@ class RouterPB(pb.Avatar):
             # For info, this errback is called whenever:
             # - an error has occured inside deliver_sm_callback
             self.log.error("Error in deliver_sm_errback: %s" % error)
+
+    @defer.inlineCallbacks
+    def bill_request_submit_sm_resp_callback(self, message):
+        """This callback is a queue listener
+        It will only decide where to send the input message and republish it to the routedConnector
+        The consumer will execute the remaining job of final delivery 
+        c.f. test_router.DeliverSmDeliveryTestCases for use cases
+        """
+        bid = message.content.properties['message-id']
+        amount = float(message.content.properties['headers']['amount'])
+        uid = message.content.properties['headers']['user-id']
+        self.log.debug("Callbacked a bill_request_submit_sm_resp [uid:%s] [amount:%s] [related-bid:%s]" % (uid, amount, bid))
+
+        self.bill_request_submit_sm_resp_q.get().addCallback(
+                                                             self.bill_request_submit_sm_resp_callback
+                                                             ).addErrback(
+                                                                          self.bill_request_submit_sm_resp_errback
+                                                                          )
+        
+        _user = self.getUser(uid)
+        if _user is None:
+            self.log.error("User [uid:%s] not found, billing request [bid:%s] rejected" % (uid, bid))
+            yield self.rejectMessage(message)
+        elif _user.mt_credential.getQuota('balance') is not None:
+            if _user.mt_credential.getQuota('balance') < amount:
+                self.log.error('User [uid:%s] have no sufficient balance (%s/%s) for this billing [bid:%s] request: rejected' 
+                              % (uid, _user.mt_credential.getQuota('balance'), amount, bid))
+                yield self.rejectMessage(message)
+            else:
+                _user.mt_credential.updateQuota('balance', -amount)
+                self.log.info('User [uid:%s] charged for amount: %s (bid:%s)' % (uid, amount, bid))
+                yield self.ackMessage(message)
+
+    def bill_request_submit_sm_resp_errback(self, error):
+        """It appears that when closing a queue with the close() method it errbacks with
+        a txamqp.queue.Closed exception, didnt find a clean way to stop consuming a queue
+        without errbacking here so this is a workaround to make it clean, it can be considered
+        as a @TODO requiring knowledge of the queue api behaviour
+        """
+        if error.check(Closed) == None:
+            #@todo: implement this errback
+            # For info, this errback is called whenever:
+            # - an error has occured inside deliver_sm_callback
+            self.log.error("Error in bill_request_submit_sm_resp_errback: %s" % error)
+            self.log.critical("User were not charged !")
 
     def getMORoutingTable(self):
         return self.mo_routing_table

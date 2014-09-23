@@ -468,7 +468,7 @@ class SMPPClientManagerPB(pb.Avatar):
     
     @defer.inlineCallbacks
     def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
-                         dlr_url = None, dlr_level = 1, dlr_method = 'POST'):
+                         dlr_url = None, dlr_level = 1, dlr_method = 'POST', submit_sm_resp_bill = None):
         """This will enqueue a submit_sm to a connector
         """
 
@@ -497,11 +497,15 @@ class SMPPClientManagerPB(pb.Avatar):
         
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
-            SubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
+            pickled_SubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
+            pickled_submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
         
         # Publishing a pickled PDU
         self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
-        c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period)
+        if submit_sm_resp_bill is not None:
+            self.log.debug("... and a SubmitSmRespBill [bid:%s] [ttlamounts:%s]" % 
+                           (submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts()))
+        c = SubmitSmContent(pickled_SubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = pickled_submit_sm_resp_bill)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
         
         # Enqueue DLR request

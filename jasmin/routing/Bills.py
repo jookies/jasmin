@@ -1,10 +1,17 @@
 """
 Bills are objects containing amounts to be charged on users
 """
+import uuid
 
 class InvalidBillKeyError(Exception):
     """Raised when a bill key is not valid
     """
+
+def randomUniqueId():
+    "Returns a UUID4 unique message id"
+    msgid = str(uuid.uuid4())
+    
+    return msgid
 
 class Bill:
     """This is a generick Bill class, it must be inherited to defined billables
@@ -14,8 +21,12 @@ class Bill:
     """
     amounts = None
     actions = None
+    user = None
+    bid = None
     
-    def __init__(self):
+    def __init__(self, user):
+        self.bid = randomUniqueId()
+        self.user = user
         self.amounts = {}
         self.actions = {}
     
@@ -51,13 +62,32 @@ class Bill:
             raise InvalidBillKeyError('%s is not a valid action key.' % key)
         self.actions[key] = value
 
-class MTSMSBill(Bill):
+class SubmitSmBill(Bill):
     "This is the bill for user to pay when sending a MT SMS"
     
-    def __init__(self):
+    def __init__(self, user):
         "Defining billables"
-        Bill.__init__(self)
+        Bill.__init__(self, user)
 
         self.amounts['submit_sm'] = 0.0
         self.amounts['submit_sm_resp'] = 0.0
         self.actions['decrement_submit_sm_count'] = 0
+    
+    def getSubmitSmRespBill(self):
+        """
+        Will return a separate Bill for submit_sm_resp
+        """
+        
+        bill = SubmitSmRespBill(self.user)
+        bill.setAmount('submit_sm_resp', self.getAmount('submit_sm_resp'))
+        
+        return bill
+
+class SubmitSmRespBill(Bill):
+    "This is the bill for user to pay when sending a MT SMS"
+    
+    def __init__(self, user):
+        "Defining billables"
+        Bill.__init__(self, user)
+
+        self.amounts['submit_sm_resp'] = 0.0

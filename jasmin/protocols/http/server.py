@@ -11,6 +11,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError, ChargingError
 from jasmin.protocols.http.validation import UrlArgsValidator, CredentialValidator
+from jasmin.routing.Bills import SubmitSmRespBill
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -159,6 +160,7 @@ class Send(Resource):
 
                 # Pre-sending submit_sm: Billing processing
                 bill = route.getBillFor(user)
+                self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU" % (bill.bid, bill.getTotalAmounts()))
                 charging_requirements = []
                 u_balance = user.mt_credential.getQuota('balance')
                 u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
@@ -175,7 +177,7 @@ class Send(Resource):
 
                 if self.RouterPB.chargeUser(user, bill, charging_requirements) is None:
                     raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
-
+                
                 ########################################################
                 # Send SubmitSmPDU through smpp client manager PB server
                 self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
@@ -185,7 +187,8 @@ class Send(Resource):
                                                               pickled = False, 
                                                               dlr_url = dlr_url, 
                                                               dlr_level = dlr_level,
-                                                              dlr_method = dlr_method)
+                                                              dlr_method = dlr_method,
+                                                              submit_sm_resp_bill = bill.getSubmitSmRespBill())
             
             # Build final response
             if not c.result:

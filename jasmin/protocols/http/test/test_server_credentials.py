@@ -12,6 +12,7 @@ from jasmin.routing.test.test_router import HappySMSCTestCase
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.protocols.smpp.test.smsc_simulator import *
 
 class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
@@ -558,6 +559,8 @@ class QuotasTestCases(CredentialsTestCases):
     
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent(self):
+        #@TODO: Use mockers to get user balance instantly before and after sending back a submit_sm_resp
+        
         user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 10)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)

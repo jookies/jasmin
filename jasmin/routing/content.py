@@ -13,7 +13,7 @@ class PDU(Content):
         body = self.pickle(body)
 
         Content.__init__(self, body, children, properties)
-    
+
 class RoutedDeliverSmContent(PDU):
     def __init__(self, deliver_sm, msgid, scid, dc, trycount = 0, pickleProtocol = 2):
         props = {}
