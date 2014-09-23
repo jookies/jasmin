@@ -234,12 +234,14 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'filters fMO1'},
                     {'command': 'order 100'},
                     {'command': 'connector http1'},
+                    {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MORoute'}]
         yield self._test(r'jcli : ', commands)
         # Add Default MT route
         commands = [{'command': 'mtrouter -a'},
                     {'command': 'type defaultroute'},
                     {'command': 'connector smpp1'},
+                    {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
         # Add static MT route
@@ -248,6 +250,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'filters fMT1'},
                     {'command': 'order 100'},
                     {'command': 'connector smpp1'},
+                    {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
         
