@@ -10,14 +10,6 @@ class GroupTestCase(TestCase):
         
         self.assertEqual(g.gid, 'GID')
         self.assertEqual(str(g), str(g.gid))
-    
-    def test_with_credentials(self):
-        mo_c = MoMessagingCredential()
-        mt_c = MtMessagingCredential()
-        g = Group('GID', mo_c, mt_c)
-        
-        self.assertEqual(g.mo_credential, mo_c)
-        self.assertEqual(g.mt_credential, mt_c)
 
 class UserTestCase(TestCase):
     
@@ -33,98 +25,67 @@ class UserTestCase(TestCase):
         self.assertEqual(str(u), u.username)
     
     def test_with_credentials(self):
-        mo_c = MoMessagingCredential()
         mt_c = MtMessagingCredential()
-        u = User('UID', self.group, 'foo', 'bar', mo_c, mt_c)
+        u = User('UID', self.group, 'foo', 'bar', mt_c)
         
-        self.assertEqual(u.mo_credential, mo_c)
         self.assertEqual(u.mt_credential, mt_c)
 
 class UserAndCredentialsTestCase(TestCase):
     
     def setUp(self):
         TestCase.setUp(self)
-        
-        mo_c = MoMessagingCredential()
-        mo_c.setAuthorization('receive', False)
-        
-        mt_c = MtMessagingCredential()
-        mt_c.setAuthorization('send', False)
-        mt_c.setValueFilter('source_address', '^S.*')
-        mt_c.setDefaultValue('source_address', 'SunHotel')
-        mt_c.setQuota('balance', 2)
-        mt_c.setQuota('early_decrement_balance_percent', 10)
-        
         # Define a GID group with custom messaging credentials
-        self.group = Group('GID', mo_c, mt_c)
+        self.group = Group('GID')
 
-    def test_without_user_level_credentials(self):
+    def test_without_user_defined_credentials(self):
         # Create user in GID without 'user-level' credentials
         u = User('UID', self.group, 'foo', 'bar')
         
-        # Credentials are inherited from group
-        self.assertEqual(u.getMOAuthorization('receive'), False)
-        self.assertEqual(u.getMTAuthorization('send'), False)
-        self.assertEqual(u.getMTValueFilter('source_address'), '^S.*')
-        self.assertEqual(u.getMTDefault('source_address'), 'SunHotel')
-        self.assertEqual(u.getMTQuota('balance'), 2)
-        self.assertEqual(u.getMTQuota('early_decrement_balance_percent'), 10)
+        # Credentials are defaults
+        self.assertEqual(u.mt_credential.getAuthorization('send'), True)
+        self.assertEqual(u.mt_credential.getValueFilter('source_address'), '.*')
+        self.assertEqual(u.mt_credential.getDefaultValue('source_address'), None)
+        self.assertEqual(u.mt_credential.getQuota('balance'), None)
+        self.assertEqual(u.mt_credential.getQuota('early_decrement_balance_percent'), None)
 
-    def test_with_user_level_credentials(self):
-        mo_c = MoMessagingCredential()
+    def test_with_user_defined_credentials(self):
         mt_c = MtMessagingCredential()
-        # Create user in GID without 'user-level' credentials
-        u = User('UID', self.group, 'foo', 'bar', mo_c, mt_c)
+        mt_c.setQuota('balance', 2)
+        mt_c.setQuota('early_decrement_balance_percent', 10)
+        # Create user
+        u = User('UID', self.group, 'foo', 'bar', mt_c)
+        u.mt_credential.setDefaultValue('source_address', 'SunHotel')
+        u.mt_credential.setAuthorization('send', False)
+        u.mt_credential.setValueFilter('source_address', r'^216.*')
         
-        # Credentials are still inherited from group, this is because the
-        # user-level values are None
-        self.assertEqual(u.getMTQuota('balance'), 2)
-        self.assertEqual(u.getMTQuota('early_decrement_balance_percent'), 10)
-        self.assertEqual(u.getMTDefault('source_address'), 'SunHotel')
-
-        # Credentials are taken from user-level scope, ignoring group-level credentials
-        self.assertEqual(u.getMOAuthorization('receive'), True)
-        self.assertEqual(u.getMTAuthorization('send'), True)
-        self.assertEqual(u.getMTValueFilter('source_address'), '.*')
-
-class MoMessagingCredentialTestCase(TestCase):
-    messaging_cred_class = 'MoMessagingCredential'
-
-    def test_normal(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
-
-        self.assertEqual(mc.getAuthorization('receive'), True)
-        self.assertEqual(mc.getQuota('deliver_sm_count'), None)
-
-    def test_set_and_get(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
-        
-        mc.setAuthorization('receive', False)
-        self.assertEqual(mc.getAuthorization('receive'), False)
-        mc.setQuota('deliver_sm_count', 10000)
-        self.assertEqual(mc.getQuota('deliver_sm_count'), 10000)
-    
-    def test_get_invalid_key(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
-        
-        self.assertRaises(jasminApiCredentialError, mc.getAuthorization, 'anykey')
-        self.assertRaises(jasminApiCredentialError, mc.getValueFilter, 'anykey')
-        self.assertRaises(jasminApiCredentialError, mc.getDefaultValue, 'anykey')
-        self.assertRaises(jasminApiCredentialError, mc.getQuota, 'anykey')
-
-    def test_set_invalid_key(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
-
-        self.assertRaises(jasminApiCredentialError, mc.setAuthorization, 'anykey', 'anyvalue')
-        self.assertRaises(jasminApiCredentialError, mc.setValueFilter, 'anykey', 'anyvalue')
-        self.assertRaises(jasminApiCredentialError, mc.setDefaultValue, 'anykey', 'anyvalue')
-        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'anykey', 'anyvalue')
+        self.assertEqual(u.mt_credential.getQuota('balance'), 2)
+        self.assertEqual(u.mt_credential.getQuota('early_decrement_balance_percent'), 10)
+        self.assertEqual(u.mt_credential.getDefaultValue('source_address'), 'SunHotel')
+        self.assertEqual(u.mt_credential.getAuthorization('send'), False)
+        self.assertEqual(u.mt_credential.getValueFilter('source_address'), r'^216.*')
 
 class MtMessagingCredentialTestCase(TestCase):
     messaging_cred_class = 'MtMessagingCredential'
 
-    def test_normal(self):
+    def test_normal_noargs(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
+        
+        self.assertEqual(mc.getAuthorization('send'), None)
+        self.assertEqual(mc.getAuthorization('long_content'), None)
+        self.assertEqual(mc.getAuthorization('set_dlr_level'), None)
+        self.assertEqual(mc.getAuthorization('set_dlr_method'), None)
+        self.assertEqual(mc.getAuthorization('set_source_address'), None)
+        self.assertEqual(mc.getAuthorization('set_priority'), None)
+        self.assertEqual(mc.getValueFilter('destination_address'), r'.*')
+        self.assertEqual(mc.getValueFilter('source_address'), r'.*')
+        self.assertEqual(mc.getValueFilter('priority'), r'^[0-3]$')
+        self.assertEqual(mc.getValueFilter('content'), r'.*')
+        self.assertEqual(mc.getDefaultValue('source_address'), None)
+        self.assertEqual(mc.getQuota('balance'), None)
+        self.assertEqual(mc.getQuota('submit_sm_count'), None)
+
+    def test_normal_defaultsargs(self):
+        mc = getattr(jasminApi, self.messaging_cred_class)(default_authorizations = True)
         
         self.assertEqual(mc.getAuthorization('send'), True)
         self.assertEqual(mc.getAuthorization('long_content'), True)
@@ -134,7 +95,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('set_priority'), True)
         self.assertEqual(mc.getValueFilter('destination_address'), r'.*')
         self.assertEqual(mc.getValueFilter('source_address'), r'.*')
-        self.assertEqual(mc.getValueFilter('priority'), r'[123]')
+        self.assertEqual(mc.getValueFilter('priority'), r'^[0-3]$')
         self.assertEqual(mc.getValueFilter('content'), r'.*')
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)

@@ -24,10 +24,12 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         self.c1 = SmppClientConnector('smpp_c1')
     
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, user, group, default_route = None):
+    def prepareRoutingsAndStartConnector(self, user = None, default_route = None):
         # Routing stuff
-        yield self.group_add(group)
+        yield self.group_add(self.group1)
         
+        if user is None:
+            user = self.user1
         yield self.user_add(user)
         if default_route is None:
             yield self.mtroute_add(DefaultRoute(self.c1), 0)
@@ -71,11 +73,11 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
                 time.sleep(0.2)
 
     @defer.inlineCallbacks
-    def run_test(self, user, group, content = 'anycontent', 
+    def run_test(self, user = None, content = 'anycontent', 
                  dlr_level = None, dlr_method = None, source_address = None, 
                  priority = None, destination_address = None, default_route = None):
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(user, group, default_route)
+        yield self.prepareRoutingsAndStartConnector(user, default_route)
         
         # Set content
         self.params['content'] = content
@@ -113,174 +115,162 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_default_send(self):
         # User have default authorization to send an sms
-        response_text, response_code = yield self.run_test(self.user1, self.group1)
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
     @defer.inlineCallbacks
     def test_unauthorized_user_send(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-        
-        # User unauthorized
         user.mt_credential.setAuthorization('send', False)
-        response_text, response_code = yield self.run_test(user, group)
+
+        # User unauthorized
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Can not send MT messages)."')
         self.assertEqual(response_code, '400 Bad Request')
     
     @defer.inlineCallbacks
     def test_authorized_user_send(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # User authorized and group is not authorized
         user.mt_credential.setAuthorization('send', True)
-        response_text, response_code = yield self.run_test(user, group)
+
+        # User authorized
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_long_content(self):
         # User have default authorization to send long content
-        response_text, response_code = yield self.run_test(self.user1, self.group1, content = 'X' * 300)
+        response_text, response_code = yield self.run_test(content = 'X' * 300)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
     @defer.inlineCallbacks
     def test_unauthorized_user_long_content(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-        
+
         # User unauthorized
         user.mt_credential.setAuthorization('long_content', False)
-        response_text, response_code = yield self.run_test(user, group, content = 'X' * 300)
+        response_text, response_code = yield self.run_test(content = 'X' * 300)
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Long content is not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_authorized_user_long_content(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # User authorized and group is not authorized
         user.mt_credential.setAuthorization('long_content', True)
-        response_text, response_code = yield self.run_test(user, group, content = 'X' * 300)
+
+        # User authorized
+        response_text, response_code = yield self.run_test(content = 'X' * 300)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_set_dlr_level(self):
         # User have default authorization to set dlr level
-        response_text, response_code = yield self.run_test(self.user1, self.group1, dlr_level = 3)
+        response_text, response_code = yield self.run_test(dlr_level = 3)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_dlr_level(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-        
-        # User unauthorized
         user.mt_credential.setAuthorization('set_dlr_level', False)
-        response_text, response_code = yield self.run_test(user, group, dlr_level = 3)
+
+        # User unauthorized
+        response_text, response_code = yield self.run_test(dlr_level = 3)
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Setting dlr level is not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_authorized_user_set_dlr_level(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # User authorized and group is not authorized
         user.mt_credential.setAuthorization('set_dlr_level', True)
-        response_text, response_code = yield self.run_test(user, group, dlr_level = 3)
+
+        # User authorized
+        response_text, response_code = yield self.run_test(dlr_level = 3)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_set_dlr_method(self):
         # User have default authorization to set dlr method
-        response_text, response_code = yield self.run_test(self.user1, self.group1, dlr_method = 'post')
+        response_text, response_code = yield self.run_test(dlr_method = 'post')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_dlr_method(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-        
-        # User unauthorized
         user.mt_credential.setAuthorization('set_dlr_method', False)
-        response_text, response_code = yield self.run_test(user, group, dlr_method = 'post')
+
+        # User unauthorized
+        response_text, response_code = yield self.run_test(dlr_method = 'post')
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Setting dlr method is not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_authorized_user_set_dlr_method(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # User authorized and group is not authorized
         user.mt_credential.setAuthorization('set_dlr_method', True)
-        response_text, response_code = yield self.run_test(user, group, dlr_method = 'post')
+
+        # User authorized
+        response_text, response_code = yield self.run_test(dlr_method = 'post')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_set_source_address(self):
         # User have default authorization to set source address
-        response_text, response_code = yield self.run_test(self.user1, self.group1, source_address = 'JASMINTEST')
+        response_text, response_code = yield self.run_test(source_address = 'JASMINTEST')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_source_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-        
-        # User unauthorized
         user.mt_credential.setAuthorization('set_source_address', False)
-        response_text, response_code = yield self.run_test(user, group, source_address = 'JASMINTEST')
+
+        # User unauthorized
+        response_text, response_code = yield self.run_test(source_address = 'JASMINTEST')
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Setting source address is not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_authorized_user_set_source_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # User authorized and group is not authorized
         user.mt_credential.setAuthorization('set_source_address', True)
-        response_text, response_code = yield self.run_test(user, group, source_address = 'JASMINTEST')
+
+        # User authorized
+        response_text, response_code = yield self.run_test(user = user, source_address = 'JASMINTEST')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_set_priority(self):
         # User have default authorization to set message priority
-        response_text, response_code = yield self.run_test(self.user1, self.group1, priority = 2)
+        response_text, response_code = yield self.run_test(priority = 2)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_priority(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setAuthorization('set_priority', False)
         
         # User unauthorized
-        user.mt_credential.setAuthorization('set_priority', False)
-        response_text, response_code = yield self.run_test(user, group, priority = 2)
+        response_text, response_code = yield self.run_test(user = user, priority = 2)
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Setting priority is not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_authorized_user_set_priority(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # User authorized and group is not authorized
         user.mt_credential.setAuthorization('set_priority', True)
-        response_text, response_code = yield self.run_test(user, group, priority = 2)
+
+        # User authorized
+        response_text, response_code = yield self.run_test(user = user, priority = 2)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
@@ -288,116 +278,108 @@ class ValueFiltersTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_default_destination_address(self):
         # User have default value filter
-        response_text, response_code = yield self.run_test(self.user1, self.group1)
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_invalid_destination_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('destination_address', r'^2.*')
         
         # Invalid filter (user-level)
-        user.mt_credential.setValueFilter('destination_address', r'^2.*')
-        response_text, response_code = yield self.run_test(user, group, destination_address = '1200')
+        response_text, response_code = yield self.run_test(user = user, destination_address = '1200')
         self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (destination_address filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_valid_user_destination_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('destination_address', r'^1200$')
 
         # Valid filter (user-level) with user-level invalid filter
-        user.mt_credential.setValueFilter('destination_address', r'^1200$')
-        response_text, response_code = yield self.run_test(user, group, destination_address = '1200')
+        response_text, response_code = yield self.run_test(user = user, destination_address = '1200')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_source_address(self):
         # User have default value filter
-        response_text, response_code = yield self.run_test(self.user1, self.group1, source_address = 'JasminTest')
+        response_text, response_code = yield self.run_test(source_address = 'JasminTest')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_invalid_source_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('source_address', r'^2.*')
         
         # Invalid filter (user-level)
-        user.mt_credential.setValueFilter('source_address', r'^2.*')
-        response_text, response_code = yield self.run_test(user, group, source_address = 'JasminTest')
+        response_text, response_code = yield self.run_test(user = user, source_address = 'JasminTest')
         self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (source_address filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_valid_user_source_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('source_address', r'^JasminTest')
 
         # Valid filter (user-level) with user-level invalid filter
-        user.mt_credential.setValueFilter('source_address', r'^JasminTest')
-        response_text, response_code = yield self.run_test(user, group, source_address = 'JasminTest')
+        response_text, response_code = yield self.run_test(user = user, source_address = 'JasminTest')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_priority(self):
         # User have default value filter
-        response_text, response_code = yield self.run_test(self.user1, self.group1, priority = 3)
+        response_text, response_code = yield self.run_test(priority = 3)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_invalid_priority(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('priority', r'^[0-2]$')
         
         # Invalid filter (user-level)
-        user.mt_credential.setValueFilter('priority', r'^[0-2]$')
-        response_text, response_code = yield self.run_test(user, group, priority = 3)
+        response_text, response_code = yield self.run_test(user = user, priority = 3)
         self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (priority filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_valid_user_priority(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('priority', r'^[0-3]$')
 
         # Valid filter (user-level) with user-level invalid filter
-        user.mt_credential.setValueFilter('priority', r'^[0-3]$')
-        response_text, response_code = yield self.run_test(user, group, priority = 3)
+        response_text, response_code = yield self.run_test(user = user, priority = 3)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_default_content(self):
         # User have default value filter
-        response_text, response_code = yield self.run_test(self.user1, self.group1)
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
     @defer.inlineCallbacks
     def test_invalid_content(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('content', r'^fixed_content$')
         
         # Invalid filter (user-level)
-        user.mt_credential.setValueFilter('content', r'^fixed_content$')
-        response_text, response_code = yield self.run_test(user, group, content = 'any content')
+        response_text, response_code = yield self.run_test(user = user, content = 'any content')
         self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (content filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
     def test_valid_user_content(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setValueFilter('content', r'.*')
 
         # Valid filter (user-level) with user-level invalid filter
-        user.mt_credential.setValueFilter('content', r'.*')
-        response_text, response_code = yield self.run_test(user, group, content = 'any content')
+        response_text, response_code = yield self.run_test(user = user, content = 'any content')
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
@@ -405,7 +387,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_default_source_address(self):
         # User have no default source address
-        response_text, response_code = yield self.run_test(self.user1, self.group1)
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
@@ -414,11 +396,10 @@ class DefaultValuesTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_undefined_source_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
-
-        # Defining default value in group-level
         user.mt_credential.setDefaultValue('source_address', None)
-        response_text, response_code = yield self.run_test(user, group)
+
+        # Default value undefined
+        response_text, response_code = yield self.run_test(user = user)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
@@ -427,11 +408,10 @@ class DefaultValuesTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_defined_source_address(self):
         user = copy.copy(self.user1)
-        group = copy.copy(self.group1)
+        user.mt_credential.setDefaultValue('source_address', 'JASMINTEST')
         
         # Defining default value in user-level
-        user.mt_credential.setDefaultValue('source_address', 'JASMINTEST')
-        response_text, response_code = yield self.run_test(user, group)
+        response_text, response_code = yield self.run_test(user = user)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 
@@ -445,7 +425,7 @@ class QuotasTestCases(CredentialsTestCases):
         """
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(self.user1, self.group1)
+        response_text, response_code = yield self.run_test()
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
@@ -455,20 +435,15 @@ class QuotasTestCases(CredentialsTestCases):
         # User quotas still unlimited
         self.assertEqual(remote_user.mt_credential.getQuota('balance'), None)
         self.assertEqual(remote_user.mt_credential.getQuota('submit_sm_count'), None)
-        remote_group = remote_user.group
-        # Group quotas still unlimited
-        self.assertEqual(remote_group.mt_credential.getQuota('balance'), None)
-        self.assertEqual(remote_group.mt_credential.getQuota('submit_sm_count'), None)
         
     @defer.inlineCallbacks
     def test_unrated_route_limited_quotas(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 10)
         user.mt_credential.setQuota('submit_sm_count', 10)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group)
+        response_text, response_code = yield self.run_test(user = user)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
@@ -480,13 +455,12 @@ class QuotasTestCases(CredentialsTestCases):
 
     @defer.inlineCallbacks
     def test_unrated_route_unlimited_quotas(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
         user.mt_credential.setQuota('submit_sm_count', None)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group)
+        response_text, response_code = yield self.run_test(user = user)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
@@ -498,14 +472,13 @@ class QuotasTestCases(CredentialsTestCases):
 
     @defer.inlineCallbacks
     def test_rated_route_limited_quotas(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 10)
         user.mt_credential.setQuota('submit_sm_count', 10)
         route = DefaultRoute(self.c1, rate = 1.2)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
@@ -517,14 +490,13 @@ class QuotasTestCases(CredentialsTestCases):
 
     @defer.inlineCallbacks
     def test_rated_route_unlimited_quotas(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
         user.mt_credential.setQuota('submit_sm_count', None)
         route = DefaultRoute(self.c1, rate = 1.2)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
         
@@ -536,39 +508,36 @@ class QuotasTestCases(CredentialsTestCases):
 
     @defer.inlineCallbacks
     def test_rated_route_insufficient_balance(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 1.1)
         user.mt_credential.setQuota('submit_sm_count', None)
         route = DefaultRoute(self.c1, rate = 1.2)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
         self.assertEqual(response_code, '403 Forbidden')
 
     @defer.inlineCallbacks
     def test_unrated_route_insufficient_submit_sm_count(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
         user.mt_credential.setQuota('submit_sm_count', 0)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group)
+        response_text, response_code = yield self.run_test(user = user)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
         self.assertEqual(response_code, '403 Forbidden')
 
     @defer.inlineCallbacks
     def test_rated_route_insufficient_submit_sm_count(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
         user.mt_credential.setQuota('submit_sm_count', 0)
         route = DefaultRoute(self.c1, rate = 1.2)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
         self.assertEqual(response_code, '403 Forbidden')
 
@@ -577,27 +546,25 @@ class QuotasTestCases(CredentialsTestCases):
         '''Balance is greater than the early_decrement_balance_percent but lower than the final rate, 
         user must not be charged in this case, he have to get a balance covering the total rate'''
         
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 1)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)
         route = DefaultRoute(self.c1, rate = 2.0)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
         self.assertEqual(response_code, '403 Forbidden')
     
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent(self):
-        group = Group(1)
-        user = User('1', group, 'u1', 'password')
+        user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 10)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)
         route = DefaultRoute(self.c1, rate = 2.0)
 
         # Send default SMS
-        response_text, response_code = yield self.run_test(user, group, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
 

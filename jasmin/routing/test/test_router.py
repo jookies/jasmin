@@ -6,10 +6,6 @@ import pickle
 import time
 import urllib
 import string
-import random
-import copy
-import struct
-from hashlib import md5
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
