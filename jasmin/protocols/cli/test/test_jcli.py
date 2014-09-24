@@ -263,7 +263,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
     def test_02_check_automatic_load_after_jcli_reboot(self):
         # The conf loading on startup is made through JCliFactory.doStart() method
         # and is emulated below:
-        yield self.sendCommand('load -p %s' % self.JCliConfigInstance.load_profile, 0.2)
+        yield self.sendCommand('load', 0.2)
         # Clear buffer before beginning asserts
         self.tr.clear()
 

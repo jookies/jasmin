@@ -77,8 +77,7 @@ class JCliFactory(ServerFactory):
         proto.makeConnection(tr)
 
         if self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None and self.loadConfigProfileWithCreds['password'] is not None:
-            self.log.info("OnStart loading configuration profile: '%s' with username: '%s'" % (self.config.load_profile, 
-                                                                                               self.loadConfigProfileWithCreds['username']))
+            self.log.info("OnStart loading configuration default profile with username: '%s'" % (self.loadConfigProfileWithCreds['username']))
             
             if self.loadConfigProfileWithCreds['username'] != self.config.admin_username or md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password:
                 self.log.error("Authentication error, cannot load configuration profile with provided username: '%s'" % self.loadConfigProfileWithCreds['username'])
@@ -92,9 +91,9 @@ class JCliFactory(ServerFactory):
             proto.connectionLost(None)
             defer.returnValue(False)
         else:
-            self.log.info("OnStart loading configuration profile: '%s' without credentials (auth. is not required)" % (self.config.load_profile))
+            self.log.info("OnStart loading configuration default profile without credentials (auth. is not required)")
             
-        proto.dataReceived('load -p %s\r\n' % self.config.load_profile)
+        proto.dataReceived('load')
         proto.dataReceived('quit\r\n')
         proto.connectionLost(None)
         defer.returnValue(False)
