@@ -472,7 +472,10 @@ class SMPPClientManagerPB(pb.Avatar):
         """This will enqueue a submit_sm to a connector
         """
 
-        self.log.debug('Enqueued a SUBMIT_SM to connector [%s]', cid)
+        self.log.debug('Enqueuing a SUBMIT_SM to connector [%s]', cid)
+        if submit_sm_resp_bill is not None:
+            self.log.debug("... with a SubmitSmRespBill [bid:%s] [ttlamounts:%s]" % 
+                           (submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts()))
 
         connector = self.getConnector(cid)
         if connector == None:
@@ -497,15 +500,12 @@ class SMPPClientManagerPB(pb.Avatar):
         
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
-            pickled_SubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
-            pickled_submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
+            SubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
+            submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
         
         # Publishing a pickled PDU
         self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
-        if submit_sm_resp_bill is not None:
-            self.log.debug("... and a SubmitSmRespBill [bid:%s] [ttlamounts:%s]" % 
-                           (submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts()))
-        c = SubmitSmContent(pickled_SubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = pickled_submit_sm_resp_bill)
+        c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = submit_sm_resp_bill)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
         
         # Enqueue DLR request

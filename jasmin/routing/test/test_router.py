@@ -120,7 +120,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         yield self.amqpBroker.getChannelReadyDeferred()
         
         # Add the broker to the RouterPB
-        self.pbRoot_f.addAmqpBroker(self.amqpBroker)
+        yield self.pbRoot_f.addAmqpBroker(self.amqpBroker)
         
         # Setup smpp client manager pb
         self.clientManager_f.addAmqpBroker(self.amqpBroker)

@@ -4,6 +4,7 @@ import pickle
 import copy
 import time
 import urllib
+import mock
 from twisted.internet import reactor
 from twisted.web.client import getPage
 from twisted.internet import defer
@@ -25,7 +26,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         self.c1 = SmppClientConnector('smpp_c1')
     
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, user = None, default_route = None):
+    def prepareRoutingsAndStartConnector(self, user = None, default_route = None, side_effect = None):
         # Routing stuff
         yield self.group_add(self.group1)
         
@@ -53,6 +54,10 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             else:
                 time.sleep(0.2)
 
+        # Install mock
+        self.SMSCPort.factory.lastClient.sendSubmitSmResponse = mock.Mock(wraps = self.SMSCPort.factory.lastClient.sendSubmitSmResponse, 
+                                                                          side_effect = side_effect)
+
         # Configuration
         self.method = 'GET'
         self.postdata = None
@@ -76,9 +81,10 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def run_test(self, user = None, content = 'anycontent', 
                  dlr_level = None, dlr_method = None, source_address = None, 
-                 priority = None, destination_address = None, default_route = None):
+                 priority = None, destination_address = None, default_route = None,
+                 side_effect = None):
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(user, default_route)
+        yield self.prepareRoutingsAndStartConnector(user, default_route, side_effect)
         
         # Set content
         self.params['content'] = content
@@ -559,26 +565,30 @@ class QuotasTestCases(CredentialsTestCases):
     
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent(self):
-        #@TODO: Use mockers to get user balance instantly before and after sending back a submit_sm_resp
-        
         user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 10)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)
         route = DefaultRoute(self.c1, rate = 2.0)
 
+        _QuotasTestCases = self
+        @defer.inlineCallbacks
+        def pre_submit_sm_resp(reqPDU):
+            """
+            Will get the user balance before sending back a submit_sm_resp
+            """
+            t = yield _QuotasTestCases.user_get_all()
+            remote_user = pickle.loads(t)[0]
+            # Before submit_sm_resp, user must be charged 25% of the route rate
+            self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - (2.0*25/100))
+        
         # Send default SMS
-        response_text, response_code = yield self.run_test(user = user, default_route = route)
+        response_text, response_code = yield self.run_test(user = user, default_route = route,
+                                                           side_effect = pre_submit_sm_resp)
         self.assertEqual(response_text[:7], 'Success')
         self.assertTrue(response_code)
-
-        # Assert quotas after SMS is sent and before receiving a submit_sm_resp
+        
+        # Assert balance after receiving submit_sm_resp
         t = yield self.user_get_all()
         remote_user = pickle.loads(t)[0]
-        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 
-                         user.mt_credential.getQuota('balance') - (2.0*25/100))
-
-        # Assert quotas after SMS is sent and after receiving a submit_sm_resp
-        t = yield self.user_get_all()
-        remote_user = pickle.loads(t)[0]
-        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 
-                         user.mt_credential.getQuota('balance') - 2.0)
+        # After submit_sm_resp, user must be charged 100% of the route rate
+        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - 2.0)

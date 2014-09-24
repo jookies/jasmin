@@ -84,8 +84,10 @@ class SubmitSmContent(PDU):
         props['priority'] = priority
         props['message-id'] = msgid
         props['reply-to'] = replyto
+        
+        props['headers'] = {}
         if submit_sm_resp_bill is not None:
-            props['headers'] = {'submit_sm_resp_bill': submit_sm_resp_bill}
+            props['headers']['submit_sm_resp_bill'] = submit_sm_resp_bill
         if expiration is not None:
             props['headers']['expiration'] = expiration
 
