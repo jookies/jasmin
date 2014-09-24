@@ -7,6 +7,10 @@ class InvalidBillKeyError(Exception):
     """Raised when a bill key is not valid
     """
 
+class InvalidBillValueError(Exception):
+    """Raised when a bill value is not valid
+    """
+
 def randomUniqueId():
     "Returns a UUID4 unique message id"
     msgid = str(uuid.uuid4())
@@ -48,6 +52,8 @@ class Bill:
         "Will set a billable amount"
         if key not in self.amounts:
             raise InvalidBillKeyError('%s is not a valid amount key.' % key)
+        if type(amount) != int and type(amount) != float:
+            raise InvalidBillValueError('%s is not a valid amount value for key %s.' % (amount, key))
         self.amounts[key] = amount
     
     def getAction(self, key):
@@ -60,6 +66,8 @@ class Bill:
         "Will set a billable action"
         if key not in self.actions:
             raise InvalidBillKeyError('%s is not a valid action key.' % key)
+        if type(value) != int:
+            raise InvalidBillValueError('%s is not a valid value for key %s.' % (value, key))
         self.actions[key] = value
 
 class SubmitSmBill(Bill):
