@@ -48,7 +48,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         # Launch the client manager server
         pbRoot = SMPPClientManagerPB()
         pbRoot.setConfig(self.SMPPClientPBConfigInstance)
-        pbRoot.addAmqpBroker(self.amqpBroker)
+        yield pbRoot.addAmqpBroker(self.amqpBroker)
         p = portal.Portal(JasminPBRealm(pbRoot))
         if not authentication:
             p.registerChecker(AllowAnonymousAccess())

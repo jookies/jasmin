@@ -74,7 +74,8 @@ class RouterPBTestCase(unittest.TestCase):
     def tearDown(self):
         self.disconnect()
         self.PBServer.stopListening()
-        
+        self.pbRoot_f.cancelPersistenceTimer()
+
 class HttpServerTestCase(RouterPBTestCase):
     def setUp(self):
         RouterPBTestCase.setUp(self)
@@ -123,7 +124,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         yield self.pbRoot_f.addAmqpBroker(self.amqpBroker)
         
         # Setup smpp client manager pb
-        self.clientManager_f.addAmqpBroker(self.amqpBroker)
+        yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
         p = portal.Portal(JasminPBRealm(self.clientManager_f))
         p.registerChecker(AllowAnonymousAccess())
         jPBPortalRoot = JasminPBPortalRoot(p)
@@ -134,7 +135,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         DLRThrowerConfigInstance = DLRThrowerConfig()
         self.DLRThrower = DLRThrower()
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
-        self.DLRThrower.addAmqpBroker(self.amqpBroker)
+        yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
         
         # Connect to redis server
         RedisForJasminConfigInstance = RedisForJasminConfig()

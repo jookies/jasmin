@@ -34,10 +34,11 @@ class jCliTestCases(ProtocolTestCases):
         SMPPClientPBConfigInstance.authentication = False
         self.clientManager_f = SMPPClientManagerPB()
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
-        self.clientManager_f.addAmqpBroker(self.amqpBroker)
+        yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
         
     def tearDown(self):
         self.amqpClient.disconnect()
+        self.RouterPB_f.cancelPersistenceTimer()
       
 class jCliWithAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks

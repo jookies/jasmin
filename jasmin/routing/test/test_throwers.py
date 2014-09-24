@@ -200,7 +200,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
         
         # Add the broker to the deliverSmHttpThrower
-        self.DLRThrower.addAmqpBroker(self.amqpBroker)
+        yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
 
         # Start http servers
         self.Error404ServerResource = Error404Server()

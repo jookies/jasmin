@@ -14,12 +14,12 @@ class HTTPApiTestCases(TestCase):
     def setUp(self):
         # Instanciate a RouterPB (a requirement for HTTPApi)
         RouterPBConfigInstance = RouterPBConfig()
-        RouterPB_f = RouterPB()
-        RouterPB_f.setConfig(RouterPBConfigInstance)
+        self.RouterPB_f = RouterPB()
+        self.RouterPB_f.setConfig(RouterPBConfigInstance)
         
         # Provision Router with User and Route
-        RouterPB_f.users.append(User(1, Group(1), 'fourat', 'correct'))
-        RouterPB_f.mt_routing_table.add(DefaultRoute(SmppClientConnector('abc')), 0)
+        self.RouterPB_f.users.append(User(1, Group(1), 'fourat', 'correct'))
+        self.RouterPB_f.mt_routing_table.add(DefaultRoute(SmppClientConnector('abc')), 0)
 
         # Instanciate a SMPPClientManagerPB (a requirement for HTTPApi)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
@@ -28,7 +28,10 @@ class HTTPApiTestCases(TestCase):
         clientManager_f.setConfig(SMPPClientPBConfigInstance)
         
         httpApiConfigInstance = HTTPApiConfig()
-        self.web = DummySite(HTTPApi(RouterPB_f, clientManager_f, httpApiConfigInstance))
+        self.web = DummySite(HTTPApi(self.RouterPB_f, clientManager_f, httpApiConfigInstance))
+    
+    def tearDown(self):
+        self.RouterPB_f.cancelPersistenceTimer()
 
 class SendTestCases(HTTPApiTestCases):
     username = 'fourat'

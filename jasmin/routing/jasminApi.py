@@ -23,6 +23,7 @@ class CredentialGenerick(jasminApiGenerick):
     value_filters = {}
     defaults = {}
     quotas = {}
+    quotas_updated = False
     
     def setAuthorization(self, key, value):
         if key in self.authorizations:
@@ -69,6 +70,7 @@ class CredentialGenerick(jasminApiGenerick):
     def updateQuota(self, key, difference):
         if key in self.quotas:
             self.quotas[key] += difference
+            self.quotas_updated = True
         else:
             raise jasminApiCredentialError('%s is not a valid Quata key' % key)
 

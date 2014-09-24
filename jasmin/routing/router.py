@@ -3,7 +3,7 @@ import logging
 import pickle
 import uuid
 from twisted.spread import pb
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from txamqp.queue import Closed
 from jasmin.routing.jasminApi import jasminApiCredentialError
 from jasmin.routing.content import RoutedDeliverSmContent
@@ -18,6 +18,7 @@ LOG_CATEGORY = "jasmin-router"
 class RouterPB(pb.Avatar):
     def setConfig(self, RouterPBConfig):
         self.config = RouterPBConfig
+        self.persistenceTimer = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
@@ -36,6 +37,10 @@ class RouterPB(pb.Avatar):
         self.mt_routing_table = MTRoutingTable()
         self.users = []
         self.groups = []
+        
+        # Activate persistenceTimer, used for persisting users and groups whenever critical updates
+        # occured
+        self.activatePersistenceTimer()
         
         # Persistence flag, accessed through perspective_is_persisted
         self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
@@ -97,6 +102,37 @@ class RouterPB(pb.Avatar):
         return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
     def ackMessage(self, message):
         return self.amqpBroker.chan.basic_ack(message.delivery_tag)
+    
+    def activatePersistenceTimer(self):
+        if self.persistenceTimer and self.persistenceTimer.active():
+            self.log.debug('Reseting persistenceTimer with %ss' % self.config.persistence_timer_secs)
+            self.persistenceTimer.reset(self.config.persistence_timer_secs)
+        else:
+            self.log.debug('Activating persistenceTimer with %ss' % self.config.persistence_timer_secs)
+            self.persistenceTimer = reactor.callLater(self.config.persistence_timer_secs, self.persistenceTimerExpired)
+            
+    def cancelPersistenceTimer(self):
+        if self.persistenceTimer and self.persistenceTimer.active():
+            self.log.debug('Cancelling persistenceTimer')
+            self.persistenceTimer.cancel()
+            self.persistenceTimer = None
+    
+    def persistenceTimerExpired(self):
+        'This is run every self.config.persistence_timer_secs seconds'
+        self.log.debug('persistenceTimerExpired called')
+
+        # If at least one user have its quotas updated, then persist
+        # groups and users to disk
+        for u in self.users:
+            if u.mt_credential.quotas_updated:
+                self.log.info('Detected a user quota update, users and groups will be persisted.')
+                self.perspective_persist(scope = 'groups')
+                self.perspective_persist(scope = 'users')
+                u.mt_credential.quotas_updated = False
+                self.log.debug('Persisted successfully')
+                break
+        
+        self.activatePersistenceTimer()
 
     @defer.inlineCallbacks
     def deliver_sm_callback(self, message):
@@ -281,7 +317,7 @@ class RouterPB(pb.Avatar):
         self.log.debug('getMTRoute [order:%s] returned None', order)
         return None
     
-    def perspective_persist(self, profile, scope = 'all'):
+    def perspective_persist(self, profile = 'jcli-prod', scope = 'all'):
         try:
             if scope in ['all', 'groups']:
                 # Persist groups configuration
@@ -295,7 +331,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['users'] = True
+                self.persistanceState['groups'] = True
 
             if scope in ['all', 'users']:
                 # Persist users configuration
@@ -309,7 +345,9 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['groups'] = True
+                self.persistanceState['users'] = True
+                for u in self.users:
+                    u.mt_credential.quotas_updated = False
 
             if scope in ['all', 'moroutes']:
                 # Persist moroutes configuration
@@ -348,7 +386,7 @@ class RouterPB(pb.Avatar):
 
         return True
     
-    def perspective_load(self, profile, scope = 'all'):
+    def perspective_load(self, profile = 'jcli-prod', scope = 'all'):
         try:
             if scope in ['all', 'groups']:
                 # Load groups configuration
@@ -391,6 +429,8 @@ class RouterPB(pb.Avatar):
 
                 # Set persistance state to True
                 self.persistanceState['users'] = True
+                for u in self.users:
+                    u.mt_credential.quotas_updated = False
 
             if scope in ['all', 'moroutes']:
                 # Load moroutes configuration
