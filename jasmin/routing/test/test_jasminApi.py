@@ -83,6 +83,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_normal_defaultsargs(self):
         mc = getattr(jasminApi, self.messaging_cred_class)(default_authorizations = True)
@@ -100,6 +101,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_set_and_get(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
@@ -130,6 +132,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getQuota('balance'), 100)
         mc.setQuota('submit_sm_count', 10000)
         self.assertEqual(mc.getQuota('submit_sm_count'), 10000)
+        mc.setQuota('early_decrement_balance_percent', 1020)
+        self.assertEqual(mc.getQuota('early_decrement_balance_percent'), 1020)
     
     def test_get_invalid_key(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
@@ -146,6 +150,14 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertRaises(jasminApiCredentialError, mc.setValueFilter, 'anykey', 'anyvalue')
         self.assertRaises(jasminApiCredentialError, mc.setDefaultValue, 'anykey', 'anyvalue')
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'anykey', 'anyvalue')
+    
+    def test_quotas_updated(self):
+        mc = getattr(jasminApi, self.messaging_cred_class)()
+        mc.setQuota('submit_sm_count', 2)
+
+        self.assertEqual(mc.quotas_updated, False)
+        mc.updateQuota('submit_sm_count', 1)
+        self.assertEqual(mc.quotas_updated, True)
 
 class HttpConnectorTestCase(TestCase):
     def test_normal(self):

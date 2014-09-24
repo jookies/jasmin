@@ -69,10 +69,13 @@ class CredentialGenerick(jasminApiGenerick):
 
     def updateQuota(self, key, difference):
         if key in self.quotas:
+            if self.quotas[key] is None:
+                raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
+            
             self.quotas[key] += difference
             self.quotas_updated = True
         else:
-            raise jasminApiCredentialError('%s is not a valid Quata key' % key)
+            raise jasminApiCredentialError('%s is not a valid Quota key' % key)
 
     def getQuota(self, key):
         if key in self.quotas:
