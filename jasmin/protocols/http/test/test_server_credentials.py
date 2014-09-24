@@ -461,6 +461,23 @@ class QuotasTestCases(CredentialsTestCases):
         self.assertEqual(remote_user.mt_credential.getQuota('submit_sm_count'), 9)
 
     @defer.inlineCallbacks
+    def test_unrated_route_long_message(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('submit_sm_count', 10)
+
+        # Send long SMS
+        response_text, response_code = yield self.run_test(user = user, content = 'X' * 400)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertTrue(response_code)
+        
+        # Assert quotas after long SMS is sent
+        t = yield self.user_get_all()
+        remote_user = pickle.loads(t)[0]
+        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10)
+        self.assertEqual(remote_user.mt_credential.getQuota('submit_sm_count'), 7)
+
+    @defer.inlineCallbacks
     def test_unrated_route_unlimited_quotas(self):
         user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
@@ -496,6 +513,25 @@ class QuotasTestCases(CredentialsTestCases):
         self.assertEqual(remote_user.mt_credential.getQuota('submit_sm_count'), 9)
 
     @defer.inlineCallbacks
+    def test_rated_route_long_message(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('submit_sm_count', 10)
+        route = DefaultRoute(self.c1, rate = 1.2)
+
+        # Send long SMS
+        response_text, response_code = yield self.run_test(user = user, default_route = route, 
+                                                           content = 'X' * 400)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertTrue(response_code)
+        
+        # Assert quotas after long SMS is sent
+        t = yield self.user_get_all()
+        remote_user = pickle.loads(t)[0]
+        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 6.4)
+        self.assertEqual(remote_user.mt_credential.getQuota('submit_sm_count'), 7)
+
+    @defer.inlineCallbacks
     def test_rated_route_unlimited_quotas(self):
         user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
@@ -526,6 +562,19 @@ class QuotasTestCases(CredentialsTestCases):
         self.assertEqual(response_code, '403 Forbidden')
 
     @defer.inlineCallbacks
+    def test_rated_route_insufficient_balance_long_message(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', 5.9)
+        user.mt_credential.setQuota('submit_sm_count', None)
+        route = DefaultRoute(self.c1, rate = 2.0)
+
+        # Send default SMS
+        response_text, response_code = yield self.run_test(user = user, default_route = route,
+                                                           content = 'X' * 400)
+        self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
+        self.assertEqual(response_code, '403 Forbidden')
+
+    @defer.inlineCallbacks
     def test_unrated_route_insufficient_submit_sm_count(self):
         user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', None)
@@ -545,6 +594,30 @@ class QuotasTestCases(CredentialsTestCases):
 
         # Send default SMS
         response_text, response_code = yield self.run_test(user = user, default_route = route)
+        self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
+        self.assertEqual(response_code, '403 Forbidden')
+
+    @defer.inlineCallbacks
+    def test_unrated_route_insufficient_submit_sm_count_long_message(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', None)
+        user.mt_credential.setQuota('submit_sm_count', 2)
+
+        # Send default SMS
+        response_text, response_code = yield self.run_test(user = user, content = 'X' * 400)
+        self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
+        self.assertEqual(response_code, '403 Forbidden')
+
+    @defer.inlineCallbacks
+    def test_rated_route_insufficient_submit_sm_count_long_message(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', None)
+        user.mt_credential.setQuota('submit_sm_count', 2)
+        route = DefaultRoute(self.c1, rate = 1.2)
+
+        # Send default SMS
+        response_text, response_code = yield self.run_test(user = user, default_route = route,
+                                                           content = 'X' * 400)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
         self.assertEqual(response_code, '403 Forbidden')
 
@@ -592,3 +665,34 @@ class QuotasTestCases(CredentialsTestCases):
         remote_user = pickle.loads(t)[0]
         # After submit_sm_resp, user must be charged 100% of the route rate
         self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - 2.0)
+
+    @defer.inlineCallbacks
+    def test_rated_route_early_decrement_balance_percent_long_message(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('early_decrement_balance_percent', 25)
+        route = DefaultRoute(self.c1, rate = 2.0)
+
+        _QuotasTestCases = self
+        @defer.inlineCallbacks
+        def pre_submit_sm_resp(reqPDU):
+            """
+            Will get the user balance before sending back a submit_sm_resp
+            """
+            t = yield _QuotasTestCases.user_get_all()
+            remote_user = pickle.loads(t)[0]
+            # Before submit_sm_resp, user must be charged 25% of the route rate (x number of submit_sm parts)
+            self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - ((2.0*25/100) * 3))
+        
+        # Send default SMS
+        response_text, response_code = yield self.run_test(user = user, default_route = route,
+                                                           side_effect = pre_submit_sm_resp,
+                                                           content = 'X' * 400)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertTrue(response_code)
+        
+        # Assert balance after receiving submit_sm_resp
+        t = yield self.user_get_all()
+        remote_user = pickle.loads(t)[0]
+        # After submit_sm_resp, user must be charged 100% of the route rate (x number of submit_sm parts)
+        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - (2.0 * 3))

@@ -167,14 +167,17 @@ class SMPPClientSMListener:
     def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
         
-        # Get bill information
-        total_bill_amount = 0.0
         if ('headers' not in amqpMessage.content.properties or 'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
             submit_sm_resp_bill = None
         else:  
             submit_sm_resp_bill = pickle.loads(amqpMessage.content.properties['headers']['submit_sm_resp_bill'])
         
         if r.response.status == CommandStatus.ESME_ROK:
+            # Get bill information
+            total_bill_amount = 0.0
+            if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
+                total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
+
             # UDH is set ?
             UDHI_INDICATOR_SET = False
             if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
@@ -210,10 +213,6 @@ class SMPPClientSMListener:
                         total_bill_amount+= submit_sm_resp_bill.getTotalAmounts()
             else:
                 short_message = r.request.params['short_message']
-                
-                # Set bill amount
-                if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
-                    total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
             
             self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (

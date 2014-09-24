@@ -97,7 +97,7 @@ class CredentialValidator:
     def validate(self, ):
         "Will validate requests through Authorizations and ValueFilters credential check"
         
-        if self.action == 'http_send':
+        if self.action == 'Send':
             self._checkSendAuthorizations()
             self._checkSendFilters()
         else:

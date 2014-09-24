@@ -158,24 +158,31 @@ class Send(Resource):
                     dlr_level_text = 'No'
                     dlr_method = None
 
+                # Get number of PDUs to be sent (for billing purpose)
+                _pdu = SubmitSmPDU
+                submit_sm_count = 1
+                while hasattr(_pdu, 'nextPdu'):
+                    _pdu = _pdu.nextPdu
+                    submit_sm_count += 1
+                    
                 # Pre-sending submit_sm: Billing processing
                 bill = route.getBillFor(user)
-                self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU" % (bill.bid, bill.getTotalAmounts()))
+                self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU (x%s)" % (bill.bid, bill.getTotalAmounts(), submit_sm_count))
                 charging_requirements = []
                 u_balance = user.mt_credential.getQuota('balance')
                 u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
                 if u_balance is not None:
                     # Ensure user have enough balance to pay submit_sm and submit_sm_resp
-                    charging_requirements.append({'condition': bill.getTotalAmounts() <= u_balance,
+                    charging_requirements.append({'condition': bill.getTotalAmounts() * submit_sm_count <= u_balance,
                                                   'error_message': 'Not enough balance (%s) for charging: %s' % 
                                                   (u_balance, bill.getTotalAmounts())})
                 if u_subsm_count is not None:
                     # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
-                    charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
+                    charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') * submit_sm_count <= u_subsm_count,
                                                   'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % 
                                                   (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
-                if self.RouterPB.chargeUser(user, bill, charging_requirements) is None:
+                if self.RouterPB.chargeUserForSubmitSms(user, bill, submit_sm_count, charging_requirements) is None:
                     raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
                 
                 ########################################################

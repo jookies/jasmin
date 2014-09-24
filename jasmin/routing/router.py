@@ -208,7 +208,7 @@ class RouterPB(pb.Avatar):
         
         self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
-    def chargeUser(self, user, bill, requirements = []):
+    def chargeUserForSubmitSms(self, user, bill, submit_sm_count, requirements = []):
         """Will charge the user using the bill object after checking requirements
         """
         # Check if User is already existent in Router ?
@@ -223,21 +223,21 @@ class RouterPB(pb.Avatar):
                 return None
         
         # Charge _user
-        if bill.getAmount('submit_sm') > 0 and _user.mt_credential.getQuota('balance') is not None:
-            if _user.mt_credential.getQuota('balance') < bill.getAmount('submit_sm'):
+        if bill.getAmount('submit_sm') * submit_sm_count > 0 and _user.mt_credential.getQuota('balance') is not None:
+            if _user.mt_credential.getQuota('balance') < bill.getAmount('submit_sm') * submit_sm_count:
                 self.log.info('User [uid:%s] have no sufficient balance (%s) for submit_sm charging: %s' 
-                              % (user.uid, _user.mt_credential.getQuota('balance'), bill.getAmount('submit_sm')))
+                              % (user.uid, _user.mt_credential.getQuota('balance'), bill.getAmount('submit_sm') * submit_sm_count))
                 return None
-            _user.mt_credential.updateQuota('balance', -bill.getAmount('submit_sm'))
-            self.log.info('User [uid:%s] charged for submit_sm amount: %s' % (user.uid, bill.getAmount('submit_sm')))
+            _user.mt_credential.updateQuota('balance', -(bill.getAmount('submit_sm')*submit_sm_count))
+            self.log.info('User [uid:%s] charged for submit_sm amount: %s' % (user.uid, bill.getAmount('submit_sm') * submit_sm_count))
         # Decrement counts
-        if bill.getAction('decrement_submit_sm_count') > 0 and _user.mt_credential.getQuota('submit_sm_count') is not None:
-            if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction('decrement_submit_sm_count'):
+        if bill.getAction('decrement_submit_sm_count') * submit_sm_count > 0 and _user.mt_credential.getQuota('submit_sm_count') is not None:
+            if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction('decrement_submit_sm_count') * submit_sm_count:
                 self.log.info('User [uid:%s] have no sufficient submit_sm_count (%s) for submit_sm charging: %s' 
-                              % (user.uid, _user.mt_credential.getQuota('submit_sm_count'), bill.getAction('decrement_submit_sm_count')))
+                              % (user.uid, _user.mt_credential.getQuota('submit_sm_count'), bill.getAction('decrement_submit_sm_count') * submit_sm_count))
                 return None
-            _user.mt_credential.updateQuota('submit_sm_count', -bill.getAction('decrement_submit_sm_count'))
-            self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (user.uid, bill.getAction('decrement_submit_sm_count')))
+            _user.mt_credential.updateQuota('submit_sm_count', -(bill.getAction('decrement_submit_sm_count') * submit_sm_count))
+            self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count))
         
         return True
     
