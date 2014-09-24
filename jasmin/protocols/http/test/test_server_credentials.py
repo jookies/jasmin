@@ -129,7 +129,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_unauthorized_user_send(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setAuthorization('send', False)
+        user.mt_credential.setAuthorization('http_send', False)
 
         # User unauthorized
         response_text, response_code = yield self.run_test()
@@ -139,7 +139,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_authorized_user_send(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setAuthorization('send', True)
+        user.mt_credential.setAuthorization('http_send', True)
 
         # User authorized
         response_text, response_code = yield self.run_test()

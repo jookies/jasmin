@@ -42,7 +42,7 @@ class UserAndCredentialsTestCase(TestCase):
         u = User('UID', self.group, 'foo', 'bar')
         
         # Credentials are defaults
-        self.assertEqual(u.mt_credential.getAuthorization('send'), True)
+        self.assertEqual(u.mt_credential.getAuthorization('http_send'), True)
         self.assertEqual(u.mt_credential.getValueFilter('source_address'), '.*')
         self.assertEqual(u.mt_credential.getDefaultValue('source_address'), None)
         self.assertEqual(u.mt_credential.getQuota('balance'), None)
@@ -55,13 +55,13 @@ class UserAndCredentialsTestCase(TestCase):
         # Create user
         u = User('UID', self.group, 'foo', 'bar', mt_c)
         u.mt_credential.setDefaultValue('source_address', 'SunHotel')
-        u.mt_credential.setAuthorization('send', False)
+        u.mt_credential.setAuthorization('http_send', False)
         u.mt_credential.setValueFilter('source_address', r'^216.*')
         
         self.assertEqual(u.mt_credential.getQuota('balance'), 2)
         self.assertEqual(u.mt_credential.getQuota('early_decrement_balance_percent'), 10)
         self.assertEqual(u.mt_credential.getDefaultValue('source_address'), 'SunHotel')
-        self.assertEqual(u.mt_credential.getAuthorization('send'), False)
+        self.assertEqual(u.mt_credential.getAuthorization('http_send'), False)
         self.assertEqual(u.mt_credential.getValueFilter('source_address'), r'^216.*')
 
 class MtMessagingCredentialTestCase(TestCase):
@@ -70,7 +70,7 @@ class MtMessagingCredentialTestCase(TestCase):
     def test_normal_noargs(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
         
-        self.assertEqual(mc.getAuthorization('send'), None)
+        self.assertEqual(mc.getAuthorization('http_send'), None)
         self.assertEqual(mc.getAuthorization('long_content'), None)
         self.assertEqual(mc.getAuthorization('set_dlr_level'), None)
         self.assertEqual(mc.getAuthorization('set_dlr_method'), None)
@@ -87,7 +87,7 @@ class MtMessagingCredentialTestCase(TestCase):
     def test_normal_defaultsargs(self):
         mc = getattr(jasminApi, self.messaging_cred_class)(default_authorizations = True)
         
-        self.assertEqual(mc.getAuthorization('send'), True)
+        self.assertEqual(mc.getAuthorization('http_send'), True)
         self.assertEqual(mc.getAuthorization('long_content'), True)
         self.assertEqual(mc.getAuthorization('set_dlr_level'), True)
         self.assertEqual(mc.getAuthorization('set_dlr_method'), True)
@@ -104,8 +104,8 @@ class MtMessagingCredentialTestCase(TestCase):
     def test_set_and_get(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
         
-        mc.setAuthorization('send', False)
-        self.assertEqual(mc.getAuthorization('send'), False)
+        mc.setAuthorization('http_send', False)
+        self.assertEqual(mc.getAuthorization('http_send'), False)
         mc.setAuthorization('long_content', False)
         self.assertEqual(mc.getAuthorization('long_content'), False)
         mc.setAuthorization('set_dlr_level', False)

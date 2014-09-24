@@ -68,7 +68,7 @@ class CredentialGenerick(jasminApiGenerick):
 
     def updateQuota(self, key, difference):
         if key in self.quotas:
-            self.quotas[key]+= difference
+            self.quotas[key] += difference
         else:
             raise jasminApiCredentialError('%s is not a valid Quata key' % key)
 
@@ -82,7 +82,7 @@ class MtMessagingCredential(CredentialGenerick):
     """Credential set for sending MT Messages"""
     
     def __init__(self, default_authorizations = None):
-        self.authorizations = {'send': default_authorizations,
+        self.authorizations = {'http_send': default_authorizations,
                           'long_content': default_authorizations,
                           'set_dlr_level': default_authorizations,
                           'set_dlr_method': default_authorizations,

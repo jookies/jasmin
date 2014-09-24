@@ -56,7 +56,7 @@ class CredentialValidator:
     def _checkSendAuthorizations(self):
         "MT Authorizations check"
         
-        if not self.user.mt_credential.getAuthorization('send'):
+        if not self.user.mt_credential.getAuthorization('http_send'):
             raise CredentialValidationError('Authorization failed for username [%s] (Can not send MT messages).' % self.user)
         if hasattr(self.submit_sm, 'nextPdu') and not self.user.mt_credential.getAuthorization('long_content'):
             raise CredentialValidationError('Authorization failed for username [%s] (Long content is not authorized).' % self.user)
@@ -97,7 +97,7 @@ class CredentialValidator:
     def validate(self, ):
         "Will validate requests through Authorizations and ValueFilters credential check"
         
-        if self.action == 'Send':
+        if self.action == 'http_send':
             self._checkSendAuthorizations()
             self._checkSendFilters()
         else:
