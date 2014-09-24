@@ -451,7 +451,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         u = pickle.loads(u)
         self.assertEqual(u3.username, u.username)
 
-class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
+class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
     def tearDown(self):
         # Remove persisted configurations
         filelist = glob.glob("%s/*" % self.RouterPBConfigInstance.store_path)
@@ -459,6 +459,8 @@ class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
             os.remove(f)
             
         return RouterPBTestCase.tearDown(self)
+
+class ConfigurationPersistenceTestCases(PersistenceTestCase):
     
     @defer.inlineCallbacks
     def test_persist_default(self):
@@ -771,6 +773,113 @@ class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
         # Config is now persisted
         isPersisted = yield self.is_persisted()
         self.assertTrue(isPersisted)
+
+class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
+    @defer.inlineCallbacks
+    def test_manual_persist_sets_quotas_updated_to_false(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        # Check quotas_updated flag
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        
+        # Update quota and check for quotas_updated
+        self.pbRoot_f.users[0].mt_credential.updateQuota('balance', -1.0)
+        self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+        
+        # Manual persistence and check for quotas_updated
+        persistRet = yield self.persist()
+        self.assertTrue(persistRet)
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        
+        # Balance would not change after persistence
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+
+    @defer.inlineCallbacks
+    def test_manual_load_sets_quotas_updated_to_false(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Manual persistence and check for quotas_updated
+        persistRet = yield self.persist()
+        self.assertTrue(persistRet)
+
+        # Config is persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Check quotas_updated flag
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        
+        # Update quota and check for quotas_updated
+        self.pbRoot_f.users[0].mt_credential.updateQuota('balance', -1.0)
+        self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+        
+        # Manual load and check for quotas_updated
+        loadRet = yield self.load()
+        self.assertTrue(loadRet)
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+
+        # Balance will be reset after persistence
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 2.0)
+
+    @defer.inlineCallbacks
+    def test_automatic_persist_on_quotas_updated(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Mock perspective_persist for later assertions
+        self.pbRoot_f.perspective_persist = mock.Mock(self.pbRoot_f.perspective_persist)
+        # Reset persistence_timer_secs to shorten the test time
+        self.pbRoot_f.config.persistence_timer_secs = 0.1
+        self.pbRoot_f.activatePersistenceTimer()
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Update quota and check for quotas_updated
+        self.pbRoot_f.users[0].mt_credential.updateQuota('balance', -1.0)
+        self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+
+        # Wait 3 seconds for automatic persistence to be done
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # assert for 2 calls to persist: 1.users and 2.groups
+        self.assertEqual(self.pbRoot_f.perspective_persist.call_count, 2)
+        self.assertEqual(self.pbRoot_f.perspective_persist.call_args_list, [mock.call(scope='groups'), mock.call(scope='users')])
 
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
