@@ -966,7 +966,7 @@ class SubmitSmTestCaseTools():
     """
     
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = None, 
+    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = 0.0, 
                                          user = None):
         # Routing stuff
         g1 = Group(1)
