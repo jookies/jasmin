@@ -16,10 +16,6 @@ def randomUniqueId():
     
     return msgid
 
-class UndefinedParameterError(Exception):
-    """Raised when a parameter is undefined
-    """
-
 class PDU(Content):
     "A generick SMPP PDU Content"
     
@@ -121,6 +117,11 @@ class SubmitSmRespBillContent(Content):
     "A Bill Content holding amount to be charged to user (uid)"
     
     def __init__(self, bid, uid, amount):
+        if type(amount) != float and type(amount) != int:
+            raise InvalidParameterError('Amount is not float or int: %s' % amount)
+        if amount < 0:
+            raise InvalidParameterError('Amount cannot be a negative value: %s' % amount)
+        
         properties = {}
         
         properties['message-id'] = bid
