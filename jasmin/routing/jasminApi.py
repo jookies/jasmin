@@ -86,7 +86,7 @@ class CredentialGenerick(jasminApiGenerick):
 class MtMessagingCredential(CredentialGenerick):
     """Credential set for sending MT Messages"""
     
-    def __init__(self, default_authorizations = None):
+    def __init__(self, default_authorizations = True):
         self.authorizations = {'http_send': default_authorizations,
                           'long_content': default_authorizations,
                           'set_dlr_level': default_authorizations,
@@ -128,7 +128,7 @@ class User(jasminApiGenerick):
 
         self.mt_credential = mt_credential
         if self.mt_credential is None:
-            self.mt_credential = MtMessagingCredential(default_authorizations = True)
+            self.mt_credential = MtMessagingCredential()
     
     def __str__(self):
         return self.username

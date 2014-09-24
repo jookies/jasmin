@@ -59,6 +59,12 @@ class RouterPBTestCase(unittest.TestCase):
         
         # Launch the router server
         self.pbRoot_f = RouterPB()
+        
+        # Mock callbacks
+        # will be used for assertions
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(wraps = self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        self.pbRoot_f.deliver_sm_callback = mock.Mock(wraps = self.pbRoot_f.deliver_sm_callback)
+        
         self.pbRoot_f.setConfig(self.RouterPBConfigInstance)
         p = portal.Portal(JasminPBRealm(self.pbRoot_f))
         if not authentication:
@@ -960,16 +966,20 @@ class SubmitSmTestCaseTools():
     """
     
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver'):
+    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = None, 
+                                         user = None):
         # Routing stuff
         g1 = Group(1)
         yield self.group_add(g1)
         
         self.c1 = SmppClientConnector(id_generator())
         user_password = 'password'
-        self.u1 = User(1, g1, 'username', user_password)
+        if user is None:
+            self.u1 = User(1, g1, 'username', user_password)
+        else:
+            self.u1 = user
         yield self.user_add(self.u1)
-        yield self.mtroute_add(DefaultRoute(self.c1), 0)
+        yield self.mtroute_add(DefaultRoute(self.c1, route_rate), 0)
 
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
@@ -1052,7 +1062,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         yield self.stopSmppClientConnectors()
         
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -1670,6 +1680,8 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         yield self.triggerDeliverSmFromSMSC([pdu])
 
         # Run tests
+        # Test callback in router
+        self.assertEquals(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
@@ -1822,3 +1834,55 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     def test_delivery_SmppClientConnector(self):
         pass
     test_delivery_SmppClientConnector.skip = 'TODO: When SMPP Server will be implemented ?'
+
+class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+    @defer.inlineCallbacks
+    def test_unrated_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Mock callback
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        
+        self.params['content'] = composeMessage({'_'}, 200)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Unrated route will not callback, nothing to bill
+        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 0)
+
+    @defer.inlineCallbacks
+    def test_rated_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        mt_c.setQuota('early_decrement_balance_percent', 10)
+        user = User(1, Group(1), 'username', 'password', mt_c)
+        yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user)
+
+        self.params['content'] = composeMessage({'_'}, 10)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Rated route will callback with a bill
+        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 1)
