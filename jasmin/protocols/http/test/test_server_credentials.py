@@ -667,6 +667,36 @@ class QuotasTestCases(CredentialsTestCases):
         self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - 2.0)
 
     @defer.inlineCallbacks
+    def test_rated_route_early_decrement_balance_100_percent(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('early_decrement_balance_percent', 100)
+        route = DefaultRoute(self.c1, rate = 2.0)
+
+        _QuotasTestCases = self
+        @defer.inlineCallbacks
+        def pre_submit_sm_resp(reqPDU):
+            """
+            Will get the user balance before sending back a submit_sm_resp
+            """
+            t = yield _QuotasTestCases.user_get_all()
+            remote_user = pickle.loads(t)[0]
+            # Before submit_sm_resp, user must be charged 100% of the route rate
+            self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - (2.0))
+        
+        # Send default SMS
+        response_text, response_code = yield self.run_test(user = user, default_route = route,
+                                                           side_effect = pre_submit_sm_resp)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertTrue(response_code)
+        
+        # Assert balance after receiving submit_sm_resp
+        t = yield self.user_get_all()
+        remote_user = pickle.loads(t)[0]
+        # After submit_sm_resp, user must be charged 100% of the route rate
+        self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - 2.0)
+
+    @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent_long_message(self):
         user = copy.copy(self.user1)
         user.mt_credential.setQuota('balance', 10)

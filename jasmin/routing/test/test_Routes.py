@@ -18,6 +18,7 @@ class RouteTestCase(TestCase):
         self.invalid_filter = [ConnectorFilter(self.connector1), UserFilter(self.user1)]
         self.simple_filter_mo = [ConnectorFilter(self.connector1)]
         self.simple_filter_mt = [UserFilter(self.user1)]
+        self.simple_filter_all = [DestinationAddrFilter(r'.*')]
         
 class RouteStrTestCase(RouteTestCase):
     def test_StaticMTRoute(self):
@@ -260,6 +261,59 @@ class RatedMTRoutesTestCase(RouteTestCase):
         # Rate must not be negative
         self.assertRaises(InvalidRouteParameterError, RandomRoundrobinMTRoute, self.simple_filter_mt, [self.connector1, self.connector2], -2)
 
+class getBillForTestCase(RouteTestCase):
+    test_routes = ['DefaultRoute', 'StaticMORoute', 'StaticMTRoute', 'RandomRoundrobinMORoute',
+                   'RandomRoundrobinMTRoute']
+    
+    def test_all_routes(self):
+        for route_class in self.test_routes:
+            if globals()[route_class].type not in ['default', 'mt']:
+                continue
+            
+            # Init user
+            user1 = copy.copy(self.user1)
+            
+            # unrated route intialization
+            if globals()[route_class].type == 'default':
+                r = globals()[route_class](self.connector1, 0.0)
+            elif globals()[route_class].type == 'mt' and route_class[:6] != 'Random':
+                r = globals()[route_class](self.simple_filter_all, self.connector1, 0.0)
+            else:
+                r = globals()[route_class](self.simple_filter_all, [self.connector1, self.connector2], 0.0)
+            
+            # User instance assertion
+            self.assertRaises(InvalidRouteParameterError, r.getBillFor, 'user')
+            # Default amounts for default user (having unlimited
+            self.assertEqual(r.getBillFor(user1).getTotalAmounts(), 0)
+            
+            # Set user balance
+            user1.mt_credential.setQuota('balance', 10)
+            user1.mt_credential.setQuota('early_decrement_balance_percent', None)
+            user1.mt_credential.setQuota('submit_sm_count', 10)
+            # make asserts
+            self.assertEqual(r.getBillFor(user1).getTotalAmounts(), 0)
+
+            # rated route intialization
+            if globals()[route_class].type == 'default':
+                r = globals()[route_class](self.connector1, 2.0)
+            elif globals()[route_class].type == 'mt' and route_class[:6] != 'Random':
+                r = globals()[route_class](self.simple_filter_all, self.connector1, 2.0)
+            else:
+                r = globals()[route_class](self.simple_filter_all, [self.connector1, self.connector2], 2.0)
+            # make asserts
+            bill = r.getBillFor(user1)
+            self.assertEqual(bill.getTotalAmounts(), 2.0)
+            self.assertEqual(bill.getAmount('submit_sm'), 2.0)
+            self.assertEqual(bill.getAction('decrement_submit_sm_count'), 1)
+            
+            # Set early decrementing balance
+            user1.mt_credential.setQuota('early_decrement_balance_percent', 50)
+            bill = r.getBillFor(user1)
+            self.assertEqual(bill.getTotalAmounts(), 2.0)
+            self.assertEqual(bill.getAmount('submit_sm'), 1.0)
+            self.assertEqual(bill.getAmount('submit_sm_resp'), 1.0)
+            self.assertEqual(bill.getAction('decrement_submit_sm_count'), 1)
+            
 class FailoverMORouteTestCase(RouteTestCase):
     def test_standard(self):
         pass
