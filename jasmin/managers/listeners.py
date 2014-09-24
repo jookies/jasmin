@@ -166,6 +166,7 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
+        total_bill_amount = None
         
         if ('headers' not in amqpMessage.content.properties or 'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
             submit_sm_resp_bill = None

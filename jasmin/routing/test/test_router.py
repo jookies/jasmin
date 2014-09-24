@@ -1537,7 +1537,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         self.AckServer.stopListening()
 
     @defer.inlineCallbacks
-    def test_test_delivery_using_incorrectly_bound_connector(self):
+    def test_delivery_using_incorrectly_bound_connector(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(bindOperation = 'receiver')
         
@@ -1552,7 +1552,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
