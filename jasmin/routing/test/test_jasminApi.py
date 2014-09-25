@@ -70,12 +70,12 @@ class MtMessagingCredentialTestCase(TestCase):
     def test_normal_noargs(self):
         mc = getattr(jasminApi, self.messaging_cred_class)()
         
-        self.assertEqual(mc.getAuthorization('http_send'), None)
-        self.assertEqual(mc.getAuthorization('long_content'), None)
-        self.assertEqual(mc.getAuthorization('set_dlr_level'), None)
-        self.assertEqual(mc.getAuthorization('set_dlr_method'), None)
-        self.assertEqual(mc.getAuthorization('set_source_address'), None)
-        self.assertEqual(mc.getAuthorization('set_priority'), None)
+        self.assertEqual(mc.getAuthorization('http_send'), True)
+        self.assertEqual(mc.getAuthorization('long_content'), True)
+        self.assertEqual(mc.getAuthorization('set_dlr_level'), True)
+        self.assertEqual(mc.getAuthorization('set_dlr_method'), True)
+        self.assertEqual(mc.getAuthorization('set_source_address'), True)
+        self.assertEqual(mc.getAuthorization('set_priority'), True)
         self.assertEqual(mc.getValueFilter('destination_address'), r'.*')
         self.assertEqual(mc.getValueFilter('source_address'), r'.*')
         self.assertEqual(mc.getValueFilter('priority'), r'^[0-3]$')
