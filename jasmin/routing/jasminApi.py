@@ -26,67 +26,74 @@ class CredentialGenerick(jasminApiGenerick):
     quotas_updated = False
     
     def setAuthorization(self, key, value):
-        if key in self.authorizations:
-            self.authorizations[key] = value
-        else:
+        if key not in self.authorizations:
             raise jasminApiCredentialError('%s is not a valid Authorization' % key)
+        if type(value) != bool:
+            raise jasminApiCredentialError('%s is not a boolean value: %s' % (key, value))
+        
+        self.authorizations[key] = value
 
     def getAuthorization(self, key):
-        if key in self.authorizations:
-            return self.authorizations[key]
-        else:
+        if key not in self.authorizations:
             raise jasminApiCredentialError('%s is not a valid Authorization' % key)
+        
+        return self.authorizations[key]
 
     def setValueFilter(self, key, value):
-        if key in self.value_filters:
-            self.value_filters[key] = value
-        else:
+        if key not in self.value_filters:
             raise jasminApiCredentialError('%s is not a valid Filter' % key)
+
+        try:
+            self.value_filters[key] = re.compile(value)
+        except TypeError:
+            raise jasminApiCredentialError('%s is not a regex pattern: %s' % (key, value))
 
     def getValueFilter(self, key):
-        if key in self.value_filters:
-            return self.value_filters[key]
-        else:
+        if key not in self.value_filters:
             raise jasminApiCredentialError('%s is not a valid Filter' % key)
+        
+        return self.value_filters[key]
 
     def setDefaultValue(self, key, value):
-        if key in self.defaults:
-            self.defaults[key] = value
-        else:
+        if key not in self.defaults:
             raise jasminApiCredentialError('%s is not a valid Default value' % key)
+        
+        self.defaults[key] = value
 
     def getDefaultValue(self, key):
-        if key in self.defaults:
-            return self.defaults[key]
-        else:
+        if key not in self.defaults:
             raise jasminApiCredentialError('%s is not a valid Default value' % key)
+        
+        return self.defaults[key]
 
     def setQuota(self, key, value):
-        if key in self.quotas:
-            self.quotas[key] = value
-        else:
+        if key not in self.quotas:
             raise jasminApiCredentialError('%s is not a valid Quata key' % key)
-
+        
+        self.quotas[key] = value
+    
     def updateQuota(self, key, difference):
-        if key in self.quotas:
-            if self.quotas[key] is None:
-                raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
-            
-            self.quotas[key] += difference
-            self.quotas_updated = True
-        else:
+        if key not in self.quotas:
             raise jasminApiCredentialError('%s is not a valid Quota key' % key)
+        if self.quotas[key] is None:
+            raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
+            
+        self.quotas[key] += difference
+        self.quotas_updated = True
 
     def getQuota(self, key):
-        if key in self.quotas:
-            return self.quotas[key]
-        else:
+        if key not in self.quotas:
             raise jasminApiCredentialError('%s is not a valid Quota key' % key)
+        
+        return self.quotas[key]
 
 class MtMessagingCredential(CredentialGenerick):
     """Credential set for sending MT Messages"""
     
     def __init__(self, default_authorizations = True):
+        if type(default_authorizations) != bool:
+            default_authorizations = False
+        
         self.authorizations = {'http_send': default_authorizations,
                           'long_content': default_authorizations,
                           'set_dlr_level': default_authorizations,
@@ -104,6 +111,19 @@ class MtMessagingCredential(CredentialGenerick):
         self.defaults = {'source_address': None,}
         
         self.quotas = {'balance': None, 'early_decrement_balance_percent': None, 'submit_sm_count': None}
+    
+    def setQuota(self, key, value):
+        "Additional validation steps"
+        if key == 'balance' and value is not None and ( value < 0 ):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be None or a positive number' % ( key, value ))
+        elif (key == 'early_decrement_balance_percent' and value is not None and 
+              ( value < 1 or value > 100 )):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be None or a number in 1..100' % ( key, value ))
+        elif (key == 'submit_sm_count' and value is not None and 
+              ( value < 0 or type(value) != int )):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+            
+        CredentialGenerick.setQuota(self, key, value)
 
 class Group(jasminApiGenerick):
     """Every user must have a group"""

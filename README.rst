@@ -1,10 +1,10 @@
 Jasmin - Open source SMS gateway
-================================
+################################
 
 |python_ver| |current_version| |ci| |docs| |downloads| |status|
 
 Introduction
-------------
+************
 Jasmin is a very complete open source SMS Gateway with many enterprise-class features such as:
 
 * SMPP Client / Server
@@ -22,7 +22,7 @@ Jasmin relies heavily on message queuing through message brokers (Using AMQP), i
 high traffic loads and full in-memory execution.
 
 Architecture
-------------
+************
 
 .. figure:: https://github.com/jookies/jasmin/raw/master/misc/doc/sources/resources/architecture/hld.png
    :alt: HLD Architecture
@@ -32,13 +32,11 @@ Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telne
 and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
 
 Getting started
----------------
-
+***************
 Refer to `Installation steps <http://docs.jasminsms.com/en/latest/installation/index.html>`_ to get Jasmin gateway up and running quickly with a simple SMS sending scenario.
 
 Documentation
--------------
-
+*************
 The documentation is at: http://docs.jasminsms.com
 
 If you still need to build it locally::
@@ -50,8 +48,54 @@ If you still need to build it locally::
   Build finished. The HTML pages are in build/html.
 
 License
--------
+*******
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
+
+Credits
+*******
+
+* SMPP PDU parsing based on smpp.pdu: https://github.com/mozes/smpp.pdu
+* SMPP 3.4 Client based on smpp.twisted: https://github.com/mozes/smpp.twisted
+* GSMP 3.38 based on Python messaging: https://github.com/pmarti/python-messaging
+
+Change Log
+**********
+
+0.5.0 (*under development*)
+===========================
+
+* User credentials: validation, default values and balance/quota management
+* Rated routes (for billing purpose)
+* jCli supports user credentials management
+* Updated documentation
+* Various fixes
+
+0.4.0
+=====
+
+* Setuptools command support
+* Documentation hosted on http://docs.jasminsms.com
+* Updated documentation
+* Various fixes
+
+0.3.0
+=====
+
+* Routing for MO and MT flows between HTTP and SMPP connectors
+* Management through jCli console
+* Updated documentation
+* Various fixes
+
+0.2.0
+=====
+
+* HTTP Server (for SMS MT sending)
+* HTTP Client (for SMS MO and delivery receipts)
+
+0.1.0
+=====
+
+* SMPP Client API
 
 .. |python_ver| image:: https://pypip.in/py_versions/jasmin/badge.svg
     :alt: Python version

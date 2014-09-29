@@ -1,4 +1,5 @@
 #pylint: disable-msg=W0401,W0611
+import re
 from twisted.trial.unittest import TestCase
 from jasmin.routing import jasminApi
 from jasmin.routing.jasminApi import *
@@ -62,13 +63,11 @@ class UserAndCredentialsTestCase(TestCase):
         self.assertEqual(u.mt_credential.getQuota('early_decrement_balance_percent'), 10)
         self.assertEqual(u.mt_credential.getDefaultValue('source_address'), 'SunHotel')
         self.assertEqual(u.mt_credential.getAuthorization('http_send'), False)
-        self.assertEqual(u.mt_credential.getValueFilter('source_address'), r'^216.*')
+        self.assertEqual(u.mt_credential.getValueFilter('source_address'), re.compile(r'^216.*'))
 
 class MtMessagingCredentialTestCase(TestCase):
-    messaging_cred_class = 'MtMessagingCredential'
-
     def test_normal_noargs(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
+        mc = MtMessagingCredential()
         
         self.assertEqual(mc.getAuthorization('http_send'), True)
         self.assertEqual(mc.getAuthorization('long_content'), True)
@@ -86,14 +85,14 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_normal_defaultsargs(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)(default_authorizations = True)
+        mc = MtMessagingCredential(default_authorizations = False)
         
-        self.assertEqual(mc.getAuthorization('http_send'), True)
-        self.assertEqual(mc.getAuthorization('long_content'), True)
-        self.assertEqual(mc.getAuthorization('set_dlr_level'), True)
-        self.assertEqual(mc.getAuthorization('set_dlr_method'), True)
-        self.assertEqual(mc.getAuthorization('set_source_address'), True)
-        self.assertEqual(mc.getAuthorization('set_priority'), True)
+        self.assertEqual(mc.getAuthorization('http_send'), False)
+        self.assertEqual(mc.getAuthorization('long_content'), False)
+        self.assertEqual(mc.getAuthorization('set_dlr_level'), False)
+        self.assertEqual(mc.getAuthorization('set_dlr_method'), False)
+        self.assertEqual(mc.getAuthorization('set_source_address'), False)
+        self.assertEqual(mc.getAuthorization('set_priority'), False)
         self.assertEqual(mc.getValueFilter('destination_address'), r'.*')
         self.assertEqual(mc.getValueFilter('source_address'), r'.*')
         self.assertEqual(mc.getValueFilter('priority'), r'^[0-3]$')
@@ -104,7 +103,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_set_and_get(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
+        mc = MtMessagingCredential()
         
         mc.setAuthorization('http_send', False)
         self.assertEqual(mc.getAuthorization('http_send'), False)
@@ -119,24 +118,24 @@ class MtMessagingCredentialTestCase(TestCase):
         mc.setAuthorization('set_priority', False)
         self.assertEqual(mc.getAuthorization('set_priority'), False)
         mc.setValueFilter('destination_address', r'^D.*')
-        self.assertEqual(mc.getValueFilter('destination_address'), r'^D.*')
+        self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'^D.*'))
         mc.setValueFilter('source_address', r'^S.*')
-        self.assertEqual(mc.getValueFilter('source_address'), r'^S.*')
+        self.assertEqual(mc.getValueFilter('source_address'), re.compile(r'^S.*'))
         mc.setValueFilter('priority', r'[12]')
-        self.assertEqual(mc.getValueFilter('priority'), r'[12]')
+        self.assertEqual(mc.getValueFilter('priority'), re.compile(r'[12]'))
         mc.setValueFilter('content', r'^C.*')
-        self.assertEqual(mc.getValueFilter('content'), r'^C.*')
+        self.assertEqual(mc.getValueFilter('content'), re.compile(r'^C.*'))
         mc.setDefaultValue('source_address', 'JasminGateway')
         self.assertEqual(mc.getDefaultValue('source_address'), 'JasminGateway')
         mc.setQuota('balance', 100)
         self.assertEqual(mc.getQuota('balance'), 100)
         mc.setQuota('submit_sm_count', 10000)
         self.assertEqual(mc.getQuota('submit_sm_count'), 10000)
-        mc.setQuota('early_decrement_balance_percent', 1020)
-        self.assertEqual(mc.getQuota('early_decrement_balance_percent'), 1020)
+        mc.setQuota('early_decrement_balance_percent', 100)
+        self.assertEqual(mc.getQuota('early_decrement_balance_percent'), 100)
     
     def test_get_invalid_key(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
+        mc = MtMessagingCredential()
         
         self.assertRaises(jasminApiCredentialError, mc.getAuthorization, 'anykey')
         self.assertRaises(jasminApiCredentialError, mc.getValueFilter, 'anykey')
@@ -144,15 +143,49 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertRaises(jasminApiCredentialError, mc.getQuota, 'anykey')
 
     def test_set_invalid_key(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
+        mc = MtMessagingCredential()
 
         self.assertRaises(jasminApiCredentialError, mc.setAuthorization, 'anykey', 'anyvalue')
         self.assertRaises(jasminApiCredentialError, mc.setValueFilter, 'anykey', 'anyvalue')
         self.assertRaises(jasminApiCredentialError, mc.setDefaultValue, 'anykey', 'anyvalue')
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'anykey', 'anyvalue')
     
+    def test_invalid_default_authorization(self):
+        "Setting an incorrect default_authorizations would fallback to False as a default_authorizations"
+        mc = MtMessagingCredential(default_authorizations = 'True')
+        
+        self.assertEqual(mc.getAuthorization('http_send'), False)
+        self.assertEqual(mc.getAuthorization('long_content'), False)
+        self.assertEqual(mc.getAuthorization('set_dlr_level'), False)
+        self.assertEqual(mc.getAuthorization('set_dlr_method'), False)
+        self.assertEqual(mc.getAuthorization('set_source_address'), False)
+        self.assertEqual(mc.getAuthorization('set_priority'), False)
+    
+    def test_set_invalid_value(self):
+        mc = MtMessagingCredential()
+
+        # Authorization must be a boolean
+        mc.setAuthorization('http_send', True)
+        self.assertRaises(jasminApiCredentialError, mc.setAuthorization, 'http_send', 'anyvalue')
+        # ValueFilter must be a compilable regex pattern
+        mc.setValueFilter('destination_address', r'.*')
+        self.assertRaises(jasminApiCredentialError, mc.setValueFilter, 'destination_address', 1)
+        self.assertRaises(jasminApiCredentialError, mc.setValueFilter, 'destination_address', None)
+        # Balance must be None or a positive float
+        mc.setQuota('balance', None)
+        mc.setQuota('balance', 0)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'balance', -1.0)
+        # early_decrement_balance_percent must be None or 1-100
+        mc.setQuota('early_decrement_balance_percent', None)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'early_decrement_balance_percent', 0)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'early_decrement_balance_percent', 101)
+        # submit_sm_count must be a positive int
+        mc.setQuota('submit_sm_count', 10)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', -1)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', 1.1)
+    
     def test_quotas_updated(self):
-        mc = getattr(jasminApi, self.messaging_cred_class)()
+        mc = MtMessagingCredential()
         mc.setQuota('submit_sm_count', 2)
 
         self.assertEqual(mc.quotas_updated, False)
