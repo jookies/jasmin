@@ -2,7 +2,6 @@
 A set of objects used by Jasmin to manage users, groups and connectors in memory (no database storage)
 """
 
-import copy
 import re
 from hashlib import md5
 

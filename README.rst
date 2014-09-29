@@ -47,6 +47,13 @@ If you still need to build it locally::
   ...
   Build finished. The HTML pages are in build/html.
 
+Links
+*****
+
+* `Project home page <http://www.jasminsms.com>`_
+* `Documentation <http://docs.jasminsms.com>`_
+* `Travis CI <https://travis-ci.org/jookies/jasmin>`_
+
 License
 *******
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
