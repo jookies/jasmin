@@ -10,6 +10,7 @@
 ### END INIT INFO
 
 TWSTD_COMMAND='jasmin'
+TWSTD_COMMAND_ARGS=''
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="$TWSTD_COMMAND (Twisted application)"
@@ -55,7 +56,7 @@ do_start()
                 --gid=$(id -g $GROUP) \
                 --pidfile=$PIDFILE \
                 --logfile=$LOGFILE \
-                $TWSTD_COMMAND \
+                $TWSTD_COMMAND $TWSTD_COMMAND_ARGS \
 		|| return 2
 }
 
