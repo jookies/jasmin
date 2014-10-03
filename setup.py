@@ -79,5 +79,5 @@ setup(
                 ('/etc/jasmin/resource', [
                     'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
                     'misc/config/resource/amqp0-9-1.xml'],),
-                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmin']),],
+                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmind']),],
 )
