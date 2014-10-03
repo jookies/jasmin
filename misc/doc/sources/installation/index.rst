@@ -59,8 +59,8 @@ depends on), the last step is to install jasmin through `pip <https://pypi.pytho
 
 After getting jasmin installed, it is time to start it as a system service::
 
-    ln -s /etc/jasmin/init-script/jasmin /etc/init.d/
-    /etc/init.d/jasmin start
+    ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
+    /etc/init.d/jasmind start
 
 Sending your first SMS
 ======================

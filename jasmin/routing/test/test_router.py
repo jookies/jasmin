@@ -76,10 +76,11 @@ class RouterPBTestCase(unittest.TestCase):
         jPBPortalRoot = JasminPBPortalRoot(p)
         self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
-        
+    
+    @defer.inlineCallbacks
     def tearDown(self):
         self.disconnect()
-        self.PBServer.stopListening()
+        yield self.PBServer.stopListening()
         self.pbRoot_f.cancelPersistenceTimer()
 
 class HttpServerTestCase(RouterPBTestCase):
@@ -101,11 +102,12 @@ class HttpServerTestCase(RouterPBTestCase):
         httpApi = HTTPApi(self.pbRoot_f, self.clientManager_f, httpApiConfigInstance)
         self.httpServer = reactor.listenTCP(httpApiConfigInstance.port, server.Site(httpApi))
         self.httpPort  = httpApiConfigInstance.port
-        
+    
+    @defer.inlineCallbacks
     def tearDown(self):
         RouterPBTestCase.tearDown(self)
         
-        self.httpServer.stopListening()
+        yield self.httpServer.stopListening()
 
 class SMPPClientManagerPBTestCase(HttpServerTestCase):
     @defer.inlineCallbacks
@@ -161,7 +163,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         HttpServerTestCase.tearDown(self)
         
         self.SMPPClientManagerPBProxy.disconnect()
-        self.CManagerServer.stopListening()
+        yield self.CManagerServer.stopListening()
         self.amqpClient.disconnect()
         yield self.redisClient.disconnect()
         
@@ -958,7 +960,7 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
     def tearDown(self):
         yield SMPPClientManagerPBTestCase.tearDown(self)
         
-        self.SMSCPort.stopListening()
+        yield self.SMSCPort.stopListening()
 
 class SubmitSmTestCaseTools():
     """
@@ -1037,7 +1039,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
         
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
     def test_delivery_with_inurl_dlr_level1(self):
@@ -1287,7 +1289,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
         
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
     def test_delivery_with_inurl_dlr_level1(self):
@@ -1529,7 +1531,7 @@ class NoSubmitSmWhenReceiverIsBoundSMSC(SMPPClientManagerPBTestCase):
     def tearDown(self):
         yield SMPPClientManagerPBTestCase.tearDown(self)
         
-        self.SMSCPort.stopListening()
+        yield self.SMSCPort.stopListening()
 
 class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMSC, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -1544,7 +1546,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
     def tearDown(self):
         yield NoSubmitSmWhenReceiverIsBoundSMSC.tearDown(self)
         
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
     def test_delivery_using_incorrectly_bound_connector(self):
@@ -1580,10 +1582,11 @@ class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
         self.smsc_f = LastClientFactory()
         self.smsc_f.protocol = self.protocol      
         self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-                
+    
+    @defer.inlineCallbacks
     def tearDown(self):        
-        self.SMSCPort.stopListening()
-        return SMPPClientManagerPBTestCase.tearDown(self)
+        yield self.SMSCPort.stopListening()
+        yield SMPPClientManagerPBTestCase.tearDown(self)
         
 class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     
@@ -1613,7 +1616,7 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
         yield self.deliverSmHttpThrower.stopService()
         yield DeliverSmSMSCTestCase.tearDown(self)
         

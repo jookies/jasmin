@@ -11,7 +11,6 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError, ChargingError
 from jasmin.protocols.http.validation import UrlArgsValidator, CredentialValidator
-from jasmin.routing.Bills import SubmitSmRespBill
 
 LOG_CATEGORY = "jasmin-http-api"
 

@@ -56,8 +56,9 @@ setup(
     description=('Jasmin is a very complete open source SMS Gateway '
                  'with many enterprise-class features.'),
     long_description=open('README.rst', 'r').read(),
-    keywords = ['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
+    keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
     packages=find_packages() + ['twisted.plugins'],
+    scripts=['jasmin/bin/jasmind.py'],
     include_package_data=True,
     install_requires=[str(ir.req) for ir in install_reqs],
     tests_require=[str(ir.req) for ir in test_reqs],
