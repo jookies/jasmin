@@ -72,6 +72,7 @@ Change Log
 ===========================
 
 * User credentials: validation, default values and balance/quota management
+* Changed system service startup script from twisted tap plugin to bin/jasmind
 * Rated routes (for billing purpose)
 * jCli supports user credentials management
 * Updated documentation

@@ -57,7 +57,7 @@ setup(
                  'with many enterprise-class features.'),
     long_description=open('README.rst', 'r').read(),
     keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
-    packages=find_packages() + ['twisted.plugins'],
+    packages=find_packages(),
     scripts=['jasmin/bin/jasmind.py'],
     include_package_data=True,
     install_requires=[str(ir.req) for ir in install_reqs],
