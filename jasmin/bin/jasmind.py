@@ -272,17 +272,21 @@ class JasminDaemon:
             yield self.stopDeliverSmHttpThrowerService()
             syslog.syslog(syslog.LOG_LOCAL0, "  DeliverSmHttpThrower stopped.")
         
-        yield self.stopRouterPBService()
-        syslog.syslog(syslog.LOG_LOCAL0, "  RouterPB stopped.")
+        if 'router-pb-server' in self.components:
+            yield self.stopRouterPBService()
+            syslog.syslog(syslog.LOG_LOCAL0, "  RouterPB stopped.")
 
-        yield self.stopSMPPClientManagerPBService()
-        syslog.syslog(syslog.LOG_LOCAL0, "  SMPPClientManagerPB stopped.")
+        if 'smppcm-pb-server' in self.components:
+            yield self.stopSMPPClientManagerPBService()
+            syslog.syslog(syslog.LOG_LOCAL0, "  SMPPClientManagerPB stopped.")
 
-        yield self.stopAMQPBrokerService()
-        syslog.syslog(syslog.LOG_LOCAL0, "  AMQP Broker disconnected.")
+        if 'amqp-broker-client' in self.components:
+            yield self.stopAMQPBrokerService()
+            syslog.syslog(syslog.LOG_LOCAL0, "  AMQP Broker disconnected.")
 
-        yield self.stopRedisClient()
-        syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient disconnected.")
+        if 'rc' in self.components:
+            yield self.stopRedisClient()
+            syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient disconnected.")
 
         reactor.stop()
     
