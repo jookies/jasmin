@@ -202,7 +202,7 @@ class JasminDaemon:
         ########################################################
         # Connect to redis server
         self.startRedisClient()
-        syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient connected.")
+        syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient started.")
 
         ########################################################
         # Start AMQP Broker
@@ -286,7 +286,7 @@ class JasminDaemon:
 
         if 'rc' in self.components:
             yield self.stopRedisClient()
-            syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient disconnected.")
+            syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient stopped.")
 
         reactor.stop()
     

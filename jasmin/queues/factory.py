@@ -14,6 +14,7 @@ class AmqpFactory(ClientFactory):
         self.connectionRetry = True
         self.connected = False
         self.config = config
+        self.channelReady = None
 
         self.delegate = TwistedDelegate()
 
@@ -40,7 +41,8 @@ class AmqpFactory(ClientFactory):
         self.connectionRetry = True
         
         self.exitDeferred = defer.Deferred()
-        self.channelReady = defer.Deferred()
+        if self.channelReady is None:
+            self.channelReady = defer.Deferred()
         
         try:
             # Check if connectDeferred is already set
@@ -170,6 +172,8 @@ class AmqpFactory(ClientFactory):
         self.log.error("AMQP authentication failed: %s" % error)
     
     def disconnect(self, reason=None):
+        self.channelReady = False
+        
         if self.client is not None:
             return self.client.close(reason)
         

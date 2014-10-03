@@ -13,7 +13,7 @@ COMMAND='jasmind'
 COMMAND_ARGS=''
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="COMMAND system service"
+DESC="$COMMAND system service"
 NAME=$COMMAND
 DAEMON=/usr/bin/python
 PIDDIR=/var/run/jasmin
