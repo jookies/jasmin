@@ -54,7 +54,7 @@ do_start()
                 --user=$(id -u $USER) \
                 --group=$(id -g $GROUP) \
                 --pidfile=$PIDFILE \
-                $(which $COMMAND) $COMMAND_ARGS \
+                $(which $COMMAND) -- $COMMAND_ARGS \
 		|| return 2
 }
 
