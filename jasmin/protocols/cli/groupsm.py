@@ -33,7 +33,7 @@ def GroupBuild(fCallback):
             if not GroupKeyMap.has_key(cmd):
                 return self.protocol.sendData('Unknown Group key: %s' % cmd)
             
-            # Buffer key for later SMPPClientConfig initiating
+            # Buffer key for later Group initiating
             GroupKey = GroupKeyMap[cmd]
             self.sessBuffer[GroupKey] = arg
             
