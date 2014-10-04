@@ -1,5 +1,6 @@
 #pylint: disable-msg=W0401,W0611
 
+import copy
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routes import *
 from jasmin.routing.Filters import *

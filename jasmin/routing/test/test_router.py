@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- 
+import copy
 import glob
 import os
 import mock
@@ -79,7 +80,7 @@ class RouterPBTestCase(unittest.TestCase):
     
     @defer.inlineCallbacks
     def tearDown(self):
-        self.disconnect()
+        yield self.disconnect()
         yield self.PBServer.stopListening()
         self.pbRoot_f.cancelPersistenceTimer()
 
@@ -105,7 +106,7 @@ class HttpServerTestCase(RouterPBTestCase):
     
     @defer.inlineCallbacks
     def tearDown(self):
-        RouterPBTestCase.tearDown(self)
+        yield RouterPBTestCase.tearDown(self)
         
         yield self.httpServer.stopListening()
 
@@ -160,11 +161,11 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
     
     @defer.inlineCallbacks
     def tearDown(self):
-        HttpServerTestCase.tearDown(self)
+        yield HttpServerTestCase.tearDown(self)
         
-        self.SMPPClientManagerPBProxy.disconnect()
+        yield self.SMPPClientManagerPBProxy.disconnect()
         yield self.CManagerServer.stopListening()
-        self.amqpClient.disconnect()
+        yield self.amqpClient.disconnect()
         yield self.redisClient.disconnect()
         
 class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
@@ -460,13 +461,14 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(u3.username, u.username)
 
 class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
     def tearDown(self):
         # Remove persisted configurations
         filelist = glob.glob("%s/*" % self.RouterPBConfigInstance.store_path)
         for f in filelist:
             os.remove(f)
             
-        return RouterPBTestCase.tearDown(self)
+        yield RouterPBTestCase.tearDown(self)
 
 class ConfigurationPersistenceTestCases(PersistenceTestCase):
     
