@@ -27,7 +27,7 @@ System user
 
 Jasmin system service is running under the *jasmin* system user, you will have to create this user under *jasmin* group::
 
-    useradd jasmin
+    sudo useradd jasmin
 
 System folders
 ==============
@@ -55,12 +55,14 @@ On Linux
 Once :ref:`installation_prerequisites` are done (installed packages, created jasmin system user and the folders it 
 depends on), the last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
-    pip install jasmin
+    sudo pip install jasmin
 
 After getting jasmin installed, it is time to start it as a system service::
 
-    ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
-    /etc/init.d/jasmind start
+    sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
+    sudo /etc/init.d/jasmind start
+
+.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults**
 
 Sending your first SMS
 ======================
