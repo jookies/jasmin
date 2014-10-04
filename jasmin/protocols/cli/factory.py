@@ -1,3 +1,4 @@
+import re
 import logging
 from twisted.internet import reactor, defer
 from twisted.internet.protocol import ServerFactory
@@ -64,12 +65,6 @@ class JCliFactory(ServerFactory):
         # Wait for AMQP to get ready
         self.log.info("Waiting for AMQP to get ready")
         yield self.pb['smppcm'].amqpBroker.channelReady
-        # Wait some more time
-        # Loading smppccm configuration with jCli would result in an error
-        # without waiting some time before, this is a workaround (@TODO)
-        waitDeferred = defer.Deferred()
-        reactor.callLater(0.3, waitDeferred.callback, None)
-        yield waitDeferred
 
         # Load configuration profile
         proto = self.buildProtocol(('127.0.0.1', 0))
@@ -83,7 +78,7 @@ class JCliFactory(ServerFactory):
                 self.log.error("Authentication error, cannot load configuration profile with provided username: '%s'" % self.loadConfigProfileWithCreds['username'])
                 proto.connectionLost(None)
                 defer.returnValue(False)
-                
+            
             proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['username'])
             proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['password'])
         elif self.config.authentication:
@@ -93,7 +88,23 @@ class JCliFactory(ServerFactory):
         else:
             self.log.info("OnStart loading configuration default profile without credentials (auth. is not required)")
             
-        proto.dataReceived('load')
+        proto.dataReceived('load\r\n')
+        
+        # Wait some more time till all configurations are loaded
+        pending_load = ['mtrouter', 'morouter', 'filter', 'group', 'smppcc', 'httpcc', 'user']
+        while True:
+            for pl in pending_load:
+                if re.match(r'.*%s configuration loaded.*' % pl, tr.value(), re.DOTALL):
+                    self.log.info("%s configuration loaded." % pl)
+                    pending_load.remove(pl)
+            
+            if len(pending_load) > 0:
+                waitDeferred = defer.Deferred()
+                reactor.callLater(0.3, waitDeferred.callback, None)
+                yield waitDeferred
+            else:
+                break
+
         proto.dataReceived('quit\r\n')
         proto.connectionLost(None)
         defer.returnValue(False)

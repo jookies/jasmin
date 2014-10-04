@@ -10,7 +10,7 @@
 ### END INIT INFO
 
 COMMAND='jasmind'
-COMMAND_ARGS=''
+COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="$COMMAND system service"
