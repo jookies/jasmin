@@ -44,7 +44,7 @@ class UserAndCredentialsTestCase(TestCase):
         
         # Credentials are defaults
         self.assertEqual(u.mt_credential.getAuthorization('http_send'), True)
-        self.assertEqual(u.mt_credential.getValueFilter('source_address'), '.*')
+        self.assertEqual(u.mt_credential.getValueFilter('source_address'), re.compile('.*'))
         self.assertEqual(u.mt_credential.getDefaultValue('source_address'), None)
         self.assertEqual(u.mt_credential.getQuota('balance'), None)
         self.assertEqual(u.mt_credential.getQuota('early_decrement_balance_percent'), None)
