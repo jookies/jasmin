@@ -101,10 +101,10 @@ class MtMessagingCredential(CredentialGenerick):
                           'set_priority': default_authorizations,
                          }
         
-        self.value_filters = {'destination_address': r'.*',
-                         'source_address': r'.*',
-                         'priority': r'^[0-3]$',
-                         'content': r'.*'
+        self.value_filters = {'destination_address': re.compile(r'.*'),
+                         'source_address': re.compile(r'.*'),
+                         'priority': re.compile(r'^[0-3]$'),
+                         'content': re.compile(r'.*'),
                          }
         
         self.defaults = {'source_address': None,}

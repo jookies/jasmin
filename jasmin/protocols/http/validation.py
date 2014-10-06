@@ -71,18 +71,18 @@ class CredentialValidator:
         
     def _checkSendFilters(self):
         "MT Filters check"
-        
+
         if (self.user.mt_credential.getValueFilter('destination_address') is None or 
-            not re.match(self.user.mt_credential.getValueFilter('destination_address'), str(self.request.args['to'][0]))):
+            not self.user.mt_credential.getValueFilter('destination_address').match(str(self.request.args['to'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (destination_address filter mismatch).' % self.user)
         if 'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or 
-                                            not re.match(self.user.mt_credential.getValueFilter('source_address'), str(self.request.args['from'][0]))):
+                                            not self.user.mt_credential.getValueFilter('source_address').match(str(self.request.args['from'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (source_address filter mismatch).' % self.user)
         if 'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or 
-                                                not re.match(self.user.mt_credential.getValueFilter('priority'), str(self.request.args['priority'][0]))):
+                                                not self.user.mt_credential.getValueFilter('priority').match(str(self.request.args['priority'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (priority filter mismatch).' % self.user)
         if (self.user.mt_credential.getValueFilter('content') is None or 
-            not re.match(self.user.mt_credential.getValueFilter('content'), str(self.request.args['content'][0]))):
+            not self.user.mt_credential.getValueFilter('content').match(str(self.request.args['content'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (content filter mismatch).' % self.user)
 
     def updatePDUWithSendDefaults(self, SubmitSmPDU):
