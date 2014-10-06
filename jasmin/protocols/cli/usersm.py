@@ -33,9 +33,9 @@ def castToBuiltCorrectCredType(cred, section, key, value):
     
     if cred == 'MtMessagingCredential':
         if section == 'Authorization':
-            if value in TrueBoolCastMap:
+            if value.lower() in TrueBoolCastMap:
                 value = True
-            elif value in FalseBoolCastMap:
+            elif value.lower() in FalseBoolCastMap:
                 value = False
         elif section == 'Quota':
             if value.lower() == 'none':
@@ -91,10 +91,13 @@ def UserBuild(fCallback):
                 subKeyMap = UserKeyMap[cmd]
                 
                 # Syntax validation
-                if not re.match(r'^(\S+) (\S+) (\S+)$', arg):
+                _r = re.match(r'^(\S+) (\S+) (\S+.*$)', arg)
+                if not _r:
                     return self.protocol.sendData('Error: expected syntax: %s section key value' % cmd)
 
-                section, key, value = arg.split()
+                section = _r.group(1)
+                key = _r.group(2)
+                value = _r.group(3)
 
                 # Validate section
                 possible_values = subKeyMap.keys()
@@ -192,10 +195,13 @@ def UserUpdate(fCallback):
                 subKeyMap = UserKeyMap[cmd]
                 
                 # Syntax validation
-                if not re.match(r'^(\S+) (\S+) (\S+)$', arg):
+                _r = re.match(r'^(\S+) (\S+) (\S+.*$)', arg)
+                if not _r:
                     return self.protocol.sendData('Error: expected syntax: %s section key value' % cmd)
 
-                section, key, value = arg.split()
+                section = _r.group(1)
+                key = _r.group(2)
+                value = _r.group(3)
 
                 # Validate section
                 possible_values = subKeyMap.keys()
@@ -295,7 +301,7 @@ class UsersManager(Manager):
                     str(user.group.gid).ljust(16),
                     str(user.username).ljust(16),
                     str(balance).ljust(7),
-                    str(sms_count).ljust(7),
+                    str(sms_count).ljust(6),
                     ), prompt=False)
                 self.protocol.sendData(prompt=False)        
         
@@ -368,9 +374,9 @@ class UsersManager(Manager):
                 # Dont show password
                 pass
             elif key == 'gid':
-                self.protocol.sendData('gid %s' % (user.group.gid), prompt=False)
+                self.protocol.sendData('gid %s' % (user.group.gid), prompt = False)
             elif type(value) == str:
-                self.protocol.sendData('%s %s' % (key, getattr(user, value)), prompt=False)
+                self.protocol.sendData('%s %s' % (key, getattr(user, value)), prompt = False)
             elif type(value) == dict and 'class' in value:
                 if value['class'] == 'MtMessagingCredential':
                     for section, sectionData in value.iteritems():
@@ -382,5 +388,6 @@ class UsersManager(Manager):
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:
                                 sectionValue = 'ND'
-                            self.protocol.sendData('%s %s %s %s' % (key, section.lower(), SectionShortKey, sectionValue))
+                            self.protocol.sendData('%s %s %s %s' % 
+                                (key, section.lower(), SectionShortKey, sectionValue), prompt = False)
         self.protocol.sendData()
