@@ -90,7 +90,6 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contains a **jcli
    :linenos:
    
    [jcli]
-   load_profile     = jcli-prod
    bind             = 127.0.0.1
    port             = 8990
    authentication   = True
@@ -110,9 +109,6 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contains a **jcli
    * - Element
      - Default
      - Description
-   * - load_profile
-     - jcli-prod
-     - Sets the profile name to be loaded on Jasmin startup.
    * - bind
      - 127.0.0.1
      - jCli  will only bind to this specified address.
@@ -254,8 +250,7 @@ It is possible to persist to a defined profile::
 
    jcli : persist -p testing
 
-.. important:: On Jasmin startup, only the profile set in **load_profile** (c.f. :ref:`configuration_jcli`) will be concerned 
-               by automatic loading, any other profile can only be manually loaded through **load -p AnyProfile**
+.. important:: On Jasmin startup, **jcli-prod** profile is automatically loaded, any other profile can only be manually loaded through **load -p AnyProfile**.
 
 Load
 ====

@@ -10,7 +10,7 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.vendor.smpp.pdu.error import *
 from txamqp.queue import Closed
 from twisted.internet import reactor, task
-from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, DLRContent
+from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, DLRContent, SubmitSmRespBillContent
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 
@@ -166,8 +166,20 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
+        total_bill_amount = None
+        
+        if ('headers' not in amqpMessage.content.properties or 
+            'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
+            submit_sm_resp_bill = None
+        else:  
+            submit_sm_resp_bill = pickle.loads(amqpMessage.content.properties['headers']['submit_sm_resp_bill'])
         
         if r.response.status == CommandStatus.ESME_ROK:
+            # Get bill information
+            total_bill_amount = 0.0
+            if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
+                total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
+
             # UDH is set ?
             UDHI_INDICATOR_SET = False
             if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
@@ -197,6 +209,10 @@ class SMPPClientSMListener:
                         short_message += _pdu.params['short_message']
                     else:
                         short_message += _pdu.params['short_message'][6:]
+                    
+                    # Increase bill amount for each submit_sm_resp
+                    if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
+                        total_bill_amount+= submit_sm_resp_bill.getTotalAmounts()
             else:
                 short_message = r.request.params['short_message']
             
@@ -289,6 +305,16 @@ class SMPPClientSMListener:
                 self.log.debug('There were no DLR request for msgid[%s].' % (msgid))
         else:
             self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
+        
+        # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer
+        if total_bill_amount > 0:
+            pubQueueName = 'bill_request.submit_sm_resp.%s' % submit_sm_resp_bill.user.uid
+            content = SubmitSmRespBillContent(submit_sm_resp_bill.bid, submit_sm_resp_bill.user.uid, total_bill_amount)
+            self.log.debug("Requesting a SubmitSmRespBillContent from a bill [bid:%s] with routing_key[%s]: %s" % 
+                           (submit_sm_resp_bill.bid, pubQueueName, total_bill_amount))
+            yield self.amqpBroker.publish(exchange='billing', 
+                                          routing_key=pubQueueName, 
+                                          content=content)
         
         # Send back submit_sm_resp to submit.sm.resp.CID queue
         # There's no actual listeners on this queue, it can be used to 

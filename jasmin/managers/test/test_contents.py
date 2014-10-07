@@ -5,8 +5,9 @@ Test cases for amqp contents
 import pickle
 from datetime import datetime
 from twisted.trial.unittest import TestCase
-from jasmin.managers.content import SubmitSmContent, SubmitSmRespContent
-from jasmin.managers.content import DLRContent, InvalidParameterError, UndefinedParameterError
+from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent, 
+                                     DeliverSmContent, SubmitSmRespBillContent,
+                                     DLRContent, InvalidParameterError)
 
 class ContentTestCase(TestCase):
     body = 'TESTBODY'
@@ -160,3 +161,30 @@ class DLRContentTestCase(ContentTestCase):
         self.assertEquals(c['headers']['method'], 'POST')
 
         self.assertRaises(InvalidParameterError, DLRContent, 'DELIVRD', msgid, dlr_url, 1, method = 'ANY METHOD')
+
+class DeliverSmContentTestCase(ContentTestCase):
+    def test_normal_nopickling(self):
+        c = DeliverSmContent(self.body, 'connector1', prePickle=False)
+        
+        self.assertEquals(c.body, self.body)
+        self.assertFalse(c['message-id'] == None)
+        
+    def test_normal_pickling(self):
+        c = DeliverSmContent(self.body, 'connector1')
+        
+        self.assertNotEquals(c.body, self.body)
+        self.assertEquals(c.body, pickle.dumps(self.body, 2))
+        self.assertFalse(c['message-id'] == None)
+
+class SubmitSmRespBillContentTestCase(ContentTestCase):
+    def test_normal(self):
+        c = SubmitSmRespBillContent('bid', 'uid', 1.2)
+        
+        self.assertEquals(c['headers']['user-id'], 'uid')
+        self.assertEquals(c['headers']['amount'], str(1.2))
+        self.assertEquals(c['message-id'], 'bid')
+        
+    def test_amount_type(self):
+        self.assertRaises(InvalidParameterError, SubmitSmRespBillContent, 'bid', 'uid', 'a')
+        self.assertRaises(InvalidParameterError, SubmitSmRespBillContent, 'bid', 'uid', '1')
+        self.assertRaises(InvalidParameterError, SubmitSmRespBillContent, 'bid', 'uid', -1)

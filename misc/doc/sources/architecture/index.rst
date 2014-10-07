@@ -2,7 +2,7 @@
 Architecture overview
 #####################
 
-Jasmin is composed of several components with scoped responsibilities:
+`Jasmin <http://jasminsms.com/>`_ is composed of several components with scoped responsibilities:
 
 .. figure:: /resources/architecture/hld.png
    :alt: HLD Architecture

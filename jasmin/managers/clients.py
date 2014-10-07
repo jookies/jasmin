@@ -100,7 +100,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Deleting connector [%s] failed.', cid)
         return False
     
-    def perspective_persist(self, profile):
+    def perspective_persist(self, profile = 'jcli-prod'):
         path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))
         
@@ -131,7 +131,7 @@ class SMPPClientManagerPB(pb.Avatar):
         return True
     
     @defer.inlineCallbacks
-    def perspective_load(self, profile):
+    def perspective_load(self, profile = 'jcli-prod'):
         path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Loading/Activating [%s] profile configuration from %s' % (profile, path))
 
@@ -468,11 +468,14 @@ class SMPPClientManagerPB(pb.Avatar):
     
     @defer.inlineCallbacks
     def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
-                         dlr_url = None, dlr_level = 1, dlr_method = 'POST'):
+                         dlr_url = None, dlr_level = 1, dlr_method = 'POST', submit_sm_resp_bill = None):
         """This will enqueue a submit_sm to a connector
         """
 
-        self.log.debug('Enqueued a SUBMIT_SM to connector [%s]', cid)
+        self.log.debug('Enqueuing a SUBMIT_SM to connector [%s]', cid)
+        if submit_sm_resp_bill is not None:
+            self.log.debug("... with a SubmitSmRespBill [bid:%s] [ttlamounts:%s]" % 
+                           (submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts()))
 
         connector = self.getConnector(cid)
         if connector == None:
@@ -498,10 +501,11 @@ class SMPPClientManagerPB(pb.Avatar):
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
             SubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
+            submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
         
         # Publishing a pickled PDU
         self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
-        c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period)
+        c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = submit_sm_resp_bill)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
         
         # Enqueue DLR request

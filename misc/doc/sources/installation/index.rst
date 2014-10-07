@@ -4,14 +4,14 @@ Installation
 
 The Installation section is intended to get you up and running quickly with a simple SMS sending scenario. More detailed information can be found in the advanced topics sections.
 
-Jasmin gateway is supported on POSIX systems (Linux/Unix).
+.. note:: Jasmin gateway is supported on POSIX systems (Linux/Unix).
 
 .. _installation_prerequisites:
 
 Prerequisites
 *************
 
-Jasmin requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_. Download the latest version from http://www.python.org/. It is highly recommended that users install the latest patch version of python as these contain many fixes to serious bugs.
+`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_. Download the latest version from http://www.python.org/. It is highly recommended that users install the latest patch version of python as these contain many fixes to serious bugs.
 
 Depending on the Linux distribution you are using, you may need to install the following dependencies:
 
@@ -27,7 +27,7 @@ System user
 
 Jasmin system service is running under the *jasmin* system user, you will have to create this user under *jasmin* group::
 
-    useradd jasmin
+    sudo useradd jasmin
 
 System folders
 ==============
@@ -55,12 +55,14 @@ On Linux
 Once :ref:`installation_prerequisites` are done (installed packages, created jasmin system user and the folders it 
 depends on), the last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
-    pip install jasmin
+    sudo pip install jasmin
 
 After getting jasmin installed, it is time to start it as a system service::
 
-    ln -s /etc/jasmin/init-script/jasmin /etc/init.d/
-    /etc/init.d/jasmin start
+    sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
+    sudo /etc/init.d/jasmind start
+
+.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults**
 
 Sending your first SMS
 ======================
@@ -141,6 +143,7 @@ We'll configure a default route to send all SMS through our newly created DEMO_C
 	jasmin.routing.Routes.DefaultRoute arguments:
 	connector
 	> connector DEMO_CONNECTOR
+	> rate 0.00
 	> ok
 	Successfully added MTRoute [DefaultRoute] with order:0
 

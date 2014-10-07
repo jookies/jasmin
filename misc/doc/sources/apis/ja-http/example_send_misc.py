@@ -1,4 +1,5 @@
 # Python example
+# http://jasminsms.com
 import urllib2
 import urllib
 

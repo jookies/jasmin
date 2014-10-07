@@ -48,7 +48,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         # Launch the client manager server
         pbRoot = SMPPClientManagerPB()
         pbRoot.setConfig(self.SMPPClientPBConfigInstance)
-        pbRoot.addAmqpBroker(self.amqpBroker)
+        yield pbRoot.addAmqpBroker(self.amqpBroker)
         p = portal.Portal(JasminPBRealm(pbRoot))
         if not authentication:
             p.registerChecker(AllowAnonymousAccess())
@@ -69,14 +69,16 @@ class SMPPClientPBTestCase(unittest.TestCase):
                                               port=9002
                                               )
 
+    @defer.inlineCallbacks
     def tearDown(self):
-        self.PBServer.stopListening()
-        self.amqpClient.disconnect()
+        yield self.PBServer.stopListening()
+        yield self.amqpClient.disconnect()
         
-class SMPPClientPBProxyTestCase(SMPPClientManagerPBProxy, SMPPClientPBTestCase):    
+class SMPPClientPBProxyTestCase(SMPPClientManagerPBProxy, SMPPClientPBTestCase):
+    @defer.inlineCallbacks
     def tearDown(self):
-        SMPPClientPBTestCase.tearDown(self)
-        return self.disconnect()
+        yield SMPPClientPBTestCase.tearDown(self)
+        yield self.disconnect()
     
 class SMSCSimulator(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -87,9 +89,10 @@ class SMSCSimulator(SMPPClientPBProxyTestCase):
         factory.protocol = HappySMSC        
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
+    @defer.inlineCallbacks
     def tearDown(self):
-        SMPPClientPBProxyTestCase.tearDown(self)
-        return self.SMSCPort.stopListening()
+        yield SMPPClientPBProxyTestCase.tearDown(self)
+        yield self.SMSCPort.stopListening()
 
 class LastClientFactory(Factory):
     lastClient = None
@@ -107,9 +110,10 @@ class SMSCSimulatorRecorder(SMPPClientPBProxyTestCase):
         factory.protocol = HappySMSCRecorder      
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
+    @defer.inlineCallbacks
     def tearDown(self):
-        SMPPClientPBProxyTestCase.tearDown(self)
-        return self.SMSCPort.stopListening()
+        yield SMPPClientPBProxyTestCase.tearDown(self)
+        yield self.SMSCPort.stopListening()
 
 class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -120,9 +124,10 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
         factory.protocol = DeliverSMSMSC
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
+    @defer.inlineCallbacks
     def tearDown(self):
-        SMPPClientPBProxyTestCase.tearDown(self)
-        return self.SMSCPort.stopListening()
+        yield SMPPClientPBProxyTestCase.tearDown(self)
+        yield self.SMSCPort.stopListening()
     
 class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -160,13 +165,14 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
         self.assertFalse(self.isConnected)
 
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
+    @defer.inlineCallbacks
     def tearDown(self):
         # Remove persisted configurations
         filelist = glob.glob("%s/*" % self.SMPPClientPBConfigInstance.store_path)
         for f in filelist:
             os.remove(f)
             
-        return SMPPClientPBProxyTestCase.tearDown(self)
+        yield SMPPClientPBProxyTestCase.tearDown(self)
     
     @defer.inlineCallbacks
     def test_persist_default(self):

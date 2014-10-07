@@ -1,6 +1,7 @@
 <?php
 // Receiving simple message using PHP through HTTP Post
 // This example will store every received SMS to a SQL table
+// http://jasminsms.com
 
 
 $MO_SMS = $_POST;

@@ -1,3 +1,7 @@
+"""
+More info: http://docs.jasminsms.com/en/latest/routing/index.html
+"""
+
 from jasmin.routing.Routes import Route
 from jasmin.routing.Routables import Routable
 
@@ -62,9 +66,8 @@ class RoutingTable:
     def flush(self):
         self.table = []
         
-    def getConnectorFor(self, routable):
-        """This will return the right connector to send the routable to, if no routes were found it will
-        return None
+    def getRouteFor(self, routable):
+        """This will return the right route to send the routable to, None returned otherwise
         """
         
         if not isinstance(routable, Routable):
@@ -72,9 +75,8 @@ class RoutingTable:
         
         for r in self.table:
             route = r.values()[0]
-            m = route.matchFilters(routable)
-            if m is not None:
-                return m
+            if route.matchFilters(routable):
+                return route
         
         return None
     

@@ -2,11 +2,9 @@
 Messaging flows
 ###############
 
-Messaging is heavily relying on an AMQP broker using topics to queue messages for routing, delivering 
-and acking back.
+Messaging is heavily relying on an AMQP broker using topics to queue messages for routing, delivering and acking back.
 
-The AMQP broker is providing a strong store & forward queuing mechanism, through the following illustration 
-you can see how every messaging component is connected to the broker.
+The AMQP broker is providing a strong store & forward queuing mechanism, through the following illustration you can see how every messaging component is connected to the broker.
 
 .. figure:: /resources/messaging/messaging.png
    :alt: AMQP Messaging flows
@@ -14,8 +12,7 @@ you can see how every messaging component is connected to the broker.
    
    AMQP Messaging flows
 
-Five main actors are messaging through the "*messaging*" topic, their business logic are explained in the 
-below paragraphs.
+Five main actors are messaging through the "*messaging*" topic, their business logic are explained in the below paragraphs.
 
 SMPPClientManagerPB
 *******************

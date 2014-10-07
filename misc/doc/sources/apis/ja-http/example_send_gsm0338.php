@@ -1,5 +1,6 @@
 <?php
 // Sending simple message using PHP
+// http://jasminsms.com
 
 $baseurl = 'http://127.0.0.1:1401/send'
 

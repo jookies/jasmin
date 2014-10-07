@@ -223,9 +223,9 @@ class FiltersManager(Manager):
         # Load filters from disk on each instanciation with a jcli session
         # Since there's no PB, the filters belong to the current jcli session context
         try:
-            self._load(protocol.factory.config.load_profile)
+            self._load()
             
-            protocol.log.info('%s configuration loaded (profile:%s)' % (self.managerName, protocol.factory.config.load_profile))
+            protocol.log.info('%s configuration loaded (default profile)' % (self.managerName))
         except Exception, e:
             protocol.log.error('Config loading error: %s' % str(e))
     
@@ -253,7 +253,7 @@ class FiltersManager(Manager):
         except:
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         
-    def _load(self, profile):
+    def _load(self, profile = 'jcli-prod'):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
 
         try:

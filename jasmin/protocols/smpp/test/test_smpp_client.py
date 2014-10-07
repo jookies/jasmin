@@ -3,10 +3,7 @@ Test cases for smpp client
 These are test cases for only Jasmin's code, smpp.twisted tests are not included here
 """
 
-import logging
 import mock
-import time
-import copy
 from testfixtures import LogCapture
 from jasmin.protocols.smpp.protocol import *
 from jasmin.protocols.smpp.test.smsc_simulator import *

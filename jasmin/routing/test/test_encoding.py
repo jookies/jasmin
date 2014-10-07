@@ -26,7 +26,7 @@ def composeMessage(characters, length):
     
 class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
-    def run_test(self, content, datacoding = None, port = 1401):        
+    def run_test(self, content, datacoding = None, port = 1401):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
         

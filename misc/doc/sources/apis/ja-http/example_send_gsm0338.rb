@@ -1,4 +1,5 @@
 # Sending simple message using Ruby
+# http://jasminsms.com
 
 require 'net/http'
 

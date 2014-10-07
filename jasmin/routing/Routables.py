@@ -1,3 +1,7 @@
+"""
+More info: http://docs.jasminsms.com/en/latest/routing/index.html
+"""
+
 #pylint: disable-msg=W0401,W0611
 from datetime import datetime
 from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
