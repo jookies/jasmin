@@ -168,7 +168,8 @@ class SMPPClientSMListener:
         msgid = amqpMessage.content.properties['message-id']
         total_bill_amount = None
         
-        if ('headers' not in amqpMessage.content.properties or 'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
+        if ('headers' not in amqpMessage.content.properties or 
+            'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
             submit_sm_resp_bill = None
         else:  
             submit_sm_resp_bill = pickle.loads(amqpMessage.content.properties['headers']['submit_sm_resp_bill'])

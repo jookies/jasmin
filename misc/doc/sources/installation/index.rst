@@ -4,7 +4,7 @@ Installation
 
 The Installation section is intended to get you up and running quickly with a simple SMS sending scenario. More detailed information can be found in the advanced topics sections.
 
-Jasmin gateway is supported on POSIX systems (Linux/Unix).
+.. note:: Jasmin gateway is supported on POSIX systems (Linux/Unix).
 
 .. _installation_prerequisites:
 
