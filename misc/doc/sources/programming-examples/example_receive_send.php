@@ -1,6 +1,7 @@
 <?php
 // Will filter received messages, if the syntax is correct (weather <city name>)
 // it will provide a `fake` weather forecast back to the user.
+// http://jasminsms.com
 
 $MO_SMS = $_POST;
 

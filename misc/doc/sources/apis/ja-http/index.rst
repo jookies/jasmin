@@ -63,7 +63,7 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13 or 14
      - 1
      - Optional
-     - Sets the Data Coding Scheme bits, default is 0, accepts values all allowed values in SMPP protocol [2]_
+     - Sets the Data Coding Scheme bits, default is 0, accepts values all allowed values in SMPP protocol [1]_
    * - **username**
      - Text (30 char. max)
      - jasmin_user
@@ -75,10 +75,10 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - Mandatory
      - Password for Jasmin user account.
    * - **priority**
-     - 1, 2 or 3
+     - 0, 1, 2 or 3
      - 2
      - Optional
-     - Default is 1 (lowest priority)
+     - Default is 0 (lowest priority)
    * - **dlr**
      - yes or no
      - yes
@@ -144,9 +144,18 @@ Otherwise, an error is returned:
    * - **400**
      - Error "Mandatory argument _ is not found."
      - Request parameters validation error
+   * - **400**
+     - *dynamic messages*
+     - Credentials validation error, c.f. :ref:`user_credentials`
    * - **403**
      - Error "Authentication failure for username:_"
      - Authentication error
+   * - **403**
+     - Error "Authorization failed for username:_"
+     - Credentials validation error, c.f. :ref:`user_credentials`
+   * - **403**
+     - Error "Cannot charge submit_sm, check RouterPB log file for details"
+     - User charging error
    * - **412**
      - Error "No route found"
      - Message routing error
@@ -526,6 +535,5 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - Python's logging module configuration.
 
 .. rubric:: Footnotes
-.. [1] Account management is planned in v0.5, including user credit and privilege management
-.. [2]
+.. [1]
 .. include:: ../datacoding.table

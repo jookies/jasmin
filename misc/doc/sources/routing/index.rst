@@ -67,10 +67,10 @@ MT Routing
 Having the below MT routing table set through a jCli console session::
 
    jcli : mtrouter -l
-   #MT Route order   Type                    Connector ID(s)                  Filter(s)                                                       
-   #100              RandomRoundrobinMTRoute smpp_1, smpp_2                   <DestinationAddrFilter (dst_addr=^\+33\d+)>                     
-   #91               StaticMTRoute           smpp_4                           <GroupFilter (gid=G2)>, <TimeIntervalFilter (08:00:00,18:00:00)>
-   #90               StaticMTRoute           smpp_3                           <GroupFilter (gid=G2)>                                          
+   #MT Route order   Type                    Rate    Connector ID(s)                  Filter(s)                                                       
+   #100              RandomRoundrobinMTRoute 0.00    smpp_1, smpp_2                   <DestinationAddrFilter (dst_addr=^\+33\d+)>                     
+   #91               StaticMTRoute           0.00    smpp_4                           <GroupFilter (gid=G2)>, <TimeIntervalFilter (08:00:00,18:00:00)>
+   #90               StaticMTRoute           0.00    smpp_3                           <GroupFilter (gid=G2)>                                          
    Total MT Routes: 3
 
 The following routing cases are considered:
@@ -87,10 +87,11 @@ The following routing cases are considered:
 
   * Its sent by a user in group G2
 
-.. note:: The route order is very important: if we swap last both routes (#90 and #91) we will run into a shadowing route where 
-   all MT messages sent by a user in group G2 will be routed to smpp_3, no matter what time of the day it is.
+.. note:: The route order is very important: if we swap last both routes (#90 and #91) we will run into a shadowing route where all MT messages sent by a user in group G2 will be routed to smpp_3, no matter what time of the day it is.
 
 .. note:: In this example, there's no DefaultRoute, this will lead to message rejection if none of the configured routes are matched.
+
+.. note:: Route's **rate** are discussed in :doc:`/billing/index`.
 
 Router components 
 *****************
@@ -206,7 +207,6 @@ There's a lot of things you can do by extending the **Route** class, here's a bu
 
 * *Failover route*: Will always return the same connector when it is up, and will fail over/back between master and backup connectors depending on 
   their status
-* *Least cost routing*: Implement a message rating system to always return the least cost route for a given message
 * *Best quality routing*: Implement a connector scoring system to always return the best quality route for a given message
 
 .. _Route_multiple_con:
@@ -228,7 +228,7 @@ The **RoutingTable** class is extended by destination-specific child classes (MO
 * **getAll()**: Will return all the provisioned routes
 * **flush()**: Will remove all provisioned routes
 
-The **getConnectorFor(routable)** will get the right route to consider for a given routable, this method will iterate through all the provisioned 
+The **getRouteFor(routable)** will get the right route to consider for a given routable, this method will iterate through all the provisioned 
 routes in descendant order to call their respective **matchFilters(routable)** method. 
 
 .. figure:: /resources/routing/RoutingTable.png
