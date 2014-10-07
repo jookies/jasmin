@@ -34,10 +34,11 @@ class jCliTestCases(ProtocolTestCases):
         SMPPClientPBConfigInstance.authentication = False
         self.clientManager_f = SMPPClientManagerPB()
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
-        self.clientManager_f.addAmqpBroker(self.amqpBroker)
+        yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
         
     def tearDown(self):
         self.amqpClient.disconnect()
+        self.RouterPB_f.cancelPersistenceTimer()
       
 class jCliWithAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks
@@ -234,12 +235,14 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'filters fMO1'},
                     {'command': 'order 100'},
                     {'command': 'connector http1'},
+                    {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MORoute'}]
         yield self._test(r'jcli : ', commands)
         # Add Default MT route
         commands = [{'command': 'mtrouter -a'},
                     {'command': 'type defaultroute'},
                     {'command': 'connector smpp1'},
+                    {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
         # Add static MT route
@@ -248,6 +251,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'filters fMT1'},
                     {'command': 'order 100'},
                     {'command': 'connector smpp1'},
+                    {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
         
@@ -259,7 +263,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
     def test_02_check_automatic_load_after_jcli_reboot(self):
         # The conf loading on startup is made through JCliFactory.doStart() method
         # and is emulated below:
-        yield self.sendCommand('load -p %s' % self.JCliConfigInstance.load_profile, 0.2)
+        yield self.sendCommand('load', 0.2)
         # Clear buffer before beginning asserts
         self.tr.clear()
 

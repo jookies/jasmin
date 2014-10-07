@@ -57,7 +57,7 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector %s' % cid}]
         self.add_moroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to cid:%s' % cid}]
+        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to cid:%s NOT RATED' % cid}]
         return self._test(r'jcli : ', commands)
     
     def test_update_not_available(self):
@@ -166,7 +166,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         rorder = '0'
         rtype = 'DefaultRoute'
         cid = 'http1'
-        _str_ = '%s to cid:%s' % (rtype, cid)
+        _str_ = '%s to cid:%s NOT RATED' % (rtype, cid)
         
         # Add MORoute
         extraCommands = [{'command': 'order %s' % rorder}, 
@@ -188,7 +188,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         rtype = 'StaticMORoute'
         cid = 'http1'
         fid = 'f1'
-        _str_ = '%s to cid:%s' % (rtype, cid)
+        _str_ = '%s to cid:%s NOT RATED' % (rtype, cid)
         
         # Add MORoute
         extraCommands = [{'command': 'order %s' % rorder}, 

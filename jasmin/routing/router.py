@@ -3,8 +3,9 @@ import logging
 import pickle
 import uuid
 from twisted.spread import pb
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from txamqp.queue import Closed
+from jasmin.routing.jasminApi import jasminApiCredentialError
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
 from jasmin.routing.Routables import RoutableDeliverSm
@@ -17,6 +18,7 @@ LOG_CATEGORY = "jasmin-router"
 class RouterPB(pb.Avatar):
     def setConfig(self, RouterPBConfig):
         self.config = RouterPBConfig
+        self.persistenceTimer = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
@@ -35,6 +37,10 @@ class RouterPB(pb.Avatar):
         self.mt_routing_table = MTRoutingTable()
         self.users = []
         self.groups = []
+        
+        # Activate persistenceTimer, used for persisting users and groups whenever critical updates
+        # occured
+        self.activatePersistenceTimer()
         
         # Persistence flag, accessed through perspective_is_persisted
         self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
@@ -71,6 +77,22 @@ class RouterPB(pb.Avatar):
         self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
         
+        # Subscribe to bill_request.submit_sm_resp.* queues
+        yield self.amqpBroker.chan.exchange_declare(exchange='billing', type='topic')
+        consumerTag = 'RouterPB.%s' % str(uuid.uuid4())
+        routingKey = 'bill_request.submit_sm_resp.*'
+        queueName = 'RouterPB_bill_request_submit_sm_resp_all' # A local queue to RouterPB
+        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="billing", routing_key=routingKey)
+        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+        self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.bill_request_submit_sm_resp_q.get().addCallback(
+                                                             self.bill_request_submit_sm_resp_callback
+                                                             ).addErrback(
+                                                                          self.bill_request_submit_sm_resp_errback
+                                                                          )
+        self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+
     def rejectAndRequeueMessage(self, message):
         msgid = message.content.properties['message-id']
         
@@ -80,6 +102,37 @@ class RouterPB(pb.Avatar):
         return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
     def ackMessage(self, message):
         return self.amqpBroker.chan.basic_ack(message.delivery_tag)
+    
+    def activatePersistenceTimer(self):
+        if self.persistenceTimer and self.persistenceTimer.active():
+            self.log.debug('Reseting persistenceTimer with %ss' % self.config.persistence_timer_secs)
+            self.persistenceTimer.reset(self.config.persistence_timer_secs)
+        else:
+            self.log.debug('Activating persistenceTimer with %ss' % self.config.persistence_timer_secs)
+            self.persistenceTimer = reactor.callLater(self.config.persistence_timer_secs, self.persistenceTimerExpired)
+            
+    def cancelPersistenceTimer(self):
+        if self.persistenceTimer and self.persistenceTimer.active():
+            self.log.debug('Cancelling persistenceTimer')
+            self.persistenceTimer.cancel()
+            self.persistenceTimer = None
+    
+    def persistenceTimerExpired(self):
+        'This is run every self.config.persistence_timer_secs seconds'
+        self.log.debug('persistenceTimerExpired called')
+
+        # If at least one user have its quotas updated, then persist
+        # groups and users to disk
+        for u in self.users:
+            if u.mt_credential.quotas_updated:
+                self.log.info('Detected a user quota update, users and groups will be persisted.')
+                self.perspective_persist(scope = 'groups')
+                self.perspective_persist(scope = 'users')
+                u.mt_credential.quotas_updated = False
+                self.log.debug('Persisted successfully')
+                break
+        
+        self.activatePersistenceTimer()
 
     @defer.inlineCallbacks
     def deliver_sm_callback(self, message):
@@ -99,11 +152,16 @@ class RouterPB(pb.Avatar):
         
         # Routing
         routable = RoutableDeliverSm(DeliverSmPDU, connector)
-        routedConnector = self.getMORoutingTable().getConnectorFor(routable)
-        if routedConnector is None:
+        route = self.getMORoutingTable().getRouteFor(routable)
+        if route is None:
             self.log.debug("No route matched this DeliverSmPDU with scid:%s and msgid:%s" % (scid, msgid))
             yield self.rejectMessage(message)
         else:
+            # Get connector from selected route
+            self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+            routedConnector = route.getConnector()
+
+            
             self.log.debug("Connector '%s' is set to be a route for this DeliverSmPDU" % routedConnector.cid)
             yield self.ackMessage(message)
             
@@ -124,36 +182,117 @@ class RouterPB(pb.Avatar):
             # - an error has occured inside deliver_sm_callback
             self.log.error("Error in deliver_sm_errback: %s" % error)
 
+    @defer.inlineCallbacks
+    def bill_request_submit_sm_resp_callback(self, message):
+        """This callback is a queue listener
+        It will only decide where to send the input message and republish it to the routedConnector
+        The consumer will execute the remaining job of final delivery 
+        c.f. test_router.DeliverSmDeliveryTestCases for use cases
+        """
+        bid = message.content.properties['message-id']
+        amount = float(message.content.properties['headers']['amount'])
+        uid = message.content.properties['headers']['user-id']
+        self.log.debug("Callbacked a bill_request_submit_sm_resp [uid:%s] [amount:%s] [related-bid:%s]" % (uid, amount, bid))
+
+        self.bill_request_submit_sm_resp_q.get().addCallback(
+                                                             self.bill_request_submit_sm_resp_callback
+                                                             ).addErrback(
+                                                                          self.bill_request_submit_sm_resp_errback
+                                                                          )
+        
+        _user = self.getUser(uid)
+        if _user is None:
+            self.log.error("User [uid:%s] not found, billing request [bid:%s] rejected" % (uid, bid))
+            yield self.rejectMessage(message)
+        elif _user.mt_credential.getQuota('balance') is not None:
+            if _user.mt_credential.getQuota('balance') < amount:
+                self.log.error('User [uid:%s] have no sufficient balance (%s/%s) for this billing [bid:%s] request: rejected' 
+                              % (uid, _user.mt_credential.getQuota('balance'), amount, bid))
+                yield self.rejectMessage(message)
+            else:
+                _user.mt_credential.updateQuota('balance', -amount)
+                self.log.info('User [uid:%s] charged for amount: %s (bid:%s)' % (uid, amount, bid))
+                yield self.ackMessage(message)
+
+    def bill_request_submit_sm_resp_errback(self, error):
+        """It appears that when closing a queue with the close() method it errbacks with
+        a txamqp.queue.Closed exception, didnt find a clean way to stop consuming a queue
+        without errbacking here so this is a workaround to make it clean, it can be considered
+        as a @TODO requiring knowledge of the queue api behaviour
+        """
+        if error.check(Closed) == None:
+            #@todo: implement this errback
+            # For info, this errback is called whenever:
+            # - an error has occured inside deliver_sm_callback
+            self.log.error("Error in bill_request_submit_sm_resp_errback: %s" % error)
+            self.log.critical("User were not charged !")
+
     def getMORoutingTable(self):
         return self.mo_routing_table
     def getMTRoutingTable(self):
         return self.mt_routing_table
-    def authenticateUser(self, username, password, pickled = False):
+    def authenticateUser(self, username, password, return_pickled = False):
+        """Authenticate a user agains username and password and return user object or None
+        """
         for _user in self.users:
             if _user.username == username and _user.password == md5(password).digest():
-                if pickled:
+                self.log.debug('authenticateUser [username:%s] returned a User', username)
+                if return_pickled:
                     return pickle.dumps(_user, self.pickleProtocol)
                 else:
                     return _user
         
+        self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
+    def chargeUserForSubmitSms(self, user, bill, submit_sm_count, requirements = []):
+        """Will charge the user using the bill object after checking requirements
+        """
+        # Check if User is already existent in Router ?
+        _user = self.getUser(user.uid)
+        if _user is None:
+            self.log.error("User [uid:%s] not found for charging" % user.uid)
+        
+        # Verify user-defined requirements
+        for requirement in requirements:
+            if not requirement['condition']:
+                self.log.warn(requirement['error_message'])
+                return None
+        
+        # Charge _user
+        if bill.getAmount('submit_sm') * submit_sm_count > 0 and _user.mt_credential.getQuota('balance') is not None:
+            if _user.mt_credential.getQuota('balance') < bill.getAmount('submit_sm') * submit_sm_count:
+                self.log.info('User [uid:%s] have no sufficient balance (%s) for submit_sm charging: %s' 
+                              % (user.uid, _user.mt_credential.getQuota('balance'), bill.getAmount('submit_sm') * submit_sm_count))
+                return None
+            _user.mt_credential.updateQuota('balance', -(bill.getAmount('submit_sm')*submit_sm_count))
+            self.log.info('User [uid:%s] charged for submit_sm amount: %s' % (user.uid, bill.getAmount('submit_sm') * submit_sm_count))
+        # Decrement counts
+        if bill.getAction('decrement_submit_sm_count') * submit_sm_count > 0 and _user.mt_credential.getQuota('submit_sm_count') is not None:
+            if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction('decrement_submit_sm_count') * submit_sm_count:
+                self.log.info('User [uid:%s] have no sufficient submit_sm_count (%s) for submit_sm charging: %s' 
+                              % (user.uid, _user.mt_credential.getQuota('submit_sm_count'), bill.getAction('decrement_submit_sm_count') * submit_sm_count))
+                return None
+            _user.mt_credential.updateQuota('submit_sm_count', -(bill.getAction('decrement_submit_sm_count') * submit_sm_count))
+            self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count))
+        
+        return True
     
     def getUser(self, uid):
-        for u in self.users:
-            if u.uid == uid:
-                self.log.debug('getUser [%s] returned a User', uid)
-                return u
+        for _user in self.users:
+            if _user.uid == uid:
+                self.log.debug('getUser [uid:%s] returned a User', uid)
+                return _user
         
-        self.log.debug('getUser [%s] returned None', uid)
+        self.log.debug('getUser [uid:%s] returned None', uid)
         return None
     
     def getGroup(self, gid):
-        for g in self.groups:
-            if g.gid == gid:
-                self.log.debug('getGroup [%s] returned a Group', gid)
-                return g
+        for _group in self.groups:
+            if _group.gid == gid:
+                self.log.debug('getGroup [gid:%s] returned a Group', gid)
+                return _group
         
-        self.log.debug('getGroup [%s] returned None', gid)
+        self.log.debug('getGroup [gid:%s] returned None', gid)
         return None
     
     def getMORoute(self, order):
@@ -161,10 +300,10 @@ class RouterPB(pb.Avatar):
         
         for e in moroutes:
             if order == e.keys()[0]:
-                self.log.debug('getMORoute [%s] returned a MORoute', order)
+                self.log.debug('getMORoute [order:%s] returned a MORoute', order)
                 return e[order]
         
-        self.log.debug('getMORoute [%s] returned None', order)
+        self.log.debug('getMORoute [order:%s] returned None', order)
         return None
     
     def getMTRoute(self, order):
@@ -172,13 +311,13 @@ class RouterPB(pb.Avatar):
         
         for e in mtroutes:
             if order == e.keys()[0]:
-                self.log.debug('getMTRoute [%s] returned a MTRoute', order)
+                self.log.debug('getMTRoute [order:%s] returned a MTRoute', order)
                 return e[order]
         
-        self.log.debug('getMTRoute [%s] returned None', order)
+        self.log.debug('getMTRoute [order:%s] returned None', order)
         return None
     
-    def perspective_persist(self, profile, scope = 'all'):
+    def perspective_persist(self, profile = 'jcli-prod', scope = 'all'):
         try:
             if scope in ['all', 'groups']:
                 # Persist groups configuration
@@ -192,7 +331,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['users'] = True
+                self.persistanceState['groups'] = True
 
             if scope in ['all', 'users']:
                 # Persist users configuration
@@ -206,7 +345,9 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['groups'] = True
+                self.persistanceState['users'] = True
+                for u in self.users:
+                    u.mt_credential.quotas_updated = False
 
             if scope in ['all', 'moroutes']:
                 # Persist moroutes configuration
@@ -245,7 +386,7 @@ class RouterPB(pb.Avatar):
 
         return True
     
-    def perspective_load(self, profile, scope = 'all'):
+    def perspective_load(self, profile = 'jcli-prod', scope = 'all'):
         try:
             if scope in ['all', 'groups']:
                 # Load groups configuration
@@ -288,6 +429,8 @@ class RouterPB(pb.Avatar):
 
                 # Set persistance state to True
                 self.persistanceState['users'] = True
+                for u in self.users:
+                    u.mt_credential.quotas_updated = False
 
             if scope in ['all', 'moroutes']:
                 # Load moroutes configuration

@@ -52,17 +52,18 @@ setup(
     author="Fourat ZOUARI",
     author_email="fourat@gmail.com",
     url="https://github.com/jookies/jasmin",
-    license="Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)",
+    license="Apache v2.0",
     description=('Jasmin is a very complete open source SMS Gateway '
                  'with many enterprise-class features.'),
     long_description=open('README.rst', 'r').read(),
-    keywords = ['jasmin', 'sms', 'messaging', 'smpp'],
-    packages=find_packages() + ['twisted.plugins'],
+    keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
+    packages=find_packages(),
+    scripts=['jasmin/bin/jasmind.py'],
     include_package_data=True,
     install_requires=[str(ir.req) for ir in install_reqs],
     tests_require=[str(ir.req) for ir in test_reqs],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Framework :: Twisted',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
@@ -78,5 +79,5 @@ setup(
                 ('/etc/jasmin/resource', [
                     'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
                     'misc/config/resource/amqp0-9-1.xml'],),
-                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmin']),],
+                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmind']),],
 )

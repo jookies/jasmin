@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- 
+import copy
 import glob
 import os
 import mock
@@ -6,10 +7,6 @@ import pickle
 import time
 import urllib
 import string
-import random
-import copy
-import struct
-from hashlib import md5
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
@@ -63,6 +60,12 @@ class RouterPBTestCase(unittest.TestCase):
         
         # Launch the router server
         self.pbRoot_f = RouterPB()
+        
+        # Mock callbacks
+        # will be used for assertions
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(wraps = self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        self.pbRoot_f.deliver_sm_callback = mock.Mock(wraps = self.pbRoot_f.deliver_sm_callback)
+        
         self.pbRoot_f.setConfig(self.RouterPBConfigInstance)
         p = portal.Portal(JasminPBRealm(self.pbRoot_f))
         if not authentication:
@@ -74,11 +77,13 @@ class RouterPBTestCase(unittest.TestCase):
         jPBPortalRoot = JasminPBPortalRoot(p)
         self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
-        
+    
+    @defer.inlineCallbacks
     def tearDown(self):
-        self.disconnect()
-        self.PBServer.stopListening()
-        
+        yield self.disconnect()
+        yield self.PBServer.stopListening()
+        self.pbRoot_f.cancelPersistenceTimer()
+
 class HttpServerTestCase(RouterPBTestCase):
     def setUp(self):
         RouterPBTestCase.setUp(self)
@@ -98,11 +103,12 @@ class HttpServerTestCase(RouterPBTestCase):
         httpApi = HTTPApi(self.pbRoot_f, self.clientManager_f, httpApiConfigInstance)
         self.httpServer = reactor.listenTCP(httpApiConfigInstance.port, server.Site(httpApi))
         self.httpPort  = httpApiConfigInstance.port
-        
+    
+    @defer.inlineCallbacks
     def tearDown(self):
-        RouterPBTestCase.tearDown(self)
+        yield RouterPBTestCase.tearDown(self)
         
-        self.httpServer.stopListening()
+        yield self.httpServer.stopListening()
 
 class SMPPClientManagerPBTestCase(HttpServerTestCase):
     @defer.inlineCallbacks
@@ -124,10 +130,10 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         yield self.amqpBroker.getChannelReadyDeferred()
         
         # Add the broker to the RouterPB
-        self.pbRoot_f.addAmqpBroker(self.amqpBroker)
+        yield self.pbRoot_f.addAmqpBroker(self.amqpBroker)
         
         # Setup smpp client manager pb
-        self.clientManager_f.addAmqpBroker(self.amqpBroker)
+        yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
         p = portal.Portal(JasminPBRealm(self.clientManager_f))
         p.registerChecker(AllowAnonymousAccess())
         jPBPortalRoot = JasminPBPortalRoot(p)
@@ -138,7 +144,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         DLRThrowerConfigInstance = DLRThrowerConfig()
         self.DLRThrower = DLRThrower()
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
-        self.DLRThrower.addAmqpBroker(self.amqpBroker)
+        yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
         
         # Connect to redis server
         RedisForJasminConfigInstance = RedisForJasminConfig()
@@ -155,11 +161,11 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
     
     @defer.inlineCallbacks
     def tearDown(self):
-        HttpServerTestCase.tearDown(self)
+        yield HttpServerTestCase.tearDown(self)
         
-        self.SMPPClientManagerPBProxy.disconnect()
-        self.CManagerServer.stopListening()
-        self.amqpClient.disconnect()
+        yield self.SMPPClientManagerPBProxy.disconnect()
+        yield self.CManagerServer.stopListening()
+        yield self.amqpClient.disconnect()
         yield self.redisClient.disconnect()
         
 class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
@@ -202,7 +208,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     def test_add_list_and_flush_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator()), 0.0), 2)
         yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
@@ -218,7 +224,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     def test_add_list_and_remove_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
-        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator())), 2)
+        yield self.mtroute_add(StaticMTRoute([GroupFilter(Group(1))], SmppClientConnector(id_generator()), 0.0), 2)
         yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         listRet1 = yield self.mtroute_get_all()
         listRet1 = pickle.loads(listRet1)
@@ -454,14 +460,17 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         u = pickle.loads(u)
         self.assertEqual(u3.username, u.username)
 
-class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
+class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
     def tearDown(self):
         # Remove persisted configurations
         filelist = glob.glob("%s/*" % self.RouterPBConfigInstance.store_path)
         for f in filelist:
             os.remove(f)
             
-        return RouterPBTestCase.tearDown(self)
+        yield RouterPBTestCase.tearDown(self)
+
+class ConfigurationPersistenceTestCases(PersistenceTestCase):
     
     @defer.inlineCallbacks
     def test_persist_default(self):
@@ -775,6 +784,113 @@ class ConfigurationPersistenceTestCases(RouterPBProxy, RouterPBTestCase):
         isPersisted = yield self.is_persisted()
         self.assertTrue(isPersisted)
 
+class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
+    @defer.inlineCallbacks
+    def test_manual_persist_sets_quotas_updated_to_false(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Config is not persisted, waiting for persistance
+        isPersisted = yield self.is_persisted()
+        self.assertFalse(isPersisted)
+
+        # Check quotas_updated flag
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        
+        # Update quota and check for quotas_updated
+        self.pbRoot_f.users[0].mt_credential.updateQuota('balance', -1.0)
+        self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+        
+        # Manual persistence and check for quotas_updated
+        persistRet = yield self.persist()
+        self.assertTrue(persistRet)
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        
+        # Balance would not change after persistence
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+
+    @defer.inlineCallbacks
+    def test_manual_load_sets_quotas_updated_to_false(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Manual persistence and check for quotas_updated
+        persistRet = yield self.persist()
+        self.assertTrue(persistRet)
+
+        # Config is persisted
+        isPersisted = yield self.is_persisted()
+        self.assertTrue(isPersisted)
+
+        # Check quotas_updated flag
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        
+        # Update quota and check for quotas_updated
+        self.pbRoot_f.users[0].mt_credential.updateQuota('balance', -1.0)
+        self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+        
+        # Manual load and check for quotas_updated
+        loadRet = yield self.load()
+        self.assertTrue(loadRet)
+        self.assertFalse(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+
+        # Balance will be reset after persistence
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 2.0)
+
+    @defer.inlineCallbacks
+    def test_automatic_persist_on_quotas_updated(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Mock perspective_persist for later assertions
+        self.pbRoot_f.perspective_persist = mock.Mock(self.pbRoot_f.perspective_persist)
+        # Reset persistence_timer_secs to shorten the test time
+        self.pbRoot_f.config.persistence_timer_secs = 0.1
+        self.pbRoot_f.activatePersistenceTimer()
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Update quota and check for quotas_updated
+        self.pbRoot_f.users[0].mt_credential.updateQuota('balance', -1.0)
+        self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
+
+        # Wait 3 seconds for automatic persistence to be done
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # assert for 2 calls to persist: 1.users and 2.groups
+        self.assertEqual(self.pbRoot_f.perspective_persist.call_count, 2)
+        self.assertEqual(self.pbRoot_f.perspective_persist.call_args_list, [mock.call(scope='groups'), mock.call(scope='users')])
+
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
     def test_delivery(self):
@@ -816,7 +932,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         
         # Now we'll create the connecter and send an MT to it
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=c1.cid)        
+        c1Config = SMPPClientConfig(id=c1.cid)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # We should receive a msg id
@@ -839,14 +955,14 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
         yield SMPPClientManagerPBTestCase.setUp(self)
         
         self.smsc_f = LastClientFactory()
-        self.smsc_f.protocol = self.protocol      
+        self.smsc_f.protocol = self.protocol
         self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
                 
     @defer.inlineCallbacks
     def tearDown(self):
         yield SMPPClientManagerPBTestCase.tearDown(self)
         
-        self.SMSCPort.stopListening()
+        yield self.SMSCPort.stopListening()
 
 class SubmitSmTestCaseTools():
     """
@@ -854,16 +970,20 @@ class SubmitSmTestCaseTools():
     """
     
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver'):
+    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = 0.0, 
+                                         user = None):
         # Routing stuff
         g1 = Group(1)
         yield self.group_add(g1)
         
         self.c1 = SmppClientConnector(id_generator())
         user_password = 'password'
-        self.u1 = User(1, g1, 'username', user_password)
+        if user is None:
+            self.u1 = User(1, g1, 'username', user_password)
+        else:
+            self.u1 = user
         yield self.user_add(self.u1)
-        yield self.mtroute_add(DefaultRoute(self.c1), 0)
+        yield self.mtroute_add(DefaultRoute(self.c1, route_rate), 0)
 
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
@@ -907,7 +1027,6 @@ class SubmitSmTestCaseTools():
                 break;
             else:
                 time.sleep(0.2)
-
     
 class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -922,7 +1041,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
         
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
     def test_delivery_with_inurl_dlr_level1(self):
@@ -947,7 +1066,7 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         yield self.stopSmppClientConnectors()
         
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -1172,7 +1291,7 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
         
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
     def test_delivery_with_inurl_dlr_level1(self):
@@ -1414,7 +1533,7 @@ class NoSubmitSmWhenReceiverIsBoundSMSC(SMPPClientManagerPBTestCase):
     def tearDown(self):
         yield SMPPClientManagerPBTestCase.tearDown(self)
         
-        self.SMSCPort.stopListening()
+        yield self.SMSCPort.stopListening()
 
 class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMSC, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -1429,10 +1548,10 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
     def tearDown(self):
         yield NoSubmitSmWhenReceiverIsBoundSMSC.tearDown(self)
         
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
-    def test_test_delivery_using_incorrectly_bound_connector(self):
+    def test_delivery_using_incorrectly_bound_connector(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(bindOperation = 'receiver')
         
@@ -1447,7 +1566,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -1465,10 +1584,11 @@ class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
         self.smsc_f = LastClientFactory()
         self.smsc_f.protocol = self.protocol      
         self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-                
+    
+    @defer.inlineCallbacks
     def tearDown(self):        
-        self.SMSCPort.stopListening()
-        return SMPPClientManagerPBTestCase.tearDown(self)
+        yield self.SMSCPort.stopListening()
+        yield SMPPClientManagerPBTestCase.tearDown(self)
         
 class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     
@@ -1498,7 +1618,7 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        self.AckServer.stopListening()
+        yield self.AckServer.stopListening()
         yield self.deliverSmHttpThrower.stopService()
         yield DeliverSmSMSCTestCase.tearDown(self)
         
@@ -1565,6 +1685,8 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         yield self.triggerDeliverSmFromSMSC([pdu])
 
         # Run tests
+        # Test callback in router
+        self.assertEquals(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
@@ -1717,3 +1839,55 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     def test_delivery_SmppClientConnector(self):
         pass
     test_delivery_SmppClientConnector.skip = 'TODO: When SMPP Server will be implemented ?'
+
+class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+    @defer.inlineCallbacks
+    def test_unrated_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Mock callback
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        
+        self.params['content'] = composeMessage({'_'}, 200)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Unrated route will not callback, nothing to bill
+        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 0)
+
+    @defer.inlineCallbacks
+    def test_rated_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        mt_c.setQuota('early_decrement_balance_percent', 10)
+        user = User(1, Group(1), 'username', 'password', mt_c)
+        yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user)
+
+        self.params['content'] = composeMessage({'_'}, 10)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Rated route will callback with a bill
+        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 1)

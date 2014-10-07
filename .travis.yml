@@ -4,14 +4,16 @@ python:
 # Command to install dependencies
 install:
     - python setup.py sdist
-    - pip install dist/jasmin-0.4.0-alpha.tar.gz
+    - pip install dist/jasmin-0.5.0-beta.tar.gz
 # Commands to run tests:
 script:
+    # Add jasmind to system autostartup
+    - sudo update-rc.d jasmind defaults
     # Service startup test:
-    - sudo ln -s /home/travis/virtualenv/python2.7.8/bin/twistd /usr/bin/;sudo /etc/init.d/jasmin start
+    - sudo /etc/init.d/jasmind start
     - sleep 20
     # Cleaning before going for further tests
-    - sudo /etc/init.d/jasmin stop;sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
+    - sudo /etc/init.d/jasmind stop;sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:
     - sudo chmod -R 777 /var/log/jasmin /etc/jasmin/store
     - coverage run `which trial` jasmin
@@ -36,7 +38,7 @@ before_install:
     # jasmin requirement:
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
     - sudo useradd jasmin
-    - sudo ln -s /etc/jasmin/init-script/jasmin /etc/init.d/
+    - sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
     - sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/init-script /etc/jasmin/store /var/run/jasmin
     - sudo chown `whoami` /etc/jasmin /etc/jasmin/resource /etc/jasmin/init-script
     - sudo chown jasmin. /var/log/jasmin /etc/jasmin/store /var/run/jasmin

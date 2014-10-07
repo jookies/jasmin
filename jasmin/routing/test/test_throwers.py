@@ -84,10 +84,10 @@ class HTTPThrowingTestCases(deliverSmHttpThrowerTestCase):
     @defer.inlineCallbacks
     def tearDown(self):
         yield deliverSmHttpThrowerTestCase.tearDown(self)
-        self.Error404Server.stopListening()
-        self.AckServer.stopListening()
-        self.NoAckServer.stopListening()
-        self.TimeoutLeafServer.stopListening()
+        yield self.Error404Server.stopListening()
+        yield self.AckServer.stopListening()
+        yield self.NoAckServer.stopListening()
+        yield self.TimeoutLeafServer.stopListening()
     
     @defer.inlineCallbacks
     def test_throwing_http_connector_with_ack(self):
@@ -200,7 +200,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
         
         # Add the broker to the deliverSmHttpThrower
-        self.DLRThrower.addAmqpBroker(self.amqpBroker)
+        yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
 
         # Start http servers
         self.Error404ServerResource = Error404Server()
@@ -228,10 +228,10 @@ class DLRThrowerTestCase(unittest.TestCase):
         yield self.amqpBroker.disconnect()
         yield self.DLRThrower.stopService()
         
-        self.Error404Server.stopListening()
-        self.AckServer.stopListening()
-        self.NoAckServer.stopListening()
-        self.TimeoutLeafServer.stopListening()
+        yield self.Error404Server.stopListening()
+        yield self.AckServer.stopListening()
+        yield self.NoAckServer.stopListening()
+        yield self.TimeoutLeafServer.stopListening()
         
     @defer.inlineCallbacks
     def test_throwing_http_connector_with_ack(self):

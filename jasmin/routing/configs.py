@@ -13,6 +13,8 @@ class RouterPBConfig(ConfigFile):
         
         self.store_path = self._get('router', 'store_path', '/etc/jasmin/store')
 
+        self.persistence_timer_secs = self._get('router', 'persistence_timer_secs', 60)
+
         self.bind = self._get('router', 'bind', '0.0.0.0')
         self.port = self._getint('router', 'port', 8988)
         
