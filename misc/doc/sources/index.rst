@@ -2,7 +2,7 @@
 The Jasmin Open source SMS gateway
 ##################################
 
-Jasmin is an open-source SMS Gateway with many enterprise-class features, Jasmin is built to be easily customized to meet the specific needs of messaging exchange growing business.
+`Jasmin <http://jasminsms.com/>`_ is an open-source SMS Gateway with many enterprise-class features, Jasmin is built to be easily customized to meet the specific needs of messaging exchange growing business.
 
 Based on strong message routing algorithms, Jasmin provides flexibility to define rule based routing based on various criteria: sender ID, source, destination and many combinations. Auto reconnection and re-routing mechanism managing peak hours or link failover for high availability services.
 
@@ -50,6 +50,14 @@ Full contents
    /routing/index
    /billing/index
    /messaging/index
+
+Links
+*****
+
+* `Jasmin SMS Gateway home page <http://www.jasminsms.com>`_
+* `Documentation <http://docs.jasminsms.com>`_
+* `Source code <http://github.com/jookies/jasmin>`_
+* `Travis CI <https://travis-ci.org/jookies/jasmin>`_
 
 License
 *******

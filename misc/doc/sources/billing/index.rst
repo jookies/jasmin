@@ -2,7 +2,7 @@
 Billing
 #######
 
-Jasmin comes with a *prepaid* user billing feature that lets you apply rates on message routes, every time a user sends a SMS through a rated route he'll get charged, once he runs out of credit no more sending will be permitted.
+`Jasmin <http://jasminsms.com/>`_ comes with a *prepaid* user billing feature that lets you apply rates on message routes, every time a user sends a SMS through a rated route he'll get charged, once he runs out of credit no more sending will be permitted.
 
 .. important:: New routes created through :ref:`mtrouter_manager` are not rated by default, you must :ref:`define <mtrouter_manager>` the rate of each route in order to enable billing.
 

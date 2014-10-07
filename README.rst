@@ -52,6 +52,7 @@ Links
 
 * `Project home page <http://www.jasminsms.com>`_
 * `Documentation <http://docs.jasminsms.com>`_
+* `Source code <http://github.com/jookies/jasmin>`_
 * `Travis CI <https://travis-ci.org/jookies/jasmin>`_
 
 License
@@ -71,9 +72,10 @@ Change Log
 0.5.0 (*under development*)
 ===========================
 
-* User credentials: validation, default values and balance/quota management
+* User credentials: validation, default/fallback values and balance/quota management
 * Changed system service startup script from twisted tap plugin to bin/jasmind
 * Rated routes (for billing purpose)
+* Prepaid billing including asynchronous mode
 * jCli supports user credentials management
 * Updated documentation
 * Various fixes

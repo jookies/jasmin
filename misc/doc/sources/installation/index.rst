@@ -11,7 +11,7 @@ The Installation section is intended to get you up and running quickly with a si
 Prerequisites
 *************
 
-Jasmin requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_. Download the latest version from http://www.python.org/. It is highly recommended that users install the latest patch version of python as these contain many fixes to serious bugs.
+`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_. Download the latest version from http://www.python.org/. It is highly recommended that users install the latest patch version of python as these contain many fixes to serious bugs.
 
 Depending on the Linux distribution you are using, you may need to install the following dependencies:
 
