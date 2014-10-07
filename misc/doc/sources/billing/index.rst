@@ -2,7 +2,7 @@
 Billing
 #######
 
-`Jasmin <http://jasminsms.com/>`_ comes with a *prepaid* user billing feature that lets you apply rates on message routes, every time a user sends a SMS through a rated route he'll get charged, once he runs out of credit no more sending will be permitted.
+`Jasmin <http://jasminsms.com/>`_ comes with a user billing feature that lets you apply rates on message routes, every time a user sends a SMS through a rated route he'll get charged, once he runs out of credit no more sending will be permitted.
 
 .. important:: New routes created through :ref:`mtrouter_manager` are not rated by default, you must :ref:`define <mtrouter_manager>` the rate of each route in order to enable billing.
 
@@ -21,7 +21,7 @@ The route rate will be charged on the user balance, let's get into these use cas
 * When sending one SMS through a route rated **1.2**, user's balance will get decreased by **1.2**
 * When sending five SMS through a route rated **0.2**, user's balance will get decreased by **1**
 
-.. important:: New users created through :ref:`user_manager` will have unlimited balance by default, assuming you'll apply postpaid billing (*or no billing at all*), user's balance must be :ref:`defined <user_manager>` in order to enable prepaid billing.
+.. important:: New users created through :ref:`user_manager` will have unlimited balance by default, assuming you'll apply postpaid billing (*or no billing at all*), user's balance must be :ref:`defined <user_credentials>` in order to enable billing.
 
 Rate unit
 ---------
@@ -44,7 +44,7 @@ As :ref:`will be explained later <billing_call_flow_async>`, it is important to 
 #. A defined percentage of the route rate is charged when the user submits the SMS for sending.
 #. The rest is charged when the SMS is acknowledged by the next relay, in SMPP protocol, this means receiving **SUBMIT_SM_RESP** PDU, more details :ref:`here <billing_call_flow_async>`.
 
-Asynchronous billing is automatically enabled when the user have **early_decrement_balance_percent** :ref:`defined <user_manager>` (undefined by default), let's get back to examples for better comprehension, assuming user have **early_decrement_balance_percent = 25**:
+Asynchronous billing is automatically enabled when the user have **early_decrement_balance_percent** :ref:`defined <user_credentials>` (undefined by default), let's get back to examples for better comprehension, assuming user have **early_decrement_balance_percent = 25**:
 
 * When sending one SMS through a route rated **1.2**:
 
@@ -76,7 +76,7 @@ Simpler than *Balance* management, *submit_sm_count* is a counter to be decrease
 
 .. note:: When defined, *submit_sm_count* is always decreased no matter the route is rated or not.
 
-.. important:: New users created through :ref:`user_manager` will have unlimited submit_sm_count by default, assuming you'll apply postpaid billing (*or no billing at all*), user's submit_sm_count must be :ref:`defined <user_manager>` in order to enable prepaid billing (or limit).
+.. important:: New users created through :ref:`user_manager` will have unlimited submit_sm_count by default, assuming you'll apply postpaid billing (*or no billing at all*), user's submit_sm_count must be :ref:`defined <user_credentials>` in order to enable billing (or limit).
 
 .. _billing_process_flow:
 
@@ -107,7 +107,7 @@ When enabled, :ref:`Asynchronous billing <billing_async>` algorithm can charge u
    
    Asynchronous billing call flow
 
-In the above figure, user is charged early before submitting SMS to SMSC, and the charged later when the SMSC acknowledge back reception of the message, as detailed :ref:`earlier <billing_async>`, the charged amount in early stage is defined by **early_decrement_balance_percent** :ref:`set in user profile <user_manager>`.
+In the above figure, user is charged early before submitting SMS to SMSC, and the charged later when the SMSC acknowledge back reception of the message, as detailed :ref:`earlier <billing_async>`, the charged amount in early stage is defined by **early_decrement_balance_percent** :ref:`set in user profile <user_credentials>`.
 
 .. note:: The route rate is expressed on a per-SUBMIT_SM basis, submitting a long SMS will be splitted into multiple **submit_sm SMPP PDUs**, each one will be charged on user.
 

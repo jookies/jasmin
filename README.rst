@@ -69,8 +69,14 @@ Credits
 Change Log
 **********
 
-0.5.0 (*under development*)
-===========================
+0.6.0 (*under development)
+==========================
+
+* SMPP Server API
+* Better User credentials: expiry and QoS
+
+0.5.0
+=====
 
 * User credentials: validation, default/fallback values and balance/quota management
 * Changed system service startup script from twisted tap plugin to bin/jasmind

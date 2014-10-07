@@ -146,13 +146,13 @@ Otherwise, an error is returned:
      - Request parameters validation error
    * - **400**
      - *dynamic messages*
-     - Credentials validation error
+     - Credentials validation error, c.f. :ref:`user_credentials`
    * - **403**
      - Error "Authentication failure for username:_"
      - Authentication error
    * - **403**
      - Error "Authorization failed for username:_"
-     - Credentials validation error
+     - Credentials validation error, c.f. :ref:`user_credentials`
    * - **403**
      - Error "Cannot charge submit_sm, check RouterPB log file for details"
      - User charging error

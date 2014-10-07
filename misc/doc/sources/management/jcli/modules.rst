@@ -53,6 +53,7 @@ When adding a User, the following parameters are required:
  * **password**
  * **uid**: A unique identifier, can be same as **username**
  * **gid**: Group Identfier
+ * **mt_messaging_cred** (*optional*): MT Messaging credentials (c.f. :ref:`user_credentials`)
 
 Here's an example of adding a new User to the **marketing** group::
 
@@ -69,15 +70,130 @@ All the above parameters can be displayed after User creation, except the passwo
 
    jcli : user -s foo
    username foo
+   mt_messaging_cred defaultvalue src_addr None
+   mt_messaging_cred quota balance ND
+   mt_messaging_cred quota sms_count ND
+   mt_messaging_cred quota early_percent ND
+   mt_messaging_cred valuefilter priority ^[0-3]$
+   mt_messaging_cred valuefilter content .*
+   mt_messaging_cred valuefilter src_addr .*
+   mt_messaging_cred valuefilter dst_addr .*
+   mt_messaging_cred authorization dlr_level True
+   mt_messaging_cred authorization dlr_method True
+   mt_messaging_cred authorization long_content True
+   mt_messaging_cred authorization src_addr True
+   mt_messaging_cred authorization http_send True
+   mt_messaging_cred authorization priority True
    gid marketing
    uid foo
 
 Listing Users will show currently added Users with their UID, GID and Username::
 
    jcli : user -l
-   #User id          Group id         Username        
-   #foo              marketing        foo             
+   #User id          Group id         Username         Balance MT SMS
+   #foo              1                foo              ND      ND             
    Total Users: 1
+
+.. _user_credentials:
+
+User credentials
+================
+
+As seen above, User have an optional **mt_messaging_cred** parameter which define a set of sections:
+
+* **Authorizations**: Privileges to send messages and set some defined parameters,
+* **Value filters**: Restrictions on some parameter values (such as source address),
+* **Default values**: Default parameter values to be set by Jasmin when not manually set by User,
+* **Quotas**: Everything about (c.f. :doc:`/billing/index`),
+
+For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to set a source address value filter and a balance of 44.2::
+
+   jcli : user -a
+   Adding a new User: (ok: save, ko: exit)
+   > username foo
+   > password bar
+   > gid marketing
+   > uid foo
+   > mt_messaging_cred valuefilter src_addr ^JASMIN$
+   > mt_messaging_cred quota balance 44.2
+   > ok
+   Successfully added User [foo] to Group [marketing]
+
+In the below tables, you can find exhaustive list of keys for each mt_messaging_cred section:
+
+.. list-table:: **authorization** section keys
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Key
+     - Default
+     - Description
+   * - http_send
+     - True
+     - Privilege to send SMS through HTTP API
+   * - long_content
+     - True
+     - Privilege to send long content SMS through HTTP API
+   * - dlr_level
+     - True
+     - Privilege to set **dlr-level** parameter (default is 1)
+   * - dlr_method
+     - True
+     - Privilege to set **dlr-method** HTTP parameter (default is GET)
+   * - src_addr
+     - True
+     - Privilege to defined source address of SMS-MT
+   * - priority
+     - True
+     - Privilege to defined priority of SMS-MT (default is 0)
+
+.. list-table:: **valuefilter** section keys
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Key
+     - Default
+     - Description
+   * - src_addr
+     - .*
+     - Regex pattern to validate source address of SMS-MT
+   * - dst_addr
+     - .*
+     - Regex pattern to validate destination address of SMS-MT
+   * - content
+     - .*
+     - Regex pattern to validate content of SMS-MT
+   * - priority
+     - ^[0-3]$
+     - Regex pattern to validate priority of SMS-MT
+
+.. list-table:: **defaultvalue** section keys
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Key
+     - Default
+     - Description
+   * - src_addr
+     - *None*
+     - Default source address of SMS-MT
+
+.. list-table:: **quota** section keys
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Key
+     - Default
+     - Description
+   * - balance
+     - ND
+     - c.f. :ref:`billing_type_1`
+   * - sms_count
+     - ND
+     - c.f. :ref:`billing_type_2`
+   * - early_percent
+     - ND
+     - c.f. :ref:`billing_async`
 
 .. _group_manager:
 
@@ -273,8 +389,7 @@ The MT Router manager module is accessible through the **mtrouter** command and 
    * - -f, --flush
      - Flush MT routing table
 
-MT Router helps managing Jasmin's MTRoutingTable, which is responsible of providing routes to outgoing 
-SMS MT, here the basics of Jasmin MT routing mechanism:
+MT Router helps managing Jasmin's MTRoutingTable, which is responsible of providing routes to outgoing SMS MT, here the basics of Jasmin MT routing mechanism:
 
  #. **MTRoutingTable** holds ordered **MTRoute** objects (each MTRoute has a unique order)
  #. A **MTRoute** is composed of:
@@ -304,6 +419,7 @@ When adding a MT Route, the following parameters are required:
 
  * **type**: One of the supported MT Routes: DefaultRoute, StaticMTRoute, RandomRoundrobinMTRoute
  * **order**: MO Route order
+ * **rate**: The route rate, can be zero
 
 When choosing the MT Route **type**, additionnal parameters may be added to the above required parameters.
 

@@ -87,10 +87,11 @@ The following routing cases are considered:
 
   * Its sent by a user in group G2
 
-.. note:: The route order is very important: if we swap last both routes (#90 and #91) we will run into a shadowing route where 
-   all MT messages sent by a user in group G2 will be routed to smpp_3, no matter what time of the day it is.
+.. note:: The route order is very important: if we swap last both routes (#90 and #91) we will run into a shadowing route where all MT messages sent by a user in group G2 will be routed to smpp_3, no matter what time of the day it is.
 
 .. note:: In this example, there's no DefaultRoute, this will lead to message rejection if none of the configured routes are matched.
+
+.. note:: Route's **rate** are discussed in :doc:`/billing/index`.
 
 Router components 
 *****************
