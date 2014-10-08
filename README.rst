@@ -29,7 +29,7 @@ Architecture
    :align: Center
 
 Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
-and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
+and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, an event-driven networking engine.
 
 Getting started
 ***************
@@ -52,6 +52,7 @@ Links
 
 * `Project home page <http://www.jasminsms.com>`_
 * `Documentation <http://docs.jasminsms.com>`_
+* `Support <https://groups.google.com/forum/#!forum/jasmin-sms-gateway>`_
 * `Source code <http://github.com/jookies/jasmin>`_
 * `Travis CI <https://travis-ci.org/jookies/jasmin>`_
 
