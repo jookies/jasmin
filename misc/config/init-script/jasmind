@@ -9,7 +9,8 @@
 # Description:       Jasmin SMS Gateway
 ### END INIT INFO
 
-NAME="jasmind.py"
+VERBOSE='yes'
+NAME='jasmind.py'
 COMMAND=$(which $NAME)
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
@@ -102,8 +103,8 @@ case "$1" in
     [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC " "$NAME"
     do_start
     case "$?" in
-		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0; echo 'HERE_0' ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1; echo 'HERE_2' ;;
 	esac
   ;;
   stop)
