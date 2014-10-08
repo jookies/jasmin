@@ -9,12 +9,12 @@
 # Description:       Jasmin SMS Gateway
 ### END INIT INFO
 
-COMMAND=$(which jasmind.py)
+NAME="jasmind"
+COMMAND=$(which $NAME)
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="jasmind system service"
-NAME=jasmind
+DESC="$NAME system service"
 DAEMON=/usr/bin/python
 PIDDIR=/var/run/jasmin
 PIDFILE="$PIDDIR/$NAME.pid"
@@ -147,7 +147,6 @@ case "$1" in
 	esac
 	;;
   *)
-	#echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
 	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
 	exit 3
 	;;
