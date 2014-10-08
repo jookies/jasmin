@@ -52,6 +52,7 @@ do_start()
 	echo
 	echo
 	find / -name "jasmind.py" -exec ls -l '{}' \;
+	echo "PATH: $PATH"
 	echo "DAEMON: $DAEMON"
 	echo "COMMAND: $COMMAND"
 	echo "COMMAND_ARGS: $COMMAND_ARGS"
