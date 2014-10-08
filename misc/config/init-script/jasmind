@@ -9,7 +9,7 @@
 # Description:       Jasmin SMS Gateway
 ### END INIT INFO
 
-COMMAND='jasmind'
+COMMAND='jasmind.py'
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
