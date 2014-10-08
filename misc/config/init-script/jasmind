@@ -9,12 +9,12 @@
 # Description:       Jasmin SMS Gateway
 ### END INIT INFO
 
-COMMAND='jasmind.py'
+COMMAND=$(which jasmind.py)
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="$COMMAND system service"
-NAME=$COMMAND
+DESC="jasmind system service"
+NAME=jasmind
 DAEMON=/usr/bin/python
 PIDDIR=/var/run/jasmin
 PIDFILE="$PIDDIR/$NAME.pid"
@@ -28,8 +28,11 @@ GROUP=jasmin
 getent passwd "$USER" >/dev/null || exit 11
 getent group "$GROUP" >/dev/null || exit 12
 
+# Exit if the jasmind.py is not found
+[ -x $COMMAND ] || exit 21
+
 # Exit if the package is not installed
-[ -x $DAEMON ] || exit 20
+[ -x $DAEMON ] || exit 22
 
 # Exit if system folders do not exist
 [ -d $PIDDIR ] || exit 31
@@ -54,7 +57,7 @@ do_start()
                 --user=$(id -u $USER) \
                 --group=$(id -g $GROUP) \
                 --pidfile=$PIDFILE \
-                $(which $COMMAND) -- $COMMAND_ARGS \
+                $COMMAND -- $COMMAND_ARGS \
 		|| return 2
 }
 
