@@ -13,12 +13,8 @@ script:
     - sudo /etc/init.d/jasmind start
     - sleep 2
     - sudo /etc/init.d/jasmind status
-    # Stop service and status test
+    # Stop service
     - sudo /etc/init.d/jasmind stop
-    - sleep 2
-    - sudo /etc/init.d/jasmind status
-    # Debugging
-    - sudo tail -n 200 /var/log/syslog
     # Cleaning before going for further tests
     - sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:

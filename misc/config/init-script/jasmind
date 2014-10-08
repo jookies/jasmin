@@ -50,6 +50,8 @@ do_start()
 {
 	# Debug
 	echo
+	echo
+	find / -name "jasmind.py" -exec ls -l '{}' \;
 	echo "DAEMON: $DAEMON"
 	echo "COMMAND: $COMMAND"
 	echo "COMMAND_ARGS: $COMMAND_ARGS"
