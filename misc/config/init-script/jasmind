@@ -49,6 +49,7 @@ getent group "$GROUP" >/dev/null || exit 12
 do_start()
 {
 	# Debug
+	echo
 	echo "DAEMON: $DAEMON"
 	echo "COMMAND: $COMMAND"
 	echo "COMMAND_ARGS: $COMMAND_ARGS"
