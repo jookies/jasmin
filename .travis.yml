@@ -12,6 +12,7 @@ script:
     # Service startup test:
     - sudo /etc/init.d/jasmind start
     # Debug
+    - sleep 5
     - ps ax|grep python
     - sudo /usr/bin/python /usr/sbin/jasmind.py --username jcliadmin --password jclipwd
     - sleep 2
