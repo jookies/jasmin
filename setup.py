@@ -51,7 +51,7 @@ setup(
     version=release,
     author="Fourat ZOUARI",
     author_email="fourat@gmail.com",
-    url="https://github.com/jookies/jasmin",
+    url="http://www.jasminsms.com",
     license="Apache v2.0",
     description=('Jasmin is a very complete open source SMS Gateway '
                  'with many enterprise-class features.'),
