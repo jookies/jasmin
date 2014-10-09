@@ -11,14 +11,7 @@
 
 VERBOSE='yes'
 NAME='jasmind.py'
-if [ "$TRAVIS" = true ]; then
-	# If it is running in travis-ci build then pick jasmind.py
-	# from inside the virtualenv's bin folder, this is a workaround 
-	# to resolve #54 as $PATH env variable is reset through sudo
-	COMMAND="$HOME/virtualenv/python2.7.8/bin/jasmind.py"
-else
-	COMMAND=$(which $NAME)
-fi
+COMMAND=$(which $NAME)
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
