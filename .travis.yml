@@ -10,11 +10,11 @@ script:
     # Add jasmind to system autostartup
     - sudo update-rc.d jasmind defaults
     # Service startup test:
-    - sudo env "PATH=$PATH" /etc/init.d/jasmind start
+    - sudo env "PATH=$PATH;PYTHONPATH=$PYTHONPATH" /etc/init.d/jasmind start
     # Debug
     - sleep 5
     - ps ax|grep python
-    - sudo env "PATH=$PATH" /usr/bin/python /usr/sbin/jasmind.py --username jcliadmin --password jclipwd
+    - sudo env "PATH=$PATH;PYTHONPATH=$PYTHONPATH" /usr/bin/python /usr/sbin/jasmind.py --username jcliadmin --password jclipwd
     - sleep 2
     - sudo /etc/init.d/jasmind status
     # Stop service
