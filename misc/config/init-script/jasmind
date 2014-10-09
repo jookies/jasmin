@@ -19,6 +19,7 @@ if [ "$TRAVIS" = true ]; then
 else
 	COMMAND=$(which $NAME)
 fi
+echo $COMMAND
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
