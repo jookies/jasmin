@@ -15,6 +15,7 @@ if [ "$TRAVIS" = true ]; then
 	# If it is running in travis-ci build then pick jasmind.py
 	# from inside the virtualenv's bin folder, this is a workaround 
 	# to resolve #54 as $PATH env variable is reset through sudo
+	env
 	COMMAND="$VIRTUAL_ENV/bin/jasmind.py"
 else
 	COMMAND=$(which $NAME)
