@@ -16,7 +16,6 @@ if [ "$TRAVIS" = true ]; then
 	# from inside the virtualenv's bin folder, this is a workaround 
 	# to resolve #54 as $PATH env variable is reset through sudo
 	COMMAND="$HOME/virtualenv/python2.7.8/bin/jasmind.py"
-	sudo cat /etc/sudeoers
 else
 	COMMAND=$(which $NAME)
 fi
