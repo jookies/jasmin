@@ -7,16 +7,10 @@ install:
     - pip install dist/jasmin-0.5.1-beta.tar.gz
 # Commands to run tests:
 script:
-    - env
-    - sudo -E env
     # Add jasmind to system autostartup
     - sudo update-rc.d jasmind defaults
     # Service startup test:
-    - sudo env "PATH=$PATH;PYTHONPATH=$PYTHONPATH" /etc/init.d/jasmind start
-    # Debug
-    - sleep 5
-    - ps ax|grep python
-    - sudo env "PATH=$PATH;PYTHONPATH=$PYTHONPATH" /usr/bin/python /usr/sbin/jasmind.py --username jcliadmin --password jclipwd
+    - sudo /etc/init.d/jasmind start
     - sleep 2
     - sudo /etc/init.d/jasmind status
     # Stop service
@@ -42,12 +36,10 @@ before_script:
     - sudo apt-get install -qq pylint bc
     - export PYLINTRC=./misc/pylint/pylintrc
     - chmod +x ./misc/pylint/run.sh
-    # This is a workaround to resolve #54 since sudo is resetting environment variables
-    # and PATH is not including virtualenv's bin folder
-    - sudo cp /home/travis/virtualenv/python2.7.8/bin/jasmind.py /usr/sbin
 before_install:
     - sudo apt-get update -qq
-    # jasmin requirement:
+    # jasmin installation requirement:
+    # As documented here http://docs.jasminsms.com/en/latest/installation/index.html
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
     - sudo useradd jasmin
     - sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
