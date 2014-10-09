@@ -25,7 +25,7 @@ script:
     # Report coverage:
     - sudo coverage report --omit=/usr/*,/home/travis/virtualenv/*
     # Pylint code analysis and rating:
-    - sudo ./misc/pylint/run.sh
+    - cd ./misc/pylint; sudo ./run.sh
 services:
     - rabbitmq
     - redis-server
@@ -34,7 +34,6 @@ before_script:
     - sudo pip install -r test-requirements
     # pylint requirements:
     - sudo apt-get install -qq pylint bc
-    - export PYLINTRC=./misc/pylint/pylintrc
     - chmod +x ./misc/pylint/run.sh
 before_install:
     - sudo apt-get update -qq
