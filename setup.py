@@ -38,7 +38,6 @@ if "install" in sys.argv:
         if pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
             print '%s is not owned by jasmin user !' % sysdir
             sys.exit(4)
-    
 
 install_reqs = parse_requirements('install-requirements')
 test_reqs = parse_requirements('test-requirements')
