@@ -10,7 +10,10 @@ script:
     # Add jasmind to system autostartup
     - sudo update-rc.d jasmind defaults
     # Service startup test:
-    - sudo /etc/init.d/jasmind start 
+    - sudo /etc/init.d/jasmind start
+    # Debug
+    - ps ax|grep python
+    - sudo /usr/bin/python /usr/sbin/jasmind.py --username jcliadmin --password jclipwd
     - sleep 2
     - sudo /etc/init.d/jasmind status
     # Stop service
