@@ -10,11 +10,12 @@ script:
     # Add jasmind to system autostartup
     - sudo update-rc.d jasmind defaults
     # Service startup test:
-    - PATH=/home/travis/virtualenv/python2.7.8/bin:$PATH sudo /etc/init.d/jasmind start 
+    - export PATH=/home/travis/virtualenv/python2.7.8/bin:$PATH
+    - sudo env PATH=$PATH /etc/init.d/jasmind start 
     - sleep 2
-    - PATH=/home/travis/virtualenv/python2.7.8/bin:$PATH sudo /etc/init.d/jasmind status
+    - sudo /etc/init.d/jasmind status
     # Stop service
-    - PATH=/home/travis/virtualenv/python2.7.8/bin:$PATH sudo /etc/init.d/jasmind stop
+    - sudo /etc/init.d/jasmind stop
     # Cleaning before going for further tests
     - sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:
