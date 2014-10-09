@@ -11,7 +11,7 @@ script:
     - sudo update-rc.d jasmind defaults
     # Service startup test:
     - export PATH=/home/travis/virtualenv/python2.7.8/bin:$PATH
-    - sudo env PATH=$PATH /etc/init.d/jasmind start 
+    - sudo env "PATH=/home/travis/virtualenv/python2.7.8/bin:$PATH" /etc/init.d/jasmind start 
     - sleep 2
     - sudo /etc/init.d/jasmind status
     # Stop service
