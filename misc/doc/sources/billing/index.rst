@@ -26,7 +26,7 @@ The route rate will be charged on the user balance, let's get into these use cas
 Rate unit
 ---------
 
-You can see that the rates have no *unit* or *currency*, this will offer better flexibility with different business cases, you can consider the rates as:
+You can see that the rates have no *unit* or *currency*, this will offer better flexibility for different business cases, you can consider the rates as:
 
 * Local Jasmin currency and keep a rate for converting to real-life currency.
 * Real-life currency
@@ -39,7 +39,7 @@ In all cases, Jasmin will never manage the rate *unit* (or *currency*), all it d
 Asynchronous billing
 --------------------
 
-As :ref:`will be explained later <billing_call_flow_async>`, it is important to know that whatever the used protocol, SMS is sent **asynchronously**, this means there's always an acknowledgment to be received for every sent SMS; Jasmin provides an *optional* adapted billing :ref:`algorithm <billing_process_flow>` which is able to charge the user **asynchronously**:
+As :ref:`will be explained later <billing_call_flow_async>`, it is important to know that whatever the used protocol, SMS is always sent **asynchronously**, this means there's always an acknowledgment to be received for every sent SMS; Jasmin provides an *optional* adapted billing :ref:`algorithm <billing_process_flow>` which is able to charge the user **asynchronously**:
 
 #. A defined percentage of the route rate is charged when the user submits the SMS for sending.
 #. The rest is charged when the SMS is acknowledged by the next relay, in SMPP protocol, this means receiving **SUBMIT_SM_RESP** PDU, more details :ref:`here <billing_call_flow_async>`.
@@ -70,13 +70,13 @@ Using asynchronous billing can be helpful in many use cases:
 
 Simpler than *Balance* management, *submit_sm_count* is a counter to be decreased whenever the user submits the SMS for sending, let's get into these use cases for better comprehension:
 
-* When sending one SMS through a route, user's submit_sm_count will get decreased by **1**
-* When sending five SMS through a route, user's submit_sm_count will get decreased by **5**
+* When sending one SMS through a route, user's *submit_sm_count* will get decreased by **1**
+* When sending five SMS through a route, user's *submit_sm_count* will get decreased by **5**
 
 
 .. note:: When defined, *submit_sm_count* is always decreased no matter the route is rated or not.
 
-.. important:: New users created through :ref:`user_manager` will have unlimited submit_sm_count by default, assuming you'll apply postpaid billing (*or no billing at all*), user's submit_sm_count must be :ref:`defined <user_credentials>` in order to enable billing (or limit).
+.. important:: New users created through :ref:`user_manager` will have unlimited submit_sm_count by default, assuming you'll apply postpaid billing (*or no billing at all*), user's *submit_sm_count* must be :ref:`defined <user_credentials>` in order to enable billing (or limit).
 
 .. _billing_process_flow:
 

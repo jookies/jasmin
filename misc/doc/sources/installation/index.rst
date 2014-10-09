@@ -34,10 +34,11 @@ System folders
 
 In order to run as a POSIX system service, Jasmin requires the creation of the following folders before installation::
 
-    /etc/jasmin             #> You need to have write permissions for this location
-    /etc/jasmin/resource    #> You need to have write permissions for this location
-    /etc/jasmin/store
-    /etc/jasmin/init-d      #> You need to have write permissions for this location
+    /etc/jasmin
+    /etc/jasmin/resource
+    /etc/jasmin/init-d
+    /etc/jasmin/init-script
+    /etc/jasmin/store       #> Must be owned by jasmin user
     /var/log/jasmin         #> Must be owned by jasmin user
     /var/run/jasmin         #> Must be owned by jasmin user
 
