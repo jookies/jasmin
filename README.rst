@@ -75,6 +75,7 @@ Change Log
 
 * SMPP Server API
 * Better User credentials: expiry and QoS
+* Easier installation procedure through Linux packages
 
 0.5.0
 =====
