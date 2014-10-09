@@ -7,6 +7,8 @@ install:
     - pip install dist/jasmin-0.5.1-beta.tar.gz
 # Commands to run tests:
 script:
+    - env
+    - sudo env
     # Add jasmind to system autostartup
     - sudo update-rc.d jasmind defaults
     # Service startup test:
