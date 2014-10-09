@@ -8,7 +8,7 @@ install:
 # Commands to run tests:
 script:
     - env
-    - sudo env
+    - sudo -E env
     # Add jasmind to system autostartup
     - sudo update-rc.d jasmind defaults
     # Service startup test:
