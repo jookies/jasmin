@@ -1,4 +1,4 @@
-![alt tag] (https://raw.githubusercontent.com/pyghassen/jasmin/master/misc/doc/sources/_static/jasmin-logo.svg)
+![alt tag] (https://github.com/pyghassen/jasmin/blob/master/misc/doc/sources/_static/jasmin-logo.png)
 
 Jasmin - Open source SMS gateway
 ################################
