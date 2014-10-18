@@ -1,3 +1,5 @@
+.. image:: https://github.com/pyghassen/jasmin/blob/master/misc/doc/sources/_static/jasmin-logo.png
+
 Jasmin - Open source SMS gateway
 ################################
 
