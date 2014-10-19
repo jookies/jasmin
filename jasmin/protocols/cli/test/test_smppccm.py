@@ -1,3 +1,4 @@
+import pickle
 from twisted.internet import defer
 from test_jcli import jCliWithoutAuthTestCases
     
@@ -329,6 +330,28 @@ class BasicTestCases(SmppccmTestCases):
     
 class ParameterValuesTestCases(SmppccmTestCases):
     
+    @defer.inlineCallbacks
+    def test_systype(self):
+        """"Testing for #64, will set systype key to any value, persist config and then assert the saved
+        type to be string"""
+
+        # Set systype
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'systype 999999'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        # Persist
+        commands = [{'command': 'persist'}]
+        yield self._test(r'jcli : ', commands)
+
+        # Load persisted data and check systype is string
+        fh = open('/etc/jasmin/store/jcli-prod.smppccs','r')
+        lines = fh.readlines()
+        fh.close()
+        loadedConnectors = pickle.loads(''.join(lines[1:]))
+        self.assertEqual(len(loadedConnectors), 1)
+        self.assertEqual(type(loadedConnectors[0]['config'].systemType), str)
+                
     @defer.inlineCallbacks
     def test_log_level(self):
         # Set loglevel to WARNING

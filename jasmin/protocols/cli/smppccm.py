@@ -19,6 +19,9 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
                        'dlr_expiry': 'dlr_expiry'
                        }
+# Keys to be kept in string type, as requested in #64
+SMPPClientConfigStringKeys = ['systemType']
+
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'logfile', 'loglevel']
 
@@ -90,7 +93,7 @@ def SMPPClientConfigBuild(fCallback):
             
             # Buffer key for later SMPPClientConfig initiating
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            if isinstance(arg, str):
+            if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
                 self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
             else:
                 self.sessBuffer[SMPPClientConfigKey] = arg
