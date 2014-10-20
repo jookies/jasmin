@@ -25,7 +25,7 @@ script:
     # Report coverage:
     - sudo coverage report --omit=/usr/*,/home/travis/virtualenv/*
     # Pylint code analysis and rating:
-    - cd ./misc/pylint; sudo ./misc/pylint/run.sh
+    - cd ./misc/pylint; sudo ./run.sh
 services:
     - rabbitmq
     - redis-server
