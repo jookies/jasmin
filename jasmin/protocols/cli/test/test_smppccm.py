@@ -361,13 +361,25 @@ class ParameterValuesTestCases(SmppccmTestCases):
         
         # Set loglevel to WARNING with non numeric value
         extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'loglevel WARNING'}]
+                         {'command': 'loglevel WARNING'},
+                         {'command': 'ok', 'expect': r'Error: SMPPClientConfig log_level syntax is invalid'}]
+        yield self.add_connector(r'> ', extraCommands)
+
+    @defer.inlineCallbacks
+    def test_update_log_level(self):
+        cid = 'operator_7'
+        extraCommands = [{'command': 'cid %s' % cid}]
         yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set loglevel to invalid numeric value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'loglevel 31'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
+
+        commands = [{'command': 'smppccm -u operator_7', 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
+                    {'command': 'loglevel 30'},
+                    {'command': 'ok'}]
+        yield self._test(r'jcli : ', commands)
+
+        commands = [{'command': 'smppccm -u operator_7', 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
+                    {'command': 'loglevel WARNING'},
+                    {'command': 'ok', 'expect': r'Error: SMPPClientConfig log_level syntax is invalid'}]
+        yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
     def test_boolean_con_loss_retry(self):

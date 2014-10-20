@@ -115,6 +115,15 @@ def SMPPClientConfigUpdate(fCallback):
         if cmd == 'ok':
             if len(self.sessBuffer) == 0:
                 return self.protocol.sendData('Nothing to save')
+
+            try:
+                # Initiate a volatile SMPPClientConfig instance to run through it's constructor 
+                # validation steps, this will raise an exception whenever an error is detected
+                _configArgs = self.sessBuffer
+                _configArgs['id'] = self.sessionContext['cid']
+                SMPPClientConfig(**_configArgs)
+            except Exception, e:
+                return self.protocol.sendData('Error: %s' % str(e))
                
             return fCallback(self, self.sessBuffer)
         else:
