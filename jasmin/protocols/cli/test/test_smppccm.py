@@ -1,7 +1,8 @@
 import pickle
 from twisted.internet import defer
 from test_jcli import jCliWithoutAuthTestCases
-    
+from jasmin.protocols.smpp.test.smsc_simulator import *
+
 class SmppccmTestCases(jCliWithoutAuthTestCases):
     # Wait delay for 
     wait = 0.3
@@ -20,7 +21,7 @@ class SmppccmTestCases(jCliWithoutAuthTestCases):
             commands.append({'command': 'ok', 'expect': r'Successfully added connector \[', 'wait': self.wait})
 
         return self._test(finalPrompt, commands)
-    
+
 class BasicTestCases(SmppccmTestCases):
     
     def test_list(self):
@@ -331,28 +332,6 @@ class BasicTestCases(SmppccmTestCases):
 class ParameterValuesTestCases(SmppccmTestCases):
     
     @defer.inlineCallbacks
-    def test_systype(self):
-        """"Testing for #64, will set systype key to any value, persist config and then assert the saved
-        type to be string"""
-
-        # Set systype
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'systype 999999'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-        # Persist
-        commands = [{'command': 'persist'}]
-        yield self._test(r'jcli : ', commands)
-
-        # Load persisted data and check systype is string
-        fh = open('/etc/jasmin/store/jcli-prod.smppccs','r')
-        lines = fh.readlines()
-        fh.close()
-        loadedConnectors = pickle.loads(''.join(lines[1:]))
-        self.assertEqual(len(loadedConnectors), 1)
-        self.assertEqual(type(loadedConnectors[0]['config'].systemType), str)
-                
-    @defer.inlineCallbacks
     def test_log_level(self):
         # Set loglevel to WARNING
         extraCommands = [{'command': 'cid operator_1'},
@@ -552,3 +531,86 @@ class ParameterValuesTestCases(SmppccmTestCases):
         extraCommands = [{'command': 'cid operator_3'},
                          {'command': 'ripf DO_NOT_REPLACE'}]
         yield self.add_connector(r'jcli : ', extraCommands)
+
+class LastClientFactory(Factory):
+    lastClient = None
+    def buildProtocol(self, addr):
+        self.lastClient = Factory.buildProtocol(self, addr)
+        return self.lastClient
+
+class HappySMSCTestCase(SmppccmTestCases):
+    protocol = HappySMSC
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SmppccmTestCases.setUp(self)
+        
+        self.smsc_f = LastClientFactory()
+        self.smsc_f.protocol = self.protocol
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
+                
+    @defer.inlineCallbacks
+    def tearDown(self):
+        SmppccmTestCases.tearDown(self)
+        
+        yield self.SMSCPort.stopListening()
+    
+class SMSCTestCases(HappySMSCTestCase):
+    
+
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield HappySMSCTestCase.setUp(self)
+
+        # A connector list to be stopped on tearDown
+        self.startedConnectors = []
+
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield HappySMSCTestCase.tearDown(self)
+
+        # Stop all started connectors
+        for startedConnector in self.startedConnectors:
+            yield self.stop_connector(startedConnector)
+
+    @defer.inlineCallbacks
+    def start_connector(self, cid, wait = 1):
+        commands = [{'command': 'smppccm -1 %s' % cid}]
+        yield self._test(r'jcli : ', commands)
+
+        # Wait
+        exitDeferred = defer.Deferred()
+        reactor.callLater(wait, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Add cid to the connector list to be stopped in tearDown
+        self.startedConnectors.append(cid)
+
+    @defer.inlineCallbacks
+    def stop_connector(self, cid, wait = 1):
+        commands = [{'command': 'smppccm -0 %s' % cid}]
+        yield self._test(r'jcli : ', commands)
+
+        # Wait
+        exitDeferred = defer.Deferred()
+        reactor.callLater(wait, exitDeferred.callback, None)
+        yield exitDeferred
+
+    @defer.inlineCallbacks
+    def test_systype(self):
+        """"Testing for #64, will set systype key to any value and start the connector to ensure
+        it is correctly encoded in bind pdu"""
+
+        # Add a connector and set systype
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'systype 999999'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        yield self.start_connector('operator_1')
+
+        # List
+        expectedList = ['#Connector id                        Service Session          Starts Stops', 
+                        '#operator_1                          started BOUND_TRX        1      0    ', 
+                        'Total connectors: 1']
+        commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
