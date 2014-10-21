@@ -1,5 +1,5 @@
 import pickle
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
@@ -23,7 +23,7 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
 SMPPClientConfigStringKeys = ['systemType']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
-RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'logfile', 'loglevel']
+RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'log_file', 'log_level']
 
 def castToBuiltInType(key, value):
     'Will cast value to the correct type depending on the key'
@@ -228,8 +228,17 @@ class SmppCCManager(Manager):
             if not st:
                 self.protocol.sendData('Failed stopping connector, check log for details', prompt=False)
             else:
-                self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
-        
+                if not self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid']):
+                    self.protocol.sendData('Failed starting connector, will retry in 5 seconds', prompt=False)
+
+                    # Wait before start retrial
+                    exitDeferred = defer.Deferred()
+                    reactor.callLater(5, exitDeferred.callback, None)
+                    yield exitDeferred
+
+                    if not self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid']):
+                        self.protocol.sendData('Permanently failed starting connector !', prompt=False)
+
         self.protocol.sendData('Successfully updated connector [%s]' % self.sessionContext['cid'], prompt=False)
         self.stopSession()
     @ConnectorExist(cid_key='update')

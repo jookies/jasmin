@@ -8,6 +8,7 @@ from jasmin.protocols.smpp.services import SMPPClientService
 from jasmin.managers.listeners import SMPPClientSMListener
 from jasmin.managers.configs import SMPPClientSMListenerConfig
 from jasmin.managers.content import SubmitSmContent
+from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -326,6 +327,11 @@ class SMPPClientManagerPB(pb.Avatar):
             return False
         if connector['service'].running == 1:
             self.log.error('Connector [%s] is already running.', cid)
+            return False
+        acceptedStartStates = [None, SMPPSessionStates.NONE, SMPPSessionStates.UNBOUND]
+        if connector['service'].SMPPClientFactory.getSessionState() not in acceptedStartStates:
+            self.log.error('Connector [%s] cannot be started when in session_state: %s' % (cid, 
+                connector['service'].SMPPClientFactory.getSessionState()))
             return False
         
         connector['service'].startService()
