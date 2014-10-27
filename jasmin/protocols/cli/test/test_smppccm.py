@@ -615,6 +615,30 @@ class SMSCTestCases(HappySMSCTestCase):
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
+    def test_update_systype(self):
+        """Testing for #64, will set systype key to any value and start the connector to ensure
+        it is correctly encoded in bind pdu"""
+
+        # Add a connector, set systype and start it
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        # Update the connector to set systype and start it
+        commands = [{'command': 'smppccm -u operator_1'},
+                    {'command': 'systype 999999'},
+                    {'command': 'ok'}]
+        yield self._test(r'jcli : ', commands)
+        yield self.start_connector('operator_1')
+
+        # List and assert it is BOUND
+        expectedList = ['#Connector id                        Service Session          Starts Stops', 
+                        '#operator_1                          started BOUND_TRX        1      0    ', 
+                        'Total connectors: 1']
+        commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
     def test_quick_restart(self):
         "Testing for #68, restarting quickly a connector will loose its session state"
 
