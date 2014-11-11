@@ -232,34 +232,25 @@ class SMPPClientManagerPB(pb.Avatar):
         yield self.amqpBroker.chan.queue_bind(queue=routing_key_dlr, 
                                               exchange="messaging", 
                                               routing_key=routing_key_dlr)
-                
-        # Subscribe to submit.sm.%cid queue
-        # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
-        consumerTag = 'SMPPClientFactory-%s.%s' % (c.id, str(uuid.uuid4()))
-        yield self.amqpBroker.chan.basic_consume(queue=routing_key_submit_sm, 
-                                                 no_ack=False, 
-                                                 consumer_tag=consumerTag)
-        submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.log.info('%s is consuming from routing key: %s', consumerTag, routing_key_submit_sm)
         
         # Instanciate smpp client service manager
-        serviceManager = SMPPClientService(c, self.config)
-        
+        serviceManager = SMPPClientService(c, self.config)        
+
         # Instanciate a SM listener
         smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), 
                                           serviceManager.SMPPClientFactory, 
                                           self.amqpBroker, 
-                                          self.redisClient, 
-                                          submit_sm_q)
-        
+                                          self.redisClient)
+
         # Deliver_sm are sent to smListener's deliver_sm callback method
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event
 
-        self.connectors.append({'id':c.id,
-                                'config':c,
-                                'service':serviceManager,
-                                'submit_sm_q': submit_sm_q,
-                                'sm_listener': smListener
+        self.connectors.append({'id':           c.id,
+                                'config':       c,
+                                'service':      serviceManager,
+                                'consumer_tag': None,
+                                'submit_sm_q':  None,
+                                'sm_listener':  smListener,
                         })
        
         self.log.info('Added a new connector: %s', c.id)
@@ -284,8 +275,8 @@ class SMPPClientManagerPB(pb.Avatar):
             connector['service'].stopService()
             
         # Stop the queue consumer
-        self.log.debug('Stopping submit_sm_q consumer in connecotr [%s]', cid)
-        yield connector['submit_sm_q'].close()
+        self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
+        yield self.perspective_connector_stop(cid)
         
         if self.delConnector(cid):
             self.log.info('Removed connector [%s]', cid)
@@ -315,6 +306,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.info('Returning a list of %s connectors', len(connectorList))
         return connectorList
     
+    @defer.inlineCallbacks
     def perspective_connector_start(self, cid):
         """This will start a service by adding IService to IServiceCollection
         """
@@ -324,21 +316,39 @@ class SMPPClientManagerPB(pb.Avatar):
         connector = self.getConnector(cid)
         if connector == None:
             self.log.error('Trying to start a connector with an unknown cid: %s', cid)
-            return False
+            defer.returnValue(False)
+        if self.amqpBroker == None:
+            self.log.error('AMQP Broker is not added')
+            defer.returnValue(False)
+        if self.amqpBroker.connected == False:
+            self.log.error('AMQP Broker channel is not yet ready')
+            defer.returnValue(False)
         if connector['service'].running == 1:
             self.log.error('Connector [%s] is already running.', cid)
-            return False
+            defer.returnValue(False)
         acceptedStartStates = [None, SMPPSessionStates.NONE, SMPPSessionStates.UNBOUND]
         if connector['service'].SMPPClientFactory.getSessionState() not in acceptedStartStates:
             self.log.error('Connector [%s] cannot be started when in session_state: %s' % (cid, 
                 connector['service'].SMPPClientFactory.getSessionState()))
-            return False
-        
+            defer.returnValue(False)
+
         connector['service'].startService()
         
         # Start the queue consumer
         self.log.debug('Starting submit_sm_q consumer in connector [%s]', cid)
-        d = connector['submit_sm_q'].get()
+
+        # Subscribe to submit.sm.%cid queue
+        # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
+        routing_key_submit_sm = 'submit.sm.%s' % connector['id']
+        consumerTag = 'SMPPClientFactory-%s.%s' % (connector['id'], str(uuid.uuid4()))
+        yield self.amqpBroker.chan.basic_consume(queue = routing_key_submit_sm, 
+                                                 no_ack = False, 
+                                                 consumer_tag = consumerTag)
+        submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.log.info('%s is consuming from routing key: %s', consumerTag, routing_key_submit_sm)
+
+        # Set callbacks for every consumed message from routing_key_submit_sm
+        d = submit_sm_q.get()
         d.addCallback(
                     connector['sm_listener'].submit_sm_callback
                 ).addErrback(
@@ -347,10 +357,15 @@ class SMPPClientManagerPB(pb.Avatar):
 
         self.log.info('Started connector [%s]', cid)
 
+        # Set connector data
+        connector['sm_listener'].setSubmitSmQ(submit_sm_q)
+        connector['consumer_tag'] = consumerTag
+        connector['submit_sm_q'] = submit_sm_q
+
         # Set persistance state to False (pending for persistance)
         self.persisted = False
         
-        return True
+        defer.returnValue(True)
     
     @defer.inlineCallbacks
     def perspective_connector_stop(self, cid, delQueues = False):
@@ -372,14 +387,33 @@ class SMPPClientManagerPB(pb.Avatar):
             self.log.debug('Deleting queue [%s]', submitSmQueueName)
             yield self.amqpBroker.chan.queue_delete(queue=submitSmQueueName)
 
+        # Reject & requeue any pending message to avoid loosing messages after
+        # clearing timers
+        if len(connector['sm_listener'].rejectTimers) > 0:
+            for msgid, timer in connector['sm_listener'].rejectTimers.items():
+                if timer.active():
+                    func = timer.func
+                    kw = timer.kw
+                    timer.cancel()
+                    del connector['sm_listener'].rejectTimers[msgid]
+
+                    self.log.debug('Rejecting/requeuing msgid [%s] before stopping connector' % msgid)
+                    c = yield func(**kw)
+
         # Stop timers in message listeners
         self.log.debug('Clearing sm_listener timers in connector [%s]', cid)
-        yield connector['sm_listener'].clearAllTimers()
-        
+        connector['sm_listener'].clearAllTimers()
+
         # Stop the queue consumer
         self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-        yield connector['submit_sm_q'].close()
-        
+        yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+
+        # Cleaning
+        self.log.debug('Cleaning objects in connector [%s]', cid)
+        connector['sm_listener'].submit_sm_q = None
+        connector['submit_sm_q'] = None
+        connector['consumer_tag'] = None
+
         # Stop SMPP connector
         connector['service'].stopService()
         
@@ -390,6 +424,7 @@ class SMPPClientManagerPB(pb.Avatar):
         
         defer.returnValue(True)
     
+    @defer.inlineCallbacks
     def perspective_connector_stopall(self, delQueues = False):
         """This will stop all services by detaching IService to IServiceCollection
         """
@@ -397,12 +432,12 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Stopping all connectors')
 
         for connector in self.connectors:
-            self.perspective_connector_stop(connector['id'], delQueues)
+            yield self.perspective_connector_stop(connector['id'], delQueues)
 
         # Set persistance state to False (pending for persistance)
         self.persisted = False
         
-        return True
+        defer.returnValue(True)
     
     def perspective_service_status(self, cid):
         """This will return the IService running status

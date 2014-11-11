@@ -625,6 +625,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.connect('127.0.0.1', self.pbPort)
 
         localConfig = copy.copy(self.defaultConfig)
+        localConfig.id = 'throughput-%s' % randint(10, 99)
         localConfig.submit_sm_throughput = 1
         yield self.add(localConfig)
         yield self.start(localConfig.id)
@@ -641,9 +642,12 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Wait for delivery (of 5 submits) in 6 seconds max time
         while len(receivedSubmits) < 5 and counter < 60:
             receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
-            # Yielding to let the reactor turn on
-            yield self.session_state(localConfig.id)
-            time.sleep(0.1)
+
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(1, waitingDeferred.callback, None)
+            yield waitingDeferred
+
             counter += 1
         endAt = datetime.now()
         
@@ -652,7 +656,11 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Wait for unbound state
         ssRet = yield self.session_state(localConfig.id)
         while ssRet != 'NONE':
-            time.sleep(0.2)
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(0.5, waitingDeferred.callback, None)
+            yield waitingDeferred
+
             ssRet = yield self.session_state(localConfig.id)
 
         # Assertions
@@ -661,6 +669,189 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Delivery mut be delayed for around 5 seconds (+/- 1s) since we throughput is
         # 1 submitsm per second
         self.assertApproximates(endAt - startAt, timedelta( seconds = 5 ), timedelta( seconds = 1 )) 
+
+    @defer.inlineCallbacks
+    def test_redelivery_of_rejected_messages(self):
+        """Related to #67
+        Test if all rejected messages due to throughput limit are resent after a delay"""
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        localConfig = copy.copy(self.defaultConfig)
+        localConfig.id = '#67-%s' % randint(10, 99)
+        localConfig.submit_sm_throughput = 3
+        yield self.add(localConfig)
+        yield self.start(localConfig.id)
+
+        # Send 60 messages to the queue
+        startAt = datetime.now()
+        submitCounter = 0
+        submit_sm_pdu = copy.copy(self.SubmitSmPDU)
+        while submitCounter < 60:
+            submit_sm_pdu.params['short_message'] = '%s' % submitCounter
+            yield self.submit_sm(localConfig.id, submit_sm_pdu)
+            submitCounter += 1
+            
+        receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
+        counter = 0
+        _receivedSubmitsCount = 0
+        # Wait for 40 seconds before checking if all submits were delivered
+        # It will check for throughput in each iteration
+        while counter < 30:
+            receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
+
+            # Assert we're delivering ~3 messages per second
+            self.assertLessEqual((len(receivedSubmits) - _receivedSubmitsCount), 5)
+            _receivedSubmitsCount = len(receivedSubmits)
+
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(1, waitingDeferred.callback, None)
+            yield waitingDeferred
+
+            counter += 1
+        endAt = datetime.now()
+        
+        yield self.stop(localConfig.id)
+
+        # Wait for unbound state
+        ssRet = yield self.session_state(localConfig.id)
+        while ssRet != 'NONE':
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(0.5, waitingDeferred.callback, None)
+            yield waitingDeferred
+
+            ssRet = yield self.session_state(localConfig.id)
+
+        # Assertions
+        # Take the lastClient (and unique one) and assert received message
+        self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 60)
+        # Delivery mut be delayed for around 20 seconds (+/- 12s) since we throughput is
+        # 3 submitsm per second for 60 messages
+        self.assertApproximates(endAt - startAt, timedelta( seconds = 20 ), timedelta( seconds = 12 )) 
+
+    @defer.inlineCallbacks
+    def test_redelivery_of_rejected_messages_after_restart(self):
+        """Related to #67
+        Test if all rejected messages are resent after a delay, connector will be restarted
+        when sending message flow"""
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        localConfig = copy.copy(self.defaultConfig)
+        localConfig.id = '#67-%s' % randint(10, 9999)
+        localConfig.requeue_delay = 1
+        localConfig.submit_sm_throughput = 1
+        yield self.add(localConfig)
+        yield self.start(localConfig.id)
+
+        # Send 4 messages to the queue
+        submitCounter = 0
+        submit_sm_pdu = copy.copy(self.SubmitSmPDU)
+        while submitCounter < 4:
+            submit_sm_pdu.params['short_message'] = '%s' % submitCounter
+            msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu)
+            submitCounter += 1
+            
+        # Wait for 2 seconds before stopping
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(2, waitingDeferred.callback, None)
+        yield waitingDeferred
+        
+        yield self.stop(localConfig.id)
+
+        # Wait for unbound state
+        ssRet = yield self.session_state(localConfig.id)
+        while ssRet != 'NONE':
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(0.5, waitingDeferred.callback, None)
+            yield waitingDeferred
+
+            ssRet = yield self.session_state(localConfig.id)
+
+        # Save the count before starting the connector
+        _submitRecordsCount = len(self.SMSCPort.factory.lastClient.submitRecords)
+
+        # Wait for 3 seconds before starting again
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(3, waitingDeferred.callback, None)
+        yield waitingDeferred
+
+        # Start the connector again
+        yield self.start(localConfig.id)
+
+        # Wait for 5 seconds before stopping , all the rest of the queue must be sent
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(5, waitingDeferred.callback, None)
+        yield waitingDeferred
+
+        yield self.stop(localConfig.id)    
+
+        # Wait for unbound state
+        ssRet = yield self.session_state(localConfig.id)
+        while ssRet != 'NONE':
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(0.5, waitingDeferred.callback, None)
+            yield waitingDeferred
+
+            ssRet = yield self.session_state(localConfig.id)
+
+        # Update the counter
+        _submitRecordsCount+= len(self.SMSCPort.factory.lastClient.submitRecords)
+
+        # Assertions
+        self.assertEqual(_submitRecordsCount, 4)
+
+    @defer.inlineCallbacks
+    def test_delivery_of_queued_messages(self):
+        """Related to #67
+        Test if queued messages when connector is down are sent when connector
+        goes up"""
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        localConfig = copy.copy(self.defaultConfig)
+        localConfig.id = str(randint(10, 99))
+        localConfig.requeue_delay = 2
+        localConfig.submit_sm_throughput = 8
+        yield self.add(localConfig)
+
+        # Send 180 messages to the queue
+        submitCounter = 0
+        submit_sm_pdu = copy.copy(self.SubmitSmPDU)
+        while submitCounter < 180:
+            submit_sm_pdu.params['short_message'] = '%s' % submitCounter
+            yield self.submit_sm(localConfig.id, submit_sm_pdu)
+            submitCounter += 1
+
+        # Wait for 10 seconds
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(10, waitingDeferred.callback, None)
+        yield waitingDeferred
+
+        # Start the connector again
+        yield self.start(localConfig.id)
+
+        # Wait for 40 seconds, all the rest of the queue must be sent
+        waitingDeferred = defer.Deferred()
+        reactor.callLater(40, waitingDeferred.callback, None)
+        yield waitingDeferred
+
+        yield self.stop(localConfig.id)    
+
+        # Wait for unbound state
+        ssRet = yield self.session_state(localConfig.id)
+        while ssRet != 'NONE':
+            # Wait some time
+            waitingDeferred = defer.Deferred()
+            reactor.callLater(0.5, waitingDeferred.callback, None)
+            yield waitingDeferred
+
+            ssRet = yield self.session_state(localConfig.id)
+
+        # Assertions
+        # Take the lastClient (and unique one) and assert received message
+        self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 180)
 
     @defer.inlineCallbacks
     def test_submitSm_validity(self):
@@ -852,7 +1043,7 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.start(self.defaultConfig.id)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual('BIND_TRX_PENDING', ssRet)
+        self.assertEqual('BOUND_TRX', ssRet)
         
         yield self.stop(self.defaultConfig.id)
 

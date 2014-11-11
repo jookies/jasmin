@@ -882,9 +882,9 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         self.assertTrue(self.pbRoot_f.users[0].mt_credential.quotas_updated)
         self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
 
-        # Wait 3 seconds for automatic persistence to be done
+        # Wait 2 seconds for automatic persistence to be done
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # assert for 2 calls to persist: 1.users and 2.groups
@@ -1063,6 +1063,11 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        yield exitDeferred
+
         yield self.stopSmppClientConnectors()
         
         # Run tests
@@ -1093,13 +1098,18 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1133,11 +1143,16 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         
         # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1172,6 +1187,11 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        yield exitDeferred
+
         yield self.stopSmppClientConnectors()
         
         # Run tests
@@ -1203,13 +1223,18 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1244,11 +1269,16 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         
         # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1314,9 +1344,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()
@@ -1349,13 +1379,18 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1389,11 +1424,16 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         
         # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1428,6 +1468,11 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
+        # Wait 2 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        yield exitDeferred
+
         yield self.stopSmppClientConnectors()
         
         # Run tests
@@ -1459,13 +1504,18 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1500,11 +1550,16 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         
         # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
 
         yield self.stopSmppClientConnectors()
 
@@ -1563,6 +1618,11 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         msgStatus = c[:7]
         msgId = c[9:45]
         
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
@@ -1664,9 +1724,9 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         for pdu in pdus:
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
 
-        # Wait 3 seconds
+        # Wait 2 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks
@@ -1855,9 +1915,9 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         # Send a MT
         yield getPage(baseurl, method = self.method, postdata = self.postdata)
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()
@@ -1881,9 +1941,9 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         # Send a MT
         yield getPage(baseurl, method = self.method, postdata = self.postdata)
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 2 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(2, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()

@@ -1,12 +1,25 @@
 import pickle
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from test_jcli import jCliWithoutAuthTestCases
 from jasmin.protocols.smpp.test.smsc_simulator import *
 
 class SmppccmTestCases(jCliWithoutAuthTestCases):
     # Wait delay for 
     wait = 0.3
-    
+
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield jCliWithoutAuthTestCases.setUp(self)
+
+        factory = Factory()
+        factory.protocol = HappySMSC        
+        self.SMSCPort = reactor.listenTCP(0, factory)
+
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield jCliWithoutAuthTestCases.tearDown(self)
+        yield self.SMSCPort.stopListening()
+
     def add_connector(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
@@ -216,7 +229,9 @@ class BasicTestCases(SmppccmTestCases):
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Start
-        commands = [{'command': 'smppccm -1 %s' % cid, 'expect': r'Successfully started connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -1 %s' % cid, 
+                     'expect': r'Successfully started connector id\:%s' % cid,
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
 
         # Remove
@@ -250,11 +265,13 @@ class BasicTestCases(SmppccmTestCases):
         # Add
         cid = 'operator_13'
         extraCommands = [{'command': 'cid %s' % cid},
-                         {'command': 'con_fail_retry 0'}]
+                         {'command': 'con_fail_retry 0', 'wait': 0.3}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Start
-        commands = [{'command': 'smppccm -1 %s' % cid, 'expect': r'Successfully started connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -1 %s' % cid, 
+                    'expect': r'Successfully started connector id\:%s' % cid, 
+                    'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
     
     @defer.inlineCallbacks
@@ -262,18 +279,26 @@ class BasicTestCases(SmppccmTestCases):
         # Add
         cid = 'operator_14'
         extraCommands = [{'command': 'cid %s' % cid},
-                         {'command': 'con_fail_retry 0'}]
+                         {'command': 'port %s' % self.SMSCPort.getHost().port}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Start
-        commands = [{'command': 'smppccm -1 %s' % cid, 'expect': r'Successfully started connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -1 %s' % cid, 
+                     'expect': r'Successfully started connector id\:%s' % cid,
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
     
         # List
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
-                        '#operator_14                         started None             1      0    ', 
+                        '#operator_14                         started BOUND_TRX        1      0    ', 
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+        # Stop
+        commands = [{'command': 'smppccm -0 %s' % cid, 
+                     'expect': r'Successfully stopped connector id',
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -286,7 +311,7 @@ class BasicTestCases(SmppccmTestCases):
         # Add
         cid = 'operator_15'
         extraCommands = [{'command': 'cid %s' % cid},
-                         {'command': 'con_fail_retry 0'}]
+                         {'command': 'port %s' % self.SMSCPort.getHost().port}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Stop
@@ -294,11 +319,15 @@ class BasicTestCases(SmppccmTestCases):
         yield self._test(r'jcli : ', commands)
     
         # Start
-        commands = [{'command': 'smppccm -1 %s' % cid, 'expect': r'Successfully started connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -1 %s' % cid, 
+                     'expect': r'Successfully started connector id\:%s' % cid,
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
     
         # Stop
-        commands = [{'command': 'smppccm -0 %s' % cid, 'expect': r'Successfully stopped connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -0 %s' % cid, 
+                     'expect': r'Successfully stopped connector id\:%s' % cid,
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -311,20 +340,24 @@ class BasicTestCases(SmppccmTestCases):
         # Add
         cid = 'operator_16'
         extraCommands = [{'command': 'cid %s' % cid},
-                         {'command': 'con_fail_retry 0'}]
+                         {'command': 'port %s' % self.SMSCPort.getHost().port}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Start
-        commands = [{'command': 'smppccm -1 %s' % cid, 'expect': r'Successfully started connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -1 %s' % cid, 
+                     'expect': r'Successfully started connector id\:%s' % cid,
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
     
         # Stop
-        commands = [{'command': 'smppccm -0 %s' % cid, 'expect': r'Successfully stopped connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -0 %s' % cid, 
+                     'expect': r'Successfully stopped connector id\:%s' % cid,
+                     'wait': 0.3}]
         yield self._test(r'jcli : ', commands)
     
         # List
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
-                        '#operator_16                         stopped None             1      1    ', 
+                        '#operator_16                         stopped NONE             1      1    ', 
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
