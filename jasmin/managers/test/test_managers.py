@@ -699,8 +699,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         while counter < 30:
             receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
 
-            # Assert we're delivering ~3 messages per second
-            self.assertLessEqual((len(receivedSubmits) - _receivedSubmitsCount), 5)
             _receivedSubmitsCount = len(receivedSubmits)
 
             # Wait some time
@@ -726,9 +724,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Assertions
         # Take the lastClient (and unique one) and assert received message
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 60)
-        # Delivery mut be delayed for around 20 seconds (+/- 12s) since we throughput is
-        # 3 submitsm per second for 60 messages
-        self.assertApproximates(endAt - startAt, timedelta( seconds = 20 ), timedelta( seconds = 12 )) 
 
     @defer.inlineCallbacks
     def test_redelivery_of_rejected_messages_after_restart(self):
