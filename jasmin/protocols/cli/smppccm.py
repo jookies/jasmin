@@ -1,5 +1,5 @@
 import pickle
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
@@ -19,12 +19,15 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
                        'dlr_expiry': 'dlr_expiry'
                        }
+# Keys to be kept in string type, as requested in #64
+SMPPClientConfigStringKeys = ['systemType']
+
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
-RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'logfile', 'loglevel']
+RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'log_file', 'log_level']
 
 def castToBuiltInType(key, value):
     'Will cast value to the correct type depending on the key'
-    
+
     if isinstance(value, bool):
         return 1 if value else 0
     if key in ['bind_npi', 'dst_npi', 'src_npi']:
@@ -37,13 +40,14 @@ def castToBuiltInType(key, value):
         return priority_flag_name_map[str(value)]
     return value
 
+
 class JCliSMPPClientConfig(SMPPClientConfig):
     'Overload SMPPClientConfig with getters and setters for JCli'
     PendingRestart = False
 
     def set(self, key, value):
         setattr(self, key, value)
-        
+
         if key in RequireRestartKeys:
             self.PendingRestart = True
 
@@ -66,7 +70,7 @@ def SMPPClientConfigBuild(fCallback):
         if cmd == 'ok':
             if len(self.sessBuffer) == 0:
                 return self.protocol.sendData('You must set at least connector id (cid) before saving !')
-                
+
             connector = {}
             for key, value in self.sessBuffer.iteritems():
                 connector[key] = value
@@ -80,21 +84,21 @@ def SMPPClientConfigBuild(fCallback):
             # Unknown key
             if not SMPPClientConfigKeyMap.has_key(cmd):
                 return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
-            
+
             # Cast to boolean
             if cmd in ['con_loss_retry', 'con_fail_retry']:
                 if arg.lower() in ['yes', 'y', '1']:
                     arg = True
                 elif arg.lower() in ['no', 'n', '0']:
                     arg = False
-            
+
             # Buffer key for later SMPPClientConfig initiating
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            if isinstance(arg, str):
+            if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
                 self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
             else:
                 self.sessBuffer[SMPPClientConfigKey] = arg
-            
+
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
@@ -112,6 +116,15 @@ def SMPPClientConfigUpdate(fCallback):
         if cmd == 'ok':
             if len(self.sessBuffer) == 0:
                 return self.protocol.sendData('Nothing to save')
+
+            try:
+                # Initiate a volatile SMPPClientConfig instance to run through it's constructor 
+                # validation steps, this will raise an exception whenever an error is detected
+                _configArgs = self.sessBuffer
+                _configArgs['id'] = self.sessionContext['cid']
+                SMPPClientConfig(**_configArgs)
+            except Exception, e:
+                return self.protocol.sendData('Error: %s' % str(e))
                
             return fCallback(self, self.sessBuffer)
         else:
@@ -120,11 +133,14 @@ def SMPPClientConfigUpdate(fCallback):
                 return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
             if cmd == 'cid':
                 return self.protocol.sendData('Connector id can not be modified !')
-            
+
             # Buffer key for later (when receiving 'ok')
             SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
-            
+            if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
+                self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
+            else:
+                self.sessBuffer[SMPPClientConfigKey] = arg
+
             return self.protocol.sendData()
     return log_update_requests_and_call
 
@@ -137,22 +153,22 @@ class ConnectorExist:
         def exist_connector_and_call(self, *args, **kwargs):
             opts = args[1]
             cid = getattr(opts, cid_key)
-    
+
             if self.pb['smppcm'].getConnector(cid) is not None:
                 return fCallback(self, *args, **kwargs)
-                
+
             return self.protocol.sendData('Unknown connector: %s' % cid)
         return exist_connector_and_call
 
 class SmppCCManager(Manager):
     managerName = 'smppcc'
-    
+
     def persist(self, arg, opts):
         if self.pb['smppcm'].perspective_persist(opts.profile):
             self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
-    
+
     @defer.inlineCallbacks
     def load(self, arg, opts):
         r = yield self.pb['smppcm'].perspective_load(opts.profile)
@@ -161,11 +177,11 @@ class SmppCCManager(Manager):
             self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
         else:
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
-            
+
     def list(self, arg, opts):
         connectors = self.pb['smppcm'].perspective_connector_list()
         counter = 0
-        
+
         if (len(connectors)) > 0:
             self.protocol.sendData("#%s %s %s %s %s" % ('Connector id'.ljust(35),
                                                                         'Service'.ljust(7),
@@ -181,16 +197,16 @@ class SmppCCManager(Manager):
                                                                   str(connector['start_count']).ljust(6),
                                                                   str(connector['stop_count']).ljust(5),
                                                                   ), prompt=False)
-                self.protocol.sendData(prompt=False)        
-        
+                self.protocol.sendData(prompt=False)
+
         self.protocol.sendData('Total connectors: %s' % counter)
-    
+
     @Session
     @SMPPClientConfigBuild
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
         st = yield self.pb['smppcm'].perspective_connector_add(pickle.dumps(SMPPClientConfigInstance, 2))
-        
+
         if st:
             self.protocol.sendData('Successfully added connector [%s]' % SMPPClientConfigInstance.id, prompt=False)
             self.stopSession()
@@ -200,7 +216,7 @@ class SmppCCManager(Manager):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new connector: (ok: save, ko: exit)',
                                  completitions=SMPPClientConfigKeyMap.keys())
-    
+
     @Session
     @SMPPClientConfigUpdate
     @defer.inlineCallbacks
@@ -209,15 +225,26 @@ class SmppCCManager(Manager):
         connectorDetails = self.pb['smppcm'].getConnectorDetails(self.sessionContext['cid'])
         for key, value in updateLog.iteritems():
             connector['config'].set(key, value)
-        
+
         if connector['config'].PendingRestart and connectorDetails['service_status'] == 1:
             self.protocol.sendData('Restarting connector [%s] for updates to take effect ...' % self.sessionContext['cid'], prompt=False)
             st = yield self.pb['smppcm'].perspective_connector_stop(self.sessionContext['cid'])
             if not st:
                 self.protocol.sendData('Failed stopping connector, check log for details', prompt=False)
             else:
-                self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
-        
+                st = yield self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
+                if not st:
+                    self.protocol.sendData('Failed starting connector, will retry in 5 seconds', prompt=False)
+
+                    # Wait before start retrial
+                    exitDeferred = defer.Deferred()
+                    reactor.callLater(5, exitDeferred.callback, None)
+                    yield exitDeferred
+
+                    st = yield self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
+                    if not st:
+                        self.protocol.sendData('Permanently failed starting connector !', prompt=False)
+
         self.protocol.sendData('Successfully updated connector [%s]' % self.sessionContext['cid'], prompt=False)
         self.stopSession()
     @ConnectorExist(cid_key='update')
@@ -226,38 +253,39 @@ class SmppCCManager(Manager):
                                  annoucement='Updating connector id [%s]: (ok: save, ko: exit)' % opts.update,
                                  completitions=SMPPClientConfigKeyMap.keys(),
                                  sessionContext={'cid': opts.update})
-    
+
     @ConnectorExist(cid_key='remove')
     @defer.inlineCallbacks
     def remove(self, arg, opts):
         st = yield self.pb['smppcm'].perspective_connector_remove(opts.remove)
-        
+
         if st:
             self.protocol.sendData('Successfully removed connector id:%s' % opts.remove)
         else:
             self.protocol.sendData('Failed removing connector, check log for details')
-    
+
     @ConnectorExist(cid_key='show')
     def show(self, arg, opts):
         connector = self.pb['smppcm'].getConnector(opts.show)
         for k, v in connector['config'].getAll().iteritems():
             self.protocol.sendData('%s %s' % (k, v), prompt=False)
         self.protocol.sendData()
-    
+
     @ConnectorExist(cid_key='stop')
     @defer.inlineCallbacks
     def stop(self, arg, opts):
         st = yield self.pb['smppcm'].perspective_connector_stop(opts.stop)
-    
+
         if st:
             self.protocol.sendData('Successfully stopped connector id:%s' % opts.stop)
         else:
             self.protocol.sendData('Failed stopping connector, check log for details')
 
     @ConnectorExist(cid_key='start')
+    @defer.inlineCallbacks
     def start(self, arg, opts):
-        st = self.pb['smppcm'].perspective_connector_start(opts.start)
-    
+        st = yield self.pb['smppcm'].perspective_connector_start(opts.start)
+
         if st:
             self.protocol.sendData('Successfully started connector id:%s' % opts.start)
         else:
