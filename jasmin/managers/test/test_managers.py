@@ -813,7 +813,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         localConfig = copy.copy(self.defaultConfig)
         localConfig.id = str(randint(10, 99))
         localConfig.requeue_delay = 2
-        localConfig.submit_sm_throughput = 8
+        localConfig.submit_sm_throughput = 20
         yield self.add(localConfig)
 
         # Send 180 messages to the queue
@@ -824,17 +824,17 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             yield self.submit_sm(localConfig.id, submit_sm_pdu)
             submitCounter += 1
 
-        # Wait for 10 seconds
+        # Wait for 3 seconds
         waitingDeferred = defer.Deferred()
-        reactor.callLater(10, waitingDeferred.callback, None)
+        reactor.callLater(3, waitingDeferred.callback, None)
         yield waitingDeferred
 
         # Start the connector again
         yield self.start(localConfig.id)
 
-        # Wait for 40 seconds, all the rest of the queue must be sent
+        # Wait for 15 seconds, all the rest of the queue must be sent
         waitingDeferred = defer.Deferred()
-        reactor.callLater(40, waitingDeferred.callback, None)
+        reactor.callLater(15, waitingDeferred.callback, None)
         yield waitingDeferred
 
         yield self.stop(localConfig.id)    

@@ -7,23 +7,21 @@ install:
     - sudo pip install dist/jasmin-0.5.2-beta.tar.gz
 # Commands to run tests:
 script:
-    # Add jasmind to system autostartup
+    # Add jasmind to system autostartup:
     - sudo update-rc.d jasmind defaults
     # Service startup test:
     - sudo /etc/init.d/jasmind start
     - sleep 2
     - sudo /etc/init.d/jasmind status
-    # Stop service
+    # Stop service:
     - sudo /etc/init.d/jasmind stop
-    # Cleaning before going for further tests
+    # Cleaning before going for further tests:
     - sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
-    # Trial tests and coverage:
+    # Trial tests:
     - sudo chmod -R 777 /var/log/jasmin /etc/jasmin/store
-    - sudo coverage run `which trial` jasmin
+    - sudo `which trial` jasmin
     # Docs building test:
     - cd misc/doc;make html;cd ../../
-    # Report coverage:
-    - sudo coverage report --omit=/usr/*,/home/travis/virtualenv/*
     # Pylint code analysis and rating:
     - cd ./misc/pylint; sudo ./run.sh
 services:
