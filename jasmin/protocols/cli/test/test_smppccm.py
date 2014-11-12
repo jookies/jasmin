@@ -7,19 +7,6 @@ class SmppccmTestCases(jCliWithoutAuthTestCases):
     # Wait delay for 
     wait = 0.3
 
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield jCliWithoutAuthTestCases.setUp(self)
-
-        factory = Factory()
-        factory.protocol = HappySMSC        
-        self.SMSCPort = reactor.listenTCP(0, factory)
-
-    @defer.inlineCallbacks
-    def tearDown(self):
-        yield jCliWithoutAuthTestCases.tearDown(self)
-        yield self.SMSCPort.stopListening()
-
     def add_connector(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
@@ -35,7 +22,30 @@ class SmppccmTestCases(jCliWithoutAuthTestCases):
 
         return self._test(finalPrompt, commands)
 
-class BasicTestCases(SmppccmTestCases):
+class LastClientFactory(Factory):
+    lastClient = None
+    def buildProtocol(self, addr):
+        self.lastClient = Factory.buildProtocol(self, addr)
+        return self.lastClient
+
+class HappySMSCTestCase(SmppccmTestCases):
+    protocol = HappySMSC
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SmppccmTestCases.setUp(self)
+        
+        self.smsc_f = LastClientFactory()
+        self.smsc_f.protocol = self.protocol
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
+                
+    @defer.inlineCallbacks
+    def tearDown(self):
+        SmppccmTestCases.tearDown(self)
+        
+        yield self.SMSCPort.stopListening()
+    
+class BasicTestCases(HappySMSCTestCase):
     
     def test_list(self):
         commands = [{'command': 'smppccm -l', 'expect': r'Total connectors: 0'}]
@@ -565,29 +575,6 @@ class ParameterValuesTestCases(SmppccmTestCases):
                          {'command': 'ripf DO_NOT_REPLACE'}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-class LastClientFactory(Factory):
-    lastClient = None
-    def buildProtocol(self, addr):
-        self.lastClient = Factory.buildProtocol(self, addr)
-        return self.lastClient
-
-class HappySMSCTestCase(SmppccmTestCases):
-    protocol = HappySMSC
-    
-    @defer.inlineCallbacks
-    def setUp(self):
-        yield SmppccmTestCases.setUp(self)
-        
-        self.smsc_f = LastClientFactory()
-        self.smsc_f.protocol = self.protocol
-        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-                
-    @defer.inlineCallbacks
-    def tearDown(self):
-        SmppccmTestCases.tearDown(self)
-        
-        yield self.SMSCPort.stopListening()
-    
 class SMSCTestCases(HappySMSCTestCase):
     
     @defer.inlineCallbacks
@@ -599,34 +586,24 @@ class SMSCTestCases(HappySMSCTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield HappySMSCTestCase.tearDown(self)
-
         # Stop all started connectors
         for startedConnector in self.startedConnectors:
             yield self.stop_connector(startedConnector)
 
-    @defer.inlineCallbacks
-    def start_connector(self, cid, wait = 0.5):
-        commands = [{'command': 'smppccm -1 %s' % cid}]
-        yield self._test(r'jcli : ', commands)
+        yield HappySMSCTestCase.tearDown(self)
 
-        # Wait
-        exitDeferred = defer.Deferred()
-        reactor.callLater(wait, exitDeferred.callback, None)
-        yield exitDeferred
+    @defer.inlineCallbacks
+    def start_connector(self, cid, finalPrompt = r'jcli : ', wait = 0.5, expect = None):
+        commands = [{'command': 'smppccm -1 %s' % cid, 'wait': wait, 'expect': expect}]
+        yield self._test(finalPrompt, commands)
 
         # Add cid to the connector list to be stopped in tearDown
         self.startedConnectors.append(cid)
 
     @defer.inlineCallbacks
-    def stop_connector(self, cid, wait = 0.5):
-        commands = [{'command': 'smppccm -0 %s' % cid}]
-        yield self._test(r'jcli : ', commands)
-
-        # Wait
-        exitDeferred = defer.Deferred()
-        reactor.callLater(wait, exitDeferred.callback, None)
-        yield exitDeferred
+    def stop_connector(self, cid, finalPrompt = r'jcli : ', wait = 0.5, expect = None):
+        commands = [{'command': 'smppccm -0 %s' % cid, 'wait': wait, 'expect': expect}]
+        yield self._test(finalPrompt, commands)
 
     @defer.inlineCallbacks
     def test_systype(self):
@@ -679,7 +656,7 @@ class SMSCTestCases(HappySMSCTestCase):
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)
-        yield self.start_connector('operator_1')
+        yield self.start_connector('operator_1', wait = 3)
 
         # List and assert it is BOUND
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
@@ -690,11 +667,15 @@ class SMSCTestCases(HappySMSCTestCase):
 
         # Stop and start very quickly will lead to an error starting the connector because there were
         # no sufficient time for unbind to complete
-        yield self.stop_connector('operator_1', wait = 0)
-        commands = [{'command': 'smppccm -1 operator_1', 
-                    'expect': 'Failed starting connector, check log for details',
-                    'wait': 3}]
-        yield self._test(r'jcli : ', commands)
+        yield self.stop_connector('operator_1', finalPrompt = None, wait = 0)
+        yield self.start_connector('operator_1', finalPrompt = None, 
+                                    wait = 0, 
+                                    expect= 'Failed starting connector, check log for details')
+
+        # Wait
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        yield exitDeferred
 
         # List and assert it is stopped (start command errored)
         expectedList = ['#Connector id                        Service Session          Starts Stops', 

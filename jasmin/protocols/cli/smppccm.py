@@ -232,7 +232,8 @@ class SmppCCManager(Manager):
             if not st:
                 self.protocol.sendData('Failed stopping connector, check log for details', prompt=False)
             else:
-                if not self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid']):
+                st = yield self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
+                if not st:
                     self.protocol.sendData('Failed starting connector, will retry in 5 seconds', prompt=False)
 
                     # Wait before start retrial
@@ -240,9 +241,9 @@ class SmppCCManager(Manager):
                     reactor.callLater(5, exitDeferred.callback, None)
                     yield exitDeferred
 
-                    if not self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid']):
+                    st = yield self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
+                    if not st:
                         self.protocol.sendData('Permanently failed starting connector !', prompt=False)
-                self.pb['smppcm'].perspective_connector_start(self.sessionContext['cid'])
 
         self.protocol.sendData('Successfully updated connector [%s]' % self.sessionContext['cid'], prompt=False)
         self.stopSession()
@@ -281,8 +282,9 @@ class SmppCCManager(Manager):
             self.protocol.sendData('Failed stopping connector, check log for details')
 
     @ConnectorExist(cid_key='start')
+    @defer.inlineCallbacks
     def start(self, arg, opts):
-        st = self.pb['smppcm'].perspective_connector_start(opts.start)
+        st = yield self.pb['smppcm'].perspective_connector_start(opts.start)
 
         if st:
             self.protocol.sendData('Successfully started connector id:%s' % opts.start)
