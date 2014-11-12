@@ -17,18 +17,19 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 LOG_CATEGORY = "jasmin-sm-listener"
 
 class SMPPClientSMListener:
+    debug_it = {'rejectCount': 0}
     '''
     This is a listener object instanciated for every new SMPP connection, it is responsible of handling 
     SubmitSm, DeliverSm and SubmitSm PDUs for a given SMPP connection
     '''
     
-    def __init__(self, SMPPClientSMListenerConfig, SMPPClientFactory, amqpBroker, redisClient, submit_sm_q):
+    def __init__(self, SMPPClientSMListenerConfig, SMPPClientFactory, amqpBroker, redisClient):
         self.config = SMPPClientSMListenerConfig
         self.SMPPClientFactory = SMPPClientFactory
         self.SMPPOperationFactory = SMPPOperationFactory(self.SMPPClientFactory.config)
         self.amqpBroker = amqpBroker
         self.redisClient = redisClient
-        self.submit_sm_q = submit_sm_q
+        self.submit_sm_q = None
         self.qos_last_submit_sm_at = None
         self.rejectTimers = {}
         self.qosTimer = None
@@ -44,6 +45,10 @@ class SMPPClientSMListener:
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+
+    def setSubmitSmQ(self, queue):
+        self.log.debug('Setting a new submit_sm_q: %s' % queue)
+        self.submit_sm_q = queue
         
     def clearRejectTimer(self, msgid):
         if msgid in self.rejectTimers:
@@ -66,30 +71,41 @@ class SMPPClientSMListener:
     def clearAllTimers(self):
         self.clearQosTimer()
         self.clearRejectTimers()
-        
+    
+    @defer.inlineCallbacks
     def rejectAndRequeueMessage(self, message, delay = True):
         msgid = message.content.properties['message-id']
         
-        if delay:
+        if delay != False:
             self.log.debug("Requeuing SubmitSmPDU[%s] in %s seconds" % 
                            (msgid, self.SMPPClientFactory.config.requeue_delay))
-            t = reactor.callLater(self.SMPPClientFactory.config.requeue_delay, 
-                                  self.amqpBroker.chan.basic_reject, 
-                                  delivery_tag=message.delivery_tag, 
-                                  requeue=1)
+
+            # Use configured requeue_delay or specific one
+            if delay is not bool:
+                requeue_delay = delay
+            else:
+                requeue_delay = self.SMPPClientFactory.config.requeue_delay
+
+            # Requeue the message with a delay
+            t = reactor.callLater(requeue_delay, 
+                                  self.rejectMessage,
+                                  message = message, 
+                                  requeue = 1)
 
             # If any, clear timer before setting a new one
             self.clearRejectTimer(msgid)
             
             self.rejectTimers[msgid] = t
-            return t
+            defer.returnValue(t)
         else:
             self.log.debug("Requeuing SubmitSmPDU[%s] without delay" % msgid)
-            return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=1)
-    def rejectMessage(self, message):
-        return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
+            yield self.rejectMessage(message, requeue = 1)
+    @defer.inlineCallbacks
+    def rejectMessage(self, message, requeue = 0):
+        yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue = requeue)
+    @defer.inlineCallbacks
     def ackMessage(self, message):
-        return self.amqpBroker.chan.basic_ack(message.delivery_tag)
+        yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
     
     @defer.inlineCallbacks
     def submit_sm_callback(self, message):
@@ -99,6 +115,8 @@ class SMPPClientSMListener:
         """
         msgid = message.content.properties['message-id']
         SubmitSmPDU = pickle.loads(message.content.body)
+
+        self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
 
         self.log.debug("Callbacked a submit_sm with a SubmitSmPDU[%s] (?): %s" % (msgid, SubmitSmPDU))
 
@@ -120,20 +138,13 @@ class SMPPClientSMListener:
                                 ))
 
                 # Relaunch queue callbacking after qos_slow_down seconds
-                self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
-                self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
+                #self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
+                #self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
                 # Requeue the message
-                yield self.rejectAndRequeueMessage(message, delay = False)
+                yield self.rejectAndRequeueMessage(message, delay = qos_slow_down)
                 defer.returnValue(False)
-            else:
-                # We're slower than submit_sm_throughput, let's take a new message from the queue NOW !
-                self.qos_last_submit_sm_at = datetime.now()
-                self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
             
             self.qos_last_submit_sm_at = datetime.now()
-        else:
-            # No throttling
-            self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
         
         # Verify if message is a SubmitSm PDU
         if isinstance(SubmitSmPDU, SubmitSM) == False:
@@ -333,7 +344,6 @@ class SMPPClientSMListener:
         as a @TODO requiring knowledge of the queue api behaviour
         """
         if error.check(Closed) == None:
-            print 'error'
             #@todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside submit_sm_callback

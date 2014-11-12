@@ -165,6 +165,38 @@ class BindTransceiverTestCase(BindTestCase):
         # Session state check
         self.assertEqual(SMPPSessionStates.UNBOUND, smpp.sessionState)
 
+class MiscBindTestCase(BindTestCase):
+    @defer.inlineCallbacks
+    def test_bind_with_systemType_defined(self):
+        "Testing for #64, systemType must be always string"
+
+        # Test 1: systemType in string
+        self.config.bindOperation = 'transmitter'
+        self.config.systemType = '999999'
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        
+        # Session state check
+        self.assertEqual(SMPPSessionStates.BOUND_TX, smpp.sessionState)
+
+        # Unbind & Disconnect
+        yield client.disconnect()
+
+        # Test 1: systemType in integer
+        self.config.systemType = 999999
+        client = SMPPClientFactory(self.config)
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        
+        # Session state check
+        self.assertEqual(SMPPSessionStates.BIND_TX_PENDING, smpp.sessionState)
+
+        # Unbind & Disconnect
+        yield client.disconnect()
+
 class NoBindResponseTestCase(SimulatorTestCase):
     protocol = BlackHoleSMSC
 

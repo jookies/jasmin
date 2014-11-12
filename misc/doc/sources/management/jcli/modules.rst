@@ -627,7 +627,7 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
      - When a SMS-MT is not acked, it will remain waiting in memory for *dlr_expiry* seconds, after this period, any received ACK will be ignored
      - 86400
    * - **submit_throughput**
-     - Active SMS-MT throttling in MPS (Messages per second)
+     - Active SMS-MT throttling in MPS (Messages per second), set to 0 (zero) for unlimited throughput
      - 1
    * - **proto_id**
      - Used to indicate protocol id in SMS-MT and SMS-MO
