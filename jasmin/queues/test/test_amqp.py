@@ -255,14 +255,14 @@ class PublishConsumeTestCase(ConsumeTools):
         queue = yield self.amqp.client.queue(consumerTag)
         
         # Publish
-        for i in range(10000):
+        for i in range(5000):
             yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01", 
                 content=Content(str(i)))
 
         # Start consuming (same as starting a connector)
         queue.get().addCallback(self._callback, queue, ack = True).addErrback(self._errback)
 
-        # Wait for 5 seconds
+        # Wait for 10 seconds
         # (give some time to the consumer to get its work done)
         exitDeferred = defer.Deferred()
         reactor.callLater(10, exitDeferred.callback, None)        
@@ -272,7 +272,7 @@ class PublishConsumeTestCase(ConsumeTools):
 
         yield self.amqp.disconnect()
         
-        self.assertEqual(self.consumedMessages, 10000)
+        self.assertEqual(self.consumedMessages, 5000)
 
 class RejectAndRequeueTestCase(ConsumeTools):
     rejectedMessages = 0
@@ -314,7 +314,7 @@ class RejectAndRequeueTestCase(ConsumeTools):
         queue.get().addCallback(self._callback_reject_once, queue, reject = True).addErrback(self._errback)
         
         # Publish
-        for i in range(10000):
+        for i in range(3000):
             yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01", 
                 content=Content(str(i)))
 
@@ -328,8 +328,8 @@ class RejectAndRequeueTestCase(ConsumeTools):
 
         yield self.amqp.disconnect()
         
-        self.assertEqual(self.rejectedMessages, 10000)
-        self.assertEqual(self.consumedMessages, 10000)
+        self.assertEqual(self.rejectedMessages, 3000)
+        self.assertEqual(self.consumedMessages, 3000)
 
     @defer.inlineCallbacks
     def test_requeue_all_restart_then_reconsume(self):
