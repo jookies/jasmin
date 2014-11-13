@@ -31,14 +31,14 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
         # Add an smppcc (cid = smpp1)
         commands = [{'command': 'smppccm -a'},
                     {'command': 'cid smpp1'},
-                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.2},
+                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.4},
                     ]
         yield self._test(r'jcli : ', commands)
     
         # Add an smppcc (cid = smpp2)
         commands = [{'command': 'smppccm -a'},
                     {'command': 'cid smpp2'},
-                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.2},
+                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.4},
                     ]
         yield self._test(r'jcli : ', commands)
     
@@ -94,6 +94,8 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                 sessionTerminated = True
         
         if not sessionTerminated:
-            commands.append({'command': 'ok', 'expect': r'Successfully added MTRoute \['})
+            commands.append({'command': 'ok', 
+                             'expect': r'Successfully added MTRoute \[',
+                             'wait': 0.4})
 
         return self._test(finalPrompt, commands)

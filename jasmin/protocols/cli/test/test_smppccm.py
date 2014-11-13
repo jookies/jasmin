@@ -5,7 +5,7 @@ from jasmin.protocols.smpp.test.smsc_simulator import *
 
 class SmppccmTestCases(jCliWithoutAuthTestCases):
     # Wait delay for 
-    wait = 0.3
+    wait = 0.6
 
     def add_connector(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
@@ -18,7 +18,9 @@ class SmppccmTestCases(jCliWithoutAuthTestCases):
                 sessionTerminated = True
         
         if not sessionTerminated:
-            commands.append({'command': 'ok', 'expect': r'Successfully added connector \[', 'wait': self.wait})
+            commands.append({'command': 'ok', 
+                             'expect': r'Successfully added connector \[', 
+                             'wait': self.wait})
 
         return self._test(finalPrompt, commands)
 
@@ -241,7 +243,7 @@ class BasicTestCases(HappySMSCTestCase):
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                      'expect': r'Successfully started connector id\:%s' % cid,
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
 
         # Remove
@@ -275,13 +277,13 @@ class BasicTestCases(HappySMSCTestCase):
         # Add
         cid = 'operator_13'
         extraCommands = [{'command': 'cid %s' % cid},
-                         {'command': 'con_fail_retry 0', 'wait': 0.3}]
+                         {'command': 'con_fail_retry 0', 'wait': 0.6}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                     'expect': r'Successfully started connector id\:%s' % cid, 
-                    'wait': 0.3}]
+                    'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
     
     @defer.inlineCallbacks
@@ -295,7 +297,7 @@ class BasicTestCases(HappySMSCTestCase):
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                      'expect': r'Successfully started connector id\:%s' % cid,
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
     
         # List
@@ -308,7 +310,7 @@ class BasicTestCases(HappySMSCTestCase):
         # Stop
         commands = [{'command': 'smppccm -0 %s' % cid, 
                      'expect': r'Successfully stopped connector id',
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -331,13 +333,13 @@ class BasicTestCases(HappySMSCTestCase):
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                      'expect': r'Successfully started connector id\:%s' % cid,
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
     
         # Stop
         commands = [{'command': 'smppccm -0 %s' % cid, 
                      'expect': r'Successfully stopped connector id\:%s' % cid,
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -356,13 +358,13 @@ class BasicTestCases(HappySMSCTestCase):
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                      'expect': r'Successfully started connector id\:%s' % cid,
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
     
         # Stop
         commands = [{'command': 'smppccm -0 %s' % cid, 
                      'expect': r'Successfully stopped connector id\:%s' % cid,
-                     'wait': 0.3}]
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
     
         # List
@@ -593,7 +595,7 @@ class SMSCTestCases(HappySMSCTestCase):
         yield HappySMSCTestCase.tearDown(self)
 
     @defer.inlineCallbacks
-    def start_connector(self, cid, finalPrompt = r'jcli : ', wait = 0.5, expect = None):
+    def start_connector(self, cid, finalPrompt = r'jcli : ', wait = 0.6, expect = None):
         commands = [{'command': 'smppccm -1 %s' % cid, 'wait': wait, 'expect': expect}]
         yield self._test(finalPrompt, commands)
 
@@ -601,7 +603,7 @@ class SMSCTestCases(HappySMSCTestCase):
         self.startedConnectors.append(cid)
 
     @defer.inlineCallbacks
-    def stop_connector(self, cid, finalPrompt = r'jcli : ', wait = 0.5, expect = None):
+    def stop_connector(self, cid, finalPrompt = r'jcli : ', wait = 0.6, expect = None):
         commands = [{'command': 'smppccm -0 %s' % cid, 'wait': wait, 'expect': expect}]
         yield self._test(finalPrompt, commands)
 
