@@ -1187,9 +1187,9 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()
@@ -1201,6 +1201,162 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
         self.assertEqual(callArgs['id'][0], msgId)
+
+    @defer.inlineCallbacks
+    def test_correct_args__dlr_level1(self):
+        """Related to #71
+        Will check for correct args when throwing a level1 ack
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 1
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
+        # Args assertions
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(len(callArgs), 3)
+        self.assertTrue('id' in callArgs)
+        self.assertTrue('message_status' in callArgs)
+        self.assertTrue('level' in callArgs)
+        self.assertEqual(callArgs['level'][0], '1')
+        for k, v in callArgs.iteritems():
+            self.assertNotEqual(v[0], '')
+
+    @defer.inlineCallbacks
+    def test_correct_args__dlr_level2(self):
+        """Related to #71
+        Will check for correct args when throwing a level2 ack
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 2
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm containing a DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
+        # Args assertions
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(len(callArgs), 10)
+        self.assertTrue('id' in callArgs)
+        self.assertTrue('message_status' in callArgs)
+        self.assertTrue('level' in callArgs)
+        self.assertTrue('donedate' in callArgs)
+        self.assertTrue('sub' in callArgs)
+        self.assertTrue('err' in callArgs)
+        self.assertTrue('text' in callArgs)
+        self.assertTrue('id_smsc' in callArgs)
+        self.assertTrue('dlvrd' in callArgs)
+        self.assertTrue('subdate' in callArgs)
+        self.assertEqual(callArgs['level'][0], '2')
+        for k, v in callArgs.iteritems():
+            self.assertNotEqual(v[0], '')
+
+    @defer.inlineCallbacks
+    def test_correct_args__dlr_level3(self):
+        """Related to #71
+        Will check for correct args when throwing a level3 ack
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 3
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger a deliver_sm containing a DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 2)
+        # Args assertions for first call (level1)
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        self.assertEqual(len(callArgs), 3)
+        self.assertTrue('id' in callArgs)
+        self.assertTrue('message_status' in callArgs)
+        self.assertTrue('level' in callArgs)
+        self.assertEqual(callArgs['level'][0], '1')
+        for k, v in callArgs.iteritems():
+            self.assertNotEqual(v[0], '')
+        # Args assertions for second call (level2)
+        callArgs = self.AckServerResource.render_POST.call_args_list[1][0][0].args
+        self.assertEqual(len(callArgs), 10)
+        self.assertTrue('id' in callArgs)
+        self.assertTrue('message_status' in callArgs)
+        self.assertTrue('level' in callArgs)
+        self.assertTrue('donedate' in callArgs)
+        self.assertTrue('sub' in callArgs)
+        self.assertTrue('err' in callArgs)
+        self.assertTrue('text' in callArgs)
+        self.assertTrue('id_smsc' in callArgs)
+        self.assertTrue('dlvrd' in callArgs)
+        self.assertTrue('subdate' in callArgs)
+        self.assertEqual(callArgs['level'][0], '2')
+        for k, v in callArgs.iteritems():
+            self.assertNotEqual(v[0], '')
 
     @defer.inlineCallbacks
     def test_delivery_with_inurl_dlr_level2_GET(self):
@@ -1223,9 +1379,9 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
@@ -1267,9 +1423,9 @@ class DlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCase
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
@@ -1344,9 +1500,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()
@@ -1379,9 +1535,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
@@ -1422,9 +1578,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
@@ -1468,9 +1624,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()
@@ -1504,9 +1660,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm containing a DLR
@@ -1548,9 +1704,9 @@ class LongSmDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTe
         msgStatus = c[:7]
         msgId = c[9:45]
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Trigger a deliver_sm
@@ -1915,9 +2071,9 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         # Send a MT
         yield getPage(baseurl, method = self.method, postdata = self.postdata)
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()
@@ -1941,9 +2097,9 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         # Send a MT
         yield getPage(baseurl, method = self.method, postdata = self.postdata)
         
-        # Wait 2 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         yield self.stopSmppClientConnectors()

@@ -283,7 +283,10 @@ class SMPPClientSMListener:
                     content = DLRContent(str(r.response.status), 
                                          msgid, 
                                          dlr_url, 
-                                         dlr_level, 
+                                         # The dlr_url in DLRContent indicates the level
+                                         # of the actual delivery receipt (1) and not the requested
+                                         # one (maybe 1 or 3)
+                                         dlr_level = 1, 
                                          method = dlr_method)
                     routing_key = 'dlr_thrower.http'
                     self.log.debug("Publishing DLRContent[%s] with routing_key[%s]" % (msgid, routing_key))
@@ -482,7 +485,13 @@ class SMPPClientSMListener:
                         if dlr_level in [2, 3]:
                             self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s' % 
                                            (submit_sm_queue_id, dlr_url, dlr_level))
-                            content = DLRContent(pdu.dlr['stat'], submit_sm_queue_id, dlr_url, dlr_level, 
+                            content = DLRContent(pdu.dlr['stat'], 
+                                                 submit_sm_queue_id, 
+                                                 dlr_url, 
+                                                 # The dlr_url in DLRContent indicates the level
+                                                 # of the actual delivery receipt (2) and not the 
+                                                 # requested one (maybe 2 or 3)
+                                                 dlr_level = 2, 
                                                  id_smsc = pdu.dlr['id'], 
                                                  sub = pdu.dlr['sub'], 
                                                  dlvrd = pdu.dlr['dlvrd'], 
