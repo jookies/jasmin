@@ -4,7 +4,7 @@ python:
 # Command to install dependencies
 install:
     - python setup.py sdist
-    - sudo pip install dist/jasmin-0.5.4-beta.tar.gz
+    - sudo pip install dist/jasmin-0.6.0-beta.tar.gz
 # Commands to run tests:
 script:
     # Add jasmind to system autostartup:
