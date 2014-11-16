@@ -26,6 +26,7 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'anykey anyvalue', 'expect': r'Unknown Route key: anykey'}]
         yield self.add_mtroute(r'jcli : ', extraCommands)
     
+    @defer.inlineCallbacks
     def test_cancel_add(self):
         extraCommands = [{'command': 'order 1'},
                          {'command': 'ko'}]
