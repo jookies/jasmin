@@ -262,10 +262,10 @@ class PublishConsumeTestCase(ConsumeTools):
         # Start consuming (same as starting a connector)
         queue.get().addCallback(self._callback, queue, ack = True).addErrback(self._errback)
 
-        # Wait for 10 seconds
+        # Wait for 15 seconds
         # (give some time to the consumer to get its work done)
         exitDeferred = defer.Deferred()
-        reactor.callLater(10, exitDeferred.callback, None)        
+        reactor.callLater(15, exitDeferred.callback, None)        
         yield exitDeferred        
         
         yield queue.close()
