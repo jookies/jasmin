@@ -10,14 +10,16 @@ from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 
 class OperationsTest(TestCase):
+    def setUp(self):
+        self.opFactory = SMPPOperationFactory(SMPPClientConfig(id='test-id'))
+        
+
+class SubmitTest(OperationsTest):
     source_addr         = '20203060'
     destination_addr    = '98700177'
     latin1_sm           = '6162636465666768696a6b6c6d6e6f707172737475767778797a'
     latin1_long_sm      = '6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e'
 
-    def setUp(self):
-        self.opFactory = SMPPOperationFactory(SMPPClientConfig(id='test-id'))
-        
     def buildSubmitSmTest(self, sm):
         """
         Build a SubmitSm pdu and test if:
@@ -90,8 +92,10 @@ class OperationsTest(TestCase):
         
         # The last seqNum shall be equal to total segments
         self.assertEquals(lastSeqNum, pdu.params['sar_total_segments'])
-        
-    def test_is_delivery(self):
+
+class DeliveryParsingTest(OperationsTest):
+
+    def test_is_delivery_standard(self):
         pdu = DeliverSM(
             source_addr='1234',
             destination_addr='4567',
@@ -108,3 +112,42 @@ class OperationsTest(TestCase):
         self.assertEquals(isDlr['stat'], 'DELIVRD')
         self.assertEquals(isDlr['err'], '000')
         self.assertEquals(isDlr['text'], 'DLVRD TO MOBILE')
+
+    def test_is_delivery_empty_text(self):
+        pdu = DeliverSM(
+            source_addr='1234',
+            destination_addr='4567',
+            short_message='id:1891273321 sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:DELIVRD err:000 text:',
+        )
+        
+        isDlr = self.opFactory.isDeliveryReceipt(pdu)
+        self.assertTrue(isDlr is not None)
+        self.assertEquals(isDlr['id'], '1891273321')
+        self.assertEquals(isDlr['sub'], '001')
+        self.assertEquals(isDlr['dlvrd'], '001')
+        self.assertEquals(isDlr['sdate'], '1305050826')
+        self.assertEquals(isDlr['ddate'], '1305050826')
+        self.assertEquals(isDlr['stat'], 'DELIVRD')
+        self.assertEquals(isDlr['err'], '000')
+        self.assertEquals(isDlr['text'], '')
+
+    def test_is_delivery_clickatell(self):
+        """Related to #70
+        Parsing clickatell's DLRs
+        """
+        pdu = DeliverSM(
+            source_addr='1234',
+            destination_addr='4567',
+            short_message='id:a29f6845555647139e5c8f3b817f2c9a sub:001 dlvrd:001 submit date:141023215253 done date:141023215259 stat:DELIVRD err:000 text:HOLA',
+        )
+        
+        isDlr = self.opFactory.isDeliveryReceipt(pdu)
+        self.assertTrue(isDlr is not None)
+        self.assertEquals(isDlr['id'], 'a29f6845555647139e5c8f3b817f2c9a')
+        self.assertEquals(isDlr['sub'], '001')
+        self.assertEquals(isDlr['dlvrd'], '001')
+        self.assertEquals(isDlr['sdate'], '141023215253')
+        self.assertEquals(isDlr['ddate'], '141023215259')
+        self.assertEquals(isDlr['stat'], 'DELIVRD')
+        self.assertEquals(isDlr['err'], '000')
+        self.assertEquals(isDlr['text'], 'HOLA')

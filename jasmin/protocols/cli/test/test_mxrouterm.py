@@ -17,7 +17,7 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                     {'command': 'cid http1'},
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
-        self._test(r'jcli : ', commands)
+        yield self._test(r'jcli : ', commands)
         
         # Add an httpcc (cid = http2)
         commands = [{'command': 'httpccm -a'},
@@ -26,19 +26,19 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                     {'command': 'cid http2'},
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
-        self._test(r'jcli : ', commands)
+        yield self._test(r'jcli : ', commands)
         
         # Add an smppcc (cid = smpp1)
         commands = [{'command': 'smppccm -a'},
                     {'command': 'cid smpp1'},
-                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.2},
+                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.4},
                     ]
         yield self._test(r'jcli : ', commands)
     
         # Add an smppcc (cid = smpp2)
         commands = [{'command': 'smppccm -a'},
                     {'command': 'cid smpp2'},
-                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.2},
+                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.4},
                     ]
         yield self._test(r'jcli : ', commands)
     
@@ -48,7 +48,7 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                     {'command': 'type TransparentFilter'},
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
-        self._test(r'jcli : ', commands)
+        yield self._test(r'jcli : ', commands)
     
         # Add a ConnectorFilter (fid = cf1)
         commands = [{'command': 'filter -a'},
@@ -57,7 +57,7 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                     {'command': 'cid Any'},
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
-        self._test(r'jcli : ', commands)
+        yield self._test(r'jcli : ', commands)
     
         # Add a UserFilter (fid = uf1)
         commands = [{'command': 'filter -a'},
@@ -66,8 +66,9 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                     {'command': 'uid Any'},
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
-        self._test(r'jcli : ', commands)
+        yield self._test(r'jcli : ', commands)
     
+    @defer.inlineCallbacks
     def add_moroute(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
@@ -81,8 +82,9 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
         if not sessionTerminated:
             commands.append({'command': 'ok', 'expect': r'Successfully added MORoute \['})
 
-        return self._test(finalPrompt, commands)
+        yield self._test(finalPrompt, commands)
     
+    @defer.inlineCallbacks
     def add_mtroute(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
@@ -94,6 +96,8 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                 sessionTerminated = True
         
         if not sessionTerminated:
-            commands.append({'command': 'ok', 'expect': r'Successfully added MTRoute \['})
+            commands.append({'command': 'ok', 
+                             'expect': r'Successfully added MTRoute \[',
+                             'wait': 0.4})
 
-        return self._test(finalPrompt, commands)
+        yield self._test(finalPrompt, commands)
