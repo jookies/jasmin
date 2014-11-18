@@ -242,6 +242,7 @@ class HTTPApi(Resource):
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
 
         # Set http url routings
         self.log.debug("Setting http url routing for /send")

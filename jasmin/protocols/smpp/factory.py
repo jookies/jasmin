@@ -31,6 +31,7 @@ class SMPPClientFactory(ClientFactory):
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
 
         if msgHandler is None:
             self.msgHandler = self.msgHandlerStub

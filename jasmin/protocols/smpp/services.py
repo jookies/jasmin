@@ -22,6 +22,7 @@ class SMPPClientService(service.Service):
             formatter = logging.Formatter(self.SMPPClientServiceConfig.log_format, self.SMPPClientServiceConfig.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
 
         self.log.info('New SMPPClientService for [%s]', self.SMPPClientConfig.id)
 

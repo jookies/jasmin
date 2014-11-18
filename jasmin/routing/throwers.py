@@ -77,6 +77,7 @@ class Thrower(Service):
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
         
         self.log.info('Thrower configured and ready.')
 

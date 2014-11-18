@@ -45,6 +45,7 @@ class SMPPClientSMListener:
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
 
     def setSubmitSmQ(self, queue):
         self.log.debug('Setting a new submit_sm_q: %s' % queue)

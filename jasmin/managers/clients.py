@@ -50,6 +50,7 @@ class SMPPClientManagerPB(pb.Avatar):
                                           self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
         
         # Set pickleProtocol
         self.pickleProtocol = self.config.pickle_protocol
