@@ -22,6 +22,7 @@ from jasmin.vendor.smpp.pdu.pdu_encoding import *
 from jasmin.vendor.smpp.pdu.pdu_types import *
 from jasmin.vendor.smpp.pdu.operations import *
 
+@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class EncoderTest(unittest.TestCase):
 
     def do_conversion_test(self, encoder, value, hexdumpValue):
@@ -344,8 +345,6 @@ class OptionEncoderTest(EncoderTest):
     def test_alert_on_message_delivery(self):
         self.do_conversion_test(OptionEncoder(), Option(Tag.alert_on_message_delivery, None), '130c0000')
 
-@unittest.skip('''Jasmin update: Dont include theses tests since they are failing for many reasons like:
-    - sm_default_msg_id minimum default id is set to 0 (c.f. PDUEncoder.DefaultRequiredParamEncoders)''')
 class PDUEncoderTest(EncoderTest):
 
     def do_bind_conversion_test(self, pduBindKlass, reqCommandIdHex, respCommandIdHex):

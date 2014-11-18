@@ -36,6 +36,7 @@ class SMPPServerFactoryTests(unittest.TestCase):
     def tearDown(self):
         pass
         
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def test_canOpenNewConnection_transceiver(self):
         server = SMPPServerFactory(self.config, None)
         can_bind = server.canOpenNewConnection('lala', pdu_types.CommandId.bind_transceiver)
@@ -63,6 +64,7 @@ class SMPPServerFactoryTests(unittest.TestCase):
         can_bind = server.canOpenNewConnection('lala', pdu_types.CommandId.bind_receiver)
         self.assertFalse(can_bind, 'Should not be able to bind as two trx already bound')
         
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def test_canOpenNewConnection_transmitter(self):
         server = SMPPServerFactory(self.config, None)
         can_bind = server.canOpenNewConnection('lala', pdu_types.CommandId.bind_transceiver)
@@ -91,6 +93,7 @@ class SMPPServerFactoryTests(unittest.TestCase):
         can_bind = server.canOpenNewConnection('lala', pdu_types.CommandId.bind_receiver)
         self.assertTrue(can_bind, 'Should still be able to bind only bindings are tx')
         
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def test_canOpenNewConnection_receiver(self):
         server = SMPPServerFactory(self.config, None)
         can_bind = server.canOpenNewConnection('lala', pdu_types.CommandId.bind_transceiver)
@@ -119,6 +122,7 @@ class SMPPServerFactoryTests(unittest.TestCase):
         can_bind = server.canOpenNewConnection('lala', pdu_types.CommandId.bind_receiver)
         self.assertFalse(can_bind, 'Should not be able to bind as two rx already bound')
         
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def test_canOpenNewConnection_multitypes(self):
         server = SMPPServerFactory(self.config, None)
         
@@ -159,6 +163,7 @@ class SMPPServerFactoryTests(unittest.TestCase):
 
 class SMPPBindManagerTests(unittest.TestCase):
     
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def test_getNextBindingForDelivery(self):
         bm = SMPPBindManager('blah')
         
@@ -254,6 +259,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
     def tearDown(self):
         self.proto.connectionLost('test end')
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXBindRequest(self):
         pdu = operations.BindTransceiver(
             system_id = 'userA',
@@ -267,6 +273,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         self.assertEqual(connection.system_id, 'userA')
         self.assertEqual(connection._binds[pdu_types.CommandId.bind_transceiver][0], self.proto)
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXBindRequestInvalidSysId(self):
         pdu = operations.BindTransceiver(
             system_id = 'userB',
@@ -281,6 +288,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         connection = self.factory.getBoundConnections('userB')
         self.assertEqual(connection, None)
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXBindRequestInvalidPassword(self):
         pdu = operations.BindTransceiver(
             system_id = 'userA',
@@ -293,6 +301,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         connection = self.factory.getBoundConnections('userA')
         self.assertEqual(connection, None)
  
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTransmitterBindRequest(self):
         system_id = 'userA'
         pdu = operations.BindTransmitter(
@@ -311,6 +320,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         delivery_binding = bind_manager.getNextBindingForDelivery()
         self.assertTrue(delivery_binding is None)
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testReceiverBindRequest(self):
         system_id = 'userA'
         pdu = operations.BindReceiver(
@@ -335,18 +345,21 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         self.assertEqual(self.tr.value(), self.encoder.encode(expected_pdu))
 
  
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testUnboundSubmitRequest(self):
         pdu = operations.SubmitSM(source_addr='t1', destination_addr='1208230', short_message='HELLO', seqNum=1)
         self.proto.dataReceived(self.encoder.encode(pdu))
         expected_pdu = operations.SubmitSMResp(status=pdu_types.CommandStatus.ESME_RINVBNDSTS, seqNum=1)
         self.assertEqual(self.tr.value(), self.encoder.encode(expected_pdu))
     
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testUnboundSubmitRequest(self):
         pdu = operations.EnquireLink(seqNum = 576)
         self.proto.dataReceived(self.encoder.encode(pdu))
         expected_pdu = operations.EnquireLinkResp(status=pdu_types.CommandStatus.ESME_RINVBNDSTS, seqNum=576)
         self.assertEqual(self.tr.value(), self.encoder.encode(expected_pdu))
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXUnbindRequest(self):
         self._bind()
         pdu = operations.Unbind(seqNum = 346)
@@ -358,6 +371,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         # Still in list of binds as the connection has not been closed yet. is removed after test tearDown
         self.assertEqual(connection._binds[pdu_types.CommandId.bind_transceiver][0].sessionState, SMPPSessionStates.UNBOUND)
  
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXSubmitSM(self):
         self._bind()
         pdu = operations.SubmitSM(source_addr='t1', destination_addr='1208230', short_message='HELLO', seqNum=6)
@@ -370,6 +384,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         self.assertEqual(pdu.params['source_addr'], pdu_notified.params['source_addr'])
         self.assertEqual(pdu.params['destination_addr'], pdu_notified.params['destination_addr'])
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXDataSM(self):
         self._bind()
         pdu = operations.DataSM(source_addr='t1', destination_addr='1208230', short_message='tests', seqNum=6)
@@ -379,6 +394,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         system_id, smpp, pdu_notified = self.service_calls.pop()
         self.assertEqual(system_id, self.proto.system_id)
         
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXQuerySM(self):
         def _serviceHandler(system_id, smpp, pdu):
             self.service_calls.append((system_id, smpp, pdu))
@@ -398,6 +414,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         system_id, smpp, pdu_notified = self.service_calls.pop()
         self.assertEqual(system_id, self.proto.system_id)
  
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testRecievePduWhileUnbindPending(self):
         self._bind()
         self.proto.unbind()
@@ -411,6 +428,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         pdu = operations.UnbindResp(seqNum=1)
         self.proto.dataReceived(self.encoder.encode(pdu))
         
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXClientUnbindRequestAfterSubmit(self):
         d = defer.Deferred()
         def _serviceHandler(system_id, smpp, pdu):
@@ -440,6 +458,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         expected_pdu = operations.SubmitSMResp(seqNum=1)
         self.assertEqual(self.tr.value(), '%s%s' % (self.encoder.encode(expected_pdu), self.encoder.encode(unbind_resp_pdu)))
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testTRXServerUnbindRequestAfterSubmit(self):
         deferreds = []
         def _serviceHandler(system_id, smpp, pdu):
@@ -493,6 +512,7 @@ class SMPPServerTimeoutTestCase(SMPPServerBaseTest):
         self.tr = proto_helpers.StringTransport()
         self.proto.makeConnection(self.tr)
 
+    @unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
     def testEnquireTimeout(self):
         self._bind()
         pdu = operations.SubmitSM(source_addr='t1', destination_addr='1208230', short_message='HELLO', seqNum=6)
