@@ -47,6 +47,18 @@ class SMPPTimeTest(unittest.TestCase):
         self.assertEquals(29, rel.seconds)
         self.assertEquals(str, smpp_time.unparse(rel))
         
+    def test_parse_relative_mins_only(self):
+        str = '000000001000000R'
+        rel = smpp_time.parse(str)
+        self.assertEquals(smpp_time.SMPPRelativeTime, rel.__class__)
+        self.assertEquals(0, rel.years)
+        self.assertEquals(0, rel.months)
+        self.assertEquals(0, rel.days)
+        self.assertEquals(0, rel.hours)
+        self.assertEquals(10, rel.minutes)
+        self.assertEquals(0, rel.seconds)
+        self.assertEquals(str, smpp_time.unparse(rel))
+
     def test_parse_absolute_no_offset(self):
         str = '070927233429800+'
         dt = smpp_time.parse(str)

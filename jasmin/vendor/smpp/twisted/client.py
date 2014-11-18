@@ -148,5 +148,6 @@ class SMPPClientService(service.Service):
     def stopService(self):
         service.Service.stopService(self)
         if self.client.smpp:
+            self.log.info("Stopping SMPP Client")
             return self.client.smpp.unbindAndDisconnect()
 

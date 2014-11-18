@@ -13,6 +13,7 @@ LOG_CATEGORY = "smpp.twisted.protocol"
 
 class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def __init__( self ):
+        twistedSMPPClientProtocol.__init__(self)
         self.recvBuffer = ""
         self.connectionCorrupted = False
         self.pduReadTimer = None
