@@ -726,8 +726,11 @@ class SMPPServerProtocol(SMPPProtocolBase):
     
     def __init__(self):
         SMPPProtocolBase.__init__(self)
+
+        # Jasmin update: dataRequestHandler is set from factory instead of config()
         # Divert received messages to the handler defined in the config
-        self.dataRequestHandler = lambda *args, **kwargs: self.config().msgHandler(self.system_id, *args, **kwargs)
+        #self.dataRequestHandler = lambda *args, **kwargs: self.config().msgHandler(self.system_id, *args, **kwargs)
+
         self.system_id = None
         self.log = logging.getLogger(LOG_CATEGORY)
        

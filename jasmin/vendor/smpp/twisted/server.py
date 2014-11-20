@@ -4,7 +4,8 @@ from jasmin.vendor.smpp.pdu import pdu_types
 from zope.interface import Interface
 
 from twisted.internet.protocol import ServerFactory
-from twisted import cred
+# Jasmin update: direct import of UsernamePassword instead of cred
+from twisted.cred.credentials import UsernamePassword
 from twisted.cred import error
 from twisted.internet import defer
 
@@ -17,7 +18,8 @@ LOG_CATEGORY="smpp.twisted.server"
 class IAuthenticatedSMPP(Interface):
     pass
 
-class UsernameAndPasswordAndIP(cred.credentials.UsernamePassword):
+# Jasmin update: using UsernamePassword instead of cred.credentials.UsernamePassword
+class UsernameAndPasswordAndIP(UsernamePassword):
     def __init__(self, username, password, client_ip_address):
         self.username = username
         self.password = password

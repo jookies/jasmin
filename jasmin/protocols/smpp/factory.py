@@ -3,10 +3,12 @@ import logging
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from jasmin.protocols.smpp.protocol import SMPPClientProtocol
+from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
+from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.pdu.error import *
 
-LOG_CATEGORY_BASE = "smpp.client"
+LOG_CATEGORY_CLIENT_BASE = "smpp.client"
+LOG_CATEGORY_SERVER_BASE = "smpp.server"
 
 class SmppClientIsNotConnected(Exception):
     """
@@ -24,7 +26,7 @@ class SMPPClientFactory(ClientFactory):
         self.config = config
                 
         # Set up a dedicated logger
-        self.log = logging.getLogger(LOG_CATEGORY_BASE+".%s" % config.id)
+        self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE+".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
             handler = logging.FileHandler(filename=config.log_file)
@@ -173,3 +175,31 @@ class CtxFactory(ssl.ClientContextFactory):
         if self.smppConfig.SSLCertificateFile:
             ctx.use_certificate_file(self.smppConfig.SSLCertificateFile)
         return ctx
+
+class SMPPServerFactory(_SMPPServerFactory):
+    protocol = SMPPServerProtocol
+
+    def __init__(self, config, auth_portal, msgHandler = None):
+        self.config = config
+        # A dict of protocol instances for each of the current connections,
+        # indexed by system_id 
+        self.bound_connections = {}
+        self._auth_portal = auth_portal
+
+        # Set up a dedicated logger
+        self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(config.log_level)
+            handler = logging.FileHandler(filename=config.log_file)
+            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
+            self.log.propagate = False
+
+        if msgHandler is None:
+            self.msgHandler = self.msgHandlerStub
+        else:
+            self.msgHandler = msgHandler
+
+    def msgHandlerStub(self, system_id, *args, **kwargs):
+        self.log.warn("msgHandlerStub: Received an unhandled message from %s: %s ..." % (system_id, kwargs))

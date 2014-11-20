@@ -1,6 +1,8 @@
 #pylint: disable-msg=W0401,W0611
+import logging
 import struct
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
+from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
@@ -9,24 +11,12 @@ from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 
+#@todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
 
 class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def __init__( self ):
         twistedSMPPClientProtocol.__init__(self)
-        self.recvBuffer = ""
-        self.connectionCorrupted = False
-        self.pduReadTimer = None
-        self.enquireLinkTimer = None
-        self.inactivityTimer = None
-        self.lastSeqNum = 0
-        self.dataRequestHandler = None
-        self.alertNotificationHandler = None
-        self.inTxns = {}
-        self.outTxns = {}
-        self.sessionState = SMPPSessionStates.NONE
-        self.encoder = PDUEncoder()
-        self.disconnectedDeferred = defer.Deferred()
         
         self.longSubmitSmTxns = {}
         
@@ -228,3 +218,16 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 self.preSubmitSm(pdu)
         
         return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)
+
+class SMPPServerProtocol( twistedSMPPServerProtocol ):
+    def __init__( self ):
+        twistedSMPPServerProtocol.__init__(self)
+
+        # Divert received messages to the handler defined in the config
+        # Note:
+        # twistedSMPPServerProtocol is using a msgHandler from self.config(), this
+        # SMPPServerProtocol is using self.factory's msgHandler just like SMPPClientProtocol
+        self.dataRequestHandler = lambda *args, **kwargs: self.factory.msgHandler(self.system_id, 
+                                                                                    *args, **kwargs)
+        self.system_id = None
+        self.log = logging.getLogger(LOG_CATEGORY)
