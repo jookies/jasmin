@@ -16,7 +16,7 @@ from hashlib import md5
 LOG_CATEGORY = "jasmin-router"
 
 class RouterPB(pb.Avatar):
-    def setConfig(self, RouterPBConfig):
+    def setConfig(self, RouterPBConfig, persistenceTimer = True):
         self.config = RouterPBConfig
         self.persistenceTimer = None
 
@@ -39,12 +39,13 @@ class RouterPB(pb.Avatar):
         self.users = []
         self.groups = []
         
-        # Activate persistenceTimer, used for persisting users and groups whenever critical updates
-        # occured
-        self.activatePersistenceTimer()
+        if persistenceTimer:
+            # Activate persistenceTimer, used for persisting users and groups whenever critical updates
+            # occured
+            self.activatePersistenceTimer()
         
         # Persistence flag, accessed through perspective_is_persisted
-        self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
+        self.persistenceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
         
         self.log.info('Router configured and ready.')
         
@@ -332,7 +333,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['groups'] = True
+                self.persistenceState['groups'] = True
 
             if scope in ['all', 'users']:
                 # Persist users configuration
@@ -346,7 +347,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['users'] = True
+                self.persistenceState['users'] = True
                 for u in self.users:
                     u.mt_credential.quotas_updated = False
 
@@ -362,7 +363,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
                 
                 # Set persistance state to True
-                self.persistanceState['moroutes'] = True
+                self.persistenceState['moroutes'] = True
 
             if scope in ['all', 'mtroutes']:
                 # Persist mtroutes configuration
@@ -376,7 +377,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
                 
                 # Set persistance state to True
-                self.persistanceState['mtroutes'] = True
+                self.persistenceState['mtroutes'] = True
 
         except IOError:
             self.log.error('Cannot persist to %s' % path)
@@ -408,7 +409,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new Groups (%d)' % len(self.groups))
 
                 # Set persistance state to True
-                self.persistanceState['groups'] = True
+                self.persistenceState['groups'] = True
 
             if scope in ['all', 'users']:
                 # Load users configuration
@@ -429,7 +430,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new Users (%d)' % len(self.users))
 
                 # Set persistance state to True
-                self.persistanceState['users'] = True
+                self.persistenceState['users'] = True
                 for u in self.users:
                     u.mt_credential.quotas_updated = False
 
@@ -448,7 +449,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new MORoutingTable with %d routes' % len(self.mo_routing_table.getAll()))
 
                 # Set persistance state to True
-                self.persistanceState['moroutes'] = True
+                self.persistenceState['moroutes'] = True
 
             if scope in ['all', 'mtroutes']:
                 # Load mtroutes configuration
@@ -465,7 +466,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new MTRoutingTable with %d routes' % len(self.mt_routing_table.getAll()))
 
                 # Set persistance state to True
-                self.persistanceState['mtroutes'] = True
+                self.persistenceState['mtroutes'] = True
 
         except IOError, e:
             self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
@@ -477,7 +478,7 @@ class RouterPB(pb.Avatar):
         return True
         
     def perspective_is_persisted(self):
-        for _, v in self.persistanceState.iteritems():
+        for _, v in self.persistenceState.iteritems():
             if not v:
                 return False
             
@@ -506,7 +507,7 @@ class RouterPB(pb.Avatar):
         self.users.append(user)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['users'] = False
+        self.persistenceState['users'] = False
 
         return True
     
@@ -529,7 +530,7 @@ class RouterPB(pb.Avatar):
         self.log.error("User with id:%s not found, not removing it." % uid)
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['users'] = False
+        self.persistenceState['users'] = False
 
         return False
 
@@ -539,7 +540,7 @@ class RouterPB(pb.Avatar):
         self.users = []
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['users'] = False
+        self.persistenceState['users'] = False
 
         return True
 
@@ -572,7 +573,7 @@ class RouterPB(pb.Avatar):
         self.groups.append(group)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['groups'] = False
+        self.persistenceState['groups'] = False
 
         return True
     
@@ -597,7 +598,7 @@ class RouterPB(pb.Avatar):
         self.log.error("Group with id:%s not found, not removing it." % gid)
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['groups'] = False
+        self.persistenceState['groups'] = False
 
         return False
 
@@ -619,7 +620,7 @@ class RouterPB(pb.Avatar):
         self.groups = []
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['groups'] = False
+        self.persistenceState['groups'] = False
 
         return True
 
@@ -644,7 +645,7 @@ class RouterPB(pb.Avatar):
             return False
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['mtroutes'] = False
+        self.persistenceState['mtroutes'] = False
 
         return True
     
@@ -663,7 +664,7 @@ class RouterPB(pb.Avatar):
             return False
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['moroutes'] = False
+        self.persistenceState['moroutes'] = False
 
         return True
     
@@ -671,7 +672,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Removing MO Route [%s]', order)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['moroutes'] = False
+        self.persistenceState['moroutes'] = False
 
         return self.mo_routing_table.remove(order)
 
@@ -679,7 +680,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Removing MT Route [%s]', order)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['mtroutes'] = False
+        self.persistenceState['mtroutes'] = False
 
         return self.mt_routing_table.remove(order)
 
@@ -687,7 +688,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Flushing MT Routing table')
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['mtroutes'] = False
+        self.persistenceState['mtroutes'] = False
 
         return self.mt_routing_table.flush()
     
@@ -695,7 +696,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Flushing MO Routing table')
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['moroutes'] = False
+        self.persistenceState['moroutes'] = False
 
         return self.mo_routing_table.flush()
     

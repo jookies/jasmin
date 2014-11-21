@@ -133,7 +133,35 @@ class Group(jasminApiGenerick):
     def __str__(self):
         return str(self.gid)
 
-class User(jasminApiGenerick):
+class CnxStatus(jasminApiGenerick):
+    """Connection status information holder"""
+    class smpps:
+        # This is a counter of all done binds
+        smpps_binds_count = 0
+        # This is a place holder to get datetimed bind types,
+        # this will include:
+        # - datetime
+        # - smpps_id
+        # - type of bind
+        smpps_binds_types = {}
+        # How many bound connection actually
+        smpps_bound = 0
+        # Types of actually bound connections,
+        # this will include:
+        # - datetime
+        # - smpps_id
+        # - type of bind
+        smpps_bound_types = {}
+        # Last smpp activity datetime over all bound connections
+        smpps_last_activity_at = None
+
+    class httpapi:
+        # This is a counter of all connections
+        http_connects_count = 0
+        # Last http activity datetime (not including throwing activities)
+        http_last_activity_at = None
+
+class User(CnxStatus):
     """Jasmin user"""
     
     def __init__(self, uid, group, username, password, mt_credential = None):
@@ -148,7 +176,7 @@ class User(jasminApiGenerick):
         self.mt_credential = mt_credential
         if self.mt_credential is None:
             self.mt_credential = MtMessagingCredential()
-    
+
     def __str__(self):
         return self.username
 

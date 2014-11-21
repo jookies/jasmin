@@ -6,28 +6,52 @@ Test cases for smpp server
 """
 
 import logging
+import pickle
 from twisted.internet import reactor, defer
 from jasmin.protocols.smpp.protocol import *
 from twisted.trial.unittest import TestCase
 from twisted.internet.protocol import Factory 
-from twisted.cred.portal import Portal
-from twisted.cred.portal import IRealm
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from zope.interface import implements
+from twisted.cred import portal
+from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
 from jasmin.protocols.smpp.protocol import *
+from jasmin.routing.router import RouterPB
+from jasmin.routing.configs import RouterPBConfig
+from jasmin.routing.jasminApi import User, Group
 
-class SMPPServerTestCases(TestCase):
-	port = 27750
-
-	class SmppRealm(object):
-		implements(IRealm)
-		
-		def requestAvatar(self, avatarId, mind, *interfaces):
-			return ('SMPP', avatarId, lambda: None)
+class RouterPBTestCases(TestCase):
+	def provision_new_user(self, user):
+		# This is normally done through jcli API (or any other high level API to come)
+		# Using perspective_user_add() is just a shortcut for testing purposes
+		if user.group not in self.router_factory.groups:
+			self.router_factory.perspective_group_add(pickle.dumps(user.group))
+		self.router_factory.perspective_user_add(pickle.dumps(user))
 
 	def setUp(self):
+		# Initiating config objects without any filename
+		# will lead to setting defaults and that's what we
+		# need to run the tests
+		self.routerpb_config = RouterPBConfig()
+		
+		# Instanciate RouterPB but will not launch a server
+		# we only need the instance to access its .users attribute
+		# for authentication
+		self.router_factory = RouterPB()
+		self.router_factory.setConfig(self.routerpb_config, persistenceTimer = False)
+
+		# Provision a user into router
+		u1 = User('u1', Group('test'), 'foo', 'bar')
+		self.provision_new_user(u1)
+
+class SMPPServerTestCases(RouterPBTestCases):
+	port = 27750
+
+	def setUp(self):
+		RouterPBTestCases.setUp(self)
+
 		# SMPPServerConfig init
 		args = {'id': 'smpps_01', 'port': self.port, 
 				'systems': {'foo': {"max_bindings": 2}},
@@ -35,13 +59,13 @@ class SMPPServerTestCases(TestCase):
 		self.smpps_config = SMPPServerConfig(**args)
 
 		# Portal init
-		portal = Portal(self.SmppRealm())
+		_portal = portal.Portal(SmppsRealm('smpps@%s' % self.port, self.router_factory))
 		credential_checker = InMemoryUsernamePasswordDatabaseDontUse()
 		credential_checker.addUser('foo', 'bar')
-		portal.registerChecker(credential_checker)
+		_portal.registerChecker(credential_checker)
 
 		# SMPPServerFactory init
-		self.smpps_factory = SMPPServerFactory(self.smpps_config, auth_portal=portal)
+		self.smpps_factory = SMPPServerFactory(self.smpps_config, auth_portal=_portal)
 		self.smpps_port = reactor.listenTCP(self.smpps_config.port, self.smpps_factory)
 
 	@defer.inlineCallbacks
