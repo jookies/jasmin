@@ -11,10 +11,10 @@ from twisted.internet import reactor, defer
 from jasmin.protocols.smpp.protocol import *
 from twisted.trial.unittest import TestCase
 from twisted.internet.protocol import Factory 
-from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from zope.interface import implements
 from twisted.cred import portal
 from jasmin.tools.cred.portal import SmppsRealm
+from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
 from jasmin.protocols.smpp.protocol import *
@@ -60,9 +60,7 @@ class SMPPServerTestCases(RouterPBTestCases):
 
 		# Portal init
 		_portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.router_factory))
-		credential_checker = InMemoryUsernamePasswordDatabaseDontUse()
-		credential_checker.addUser('foo', 'bar')
-		_portal.registerChecker(credential_checker)
+		_portal.registerChecker(RouterAuthChecker(self.router_factory))
 
 		# SMPPServerFactory init
 		self.smpps_factory = SMPPServerFactory(self.smpps_config, auth_portal=_portal)

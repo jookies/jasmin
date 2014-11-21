@@ -10,6 +10,7 @@ from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
+from twisted.cred import error
 
 #@todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
@@ -231,3 +232,44 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
                                                                                     *args, **kwargs)
         self.system_id = None
         self.log = logging.getLogger(LOG_CATEGORY)
+
+    @defer.inlineCallbacks
+    def doBindRequest(self, reqPDU, sessionState):
+        # Check the authentication
+        system_id, password = reqPDU.params['system_id'], reqPDU.params['password']
+
+        # Authenticate system_id and password
+        try:
+            iface, auth_avatar, logout = yield self.factory.login(system_id, password, self.transport.getPeer().host)
+        except error.UnauthorizedLogin, e:
+            self.log.debug('From host %s and using password: %s' % (self.transport.getPeer().host, password))
+            if system_id not in self.factory.config.systems.keys():
+                self.log.warning('SMPP Bind request failed for system_id: "%s", System ID not configured' % system_id)
+                self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVSYSID, system_id)
+            else:
+                self.log.warning('SMPP Bind request failed for system_id: "%s", reason: %s' % (system_id, str(e)))
+                self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, system_id)
+            return
+        
+        # Check we're not already bound, and are open to being bound
+        if self.sessionState != SMPPSessionStates.OPEN:
+            self.log.warning('Duplicate SMPP bind request received from: %s' % system_id)
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RALYBND, system_id)
+            return
+        
+        # Check that system_id hasn't exceeded number of allowed binds
+        bind_type = reqPDU.commandId
+        if not self.factory.canOpenNewConnection(system_id, bind_type):
+            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (system_id, bind_type))
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, system_id)
+            return
+        
+        # If we get to here, bind successfully
+        self.system_id = system_id
+        self.sessionState = sessionState
+        self.bind_type = bind_type
+        
+        self.factory.addBoundConnection(self)
+        bound_cnxns = self.factory.getBoundConnections(system_id)
+        self.log.info('Bind request succeeded for %s. %d active binds' % (system_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.sendResponse(reqPDU, system_id=system_id)
