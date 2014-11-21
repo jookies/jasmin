@@ -43,8 +43,8 @@ class RouterPBTestCases(TestCase):
 		self.router_factory.setConfig(self.routerpb_config, persistenceTimer = False)
 
 		# Provision a user into router
-		u1 = User('u1', Group('test'), 'foo', 'bar')
-		self.provision_new_user(u1)
+		self.foo = User('u1', Group('test'), 'foo', 'bar')
+		self.provision_new_user(self.foo)
 
 class SMPPServerTestCases(RouterPBTestCases):
 	port = 27750
@@ -54,7 +54,6 @@ class SMPPServerTestCases(RouterPBTestCases):
 
 		# SMPPServerConfig init
 		args = {'id': 'smpps_01_%s' % self.port, 'port': self.port, 
-				'systems': {'foo': {"max_bindings": 2}},
 				'log_level': logging.DEBUG}
 		self.smpps_config = SMPPServerConfig(**args)
 
@@ -143,7 +142,17 @@ class BindTestCases(SMPPClientTestCases):
 
 	@defer.inlineCallbacks
 	def test_bind_max_bindings_limit(self):
-		self.smpps_config.systems['foo']['max_bindings'] = 0
+		user = self.router_factory.getUser('u1')
+		user.smpps_credential.setQuota('max_bindings', 0)
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_bind_max_bind_authorization(self):
+		user = self.router_factory.getUser('u1')
+		user.smpps_credential.setAuthorization('bind', False)
 
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()

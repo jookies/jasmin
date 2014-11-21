@@ -5,6 +5,7 @@ from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
 from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
+from jasmin.vendor.smpp.twisted.server import SMPPBindManager
 from jasmin.vendor.smpp.pdu.error import *
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
@@ -211,3 +212,67 @@ class SMPPServerFactory(_SMPPServerFactory):
         proto.log = self.log
         
         return proto
+
+    def addBoundConnection(self, connection):
+        """
+        Overloading _SMPPServerFactory to remove dependency with config.systems
+        Jasmin removed systems from config as everything about credentials is
+        managed through User object
+        """
+        system_id = connection.system_id
+        self.log.debug('Adding SMPP binding for %s' % system_id)
+        if not system_id in self.bound_connections:
+            self.bound_connections[system_id] = SMPPBindManager(system_id)
+        self.bound_connections[system_id].addBinding(connection)
+        bind_type = connection.bind_type
+        self.log.info("Added %s bind for '%s'. Active binds: %s." % (bind_type, 
+                                                                system_id, 
+                                                                self.getBoundConnectionCountsStr(system_id)))
+        
+    def removeConnection(self, connection):
+        """
+        Overloading _SMPPServerFactory to remove dependency with config.systems
+        Jasmin removed systems from config as everything about credentials is
+        managed through User object
+        """
+        if connection.system_id is None:
+            self.log.debug("SMPP connection attempt failed without binding.")
+        else:
+            system_id = connection.system_id
+            bind_type = connection.bind_type
+            self.bound_connections[system_id].removeBinding(connection)
+            self.log.info("Dropped %s bind for '%s'. Active binds: %s." % (bind_type,
+                                                                system_id, 
+                                                                self.getBoundConnectionCountsStr(system_id)))
+            # If this is the last binding for this service then remove the BindManager
+            if self.bound_connections[system_id].getBindingCount() == 0:
+                self.bound_connections.pop(system_id)
+
+    def canOpenNewConnection(self, system_id, bind_type):
+        """
+        Overloading _SMPPServerFactory to remove dependency with config.systems
+        Jasmin removed systems from config as everything about credentials is
+        managed through User object
+        This is why this method will always return True, binding authorization
+        is done in jasmin.tools.cred.checkers.RouterAuthChecker
+        """
+        return True
+        
+    def unbindAndRemoveGateway(self, system_id):
+        """
+        Overloading _SMPPServerFactory to remove dependency with config.systems
+        Jasmin removed systems from config as everything about credentials is
+        managed through User object
+        Banning is done through jasmin.tools.cred.checkers.RouterAuthChecker
+        This will only update User credentials
+        """
+        #self.config.systems[system_id]['max_bindings'] = 0
+        #d = self.unbindGateway(system_id)
+        #d.addCallback(self.removeGatewayFromConfig, system_id)
+        #return d
+        return NotImplementedError
+
+    def removeGatewayFromConfig(self, deferred_res, system_id):
+        #self.config.systems.pop(system_id)
+        #return deferred_res
+        return NotImplementedError

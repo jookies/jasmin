@@ -243,12 +243,8 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
             iface, auth_avatar, logout = yield self.factory.login(system_id, password, self.transport.getPeer().host)
         except error.UnauthorizedLogin, e:
             self.log.debug('From host %s and using password: %s' % (self.transport.getPeer().host, password))
-            if system_id not in self.factory.config.systems.keys():
-                self.log.warning('SMPP Bind request failed for system_id: "%s", System ID not configured' % system_id)
-                self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVSYSID, system_id)
-            else:
-                self.log.warning('SMPP Bind request failed for system_id: "%s", reason: %s' % (system_id, str(e)))
-                self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, system_id)
+            self.log.warning('SMPP Bind request failed for system_id: "%s", reason: %s' % (system_id, str(e)))
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, system_id)
             return
         
         # Check we're not already bound, and are open to being bound

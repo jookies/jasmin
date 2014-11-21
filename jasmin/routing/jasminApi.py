@@ -124,6 +124,24 @@ class MtMessagingCredential(CredentialGenerick):
             
         CredentialGenerick.setQuota(self, key, value)
 
+class SmppsCredential(CredentialGenerick):
+    """Credential set for SMPP Server connection"""
+    
+    def __init__(self, default_authorizations = True):
+        if type(default_authorizations) != bool:
+            default_authorizations = False
+        
+        self.authorizations = {'bind': default_authorizations}
+                
+        self.quotas = {'max_bindings': None}
+    
+    def setQuota(self, key, value):
+        "Additional validation steps"
+        if key == 'max_binds' and value is not None and ( value < 0 or type(value) != int ):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+            
+        CredentialGenerick.setQuota(self, key, value)
+
 class Group(jasminApiGenerick):
     """Every user must have a group"""
     
@@ -164,7 +182,7 @@ class CnxStatus(jasminApiGenerick):
 class User(CnxStatus):
     """Jasmin user"""
     
-    def __init__(self, uid, group, username, password, mt_credential = None):
+    def __init__(self, uid, group, username, password, mt_credential = None, smpps_credential = None):
         self.uid = uid
         self.group = group
         self.username = username
@@ -176,6 +194,9 @@ class User(CnxStatus):
         self.mt_credential = mt_credential
         if self.mt_credential is None:
             self.mt_credential = MtMessagingCredential()
+        self.smpps_credential = smpps_credential
+        if self.smpps_credential is None:
+            self.smpps_credential = SmppsCredential()
 
     def __str__(self):
         return self.username

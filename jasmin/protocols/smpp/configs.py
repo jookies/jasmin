@@ -192,5 +192,3 @@ class SMPPServerConfig(SMPPConfig):
         }
         """
         SMPPConfig.__init__(self, **kwargs)
-        
-        self.systems = kwargs.get('systems', {})
