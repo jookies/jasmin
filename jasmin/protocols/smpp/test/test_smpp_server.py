@@ -53,13 +53,13 @@ class SMPPServerTestCases(RouterPBTestCases):
 		RouterPBTestCases.setUp(self)
 
 		# SMPPServerConfig init
-		args = {'id': 'smpps_01', 'port': self.port, 
+		args = {'id': 'smpps_01_%s' % self.port, 'port': self.port, 
 				'systems': {'foo': {"max_bindings": 2}},
 				'log_level': logging.DEBUG}
 		self.smpps_config = SMPPServerConfig(**args)
 
 		# Portal init
-		_portal = portal.Portal(SmppsRealm('smpps@%s' % self.port, self.router_factory))
+		_portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.router_factory))
 		credential_checker = InMemoryUsernamePasswordDatabaseDontUse()
 		credential_checker.addUser('foo', 'bar')
 		_portal.registerChecker(credential_checker)

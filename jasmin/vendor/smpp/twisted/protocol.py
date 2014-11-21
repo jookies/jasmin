@@ -733,7 +733,7 @@ class SMPPServerProtocol(SMPPProtocolBase):
 
         self.system_id = None
         self.log = logging.getLogger(LOG_CATEGORY)
-       
+
     def onResponseTimeout(self, reqPDU, timeout):
         errMsg = 'Request timed out for system id %s after %s secs: %s' % (self.system_id, timeout, reqPDU)       
         self.endOutboundTransactionErr(reqPDU, SMPPRequestTimoutError(errMsg))

@@ -203,3 +203,11 @@ class SMPPServerFactory(_SMPPServerFactory):
 
     def msgHandlerStub(self, system_id, *args, **kwargs):
         self.log.warn("msgHandlerStub: Received an unhandled message from %s: %s ..." % (system_id, kwargs))
+
+    def buildProtocol(self, addr):
+        """Provision protocol with the dedicated logger
+        """
+        proto = _SMPPServerFactory.buildProtocol(self, addr)
+        proto.log = self.log
+        
+        return proto
