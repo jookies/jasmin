@@ -153,33 +153,21 @@ class Group(jasminApiGenerick):
 
 class CnxStatus(jasminApiGenerick):
     """Connection status information holder"""
-    class smpps:
-        # This is a counter of all done binds
-        smpps_binds_count = 0
-        # This is a place holder to get datetimed bind types,
-        # this will include:
-        # - datetime
-        # - smpps_id
-        # - type of bind
-        smpps_binds_types = {}
-        # How many bound connection actually
-        smpps_bound = 0
-        # Types of actually bound connections,
-        # this will include:
-        # - datetime
-        # - smpps_id
-        # - type of bind
-        smpps_bound_types = {}
-        # Last smpp activity datetime over all bound connections
-        smpps_last_activity_at = None
 
-    class httpapi:
-        # This is a counter of all connections
-        http_connects_count = 0
-        # Last http activity datetime (not including throwing activities)
-        http_last_activity_at = None
+    def __init__(self):
+        self.smpps = {'bind_count': 0,
+                      'unbind_count': 0,
+                      'bound_connections_count': {
+                        'bind_receiver': 0,
+                        'bind_transceiver': 0,
+                        'bind_transmitter': 0,
+                      },
+                      'last_activity_at': 0,}
 
-class User(CnxStatus):
+        self.httpapi = {'connects_count': 0,
+                        'last_activity_at': 0,}
+
+class User(jasminApiGenerick):
     """Jasmin user"""
     
     def __init__(self, uid, group, username, password, mt_credential = None, smpps_credential = None):
@@ -191,12 +179,16 @@ class User(CnxStatus):
         else:
             self.password = password
 
+        # Credentials
         self.mt_credential = mt_credential
         if self.mt_credential is None:
             self.mt_credential = MtMessagingCredential()
         self.smpps_credential = smpps_credential
         if self.smpps_credential is None:
             self.smpps_credential = SmppsCredential()
+
+        # Statistics
+        self.CnxStatus = CnxStatus()
 
     def __str__(self):
         return self.username

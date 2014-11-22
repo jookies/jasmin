@@ -231,41 +231,43 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.dataRequestHandler = lambda *args, **kwargs: self.factory.msgHandler(self.system_id, 
                                                                                     *args, **kwargs)
         self.system_id = None
+        self.user = None
         self.log = logging.getLogger(LOG_CATEGORY)
 
     @defer.inlineCallbacks
     def doBindRequest(self, reqPDU, sessionState):
         # Check the authentication
-        system_id, password = reqPDU.params['system_id'], reqPDU.params['password']
+        username, password = reqPDU.params['system_id'], reqPDU.params['password']
 
-        # Authenticate system_id and password
+        # Authenticate username and password
         try:
-            iface, auth_avatar, logout = yield self.factory.login(system_id, password, self.transport.getPeer().host)
+            iface, auth_avatar, logout = yield self.factory.login(username, password, self.transport.getPeer().host)
         except error.UnauthorizedLogin, e:
             self.log.debug('From host %s and using password: %s' % (self.transport.getPeer().host, password))
-            self.log.warning('SMPP Bind request failed for system_id: "%s", reason: %s' % (system_id, str(e)))
-            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, system_id)
+            self.log.warning('SMPP Bind request failed for username: "%s", reason: %s' % (username, str(e)))
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, username)
             return
         
         # Check we're not already bound, and are open to being bound
         if self.sessionState != SMPPSessionStates.OPEN:
-            self.log.warning('Duplicate SMPP bind request received from: %s' % system_id)
-            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RALYBND, system_id)
+            self.log.warning('Duplicate SMPP bind request received from: %s' % username)
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RALYBND, username)
             return
         
-        # Check that system_id hasn't exceeded number of allowed binds
+        # Check that username hasn't exceeded number of allowed binds
         bind_type = reqPDU.commandId
-        if not self.factory.canOpenNewConnection(system_id, bind_type):
-            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (system_id, bind_type))
-            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, system_id)
+        if not self.factory.canOpenNewConnection(auth_avatar, bind_type):
+            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (username, bind_type))
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, username)
             return
         
         # If we get to here, bind successfully
-        self.system_id = system_id
+        self.user = auth_avatar
+        self.system_id = username
         self.sessionState = sessionState
         self.bind_type = bind_type
         
-        self.factory.addBoundConnection(self)
-        bound_cnxns = self.factory.getBoundConnections(system_id)
-        self.log.info('Bind request succeeded for %s. %d active binds' % (system_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
-        self.sendResponse(reqPDU, system_id=system_id)
+        self.factory.addBoundConnection(self, self.user)
+        bound_cnxns = self.factory.getBoundConnections(self.system_id)
+        self.log.info('Bind request succeeded for %s. %d active binds' % (username, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.sendResponse(reqPDU, system_id=self.system_id)

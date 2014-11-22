@@ -18,17 +18,6 @@ class RouterAuthChecker:
         
         # Username / Password correct ?
         if user is not None:
-            # Can bind ?
-            if not user.smpps_credential.getAuthorization('bind'):
-                return defer.fail(
-                    credError.UnauthorizedLogin("Binding not authorized"))
-            # Still didnt reach max_bindings ?
-            elif (user.smpps_credential.getQuota('max_bindings') is not None and 
-                user.smpps.smpps_bound >= user.smpps_credential.getQuota('max_bindings')):
-                return defer.fail(
-                    credError.UnauthorizedLogin("Max bindings limit reached"))
-
-            # Everything is fine:
             return defer.succeed(credentials.username)
         else:
             return defer.fail(
