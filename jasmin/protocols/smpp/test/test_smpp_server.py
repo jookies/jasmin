@@ -196,6 +196,26 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 								timedelta( seconds = 0.1 ))
 
 	@defer.inlineCallbacks
+	def test_smpps_unbind_count_connection_loss(self):
+		"""Check if the counter is decremented when connection is dropped
+		without issuing an unbind request, this test will wait for 1s to
+		let the server detect the connection loss and act accordingly"""
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Disconnect without issuing an unbind request
+ 		self.smppc_factory.smpp.transport.abortConnection()
+
+ 		# Wait for 1s
+		waitDeferred = defer.Deferred()
+		reactor.callLater(1, waitDeferred.callback, None)
+		yield waitDeferred
+
+		# Unbind were triggered on server side
+		self.assertEqual(self.user.CnxStatus.smpps['unbind_count'], 1)
+
+	@defer.inlineCallbacks
 	def test_smpps_bound_trx(self):
 		# User have never binded
 		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
