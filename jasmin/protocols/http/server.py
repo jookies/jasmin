@@ -4,6 +4,7 @@ This is the http server module serving the /send API
 
 import logging
 import re
+from datetime import datetime
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
@@ -91,6 +92,10 @@ class Send(Resource):
                 self.log.debug("Authentication failure for username:%s and password:%s" % (updated_request.args['username'][0], updated_request.args['password'][0]))
                 raise AuthenticationError('Authentication failure for username:%s' % updated_request.args['username'][0])
             
+            # Update CnxStatus
+            user.CnxStatus.httpapi['connects_count']+= 1
+            user.CnxStatus.httpapi['last_activity_at'] = datetime.now()
+
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
                 source_addr = None if 'from' not in updated_request.args else updated_request.args['from'][0],
