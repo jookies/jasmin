@@ -1,6 +1,7 @@
 #pylint: disable-msg=W0401,W0611
 import logging
 import struct
+from datetime import datetime
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
@@ -233,6 +234,13 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.system_id = None
         self.user = None
         self.log = logging.getLogger(LOG_CATEGORY)
+
+    def PDURequestReceived(self, reqPDU):
+        twistedSMPPServerProtocol.PDURequestReceived(self, reqPDU)
+
+        # Update CnxStatus
+        if self.user is not None:
+            self.user.CnxStatus.smpps['last_activity_at'] = datetime.now()
 
     @defer.inlineCallbacks
     def doBindRequest(self, reqPDU, sessionState):

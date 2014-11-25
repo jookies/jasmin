@@ -290,13 +290,13 @@ class SMPPBindManager(_SMPPBindManager):
     def addBinding(self, connection):
         _SMPPBindManager.addBinding(self, connection)
 
+        # Update CnxStatus
         self.user.CnxStatus.smpps['bind_count']+= 1
         self.user.CnxStatus.smpps['bound_connections_count'][str(connection.bind_type)]+= 1
-        self.user.CnxStatus.smpps['last_activity_at'] = datetime.now()
 
     def removeBinding(self, connection):
         _SMPPBindManager.removeBinding(self, connection)
 
+        # Update CnxStatus
         self.user.CnxStatus.smpps['unbind_count']+= 1
         self.user.CnxStatus.smpps['bound_connections_count'][str(connection.bind_type)]-= 1
-        self.user.CnxStatus.smpps['last_activity_at'] = datetime.now()

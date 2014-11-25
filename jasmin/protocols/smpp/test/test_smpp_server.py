@@ -314,3 +314,24 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertApproximates(datetime.now(), 
 								self.user.CnxStatus.smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
+
+	@defer.inlineCallbacks
+	def test_enquire_link_set_last_activity(self):
+		self.smppc_config.enquireLinkTimerSecs = 1
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+ 		# Wait
+		waitDeferred = defer.Deferred()
+		reactor.callLater(5, waitDeferred.callback, None)
+		yield waitDeferred
+
+		self.assertApproximates(datetime.now(), 
+								self.user.CnxStatus.smpps['last_activity_at'], 
+								timedelta( seconds = 1 ))
+
+		# Unbind & Disconnect
+ 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
