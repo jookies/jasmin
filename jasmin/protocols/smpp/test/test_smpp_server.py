@@ -23,6 +23,23 @@ from jasmin.routing.router import RouterPB
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import User, Group
 
+class LastProtoSMPPServerFactory(SMPPServerFactory):
+    """This a SMPPServerFactory used to keep track of the last protocol instance for
+    testing purpose"""
+
+    lastProto = None
+    def buildProtocol(self, addr):
+        self.lastProto = SMPPServerFactory.buildProtocol(self, addr)
+        return self.lastProto
+class LastProtoSMPPClientFactory(SMPPClientFactory):
+    """This a SMPPClientFactory used to keep track of the last protocol instance for
+    testing purpose"""
+
+    lastProto = None
+    def buildProtocol(self, addr):
+        self.lastProto = SMPPClientFactory.buildProtocol(self, addr)
+        return self.lastProto
+
 class RouterPBTestCases(TestCase):
 	def provision_new_user(self, user):
 		# This is normally done through jcli API (or any other high level API to come)
@@ -63,7 +80,7 @@ class SMPPServerTestCases(RouterPBTestCases):
 		_portal.registerChecker(RouterAuthChecker(self.router_factory))
 
 		# SMPPServerFactory init
-		self.smpps_factory = SMPPServerFactory(self.smpps_config, auth_portal=_portal)
+		self.smpps_factory = LastProtoSMPPServerFactory(self.smpps_config, auth_portal=_portal)
 		self.smpps_port = reactor.listenTCP(self.smpps_config.port, self.smpps_factory)
 
 	@defer.inlineCallbacks
@@ -83,7 +100,7 @@ class SMPPClientTestCases(SMPPServerTestCases):
 		self.smppc_config = SMPPClientConfig(**args)
 
 		# SMPPClientFactory init
-		self.smppc_factory = SMPPClientFactory(self.smppc_config)
+		self.smppc_factory = LastProtoSMPPClientFactory(self.smppc_config)
 
 	@defer.inlineCallbacks
 	def tearDown(self):
@@ -158,6 +175,55 @@ class BindTestCases(SMPPClientTestCases):
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+class InactivityTestCases(SMPPClientTestCases):
+
+	@defer.inlineCallbacks
+	def test_server_unbind_after_inactivity(self):
+		"""Server will send an unbind request to client when inactivity
+		is detected
+		"""
+
+		self.smppc_config.enquireLinkTimerSecs = 10
+		self.smpps_config.inactivityTimerSecs = 2
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+ 		# Wait
+		waitDeferred = defer.Deferred()
+		reactor.callLater(3, waitDeferred.callback, None)
+		yield waitDeferred
+
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
+
+	@defer.inlineCallbacks
+	def test_client_hanging(self):
+		"""Server will send an unbind request to client when inactivity
+		is detected, in this test case the client will not respond, simulating
+		a hanging or a network lag
+		"""
+
+		self.smppc_config.enquireLinkTimerSecs = 10
+		self.smpps_config.inactivityTimerSecs = 2
+		self.smpps_config.sessionInitTimerSecs = 1
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Client's PDURequestReceived() will do nothing when receiving any reqPDU
+		self.smppc_factory.lastProto.PDURequestReceived = lambda reqPDU: None
+		# Client's sendRequest() will send nothing starting from this moment
+		self.smppc_factory.lastProto.sendRequest = lambda pdu, timeout: defer.Deferred()
+
+ 		# Wait
+		waitDeferred = defer.Deferred()
+		reactor.callLater(4, waitDeferred.callback, None)
+		yield waitDeferred
+
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
 class UserCnxStatusTestCases(SMPPClientTestCases):
 
