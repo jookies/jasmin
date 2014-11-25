@@ -7,6 +7,8 @@ Test cases for smpp server
 
 import logging
 import pickle
+import mock
+import copy
 from datetime import datetime, timedelta
 from twisted.internet import reactor, defer
 from jasmin.protocols.smpp.protocol import *
@@ -14,6 +16,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.protocol import Factory 
 from zope.interface import implements
 from twisted.cred import portal
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
@@ -22,6 +25,7 @@ from jasmin.protocols.smpp.protocol import *
 from jasmin.routing.router import RouterPB
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import User, Group
+from jasmin.vendor.smpp.pdu.operations import DeliverSM
 
 class LastProtoSMPPServerFactory(SMPPServerFactory):
     """This a SMPPServerFactory used to keep track of the last protocol instance for
@@ -175,6 +179,127 @@ class BindTestCases(SMPPClientTestCases):
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+class MessagingTestCases(SMPPClientTestCases):
+
+	def setUp(self):
+		SMPPClientTestCases.setUp(self)
+
+		self.opFactory = SMPPOperationFactory(self.smppc_config)
+
+		self.SubmitSmPDU = self.opFactory.SubmitSM(
+			source_addr='1234',
+			destination_addr='4567',
+			short_message='hello !',
+		)
+		self.DeliverSmPDU = DeliverSM(
+			source_addr='4567',
+			destination_addr='1234',
+			short_message='hello !',
+		)
+
+	@defer.inlineCallbacks
+	def test_messaging_fidelity(self):
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Install mockers
+		self.smpps_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smpps_factory.lastProto.PDUReceived)
+		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+
+		# SMPPServer > SMPPClient
+		yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
+		# SMPPClient > SMPPServer
+		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+		# Unbind & Disconnect
+ 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+		# Asserts SMPPServer side
+		self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_count, 3)
+		self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_args_list[1][0][0].params['source_addr'], 
+							self.SubmitSmPDU.params['source_addr'])
+		self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_args_list[1][0][0].params['destination_addr'], 
+							self.SubmitSmPDU.params['destination_addr'])
+		self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_args_list[1][0][0].params['short_message'], 
+							self.SubmitSmPDU.params['short_message'])
+		# Asserts SMPPClient side
+		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 3)
+		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['source_addr'], 
+							self.DeliverSmPDU.params['source_addr'])
+		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['destination_addr'], 
+							self.DeliverSmPDU.params['destination_addr'])
+		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['short_message'], 
+							self.DeliverSmPDU.params['short_message'])
+
+	@defer.inlineCallbacks
+	def test_messaging_rx(self):
+		"Try to send a submit_sm to server when BOUND_RX"
+
+		self.smppc_config.bindOperation = 'receiver'
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
+
+		# SMPPClient > SMPPServer
+		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+ 		# Wait
+		waitDeferred = defer.Deferred()
+		reactor.callLater(1, waitDeferred.callback, None)
+		yield waitDeferred
+
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
+
+	@defer.inlineCallbacks
+	def test_messaging_tx_and_rx(self):
+		"Send a deliver_sm to RX client only"
+
+		# Init a second client
+		smppc2_config = copy.deepcopy(self.smppc_config)
+		smppc2_factory = LastProtoSMPPClientFactory(smppc2_config)
+
+		# First client is transmitter
+		self.smppc_config.bindOperation = 'transmitter'
+		# Second client is receiver
+		smppc2_config.bindOperation = 'receiver'
+
+		# Connect and bind both clients
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TX)
+		yield smppc2_factory.connectAndBind()
+		self.assertEqual(smppc2_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
+
+		# Install mockers
+		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+		smppc2_factory.lastProto.PDUReceived = mock.Mock(wraps=smppc2_factory.lastProto.PDUReceived)
+
+		# SMPPServer > SMPPClient
+		yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
+
+ 		# Wait
+		waitDeferred = defer.Deferred()
+		reactor.callLater(1, waitDeferred.callback, None)
+		yield waitDeferred
+
+		# Unbind & Disconnect both clients
+ 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+ 		yield smppc2_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(smppc2_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+		# Asserts, DeliverSm must be sent to the BOUND_RX client
+		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 1)
+		self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_count, 2)
+		self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['source_addr'], 
+							self.DeliverSmPDU.params['source_addr'])
+		self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['destination_addr'], 
+							self.DeliverSmPDU.params['destination_addr'])
+		self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['short_message'], 
+							self.DeliverSmPDU.params['short_message'])
 
 class InactivityTestCases(SMPPClientTestCases):
 

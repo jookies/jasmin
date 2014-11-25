@@ -235,6 +235,15 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.user = None
         self.log = logging.getLogger(LOG_CATEGORY)
 
+    def PDUDataRequestReceived(self, reqPDU):
+        if self.sessionState == SMPPSessionStates.BOUND_RX:
+            # Don't accept submit_sm PDUs when BOUND_RX
+            errMsg = 'Received submit_sm when BOUND_RX %s' % reqPDU
+            self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RINVBNDSTS))
+            return self.fatalErrorOnRequest(reqPDU, errMsg, CommandStatus.ESME_RINVBNDSTS)
+
+        return twistedSMPPServerProtocol.PDUDataRequestReceived(self, reqPDU)
+
     def PDURequestReceived(self, reqPDU):
         twistedSMPPServerProtocol.PDURequestReceived(self, reqPDU)
 
