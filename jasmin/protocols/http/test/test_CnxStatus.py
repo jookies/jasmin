@@ -16,6 +16,7 @@ class CnxStatusCases(HTTPApiTestCases):
 
 		self.assertEqual(self.u1.CnxStatus.httpapi['connects_count'], 100)
 
+	@defer.inlineCallbacks
 	def test_last_activity_at(self):
 		self.assertEqual(self.u1.CnxStatus.httpapi['last_activity_at'], 0)
 
