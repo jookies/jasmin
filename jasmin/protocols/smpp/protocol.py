@@ -229,8 +229,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         # Note:
         # twistedSMPPServerProtocol is using a msgHandler from self.config(), this
         # SMPPServerProtocol is using self.factory's msgHandler just like SMPPClientProtocol
-        self.dataRequestHandler = lambda *args, **kwargs: self.factory.msgHandler(self.system_id, 
-                                                                                    *args, **kwargs)
+        self.dataRequestHandler = lambda *args: self.factory.msgHandler(self.system_id, *args)
         self.system_id = None
         self.user = None
         self.log = logging.getLogger(LOG_CATEGORY)

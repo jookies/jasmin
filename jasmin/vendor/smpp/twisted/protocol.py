@@ -305,7 +305,9 @@ class SMPPProtocolBase( protocol.Protocol ):
                 error.raiseException()
             except SMPPProtocolError as validation_error:
                 self.log.debug("Application raised error '%s', forwarding to client. Inbound PDU was [%s], hex[%s]" % (validation_error, reqPDU, _safelylogOutPdu(self.encoder.encode(reqPDU))))
-                return_cmd_status = validation_error.commandStatusName
+                # Jasmin update: validation_error have attribute named commandStatusName
+                #return_cmd_status = validation_error.commandStatusName
+                return_cmd_status = validation_error.status
                 shutdown = False
         else:
             self.log.critical('Exception raised handling inbound PDU [%s] hex[%s]: %s' % (reqPDU, _safelylogOutPdu(self.encoder.encode(reqPDU)), error))

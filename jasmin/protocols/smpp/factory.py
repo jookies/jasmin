@@ -5,9 +5,11 @@ from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
 from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
+from jasmin.protocols.smpp.error import *
+from jasmin.protocols.smpp.validation import SmppsCredentialValidator
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
-from jasmin.vendor.smpp.pdu.error import *
+from jasmin.vendor.smpp.pdu import pdu_types
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"
@@ -181,7 +183,7 @@ class CtxFactory(ssl.ClientContextFactory):
 class SMPPServerFactory(_SMPPServerFactory):
     protocol = SMPPServerProtocol
 
-    def __init__(self, config, auth_portal, msgHandler = None):
+    def __init__(self, config, auth_portal):
         self.config = config
         # A dict of protocol instances for each of the current connections,
         # indexed by system_id 
@@ -198,13 +200,53 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.addHandler(handler)
             self.log.propagate = False
 
-        if msgHandler is None:
-            self.msgHandler = self.msgHandlerStub
-        else:
-            self.msgHandler = msgHandler
+        self.msgHandler = self.submit_sm_event
 
-    def msgHandlerStub(self, system_id, *args, **kwargs):
-        self.log.warn("msgHandlerStub: Received an unhandled message from %s: %s ..." % (system_id, kwargs))
+    def submit_sm_event(self, system_id, *args):
+        """This event handler will deliver the submit_sm to the right smppc connector.
+        Note that Jasmin deliver submit_sm messages like this:
+        - from httpapi to smppc (handled in jasmin.protocols.http.server)
+        - from smpps to smppc (this event handler)
+
+        Note: This event handler MUST behave exactly like jasmin.protocols.http.server.Send.render
+        """
+        self.log.debug('Handling submit_sm event for system_id: %s' % system_id)
+
+        # Args validation
+        if len(args) != 2:
+            self.log.error('(submit_sm_event/%s) Invalid args: %s' % (system_id, args))
+            raise SubmitSmInvalidArgsError()
+        if not isinstance(args[1], pdu_types.PDURequest):
+            self.log.error('(submit_sm_event/%s) Received an unknown object when waiting for a PDURequest: %s' % (system_id, args[1]))
+            raise SubmitSmInvalidArgsError()
+        if args[1].id != pdu_types.CommandId.submit_sm:
+            self.log.error('(submit_sm_event/%s) Received a non submit_sm command id: %s' % (system_id, args[1].id))
+            raise SubmitSmInvalidArgsError()
+        if not isinstance(args[0], SMPPServerProtocol):
+            self.log.error('(submit_sm_event/%s) Received an unknown object when waiting for a SMPPServerProtocol: %s' % (system_id, args[0]))
+            raise SubmitSmInvalidArgsError()
+
+        proto = args[0]
+        user = proto.user
+        SubmitSmPDU = args[1]
+
+        # Update CnxStatus
+        user.CnxStatus.smpps['submit_sm_request_count']+= 1
+
+        # Basic validation
+        if len(SubmitSmPDU.params['destination_addr']) < 1 or SubmitSmPDU.params['destination_addr'] is None:
+            self.log.error('(submit_sm_event/%s) SubmitSmPDU have no defined destination_addr' % system_id)
+            raise SubmitSmWithoutDestinationAddrError()
+
+        # Make Credential validation
+        v = SmppsCredentialValidator('Send', user, SubmitSmPDU)
+        v.validate()
+
+        # Update SubmitSmPDU by default values from user MtMessagingCredential
+        SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
+
+        # TODO: Routing stuff
+        #raise SubmitSmRouteNotFoundError()
 
     def buildProtocol(self, addr):
         """Provision protocol with the dedicated logger

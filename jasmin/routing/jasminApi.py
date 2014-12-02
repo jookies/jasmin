@@ -87,16 +87,17 @@ class CredentialGenerick(jasminApiGenerick):
         return self.quotas[key]
 
 class MtMessagingCredential(CredentialGenerick):
-    """Credential set for sending MT Messages"""
+    """Credential set for sending MT Messages through"""
     
     def __init__(self, default_authorizations = True):
         if type(default_authorizations) != bool:
             default_authorizations = False
         
         self.authorizations = {'http_send': default_authorizations,
-                          'long_content': default_authorizations,
+                          'smpps_send': default_authorizations,
+                          'http_long_content': default_authorizations,
                           'set_dlr_level': default_authorizations,
-                          'set_dlr_method': default_authorizations,
+                          'http_set_dlr_method': default_authorizations,
                           'set_source_address': default_authorizations,
                           'set_priority': default_authorizations,
                          }
@@ -131,7 +132,7 @@ class SmppsCredential(CredentialGenerick):
         if type(default_authorizations) != bool:
             default_authorizations = False
         
-        self.authorizations = {'bind': default_authorizations}
+        self.authorizations = {'bind': default_authorizations,}
                 
         self.quotas = {'max_bindings': None}
     
@@ -162,10 +163,12 @@ class CnxStatus(jasminApiGenerick):
                         'bind_transceiver': 0,
                         'bind_transmitter': 0,
                       },
+                      'submit_sm_request_count': 0,
                       'last_activity_at': 0,}
 
         self.httpapi = {'connects_count': 0,
-                        'last_activity_at': 0,}
+                        'last_activity_at': 0,
+                        'submit_sm_request_count': 0,}
 
 class User(jasminApiGenerick):
     """Jasmin user"""

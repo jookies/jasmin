@@ -11,7 +11,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, Register
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError, ChargingError
-from jasmin.protocols.http.validation import UrlArgsValidator, CredentialValidator
+from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -30,6 +30,8 @@ class Send(Resource):
     def render(self, request):
         """
         /send request processing
+
+        Note: This method MUST behave exactly like jasmin.protocols.smpp.factory.SMPPServerFactory.submit_sm_event
         """
         
         self.log.debug("Rendering /send response with args: %s from %s" % (
@@ -48,11 +50,11 @@ class Send(Resource):
                       'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
                       'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
-                      # Priority validation pattern can be validated/filtered further more through CredentialValidator
+                      # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
                       'dlr'         :{'optional': False,    'pattern': re.compile(r'^(yes|no)$')},
                       'dlr-url'     :{'optional': True,     'pattern': re.compile(r'^(http|https)\://.*$')},
-                      # DLR Level validation pattern can be validated/filtered further more through CredentialValidator
+                      # DLR Level validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'dlr-level'   :{'optional': True,     'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  :{'optional': True,     'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'content'     :{'optional': False},
@@ -90,10 +92,12 @@ class Send(Resource):
             user = self.RouterPB.authenticateUser(username = updated_request.args['username'][0], password = updated_request.args['password'][0])
             if user is None:
                 self.log.debug("Authentication failure for username:%s and password:%s" % (updated_request.args['username'][0], updated_request.args['password'][0]))
+                self.log.error("Authentication failure for username:%s" % updated_request.args['username'][0])
                 raise AuthenticationError('Authentication failure for username:%s' % updated_request.args['username'][0])
             
             # Update CnxStatus
             user.CnxStatus.httpapi['connects_count']+= 1
+            user.CnxStatus.httpapi['submit_sm_request_count']+= 1
             user.CnxStatus.httpapi['last_activity_at'] = datetime.now()
 
             # Build SubmitSmPDU
@@ -106,11 +110,11 @@ class Send(Resource):
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
             # Make Credential validation
-            v = CredentialValidator('Send', user, SubmitSmPDU, request, fields)
+            v = HttpAPICredentialValidator('Send', user, SubmitSmPDU, request)
             v.validate()
             
             # Update SubmitSmPDU by default values from user MtMessagingCredential
-            SubmitSmPDU = v.updatePDUWithSendDefaults(SubmitSmPDU)
+            SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
 
             # Routing
             routedConnector = None # init

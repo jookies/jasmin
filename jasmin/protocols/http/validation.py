@@ -4,6 +4,7 @@ HTTP request validators
 
 import re
 from jasmin.protocols.http.errors import UrlArgsValidationError, CredentialValidationError
+from jasmin.protocols.validation import AbstractCredentialValidator
 
 class UrlArgsValidator:
     "Will check for arguments syntax errors"
@@ -43,14 +44,12 @@ class UrlArgsValidator:
 
         return True
 
-class CredentialValidator:
+class HttpAPICredentialValidator(AbstractCredentialValidator):
     "Will check for user MtMessagingCredential"
 
-    def __init__(self, action, user, submit_sm, request, fields):
-        self.action = action
-        self.submit_sm = submit_sm
-        self.user = user
-        self.fields = fields
+    def __init__(self, action, user, submit_sm, request):
+        AbstractCredentialValidator.__init__(self, action, user, submit_sm)
+
         self.request = request
         
     def _checkSendAuthorizations(self):
@@ -58,11 +57,11 @@ class CredentialValidator:
         
         if not self.user.mt_credential.getAuthorization('http_send'):
             raise CredentialValidationError('Authorization failed for username [%s] (Can not send MT messages).' % self.user)
-        if hasattr(self.submit_sm, 'nextPdu') and not self.user.mt_credential.getAuthorization('long_content'):
+        if hasattr(self.submit_sm, 'nextPdu') and not self.user.mt_credential.getAuthorization('http_long_content'):
             raise CredentialValidationError('Authorization failed for username [%s] (Long content is not authorized).' % self.user)
         if 'dlr-level' in self.request.args and not self.user.mt_credential.getAuthorization('set_dlr_level'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting dlr level is not authorized).' % self.user)
-        if 'dlr-method' in self.request.args and not self.user.mt_credential.getAuthorization('set_dlr_method'):
+        if 'dlr-method' in self.request.args and not self.user.mt_credential.getAuthorization('http_set_dlr_method'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting dlr method is not authorized).' % self.user)
         if 'from' in self.request.args and not self.user.mt_credential.getAuthorization('set_source_address'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting source address is not authorized).' % self.user)
@@ -85,16 +84,16 @@ class CredentialValidator:
             not self.user.mt_credential.getValueFilter('content').match(str(self.request.args['content'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (content filter mismatch).' % self.user)
 
-    def updatePDUWithSendDefaults(self, SubmitSmPDU):
+    def updatePDUWithUserDefaults(self, PDU):
         """Will update SubmitSmPDU.params from User credential defaults whenever a 
         SubmitSmPDU.params item is None"""
         
-        if self.user.mt_credential.getDefaultValue('source_address') is not None and SubmitSmPDU.params['source_addr'] is None:
-            SubmitSmPDU.params['source_addr'] = self.user.mt_credential.getDefaultValue('source_address')
+        if self.user.mt_credential.getDefaultValue('source_address') is not None and PDU.params['source_addr'] is None:
+            PDU.params['source_addr'] = self.user.mt_credential.getDefaultValue('source_address')
         
-        return SubmitSmPDU
+        return PDU
     
-    def validate(self, ):
+    def validate(self):
         "Will validate requests through Authorizations and ValueFilters credential check"
         
         if self.action == 'Send':
