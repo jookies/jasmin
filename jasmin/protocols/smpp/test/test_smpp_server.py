@@ -27,6 +27,7 @@ from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import User, Group
 from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
+from jasmin.vendor.smpp.pdu.error import SMPPTransactionError
 
 class LastProtoSMPPServerFactory(SMPPServerFactory):
     """This a SMPPServerFactory used to keep track of the last protocol instance for
@@ -298,6 +299,30 @@ class MessagingTestCases(SMPPClientTestCases):
 							self.DeliverSmPDU.params['destination_addr'])
 		self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['short_message'], 
 							self.DeliverSmPDU.params['short_message'])
+
+	@defer.inlineCallbacks
+	def test_deliver_sm_from_smpps(self):
+		"This test case will ensure smpps will never accept deliver_sm for delivery"
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		raised = False
+		try:
+			# SMPPClient > SMPPServer
+			yield self.smppc_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
+		except Exception, e:
+			if isinstance(e, SMPPTransactionError):
+				raised = True
+		self.assertTrue(raised)
+
+ 		# Wait
+		waitDeferred = defer.Deferred()
+		reactor.callLater(1, waitDeferred.callback, None)
+		yield waitDeferred
+
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
 class SmppsCredentialAuthorizationsTestCases(SMPPClientTestCases):
 

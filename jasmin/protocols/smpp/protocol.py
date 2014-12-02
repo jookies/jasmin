@@ -4,8 +4,9 @@ import struct
 from datetime import datetime
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
+from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn, 
+                                                SMPPOutboundTxnResult, _safelylogOutPdu)
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault, CommandId
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
@@ -234,6 +235,27 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.user = None
         self.log = logging.getLogger(LOG_CATEGORY)
 
+    def PDUReceived(self, pdu):
+        """A better version than vendor's PDUReceived method:
+        - Encode pdu only when in debug mode
+        """
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("Received PDU: %s" % pdu)
+        
+        if self.log.isEnabledFor(logging.DEBUG):
+            encoded = self.encoder.encode(pdu)
+            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+        
+        #Signal SMPP operation
+        self.onSMPPOperation()
+        
+        if isinstance(pdu, PDURequest):
+            self.PDURequestReceived(pdu)
+        elif isinstance(pdu, PDUResponse):
+            self.PDUResponseReceived(pdu)
+        else:
+            getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+
     def PDUDataRequestReceived(self, reqPDU):
         if self.sessionState == SMPPSessionStates.BOUND_RX:
             # Don't accept submit_sm PDUs when BOUND_RX
@@ -244,6 +266,16 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         return twistedSMPPServerProtocol.PDUDataRequestReceived(self, reqPDU)
 
     def PDURequestReceived(self, reqPDU):
+        # Handle only accepted command ids
+        acceptedPDUs = [CommandId.submit_sm, CommandId.bind_transmitter, 
+                CommandId.bind_receiver, CommandId.bind_transceiver, 
+                CommandId.unbind, CommandId.unbind_resp,
+                CommandId.enquire_link]
+        if reqPDU.id not in acceptedPDUs:
+            errMsg = 'Received unsupported pdu type: %s' % reqPDU.id
+            self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RSYSERR))
+            return self.fatalErrorOnRequest(reqPDU, errMsg, CommandStatus.ESME_RSYSERR)
+
         twistedSMPPServerProtocol.PDURequestReceived(self, reqPDU)
 
         # Update CnxStatus
