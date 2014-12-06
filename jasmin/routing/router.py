@@ -246,7 +246,7 @@ class RouterPB(pb.Avatar):
         
         self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
-    def chargeUserForSubmitSms(self, user, bill, submit_sm_count, requirements = []):
+    def chargeUserForSubmitSms(self, user, bill, submit_sm_count = 1, requirements = []):
         """Will charge the user using the bill object after checking requirements
         """
         # Check if User is already existent in Router ?

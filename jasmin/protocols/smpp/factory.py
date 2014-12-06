@@ -10,6 +10,8 @@ from jasmin.protocols.smpp.validation import SmppsCredentialValidator
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from jasmin.vendor.smpp.pdu import pdu_types
+from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
+from jasmin.routing.Routables import RoutableSubmitSm
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"
@@ -183,12 +185,14 @@ class CtxFactory(ssl.ClientContextFactory):
 class SMPPServerFactory(_SMPPServerFactory):
     protocol = SMPPServerProtocol
 
-    def __init__(self, config, auth_portal):
+    def __init__(self, config, auth_portal, RouterPB = None, SMPPClientManagerPB = None):
         self.config = config
         # A dict of protocol instances for each of the current connections,
         # indexed by system_id 
         self.bound_connections = {}
         self._auth_portal = auth_portal
+        self.RouterPB = RouterPB
+        self.SMPPClientManagerPB = SMPPClientManagerPB
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)
@@ -245,8 +249,67 @@ class SMPPServerFactory(_SMPPServerFactory):
         # Update SubmitSmPDU by default values from user MtMessagingCredential
         SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
 
-        # TODO: Routing stuff
-        #raise SubmitSmRouteNotFoundError()
+        if self.RouterPB is None or self.SMPPClientManagerPB is None:
+            self.log.error('(submit_sm_event/%s) RouterPB or SMPPClientManagerPB not set: submit_sm will not be routed' % system_id)
+            return
+
+        # Routing
+        routedConnector = None # init
+        routable = RoutableSubmitSm(SubmitSmPDU, user)
+        route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
+        if route is None:
+            self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (user, SubmitSmPDU))
+            raise SubmitSmRouteNotFoundError()
+
+        # Get connector from selected route
+        self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+        routedConnector = route.getConnector()
+
+        # Pre-sending submit_sm: Billing processing
+        bill = route.getBillFor(user)
+        self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU" % 
+                                                (bill.bid, bill.getTotalAmounts()))
+        charging_requirements = []
+        u_balance = user.mt_credential.getQuota('balance')
+        u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
+        if u_balance is not None and bill.getTotalAmounts() > 0:
+            # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+            charging_requirements.append({'condition': bill.getTotalAmounts() <= u_balance,
+                                          'error_message': 'Not enough balance (%s) for charging: %s' % 
+                                          (u_balance, bill.getTotalAmounts())})
+        if u_subsm_count is not None:
+            # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
+            charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
+                                          'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % 
+                                          (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
+
+        if self.RouterPB.chargeUserForSubmitSms(user, bill, requirements = charging_requirements) is None:
+            self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s]' % 
+                                                (user, bill.bid, bill.getTotalAmounts()))
+            raise SubmitSmChargingError()
+
+        # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
+        priority = 0
+        if SubmitSmPDU.params['priority_flag'] is not None:
+            priority = SubmitSmPDU.params['priority_flag'].index
+
+        ########################################################
+        # Send SubmitSmPDU through smpp client manager PB server
+        self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
+        c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid, 
+                                                        SubmitSmPDU, 
+                                                        priority, 
+                                                        pickled = False, 
+                                                        submit_sm_resp_bill = bill.getSubmitSmRespBill())
+        
+        # Build final response
+        if not c.result:
+            self.log.error('Failed to send SubmitSmPDU to [cid:%s]' % routedConnector.cid)
+            raise SubmitSmRoutingError()
+        else:
+            self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s' % (routedConnector.cid, c.result))
+            return DataHandlerResponse(status=pdu_types.CommandStatus.ESME_ROK,
+                                       message_id=c.result)
 
     def buildProtocol(self, addr):
         """Provision protocol with the dedicated logger

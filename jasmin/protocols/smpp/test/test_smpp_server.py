@@ -86,7 +86,10 @@ class SMPPServerTestCases(RouterPBTestCases):
 		_portal.registerChecker(RouterAuthChecker(self.router_factory))
 
 		# SMPPServerFactory init
-		self.smpps_factory = LastProtoSMPPServerFactory(self.smpps_config, auth_portal=_portal)
+		self.smpps_factory = LastProtoSMPPServerFactory(config = self.smpps_config, 
+													auth_portal = _portal, 
+													RouterPB = None, 
+													SMPPClientManagerPB = None)
 		self.smpps_port = reactor.listenTCP(self.smpps_config.port, self.smpps_factory)
 
 	@defer.inlineCallbacks

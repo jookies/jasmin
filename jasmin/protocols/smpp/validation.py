@@ -4,7 +4,7 @@ SMPP validators
 
 from jasmin.protocols.validation import AbstractCredentialValidator
 from jasmin.protocols.smpp.error import *
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map, priority_flag_name_map
+from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 
 class SmppsCredentialValidator(AbstractCredentialValidator):
@@ -41,7 +41,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
                 'source_address')
         if (self.user.mt_credential.getValueFilter('priority') is None or 
             not self.user.mt_credential.getValueFilter('priority').match(str(
-                priority_flag_name_map[str(self.submit_sm.params['priority_flag'])]
+                self.submit_sm.params['priority_flag'].index
                 ))):
             raise FilterError('Value filter failed for username [%s] (priority filter mismatch).' % self.user,
                 'priority')

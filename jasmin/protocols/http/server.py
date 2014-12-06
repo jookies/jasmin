@@ -121,94 +121,99 @@ class Send(Resource):
             routable = RoutableSubmitSm(SubmitSmPDU, user)
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
-                self.log.debug("No route matched this SubmitSmPDU")
+                self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (user, SubmitSmPDU))
                 raise RouteNotFoundError("No route found")
-            else:
-                # Get connector from selected route
-                self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
-                routedConnector = route.getConnector()
-                
-                # Set priority
-                priority = 0
-                if 'priority' in updated_request.args:
-                    priority = int(updated_request.args['priority'][0])
-                    SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[priority]
-                self.log.debug("SubmitSmPDU priority is set to %s" % priority)
 
-                # Set DLR bit mask
-                # c.f. 5.2.17 registered_delivery
-                ####################################################################
-                # dlr-level # Signification                  # registered_delivery #
-                ####################################################################
-                # 1         # SMS-C level                    # x x x x x x 1 0     #
-                # 2         # Terminal level (only)          # x x x x x x 0 1     #
-                # 3         # SMS-C level and Terminal level # x x x x x x 0 1     #
-                ####################################################################
-                if updated_request.args['dlr'][0] == 'yes' and 'dlr-url' in updated_request.args:
-                    if updated_request.args['dlr-level'][0] == '1':
-                        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
-                    elif updated_request.args['dlr-level'][0] == '2' or updated_request.args['dlr-level'][0] == '3':
-                        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
-                    self.log.debug("SubmitSmPDU registered_delivery is set to %s" % str(SubmitSmPDU.params['registered_delivery']))
+            # Get connector from selected route
+            self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+            routedConnector = route.getConnector()
+            
+            # Set priority
+            priority = 0
+            if 'priority' in updated_request.args:
+                priority = int(updated_request.args['priority'][0])
+                SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[priority]
+            self.log.debug("SubmitSmPDU priority is set to %s" % priority)
 
-                    dlr_url = updated_request.args['dlr-url'][0]
-                    dlr_level = int(updated_request.args['dlr-level'][0])
-                    if updated_request.args['dlr-level'][0] == '1':
-                        dlr_level_text = 'SMS-C'
-                    elif updated_request.args['dlr-level'][0] == '2':
-                        dlr_level_text = 'Terminal'
-                    else:
-                        dlr_level_text = 'All'
-                    dlr_method = updated_request.args['dlr-method'][0]
+            # Set DLR bit mask
+            # c.f. 5.2.17 registered_delivery
+            ####################################################################
+            # dlr-level # Signification                  # registered_delivery #
+            ####################################################################
+            # 1         # SMS-C level                    # x x x x x x 1 0     #
+            # 2         # Terminal level (only)          # x x x x x x 0 1     #
+            # 3         # SMS-C level and Terminal level # x x x x x x 0 1     #
+            ####################################################################
+            if updated_request.args['dlr'][0] == 'yes' and 'dlr-url' in updated_request.args:
+                if updated_request.args['dlr-level'][0] == '1':
+                    SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
+                elif updated_request.args['dlr-level'][0] == '2' or updated_request.args['dlr-level'][0] == '3':
+                    SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+                self.log.debug("SubmitSmPDU registered_delivery is set to %s" % str(SubmitSmPDU.params['registered_delivery']))
+
+                dlr_url = updated_request.args['dlr-url'][0]
+                dlr_level = int(updated_request.args['dlr-level'][0])
+                if updated_request.args['dlr-level'][0] == '1':
+                    dlr_level_text = 'SMS-C'
+                elif updated_request.args['dlr-level'][0] == '2':
+                    dlr_level_text = 'Terminal'
                 else:
-                    dlr_url = None
-                    dlr_level = 1
-                    dlr_level_text = 'No'
-                    dlr_method = None
+                    dlr_level_text = 'All'
+                dlr_method = updated_request.args['dlr-method'][0]
+            else:
+                dlr_url = None
+                dlr_level = 1
+                dlr_level_text = 'No'
+                dlr_method = None
 
-                # Get number of PDUs to be sent (for billing purpose)
-                _pdu = SubmitSmPDU
-                submit_sm_count = 1
-                while hasattr(_pdu, 'nextPdu'):
-                    _pdu = _pdu.nextPdu
-                    submit_sm_count += 1
-                    
-                # Pre-sending submit_sm: Billing processing
-                bill = route.getBillFor(user)
-                self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU (x%s)" % (bill.bid, bill.getTotalAmounts(), submit_sm_count))
-                charging_requirements = []
-                u_balance = user.mt_credential.getQuota('balance')
-                u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
-                if u_balance is not None:
-                    # Ensure user have enough balance to pay submit_sm and submit_sm_resp
-                    charging_requirements.append({'condition': bill.getTotalAmounts() * submit_sm_count <= u_balance,
-                                                  'error_message': 'Not enough balance (%s) for charging: %s' % 
-                                                  (u_balance, bill.getTotalAmounts())})
-                if u_subsm_count is not None:
-                    # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
-                    charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') * submit_sm_count <= u_subsm_count,
-                                                  'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % 
-                                                  (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
-
-                if self.RouterPB.chargeUserForSubmitSms(user, bill, submit_sm_count, charging_requirements) is None:
-                    raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+            # Get number of PDUs to be sent (for billing purpose)
+            _pdu = SubmitSmPDU
+            submit_sm_count = 1
+            while hasattr(_pdu, 'nextPdu'):
+                _pdu = _pdu.nextPdu
+                submit_sm_count += 1
                 
-                ########################################################
-                # Send SubmitSmPDU through smpp client manager PB server
-                self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
-                c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid, 
-                                                              SubmitSmPDU, 
-                                                              priority, 
-                                                              pickled = False, 
-                                                              dlr_url = dlr_url, 
-                                                              dlr_level = dlr_level,
-                                                              dlr_method = dlr_method,
-                                                              submit_sm_resp_bill = bill.getSubmitSmRespBill())
+            # Pre-sending submit_sm: Billing processing
+            bill = route.getBillFor(user)
+            self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU (x%s)" % 
+                                                                (bill.bid, bill.getTotalAmounts(), submit_sm_count))
+            charging_requirements = []
+            u_balance = user.mt_credential.getQuota('balance')
+            u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
+            if u_balance is not None and bill.getTotalAmounts() > 0:
+                # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+                charging_requirements.append({'condition': bill.getTotalAmounts() * submit_sm_count <= u_balance,
+                                              'error_message': 'Not enough balance (%s) for charging: %s' % 
+                                              (u_balance, bill.getTotalAmounts())})
+            if u_subsm_count is not None:
+                # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
+                charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') * submit_sm_count <= u_subsm_count,
+                                              'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % 
+                                              (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
+
+            if self.RouterPB.chargeUserForSubmitSms(user, bill, submit_sm_count, charging_requirements) is None:
+                self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] SubmitSmPDU (x%s)' % 
+                                                                (user, bill.bid, bill.getTotalAmounts(), submit_sm_count))
+                raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+            
+            ########################################################
+            # Send SubmitSmPDU through smpp client manager PB server
+            self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
+            c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid, 
+                                                          SubmitSmPDU, 
+                                                          priority, 
+                                                          pickled = False, 
+                                                          dlr_url = dlr_url, 
+                                                          dlr_level = dlr_level,
+                                                          dlr_method = dlr_method,
+                                                          submit_sm_resp_bill = bill.getSubmitSmRespBill())
             
             # Build final response
             if not c.result:
+                self.log.error('Failed to send SubmitSmPDU to [cid:%s]' % routedConnector.cid)
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
+                self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s' % (routedConnector.cid, c.result))
                 response = {'return': c.result, 'status': 200}
         except Exception, e:
             self.log.error("Error: %s" % e)

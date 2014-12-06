@@ -37,6 +37,20 @@ class SubmitSmRouteNotFoundError(SubmitSmEventHandlerErrorNoShutdown):
         self.status = pdu_types.CommandStatus.ESME_RSYSERR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
+class SubmitSmRoutingError(SubmitSmEventHandlerErrorNoShutdown):
+    """Raised when failing to send SubmitSm to routedConnector
+    """
+    def __init__(self):
+        self.status = pdu_types.CommandStatus.ESME_RSYSERR
+        SubmitSmEventHandlerErrorNoShutdown.__init__(self)
+
+class SubmitSmChargingError(SubmitSmEventHandlerErrorNoShutdown):
+    """Raised when charging user for sending submit_sm failed
+    """
+    def __init__(self):
+        self.status = pdu_types.CommandStatus.ESME_RSYSERR
+        SubmitSmEventHandlerErrorNoShutdown.__init__(self)
+
 class CredentialValidationError(SubmitSmEventHandlerErrorShutdown):
     """
     Raised when user credential validation fails

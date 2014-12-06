@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 import logging
 import mock
+import copy
 from twisted.internet import defer
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.vendor.smpp.pdu import pdu_types, pdu_encoding
@@ -42,8 +43,14 @@ class SmppServerTestCase(SMPPClientManagerPBTestCase):
         _portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.pbRoot_f))
         _portal.registerChecker(RouterAuthChecker(self.pbRoot_f))
 
+        # Install mocks
+        self.clientManager_f.perspective_submit_sm = mock.Mock(wraps=self.clientManager_f.perspective_submit_sm)
+
         # SMPPServerFactory init
-        self.smpps_factory = LastProtoSMPPServerFactory(self.smpps_config, auth_portal=_portal)
+        self.smpps_factory = LastProtoSMPPServerFactory(self.smpps_config, 
+                                                        auth_portal = _portal,
+                                                        RouterPB = self.pbRoot_f,
+                                                        SMPPClientManagerPB = self.clientManager_f)
 
         # Init protocol for testing
         self.smpps_proto = self.smpps_factory.buildProtocol(('127.0.0.1', 0))
@@ -77,7 +84,7 @@ class SmppServerTestCase(SMPPClientManagerPBTestCase):
 class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
 
     @defer.inlineCallbacks
-    def provision_user_connector(self):
+    def provision_user_connector(self, add_route = True):
         # provision user
         g1 = Group(1)
         yield self.group_add(g1)        
@@ -87,7 +94,8 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         yield self.user_add(self.u1)
 
         # provision route
-        yield self.mtroute_add(DefaultRoute(self.c1), 0)
+        if add_route:
+            yield self.mtroute_add(DefaultRoute(self.c1), 0)
 
     @defer.inlineCallbacks
     def test_successful_delivery_from_smpps_to_smppc(self):
@@ -103,53 +111,110 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         self._bind(self.u1)
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
 
-        print self.smpps_proto.sendPDU.call_args_list[0][0], self.smpps_proto.sendPDU.call_count
         # Assertions
         # smpps sent back a response ?
-        #self.assertEqual(self.smpps_proto.sendPDU.call_count, 1)
+        self.assertEqual(self.smpps_proto.sendPDU.call_count, 1)
         # smpps response was a submit_sm_resp with ESME_ROK ?
         response_pdu = self.smpps_proto.sendPDU.call_args_list[0][0][0]
-        #self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
-        #self.assertEqual(response_pdu.seqNum, 1)
-        #self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_ROK)
+        self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu.seqNum, 1)
+        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_ROK)
+        self.assertTrue(response_pdu.params['message_id'] is not None)
+
+    @defer.inlineCallbacks
+    def test_seqNum(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.provision_user_connector()
         
-        # Since Connector doesnt really exist, the message will not be routed
-        # to a queue, a 500 error will be returned, and more details will be written
-        # in smpp client manager log:
-        # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: '
-        #try:
-        #    yield getPage(url_ok)
-        #except Exception, e:
-        #    lastErrorStatus = e.status
-        #self.assertEqual(lastErrorStatus, '500')
+        # add connector
+        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=self.c1.cid)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
         
-        # We should receive a msg id
-        #c = yield getPage(url_ok)
-        #self.assertEqual(c[:7], 'Success')
-        # @todo: Should be a real uuid pattern testing 
-        #self.assertApproximates(len(c), 40, 10)
+        # Bind and send many SMS MT through smpps interface
+        self._bind(self.u1)
+        count = 999
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        for i in range(count):
+            self.smpps_proto.dataReceived(self.encoder.encode(SubmitSmPDU))
+            SubmitSmPDU.seqNum += 1
+
+        # Assertions
+        # smpps sent back a response ?
+        self.assertEqual(self.smpps_proto.sendPDU.call_count, count)
+        # Collect message_ids from submit_sm_resps
+        current_seqNum = 1
+        for call_arg in self.smpps_proto.sendPDU.call_args_list:
+            response_pdu = call_arg[0][0]
+            self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
+            self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_ROK)
+            # is seqNum correctly incrementing ?
+            self.assertEqual(response_pdu.seqNum, current_seqNum)
+            current_seqNum+= 1
 
     @defer.inlineCallbacks
     def test_delivery_from_smpps_with_default_src_addr(self):
         yield self.connect('127.0.0.1', self.pbPort)
+        yield self.provision_user_connector()
+        default_source_addr = 'JASMINTEST'
+        self.u1.mt_credential.setDefaultValue('source_address', default_source_addr)
+        
+        # add connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        c1Config = SMPPClientConfig(id=self.c1.cid)
+        yield self.SMPPClientManagerPBProxy.add(c1Config)
+        
+        # Bind and send a SMS MT through smpps interface
+        self._bind(self.u1)
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['source_addr'] = None
+        self.smpps_proto.dataReceived(self.encoder.encode(SubmitSmPDU))
+
+        # Assertions
+        # submit_sm source_addr has been changed to default one
+        SentSubmitSmPDU = self.clientManager_f.perspective_submit_sm.call_args_list[0][0][1]
+        self.assertEqual(SentSubmitSmPDU.params['source_addr'], default_source_addr)
 
     @defer.inlineCallbacks
     def test_delivery_from_smpps_to_unknown_smppc(self):
         yield self.connect('127.0.0.1', self.pbPort)
+        yield self.provision_user_connector()
+        
+        # Will not add connector to SMPPClientManagerPB
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        
+        # Bind and send a SMS MT through smpps interface
+        self._bind(self.u1)
+        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
 
-    @defer.inlineCallbacks
-    def test_delivery_from_smpps_to_offline_smppc(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        # Assertions
+        # smpps sent back a response ?
+        self.assertEqual(self.smpps_proto.sendPDU.call_count, 1)
+        # smpps response was a submit_sm_resp with ESME_ROK ?
+        response_pdu = self.smpps_proto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu.seqNum, 1)
+        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertTrue('message_id' not in response_pdu.params)
 
     @defer.inlineCallbacks
     def test_delivery_from_smpps_no_route_found(self):
         yield self.connect('127.0.0.1', self.pbPort)
+        yield self.provision_user_connector(add_route = False)
+        
+        # Will not add connector to SMPPClientManagerPB
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
 
-    @defer.inlineCallbacks
-    def test_delivery_from_smpps_dlr_requested(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-        yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
+        # Bind and send a SMS MT through smpps interface
+        self._bind(self.u1)
+        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+
+        # Assertions
+        # smpps sent back a response ?
+        self.assertEqual(self.smpps_proto.sendPDU.call_count, 1)
+        # smpps response was a submit_sm_resp with ESME_ROK ?
+        response_pdu = self.smpps_proto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu.seqNum, 1)
+        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertTrue('message_id' not in response_pdu.params)
