@@ -9,7 +9,7 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.validation import SmppsCredentialValidator
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
-from jasmin.vendor.smpp.pdu import pdu_types
+from jasmin.vendor.smpp.pdu import pdu_types, constants
 from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 from jasmin.routing.Routables import RoutableSubmitSm
 
@@ -292,6 +292,12 @@ class SMPPServerFactory(_SMPPServerFactory):
         priority = 0
         if SubmitSmPDU.params['priority_flag'] is not None:
             priority = SubmitSmPDU.params['priority_flag'].index
+
+        # Get data_coding value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
+        if SubmitSmPDU.params['data_coding'] is not None and isinstance(SubmitSmPDU.params['data_coding'], pdu_types.DataCoding):
+            SubmitSmPDU.params['data_coding'] = constants.data_coding_default_name_map[str(
+                                                        SubmitSmPDU.params['data_coding'].schemeData
+                                                        )]
 
         ########################################################
         # Send SubmitSmPDU through smpp client manager PB server

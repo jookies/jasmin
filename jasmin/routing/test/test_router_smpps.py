@@ -2,10 +2,11 @@
 import logging
 import mock
 import copy
-from twisted.internet import defer
+from twisted.internet import reactor, defer
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.vendor.smpp.pdu import pdu_types, pdu_encoding
-from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, id_generator)
+from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, HappySMSCTestCase,
+                                            SubmitSmTestCaseTools, id_generator)
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
@@ -26,11 +27,11 @@ class LastProtoSMPPServerFactory(SMPPServerFactory):
         self.lastProto = SMPPServerFactory.buildProtocol(self, addr)
         return self.lastProto
 
-class SmppServerTestCase(SMPPClientManagerPBTestCase):
+class SmppServerTestCase(HappySMSCTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
-        yield SMPPClientManagerPBTestCase.setUp(self)
+        yield HappySMSCTestCase.setUp(self)
 
         self.encoder = pdu_encoding.PDUEncoder()
 
@@ -70,11 +71,25 @@ class SmppServerTestCase(SMPPClientManagerPBTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield SMPPClientManagerPBTestCase.tearDown(self)
+        yield HappySMSCTestCase.tearDown(self)
 
         self.smpps_proto.connectionLost('test end')
 
-    def _bind(self, user):
+    @defer.inlineCallbacks
+    def provision_user_connector(self, add_route = True):
+        # provision user
+        g1 = Group(1)
+        yield self.group_add(g1)        
+        self.c1 = SmppClientConnector(id_generator())
+        u1_password = 'password'
+        self.u1 = User(1, g1, 'username', u1_password)
+        yield self.user_add(self.u1)
+
+        # provision route
+        if add_route:
+            yield self.mtroute_add(DefaultRoute(self.c1), 0)
+
+    def _bind_smpps(self, user):
         self.smpps_proto.bind_type = pdu_types.CommandId.bind_transceiver
         self.smpps_proto.sessionState = SMPPSessionStates.BOUND_TRX
         self.smpps_proto.user = user
@@ -108,7 +123,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         yield self.SMPPClientManagerPBProxy.add(c1Config)
         
         # Bind and send a SMS MT through smpps interface
-        self._bind(self.u1)
+        self._bind_smpps(self.u1)
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
 
         # Assertions
@@ -132,7 +147,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         yield self.SMPPClientManagerPBProxy.add(c1Config)
         
         # Bind and send many SMS MT through smpps interface
-        self._bind(self.u1)
+        self._bind_smpps(self.u1)
         count = 999
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         for i in range(count):
@@ -165,7 +180,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         yield self.SMPPClientManagerPBProxy.add(c1Config)
         
         # Bind and send a SMS MT through smpps interface
-        self._bind(self.u1)
+        self._bind_smpps(self.u1)
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['source_addr'] = None
         self.smpps_proto.dataReceived(self.encoder.encode(SubmitSmPDU))
@@ -184,7 +199,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         
         # Bind and send a SMS MT through smpps interface
-        self._bind(self.u1)
+        self._bind_smpps(self.u1)
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
 
         # Assertions
@@ -206,7 +221,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
 
         # Bind and send a SMS MT through smpps interface
-        self._bind(self.u1)
+        self._bind_smpps(self.u1)
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
 
         # Assertions
@@ -218,3 +233,53 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         self.assertEqual(response_pdu.seqNum, 1)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertTrue('message_id' not in response_pdu.params)
+
+class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestCase, 
+                                                SubmitSmTestCaseTools):
+
+    @defer.inlineCallbacks
+    def test_unrated_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Mock callback
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        
+        # Bind and send a SMS MT through smpps interface
+        self._bind_smpps(self.u1)
+        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Unrated route will not callback, nothing to bill
+        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 0)
+
+    @defer.inlineCallbacks
+    def test_rated_route(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        mt_c.setQuota('early_decrement_balance_percent', 10)
+        user = User(1, Group(1), 'username', 'password', mt_c)
+        yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user)
+
+        # Bind and send a SMS MT through smpps interface
+        self._bind_smpps(user)
+        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Rated route will callback with a bill
+        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 1)

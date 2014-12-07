@@ -137,7 +137,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def preSubmitSm(self, pdu):
         """Will:
         - Make validation steps
-        - Transform unparseable data (because SubmitSm may come from http-api through PB)
+        - Transform unparseable data (because SubmitSm may come from http-api/smpps through PB)
         """
         # Convert data_coding from int to DataCoding object
         if 'data_coding' in pdu.params and isinstance(pdu.params['data_coding'], int):
