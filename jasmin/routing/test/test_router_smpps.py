@@ -147,7 +147,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCase):
         
         # Bind and send many SMS MT through smpps interface
         self._bind_smpps(self.u1)
-        count = 999
+        count = 5
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         for i in range(count):
             self.smpps_proto.dataReceived(self.encoder.encode(SubmitSmPDU))

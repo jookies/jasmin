@@ -98,9 +98,9 @@ class HTTPThrowingTestCases(deliverSmHttpThrowerTestCase):
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        # Wait 3 seconds
+        # Wait 4 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
         
         # No message retries must be made since ACK was received
@@ -120,9 +120,9 @@ class HTTPThrowingTestCases(deliverSmHttpThrowerTestCase):
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        # Wait 3 seconds
+        # Wait 4 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
         
         # Retries must be made when ACK is not received
@@ -158,9 +158,9 @@ class HTTPThrowingTestCases(deliverSmHttpThrowerTestCase):
         
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        # Wait 3 seconds
+        # Wait 4 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
         
         self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
