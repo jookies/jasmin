@@ -249,8 +249,8 @@ class SMPPServerFactory(_SMPPServerFactory):
         # Update SubmitSmPDU by default values from user MtMessagingCredential
         SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
 
-        if self.RouterPB is None or self.SMPPClientManagerPB is None:
-            self.log.error('(submit_sm_event/%s) RouterPB or SMPPClientManagerPB not set: submit_sm will not be routed' % system_id)
+        if self.RouterPB is None:
+            self.log.error('(submit_sm_event/%s) RouterPB not set: submit_sm will not be routed' % system_id)
             return
 
         # Routing
@@ -293,11 +293,9 @@ class SMPPServerFactory(_SMPPServerFactory):
         if SubmitSmPDU.params['priority_flag'] is not None:
             priority = SubmitSmPDU.params['priority_flag'].index
 
-        # Get data_coding value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
-        if SubmitSmPDU.params['data_coding'] is not None and isinstance(SubmitSmPDU.params['data_coding'], pdu_types.DataCoding):
-            SubmitSmPDU.params['data_coding'] = constants.data_coding_default_name_map[str(
-                                                        SubmitSmPDU.params['data_coding'].schemeData
-                                                        )]
+        if self.SMPPClientManagerPB is None:
+            self.log.error('(submit_sm_event/%s) SMPPClientManagerPB not set: submit_sm will not be submitted' % system_id)
+            return
 
         ########################################################
         # Send SubmitSmPDU through smpp client manager PB server

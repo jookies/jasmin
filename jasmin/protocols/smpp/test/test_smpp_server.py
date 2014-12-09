@@ -20,14 +20,16 @@ from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from jasmin.managers.clients import SMPPClientManagerPB
+from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.protocol import *
 from jasmin.routing.router import RouterPB
 from jasmin.routing.configs import RouterPBConfig
-from jasmin.routing.jasminApi import User, Group
+from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.error import SMPPTransactionError
+from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.test.test_router import id_generator
 
 class LastProtoSMPPServerFactory(SMPPServerFactory):
     """This a SMPPServerFactory used to keep track of the last protocol instance for
@@ -47,12 +49,6 @@ class LastProtoSMPPClientFactory(SMPPClientFactory):
         return self.lastProto
 
 class RouterPBTestCases(TestCase):
-	def provision_new_user(self, user):
-		# This is normally done through jcli API (or any other high level API to come)
-		# Using perspective_user_add() is just a shortcut for testing purposes
-		if user.group not in self.router_factory.groups:
-			self.router_factory.perspective_group_add(pickle.dumps(user.group))
-		self.router_factory.perspective_user_add(pickle.dumps(user))
 
 	def setUp(self):
 		# Initiating config objects without any filename
@@ -63,12 +59,25 @@ class RouterPBTestCases(TestCase):
 		# Instanciate RouterPB but will not launch a server
 		# we only need the instance to access its .users attribute
 		# for authentication
-		self.router_factory = RouterPB()
-		self.router_factory.setConfig(self.routerpb_config, persistenceTimer = False)
+		self.routerpb_factory = RouterPB()
+		self.routerpb_factory.setConfig(self.routerpb_config, persistenceTimer = False)
 
-		# Provision a user into router
-		self.foo = User('u1', Group('test'), 'foo', 'bar')
-		self.provision_new_user(self.foo)
+		# Provision a user and default route into RouterPB
+		self.foo = User('u1', Group('test'), 'username', 'password')
+		self.c1 = SmppClientConnector(id_generator())
+		self.defaultroute = DefaultRoute(self.c1)
+		self.provision_user_defaultroute(user = self.foo, defaultroute = self.defaultroute)
+
+	def provision_user_defaultroute(self, user, defaultroute = None):
+		# This is normally done through jcli API (or any other high level API to come)
+		# Using perspective_user_add() is just a shortcut for testing purposes
+		if user.group not in self.routerpb_factory.groups:
+			self.routerpb_factory.perspective_group_add(pickle.dumps(user.group))
+		self.routerpb_factory.perspective_user_add(pickle.dumps(user))
+
+		# provision route
+		if defaultroute is not None:
+			self.routerpb_factory.perspective_mtroute_add(pickle.dumps(defaultroute), 0)
 
 class SMPPServerTestCases(RouterPBTestCases):
 	port = 27750
@@ -82,13 +91,13 @@ class SMPPServerTestCases(RouterPBTestCases):
 		self.smpps_config = SMPPServerConfig(**args)
 
 		# Portal init
-		_portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.router_factory))
-		_portal.registerChecker(RouterAuthChecker(self.router_factory))
+		_portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.routerpb_factory))
+		_portal.registerChecker(RouterAuthChecker(self.routerpb_factory))
 
 		# SMPPServerFactory init
 		self.smpps_factory = LastProtoSMPPServerFactory(config = self.smpps_config, 
 													auth_portal = _portal, 
-													RouterPB = None, 
+													RouterPB = self.routerpb_factory, 
 													SMPPClientManagerPB = None)
 		self.smpps_port = reactor.listenTCP(self.smpps_config.port, self.smpps_factory)
 
@@ -118,7 +127,7 @@ class SMPPClientTestCases(SMPPServerTestCases):
 		args = {'id': 'smppc_01', 'port': self.port,
 				'log_level': logging.DEBUG, 
 				'reconnectOnConnectionLoss': False,
-				'username': 'foo', 'password': 'bar'}
+				'username': 'username', 'password': 'password'}
 		self.smppc_config = SMPPClientConfig(**args)
 
 		# SMPPClientFactory init
@@ -182,7 +191,7 @@ class BindTestCases(SMPPClientTestCases):
 
 	@defer.inlineCallbacks
 	def test_bind_max_bindings_limit(self):
-		user = self.router_factory.getUser('u1')
+		user = self.routerpb_factory.getUser('u1')
 		user.smpps_credential.setQuota('max_bindings', 0)
 
 		# Connect and bind
@@ -191,7 +200,7 @@ class BindTestCases(SMPPClientTestCases):
 
 	@defer.inlineCallbacks
 	def test_bind_max_bind_authorization(self):
-		user = self.router_factory.getUser('u1')
+		user = self.routerpb_factory.getUser('u1')
 		user.smpps_credential.setAuthorization('bind', False)
 
 		# Connect and bind
@@ -327,334 +336,6 @@ class MessagingTestCases(SMPPClientTestCases):
 
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
-class SmppsCredentialAuthorizationsTestCases(SMPPClientTestCases):
-
-	@defer.inlineCallbacks
-	def test_authorized_smpps_send(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('smpps_send', True)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_ROK)
-
-	@defer.inlineCallbacks
-	def test_nonauthorized_smpps_send(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('smpps_send', False)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVSYSID)
-
-	@defer.inlineCallbacks
-	def test_authorized_set_dlr_level(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('set_dlr_level', True)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-		SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
-		yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_ROK)
-
-	@defer.inlineCallbacks
-	def test_nonauthorized_set_dlr_level(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('set_dlr_level', False)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-		SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
-		yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVSYSID)
-
-	@defer.inlineCallbacks
-	def test_authorized_set_source_address(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('set_source_address', True)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-		SubmitSmPDU.params['source_addr'] = 'DEFINED'
-		yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_ROK)
-
-	@defer.inlineCallbacks
-	def test_nonauthorized_set_source_address(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('set_source_address', False)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-		SubmitSmPDU.params['source_addr'] = 'DEFINED'
-		yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVSYSID)
-
-	@defer.inlineCallbacks
-	def test_authorized_set_priority(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('set_priority', True)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-		SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[3]
-		yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_ROK)
-
-	@defer.inlineCallbacks
-	def test_nonauthorized_set_priority(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setAuthorization('set_priority', False)
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-		SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[3]
-		yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVSYSID)
-
-class SmppsCredentialFiltersTestCases(SMPPClientTestCases):
-
-	@defer.inlineCallbacks
-	def test_filter_destination_address(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setValueFilter('destination_address', r'^A.*')
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVDSTADR)
-
-	@defer.inlineCallbacks
-	def test_filter_source_address(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setValueFilter('source_address', r'^A.*')
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVSRCADR)
-
-	@defer.inlineCallbacks
-	def test_filter_priority(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setValueFilter('priority', r'^A.*')
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RINVPRTFLG)
-
-	@defer.inlineCallbacks
-	def test_filter_content(self):
-		user = self.router_factory.getUser('u1')
-		user.mt_credential.setValueFilter('content', r'^A.*')
-
-		# Connect and bind
-		yield self.smppc_factory.connectAndBind()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
-
-		# Install mockers
-		self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-
-		# SMPPClient > SMPPServer
-		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
-
-		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
-		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
-
-		# Asserts SMPPClient side
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id, 
-			pdu_types.CommandId.submit_sm_resp)
-		self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status, 
-			pdu_types.CommandStatus.ESME_RSYSERR)
-
 class InactivityTestCases(SMPPClientTestCases):
 
 	@defer.inlineCallbacks
@@ -709,7 +390,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 	def setUp(self):
 		SMPPClientTestCases.setUp(self)
 
-		self.user = self.router_factory.getUser('u1')		
+		self.user = self.routerpb_factory.getUser('u1')		
 
 	@defer.inlineCallbacks
 	def test_smpps_binds_count(self):

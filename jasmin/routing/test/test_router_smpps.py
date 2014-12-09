@@ -36,8 +36,7 @@ class SmppServerTestCase(HappySMSCTestCase):
         self.encoder = pdu_encoding.PDUEncoder()
 
         # SMPPServerConfig init
-        args = {'id': 'smpps_01_%s' % 27750, 'port': 27750, 
-                'log_level': logging.DEBUG}
+        args = {'id': 'smpps_01_%s' % 27750, 'port': 27750}
         self.smpps_config = SMPPServerConfig(**args)
 
         # Portal init
@@ -238,13 +237,18 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
                                                 SubmitSmTestCaseTools):
 
     @defer.inlineCallbacks
-    def test_unrated_route(self):
+    def test_unrated_route_limited_submit_sm_count(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector()
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        mt_c.setQuota('submit_sm_count', 10)
+        user = User(1, Group(1), 'username', 'password', mt_c)
+        yield self.prepareRoutingsAndStartConnector(user = user)
+        assertionUser = self.pbRoot_f.getUser(user.uid)
 
-        # Mock callback
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(self.pbRoot_f.bill_request_submit_sm_resp_callback)
-        
+        # Mock user's updateQuota callback
+        assertionUser.mt_credential.updateQuota = mock.Mock(wraps = assertionUser.mt_credential.updateQuota)
+
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(self.u1)
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
@@ -257,17 +261,57 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         yield self.stopSmppClientConnectors()
         
         # Run tests
-        # Unrated route will not callback, nothing to bill
-        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 0)
+        # Assert quotas were not updated
+        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 1)
+        callArgs = assertionUser.mt_credential.updateQuota.call_args_list
+        self.assertEquals(callArgs[0][0][0], 'submit_sm_count')
+        self.assertEquals(callArgs[0][0][1], -1)
+        # Assert quotas after SMS is sent
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 2.0)
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), 9)
+
+    @defer.inlineCallbacks
+    def test_unrated_route_unlimited_submit_sm_count(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        user = User(1, Group(1), 'username', 'password', mt_c)
+        yield self.prepareRoutingsAndStartConnector(user = user)
+        assertionUser = self.pbRoot_f.getUser(user.uid)
+
+        # Mock user's updateQuota callback
+        assertionUser.mt_credential.updateQuota = mock.Mock(wraps = assertionUser.mt_credential.updateQuota)
+
+        # Bind and send a SMS MT through smpps interface
+        self._bind_smpps(self.u1)
+        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Assert quotas were not updated
+        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 0)
+        # Assert quotas after SMS is sent
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 2.0)
+        self.assertEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), None)
 
     @defer.inlineCallbacks
     def test_rated_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         mt_c = MtMessagingCredential()
         mt_c.setQuota('balance', 2.0)
-        mt_c.setQuota('early_decrement_balance_percent', 10)
+        mt_c.setQuota('submit_sm_count', 10)
         user = User(1, Group(1), 'username', 'password', mt_c)
         yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user)
+        assertionUser = self.pbRoot_f.getUser(user.uid)
+
+        # Mock user's updateQuota callback
+        assertionUser.mt_credential.updateQuota = mock.Mock(wraps = assertionUser.mt_credential.updateQuota)
 
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(user)
@@ -281,5 +325,55 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         yield self.stopSmppClientConnectors()
         
         # Run tests
-        # Rated route will callback with a bill
-        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 1)
+        # Assert quotas were updated
+        callArgs = assertionUser.mt_credential.updateQuota.call_args_list
+        self.assertEquals(callArgs[0][0][0], 'balance')
+        self.assertEquals(callArgs[0][0][1], -1)
+        self.assertEquals(callArgs[1][0][0], 'submit_sm_count')
+        self.assertEquals(callArgs[1][0][1], -1)
+        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 2)
+        # Assert quotas after SMS is sent
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 1.0)
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), 9)
+
+    @defer.inlineCallbacks
+    def test_rated_route_early_decrement_balance_percent(self):
+        """Will test that user must be charged initially 10% of the router rate on submit_sm
+        enqueuing and the all the rest (90%) when submit_sm_resp is received
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        mt_c.setQuota('submit_sm_count', 10)
+        mt_c.setQuota('early_decrement_balance_percent', 10)
+        user = User(1, Group(1), 'username', 'password', mt_c)
+        yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user)
+        assertionUser = self.pbRoot_f.getUser(user.uid)
+
+        # Mock user's updateQuota callback
+        assertionUser.mt_credential.updateQuota = mock.Mock(wraps = assertionUser.mt_credential.updateQuota)
+
+        # Bind and send a SMS MT through smpps interface
+        self._bind_smpps(user)
+        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        # Assert quotas were updated
+        callArgs = assertionUser.mt_credential.updateQuota.call_args_list
+        self.assertEquals(callArgs[0][0][0], 'balance')
+        self.assertEquals(callArgs[0][0][1], -0.1)
+        self.assertEquals(callArgs[1][0][0], 'submit_sm_count')
+        self.assertEquals(callArgs[1][0][1], -1)
+        self.assertEquals(callArgs[2][0][0], 'balance')
+        self.assertEquals(callArgs[2][0][1], -0.9)
+        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 3)
+        # Assert quotas after SMS is sent
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 1.0)
+        self.assertAlmostEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), 9)
