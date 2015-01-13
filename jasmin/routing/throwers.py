@@ -8,10 +8,23 @@ from twisted.web.client import getPage
 from txamqp.queue import Closed
 from twisted.internet import reactor
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
 
 class MessageAcknowledgementError(Exception):
     """Raised when destination end does not return 'ACK/Jasmin' back to
     the thrower
+    """
+
+class SmppsNotSetError(Exception):
+    """Raised whenever self.smppsFactory is needed but not already set
+    """
+
+class SystemIdNotBound(Exception):
+    """Raised system_id have no binding in self.smppsFactory.bound_connections
+    """
+
+class NoDelivererForSystemId(Exception):
+    """Raised when no valid binding found for system_id using getNextBindingForDelivery()
     """
 
 class Thrower(Service):
@@ -91,7 +104,7 @@ class Thrower(Service):
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
          
-        # Subscribe to deliver_sm_thrower.http queue
+        # Declare exchange, queue and start consuming to self.callback
         yield self.amqpBroker.chan.exchange_declare(exchange=self.exchangeName, type='topic')
         yield self.amqpBroker.named_queue_declare(queue=self.queueName)
         yield self.amqpBroker.chan.queue_bind(queue=self.queueName, exchange=self.exchangeName, routing_key=self.routingKey)
@@ -219,20 +232,24 @@ class DLRThrower(Thrower):
         self.log_category = "jasmin-dlr-thrower"
         self.exchangeName = 'messaging'
         self.consumerTag = 'DLRThrower'
-        self.routingKey = 'dlr_thrower.http'
-        self.queueName = 'dlr_thrower.http'
+        self.routingKey = 'dlr_thrower.*'
+        self.queueName = 'dlr_thrower'
         self.callback = self.dlr_throwing_callback
+
+        self.opFactory = SMPPOperationFactory()
+        self.smppsFactory = None
+
+    def addSmpps(self, smppsFactory):
+        self.smppsFactory = smppsFactory
     
     @defer.inlineCallbacks
-    def dlr_throwing_callback(self, message):
-        Thrower.throwing_callback(self, message)
-        
+    def http_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
         url = message.content.properties['headers']['url']
         method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
-        DLRContent = message.content.body
-        self.log.debug('Got one message (msgid:%s) to throw: %s' % (msgid, DLRContent))
+        DLRContentForHttpapi = message.content.body
+        self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
         
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
@@ -272,10 +289,11 @@ class DLRThrower(Thrower):
             if content != 'ACK/Jasmin':
                 raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the DLR message.')
 
+            # Everything is okay ? then:
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing message [msgid:%s] to (%s): %s.' % (msgid, baseurl, str(e)))
+            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %s.' % (msgid, baseurl, str(e)))
             
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
@@ -290,3 +308,51 @@ class DLRThrower(Thrower):
             else:
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
                 yield self.rejectMessage(message)
+
+    @defer.inlineCallbacks
+    def smpp_dlr_callback(self, message):
+        msgid = message.content.properties['message-id']
+        system_id = message.content.properties['headers']['system_id']
+        session_id = message.content.properties['headers']['session_id']
+        message_status = message.content.properties['headers']['message_status']
+        source_addr = message.content.properties['headers']['source_addr']
+        destination_addr = message.content.properties['headers']['destination_addr']
+        DLRContentForSmpps = message.content.body
+        self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
+
+        try:
+            if self.smppsFactory is None:
+                raise SmppsNotSetError()
+
+            if system_id not in self.smppsFactory.bound_connections:
+                raise SystemIdNotBound(system_id)
+            
+            deliverer = self.smppsFactory.bound_connections[system_id].getNextBindingForDelivery()
+            if deliverer is None:
+                raise NoDelivererForSystemId(system_id)
+
+            # Build the Receipt PDU (data_sm)
+            pdu = self.opFactory.getReceipt(msgid = msgid, 
+                                            source_addr = source_addr, 
+                                            destination_addr = destination_addr,
+                                            message_status = message_status,
+                                            )
+
+            # Deliver (or throw) the receipt through the deliverer
+            yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+
+            # Everything is okay ? then:
+            yield self.ackMessage(message)
+        except Exception, e:
+            print repr(e), self.smppsFactory.bound_connections
+            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
+            yield self.rejectMessage(message)
+
+    @defer.inlineCallbacks
+    def dlr_throwing_callback(self, message):
+        Thrower.throwing_callback(self, message)
+
+        if message.routing_key == 'dlr_thrower.http':
+            yield self.http_dlr_callback(message)
+        elif message.routing_key == 'dlr_thrower.smpp':
+            yield self.smpp_dlr_callback(message)

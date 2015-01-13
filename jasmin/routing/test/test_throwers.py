@@ -6,7 +6,7 @@ from jasmin.queues.configs import AmqpConfig
 from jasmin.routing.configs import deliverSmHttpThrowerConfig, DLRThrowerConfig
 from jasmin.routing.throwers import deliverSmHttpThrower, DLRThrower
 from jasmin.routing.content import RoutedDeliverSmContent
-from jasmin.managers.content import DLRContent
+from jasmin.managers.content import DLRContentForHttpapi
 from jasmin.routing.jasminApi import HttpConnector, SmppClientConnector
 from jasmin.vendor.smpp.pdu.operations import DeliverSM
 from twisted.web.resource import Resource
@@ -48,7 +48,6 @@ class deliverSmHttpThrowerTestCase(unittest.TestCase):
             destination_addr='4567',
             short_message='hello !',
         )
-
 
     @defer.inlineCallbacks
     def publishRoutedDeliverSmContent(self, routing_key, DeliverSM, msgid, scid, routedConnector):
@@ -217,9 +216,9 @@ class DLRThrowerTestCase(unittest.TestCase):
         self.TimeoutLeafServer = reactor.listenTCP(0, server.Site(self.TimeoutLeafServerResource))
 
     @defer.inlineCallbacks
-    def publishDLRContent(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '', 
+    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '', 
                  dlvrd = '', subdate = '', donedate = '', err = '', text = '', method = 'POST', trycount = 0):
-        content = DLRContent(message_status, msgid, dlr_url, dlr_level, id_smsc, sub, dlvrd, subdate, 
+        content = DLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc, sub, dlvrd, subdate, 
                              donedate, err, text, method, trycount)
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.http', content=content)
     
@@ -241,7 +240,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         dlr_level = 1
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContent(message_status, msgid, dlr_url, dlr_level)
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         # Wait 3 seconds
         exitDeferred = defer.Deferred()
@@ -259,7 +258,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         dlr_level = 1
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContent(message_status, msgid, dlr_url, dlr_level)
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         # Wait 3 seconds
         exitDeferred = defer.Deferred()
@@ -277,7 +276,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         dlr_level = 1
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContent(message_status, msgid, dlr_url, dlr_level)
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         # Wait 9 seconds (timeout is set to 2 seconds in deliverSmHttpThrowerTestCase.setUp(self)
         exitDeferred = defer.Deferred()
@@ -296,7 +295,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         dlr_level = 1
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContent(message_status, msgid, dlr_url, dlr_level)
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         # Wait 3 seconds
         exitDeferred = defer.Deferred()
@@ -313,7 +312,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         dlr_level = 1
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContent(message_status, msgid, dlr_url, dlr_level, method = 'GET')
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, method = 'GET')
 
         # Wait 3 seconds
         exitDeferred = defer.Deferred()
@@ -335,7 +334,7 @@ class DLRThrowerTestCase(unittest.TestCase):
         dlr_level = 2
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContent(message_status, msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
                  dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text', method = 'GET')
 
         # Wait 3 seconds

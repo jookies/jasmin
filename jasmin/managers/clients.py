@@ -2,6 +2,7 @@ import logging
 import pickle
 import uuid
 import time
+import datetime
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
@@ -9,6 +10,8 @@ from jasmin.managers.listeners import SMPPClientSMListener
 from jasmin.managers.configs import SMPPClientSMListenerConfig
 from jasmin.managers.content import SubmitSmContent
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
+from jasmin.protocols.smpp.protocol import SMPPServerProtocol
+from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -510,7 +513,8 @@ class SMPPClientManagerPB(pb.Avatar):
     
     @defer.inlineCallbacks
     def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
-                         dlr_url = None, dlr_level = 1, dlr_method = 'POST', submit_sm_resp_bill = None):
+                         dlr_url = None, dlr_level = 1, dlr_method = 'POST', submit_sm_resp_bill = None, 
+                         source_connector = 'httpapi'):
         """This will enqueue a submit_sm to a connector
         """
 
@@ -542,16 +546,16 @@ class SMPPClientManagerPB(pb.Avatar):
         
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
-            SubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
+            PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
             submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
         
         # Publishing a pickled PDU
         self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
-        c = SubmitSmContent(SubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = submit_sm_resp_bill)
+        c = SubmitSmContent(PickledSubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = submit_sm_resp_bill)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
         
-        # Enqueue DLR request
-        if dlr_url is not None:
+        if source_connector == 'httpapi' and dlr_url is not None:
+            # Enqueue DLR request in redis 'dlr' key if it is a httpapi request
             if self.redisClient is None or str(self.redisClient) == '<Redis Connection: Not connected>':
                 self.log.warn("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected." % 
                               c.properties['message-id'])
@@ -569,5 +573,30 @@ class SMPPClientManagerPB(pb.Avatar):
                               'expiry':connector['config'].dlr_expiry}
                 self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
                             self.setKeyExpiry, hashKey, connector['config'].dlr_expiry)
+        elif (isinstance(source_connector, SMPPServerProtocol) 
+              and SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
+            # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
+            # requested, then map message-id to the source_connector to permit related deliver_sm 
+            # messages holding further receipts to be sent back to the right connector
+            if self.redisClient is None or str(self.redisClient) == '<Redis Connection: Not connected>':
+                self.log.warn("SMPPs mapping is not done for SubmitSmPDU [msgid:%s], RC is not connected." % 
+                              c.properties['message-id'])
+            else:
+                self.log.debug('Setting SMPPs connector (%s/%s) mapping for message id:%s, registered_dlr: %s, expiring in %s' % 
+                                (source_connector.session_id, 
+                                source_connector.system_id,
+                                c.properties['message-id'], 
+                                SubmitSmPDU.params['registered_delivery'],
+                                source_connector.factory.config.dlr_expiry))
+                # Set values and callback expiration setting
+                hashKey = "smppsmap:%s" % (c.properties['message-id'])
+                hashValues = {'session_id': source_connector.session_id, 
+                              'system_id': source_connector.system_id, 
+                              'source_addr': SubmitSmPDU.params['source_addr'],
+                              'destination_addr': SubmitSmPDU.params['destination_addr'],
+                              'registered_delivery': SubmitSmPDU.params['registered_delivery'],
+                              'expiry': source_connector.factory.config.dlr_expiry}
+                self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
+                            self.setKeyExpiry, hashKey, source_connector.factory.config.dlr_expiry)
         
         defer.returnValue(c.properties['message-id'])

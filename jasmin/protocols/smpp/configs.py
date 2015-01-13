@@ -79,6 +79,12 @@ class SMPPConfig(object):
         if not isinstance(self.pduReadTimerSecs, int) and not isinstance(self.pduReadTimerSecs, float):
             raise TypeMismatch('pduReadTimerSecs must be an integer or float')
 
+        # DLR
+        # How much time a message is kept in redis waiting for receipt
+        self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
+        if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
+            raise TypeMismatch('dlr_expiry must be an integer or float')
+
 class SMPPClientConfig(SMPPConfig):
     def __init__(self, **kwargs):
         SMPPConfig.__init__(self, **kwargs)
@@ -166,11 +172,6 @@ class SMPPClientConfig(SMPPConfig):
         self.submit_sm_throughput = kwargs.get('submit_sm_throughput', 1)
         if not isinstance(self.submit_sm_throughput, int) and not isinstance(self.submit_sm_throughput, float):
             raise TypeMismatch('submit_sm_throughput must be an integer or float')
-        
-        # DLR
-        self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
-        if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
-            raise TypeMismatch('dlr_expiry must be an integer or float')        
                 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):
@@ -184,11 +185,4 @@ class SMPPClientServiceConfig(ConfigFile):
 class SMPPServerConfig(SMPPConfig):
     
     def __init__(self, **kwargs):
-        """
-        @param systems: A dict of data representing the available
-        systems.
-        { "username1": {"max_bindings" : 2},
-          "username2": {"max_bindings" : 1}
-        }
-        """
         SMPPConfig.__init__(self, **kwargs)

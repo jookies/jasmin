@@ -304,7 +304,8 @@ class SMPPServerFactory(_SMPPServerFactory):
                                                         SubmitSmPDU, 
                                                         priority, 
                                                         pickled = False, 
-                                                        submit_sm_resp_bill = bill.getSubmitSmRespBill())
+                                                        submit_sm_resp_bill = bill.getSubmitSmRespBill(),
+                                                        source_connector = proto)
         
         # Build final response
         if not c.result:

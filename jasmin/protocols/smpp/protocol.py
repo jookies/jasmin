@@ -1,4 +1,5 @@
 #pylint: disable-msg=W0401,W0611
+import uuid
 import logging
 import struct
 from datetime import datetime
@@ -233,6 +234,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.dataRequestHandler = lambda *args: self.factory.msgHandler(self.system_id, *args)
         self.system_id = None
         self.user = None
+        self.session_id = str(uuid.uuid4())
         self.log = logging.getLogger(LOG_CATEGORY)
 
     def PDUReceived(self, pdu):
@@ -270,7 +272,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         acceptedPDUs = [CommandId.submit_sm, CommandId.bind_transmitter, 
                 CommandId.bind_receiver, CommandId.bind_transceiver, 
                 CommandId.unbind, CommandId.unbind_resp,
-                CommandId.enquire_link]
+                CommandId.enquire_link, CommandId.data_sm]
         if reqPDU.id not in acceptedPDUs:
             errMsg = 'Received unsupported pdu type: %s' % reqPDU.id
             self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RSYSERR))
@@ -317,5 +319,5 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         
         self.factory.addBoundConnection(self, self.user)
         bound_cnxns = self.factory.getBoundConnections(self.system_id)
-        self.log.info('Bind request succeeded for %s. %d active binds' % (username, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.log.info('Bind request succeeded for %s in session [%s]. %d active binds' % (username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
         self.sendResponse(reqPDU, system_id=self.system_id)

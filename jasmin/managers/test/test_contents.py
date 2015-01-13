@@ -7,7 +7,7 @@ from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent, 
                                      DeliverSmContent, SubmitSmRespBillContent,
-                                     DLRContent, InvalidParameterError)
+                                     DLRContentForHttpapi, InvalidParameterError)
 
 class ContentTestCase(TestCase):
     body = 'TESTBODY'
@@ -58,12 +58,12 @@ class SubmitSmRespContentTestCase(ContentTestCase):
         self.assertEquals(c.body, pickle.dumps(self.body, 2))
         self.assertEquals(c['message-id'], 1)
         
-class DLRContentTestCase(ContentTestCase):
+class DLRContentForHttpapiTestCase(ContentTestCase):
     def test_normal_level1(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 1
-        c = DLRContent('DELIVRD', msgid, dlr_url, dlr_level)
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level)
         
         self.assertEquals(c.body, msgid)
         self.assertEquals(len(c['headers']), 12)
@@ -84,7 +84,7 @@ class DLRContentTestCase(ContentTestCase):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 2
-        c = DLRContent('DELIVRD', msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
                  dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text')
         
         self.assertEquals(c.body, msgid)
@@ -106,7 +106,7 @@ class DLRContentTestCase(ContentTestCase):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 3
-        c = DLRContent('DELIVRD', msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
                  dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text')
         
         self.assertEquals(c.body, msgid)
@@ -133,34 +133,34 @@ class DLRContentTestCase(ContentTestCase):
                                   'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
         
         for status in validStatuses:
-            c = DLRContent(status, msgid, dlr_url, dlr_level)
+            c = DLRContentForHttpapi(status, msgid, dlr_url, dlr_level)
             
             self.assertEquals(c['headers']['message_status'], status)
         
-        self.assertRaises(InvalidParameterError, DLRContent, 'anystatus', msgid, dlr_url, dlr_level)
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'anystatus', msgid, dlr_url, dlr_level)
         
     def test_level(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         
-        c = DLRContent('DELIVRD', msgid, dlr_url, 1)
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1)
         self.assertEquals(c['headers']['level'], 1)
-        self.assertRaises(InvalidParameterError, DLRContent, 'DELIVRD', msgid, dlr_url, 45)
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 45)
         
     def test_method(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         
-        c = DLRContent('DELIVRD', msgid, dlr_url, 1)
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1)
         self.assertEquals(c['headers']['method'], 'POST')
 
-        c = DLRContent('DELIVRD', msgid, dlr_url, 1, method = 'GET')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method = 'GET')
         self.assertEquals(c['headers']['method'], 'GET')
         
-        c = DLRContent('DELIVRD', msgid, dlr_url, 1, method = 'POST')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method = 'POST')
         self.assertEquals(c['headers']['method'], 'POST')
 
-        self.assertRaises(InvalidParameterError, DLRContent, 'DELIVRD', msgid, dlr_url, 1, method = 'ANY METHOD')
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1, method = 'ANY METHOD')
 
 class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
