@@ -582,16 +582,14 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.log.warn("SMPPs mapping is not done for SubmitSmPDU [msgid:%s], RC is not connected." % 
                               c.properties['message-id'])
             else:
-                self.log.debug('Setting SMPPs connector (%s/%s) mapping for message id:%s, registered_dlr: %s, expiring in %s' % 
-                                (source_connector.session_id, 
-                                source_connector.system_id,
+                self.log.debug('Setting SMPPs connector (%s) mapping for message id:%s, registered_dlr: %s, expiring in %s' % 
+                                (source_connector.system_id,
                                 c.properties['message-id'], 
                                 SubmitSmPDU.params['registered_delivery'],
                                 source_connector.factory.config.dlr_expiry))
                 # Set values and callback expiration setting
                 hashKey = "smppsmap:%s" % (c.properties['message-id'])
-                hashValues = {'session_id': source_connector.session_id, 
-                              'system_id': source_connector.system_id, 
+                hashValues = {'system_id': source_connector.system_id, 
                               'source_addr': SubmitSmPDU.params['source_addr'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'registered_delivery': SubmitSmPDU.params['registered_delivery'],

@@ -2,6 +2,8 @@
 import logging
 import mock
 import copy
+import random
+import string
 from twisted.internet import reactor, defer
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.vendor.smpp.pdu import pdu_types, pdu_encoding
@@ -16,6 +18,7 @@ from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.routing.jasminApi import *
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from twisted.cred import portal
 from twisted.test import proto_helpers
 from jasmin.protocols.smpp.test.smsc_simulator import *
@@ -463,7 +466,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         
         # Run tests
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
-        # smpps response was a submit_sm_resp with ESME_ROK ?
+        # smpps response was a submit_sm_resp with ESME_ROK
         response_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
         self.assertEqual(response_pdu.seqNum, 2)
@@ -500,7 +503,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         
         # Run tests
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
-        # smpps response was (1) a submit_sm_resp with ESME_ROK and
+        # smpps response was (1) a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
         self.assertEqual(response_pdu_1.seqNum, 2)
@@ -517,59 +520,54 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(str(response_pdu_2.params['message_state']), 'UNDELIVERABLE')
 
     @defer.inlineCallbacks
-    def test_receive_NACK_deliver_sm_on_delivery_error_long_message(self):
-        yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(port = self.ErrorOnSubmitSMSCPort.getHost().port)
-
-        # Bind and send a SMS MT through smpps interface
-        self._bind_smpps(self.u1)
-        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
-        
-        # Wait 3 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
-        yield exitDeferred
-
-        yield self.stopSmppClientConnectors()
-        
-        # Run tests
-        self.assertEqual(self.smpps_proto.sendPDU.call_count, 2)
-        # smpps response was (1) a submit_sm_resp with ESME_ROK and
-        response_pdu_1 = self.smpps_proto.sendPDU.call_args_list[0][0][0]
-        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        self.assertEqual(response_pdu_1.seqNum, 1)
-        self.assertEqual(response_pdu_1.status, pdu_types.CommandStatus.ESME_ROK)
-        self.assertTrue(response_pdu_1.params['message_id'] is not None)
-        # (2) a deliver_sm
-
-    @defer.inlineCallbacks
     def test_receive_nothing_on_delivery_error_when_not_requesting_dlr(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(port = self.ErrorOnSubmitSMSCPort.getHost().port)
 
-        # Bind and send a SMS MT through smpps interface
-        self._bind_smpps(self.u1)
-        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
         # Wait 3 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
         reactor.callLater(3, exitDeferred.callback, None)
         yield exitDeferred
 
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
         yield self.stopSmppClientConnectors()
         
         # Run tests
-        self.assertEqual(self.smpps_proto.sendPDU.call_count, 2)
-        # smpps response was (1) a submit_sm_resp with ESME_ROK and
-        response_pdu_1 = self.smpps_proto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        # smpps response was (1) a submit_sm_resp with ESME_ROK
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        self.assertEqual(response_pdu_1.seqNum, 1)
+        self.assertEqual(response_pdu_1.seqNum, 2)
         self.assertEqual(response_pdu_1.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertTrue(response_pdu_1.params['message_id'] is not None)
-        # (2) a deliver_sm
+        # (2) an unbind_resp (no receipt)
+        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_no_charging_on_delivery_error(self):
+        """This test case we:
+         - User have early_decrement_balance_percent set to 10 (%)
+         - Submit a message to SMPPs
+         - Message is routed to a SMPPc
+         - Delivery is errored (data_sm received in SMPPc)
+
+        The user will be charged for 10% of the rate, the rest is not charged because
+        message were not delivered to destination.
+        """
+
         yield self.connect('127.0.0.1', self.pbPort)
         mt_c = MtMessagingCredential()
         mt_c.setQuota('balance', 2.0)
@@ -579,26 +577,41 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user,
                                                     port = self.ErrorOnSubmitSMSCPort.getHost().port)
 
-        # Bind and send a SMS MT through smpps interface
-        self._bind_smpps(self.u1)
-        self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
         # Wait 3 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
         reactor.callLater(3, exitDeferred.callback, None)
         yield exitDeferred
 
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
         yield self.stopSmppClientConnectors()
         
         # Run tests
-        self.assertEqual(self.smpps_proto.sendPDU.call_count, 2)
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
         # smpps response was (1) a submit_sm_resp with ESME_ROK and
-        # (2) a deliver_sm
-        response_pdu_1 = self.smpps_proto.sendPDU.call_args_list[0][0][0]
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        self.assertEqual(response_pdu_1.seqNum, 1)
+        self.assertEqual(response_pdu_1.seqNum, 2)
         self.assertEqual(response_pdu_1.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertTrue(response_pdu_1.params['message_id'] is not None)
+        # (2) a deliver_sm
+        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(str(response_pdu_2.params['message_state']), 'UNDELIVERABLE')
+        # (3) an unbind_resp
+        response_pdu_3 = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(response_pdu_3.id, pdu_types.CommandId.unbind_resp)
         # Assert quotas after SMS is sent (only 10% were charged)
         assertionUser = self.pbRoot_f.getUser(user.uid)
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 1.9)

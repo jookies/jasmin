@@ -313,7 +313,6 @@ class DLRThrower(Thrower):
     def smpp_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
         system_id = message.content.properties['headers']['system_id']
-        session_id = message.content.properties['headers']['session_id']
         message_status = message.content.properties['headers']['message_status']
         source_addr = message.content.properties['headers']['source_addr']
         destination_addr = message.content.properties['headers']['destination_addr']
@@ -344,7 +343,6 @@ class DLRThrower(Thrower):
             # Everything is okay ? then:
             yield self.ackMessage(message)
         except Exception, e:
-            print repr(e), self.smppsFactory.bound_connections
             self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
             yield self.rejectMessage(message)
 

@@ -157,7 +157,6 @@ class SMPPOperationFactory():
             destination_addr = destination_addr,
             esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
             receipted_message_id = msgid,
-            message_state = MessageState.ACCEPTED,
         )
 
         # Set pdu.message_state

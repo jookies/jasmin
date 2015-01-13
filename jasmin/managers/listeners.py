@@ -331,7 +331,6 @@ class SMPPClientSMListener:
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...' % (msgid))
 
                 smpps_map = pickle.loads(pickledSmppsMap)
-                session_id = smpps_map['session_id']
                 system_id = smpps_map['system_id']
                 source_addr = smpps_map['source_addr']
                 destination_addr = smpps_map['destination_addr']
@@ -344,14 +343,12 @@ class SMPPClientSMListener:
                                                              'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])
                     or (r.response.status != CommandStatus.ESME_ROK and 
                         str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
-                    self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, session_id:%s, system_id:%s' % (msgid, 
+                    self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s' % (msgid, 
                                                                                                        registered_delivery,
-                                                                                                       session_id, 
                                                                                                        system_id))
                     
                     content = DLRContentForSmpps(str(r.response.status), 
                                                  msgid, 
-                                                 session_id,
                                                  system_id,
                                                  source_addr,
                                                  destination_addr)
