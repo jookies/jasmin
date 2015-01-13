@@ -548,6 +548,9 @@ class SMPPClientManagerPB(pb.Avatar):
         if not pickled:
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
             submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
+        else:
+            PickledSubmitSmPDU = SubmitSmPDU
+            SubmitSmPDU = pickle.loads(PickledSubmitSmPDU)
         
         # Publishing a pickled PDU
         self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))

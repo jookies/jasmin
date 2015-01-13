@@ -105,15 +105,20 @@ class Thrower(Service):
             self.log.info("AMQP Broker channel is ready now, let's go !")
          
         # Declare exchange, queue and start consuming to self.callback
-        yield self.amqpBroker.chan.exchange_declare(exchange=self.exchangeName, type='topic')
-        yield self.amqpBroker.named_queue_declare(queue=self.queueName)
-        yield self.amqpBroker.chan.queue_bind(queue=self.queueName, exchange=self.exchangeName, routing_key=self.routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue=self.queueName, no_ack=False, consumer_tag=self.consumerTag)
+        yield self.amqpBroker.chan.exchange_declare(exchange = self.exchangeName, 
+                                                    type='topic')
+        yield self.amqpBroker.named_queue_declare(queue = self.queueName)
+        yield self.amqpBroker.chan.queue_bind(queue = self.queueName, 
+                                              exchange = self.exchangeName, 
+                                              routing_key = self.routingKey)
+        yield self.amqpBroker.chan.basic_consume(queue = self.queueName, 
+                                                 no_ack = False, 
+                                                 consumer_tag = self.consumerTag)
         self.thrower_q = yield self.amqpBroker.client.queue(self.consumerTag)
         self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
         self.log.info('Consuming from routing key: %s', self.routingKey)
         
-    def rejectAndRequeueMessage(self, message, routing_key, delay = True):
+    def rejectAndRequeueMessage(self, message, delay = True):
         msgid = message.content.properties['message-id']
         
         # Reject message
@@ -121,8 +126,13 @@ class Thrower(Service):
         
         # Publish it
         if delay:
-            self.log.debug("Requeuing Content[%s] with delay: %s seconds" % (msgid, self.config.retry_delay))
-            t = reactor.callLater(self.config.retry_delay, self.amqpBroker.publish, routing_key=routing_key, content=message.content)
+            self.log.debug("Requeuing Content[%s] with delay: %s seconds" % (msgid, 
+                                                                             self.config.retry_delay))
+            t = reactor.callLater(self.config.retry_delay, 
+                                  self.amqpBroker.publish, 
+                                  exchange = 'messaging', 
+                                  routing_key = message.routing_key, 
+                                  content = message.content)
 
             # If any, clear timer before setting a new one
             self.clearRequeueTimer(msgid)
@@ -131,7 +141,9 @@ class Thrower(Service):
             return t
         else:
             self.log.debug("Requeuing Content[%s] without delay" % msgid)
-            return self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=message.content)
+            return self.amqpBroker.publish(exchange = 'messaging', 
+                                           routing_key = routing_key, 
+                                           content = message.content)
     def rejectMessage(self, message):
         return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
     def ackMessage(self, message):
@@ -215,7 +227,7 @@ class deliverSmHttpThrower(Thrower):
             # Requeue message for later retry
             if str(e) not in noRetryErrors and message.content.properties['headers']['try-count'] <= self.config.max_retries:
                 self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
-                yield self.rejectAndRequeueMessage(message, self.routingKey)
+                yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
                 self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
                 yield self.rejectMessage(message)
@@ -301,7 +313,7 @@ class DLRThrower(Thrower):
             # Requeue message for later retry
             if str(e) not in noRetryErrors and message.content.properties['headers']['try-count'] <= self.config.max_retries:
                 self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
-                yield self.rejectAndRequeueMessage(message, self.routingKey)
+                yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
                 self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
                 yield self.rejectMessage(message)
@@ -354,3 +366,6 @@ class DLRThrower(Thrower):
             yield self.http_dlr_callback(message)
         elif message.routing_key == 'dlr_thrower.smpp':
             yield self.smpp_dlr_callback(message)
+        else:
+            self.log.error('Unknown routing_key in dlr_throwing_callback: %s' % message.routing_key)
+            yield self.rejectMessage(message)
