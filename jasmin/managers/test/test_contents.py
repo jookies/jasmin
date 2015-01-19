@@ -130,7 +130,7 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         dlr_level = 1
         
         validStatuses = ['DELIVRD', 'EXPIRED', 'DELETED', 
-                                  'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
+                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
         
         for status in validStatuses:
             c = DLRContentForHttpapi(status, msgid, dlr_url, dlr_level)

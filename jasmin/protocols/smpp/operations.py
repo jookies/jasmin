@@ -166,9 +166,27 @@ class SMPPOperationFactory():
                 pdu.params['message_state'] = MessageState.ACCEPTED
             else:
                 pdu.params['message_state'] = MessageState.UNDELIVERABLE
-        elif message_status[:5] == 'todo':
+        elif message_status == 'UNDELIV':
             # It is a receipt catched from a deliver_sm
-            pass #@TODO
+            pdu.params['message_state'] = MessageState.UNDELIVERABLE
+        elif message_status == 'REJECTD':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.REJECTED
+        elif message_status == 'DELIVRD':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.DELIVERED
+        elif message_status == 'EXPIRED':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.EXPIRED
+        elif message_status == 'DELETED':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.DELETED
+        elif message_status == 'ACCEPTD':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.ACCEPTED
+        elif message_status == 'UNKNOWN':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.UNKNOWN
         else:
             raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)
 

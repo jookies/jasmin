@@ -420,7 +420,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
                                                 SubmitSmTestCaseTools):
     """These test cases will cover different scenarios of SMPPs behaviour when delivering
     submit_sm and:
-    - Receiving ESME_ROK: do nothing (SMPPc have already received confirmation)
+    - Receiving ESME_ROK: depending on the registered_delivery, send or not a receipt to SMPPc
     - Receiving an Error:
       1# send SMPPc a deliver_sm containing error
       2# Dont bill user if is defined
@@ -455,9 +455,9 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Unbind & Disconnect
@@ -477,6 +477,56 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
+    def test_receive_ACCEPT_on_ESME_ROK(self):
+        """If registered_delivery flag is set to SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE then
+        SMPPc will receive a data_sm with ACCEPT state indicating message is accepted for delivery
+        on the routed connector
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        
+        # Wait 1 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+        
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
+        # smpps response was a submit_sm_resp with ESME_ROK
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu_1.seqNum, 2)
+        self.assertEqual(response_pdu_1.status, pdu_types.CommandStatus.ESME_ROK)
+        self.assertTrue(response_pdu_1.params['message_id'] is not None)
+        # smpps response #2 was a data_sm with ACCEPTED
+        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.seqNum, 1)
+        self.assertEqual(response_pdu_2.status, pdu_types.CommandStatus.ESME_ROK)
+        self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['source_addr'])
+        self.assertEqual(response_pdu_2.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
+        self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+    @defer.inlineCallbacks
     def test_receive_NACK_deliver_sm_on_delivery_error(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(port = self.ErrorOnSubmitSMSCPort.getHost().port)
@@ -492,9 +542,9 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Unbind & Disconnect
@@ -535,9 +585,9 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Unbind & Disconnect
@@ -588,9 +638,9 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
-        # Wait 3 seconds for submit_sm_resp
+        # Wait 1 seconds for submit_sm_resp
         exitDeferred = defer.Deferred()
-        reactor.callLater(3, exitDeferred.callback, None)
+        reactor.callLater(1, exitDeferred.callback, None)
         yield exitDeferred
 
         # Unbind & Disconnect

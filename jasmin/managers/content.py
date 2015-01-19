@@ -40,7 +40,7 @@ class DLRContentForHttpapi(Content):
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
         if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED', 
-                                  'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD']:
+                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s", message_status)
         if dlr_level not in [1, 2, 3]:
             raise InvalidParameterError("Invalid dlr_level: %s", dlr_level)
@@ -73,7 +73,7 @@ class DLRContentForSmpps(Content):
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
         if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED', 
-                                  'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD']:
+                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s", message_status)
         
         properties['message-id'] = msgid
