@@ -715,14 +715,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.assertEqual(callArgs_level1['id'][0], msgId)
         self.assertEqual(callArgs_level2['id'][0], msgId)
 
-class SmppsDlrCallbackingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
-    """These test cases will cover different scenarios of SMPPs behaviour when delivering
-    deliver_sm and:
-    - Receiving a receipt in a deliver_sm for a short message: forward it to SMPPc
-    - Receiving a receipt in a data_sm for a short message: forward it to SMPPc
-    - Receiving a receipt for an unknown short message: drop it
-    """
-
+class SmppsDlrCallbacking(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     msg_stats_final = ['UNDELIV',
                        'REJECTD',
                        'DELIVRD',
@@ -740,6 +733,7 @@ class SmppsDlrCallbackingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmT
     				   'ACCEPTD': 'ACCEPTED',
     				   'UNKNOWN': 'UNKNOWN'}
 
+class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
     @defer.inlineCallbacks
     def test_receipt_as_deliver_sm(self):
         """Will:
@@ -844,7 +838,7 @@ class SmppsDlrCallbackingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmT
 
         # Run tests
         # smpps last response was a unbind_resp
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[x][0][0]
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[x_value_when_fstate_triggered][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
@@ -855,10 +849,11 @@ class SmppsDlrCallbackingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmT
         3. Wait for the DLR (data_sm) to be routed back to SMPPc through SMPPs as a data_sm
         """
         #
-        # TODO: include this test in the previous one as an iteration (trigger_DLR type = data_sm)
+        # TODO: include this test in the previous one (test_receipt_as_deliver_sm) as 
+        # an iteration (trigger_DLR type = data_sm)
         #
         yield self.connect('127.0.0.1', self.pbPort)
-    test_receipt_as_data_sm.skip = 'TODO'
+    test_receipt_as_data_sm.skip = 'TODO #92'
 
     @defer.inlineCallbacks
     def test_receipt_for_unknown_message(self):
@@ -866,64 +861,49 @@ class SmppsDlrCallbackingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmT
         #. Receive a DLR for an unknown message (not mapped)
         """
         yield self.connect('127.0.0.1', self.pbPort)
-    test_receipt_for_unknown_message.skip = 'TODO'
+        yield self.prepareRoutingsAndStartConnector()
+        
+        # Bind
+        yield self.smppc_factory.connectAndBind()
 
-    @defer.inlineCallbacks
-    def test_receipt_when_not_asking_for_it(self):
-        """Will:
-        #. Receive a DLR when not asking for it
-        """
-        yield self.connect('127.0.0.1', self.pbPort)
-    test_receipt_when_not_asking_for_it.skip = 'TODO'
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
-#class LongSmSmppsDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
-#    @defer.inlineCallbacks
-#    def test_receipt_as_deliver_sm(self):
-#        """Will:
-#        1. Set a SMS-MT route to connector A
-#        2. Send a SMS-MT to that route from a SMPPc and request DLR
-#        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs
-#        """
-#        yield self.connect('127.0.0.1', self.pbPort)
-#        yield self.prepareRoutingsAndStartConnector()
-#        
-#        self.params['dlr-url'] = self.dlr_url
-#        self.params['dlr-level'] = 1
-#        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-#        
-#        # Send a MT
-#        # We should receive a msg id
-#        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
-#        msgStatus = c[:7]
-#        msgId = c[9:45]
-#        
-#        # Wait 2 seconds for submit_sm_resp
-#        exitDeferred = defer.Deferred()
-#        reactor.callLater(2, exitDeferred.callback, None)
-#        yield exitDeferred
-#
-#        yield self.stopSmppClientConnectors()
-#        
-#        # Run tests
-#        self.assertEqual(msgStatus, 'Success')
-#        # A DLR must be sent to dlr_url
-#        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
-#        # Message ID must be transmitted in the DLR
-#        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-#        self.assertEqual(callArgs['id'][0], msgId)
-#
-#    @defer.inlineCallbacks
-#    def test_receipt_as_data_sm(self):
-#        """Will:
-#        1. Set a SMS-MT route to connector A
-#        2. Send a SMS-MT to that route from a SMPPc and request DLR
-#        3. Wait for the DLR (data_sm) to be routed back to SMPPc through SMPPs
-#        """
-#        yield self.connect('127.0.0.1', self.pbPort)
-#
-#    @defer.inlineCallbacks
-#    def test_receipt_for_unknown_message(self):
-#        """Will:
-#        #. Receive a DLR for an unknown message (not mapped)
-#        """
-#        yield self.connect('127.0.0.1', self.pbPort)
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        # smpps response #1 was a submit_sm_resp with ESME_ROK
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        # smpps response #2 was a data_sm with ACCEPTED
+        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
+        self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
+
+        # Trigger receipt with an unknown id
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD', _id = '77unknown_id77')
+
+        # Wait some time before testing
+        exitDeferred = defer.Deferred()
+        reactor.callLater(0.5, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        # smpps last response was a unbind_resp, and there were no further data_sm
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)

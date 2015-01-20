@@ -73,9 +73,12 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         self.lastSubmitSmPDU = reqPDU
         self.submitRecords.append(reqPDU)
 
-    def trigger_DLR(self, pdu_type = 'deliver_sm', stat = 'DELIVRD'):
+    def trigger_DLR(self, _id = None, pdu_type = 'deliver_sm', stat = 'DELIVRD'):
         if self.lastSubmitSmRestPDU is None:
             raise Exception('A submit_sm must be sent to this SMSC before requesting sendDeliverSM !')
+        
+        if _id is None:
+            _id = self.lastSubmitSmRestPDU.params['message_id']
         
         if pdu_type == 'deliver_sm':
             # Send back a deliver_sm with containing a DLR
@@ -83,7 +86,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
                 source_addr=self.lastSubmitSmPDU.params['source_addr'],
                 destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
                 short_message='id:%s sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:%s err:000 text:%s' % (
-                            self.lastSubmitSmRestPDU.params['message_id'],
+                            _id,
                             stat,
                             self.lastSubmitSmPDU.params['short_message'][:20]
                             ),
