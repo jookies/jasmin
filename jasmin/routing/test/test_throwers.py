@@ -164,14 +164,6 @@ class HTTPThrowingTestCases(deliverSmHttpThrowerTestCase):
         
         self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
 
-#class SMPPThrowingTestCases(deliverSmHttpThrowerTestCase):
-class SMPPThrowingTestCases():
-    routingKey = 'deliver_sm_thrower.smpp'
-
-    def test_throwing_smpp_connector(self):
-        pass
-    test_throwing_smpp_connector.skip = 'TODO'
-    
 class DLRThrowerTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self):
