@@ -8,7 +8,7 @@ install:
     # Starting from cryptography 0.7.2 (needed by pyOpenSSl), enum34 is set
     # as a requirement, this will lead to a conflict with enum.
     # Will uninstall enum34, further investigation shall be done to check impacts
-    - sudo pip uninstall enum34
+    - sudo pip uninstall --yes enum34
 # Commands to run tests:
 script:
     # Add jasmind to system autostartup:
