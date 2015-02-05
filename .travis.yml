@@ -7,6 +7,7 @@ install:
     - pwd
     - ls -l
     # ##########
+    - python sandbox.py
     - python setup.py sdist
     - sudo pip install dist/jasmin-0.6.0-beta.tar.gz
 # Commands to run tests:
