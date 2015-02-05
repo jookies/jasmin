@@ -15,6 +15,12 @@ script:
     - sudo /etc/init.d/jasmind status
     # Stop service:
     - sudo /etc/init.d/jasmind stop
+    # DEBUGGING:
+    - pwd
+    - ls -l
+    - cd fourat/jasmin
+    - python jasmin/bin/jasmind.py --username jcliadmin --password jclipwd
+    # ##########
     # Cleaning before going for further tests:
     - sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:
