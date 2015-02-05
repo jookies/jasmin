@@ -9,9 +9,6 @@ install:
 script:
     # Add jasmind to system autostartup:
     - sudo update-rc.d jasmind defaults
-    # DEBUG --
-    - python jasmin/bin/jasmind.py --username jcliadmin --password jclipwd
-    # DEBUG --
     # Service startup test:
     - sudo /etc/init.d/jasmind start
     - sleep 2
