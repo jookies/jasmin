@@ -13,7 +13,7 @@ def get_version():
 
 def get_release():
     "PEP 440 format"
-    return '%s.%s%s%s' % (MAJOR, MINOR, PATCH, META)
+    return '%s.%s%s%s' % (MAJOR, MINOR, META, PATCH)
 
 __version__ = get_version()
 __release__ = get_release()
