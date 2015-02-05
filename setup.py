@@ -1,3 +1,4 @@
+import uuid
 import pwd
 import grp
 import getpass
@@ -39,8 +40,9 @@ if "install" in sys.argv:
             print '%s is not owned by jasmin user !' % sysdir
             sys.exit(4)
 
-install_reqs = parse_requirements('install-requirements')
-test_reqs = parse_requirements('test-requirements')
+session = uuid.uuid1()
+install_reqs = parse_requirements('install-requirements', session = session)
+test_reqs = parse_requirements('test-requirements', session = session)
 
 # Dynamically calculate the version based on jasmin.RELEASE.
 release = __import__('jasmin').get_release()
