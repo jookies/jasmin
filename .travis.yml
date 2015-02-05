@@ -3,6 +3,10 @@ python:
     - "2.7"
 # Command to install dependencies
 install:
+    # DEBUGGING:
+    - pwd
+    - ls -l
+    # ##########
     - python setup.py sdist
     - sudo pip install dist/jasmin-0.6.0-beta.tar.gz
 # Commands to run tests:
