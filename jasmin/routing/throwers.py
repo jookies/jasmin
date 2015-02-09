@@ -149,26 +149,22 @@ class Thrower(Service):
     def ackMessage(self, message):
         return self.amqpBroker.chan.basic_ack(message.delivery_tag)
             
-class deliverSmHttpThrower(Thrower):
-    """This is a deliver_sm thrower for HTTP
-    """
-    name = 'deliverSmHttpThrower'
+class deliverSmThrower(Thrower):
+    name = 'deliverSmThrower'
     
     def __init__(self):
         Thrower.__init__(self)
 
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
-        self.consumerTag = 'deliverSmHttpThrower'
-        self.routingKey = 'deliver_sm_thrower.http'
-        self.queueName = 'deliver_sm_thrower.http'
+        self.consumerTag = 'deliverSmThrower'
+        self.routingKey = 'deliver_sm_thrower.*'
+        self.queueName = 'deliver_sm_thrower'
         
-        self.callback = self.http_throwing_callback
+        self.callback = self.deliver_sm_throwing_callback
     
     @defer.inlineCallbacks
-    def http_throwing_callback(self, message):
-        Thrower.throwing_callback(self, message)
-        
+    def http_deliver_sm_callback(self, message):
         msgid = message.content.properties['message-id']
         dc = pickle.loads(message.content.properties['headers']['dst-connector'])
         RoutedDeliverSmContent = pickle.loads(message.content.body)
@@ -234,7 +230,17 @@ class deliverSmHttpThrower(Thrower):
             else:
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
                 yield self.rejectMessage(message)
-                
+              
+    @defer.inlineCallbacks
+    def deliver_sm_throwing_callback(self, message):
+        Thrower.throwing_callback(self, message)
+
+        if message.routing_key == 'deliver_sm_thrower.http':
+            yield self.http_deliver_sm_callback(message)
+        else:
+            self.log.error('Unknown routing_key in deliver_sm_throwing_callback: %s' % message.routing_key)
+            yield self.rejectMessage(message)
+
 class DLRThrower(Thrower):
     name = 'DLRThrower'
     

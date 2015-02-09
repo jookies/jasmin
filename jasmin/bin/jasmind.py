@@ -9,8 +9,8 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig, deliverSmHttpThrowerConfig, DLRThrowerConfig
-from jasmin.routing.throwers import deliverSmHttpThrower, DLRThrower
+from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRThrowerConfig
+from jasmin.routing.throwers import deliverSmThrower, DLRThrower
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.protocols.cli.factory import JCliFactory
@@ -138,18 +138,18 @@ class JasminDaemon:
         "Stop SMPP Client Manager PB server"
         return self.components['smppcm-pb-server'].stopListening()
     
-    def startDeliverSmHttpThrowerService(self):
-        "Start deliverSmHttpThrower"
+    def startdeliverSmThrowerService(self):
+        "Start deliverSmThrower"
         
-        deliverThrowerConfigInstance = deliverSmHttpThrowerConfig(self.options['config'])
-        self.components['deliversm-thrower'] = deliverSmHttpThrower()
+        deliverThrowerConfigInstance = deliverSmThrowerConfig(self.options['config'])
+        self.components['deliversm-thrower'] = deliverSmThrower()
         self.components['deliversm-thrower'].setConfig(deliverThrowerConfigInstance)
 
         # AMQP Broker is used to listen to deliver_sm queue
         return self.components['deliversm-thrower'].addAmqpBroker(self.components['amqp-broker-factory'])
 
-    def stopDeliverSmHttpThrowerService(self):
-        "Stop deliverSmHttpThrower"
+    def stopdeliverSmThrowerService(self):
+        "Stop deliverSmThrower"
         return self.components['deliversm-thrower'].stopService()
 
     def startDLRThrowerService(self):
@@ -221,12 +221,12 @@ class JasminDaemon:
         syslog.syslog(syslog.LOG_LOCAL0, "  RouterPB Started.")
 
         ########################################################
-        # [optional] Start deliverSmHttpThrower
+        # [optional] Start deliverSmThrower
         if (self.options['enable-deliver-thrower'] == True or 
             (type(self.options['enable-deliver-thrower']) == str and 
              self.options['enable-deliver-thrower'].lower() == 'true')):
-            yield self.startDeliverSmHttpThrowerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  DeliverSmHttpThrower Started.")
+            yield self.startdeliverSmThrowerService()
+            syslog.syslog(syslog.LOG_LOCAL0, "  deliverSmThrower Started.")
         
         ########################################################
         # [optional] Start DLRThrower
@@ -269,8 +269,8 @@ class JasminDaemon:
             syslog.syslog(syslog.LOG_LOCAL0, "  DLRThrower stopped.")
 
         if 'deliversm-thrower' in self.components:
-            yield self.stopDeliverSmHttpThrowerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  DeliverSmHttpThrower stopped.")
+            yield self.stopdeliverSmThrowerService()
+            syslog.syslog(syslog.LOG_LOCAL0, "  deliverSmThrower stopped.")
         
         if 'router-pb-server' in self.components:
             yield self.stopRouterPBService()

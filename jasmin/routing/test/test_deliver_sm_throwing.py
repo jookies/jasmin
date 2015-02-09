@@ -11,8 +11,8 @@ from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, LastCl
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.routing.configs import deliverSmHttpThrowerConfig
-from jasmin.routing.throwers import deliverSmHttpThrower
+from jasmin.routing.configs import deliverSmThrowerConfig
+from jasmin.routing.throwers import deliverSmThrower
 from jasmin.vendor.smpp.pdu.operations import DeliverSM
 from jasmin.routing.Routes import DefaultRoute
 
@@ -45,23 +45,23 @@ class DeliverSmThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
-        deliverSmHttpThrowerConfigInstance = deliverSmHttpThrowerConfig()
+        deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
         # Lower the timeout config to pass the timeout tests quickly
-        deliverSmHttpThrowerConfigInstance.timeout = 2
-        deliverSmHttpThrowerConfigInstance.retryDelay = 1
-        deliverSmHttpThrowerConfigInstance.maxRetries = 2
+        deliverSmThrowerConfigInstance.timeout = 2
+        deliverSmThrowerConfigInstance.retryDelay = 1
+        deliverSmThrowerConfigInstance.maxRetries = 2
         
-        # Launch the deliverSmHttpThrower
-        self.deliverSmHttpThrower = deliverSmHttpThrower()
-        self.deliverSmHttpThrower.setConfig(deliverSmHttpThrowerConfigInstance)
+        # Launch the deliverSmThrower
+        self.deliverSmThrower = deliverSmThrower()
+        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
         
-        # Add the broker to the deliverSmHttpThrower
-        yield self.deliverSmHttpThrower.addAmqpBroker(self.amqpBroker)
+        # Add the broker to the deliverSmThrower
+        yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
 
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.AckServer.stopListening()
-        yield self.deliverSmHttpThrower.stopService()
+        yield self.deliverSmThrower.stopService()
         yield DeliverSmSMSCTestCase.tearDown(self)
         
     @defer.inlineCallbacks
