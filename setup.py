@@ -3,6 +3,7 @@ import grp
 import getpass
 import sys
 import os
+import uuid
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
 
@@ -17,11 +18,11 @@ if "install" in sys.argv:
         sys.exit(1)
 
     # 2. Check if system folders are created
-    sysdirs = ['/etc/jasmin', 
-                '/etc/jasmin/resource', 
-                '/etc/jasmin/init-script', 
-                '/etc/jasmin/store', 
-                '/var/log/jasmin', 
+    sysdirs = ['/etc/jasmin',
+                '/etc/jasmin/resource',
+                '/etc/jasmin/init-script',
+                '/etc/jasmin/store',
+                '/var/log/jasmin',
                 '/var/run/jasmin',]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
@@ -39,8 +40,8 @@ if "install" in sys.argv:
             print '%s is not owned by jasmin user !' % sysdir
             sys.exit(4)
 
-install_reqs = parse_requirements('install-requirements')
-test_reqs = parse_requirements('test-requirements')
+install_reqs = parse_requirements('install-requirements', session=uuid.uuid1())
+test_reqs = parse_requirements('test-requirements', session=uuid.uuid1())
 
 # Dynamically calculate the version based on jasmin.RELEASE.
 release = __import__('jasmin').get_release()
@@ -77,7 +78,7 @@ setup(
     platforms='POSIX',
     data_files=[('/etc/jasmin', ['misc/config/jasmin.cfg']),
                 ('/etc/jasmin/resource', [
-                    'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
+                    'misc/config/resource/amqp0-8.stripped.rabbitmq.xml',
                     'misc/config/resource/amqp0-9-1.xml'],),
                 ('/etc/jasmin/init-script', ['misc/config/init-script/jasmind']),],
 )
