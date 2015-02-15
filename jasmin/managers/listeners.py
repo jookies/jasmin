@@ -541,7 +541,7 @@ class SMPPClientSMListener:
                 # Flag it as "will_be_concatenated" and publish it to router
                 routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
                 self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]" % (msgid, routing_key))
-                content.properties['will_be_concatenated'] = True
+                content.properties['headers']['will_be_concatenated'] = True
                 yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
         else:
             # This is a DLR !
