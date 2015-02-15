@@ -163,7 +163,8 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
     def tearDown(self):
         yield HttpServerTestCase.tearDown(self)
         
-        yield self.SMPPClientManagerPBProxy.disconnect()
+        if self.SMPPClientManagerPBProxy.isConnected:
+            yield self.SMPPClientManagerPBProxy.disconnect()
         yield self.CManagerServer.stopListening()
         yield self.amqpClient.disconnect()
         yield self.redisClient.disconnect()

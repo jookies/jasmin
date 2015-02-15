@@ -95,7 +95,6 @@ class SmppServerTestCases(HappySMSCTestCase):
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
         yield self.smpps_port.stopListening()
-
         self.smpps_proto.connectionLost('test end')
 
     @defer.inlineCallbacks

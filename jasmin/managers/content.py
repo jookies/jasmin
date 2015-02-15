@@ -77,7 +77,8 @@ class DLRContentForSmpps(Content):
             raise InvalidParameterError("Invalid message_status: %s", message_status)
         
         properties['message-id'] = msgid
-        properties['headers'] = {'message_status': message_status,
+        properties['headers'] = {'try-count': 0,
+                                 'message_status': message_status,
                                  'system_id': system_id,
                                  'source_addr': source_addr,
                                  'destination_addr': destination_addr}
