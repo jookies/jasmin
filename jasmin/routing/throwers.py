@@ -270,9 +270,29 @@ class deliverSmThrower(Thrower):
             # Everything is okay ? then:
             yield self.ackMessage(message)
         except Exception, e:
+            message.content.properties['headers']['try-count'] += 1
             self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
-            yield self.rejectMessage(message)
-              
+
+            # List of exceptions after which, no further retrying shall be made
+            noRetryExceptions = [SmppsNotSetError]
+
+            retry = True
+            for noRetryException in noRetryExceptions:
+                if isinstance(e, noRetryException):
+                    retry = False
+                    break
+            
+            # Requeue message for later retry
+            if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
+                self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
+                yield self.rejectAndRequeueMessage(message)
+            elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
+                self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
+                yield self.rejectMessage(message)
+            else:
+                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
+                yield self.rejectMessage(message)
+
     @defer.inlineCallbacks
     def deliver_sm_throwing_callback(self, message):
         Thrower.throwing_callback(self, message)

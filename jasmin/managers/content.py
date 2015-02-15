@@ -137,7 +137,8 @@ class DeliverSmContent(PDU):
         # For routing purpose, connector-id indicates the source connector of the PDU
         # the connector-id is used to instanciate RoutableDeliverSm when checking for
         # routes
-        props['headers'] = {'connector-id': sourceCid,
+        props['headers'] = {'try-count': 0,
+                            'connector-id': sourceCid,
                             'concatenated': concatenated,
                             'will_be_concatenated': will_be_concatenated}
         
