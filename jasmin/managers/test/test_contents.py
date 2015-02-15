@@ -7,7 +7,8 @@ from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent, 
                                      DeliverSmContent, SubmitSmRespBillContent,
-                                     DLRContentForHttpapi, InvalidParameterError)
+                                     DLRContentForHttpapi, DLRContentForSmpps,
+                                     InvalidParameterError)
 
 class ContentTestCase(TestCase):
     body = 'TESTBODY'
@@ -162,6 +163,40 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
 
         self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1, method = 'ANY METHOD')
 
+class DLRContentForSmppsTestCase(ContentTestCase):
+    def test_normal(self):
+        message_status = 'DELIVRD'
+        msgid = 'msgid'
+        system_id = 'username'
+        source_addr = '999'
+        destination_addr = '111'
+
+        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr)
+        
+        self.assertEquals(c.body, msgid)
+        self.assertEquals(len(c['headers']), 5)
+        self.assertEquals(c['headers']['try-count'], 0)
+        self.assertEquals(c['headers']['message_status'], message_status)
+        self.assertEquals(c['headers']['system_id'], system_id)
+        self.assertEquals(c['headers']['source_addr'], source_addr)
+        self.assertEquals(c['headers']['destination_addr'], destination_addr)
+        
+    def test_message_status(self):
+        msgid = 'msgid'
+        system_id = 'username'
+        source_addr = '999'
+        destination_addr = '111'
+        
+        validStatuses = ['ESME_ROK', 'DELIVRD', 'EXPIRED', 'DELETED', 
+                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
+        
+        for status in validStatuses:
+            c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr)
+            
+            self.assertEquals(c['headers']['message_status'], status)
+        
+        self.assertRaises(InvalidParameterError, DLRContentForSmpps, 'anystatus', msgid, system_id, source_addr, destination_addr)
+        
 class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
         c = DeliverSmContent(self.body, 'connector1', prePickle=False)
