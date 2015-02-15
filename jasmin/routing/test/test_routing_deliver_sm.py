@@ -417,24 +417,16 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(received_pdu_1.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_1.params['destination_addr'], basePdu.params['destination_addr'])
-        self.assertTrue(received_pdu_1.params['short_message'] in [pdu_part1.params['short_message'],
-            pdu_part2.params['short_message'],
-            pdu_part3.params['short_message']])
-        self.assertTrue(received_pdu_1.params['sar_segment_seqnum'] in [pdu_part1.params['sar_segment_seqnum'],
-            pdu_part2.params['sar_segment_seqnum'],
-            pdu_part3.params['sar_segment_seqnum']])
+        self.assertEqual(received_pdu_1.params['short_message'], pdu_part1.params['short_message'])
+        self.assertEqual(received_pdu_1.params['sar_segment_seqnum'], pdu_part1.params['sar_segment_seqnum'])
         # Second received pdu
         received_pdu_2 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[1][0][0]
         self.assertEqual(received_pdu_2.seqNum, 2)
         self.assertEqual(received_pdu_2.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(received_pdu_2.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_2.params['destination_addr'], basePdu.params['destination_addr'])
-        self.assertTrue(received_pdu_2.params['short_message'] in [pdu_part1.params['short_message'],
-            pdu_part2.params['short_message'],
-            pdu_part3.params['short_message']])
-        self.assertTrue(received_pdu_2.params['sar_segment_seqnum'] in [pdu_part1.params['sar_segment_seqnum'],
-            pdu_part2.params['sar_segment_seqnum'],
-            pdu_part3.params['sar_segment_seqnum']])
+        self.assertEqual(received_pdu_2.params['short_message'], pdu_part2.params['short_message'])
+        self.assertEqual(received_pdu_2.params['sar_segment_seqnum'], pdu_part2.params['sar_segment_seqnum'])
         self.assertNotEqual(received_pdu_2.params['short_message'], received_pdu_1.params['short_message'])
         self.assertNotEqual(received_pdu_2.params['sar_segment_seqnum'], received_pdu_1.params['sar_segment_seqnum'])
         # Third received pdu
@@ -443,12 +435,8 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(received_pdu_3.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(received_pdu_3.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_3.params['destination_addr'], basePdu.params['destination_addr'])
-        self.assertTrue(received_pdu_3.params['short_message'] in [pdu_part1.params['short_message'],
-            pdu_part2.params['short_message'],
-            pdu_part3.params['short_message']])
-        self.assertTrue(received_pdu_3.params['sar_segment_seqnum'] in [pdu_part1.params['sar_segment_seqnum'],
-            pdu_part2.params['sar_segment_seqnum'],
-            pdu_part3.params['sar_segment_seqnum']])
+        self.assertEqual(received_pdu_3.params['short_message'], pdu_part3.params['short_message'])
+        self.assertEqual(received_pdu_3.params['sar_segment_seqnum'], pdu_part3.params['sar_segment_seqnum'])
         self.assertNotEqual(received_pdu_3.params['short_message'], received_pdu_2.params['short_message'])
         self.assertNotEqual(received_pdu_3.params['sar_segment_seqnum'], received_pdu_2.params['sar_segment_seqnum'])
 
@@ -508,9 +496,23 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(received_pdu_1.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_1.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_1.params['esm_class'], basePdu.params['esm_class'])
-        self.assertTrue(received_pdu_1.params['short_message'][6:] in [pdu_part1.params['short_message'][6:],
-            pdu_part2.params['short_message'][6:],
-            pdu_part3.params['short_message'][6:]])
+        self.assertEqual(received_pdu_1.params['short_message'][6:], pdu_part1.params['short_message'][6:])
+        # Second received pdu
+        received_pdu_2 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[1][0][0]
+        self.assertEqual(received_pdu_2.seqNum, 2)
+        self.assertEqual(received_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_2.params['source_addr'], basePdu.params['source_addr'])
+        self.assertEqual(received_pdu_2.params['destination_addr'], basePdu.params['destination_addr'])
+        self.assertEqual(received_pdu_2.params['esm_class'], basePdu.params['esm_class'])
+        self.assertEqual(received_pdu_2.params['short_message'][6:], pdu_part2.params['short_message'][6:])
+        # Third received pdu
+        received_pdu_3 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[2][0][0]
+        self.assertEqual(received_pdu_3.seqNum, 3)
+        self.assertEqual(received_pdu_3.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_3.params['source_addr'], basePdu.params['source_addr'])
+        self.assertEqual(received_pdu_3.params['destination_addr'], basePdu.params['destination_addr'])
+        self.assertEqual(received_pdu_3.params['esm_class'], basePdu.params['esm_class'])
+        self.assertEqual(received_pdu_3.params['short_message'][6:], pdu_part3.params['short_message'][6:])
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

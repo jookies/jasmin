@@ -436,9 +436,6 @@ class SMPPClientSMListener:
             pdus = {}
             for pickledValue in hvals:
                 value = pickle.loads(pickledValue)
-                yield self.deliver_sm_event(smpp = None, 
-                    pdu = value['pdu'], 
-                    will_be_concatenated = True)
                 
                 pdus[value['segment_seqnum']] = value['pdu']
 
@@ -464,52 +461,45 @@ class SMPPClientSMListener:
             yield self.deliver_sm_event(smpp = None, pdu = pdu, concatenated = True)
     
     @defer.inlineCallbacks
-    def deliver_sm_event(self, smpp, pdu, concatenated = False, will_be_concatenated = False):
+    def deliver_sm_event(self, smpp, pdu, concatenated = False):
         """This event is called whenever a deliver_sm pdu is received through a SMPPc
         It will hand the pdu to the router or a dlr thrower (depending if its a DLR or not).
-
-        concatenated and will_be_concatenated are used to flag the published content going to
-        router, since at this level we can't know if the pdu is going to smpps or http connector
-        we can't be sure if concatenating multipart messages will be useful or not (smpps must
-        send every pdu as a one, http will use concatenated content).
         """
 
         pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
         content = DeliverSmContent(pdu, 
                                    self.SMPPClientFactory.config.id, 
                                    pickleProtocol = self.pickleProtocol,
-                                   concatenated = concatenated,
-                                   will_be_concatenated = will_be_concatenated)
+                                   concatenated = concatenated)
         msgid = content.properties['message-id']
         
         if pdu.dlr is None:
             # We have a SMS-MO
 
-            splitMethod = None
-            if not will_be_concatenated:
-                # UDH is set ?
-                UDHI_INDICATOR_SET = False
-                if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
-                    for gsmFeature in pdu.params['esm_class'].gsmFeatures:
-                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
-                            UDHI_INDICATOR_SET = True
-                            break
+            # UDH is set ?
+            UDHI_INDICATOR_SET = False
+            if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
+                for gsmFeature in pdu.params['esm_class'].gsmFeatures:
+                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        UDHI_INDICATOR_SET = True
+                        break
 
-                # Is it a part of a long message ?
-                if 'sar_msg_ref_num' in pdu.params:
-                    splitMethod = 'sar'
-                    total_segments = pdu.params['sar_total_segments']
-                    segment_seqnum = pdu.params['sar_segment_seqnum']
-                    msg_ref_num = pdu.params['sar_msg_ref_num']
-                    self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
-                elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
-                    splitMethod = 'udh'
-                    total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
-                    segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
-                    msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
-                    self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
+            splitMethod = None
+            # Is it a part of a long message ?
+            if 'sar_msg_ref_num' in pdu.params:
+                splitMethod = 'sar'
+                total_segments = pdu.params['sar_total_segments']
+                segment_seqnum = pdu.params['sar_segment_seqnum']
+                msg_ref_num = pdu.params['sar_msg_ref_num']
+                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
+            elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
+                splitMethod = 'udh'
+                total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
+                segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
+                msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
+                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
             
-            if splitMethod is None or will_be_concatenated:
+            if splitMethod is None:
                 # It's a simple short message or a part of a concatenated message
                 routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
                 self.log.debug("Publishing DeliverSmContent[%s] with routing_key[%s]" % (msgid, routing_key))
@@ -547,6 +537,12 @@ class SMPPClientSMListener:
                                                     segment_seqnum)
                 
                 self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (msgid, total_segments))
+
+                # Flag it as "will_be_concatenated" and publish it to router
+                routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]" % (msgid, routing_key))
+                content.properties['will_be_concatenated'] = True
+                yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
         else:
             # This is a DLR !
             # Check for DLR request
