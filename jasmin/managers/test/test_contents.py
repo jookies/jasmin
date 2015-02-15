@@ -167,6 +167,8 @@ class DeliverSmContentTestCase(ContentTestCase):
         c = DeliverSmContent(self.body, 'connector1', prePickle=False)
         
         self.assertEquals(c.body, self.body)
+        self.assertEquals(c['headers']['connector-id'], 'connector1')
+        self.assertEquals(c['headers']['concatenated'], False)
         self.assertFalse(c['message-id'] == None)
         
     def test_normal_pickling(self):
@@ -174,6 +176,14 @@ class DeliverSmContentTestCase(ContentTestCase):
         
         self.assertNotEquals(c.body, self.body)
         self.assertEquals(c.body, pickle.dumps(self.body, 2))
+        self.assertEquals(c['headers']['connector-id'], 'connector1')
+        self.assertEquals(c['headers']['concatenated'], False)
+        self.assertFalse(c['message-id'] == None)
+
+    def test_headers_concatenated(self):
+        c = DeliverSmContent(self.body, 'connector1', prePickle=False, concatenated = True)
+        
+        self.assertEquals(c['headers']['concatenated'], True)
         self.assertFalse(c['message-id'] == None)
 
 class SubmitSmRespBillContentTestCase(ContentTestCase):

@@ -230,3 +230,14 @@ class SmppConnectorTestCase(TestCase):
         c = SmppClientConnector('CID')
         
         self.assertEqual(c.type, 'smppc')
+        self.assertEqual(c._str, 'smppc Connector')
+        self.assertEqual(c._repr, '<smppc Connector>')
+
+class SmppServerSystemIdTestCase(TestCase):
+    def test_normal(self):
+        c = SmppServerSystemIdConnector(system_id = 'fourat')
+        
+        self.assertEqual(c.type, 'smpps')
+        self.assertEqual(c._str, 'smpps Connector')
+        self.assertEqual(c._repr, '<smpps Connector>')
+        self.assertEqual(c.cid, 'fourat')

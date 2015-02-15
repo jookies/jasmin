@@ -41,6 +41,11 @@ class Thrower(Service):
         self.callback = self.throwing_callback
         self.errback = self.throwing_errback
 
+        self.smppsFactory = None
+
+    def addSmpps(self, smppsFactory):
+        self.smppsFactory = smppsFactory
+
     def throwing_callback(self, message):
         self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
                 
@@ -230,6 +235,43 @@ class deliverSmThrower(Thrower):
             else:
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
                 yield self.rejectMessage(message)
+
+    @defer.inlineCallbacks
+    def smpp_deliver_sm_callback(self, message):
+        msgid = message.content.properties['message-id']
+        dc = pickle.loads(message.content.properties['headers']['dst-connector'])
+        system_id = dc.cid
+        pdu = pickle.loads(message.content.body)
+        RoutedDeliverSmContent = pickle.loads(message.content.body)
+        self.log.debug('Got one message (msgid:%s) to throw: %s' % (msgid, RoutedDeliverSmContent))
+
+        # If any, clear requeuing timer
+        self.clearRequeueTimer(msgid)
+        
+        if dc.type != 'smpps':
+            self.log.error('Rejecting message [msgid:%s] because destination connector [dcid:%s] is not smpps (type were %s)' % (msgid, dc.cid, dc.type))
+            yield self.rejectMessage(message)
+            defer.returnValue(None)
+
+        try:
+            if self.smppsFactory is None:
+                raise SmppsNotSetError()
+
+            if system_id not in self.smppsFactory.bound_connections:
+                raise SystemIdNotBound(system_id)
+            
+            deliverer = self.smppsFactory.bound_connections[system_id].getNextBindingForDelivery()
+            if deliverer is None:
+                raise NoDelivererForSystemId(system_id)
+
+            # Deliver (or throw) the pdu through the deliverer
+            yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+
+            # Everything is okay ? then:
+            yield self.ackMessage(message)
+        except Exception, e:
+            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
+            yield self.rejectMessage(message)
               
     @defer.inlineCallbacks
     def deliver_sm_throwing_callback(self, message):
@@ -237,6 +279,8 @@ class deliverSmThrower(Thrower):
 
         if message.routing_key == 'deliver_sm_thrower.http':
             yield self.http_deliver_sm_callback(message)
+        elif message.routing_key == 'deliver_sm_thrower.smpps':
+            yield self.smpp_deliver_sm_callback(message)
         else:
             self.log.error('Unknown routing_key in deliver_sm_throwing_callback: %s' % message.routing_key)
             yield self.rejectMessage(message)
@@ -255,10 +299,6 @@ class DLRThrower(Thrower):
         self.callback = self.dlr_throwing_callback
 
         self.opFactory = SMPPOperationFactory()
-        self.smppsFactory = None
-
-    def addSmpps(self, smppsFactory):
-        self.smppsFactory = smppsFactory
     
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):
@@ -337,6 +377,9 @@ class DLRThrower(Thrower):
         DLRContentForSmpps = message.content.body
         self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
 
+        # If any, clear requeuing timer
+        self.clearRequeueTimer(msgid)
+        
         try:
             if self.smppsFactory is None:
                 raise SmppsNotSetError()

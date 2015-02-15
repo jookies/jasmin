@@ -118,12 +118,17 @@ class SubmitSmRespContent(PDU):
         props = {}
         
         props['message-id'] = msgid
-        PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
+        PDU.__init__(self, 
+            body, 
+            properties = props, 
+            pickleProtocol = pickleProtocol, 
+            prePickle = prePickle)
         
 class DeliverSmContent(PDU):
     "A SMPP DeliverSm Content"
 
-    def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True):
+    def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True, 
+        concatenated = False, will_be_concatenated = False):
         props = {}
         
         props['message-id'] = randomUniqueId()
@@ -131,9 +136,15 @@ class DeliverSmContent(PDU):
         # For routing purpose, connector-id indicates the source connector of the PDU
         # the connector-id is used to instanciate RoutableDeliverSm when checking for
         # routes
-        props['headers'] = {'connector-id': sourceCid}
+        props['headers'] = {'connector-id': sourceCid,
+                            'concatenated': concatenated,
+                            'will_be_concatenated': will_be_concatenated}
         
-        PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
+        PDU.__init__(self, 
+            body, 
+            properties = props, 
+            pickleProtocol = pickleProtocol, 
+            prePickle = prePickle)
 
 class SubmitSmRespBillContent(Content):
     "A Bill Content holding amount to be charged to user (uid)"

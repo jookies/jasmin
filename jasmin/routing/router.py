@@ -145,6 +145,8 @@ class RouterPB(pb.Avatar):
         """
         msgid = message.content.properties['message-id']
         scid = message.content.properties['headers']['connector-id']
+        concatenated = message.content.properties['headers']['concatenated']
+        will_be_concatenated = message.content.properties['headers']['will_be_concatenated']
         connector = Connector(scid)
         DeliverSmPDU = pickle.loads(message.content.body)
         self.log.debug("Callbacked a deliver_sm with a DeliverSmPDU[%s] (?): %s" % (msgid, DeliverSmPDU))
@@ -163,14 +165,31 @@ class RouterPB(pb.Avatar):
             self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
             routedConnector = route.getConnector()
 
-            
-            self.log.debug("Connector '%s' is set to be a route for this DeliverSmPDU" % routedConnector.cid)
-            yield self.ackMessage(message)
-            
-            # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
-            content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
-            self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (msgid, routedConnector.type, routedConnector.cid))
-            yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % routedConnector.type, content=content)
+            # Smpps will not route any concatenated content, it must instead route
+            # multiparted messages
+            # Only http connector needs concatenated content
+            if concatenated and routedConnector.type != 'http':
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s" % (msgid, routedConnector.type))
+                yield self.rejectMessage(message)
+
+            # Http will not route any multipart messages, it must instead route
+            # concatenated messages
+            # Only smpps connector needs multipart content
+            elif will_be_concatenated and routedConnector.type == 'http':
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts: %s" % (msgid))
+                yield self.rejectMessage(message)
+
+            else:
+                self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU" % (
+                    routedConnector.cid, 
+                    routedConnector.type
+                    ))
+                yield self.ackMessage(message)
+                
+                # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
+                content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
+                self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (msgid, routedConnector.type, routedConnector.cid))
+                yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % routedConnector.type, content=content)
     
     def deliver_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with

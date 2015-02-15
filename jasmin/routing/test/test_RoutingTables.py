@@ -118,7 +118,7 @@ class MORoutingTableTestCase(RoutingTableTests, TestCase):
         self.connector1 = HttpConnector('abc', 'http://127.0.0.1')
         self.connector2 = HttpConnector('def', 'http://127.0.0.1')
         self.connector3 = HttpConnector('ghi', 'http://127.0.0.1')
-        self.connector4 = HttpConnector('jkl', 'http://127.0.0.1')
+        self.connector4 = SmppServerSystemIdConnector('jkl')
         
         self.mt_filter1 = [SourceAddrFilter('^10\d+')]
         self.mt_filter2 = [DestinationAddrFilter('^90\d+')]

@@ -237,7 +237,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet2))
 
     @defer.inlineCallbacks
-    def test_add_list_and_flush_mo_route(self):
+    def test_add_list_and_flush_mo_route_http(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
         yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
@@ -252,7 +252,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(0, len(listRet2))
         
     @defer.inlineCallbacks
-    def test_add_list_and_remove_mo_route(self):
+    def test_add_list_and_remove_mo_route_http(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
         yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
@@ -266,12 +266,50 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
 
+    @defer.inlineCallbacks
+    def test_add_list_and_flush_mo_route_smpps(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.moroute_add(DefaultRoute(SmppServerSystemIdConnector(id_generator())), 0)
+        listRet1 = yield self.moroute_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.moroute_flush()
+        listRet2 = yield self.moroute_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(1, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+        
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_mo_route_smpps(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.moroute_add(DefaultRoute(SmppServerSystemIdConnector(id_generator())), 0)
+        listRet1 = yield self.moroute_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtroute_remove(0)
+        listRet2 = yield self.mtroute_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(1, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+
 class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
+    """Ensure that mtroute_add and moroute_add methods wont accept invalid connectors,
+    for example:
+        - moroute_add wont accept a route with a SmppClientConnector
+        - mtroute_add wont accept a route with a SmppServerSystemIdConnector
+    """
+
     @defer.inlineCallbacks
     def test_add_mt_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         
         r = yield self.mtroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        self.assertFalse(r)
+        r = yield self.mtroute_add(DefaultRoute(SmppServerSystemIdConnector(id_generator())), 0)
         self.assertFalse(r)
         r = yield self.mtroute_add(DefaultRoute(Connector(id_generator())), 0)
         self.assertFalse(r)
@@ -283,6 +321,8 @@ class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
         yield self.connect('127.0.0.1', self.pbPort)
         
         r = yield self.moroute_add(DefaultRoute(HttpConnector(id_generator(), 'http://127.0.0.1')), 0)
+        self.assertTrue(r)
+        r = yield self.moroute_add(DefaultRoute(SmppServerSystemIdConnector(id_generator())), 0)
         self.assertTrue(r)
         r = yield self.moroute_add(DefaultRoute(Connector(id_generator())), 0)
         self.assertFalse(r)
@@ -966,7 +1006,7 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
 
 class SubmitSmTestCaseTools():
     """
-    Factorized methods for child classes
+    Factorized methods for child classes testing SubmitSm and DeliverSm routing scenarios
     """
     
     @defer.inlineCallbacks

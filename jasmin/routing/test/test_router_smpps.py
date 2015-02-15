@@ -84,6 +84,12 @@ class SmppServerTestCases(HappySMSCTestCase):
             short_message = 'hello !',
             seqNum = 1,
         )
+        self.DeliverSmPDU = DeliverSM(
+            source_addr='4567',
+            destination_addr='1234',
+            short_message='any content',
+            seqNum = 1,
+        )
 
     @defer.inlineCallbacks
     def tearDown(self):

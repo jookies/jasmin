@@ -202,11 +202,13 @@ class Connector(jasminApiGenerick):
     """
     
     type = 'generic'
-    _str = '%s Connector' % type
-    _repr = '%s Connector>' % type
+    _str = 'Generick Connector'
+    _repr = '<Generick Connector>'
     
     def __init__(self, cid):
         self.cid = cid
+        self._str = '%s Connector' % self.type
+        self._repr = '<%s Connector>' % self.type
         
     def __repr__(self):
         return self._repr
@@ -259,3 +261,12 @@ class SmppClientConnector(Connector):
     
     def __init__(self, cid):
         Connector.__init__(self, cid)
+
+class SmppServerSystemIdConnector(Connector):
+    """This is a SMPP Server connector mapped to a system_id, it is used to deliver Messages
+    through the SMPP server to a bound system_id (receiver or transceiver)"""
+    
+    type = 'smpps'
+    
+    def __init__(self, system_id):
+        Connector.__init__(self, system_id)
