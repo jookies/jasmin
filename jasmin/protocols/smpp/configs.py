@@ -26,9 +26,12 @@ class UnknownValue(Exception):
     """Raised when a *Config element has a valid type and inappropriate value
     """
 
-class SMPPConfig(object):
+class SMPPClientConfig(object):
     
     def __init__(self, **kwargs):
+        #####################
+        # Generick configuration block
+
         # cid validation
         if kwargs.get('id', None) == None:
             raise ConfigUndefinedIdError('SMPPConfig must have an id')
@@ -85,10 +88,8 @@ class SMPPConfig(object):
         if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
             raise TypeMismatch('dlr_expiry must be an integer or float')
 
-class SMPPClientConfig(SMPPConfig):
-    def __init__(self, **kwargs):
-        SMPPConfig.__init__(self, **kwargs)
-        
+        #####################
+        # SMPPClient Specific configuration block
         self.host = kwargs.get('host', '127.0.0.1')
         if not isinstance(self.host, str):
             raise TypeMismatch('host must be a string')
@@ -182,7 +183,38 @@ class SMPPClientServiceConfig(ConfigFile):
         self.log_format = self._get('services-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('services-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
-class SMPPServerConfig(SMPPConfig):
-    
-    def __init__(self, **kwargs):
-        SMPPConfig.__init__(self, **kwargs)
+class SMPPServerConfig(ConfigFile):
+    def __init__(self, config_file = None):
+        ConfigFile.__init__(self, config_file)
+        
+        self.id = self._get('smpp-server', 'id', 'smpps_01')
+        
+        self.port = self._getint('smpp-server', 'port', 2775)
+
+        # Logging
+        self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
+        self.log_file = self._get('smpp-server', 'log_file', '/var/log/jasmin/default-%s.log' % self.id)
+        self.log_format = self._get('smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_date_format = self._get('smpp-server', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+        # Timeout for response to bind request
+        self.sessionInitTimerSecs = self._getint('smpp-server', 'sessionInitTimerSecs', 30)
+        
+        # Enquire link interval
+        self.enquireLinkTimerSecs = self._getint('smpp-server', 'enquireLinkTimerSecs', 10)
+        
+        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive 
+        # and will reconnect 
+        self.inactivityTimerSecs = self._getint('smpp-server', 'inactivityTimerSecs', 300)
+        
+        # Timeout for responses to any request PDU
+        self.responseTimerSecs = self._getint('smpp-server', 'responseTimerSecs', 60)
+
+        # Timeout for reading a single PDU, this is the maximum lapse of time between
+        # receiving PDU's header and its complete read, if the PDU reading timed out,
+        # the connection is considered as 'corrupt' and will reconnect
+        self.pduReadTimerSecs = self._getint('smpp-server', 'pduReadTimerSecs', 10)
+
+        # DLR
+        # How much time a message is kept in redis waiting for receipt
+        self.dlr_expiry = self._getint('smpp-server', 'dlr_expiry', 86400)

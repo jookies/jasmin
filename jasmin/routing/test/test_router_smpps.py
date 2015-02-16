@@ -49,8 +49,7 @@ class SmppServerTestCases(HappySMSCTestCase):
         self.encoder = pdu_encoding.PDUEncoder()
 
         # SMPPServerConfig init
-        args = {'id': 'smpps_01_%s' % 27750, 'port': 27750}
-        self.smpps_config = SMPPServerConfig(**args)
+        self.smpps_config = SMPPServerConfig()
 
         # Portal init
         _portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.pbRoot_f))

@@ -80,15 +80,12 @@ class RouterPBTestCases(TestCase):
 			self.routerpb_factory.perspective_mtroute_add(pickle.dumps(defaultroute), 0)
 
 class SMPPServerTestCases(RouterPBTestCases):
-	port = 27750
 
 	def setUp(self):
 		RouterPBTestCases.setUp(self)
 
 		# SMPPServerConfig init
-		args = {'id': 'smpps_01_%s' % self.port, 'port': self.port, 
-				'log_level': logging.DEBUG}
-		self.smpps_config = SMPPServerConfig(**args)
+		self.smpps_config = SMPPServerConfig()
 
 		# Portal init
 		_portal = portal.Portal(SmppsRealm(self.smpps_config.id, self.routerpb_factory))
@@ -124,7 +121,7 @@ class SMPPClientTestCases(SMPPServerTestCases):
 		)
 
 		# SMPPClientConfig init
-		args = {'id': 'smppc_01', 'port': self.port,
+		args = {'id': 'smppc_01', 'port': self.smpps_config.port,
 				'log_level': logging.DEBUG, 
 				'reconnectOnConnectionLoss': False,
 				'username': 'username', 'password': 'password'}
