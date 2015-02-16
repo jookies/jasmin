@@ -15,7 +15,7 @@ Copyright 2009-2010 Mozes, Inc.
 """
 
 import struct, logging, StringIO, binascii
-from enum import Enum
+from jasmin.vendor.enum import Enum
 
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple    
 from jasmin.vendor.smpp.pdu.operations import *
