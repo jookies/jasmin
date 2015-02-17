@@ -637,7 +637,7 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
      - 0
    * - **elink_interval**
      - Enquire link interval (seconds)
-     - 10
+     - 30
    * - **def_msg_id**
      - Specifies the SMSC index of a pre-defined ('canned') message.
      - 0

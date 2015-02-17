@@ -60,7 +60,7 @@ class SMPPClientConfig(object):
             raise TypeMismatch('sessionInitTimerSecs must be an integer or float')
         
         # Enquire link interval
-        self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 10)
+        self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 30)
         if not isinstance(self.enquireLinkTimerSecs, int) and not isinstance(self.enquireLinkTimerSecs, float):
             raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
         
@@ -201,10 +201,9 @@ class SMPPServerConfig(ConfigFile):
         self.sessionInitTimerSecs = self._getint('smpp-server', 'sessionInitTimerSecs', 30)
         
         # Enquire link interval
-        self.enquireLinkTimerSecs = self._getint('smpp-server', 'enquireLinkTimerSecs', 10)
+        self.enquireLinkTimerSecs = self._getint('smpp-server', 'enquireLinkTimerSecs', 30)
         
-        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive 
-        # and will reconnect 
+        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive
         self.inactivityTimerSecs = self._getint('smpp-server', 'inactivityTimerSecs', 300)
         
         # Timeout for responses to any request PDU
