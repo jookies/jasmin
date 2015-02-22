@@ -196,6 +196,70 @@ class MtMessagingCredentialTestCase(TestCase):
         mc.updateQuota('submit_sm_count', 1)
         self.assertEqual(mc.quotas_updated, True)
 
+class SmppsCredentialTestCase(TestCase):
+    def test_normal_noargs(self):
+        sc = SmppsCredential()
+        
+        self.assertEqual(sc.getAuthorization('bind'), True)
+        self.assertEqual(sc.getQuota('max_bindings'), None)
+
+    def test_normal_defaultsargs(self):
+        sc = SmppsCredential(default_authorizations = False)
+        
+        self.assertEqual(sc.getAuthorization('bind'), False)
+        self.assertEqual(sc.getQuota('max_bindings'), None)
+
+    def test_set_and_get(self):
+        sc = SmppsCredential()
+        
+        sc.setAuthorization('bind', False)
+        self.assertEqual(sc.getAuthorization('bind'), False)
+        sc.setQuota('max_bindings', 100)
+        self.assertEqual(sc.getQuota('max_bindings'), 100)
+    
+    def test_get_invalid_key(self):
+        sc = SmppsCredential()
+        
+        self.assertRaises(jasminApiCredentialError, sc.getAuthorization, 'anykey')
+        self.assertRaises(jasminApiCredentialError, sc.getValueFilter, 'anykey')
+        self.assertRaises(jasminApiCredentialError, sc.getDefaultValue, 'anykey')
+        self.assertRaises(jasminApiCredentialError, sc.getQuota, 'anykey')
+
+    def test_set_invalid_key(self):
+        sc = SmppsCredential()
+
+        self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'anykey', 'anyvalue')
+        self.assertRaises(jasminApiCredentialError, sc.setValueFilter, 'anykey', 'anyvalue')
+        self.assertRaises(jasminApiCredentialError, sc.setDefaultValue, 'anykey', 'anyvalue')
+        self.assertRaises(jasminApiCredentialError, sc.setQuota, 'anykey', 'anyvalue')
+    
+    def test_invalid_default_authorization(self):
+        "Setting an incorrect default_authorizations would fallback to False as a default_authorizations"
+        sc = SmppsCredential(default_authorizations = 'True')
+        
+        self.assertEqual(sc.getAuthorization('bind'), False)
+    
+    def test_set_invalid_value(self):
+        sc = SmppsCredential()
+
+        # Authorization must be a boolean
+        sc.setAuthorization('bind', True)
+        self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'bind', 'anyvalue')
+        # Balance must be None or a positive float
+        sc.setQuota('max_bindings', None)
+        sc.setQuota('max_bindings', 0)
+        self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', 1.0)
+        self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', -1.0)
+        self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', -1)
+    
+    def test_quotas_updated(self):
+        sc = SmppsCredential()
+        sc.setQuota('max_bindings', 2)
+
+        self.assertEqual(sc.quotas_updated, False)
+        sc.updateQuota('max_bindings', 1)
+        self.assertEqual(sc.quotas_updated, True)
+
 class HttpConnectorTestCase(TestCase):
     def test_normal(self):
         c = HttpConnector('CID', 'http://127.0.0.1/api/receive-mo')

@@ -138,7 +138,7 @@ class SmppsCredential(CredentialGenerick):
     
     def setQuota(self, key, value):
         "Additional validation steps"
-        if key == 'max_binds' and value is not None and ( value < 0 or type(value) != int ):
+        if key == 'max_bindings' and value is not None and ( value < 0 or type(value) != int ):
             raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
             
         CredentialGenerick.setQuota(self, key, value)

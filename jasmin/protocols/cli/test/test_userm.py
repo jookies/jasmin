@@ -1,6 +1,6 @@
 import re
 from test_jcli import jCliWithoutAuthTestCases
-from jasmin.routing.jasminApi import MtMessagingCredential
+from jasmin.routing.jasminApi import MtMessagingCredential, SmppsCredential
     
 class UserTestCases(jCliWithoutAuthTestCases):
     def add_user(self, finalPrompt, extraCommands = [], GID = None, Username = None):
@@ -138,8 +138,11 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred authorization http_dlr_method True',
                         'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_send True',
-                        'gid %s' % gid,
+                        'mt_messaging_cred authorization smpps_send True',
                         'uid %s' % uid, 
+                        'smpps_cred quota max_bindings ND',
+                        'smpps_cred authorization bind True',
+                        'gid %s' % gid,
                         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -235,8 +238,11 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred authorization http_dlr_method True',
                         'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_send True',
-                        'gid %s' % newGID,
+                        'mt_messaging_cred authorization smpps_send True',
                         'uid %s' % uid, 
+                        'smpps_cred quota max_bindings ND',
+                        'smpps_cred authorization bind True',
+                        'gid %s' % newGID,
                         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -337,8 +343,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
                         'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
                         'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
                         'mt_messaging_cred authorization http_send %s' % mtcred.getAuthorization('http_send'),
-                        'gid AnyGroup',
+                        'mt_messaging_cred authorization smpps_send True',
                         'uid user_1', 
+                        'smpps_cred quota max_bindings ND',
+                        'smpps_cred authorization bind True',
+                        'gid AnyGroup',
                         ]
         commands = [{'command': 'user -s user_1', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -476,8 +485,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setValueFilter('content', '[2-6].*')
         _cred.setDefaultValue('source_address', 'SEXY NAME')
         _cred.setQuota('balance', 66)
-        extraCommands = [{'command': 'password anypassword'},
-                         {'command': 'mt_messaging_cred authorization http_send yes'},
+        extraCommands = [{'command': 'mt_messaging_cred authorization http_send yes'},
                          {'command': 'mt_messaging_cred authorization http_long_content y'},
                          {'command': 'mt_messaging_cred authorization dlr_level 1'},
                          {'command': 'mt_messaging_cred authorization http_dlr_method YES'},
@@ -511,7 +519,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
 
         # Assert User updating
-        extraCommands = [{'command': 'password anypassword'},
+        extraCommands = [{'command': 'password any_password'},
                          {'command': 'mt_messaging_red authorization http_send no', 
                          'expect': 'Unknown User key: mt_messaging_red'},
                          {'command': 'mt_messaging_cred quta balance 40.3',
@@ -524,5 +532,143 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          'expect':  'Error: could not convert string to float: incorrectvalue'},
                          {'command': 'mt_messaging_cred authorization http_send incorrectvalue',
                          'expect':  'Error: http_send is not a boolean value: incorrectvalue'},
+                         ]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+
+class SmppsCredentialTestCases(UserTestCases):
+
+    def _test_user_with_SmppsCredential(self, uid, gid, username, smppscred):
+        if smppscred.getQuota('max_bindings') is None:
+            assertMaxBindings = 'ND'
+        else:
+            assertMaxBindings = str(int(smppscred.getQuota('max_bindings')))
+
+        # Show and assert
+        expectedList = ['username AnyUsername', 
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'uid user_1', 
+                        'smpps_cred quota max_bindings %s' % assertMaxBindings,
+                        'smpps_cred authorization bind %s' % smppscred.getAuthorization('bind'),
+                        'gid AnyGroup',
+                        ]
+        commands = [{'command': 'user -s user_1', 'expect': expectedList}]
+        self._test(r'jcli : ', commands)
+
+        # List and assert
+        expectedList = ['#.*', 
+                        '#%s %s %s' % (uid.ljust(16), gid.ljust(16), username.ljust(16))
+                        ]
+        commands = [{'command': 'user -l', 'expect': expectedList}]
+        self._test(r'jcli : ', commands)
+    
+    def test_default(self):
+        "Default user is created with a default SmppsCredential() instance"
+
+        # Assert User adding
+        extraCommands = [{'command': 'uid user_1'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', SmppsCredential())
+
+        # Assert User updating
+        extraCommands = [{'command': 'password anypassword'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', SmppsCredential())
+
+    def test_authorization(self):
+        _cred = SmppsCredential()
+        _cred.setAuthorization('bind', False)
+
+        # Assert User adding
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'smpps_cred authorization bind no'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+        # Assert User updating
+        _cred.setAuthorization('bind', True)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'smpps_cred authorization bind 1'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_quota(self):
+        _cred = SmppsCredential()
+        _cred.setQuota('max_bindings', 10)
+
+        # Assert User adding
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'smpps_cred quota max_bindings 10'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+        # Assert User updating
+        _cred.setQuota('max_bindings', 20)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'smpps_cred quota max_bindings 20'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_all(self):
+        _cred = SmppsCredential()
+        _cred.setAuthorization('bind', False)
+        _cred.setQuota('max_bindings', 11)
+
+        # Assert User adding
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'smpps_cred authorization bind no'},
+                         {'command': 'smpps_cred quota max_bindings 11'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+        # Assert User updating
+        _cred.setAuthorization('bind', True)
+        _cred.setQuota('max_bindings', 66)
+        extraCommands = [{'command': 'smpps_cred authorization bind y'},
+                         {'command': 'smpps_cred quota max_bindings 66'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_invalid_syntax(self):
+        # Assert User adding
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'smpps_red authorization bind no', 
+                         'expect': 'Unknown User key: smpps_red'},
+                         {'command': 'smpps_cred quta max_bindings 22',
+                         'expect': 'Error: invalid section name: quta, possible values: Quota, Authorization'},
+                         {'command': 'smpps_cred DefaultValue Anything AnyValue',
+                         'expect': 'Error: invalid section name: DefaultValue, possible values: Quota, Authorization'},
+                         {'command': 'smpps_cred quota max_bindings incorrectvalue',
+                         'expect':  "Error: invalid literal for int\(\) with base 10: 'incorrectvalue'"},
+                         {'command': 'smpps_cred authorization bind incorrectvalue',
+                         'expect':  "Error: bind is not a boolean value: incorrectvalue"},
+                         ]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        # Assert User updating
+        extraCommands = [{'command': 'password any_password'},
+                         {'command': 'smpps_red authorization bind no', 
+                         'expect': 'Unknown User key: smpps_red'},
+                         {'command': 'smpps_cred quta max_bindings 22',
+                         'expect': 'Error: invalid section name: quta, possible values: Quota, Authorization'},
+                         {'command': 'smpps_cred DefaultValue Anything AnyValue',
+                         'expect': 'Error: invalid section name: DefaultValue, possible values: Quota, Authorization'},
+                         {'command': 'smpps_cred quota max_bindings incorrectvalue',
+                         'expect':  "Error: invalid literal for int\(\) with base 10: 'incorrectvalue'"},
+                         {'command': 'smpps_cred authorization bind incorrectvalue',
+                         'expect':  "Error: bind is not a boolean value: incorrectvalue"},
                          ]
         self.update_user(r'jcli : ', 'user_1', extraCommands)
