@@ -342,7 +342,7 @@ class JasminDaemon:
         reactor.stop()
     
     def sighandler_stop(self, signum, frame):
-        syslog.syslog(syslog.LOG_LOCAL0, "Received signal to stop Jasmin Daemin")
+        syslog.syslog(syslog.LOG_LOCAL0, "Received signal to stop Jasmin Daemon")
         
         return self.stop()
 
