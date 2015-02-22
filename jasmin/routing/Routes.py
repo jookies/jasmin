@@ -53,7 +53,7 @@ class Route:
             rate_str = 'rated %.2f' % self.rate
         else:
             rate_str = 'NOT RATED'
-        self._str = '%s to cid:%s %s' % (self.__class__.__name__, connector.cid, rate_str)
+        self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector.type, connector.cid, rate_str)
         
     def __str__(self):
         return self._str
@@ -135,7 +135,7 @@ class DefaultRoute(Route):
             rate_str = 'rated %.2f' % self.rate
         else:
             rate_str = 'NOT RATED'
-        self._str = '%s to cid:%s %s' % (self.__class__.__name__, connector.cid, rate_str)
+        self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector.type, connector.cid, rate_str)
 
     def matchFilters(self, routable):
         return self.getConnector()
@@ -187,7 +187,7 @@ class RoundrobinRoute():
         for c in connectors:
             if connectorList_str != '':
                 connectorList_str += '\n'
-            connectorList_str += '\t- %s' % c.cid
+            connectorList_str += '\t- %s(%s)' % (c.type, c.cid)
         self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__, 
                                                   len(connectors), 
                                                   connectorList_str)

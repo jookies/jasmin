@@ -1,3 +1,4 @@
+import re
 import inspect
 import pickle
 from jasmin.protocols.cli.managers import Manager, Session
@@ -8,6 +9,25 @@ MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
 
 # A config map between console-configuration keys and Route keys.
 MORouteKeyMap = {'order': 'order', 'type': 'type'}
+
+class InvalidCidSyntax(Exception):
+    pass
+
+def validate_typed_connector_id(cid):
+    '''Used to ensure the cid imput is typed to indicate the connector
+    type, some examples:
+    - smpps(con_1) would indicate con_1 is a SmppServerSystemIdConnector
+    - http(con_2) would indicate con_2 is a HttpConnector
+
+    (connector_type, cid) will be return, otherwise a InvalidCidSyntax 
+    exception will be throwed.
+    '''
+
+    m = re.match( r'(smpps|http)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
+    if not m:
+        raise InvalidCidSyntax('Invalid syntax for connector id, must be smpps(some_id) or http(some_id).')
+
+    return m.group(1).lower(), m.group(2)
 
 def MORouteBuild(fCallback):
     '''Parse args and try to build a route from  one of the routes in 
@@ -101,11 +121,20 @@ def MORouteBuild(fCallback):
                     
                 # Validate connector
                 if cmd == 'connector':
-                    if arg not in  self.protocol.managers['httpccm'].httpccs:
-                        return self.protocol.sendData('Unknown cid: %s' % (arg))
-                    else:
-                        # Pass ready HttpConnector instance
-                        arg = self.protocol.managers['httpccm'].httpccs[arg]
+                    try:
+                        ctype, cid = validate_typed_connector_id(arg)
+                        if ctype == 'http':
+                            if cid not in  self.protocol.managers['httpccm'].httpccs:
+                                raise Exception('Unknown http cid: %s' % (cid))
+                            
+                            # Pass ready HttpConnector instance
+                            arg = self.protocol.managers['httpccm'].httpccs[cid]
+                        elif ctype == 'smpps':
+                            raise NotImplementedError("Not implemented yet !")
+                        else:
+                            raise NotImplementedError("Not implemented yet !")
+                    except Exception, e:
+                        return self.protocol.sendData(str(e))
                     
                 # Validate connectors
                 if cmd == 'connectors':
@@ -114,12 +143,21 @@ def MORouteBuild(fCallback):
                         return self.protocol.sendData('%s option value must contain a minimum of 2 connector IDs separated with ";".' % (cmd))
 
                     arg = []
-                    for cid in CIDs:
-                        if cid not in self.protocol.managers['httpccm'].httpccs:
-                            return self.protocol.sendData('Unknown cid: %s' % (cid))
-                        else:
-                            # Pass ready HttpConnector instance
-                            arg.append(self.protocol.managers['httpccm'].httpccs[cid])
+                    for typed_cid in CIDs:
+                        try:
+                            ctype, cid = validate_typed_connector_id(typed_cid)
+                            if ctype == 'http':
+                                if cid not in  self.protocol.managers['httpccm'].httpccs:
+                                    raise Exception('Unknown http cid: %s' % (cid))
+                                
+                                # Pass ready HttpConnector instance
+                                arg.append(self.protocol.managers['httpccm'].httpccs[cid])
+                            elif ctype == 'smpps':
+                                raise NotImplementedError("Not implemented yet !")
+                            else:
+                                raise NotImplementedError("Not implemented yet !")
+                        except Exception, e:
+                            return self.protocol.sendData(str(e))
 
                 # Validate filters
                 if cmd == 'filters':
@@ -188,9 +226,9 @@ class MoRouterManager(Manager):
         counter = 0
         
         if (len(moroutes)) > 0:
-            self.protocol.sendData("#%s %s %s %s" % ('MO Route order'.ljust(16),
+            self.protocol.sendData("#%s %s %s %s" % ('Order'.ljust(5),
                                                                         'Type'.ljust(23),
-                                                                        'Connector ID(s)'.ljust(32),
+                                                                        'Connector ID(s)'.ljust(48),
                                                                         'Filter(s)'.ljust(64),
                                                                         ), prompt=False)
             for e in moroutes:
@@ -204,9 +242,9 @@ class MoRouterManager(Manager):
                     for c in moroute.connector:
                         if connectors != '':
                             connectors += ', '
-                        connectors += c.cid
+                        connectors += '%s(%s)' % (c.type, c.cid)
                 else:
-                    connectors = moroute.connector.cid
+                    connectors = '%s(%s)' % (moroute.connector.type, moroute.connector.cid)
                     
                 filters = ''
                 # Prepare display for filters
@@ -215,9 +253,9 @@ class MoRouterManager(Manager):
                         filters += ', '
                     filters += repr(f)
 
-                self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(16),
+                self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(5),
                                                                   str(moroute.__class__.__name__).ljust(23),
-                                                                  connectors.ljust(32),
+                                                                  connectors.ljust(48),
                                                                   filters.ljust(64),
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)        

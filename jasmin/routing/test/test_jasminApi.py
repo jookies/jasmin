@@ -241,3 +241,4 @@ class SmppServerSystemIdTestCase(TestCase):
         self.assertEqual(c._str, 'smpps Connector')
         self.assertEqual(c._repr, '<smpps Connector>')
         self.assertEqual(c.cid, 'fourat')
+        self.assertEqual(c.cid, c.system_id)

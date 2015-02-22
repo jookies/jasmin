@@ -270,3 +270,5 @@ class SmppServerSystemIdConnector(Connector):
     
     def __init__(self, system_id):
         Connector.__init__(self, system_id)
+
+        self.system_id = system_id
