@@ -3,6 +3,7 @@ import inspect
 import pickle
 from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.protocols.cli.filtersm import MOFILTERS
+from jasmin.routing.jasminApi import SmppServerSystemIdConnector
 from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute)
 
 MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
@@ -130,7 +131,8 @@ def MORouteBuild(fCallback):
                             # Pass ready HttpConnector instance
                             arg = self.protocol.managers['httpccm'].httpccs[cid]
                         elif ctype == 'smpps':
-                            raise NotImplementedError("Not implemented yet !")
+                            # Make instance of SmppServerSystemIdConnector
+                            arg = SmppServerSystemIdConnector(cid)
                         else:
                             raise NotImplementedError("Not implemented yet !")
                     except Exception, e:
@@ -153,7 +155,8 @@ def MORouteBuild(fCallback):
                                 # Pass ready HttpConnector instance
                                 arg.append(self.protocol.managers['httpccm'].httpccs[cid])
                             elif ctype == 'smpps':
-                                raise NotImplementedError("Not implemented yet !")
+                                # Make instance of SmppServerSystemIdConnector
+                                arg.append(SmppServerSystemIdConnector(cid))
                             else:
                                 raise NotImplementedError("Not implemented yet !")
                         except Exception, e:
