@@ -12,7 +12,7 @@ Web backend is written in Django [1]_ and is providing advanced tools for managi
 
 Features
 ********
-* SMPP Client / Server [2]_
+* SMPP Client / Server
 * HTTP Client / Server
 * Based on AMQP broker for store&forward mechanisms
 * Advanced message routing : Simple & static, *Roundrobin*, *Failover*, *Leastcost* ..
@@ -34,6 +34,7 @@ Getting started
    * :doc:`/installation/index` -- Install and run Jasmin SMS Gateway
    * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application
    * :doc:`/apis/ja-http/index` -- HTTP API technical specification
+   * :doc:`/apis/smpp-server/index` -- SMPP Server API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
 
 Full contents
@@ -44,6 +45,7 @@ Full contents
    /architecture/index
    /installation/index
    /programming-examples/index
+   /apis/smpp-server/index
    /apis/ja-http/index
    /management/jcli/index
    /management/jcli/modules
@@ -65,4 +67,3 @@ Jasmin is released under the terms of the [Apache License Version 2]. See **`LIC
 
 .. rubric:: Footnotes
 .. [1] Web interface will come in v0.7
-.. [2] SMPP server is planned in v0.8

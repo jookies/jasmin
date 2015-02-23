@@ -21,6 +21,8 @@ Architecture overview
    through HTTP, refer to :doc:`/apis/ja-http/index` for more details,
 #. **HTTP API**: A HTTP Server to be used by third party application to send MT SMS (Mobile Terminated),
    refer to :doc:`/apis/ja-http/index` for more details.
+#. **SMPP Server API**: A SMPP Server to be used by third party application to send and receive SMS through
+   a stateful tcp protocol, refer to :doc:`/apis/smpp-server/index` for more details.
 
 Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
 and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, a event-driven networking engine.
