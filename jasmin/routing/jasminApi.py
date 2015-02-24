@@ -87,16 +87,17 @@ class CredentialGenerick(jasminApiGenerick):
         return self.quotas[key]
 
 class MtMessagingCredential(CredentialGenerick):
-    """Credential set for sending MT Messages"""
+    """Credential set for sending MT Messages through"""
     
     def __init__(self, default_authorizations = True):
         if type(default_authorizations) != bool:
             default_authorizations = False
         
         self.authorizations = {'http_send': default_authorizations,
-                          'long_content': default_authorizations,
+                          'smpps_send': default_authorizations,
+                          'http_long_content': default_authorizations,
                           'set_dlr_level': default_authorizations,
-                          'set_dlr_method': default_authorizations,
+                          'http_set_dlr_method': default_authorizations,
                           'set_source_address': default_authorizations,
                           'set_priority': default_authorizations,
                          }
@@ -124,6 +125,24 @@ class MtMessagingCredential(CredentialGenerick):
             
         CredentialGenerick.setQuota(self, key, value)
 
+class SmppsCredential(CredentialGenerick):
+    """Credential set for SMPP Server connection"""
+    
+    def __init__(self, default_authorizations = True):
+        if type(default_authorizations) != bool:
+            default_authorizations = False
+        
+        self.authorizations = {'bind': default_authorizations,}
+                
+        self.quotas = {'max_bindings': None}
+    
+    def setQuota(self, key, value):
+        "Additional validation steps"
+        if key == 'max_bindings' and value is not None and ( value < 0 or type(value) != int ):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+            
+        CredentialGenerick.setQuota(self, key, value)
+
 class Group(jasminApiGenerick):
     """Every user must have a group"""
     
@@ -133,10 +152,28 @@ class Group(jasminApiGenerick):
     def __str__(self):
         return str(self.gid)
 
+class CnxStatus(jasminApiGenerick):
+    """Connection status information holder"""
+
+    def __init__(self):
+        self.smpps = {'bind_count': 0,
+                      'unbind_count': 0,
+                      'bound_connections_count': {
+                        'bind_receiver': 0,
+                        'bind_transceiver': 0,
+                        'bind_transmitter': 0,
+                      },
+                      'submit_sm_request_count': 0,
+                      'last_activity_at': 0,}
+
+        self.httpapi = {'connects_count': 0,
+                        'last_activity_at': 0,
+                        'submit_sm_request_count': 0,}
+
 class User(jasminApiGenerick):
     """Jasmin user"""
     
-    def __init__(self, uid, group, username, password, mt_credential = None):
+    def __init__(self, uid, group, username, password, mt_credential = None, smpps_credential = None):
         self.uid = uid
         self.group = group
         self.username = username
@@ -145,10 +182,17 @@ class User(jasminApiGenerick):
         else:
             self.password = password
 
+        # Credentials
         self.mt_credential = mt_credential
         if self.mt_credential is None:
             self.mt_credential = MtMessagingCredential()
-    
+        self.smpps_credential = smpps_credential
+        if self.smpps_credential is None:
+            self.smpps_credential = SmppsCredential()
+
+        # Statistics
+        self.CnxStatus = CnxStatus()
+
     def __str__(self):
         return self.username
 
@@ -158,11 +202,13 @@ class Connector(jasminApiGenerick):
     """
     
     type = 'generic'
-    _str = '%s Connector' % type
-    _repr = '%s Connector>' % type
+    _str = 'Generick Connector'
+    _repr = '<Generick Connector>'
     
     def __init__(self, cid):
         self.cid = cid
+        self._str = '%s Connector' % self.type
+        self._repr = '<%s Connector>' % self.type
         
     def __repr__(self):
         return self._repr
@@ -215,3 +261,14 @@ class SmppClientConnector(Connector):
     
     def __init__(self, cid):
         Connector.__init__(self, cid)
+
+class SmppServerSystemIdConnector(Connector):
+    """This is a SMPP Server connector mapped to a system_id, it is used to deliver Messages
+    through the SMPP server to a bound system_id (receiver or transceiver)"""
+    
+    type = 'smpps'
+    
+    def __init__(self, system_id):
+        Connector.__init__(self, system_id)
+
+        self.system_id = system_id

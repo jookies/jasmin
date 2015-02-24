@@ -2,14 +2,15 @@ import pickle
 import re
 from jasmin.protocols.cli.managers import Manager, Session
 from jasmin.protocols.cli.protocol import str2num
-from jasmin.routing.jasminApi import User, MtMessagingCredential, jasminApiCredentialError
+from jasmin.routing.jasminApi import User, MtMessagingCredential, SmppsCredential, jasminApiCredentialError
 
 MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                'keyMapValue': 'mt_credential', 
                                'Authorization': {'http_send': 'http_send',
-                                                  'long_content': 'long_content',
+                                                  'smpps_send': 'smpps_send',
+                                                  'http_long_content': 'http_long_content',
                                                   'dlr_level': 'set_dlr_level',
-                                                  'dlr_method': 'set_dlr_method',
+                                                  'http_dlr_method': 'http_set_dlr_method',
                                                   'src_addr': 'set_source_address',
                                                   'priority': 'set_priority'},
                                'ValueFilter': {'dst_addr': 'destination_address',
@@ -22,8 +23,18 @@ MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                           'sms_count': 'submit_sm_count'},
                                 }
 
+SmppsCredentialKeyMap = {'class': 'SmppsCredential',
+                         'keyMapValue': 'smpps_credential', 
+                         'Authorization': {'bind': 'bind'},
+                         'Quota': {'max_bindings': 'max_bindings'},
+                        }
+
 # A config map between console-configuration keys and User keys.
-UserKeyMap = {'uid': 'uid', 'gid': 'gid', 'username': 'username', 'password': 'password', 'mt_messaging_cred': MtMessagingCredentialKeyMap}
+UserKeyMap = {'uid': 'uid', 'gid': 'gid', 
+              'username': 'username', 
+              'password': 'password', 
+              'mt_messaging_cred': MtMessagingCredentialKeyMap,
+              'smpps_cred': SmppsCredentialKeyMap}
 
 TrueBoolCastMap = ['true', '1', 't', 'y', 'yes']
 FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
@@ -49,6 +60,23 @@ def castToBuiltCorrectCredType(cred, section, key, value):
         # object, an exception will be raised if the type is not correct
         _o = MtMessagingCredential()
         getattr(_o, 'set%s' % section)(key, value)
+    elif cred == 'SmppsCredential':
+        if section == 'Authorization':
+            if value.lower() in TrueBoolCastMap:
+                value = True
+            elif value.lower() in FalseBoolCastMap:
+                value = False
+        elif section == 'Quota':
+            if value.lower() == 'none':
+                value = None
+            elif key == 'max_bindings':
+                value = int(value)
+
+        # Make a final validation: pass value to a temporarly SmppsCredential
+        # object, an exception will be raised if the type is not correct
+        _o = SmppsCredential()
+        getattr(_o, 'set%s' % section)(key, value)
+
     return value
 
 def UserBuild(fCallback):
@@ -71,6 +99,8 @@ def UserBuild(fCallback):
             # Set defaults when not defined
             if 'mt_credential' not in self.sessBuffer:
                 self.sessBuffer[UserKeyMap['mt_messaging_cred']['keyMapValue']] = globals()[UserKeyMap['mt_messaging_cred']['class']]()
+            if 'smpps_credential' not in self.sessBuffer:
+                self.sessBuffer[UserKeyMap['smpps_cred']['keyMapValue']] = globals()[UserKeyMap['smpps_cred']['class']]()
 
             user = {}
             for key, value in self.sessBuffer.iteritems():
@@ -384,6 +414,18 @@ class UsersManager(Manager):
                             continue
                         for SectionShortKey, SectionLongKey in value[section].iteritems():
                             sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
+                            if section == 'ValueFilter':
+                                sectionValue = sectionValue.pattern
+                            elif section == 'Quota' and sectionValue is None:
+                                sectionValue = 'ND'
+                            self.protocol.sendData('%s %s %s %s' % 
+                                (key, section.lower(), SectionShortKey, sectionValue), prompt = False)
+                if value['class'] == 'SmppsCredential':
+                    for section, sectionData in value.iteritems():
+                        if section in ['class', 'keyMapValue']:
+                            continue
+                        for SectionShortKey, SectionLongKey in value[section].iteritems():
+                            sectionValue = getattr(user.smpps_credential, 'get%s' % section)(SectionLongKey)
                             if section == 'ValueFilter':
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:

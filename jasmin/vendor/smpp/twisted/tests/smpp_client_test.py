@@ -247,7 +247,7 @@ class EnquireLinkTestCase(SimulatorTestCase):
         
     def wait(self, time_secs):
         finished = defer.Deferred()
-        reactor.callLater(0.25, finished.callback, None)
+        reactor.callLater(time_secs, finished.callback, None)
         return finished
                 
     def verifyEnquireLink(self, smpp):

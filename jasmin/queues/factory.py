@@ -31,6 +31,7 @@ class AmqpFactory(ClientFactory):
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
     
     def preConnect(self):
         """Initiate deferreds before connecting

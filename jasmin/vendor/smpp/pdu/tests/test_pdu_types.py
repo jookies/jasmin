@@ -16,6 +16,7 @@ Copyright 2009-2010 Mozes, Inc.
 import unittest
 from jasmin.vendor.smpp.pdu.pdu_types import *
 
+@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class EsmClassTest(unittest.TestCase):
 
     def test_equality_with_array_and_set(self):
@@ -33,6 +34,7 @@ class EsmClassTest(unittest.TestCase):
         e2 = EsmClass(EsmClassMode.DATAGRAM, EsmClassType.DEFAULT, [EsmClassGsmFeatures.SET_REPLY_PATH])
         self.assertEquals(e1, e2)    
 
+@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class RegisteredDeliveryTest(unittest.TestCase):
 
     def test_equality_with_array_and_set(self):

@@ -1,3 +1,4 @@
+import re
 import inspect
 import pickle
 from jasmin.protocols.cli.managers import Manager, Session
@@ -9,6 +10,24 @@ MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute']
 
 # A config map between console-configuration keys and Route keys.
 MTRouteKeyMap = {'order': 'order', 'type': 'type'}
+
+class InvalidCidSyntax(Exception):
+    pass
+
+def validate_typed_connector_id(cid):
+    '''Used to ensure the cid imput is typed to indicate the connector
+    type, some examples:
+    - smppc(con_1) would indicate con_1 is a SmppClientConnector
+
+    (connector_type, cid) will be return, otherwise a InvalidCidSyntax 
+    exception will be throwed.
+    '''
+
+    m = re.match( r'(smppc)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
+    if not m:
+        raise InvalidCidSyntax('Invalid syntax for connector id, must be smppc(some_id).')
+
+    return m.group(1).lower(), m.group(2)
 
 def MTRouteBuild(fCallback):
     '''Parse args and try to build a route from  one of the routes in 
@@ -99,19 +118,19 @@ def MTRouteBuild(fCallback):
                     
                 # Validate connector
                 if cmd == 'connector':
-                    if self.pb['smppcm'].getConnector(arg) is None:
-                        return self.protocol.sendData('Unknown cid: %s' % (arg))
-                    else:
-                        # Make instance of SmppClientConnector
-                        arg = SmppClientConnector(self.pb['smppcm'].getConnector(arg)['id'])
-                
-                # Validate rate and convert it to float
-                if cmd == 'rate':
                     try:
-                        arg = float(arg)
-                    except ValueError:
-                        return self.protocol.sendData('Incorrect rate (must be float): %s' % (arg))
-                    
+                        ctype, cid = validate_typed_connector_id(arg)
+                        if ctype == 'smppc':
+                            if self.pb['smppcm'].getConnector(cid) is None:
+                                raise Exception('Unknown smppc cid: %s' % (cid))
+
+                            # Make instance of SmppClientConnector
+                            arg = SmppClientConnector(self.pb['smppcm'].getConnector(cid)['id'])
+                        else:
+                            raise NotImplementedError("Not implemented yet !")
+                    except Exception, e:
+                        return self.protocol.sendData(str(e))
+                
                 # Validate connectors
                 if cmd == 'connectors':
                     CIDs = arg.split(';')
@@ -119,13 +138,27 @@ def MTRouteBuild(fCallback):
                         return self.protocol.sendData('%s option value must contain a minimum of 2 connector IDs separated with ";".' % (cmd))
 
                     arg = []
-                    for cid in CIDs:
-                        if self.pb['smppcm'].getConnector(cid) is None:
-                            return self.protocol.sendData('Unknown cid: %s' % (cid))
-                        else:
-                            # Make instance of SmppClientConnector
-                            arg.append(SmppClientConnector(self.pb['smppcm'].getConnector(cid)['id']))
+                    for typed_cid in CIDs:
+                        try:
+                            ctype, cid = validate_typed_connector_id(typed_cid)
+                            if ctype == 'smppc':
+                                if self.pb['smppcm'].getConnector(cid) is None:
+                                    raise Exception('Unknown smppc cid: %s' % (cid))
+                                
+                                # Make instance of SmppClientConnector
+                                arg.append(SmppClientConnector(self.pb['smppcm'].getConnector(cid)['id']))
+                            else:
+                                raise NotImplementedError("Not implemented yet !")
+                        except Exception, e:
+                            return self.protocol.sendData(str(e))
 
+                # Validate rate and convert it to float
+                if cmd == 'rate':
+                    try:
+                        arg = float(arg)
+                    except ValueError:
+                        return self.protocol.sendData('Incorrect rate (must be float): %s' % (arg))
+                    
                 # Validate filters
                 if cmd == 'filters':
                     FIDs = arg.split(';')
@@ -193,10 +226,10 @@ class MtRouterManager(Manager):
         counter = 0
         
         if (len(mtroutes)) > 0:
-            self.protocol.sendData("#%s %s %s %s %s" % ('MT Route order'.ljust(16),
+            self.protocol.sendData("#%s %s %s %s %s" % ('Order'.ljust(5),
                                                                         'Type'.ljust(23),
                                                                         'Rate'.ljust(7),
-                                                                        'Connector ID(s)'.ljust(32),
+                                                                        'Connector ID(s)'.ljust(48),
                                                                         'Filter(s)'.ljust(64),
                                                                         ), prompt=False)
             for e in mtroutes:
@@ -210,9 +243,9 @@ class MtRouterManager(Manager):
                     for c in mtroute.connector:
                         if connectors != '':
                             connectors += ', '
-                        connectors += c.cid
+                        connectors += '%s(%s)' % (c.type, c.cid)
                 else:
-                    connectors = mtroute.connector.cid
+                    connectors = '%s(%s)' % (mtroute.connector.type, mtroute.connector.cid)
                     
                 filters = ''
                 # Prepare display for filters
@@ -224,10 +257,10 @@ class MtRouterManager(Manager):
                 # Prepare display for rate
                 rate = str('%.2f' % mtroute.getRate())
                 
-                self.protocol.sendData("#%s %s %s %s %s" % (str(order).ljust(16),
+                self.protocol.sendData("#%s %s %s %s %s" % (str(order).ljust(5),
                                                                   str(mtroute.__class__.__name__).ljust(23),
                                                                   rate.ljust(7),
-                                                                  connectors.ljust(32),
+                                                                  connectors.ljust(48),
                                                                   filters.ljust(64),
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)        

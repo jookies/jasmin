@@ -16,7 +16,7 @@ Copyright 2009-2010 Mozes, Inc.
 """
 Updated code parts are marked with "Jasmin update" comment
 """
-from enum import Enum
+from jasmin.vendor.enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu import constants
 

@@ -158,7 +158,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         user = copy.copy(self.user1)
 
         # User unauthorized
-        user.mt_credential.setAuthorization('long_content', False)
+        user.mt_credential.setAuthorization('http_long_content', False)
         response_text, response_code = yield self.run_test(content = 'X' * 300)
         self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Long content is not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
@@ -166,7 +166,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_authorized_user_long_content(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setAuthorization('long_content', True)
+        user.mt_credential.setAuthorization('http_long_content', True)
 
         # User authorized
         response_text, response_code = yield self.run_test(content = 'X' * 300)
@@ -210,7 +210,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_unauthorized_set_dlr_method(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setAuthorization('set_dlr_method', False)
+        user.mt_credential.setAuthorization('http_set_dlr_method', False)
 
         # User unauthorized
         response_text, response_code = yield self.run_test(dlr_method = 'post')
@@ -220,7 +220,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_authorized_user_set_dlr_method(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setAuthorization('set_dlr_method', True)
+        user.mt_credential.setAuthorization('http_set_dlr_method', True)
 
         # User authorized
         response_text, response_code = yield self.run_test(dlr_method = 'post')

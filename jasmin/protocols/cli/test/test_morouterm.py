@@ -3,12 +3,18 @@ from test_mxrouterm import MxRouterTestCases
     
 class BasicTestCases(MxRouterTestCases):
     
-    def test_add_with_minimum_args(self):
+    def test_add_with_minimum_args_http(self):
         extraCommands = [{'command': 'order 0'}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         return self.add_moroute(r'jcli : ', extraCommands)
     
+    def test_add_with_minimum_args_smpps(self):
+        extraCommands = [{'command': 'order 0'}, 
+                         {'command': 'type DefaultRoute'},
+                         {'command': 'connector smpps(smpp_user)'}]
+        return self.add_moroute(r'jcli : ', extraCommands)
+
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: type, order'}]
         return self.add_moroute(r'> ', extraCommands)
@@ -16,7 +22,7 @@ class BasicTestCases(MxRouterTestCases):
     def test_add_invalid_key(self):
         extraCommands = [{'command': 'order 0'},
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'},
+                         {'command': 'connector http(http1)'},
                          {'command': 'anykey anyvalue', 'expect': r'Unknown Route key: anykey'}]
         return self.add_moroute(r'jcli : ', extraCommands)
     
@@ -29,14 +35,26 @@ class BasicTestCases(MxRouterTestCases):
         commands = [{'command': 'morouter -l', 'expect': r'Total MO Routes: 0'}]
         return self._test(r'jcli : ', commands)
     
-    def test_add_and_list(self):
+    def test_add_and_list_http(self):
         extraCommands = [{'command': 'order 0'}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         self.add_moroute('jcli : ', extraCommands)
 
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#0                DefaultRoute            http1', 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#0     DefaultRoute            http\(http1\)', 
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        return self._test(r'jcli : ', commands)
+    
+    def test_add_and_list_smpps(self):
+        extraCommands = [{'command': 'order 0'}, 
+                         {'command': 'type DefaultRoute'},
+                         {'command': 'connector smpps(smpp_user)'}]
+        self.add_moroute('jcli : ', extraCommands)
+
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#0     DefaultRoute            smpps\(smpp_user\)', 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -49,22 +67,33 @@ class BasicTestCases(MxRouterTestCases):
         commands = [{'command': 'morouter -l', 'expect': r'Total MO Routes: 0'}]
         return self._test(r'jcli : ', commands)
 
-    def test_show(self):
+    def test_show_http(self):
         order = '0'
         cid = 'http1'
         extraCommands = [{'command': 'order %s' % order}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector %s' % cid}]
+                         {'command': 'connector http(%s)' % cid}]
         self.add_moroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to cid:%s NOT RATED' % cid}]
+        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to %s\(%s\) NOT RATED' % ('http', cid)}]
+        return self._test(r'jcli : ', commands)
+    
+    def test_show_smpps(self):
+        order = '0'
+        cid = 'smpp_user'
+        extraCommands = [{'command': 'order %s' % order}, 
+                         {'command': 'type DefaultRoute'},
+                         {'command': 'connector smpps(%s)' % cid}]
+        self.add_moroute('jcli : ', extraCommands)
+
+        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to %s\(%s\) NOT RATED' % ('smpps', cid)}]
         return self._test(r'jcli : ', commands)
     
     def test_update_not_available(self):
         order = '0'
         extraCommands = [{'command': 'order %s' % order}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         self.add_moroute('jcli : ', extraCommands)
 
         commands = [{'command': 'morouter -u %s' % order, 'expect': 'no such option\: -u'}]
@@ -77,11 +106,21 @@ class BasicTestCases(MxRouterTestCases):
         commands = [{'command': 'morouter -r 66', 'expect': r'Unknown MO Route: 66'}]
         return self._test(r'jcli : ', commands)
     
-    def test_remove(self):
+    def test_remove_http(self):
         order = '0'
         extraCommands = [{'command': 'order %s' % order}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
+        self.add_moroute('jcli : ', extraCommands)
+    
+        commands = [{'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
+        return self._test(r'jcli : ', commands)
+    
+    def test_remove_smpps(self):
+        order = '0'
+        extraCommands = [{'command': 'order %s' % order}, 
+                         {'command': 'type DefaultRoute'},
+                         {'command': 'connector smpps(smpp_user)'}]
         self.add_moroute('jcli : ', extraCommands)
     
         commands = [{'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
@@ -91,19 +130,19 @@ class BasicTestCases(MxRouterTestCases):
         # Add 2 Routes:
         extraCommands = [{'command': 'order 0'}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         self.add_moroute('jcli : ', extraCommands)
 
         extraCommands = [{'command': 'order 20'}, 
                          {'command': 'type StaticMoRoute'},
-                         {'command': 'connector http1'},
+                         {'command': 'connector smpps(smpp_user)'},
                          {'command': 'filters f1'}]
         self.add_moroute('jcli : ', extraCommands)
 
         # List
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#20               StaticMORoute           http1                            \<TransparentFilter\>', 
-                        '#0                DefaultRoute            http1', 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#20    StaticMORoute           smpps\(smpp_user\)                                 \<TransparentFilter\>', 
+                        '#0     DefaultRoute            http\(http1\)', 
                         'Total MO Routes: 2']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -121,11 +160,11 @@ class BasicTestCases(MxRouterTestCases):
         order = '0'
         extraCommands = [{'command': 'order %s' % order}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         self.add_moroute('jcli : ', extraCommands)
     
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#0                DefaultRoute            http1', 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#0     DefaultRoute            http\(http1\)', 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -152,84 +191,192 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         
         filters = []
         results = re.findall(' (\w+)Route', receivedLines[3])
-        filters.extend('%sRoute' % item for item in results[:])
+        for item in results[:]:
+            filters.append('%sRoute_http' % item)
+            filters.append('%sRoute_smpps' % item)
         
         # Any new filter must be added here
-        self.assertEqual(filters, ['DefaultRoute', 'StaticMORoute', 
-                                   'RandomRoundrobinMORoute'])
+        self.assertEqual(filters, ['DefaultRoute_http',
+            'DefaultRoute_smpps',
+            'StaticMORoute_http',
+            'StaticMORoute_smpps',
+            'RandomRoundrobinMORoute_http',
+            'RandomRoundrobinMORoute_smpps'])
         
         # Check if MoRouteTypingTestCases is covering all the moroutes
         for f in filters:
             self.assertIn('test_add_%s' % f, dir(self), '%s moroute is not tested !' % f)
             
-    def test_add_DefaultRoute(self):
+    def test_add_DefaultRoute_http(self):
         rorder = '0'
         rtype = 'DefaultRoute'
         cid = 'http1'
-        _str_ = '%s to cid:%s NOT RATED' % (rtype, cid)
+        typed_cid = 'http(%s)' % cid
+        _str_ = '%s to %s NOT RATED' % (rtype, re.escape(typed_cid))
         
         # Add MORoute
         extraCommands = [{'command': 'order %s' % rorder}, 
                          {'command': 'type %s' % rtype},
-                         {'command': 'connector %s' % cid}]
+                         {'command': 'connector %s' % typed_cid}]
         self.add_moroute('jcli : ', extraCommands)
 
         # Make asserts
         expectedList = ['%s' % _str_]
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#%s %s %s ' % (rorder.ljust(16), rtype.ljust(23), cid.ljust(32)), 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s ' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
     
-    def test_add_StaticMORoute(self):
-        rorder = '10'
-        rtype = 'StaticMORoute'
-        cid = 'http1'
-        fid = 'f1'
-        _str_ = '%s to cid:%s NOT RATED' % (rtype, cid)
+    def test_add_DefaultRoute_smpps(self):
+        rorder = '0'
+        rtype = 'DefaultRoute'
+        cid = 'smpp_user'
+        typed_cid = 'smpps(%s)' % cid
+        _str_ = '%s to %s NOT RATED' % (rtype, re.escape(typed_cid))
         
         # Add MORoute
         extraCommands = [{'command': 'order %s' % rorder}, 
                          {'command': 'type %s' % rtype},
-                         {'command': 'connector %s' % cid},
+                         {'command': 'connector %s' % typed_cid}]
+        self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = ['%s' % _str_]
+        self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s ' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        return self._test(r'jcli : ', commands)
+    
+    def test_add_StaticMORoute_http(self):
+        rorder = '10'
+        rtype = 'StaticMORoute'
+        cid = 'http1'
+        typed_cid = 'http(%s)' % cid
+        fid = 'f1'
+        _str_ = '%s to %s NOT RATED' % (rtype, re.escape(typed_cid))
+        
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder}, 
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connector %s' % typed_cid},
                          {'command': 'filters %s' % fid}]
         self.add_moroute('jcli : ', extraCommands)
 
         # Make asserts
         expectedList = ['%s' % _str_]
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#%s %s %s <TransparentFilter>' % (rorder.ljust(16), rtype.ljust(23), cid.ljust(32)), 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s   <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
         
-    def test_add_RandomRoundrobinMORoute(self):
+    def test_add_StaticMORoute_smpps(self):
         rorder = '10'
-        rtype = 'RandomRoundrobinMORoute'
-        cid1 = 'http1'
-        cid2 = 'http2'
+        rtype = 'StaticMORoute'
+        cid = 'smppuser'
+        typed_cid = 'smpps(%s)' % cid
         fid = 'f1'
-        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % cid1, '\t- %s' % cid2]
+        _str_ = '%s to %s NOT RATED' % (rtype, re.escape(typed_cid))
         
         # Add MORoute
         extraCommands = [{'command': 'order %s' % rorder}, 
                          {'command': 'type %s' % rtype},
-                         {'command': 'connectors %s;%s' % (cid1, cid2)},
+                         {'command': 'connector %s' % typed_cid},
+                         {'command': 'filters %s' % fid}]
+        self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = ['%s' % _str_]
+        self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s   <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        return self._test(r'jcli : ', commands)
+        
+    def test_add_RandomRoundrobinMORoute_http(self):
+        rorder = '10'
+        rtype = 'RandomRoundrobinMORoute'
+        cid1 = 'http1'
+        typed_cid1 = 'http(%s)' % cid1
+        cid2 = 'http2'
+        typed_cid2 = 'http(%s)' % cid2
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2)]
+        
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder}, 
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
                          {'command': 'filters %s' % fid}]
         self.add_moroute('jcli : ', extraCommands)
 
         # Make asserts
         expectedList = _str_
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#%s %s %s <TransparentFilter>' % (rorder.ljust(16), rtype.ljust(23), (cid1+', '+cid2).ljust(32)), 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s     <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
         
+    def test_add_RandomRoundrobinMORoute_smpps(self):
+        rorder = '10'
+        rtype = 'RandomRoundrobinMORoute'
+        cid1 = 'smppuser1'
+        typed_cid1 = 'smpps(%s)' % cid1
+        cid2 = 'smppuser2'
+        typed_cid2 = 'smpps(%s)' % cid2
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2)]
+        
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder}, 
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
+                         {'command': 'filters %s' % fid}]
+        self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s     <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        return self._test(r'jcli : ', commands)
+
+    def test_add_RandomRoundrobinMORoute_hybrid(self):
+        rorder = '10'
+        rtype = 'RandomRoundrobinMORoute'
+        cid1 = 'smppuser1'
+        typed_cid1 = 'smpps(%s)' % cid1
+        cid2 = 'http1'
+        typed_cid2 = 'http(%s)' % cid2
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2)]
+        
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder}, 
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
+                         {'command': 'filters %s' % fid}]
+        self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#%s %s %s     <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        return self._test(r'jcli : ', commands)
+
 class MoRouteArgsTestCases(MxRouterTestCases):
     
     def test_add_defaultroute_with_nonzero_order(self):
@@ -238,11 +385,11 @@ class MoRouteArgsTestCases(MxRouterTestCases):
         """
         extraCommands = [{'command': 'order 20'}, 
                          {'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         self.add_moroute(r'jcli : ', extraCommands)
 
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#0                DefaultRoute            http1', 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#0     DefaultRoute            http\(http1\)', 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -252,11 +399,11 @@ class MoRouteArgsTestCases(MxRouterTestCases):
         DefaultRoute without the need to indicate the order
         """
         extraCommands = [{'command': 'type DefaultRoute'},
-                         {'command': 'connector http1'}]
+                         {'command': 'connector http(http1)'}]
         self.add_moroute(r'jcli : ', extraCommands)
 
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#0                DefaultRoute            http1', 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#0     DefaultRoute            http\(http1\)', 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -267,7 +414,7 @@ class MoRouteArgsTestCases(MxRouterTestCases):
         commands = [{'command': 'morouter -a'}, 
                     {'command': 'order 0'}, 
                     {'command': 'type StaticMORoute'},
-                    {'command': 'connector http1'},
+                    {'command': 'connector http(http1)'},
                     {'command': 'filters f1'},
                     {'command': 'ok', 'expect': 'Failed adding MORoute, check log for details'}]
         return self._test(r'> ', commands)
@@ -275,7 +422,7 @@ class MoRouteArgsTestCases(MxRouterTestCases):
     def test_add_incompatible_connector(self):
         commands = [{'command': 'morouter -a'}, 
                     {'command': 'type DefaultRoute'},
-                    {'command': 'connector smpp1', 'expect': 'Unknown cid: smpp1'},
+                    {'command': 'connector http(smpp1)', 'expect': 'Unknown http cid: smpp1'},
                     {'command': 'ok', 'expect': 'You must set these options before saving: type, order, connector'}]
         return self._test(r'> ', commands)
 
@@ -283,7 +430,7 @@ class MoRouteArgsTestCases(MxRouterTestCases):
         commands = [{'command': 'morouter -a'}, 
                     {'command': 'order 20'}, 
                     {'command': 'type StaticMORoute'},
-                    {'command': 'connector http1'},
+                    {'command': 'connector http(http1)'},
                     {'command': 'filters uf1', 'expect': 'UserFilter#uf1 is not a valid filter for MORoute'},
                     {'command': 'ok', 'expect': 'You must set these options before saving: type, order, filters, connector'}]
         return self._test(r'> ', commands)
@@ -291,12 +438,12 @@ class MoRouteArgsTestCases(MxRouterTestCases):
     def test_list_with_filter(self):
         extraCommands = [{'command': 'order 20'}, 
                          {'command': 'type StaticMORoute'},
-                         {'command': 'connector http1'},
+                         {'command': 'connector http(http1)'},
                          {'command': 'filters cf1'}]
         self.add_moroute(r'jcli : ', extraCommands)
         
-        expectedList = ['#MO Route order   Type                    Connector ID\(s\)                  Filter\(s\)', 
-                        '#20               StaticMORoute           http1                            <ConnectorFilter \(cid=Any\)>', 
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
+                        '#20    StaticMORoute           http\(http1\)                                      <ConnectorFilter \(cid=Any\)>', 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)

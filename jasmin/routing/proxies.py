@@ -43,7 +43,9 @@ class RouterPBProxy:
     
     def disconnect(self):
         self.isConnected = False
-        return self.pbClientFactory.disconnect()
+
+        if hasattr(self, 'pbClientFactory'):
+            return self.pbClientFactory.disconnect()
     
     def _connected(self, rootObj):
         if isinstance(rootObj, RemoteReference):

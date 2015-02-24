@@ -17,10 +17,10 @@
     <node id="n0">
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
-          <y:Geometry height="378.0" width="352.0" x="274.0" y="66.0"/>
-          <y:Fill color="#FF0000" color2="#CCFFFF" transparent="false"/>
+          <y:Geometry height="433.0" width="352.0" x="274.0" y="11.0"/>
+          <y:Fill color="#800000" color2="#008080" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="DialogInput" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="free" modelPosition="anywhere" textColor="#FFFFFF" visible="true" width="170.166015625" x="4.0" y="4.0">Jasmin SMS Gateway v0.4</y:NodeLabel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="DialogInput" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="free" modelPosition="anywhere" textColor="#FFFFFF" visible="true" width="170.166015625" x="4.0" y="4.0">Jasmin SMS Gateway v0.6</y:NodeLabel>
         </y:GenericNode>
       </data>
     </node>
@@ -28,7 +28,7 @@
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
           <y:Geometry height="43.0" width="128.0" x="320.0" y="261.5"/>
-          <y:Fill color="#FF9900" transparent="false"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="49.8203125" x="39.08984375" y="12.515625">Router<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
@@ -44,7 +44,7 @@
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="588.0" y="319.0"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="43.451171875" x="20.2744140625" y="1.53125">SMPP
 Client<y:LabelModel>
@@ -63,7 +63,7 @@ Client<y:LabelModel>
           <y:Geometry height="54.5" width="83.06854838709677" x="511.5" y="482.74999999999994"/>
           <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#000000" visible="true" width="41.224609375" x="20.921969506048413" y="58.5">Redis<y:LabelModel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#000000" visible="true" width="41.224609375" x="20.921969506048413" y="58.50000000000006">Redis<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
             <y:ModelParameter>
@@ -74,13 +74,12 @@ Client<y:LabelModel>
       </data>
     </node>
     <node id="n4">
-      <data key="d5"/>
       <data key="d6">
         <y:ImageNode>
           <y:Geometry height="128.0" width="128.0" x="290.0" y="449.74999999999994"/>
           <y:Fill color="#CCCCFF" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#000000" visible="true" width="93.748046875" x="17.1259765625" y="95.26562500000011">AMQP Broker<y:LabelModel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#000000" visible="true" width="93.748046875" x="17.1259765625" y="95.26562500000017">AMQP Broker<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
             <y:ModelParameter>
@@ -95,7 +94,7 @@ Client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="312.0" y="425.24999999999994"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="44.224609375" x="19.8876953125" y="1.53125">AMQP
 client<y:LabelModel>
@@ -112,7 +111,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="504.0" y="425.24999999999994"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="41.7578125" x="21.12109375" y="1.53125">Redis
 client<y:LabelModel>
@@ -129,7 +128,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
           <y:Geometry height="43.0" width="166.39999999999998" x="320.0" y="315.0"/>
-          <y:Fill color="#FF9900" transparent="false"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="149.869140625" x="8.265429687499989" y="12.515625">SMPP Client manager<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
@@ -145,7 +144,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
           <y:Geometry height="43.0" width="260.0" x="320.0" y="208.0"/>
-          <y:Fill color="#FF9900" transparent="false"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="91.05859375" x="84.470703125" y="12.515625">DLR Thrower<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
@@ -161,7 +160,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
           <y:Geometry height="43.0" width="260.0" x="320.0" y="154.5"/>
-          <y:Fill color="#FF9900" transparent="false"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="130.55078125" x="64.724609375" y="12.515625">DeliverSM thrower<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
@@ -177,7 +176,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
           <y:Geometry height="43.0" width="260.0" x="320.0" y="100.99999999999999"/>
-          <y:Fill color="#FF9900" transparent="false"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="65.93359375" x="97.033203125" y="12.515625000000014">HTTP API<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
@@ -193,7 +192,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="214.0" y="319.0"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="47.078125" x="18.4609375" y="1.53125">PB
 server<y:LabelModel>
@@ -210,7 +209,7 @@ server<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="214.0" y="265.5"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="47.078125" x="18.4609375" y="1.53125">PB
 server<y:LabelModel>
@@ -227,7 +226,7 @@ server<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="214.0" y="104.99999999999999"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="47.078125" x="18.4609375" y="1.5312500000000142">HTTP
 server<y:LabelModel>
@@ -297,7 +296,7 @@ Application<y:LabelModel>
     <node id="n17">
       <data key="d6">
         <y:ImageNode>
-          <y:Geometry height="20.0" width="20.0" x="137.125" y="76.00000000000006"/>
+          <y:Geometry height="20.0" width="20.0" x="170.0" y="71.99999999999989"/>
           <y:Fill color="#CCCCFF" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="43.23828125" x="-12.244140625" y="-11.620312500000082">MT SMS<y:LabelModel>
@@ -315,7 +314,7 @@ Application<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="214.0" y="158.5"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="41.7578125" x="21.12109375" y="1.53125">HTTP
 client<y:LabelModel>
@@ -332,7 +331,7 @@ client<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="214.0" y="212.0"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="41.7578125" x="21.12109375" y="1.53125">HTTP
 client<y:LabelModel>
@@ -420,7 +419,7 @@ Application<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode3">
           <y:Geometry height="35.0" width="84.0" x="213.99999999999997" y="372.5"/>
-          <y:Fill color="#000080" transparent="false"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="47.078125" x="18.4609375" y="1.53125">Telnet
 server<y:LabelModel>
@@ -437,9 +436,9 @@ server<y:LabelModel>
       <data key="d6">
         <y:GenericNode configuration="ShinyPlateNode2">
           <y:Geometry height="43.0" width="260.0" x="319.99999999999994" y="368.5"/>
-          <y:Fill color="#FF9900" transparent="false"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="25.146484375" x="117.4267578125" y="12.515625">jCli<y:LabelModel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="140.7578125" x="59.62109375" y="12.515625">jCli - Jasmin Console<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
             <y:ModelParameter>
@@ -452,7 +451,7 @@ server<y:LabelModel>
     <node id="n26">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="42.0" width="90.0" x="735.0" y="301.5"/>
+          <y:Geometry height="42.0" width="90.0" x="752.0" y="301.5"/>
           <y:Fill color="#CC99FF" color2="#999999" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#000000" visible="true" width="78.244140625" x="5.8779296875" y="5.03125">Third party
@@ -470,7 +469,7 @@ SMPP server<y:LabelModel>
     <node id="n27">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="42.0" width="90.0" x="737.0" y="315.5"/>
+          <y:Geometry height="42.0" width="90.0" x="754.0" y="315.5"/>
           <y:Fill color="#CC99FF" color2="#999999" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#000000" visible="true" width="78.244140625" x="5.8779296875" y="5.03125">Third party
@@ -488,7 +487,7 @@ SMPP server<y:LabelModel>
     <node id="n28">
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="42.0" width="90.0" x="737.0" y="330.5"/>
+          <y:Geometry height="42.0" width="90.0" x="754.0" y="330.5"/>
           <y:Fill color="#CC99FF" color2="#999999" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#000000" visible="true" width="78.244140625" x="5.8779296875" y="5.03125">Third party
@@ -523,10 +522,10 @@ SMPP server<y:LabelModel>
     <node id="n30">
       <data key="d6">
         <y:ImageNode>
-          <y:Geometry height="20.0" width="20.0" x="683.0" y="273.0"/>
+          <y:Geometry height="20.0" width="20.0" x="711.0" y="106.00000000000003"/>
           <y:Fill color="#CCCCFF" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="43.23828125" x="-12.244140625" y="-11.620312500000082">MT SMS<y:LabelModel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="43.23828125" x="-12.244140625" y="-11.620312500000068">MT SMS<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
             <y:ModelParameter>
@@ -560,7 +559,7 @@ SMPP server<y:LabelModel>
           <y:Geometry height="24.00000000000003" width="24.00000000000003" x="683.0" y="368.5"/>
           <y:Fill color="#CCCCFF" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="41.7978515625" x="-9.398925781250028" y="23.379687499999847">Receipt<y:LabelModel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="41.7978515625" x="-9.39892578125" y="23.379687499999818">Receipt<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
             <y:ModelParameter>
@@ -572,7 +571,6 @@ SMPP server<y:LabelModel>
       </data>
     </node>
     <node id="n33">
-      <data key="d5"/>
       <data key="d6">
         <y:SVGNode>
           <y:Geometry height="58.38100051879883" width="58.50005340576172" x="52.74997329711911" y="368.5"/>
@@ -593,8 +591,145 @@ SMPP server<y:LabelModel>
         </y:SVGNode>
       </data>
     </node>
+    <node id="n34">
+      <data key="d6">
+        <y:GenericNode configuration="ShinyPlateNode2">
+          <y:Geometry height="43.0" width="260.0" x="320.0" y="47.5"/>
+          <y:Fill color="#FF9900" color2="#C0C0C0" transparent="false"/>
+          <y:BorderStyle hasColor="false" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" textColor="#FFFFFF" visible="true" width="117.654296875" x="71.1728515625" y="12.515625">SMPP Server API<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+        </y:GenericNode>
+      </data>
+    </node>
+    <node id="n35">
+      <data key="d6">
+        <y:GenericNode configuration="ShinyPlateNode3">
+          <y:Geometry height="35.0" width="84.0" x="602.0" y="51.5"/>
+          <y:Fill color="#000080" color2="#003300" transparent="false"/>
+          <y:BorderStyle hasColor="false" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="bold" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#FFFFFF" visible="true" width="47.078125" x="18.4609375" y="1.53125">SMPP
+server<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+        </y:GenericNode>
+      </data>
+    </node>
+    <node id="n36">
+      <data key="d6">
+        <y:ImageNode>
+          <y:Geometry height="20.0" width="20.0" x="701.5" y="-2.0"/>
+          <y:Fill color="#CCCCFF" transparent="false"/>
+          <y:BorderStyle color="#000000" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="45.0009765625" x="-13.12548828125" y="-11.620312500000082">MO SMS<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.24295704295704823" nodeRatioX="-0.03125" nodeRatioY="-0.5" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Image alphaImage="true" refid="2"/>
+        </y:ImageNode>
+      </data>
+    </node>
+    <node id="n37">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="42.0" width="90.0" x="754.0" y="34.0"/>
+          <y:Fill color="#CC99FF" color2="#999999" transparent="false"/>
+          <y:BorderStyle color="#000000" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#000000" visible="true" width="73.216796875" x="8.3916015625" y="5.03125">Third party
+SMPP client<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Shape type="parallelogram"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="n38">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="42.0" width="90.0" x="756.0" y="48.0"/>
+          <y:Fill color="#CC99FF" color2="#999999" transparent="false"/>
+          <y:BorderStyle color="#000000" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#000000" visible="true" width="73.216796875" x="8.3916015625" y="5.03125">Third party
+SMPP client<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Shape type="parallelogram"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="n39">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="42.0" width="90.0" x="756.0" y="63.0"/>
+          <y:Fill color="#CC99FF" color2="#999999" transparent="false"/>
+          <y:BorderStyle color="#000000" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="31.9375" modelName="custom" textColor="#000000" visible="true" width="73.216796875" x="8.3916015625" y="5.03125">Third party
+SMPP client<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="0.0" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Shape type="parallelogram"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <node id="n40">
+      <data key="d6">
+        <y:ImageNode>
+          <y:Geometry height="24.00000000000003" width="24.00000000000003" x="708.0" y="50.49999999999998"/>
+          <y:Fill color="#CCCCFF" transparent="false"/>
+          <y:BorderStyle color="#000000" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="41.7978515625" x="-9.398925781250028" y="23.379687499999847">Receipt<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="-0.4603396603396505" nodeRatioX="-0.020833333333333925" nodeRatioY="0.5" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Image alphaImage="true" refid="3"/>
+        </y:ImageNode>
+      </data>
+    </node>
+    <node id="n41">
+      <data key="d6">
+        <y:ImageNode>
+          <y:Geometry height="20.0" width="20.0" x="695.0" y="268.0"/>
+          <y:Fill color="#CCCCFF" transparent="false"/>
+          <y:BorderStyle color="#000000" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Dialog" fontSize="10" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="15.640625" modelName="custom" textColor="#000000" visible="true" width="43.23828125" x="-12.244140625" y="-11.620312500000068">MT SMS<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.24295704295704823" nodeRatioX="-0.03125" nodeRatioY="-0.5" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Image alphaImage="true" refid="2"/>
+        </y:ImageNode>
+      </data>
+    </node>
     <edge id="e0" source="n5" target="n4">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-9.5" sy="17.4921875" tx="-9.5" ty="-3.4999999999998863"/>
@@ -605,7 +740,6 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e1" source="n4" target="n5">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="10.5" sy="-8.499999999999886" tx="10.5" ty="17.4765625"/>
@@ -616,7 +750,6 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e2" source="n3" target="n6">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="-14.909274193548413" sy="9.75" tx="-7.875" ty="2.0"/>
@@ -627,7 +760,6 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e3" source="n6" target="n3">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="16.465725806451587" sy="17.525390625000114" tx="9.090725806451587" ty="8.75"/>
@@ -638,120 +770,110 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e4" source="n14" target="n13">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
             <y:Point x="161.125" y="92.25"/>
           </y:Path>
-          <y:LineStyle color="#000000" type="line" width="2.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
           <y:Arc height="44.533870697021484" ratio="1.0" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>
     <edge id="e5" source="n13" target="n10">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e6" source="n18" target="n9">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e7" source="n19" target="n8">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e8" source="n11" target="n7">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e9" source="n12" target="n1">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e10" source="n18" target="n15">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
             <y:Point x="170.35858154296875" y="150.30059814453125"/>
           </y:Path>
-          <y:LineStyle color="#000000" type="line" width="2.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
           <y:Arc height="-19.74620246887207" ratio="-0.4528599679470062" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>
     <edge id="e11" source="n19" target="n16">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
             <y:Point x="168.31541442871094" y="206.60877990722656"/>
           </y:Path>
-          <y:LineStyle color="#000000" type="line" width="2.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
           <y:Arc height="2.4561188220977783" ratio="0.0542248971760273" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>
     <edge id="e12" source="n11" target="n21">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
             <y:Point x="165.24488830566406" y="318.81353759765625"/>
           </y:Path>
-          <y:LineStyle color="#000000" type="line" width="2.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="standard" target="none"/>
           <y:Arc height="9.473047256469727" ratio="0.205989807844162" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>
     <edge id="e13" source="n12" target="n22">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
             <y:Point x="167.52728271484375" y="271.6961364746094"/>
           </y:Path>
-          <y:LineStyle color="#000000" type="line" width="2.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="standard" target="none"/>
           <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" preferredPlacement="anywhere" ratio="0.5" textColor="#000000" visible="true" width="83.048828125" x="-87.23872680664066" y="5.4666748046875">Management<y:LabelModel>
               <y:SmartEdgeLabelModel autoRotationEnabled="false" defaultAngle="0.0" defaultDistance="10.0"/>
@@ -766,18 +888,16 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e14" source="n24" target="n25">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e15" source="n25" target="n7">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="118.60000000000008" sy="-15.04998779296875" tx="59.80000000000001" ty="-9.0421142578125">
@@ -798,7 +918,6 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e16" source="n25" target="n1">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="119.40000000000003" sy="-14.199999999999989" tx="56.60000000000002" ty="-10.399999999999977">
@@ -811,44 +930,40 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e17" source="n7" target="n2">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
-          <y:LineStyle color="#000080" type="line" width="5.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
           <y:Arrows source="circle" target="circle"/>
           <y:BendStyle smoothed="false"/>
         </y:PolyLineEdge>
       </data>
     </edge>
     <edge id="e18" source="n2" target="n26">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
-            <y:Point x="701.5" y="292.0"/>
+            <y:Point x="710.0" y="287.75"/>
           </y:Path>
           <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
-          <y:Arc height="37.66297912597656" ratio="1.0" type="fixedRatio"/>
+          <y:Arc height="41.89645004272461" ratio="1.0" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>
     <edge id="e19" source="n28" target="n2">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
-            <y:Point x="702.25" y="382.0"/>
+            <y:Point x="710.75" y="386.25"/>
           </y:Path>
           <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
-          <y:Arc height="38.18458557128906" ratio="1.0" type="fixedRatio"/>
+          <y:Arc height="42.41609191894531" ratio="1.0" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>
     <edge id="e20" source="n27" target="n2">
-      <data key="d9"/>
       <data key="d10">
         <y:PolyLineEdge>
           <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
@@ -859,13 +974,12 @@ SMPP server<y:LabelModel>
       </data>
     </edge>
     <edge id="e21" source="n33" target="n24">
-      <data key="d9"/>
       <data key="d10">
         <y:ArcEdge>
           <y:Path sx="19.24997329711917" sy="6.509499740600575" tx="0.0" ty="0.0">
             <y:Point x="180.00131225585938" y="412.0990905761719"/>
           </y:Path>
-          <y:LineStyle color="#000000" type="line" width="2.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
           <y:Arrows source="none" target="standard"/>
           <y:EdgeLabel alignment="center" configuration="AutoFlippingLabel" distance="2.0" fontFamily="Dialog" fontSize="12" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="17.96875" modelName="custom" preferredPlacement="anywhere" ratio="0.5" textColor="#000000" visible="true" width="83.048828125" x="5.033095676135048" y="-17.361985205785345">Management<y:LabelModel>
               <y:SmartEdgeLabelModel autoRotationEnabled="false" defaultAngle="0.0" defaultDistance="10.0"/>
@@ -876,6 +990,56 @@ SMPP server<y:LabelModel>
             <y:PreferredPlacementDescriptor angle="0.0" angleOffsetOnRightSide="0" angleReference="absolute" angleRotationOnRightSide="co" distance="-1.0" frozen="true" placement="anywhere" side="anywhere" sideReference="relative_to_edge_flow"/>
           </y:EdgeLabel>
           <y:Arc height="-15.062084197998047" ratio="-0.3876980245113373" type="fixedRatio"/>
+        </y:ArcEdge>
+      </data>
+    </edge>
+    <edge id="e22" source="n35" target="n34">
+      <data key="d9"/>
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000080" type="line" width="4.0"/>
+          <y:Arrows source="circle" target="circle"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e23" source="n37" target="n35">
+      <data key="d9"/>
+      <data key="d10">
+        <y:ArcEdge>
+          <y:Path sx="0.0" sy="-20.9794921875" tx="0.0" ty="0.0">
+            <y:Point x="713.6964111328125" y="16.931232452392578"/>
+          </y:Path>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="standard" target="none"/>
+          <y:Arc height="-35.4486198425293" ratio="-0.8923618197441101" type="fixedRatio"/>
+        </y:ArcEdge>
+      </data>
+    </edge>
+    <edge id="e24" source="n38" target="n35">
+      <data key="d9"/>
+      <data key="d10">
+        <y:ArcEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="722.5" y="75.0857162475586"/>
+          </y:Path>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="standard" target="none"/>
+          <y:Arc height="6.085716247558594" ratio="0.1550500988960266" type="fixedRatio"/>
+        </y:ArcEdge>
+      </data>
+    </edge>
+    <edge id="e25" source="n39" target="n35">
+      <data key="d9"/>
+      <data key="d10">
+        <y:ArcEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
+            <y:Point x="717.6036987304688" y="127.74801635742188"/>
+          </y:Path>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:Arc height="51.481388092041016" ratio="1.3056820631027222" type="fixedRatio"/>
         </y:ArcEdge>
       </data>
     </edge>

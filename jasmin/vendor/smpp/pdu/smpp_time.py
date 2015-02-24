@@ -81,10 +81,25 @@ def parse_absolute_time(str):
     timeVal = parse_YYMMDDhhmmss(YYMMDDhhmmss)
     return timeVal.replace(microsecond=microseconds,tzinfo=tzinfo)
     
-def parse_relative_time(str):
-    absT = parse_absolute_time(str[:15] + '+')
-    baseT = parse_YYMMDDhhmmss('000101000000')
-    return SMPPRelativeTime(absT.year - baseT.year, absT.month, absT.day, absT.hour, absT.minute, absT.second)
+def parse_relative_time(dtstr):
+    # example 600 seconds is: '000000001000000R'
+
+    try:
+        year =  int(dtstr[:2])
+        month = int(dtstr[2:4])
+        day = int(dtstr[4:6])
+        hour = int(dtstr[6:8])
+        minute = int(dtstr[8:10])
+        second = int(dtstr[10:12])
+        dsecond = int(dtstr[12:13])
+
+        # According to spec dsecond should be set to 0
+        if dsecond != 0:
+            raise ValueError("SMPP v3.4 spec violation: tenths of second value is %s instead of 0"% dsecond)
+    except IndexError, e:
+        raise ValueError("Error %s : Unable to parse relative Validity Period %s" % e,dtstr)
+
+    return SMPPRelativeTime(year,month,day,hour,minute,second)
     
 def parse_YYMMDDhhmmss(YYMMDDhhmmss):
     return datetime.strptime(YYMMDDhhmmss, YYMMDDHHMMSS_FORMAT)
@@ -111,10 +126,9 @@ def unparse_absolute_time(dt):
 def unparse_relative_time(rel):
     if not isinstance(rel, SMPPRelativeTime):
         raise ValueError("input must be a SMPPRelativeTime")
-    baseT = parse_YYMMDDhhmmss('000101000000')
-    absT = datetime(rel.years + baseT.year, rel.months, rel.days, rel.hours, rel.minutes, rel.seconds)
-    str = unparse_absolute_time(absT)
-    return str[:15] + 'R'
+    relstr = "%s%s%s%s%s%s000R" % (str("%.2d" % rel.years), str("%.2d" % rel.months), str("%.2d" % rel.days), str("%.2d" % rel.hours), str("%.2d" % rel.minutes), str("%.2d" % rel.seconds))
+
+    return relstr
 
 def parse(str):
     """Takes an SMPP time string in.

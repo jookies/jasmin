@@ -2,11 +2,16 @@
 import struct
 import math
 import re
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, 
                                             EsmClassType, EsmClassGsmFeatures, 
-                                            MoreMessagesToSend)
+                                            MoreMessagesToSend, MessageState,
+                                            EsmClass, EsmClassMode, EsmClassType)
+
+class UnknownMessageStatusError(Exception):
+    """Raised when message_status is not recognized
+    """
 
 class SMPPOperationFactory():
     lastLongSmSeqNum = 0
@@ -59,6 +64,10 @@ class SMPPOperationFactory():
         return self.lastLongSmSeqNum
 
     def SubmitSM(self, short_message, data_coding = 0, **kwargs):
+        """Depending on the short_message length, this method will return a classical SubmitSM or 
+        a serie of linked SubmitSMs (parted message)
+        """
+
         kwargs['short_message'] = short_message
         kwargs['data_coding'] = data_coding
 
@@ -137,4 +146,48 @@ class SMPPOperationFactory():
         else:
             pdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
         
+        return pdu
+
+    def getReceipt(self, msgid, source_addr, destination_addr, message_status):
+        "Will build a DataSm containing a receipt data"
+
+        # Build pdu
+        pdu = DataSM(
+            source_addr = source_addr,
+            destination_addr = destination_addr,
+            esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+            receipted_message_id = msgid,
+        )
+
+        # Set pdu.message_state
+        if message_status[:5] == 'ESME_':
+            # It is a receipt catched from a submit_sm_resp
+            if message_status == 'ESME_ROK':
+                pdu.params['message_state'] = MessageState.ACCEPTED
+            else:
+                pdu.params['message_state'] = MessageState.UNDELIVERABLE
+        elif message_status == 'UNDELIV':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.UNDELIVERABLE
+        elif message_status == 'REJECTD':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.REJECTED
+        elif message_status == 'DELIVRD':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.DELIVERED
+        elif message_status == 'EXPIRED':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.EXPIRED
+        elif message_status == 'DELETED':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.DELETED
+        elif message_status == 'ACCEPTD':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.ACCEPTED
+        elif message_status == 'UNKNOWN':
+            # It is a receipt catched from a deliver_sm
+            pdu.params['message_state'] = MessageState.UNKNOWN
+        else:
+            raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)
+
         return pdu

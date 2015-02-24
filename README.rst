@@ -75,9 +75,11 @@ Change Log
 0.6 (*under development*)
 =========================
 
-* SMPP Server API
-* Better User credentials: expiry and QoS
-* Easier installation procedure through Linux packages
+* SMPP Server API #49
+* Basic statistics in user-level #77
+* Delivery retrial on specific/configurable errors #60
+* Better User credentials: expiry and QoS #50, #51
+* Easier installation procedure through Linux packages #78
 
 0.5
 ===

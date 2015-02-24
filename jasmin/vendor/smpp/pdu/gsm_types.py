@@ -13,7 +13,7 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from enum import Enum
+from jasmin.vendor.enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu import gsm_constants
 

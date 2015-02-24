@@ -24,23 +24,23 @@ class RouteTestCase(TestCase):
 class RouteStrTestCase(RouteTestCase):
     def test_StaticMTRoute(self):
         s = StaticMTRoute(self.simple_filter_mt, self.connector2, 0.0)
-        self.assertEqual(str(s), 'StaticMTRoute to cid:def NOT RATED')
+        self.assertEqual(str(s), 'StaticMTRoute to generic(def) NOT RATED')
     
     def test_StaticMORoute(self):
         s = StaticMORoute(self.simple_filter_mo, self.connector2)
-        self.assertEqual(str(s), 'StaticMORoute to cid:def NOT RATED')
+        self.assertEqual(str(s), 'StaticMORoute to generic(def) NOT RATED')
     
     def test_DefaultRoute(self):
         s = DefaultRoute(self.connector2)
-        self.assertEqual(str(s), 'DefaultRoute to cid:def NOT RATED')
+        self.assertEqual(str(s), 'DefaultRoute to generic(def) NOT RATED')
     
     def test_RandomRoundrobinMTRouteTestCase(self):
         s = RandomRoundrobinMTRoute(self.simple_filter_mt, [self.connector1, self.connector2], 0.0)
-        self.assertEqual(str(s), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- abc\n\t- def \nNOT RATED')
+        self.assertEqual(str(s), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def) \nNOT RATED')
 
     def test_RandomRoundrobinMORouteTestCase(self):
         s = RandomRoundrobinMORoute(self.simple_filter_mo, [self.connector1, self.connector2])
-        self.assertEqual(str(s), 'RandomRoundrobinMORoute to 2 connectors:\n\t- abc\n\t- def')
+        self.assertEqual(str(s), 'RandomRoundrobinMORoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def)')
     
     def test_FailoverMTRouteTestCase(self):
         pass
@@ -201,11 +201,11 @@ class RatedMTRoutesTestCase(RouteTestCase):
         # DefaultRoute's rate parameter is optional
         dr = DefaultRoute(self.connector1)
         self.assertEqual(dr.getRate(), 0)
-        self.assertEqual(str(dr), 'DefaultRoute to cid:abc NOT RATED')
+        self.assertEqual(str(dr), 'DefaultRoute to generic(abc) NOT RATED')
         
         dr = DefaultRoute(self.connector1, 2.3)
         self.assertEqual(dr.getRate(), 2.3)
-        self.assertEqual(str(dr), 'DefaultRoute to cid:abc rated 2.30')
+        self.assertEqual(str(dr), 'DefaultRoute to generic(abc) rated 2.30')
 
         # Rate must be float, not integer !
         self.assertRaises(InvalidRouteParameterError, DefaultRoute, self.connector1, 0)
@@ -216,18 +216,18 @@ class RatedMTRoutesTestCase(RouteTestCase):
         # StaticMORoute's rate must be ignored
         sr = StaticMORoute(self.simple_filter_mo, self.connector1)
         self.assertEqual(sr.getRate(), 0)
-        self.assertEqual(str(sr), 'StaticMORoute to cid:abc NOT RATED')
+        self.assertEqual(str(sr), 'StaticMORoute to generic(abc) NOT RATED')
         sr = StaticMORoute(self.simple_filter_mo, self.connector1, 2.3)
-        self.assertEqual(str(sr), 'StaticMORoute to cid:abc NOT RATED')
+        self.assertEqual(str(sr), 'StaticMORoute to generic(abc) NOT RATED')
         self.assertEqual(sr.getRate(), 0)
 
     def test_StaticMTRoute(self):
         sr = StaticMTRoute(self.simple_filter_mt, self.connector1, 0.0)
         self.assertEqual(sr.getRate(), 0)
-        self.assertEqual(str(sr), 'StaticMTRoute to cid:abc NOT RATED')
+        self.assertEqual(str(sr), 'StaticMTRoute to generic(abc) NOT RATED')
         sr = StaticMTRoute(self.simple_filter_mt, self.connector1, 2.3)
         self.assertEqual(sr.getRate(), 2.3)
-        self.assertEqual(str(sr), 'StaticMTRoute to cid:abc rated 2.30')
+        self.assertEqual(str(sr), 'StaticMTRoute to generic(abc) rated 2.30')
 
         # Adding rate parameter will lead to:
         # exceptions.TypeError: __init__() takes exactly 4 arguments (3 given)
@@ -241,7 +241,7 @@ class RatedMTRoutesTestCase(RouteTestCase):
         # RandomRoundrobinMORoute is not rated
         rrr = RandomRoundrobinMORoute(self.simple_filter_mo, [self.connector1, self.connector2])
         self.assertEqual(rrr.getRate(), 0)
-        self.assertEqual(str(rrr), 'RandomRoundrobinMORoute to 2 connectors:\n\t- abc\n\t- def')
+        self.assertEqual(str(rrr), 'RandomRoundrobinMORoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def)')
         # Adding rate parameter will lead to:
         # exceptions.TypeError: __init__() takes exactly 3 arguments (4 given)
         self.assertRaises(TypeError, RandomRoundrobinMORoute, self.simple_filter_mo, [self.connector1, self.connector2], 2.3)
@@ -249,10 +249,10 @@ class RatedMTRoutesTestCase(RouteTestCase):
     def test_RandomRoundrobinMTRoute(self):
         rrr = RandomRoundrobinMTRoute(self.simple_filter_mt, [self.connector1, self.connector2], 0.0)
         self.assertEqual(rrr.getRate(), 0)
-        self.assertEqual(str(rrr), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- abc\n\t- def \nNOT RATED')
+        self.assertEqual(str(rrr), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def) \nNOT RATED')
         rrr = RandomRoundrobinMTRoute(self.simple_filter_mt, [self.connector1, self.connector2], 5.6)
         self.assertEqual(rrr.getRate(), 5.6)
-        self.assertEqual(str(rrr), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- abc\n\t- def \nrated 5.60')
+        self.assertEqual(str(rrr), 'RandomRoundrobinMTRoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def) \nrated 5.60')
 
         # Adding rate parameter will lead to:
         # exceptions.TypeError: __init__() takes exactly 4 arguments (3 given)

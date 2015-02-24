@@ -40,6 +40,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         
         self.commands = []        
         self.log = logging.getLogger(log_category)
+        self.log.propagate = False
         
     def initializeScreen(self):
         'Overrides twisted.conch.recvline.RecvLine.initializeScreen() to not to show prompt'

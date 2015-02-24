@@ -2,8 +2,9 @@
 HTTP API
 ########
 
-This document is targeted at software designers/programmers wishing to integrate SMS messaging as a function 
-into their applications, e.g. in connection with WEB-server, unified messaging, information services etc..
+This document is targeted at software designers/programmers wishing to integrate SMS messaging as a function into their applications using HTTP protocol, e.g. in connection with WEB-server, unified messaging, information services etc..
+
+If you need to use a stateful tcp protocol (**SMPP v3.4**), please refer to :doc:`/apis/smpp-server/index`.
 
 SMS Messages can be transmitted using HTTP protocol, the following requirements must be met to enable the service :
 
@@ -18,8 +19,7 @@ SMS Messages can be transmitted using HTTP protocol, the following requirements 
 Features
 ********
 The ja-http API allows you to send and receive SMS through Jasmin's connectors.
-Receive http callbacks for delivery notification when SMS-MT is received (or not) on mobile station, send and receive long 
-(more than 160 characters) SMS, unicode content and receive http callbacks when a mobile station send you a SMS-MO.
+Receive http callbacks for delivery notification when SMS-MT is received (or not) on mobile station, send and receive long (more than 160 characters) SMS, unicode/binary content and receive http callbacks when a mobile station send you a SMS-MO.
 
 .. _sending_sms-mt:
 
@@ -347,7 +347,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    :linenos:
    
    [deliversm-thrower]
-   timeout            = 30
+   http_timeout       = 30
    retry_delay        = 30
    max_retries        = 3
    log_level          = INFO
@@ -362,15 +362,15 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    * - Element
      - Default
      - Description
-   * - timeout
+   * - http_timeout
      - 30
      - Sets socket timeout in seconds for outgoing client http connections.
    * - retry_delay
      - 30
-     - Define how many seconds should pass within the HTTP queuing for retrying a failed HTTP request.
+     - Define how many seconds should pass within the queuing system for retrying a failed throw.
    * - max_retries
      - 3
-     - Define how many retries should be performed for failing HTTP requests of SMS-MO.
+     - Define how many retries should be performed for failing throws of SMS-MO.
    * - log_*
      - 
      - Python's logging module configuration.
@@ -506,7 +506,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    :linenos:
    
    [dlr-thrower]
-   timeout            = 30
+   http_timeout       = 30
    retry_delay        = 30
    max_retries        = 3
    log_level          = INFO
@@ -521,19 +521,21 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    * - Element
      - Default
      - Description
-   * - timeout
+   * - http_timeout
      - 30
      - Sets socket timeout in seconds for outgoing client http connections.
    * - retry_delay
      - 30
-     - Define how many seconds should pass within the HTTP queuing for retrying a failed HTTP request.
+     - Define how many seconds should pass within the queuing system for retrying a failed throw.
    * - max_retries
      - 3
-     - Define how many retries should be performed for failing HTTP requests of DLR.
+     - Define how many retries should be performed for failing throws of DLR.
    * - log_*
      - 
      - Python's logging module configuration.
 
 .. rubric:: Footnotes
-.. [1]
+.. [1] :doc:`/billing/index`
+
+.. [2]
 .. include:: ../datacoding.table

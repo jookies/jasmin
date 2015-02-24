@@ -12,7 +12,7 @@ class HTTPApiConfig(ConfigFile):
         ConfigFile.__init__(self, config_file)
         
         self.bind = self._get('http-api', 'bind', '0.0.0.0')
-        self.port = self._get('http-api', 'port', 1401)
+        self.port = self._getint('http-api', 'port', 1401)
 
         # Logging
         self.access_log = self._get('http-api', 'access_log', '/var/log/jasmin/http-accesslog.log')

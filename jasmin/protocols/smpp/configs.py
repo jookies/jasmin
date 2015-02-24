@@ -26,26 +26,26 @@ class UnknownValue(Exception):
     """Raised when a *Config element has a valid type and inappropriate value
     """
 
-class SMPPClientConfig():
+class SMPPClientConfig(object):
+    
     def __init__(self, **kwargs):
+        #####################
+        # Generick configuration block
+
+        # cid validation
         if kwargs.get('id', None) == None:
-            raise ConfigUndefinedIdError('SMPPClientConfig must have an id')
-        
+            raise ConfigUndefinedIdError('SMPPConfig must have an id')
         idcheck = re.compile(r'^[A-Za-z0-9_-]{3,25}$')
         if idcheck.match(str(kwargs.get('id'))) == None:
-            raise ConfigInvalidIdError('SMPPClientConfig id syntax is invalid')
+            raise ConfigInvalidIdError('SMPPConfig id syntax is invalid')
             
         self.id = str(kwargs.get('id'))
-        
-        self.host = kwargs.get('host', '127.0.0.1')
-        if not isinstance(self.host, str):
-            raise TypeMismatch('host must be a string')
+
         self.port = kwargs.get('port', 2775)
         if not isinstance(self.port, int):
             raise TypeMismatch('port must be an integer')
-        self.username = kwargs.get('username', 'smppclient')
-        self.password = kwargs.get('password', 'password')
-        self.systemType = kwargs.get('systemType', '')
+
+        # Logging configuration
         self.log_file = kwargs.get('log_file', '/var/log/jasmin/default-%s.log' % self.id)
         self.log_level = kwargs.get('log_level', logging.INFO)
         if (self.log_level not in 
@@ -53,14 +53,14 @@ class SMPPClientConfig():
             raise ConfigInvalidLogLevelError('SMPPClientConfig log_level syntax is invalid')
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = kwargs.get('log_dateformat', '%Y-%m-%d %H:%M:%S')
-        
+
         # Timeout for response to bind request
         self.sessionInitTimerSecs = kwargs.get('sessionInitTimerSecs', 30)
         if not isinstance(self.sessionInitTimerSecs, int) and not isinstance(self.sessionInitTimerSecs, float):
             raise TypeMismatch('sessionInitTimerSecs must be an integer or float')
         
         # Enquire link interval
-        self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 10)
+        self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 30)
         if not isinstance(self.enquireLinkTimerSecs, int) and not isinstance(self.enquireLinkTimerSecs, float):
             raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
         
@@ -74,7 +74,29 @@ class SMPPClientConfig():
         self.responseTimerSecs = kwargs.get('responseTimerSecs', 60)
         if not isinstance(self.responseTimerSecs, int) and not isinstance(self.responseTimerSecs, float):
             raise TypeMismatch('responseTimerSecs must be an integer or float')
-        
+
+        # Timeout for reading a single PDU, this is the maximum lapse of time between
+        # receiving PDU's header and its complete read, if the PDU reading timed out,
+        # the connection is considered as 'corrupt' and will reconnect
+        self.pduReadTimerSecs = kwargs.get('pduReadTimerSecs', 10)
+        if not isinstance(self.pduReadTimerSecs, int) and not isinstance(self.pduReadTimerSecs, float):
+            raise TypeMismatch('pduReadTimerSecs must be an integer or float')
+
+        # DLR
+        # How much time a message is kept in redis waiting for receipt
+        self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
+        if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
+            raise TypeMismatch('dlr_expiry must be an integer or float')
+
+        #####################
+        # SMPPClient Specific configuration block
+        self.host = kwargs.get('host', '127.0.0.1')
+        if not isinstance(self.host, str):
+            raise TypeMismatch('host must be a string')
+        self.username = kwargs.get('username', 'smppclient')
+        self.password = kwargs.get('password', 'password')
+        self.systemType = kwargs.get('systemType', '')
+                
         # Reconnection
         self.reconnectOnConnectionLoss = kwargs.get('reconnectOnConnectionLoss', True)
         if not isinstance(self.reconnectOnConnectionLoss, bool):
@@ -88,14 +110,7 @@ class SMPPClientConfig():
         self.reconnectOnConnectionFailureDelay = kwargs.get('reconnectOnConnectionFailureDelay', 10)        
         if not isinstance(self.reconnectOnConnectionFailureDelay, int) and not isinstance(self.reconnectOnConnectionFailureDelay, float):
             raise TypeMismatch('reconnectOnConnectionFailureDelay must be an integer or float')
-        
-        # Timeout for reading a single PDU, this is the maximum lapse of time between
-        # receiving PDU's header and its complete read, if the PDU reading timed out,
-        # the connection is considered as 'corrupt' and will reconnect
-        self.pduReadTimerSecs = kwargs.get('pduReadTimerSecs', 10)
-        if not isinstance(self.pduReadTimerSecs, int) and not isinstance(self.pduReadTimerSecs, float):
-            raise TypeMismatch('pduReadTimerSecs must be an integer or float')
-        
+                
         self.useSSL = kwargs.get('useSSL', False)
         self.SSLCertificateFile = kwargs.get('SSLCertificateFile', None)
         
@@ -158,11 +173,6 @@ class SMPPClientConfig():
         self.submit_sm_throughput = kwargs.get('submit_sm_throughput', 1)
         if not isinstance(self.submit_sm_throughput, int) and not isinstance(self.submit_sm_throughput, float):
             raise TypeMismatch('submit_sm_throughput must be an integer or float')
-        
-        # DLR
-        self.dlr_expiry = kwargs.get('dlr_expiry', 86400)
-        if not isinstance(self.dlr_expiry, int) and not isinstance(self.dlr_expiry, float):
-            raise TypeMismatch('dlr_expiry must be an integer or float')        
                 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):
@@ -172,3 +182,39 @@ class SMPPClientServiceConfig(ConfigFile):
         self.log_file = self._get('services-smppclient', 'log_file', '/var/log/jasmin/service-smppclient.log')
         self.log_format = self._get('services-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('services-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+class SMPPServerConfig(ConfigFile):
+    def __init__(self, config_file = None):
+        ConfigFile.__init__(self, config_file)
+        
+        self.id = self._get('smpp-server', 'id', 'smpps_01')
+        
+        self.bind = self._get('smpp-server', 'bind', '0.0.0.0')
+        self.port = self._getint('smpp-server', 'port', 2775)
+
+        # Logging
+        self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
+        self.log_file = self._get('smpp-server', 'log_file', '/var/log/jasmin/default-%s.log' % self.id)
+        self.log_format = self._get('smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_date_format = self._get('smpp-server', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+        # Timeout for response to bind request
+        self.sessionInitTimerSecs = self._getint('smpp-server', 'sessionInitTimerSecs', 30)
+        
+        # Enquire link interval
+        self.enquireLinkTimerSecs = self._getint('smpp-server', 'enquireLinkTimerSecs', 30)
+        
+        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive
+        self.inactivityTimerSecs = self._getint('smpp-server', 'inactivityTimerSecs', 300)
+        
+        # Timeout for responses to any request PDU
+        self.responseTimerSecs = self._getint('smpp-server', 'responseTimerSecs', 60)
+
+        # Timeout for reading a single PDU, this is the maximum lapse of time between
+        # receiving PDU's header and its complete read, if the PDU reading timed out,
+        # the connection is considered as 'corrupt' and will reconnect
+        self.pduReadTimerSecs = self._getint('smpp-server', 'pduReadTimerSecs', 10)
+
+        # DLR
+        # How much time a message is kept in redis waiting for receipt
+        self.dlr_expiry = self._getint('smpp-server', 'dlr_expiry', 86400)

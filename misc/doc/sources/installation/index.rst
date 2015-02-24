@@ -2,7 +2,12 @@
 Installation
 ############
 
-The Installation section is intended to get you up and running quickly with a simple SMS sending scenario. More detailed information can be found in the advanced topics sections.
+The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through 
+:doc:`/apis/ja-http/index`.
+
+.. note:: You can also send your first SMS through :doc:`/apis/smpp-server/index`.
+
+More detailed information can be found in the advanced topics sections.
 
 .. note:: Jasmin gateway is supported on POSIX systems (Linux/Unix).
 
@@ -63,7 +68,7 @@ After getting jasmin installed, it is time to start it as a system service::
     sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
     sudo /etc/init.d/jasmind start
 
-.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults**
+.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults** or **sudo systemctl enable jasmind** on recent Linux distributions.
 
 Sending your first SMS
 ======================
@@ -143,7 +148,7 @@ We'll configure a default route to send all SMS through our newly created DEMO_C
 	> type defaultroute
 	jasmin.routing.Routes.DefaultRoute arguments:
 	connector
-	> connector DEMO_CONNECTOR
+	> connector smppc(DEMO_CONNECTOR)
 	> rate 0.00
 	> ok
 	Successfully added MTRoute [DefaultRoute] with order:0
