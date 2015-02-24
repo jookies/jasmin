@@ -347,7 +347,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    :linenos:
    
    [deliversm-thrower]
-   timeout            = 30
+   http_timeout       = 30
    retry_delay        = 30
    max_retries        = 3
    log_level          = INFO
@@ -362,15 +362,15 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    * - Element
      - Default
      - Description
-   * - timeout
+   * - http_timeout
      - 30
      - Sets socket timeout in seconds for outgoing client http connections.
    * - retry_delay
      - 30
-     - Define how many seconds should pass within the HTTP queuing for retrying a failed HTTP request.
+     - Define how many seconds should pass within the queuing system for retrying a failed throw.
    * - max_retries
      - 3
-     - Define how many retries should be performed for failing HTTP requests of SMS-MO.
+     - Define how many retries should be performed for failing throws of SMS-MO.
    * - log_*
      - 
      - Python's logging module configuration.
@@ -506,7 +506,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    :linenos:
    
    [dlr-thrower]
-   timeout            = 30
+   http_timeout       = 30
    retry_delay        = 30
    max_retries        = 3
    log_level          = INFO
@@ -521,15 +521,15 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    * - Element
      - Default
      - Description
-   * - timeout
+   * - http_timeout
      - 30
      - Sets socket timeout in seconds for outgoing client http connections.
    * - retry_delay
      - 30
-     - Define how many seconds should pass within the HTTP queuing for retrying a failed HTTP request.
+     - Define how many seconds should pass within the queuing system for retrying a failed throw.
    * - max_retries
      - 3
-     - Define how many retries should be performed for failing HTTP requests of DLR.
+     - Define how many retries should be performed for failing throws of DLR.
    * - log_*
      - 
      - Python's logging module configuration.

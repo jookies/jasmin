@@ -78,14 +78,17 @@ All the above parameters can be displayed after User creation, except the passwo
    mt_messaging_cred valuefilter content .*
    mt_messaging_cred valuefilter src_addr .*
    mt_messaging_cred valuefilter dst_addr .*
-   mt_messaging_cred authorization dlr_level True
-   mt_messaging_cred authorization dlr_method True
-   mt_messaging_cred authorization long_content True
-   mt_messaging_cred authorization src_addr True
-   mt_messaging_cred authorization http_send True
    mt_messaging_cred authorization priority True
-   gid marketing
+   mt_messaging_cred authorization http_long_content True
+   mt_messaging_cred authorization src_addr True
+   mt_messaging_cred authorization http_dlr_method True
+   mt_messaging_cred authorization dlr_level True
+   mt_messaging_cred authorization http_send True
+   mt_messaging_cred authorization smpps_send True
    uid foo
+   smpps_cred quota max_bindings ND
+   smpps_cred authorization bind True
+   gid marketing
 
 Listing Users will show currently added Users with their UID, GID and Username::
 
@@ -99,14 +102,17 @@ Listing Users will show currently added Users with their UID, GID and Username::
 User credentials
 ================
 
+MT Messaging section
+--------------------
+
 As seen above, User have an optional **mt_messaging_cred** parameter which define a set of sections:
 
 * **Authorizations**: Privileges to send messages and set some defined parameters,
 * **Value filters**: Restrictions on some parameter values (such as source address),
 * **Default values**: Default parameter values to be set by Jasmin when not manually set by User,
-* **Quotas**: Everything about (c.f. :doc:`/billing/index`),
+* **Quotas**: Everything about :doc:`/billing/index`,
 
-For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to set a source address value filter and a balance of 44.2::
+For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to set a source address **value filter**, a balance of **44.2** and **unlimited** sms_count::
 
    jcli : user -a
    Adding a new User: (ok: save, ko: exit)
@@ -116,10 +122,13 @@ For each section of the above, there's keys to be defined when adding/updating a
    > uid foo
    > mt_messaging_cred valuefilter src_addr ^JASMIN$
    > mt_messaging_cred quota balance 44.2
+   > mt_messaging_cred quota sms_count none
    > ok
    Successfully added User [foo] to Group [marketing]
 
-In the below tables, you can find exhaustive list of keys for each mt_messaging_cred section:
+.. note:: Setting *none* value to a user quota will set it as *unlimited* quota.
+
+In the below tables, you can find exhaustive list of keys for each **mt_messaging_cred** section:
 
 .. list-table:: **authorization** section keys
    :widths: 10 10 80
@@ -131,13 +140,16 @@ In the below tables, you can find exhaustive list of keys for each mt_messaging_
    * - http_send
      - True
      - Privilege to send SMS through HTTP API
-   * - long_content
+   * - smpps_send
+     - True
+     - Privilege to send SMS through SMPP Server API
+   * - http_long_content
      - True
      - Privilege to send long content SMS through HTTP API
    * - dlr_level
      - True
      - Privilege to set **dlr-level** parameter (default is 1)
-   * - dlr_method
+   * - http_dlr_method
      - True
      - Privilege to set **dlr-method** HTTP parameter (default is GET)
    * - src_addr
@@ -146,6 +158,8 @@ In the below tables, you can find exhaustive list of keys for each mt_messaging_
    * - priority
      - True
      - Privilege to defined priority of SMS-MT (default is 0)
+
+.. note:: Authorizations keys prefixed by **http_** or **smpps_** are only applicable for their respective channels.
 
 .. list-table:: **valuefilter** section keys
    :widths: 10 10 80
@@ -194,6 +208,51 @@ In the below tables, you can find exhaustive list of keys for each mt_messaging_
    * - early_percent
      - ND
      - c.f. :ref:`billing_async`
+
+SMPP Server section
+-------------------
+
+User have an other optional **smpps_credential** parameter which define a specialized set of sections for defining his credentials for using the :doc:`/apis/smpp-server/index`:
+
+* **Authorizations**: Privileges to bind,
+* **Quotas**: Maximum bound connections at a time (multi binding),
+
+For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to **authorize** binding and set max_bindings to **2**::
+
+   jcli : user -a
+   Adding a new User: (ok: save, ko: exit)
+   > username foo
+   > password bar
+   > gid marketing
+   > uid foo
+   > smpps_credential authorization bind yes
+   > smpps_credential quota max_bindings 2
+   > ok
+   Successfully added User [foo] to Group [marketing]
+
+In the below tables, you can find exhaustive list of keys for each **smpps_credential** section:
+
+.. list-table:: **authorization** section keys
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Key
+     - Default
+     - Description
+   * - bind
+     - True
+     - Privilege to bind to SMPP Server API
+
+.. list-table:: **quota** section keys
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Key
+     - Default
+     - Description
+   * - max_bindings
+     - ND
+     - Maximum bound connections at a time (multi binding)
 
 .. _group_manager:
 
