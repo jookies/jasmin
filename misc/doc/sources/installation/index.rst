@@ -68,7 +68,7 @@ After getting jasmin installed, it is time to start it as a system service::
     sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
     sudo /etc/init.d/jasmind start
 
-.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults**
+.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults** or **sudo systemctl enable jasmind** on recent Linux distributions.
 
 Sending your first SMS
 ======================
