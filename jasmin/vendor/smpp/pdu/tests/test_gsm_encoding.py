@@ -19,6 +19,7 @@ import binascii
 from jasmin.vendor.smpp.pdu.gsm_encoding import *
 from jasmin.vendor.smpp.pdu.gsm_types import *
 
+@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class EncoderTest(unittest.TestCase):
     
     def do_conversion_test(self, encoder, value, hexdumpValue):

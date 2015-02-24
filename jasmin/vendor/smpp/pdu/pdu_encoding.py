@@ -419,14 +419,19 @@ class DataCodingEncoder(Int1Encoder):
     schemeDataMask = 0x0f
     gsmMsgCodingMask = 0x04
     gsmMsgClassMask = 0x03
-        
+
     def _encode(self, dataCoding):
         return Int1Encoder().encode(self._encodeAsInt(dataCoding))
         
     def _encodeAsInt(self, dataCoding):
-        if dataCoding.scheme == pdu_types.DataCodingScheme.RAW:
+        # Jasmin update:
+        # Comparing dataCoding.scheme to pdu_types.DataCodingScheme.RAW would result
+        # to False even if the values are the same, this is because Enum object have
+        # no right __eq__ to compare values
+        # Fix: compare Enum indexes (.index)
+        if dataCoding.scheme.index == pdu_types.DataCodingScheme.RAW.index:
             return dataCoding.schemeData
-        if dataCoding.scheme == pdu_types.DataCodingScheme.DEFAULT:
+        if dataCoding.scheme.index == pdu_types.DataCodingScheme.DEFAULT.index:
             return self._encodeDefaultSchemeAsInt(dataCoding)
         return self._encodeSchemeAsInt(dataCoding)
     

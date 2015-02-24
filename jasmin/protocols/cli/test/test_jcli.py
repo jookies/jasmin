@@ -226,7 +226,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
         # Add Default MO route
         commands = [{'command': 'morouter -a'},
                     {'command': 'type defaultroute'},
-                    {'command': 'connector http1'},
+                    {'command': 'connector http(http1)'},
                     {'command': 'ok', 'expect': 'Successfully added MORoute'}]
         yield self._test(r'jcli : ', commands)
         # Add static MO route
@@ -234,14 +234,23 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'type staticmoroute'},
                     {'command': 'filters fMO1'},
                     {'command': 'order 100'},
-                    {'command': 'connector http1'},
+                    {'command': 'connector http(http1)'},
+                    {'command': 'rate 0.0'},
+                    {'command': 'ok', 'expect': 'Successfully added MORoute'}]
+        yield self._test(r'jcli : ', commands)
+        # Add static MO route
+        commands = [{'command': 'morouter -a'},
+                    {'command': 'type staticmoroute'},
+                    {'command': 'filters fMO1'},
+                    {'command': 'order 200'},
+                    {'command': 'connector smpps(smppuser)'},
                     {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MORoute'}]
         yield self._test(r'jcli : ', commands)
         # Add Default MT route
         commands = [{'command': 'mtrouter -a'},
                     {'command': 'type defaultroute'},
-                    {'command': 'connector smpp1'},
+                    {'command': 'connector smppc(smpp1)'},
                     {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
@@ -250,7 +259,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'type staticmtroute'},
                     {'command': 'filters fMT1'},
                     {'command': 'order 100'},
-                    {'command': 'connector smpp1'},
+                    {'command': 'connector smppc(smpp1)'},
                     {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
@@ -284,7 +293,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
         self.assertEqual(self.getBuffer(True)[12], 'Total Filters: 2')
         # Assert MO Routes
         yield self.sendCommand('morouter -l')
-        self.assertEqual(self.getBuffer(True)[12], 'Total MO Routes: 2')
+        self.assertEqual(self.getBuffer(True)[15], 'Total MO Routes: 3')
         # Assert MT Routes
         yield self.sendCommand('mtrouter -l')
         self.assertEqual(self.getBuffer(True)[12], 'Total MT Routes: 2')

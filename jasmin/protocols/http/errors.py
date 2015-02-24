@@ -16,7 +16,7 @@ class UrlArgsValidationError(HttpApiError):
 
 class CredentialValidationError(HttpApiError):
     """
-    Raised when user credential validation fails  (jasmin.protocols.http.validation.CredentialValidator)
+    Raised when user credential validation fails  (jasmin.protocols.http.validation.HttpAPICredentialValidator)
     """
     def __init__(self, message):
         HttpApiError.__init__(self, 400, message)

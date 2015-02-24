@@ -1,4 +1,3 @@
-enum>=0.4.4
 pyasn1>=0.1.7
 txAMQP>=0.6.2
 txredisapi>=1.0

@@ -29,8 +29,9 @@ class PDU(Content):
         
         Content.__init__(self, body, children, properties)
 
-class DLRContent(Content):
-    "A DLR Content holding information about the origin SubmitSm and receipt acknowledgment details"
+class DLRContentForHttpapi(Content):
+    """A DLR Content holding information about the origin SubmitSm sent from httpapi and 
+    receipt acknowledgment details"""
 
     def __init__(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '', 
                  dlvrd = '', subdate = '', donedate = '', err = '', text = '', method = 'POST', trycount = 0):
@@ -39,7 +40,7 @@ class DLRContent(Content):
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
         if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED', 
-                                  'UNDELIV', 'ACCEPTED', 'UNKNOWN', 'REJECTD']:
+                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s", message_status)
         if dlr_level not in [1, 2, 3]:
             raise InvalidParameterError("Invalid dlr_level: %s", dlr_level)
@@ -62,6 +63,28 @@ class DLRContent(Content):
         
         Content.__init__(self, msgid, properties = properties)
         
+class DLRContentForSmpps(Content):
+    """A DLR Content holding information about the origin SubmitSm sent from smpps and 
+    receipt acknowledgment details"""
+
+    def __init__(self, message_status, msgid, system_id, source_addr, destination_addr):
+        properties = {}
+        
+        # ESME_* statuses are returned from SubmitSmResp
+        # Others are returned from DeliverSm, values must be the same as Table B-2
+        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED', 
+                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+            raise InvalidParameterError("Invalid message_status: %s", message_status)
+        
+        properties['message-id'] = msgid
+        properties['headers'] = {'try-count': 0,
+                                 'message_status': message_status,
+                                 'system_id': system_id,
+                                 'source_addr': source_addr,
+                                 'destination_addr': destination_addr}
+        
+        Content.__init__(self, msgid, properties = properties)
+
 class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
@@ -96,12 +119,17 @@ class SubmitSmRespContent(PDU):
         props = {}
         
         props['message-id'] = msgid
-        PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
+        PDU.__init__(self, 
+            body, 
+            properties = props, 
+            pickleProtocol = pickleProtocol, 
+            prePickle = prePickle)
         
 class DeliverSmContent(PDU):
     "A SMPP DeliverSm Content"
 
-    def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True):
+    def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True, 
+        concatenated = False, will_be_concatenated = False):
         props = {}
         
         props['message-id'] = randomUniqueId()
@@ -109,9 +137,16 @@ class DeliverSmContent(PDU):
         # For routing purpose, connector-id indicates the source connector of the PDU
         # the connector-id is used to instanciate RoutableDeliverSm when checking for
         # routes
-        props['headers'] = {'connector-id': sourceCid}
+        props['headers'] = {'try-count': 0,
+                            'connector-id': sourceCid,
+                            'concatenated': concatenated,
+                            'will_be_concatenated': will_be_concatenated}
         
-        PDU.__init__(self, body, properties = props, pickleProtocol = pickleProtocol, prePickle = prePickle)
+        PDU.__init__(self, 
+            body, 
+            properties = props, 
+            pickleProtocol = pickleProtocol, 
+            prePickle = prePickle)
 
 class SubmitSmRespBillContent(Content):
     "A Bill Content holding amount to be charged to user (uid)"

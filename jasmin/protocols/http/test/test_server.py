@@ -18,7 +18,8 @@ class HTTPApiTestCases(TestCase):
         self.RouterPB_f.setConfig(RouterPBConfigInstance)
         
         # Provision Router with User and Route
-        self.RouterPB_f.users.append(User(1, Group(1), 'fourat', 'correct'))
+        self.u1 = User(1, Group(1), 'fourat', 'correct')
+        self.RouterPB_f.users.append(self.u1)
         self.RouterPB_f.mt_routing_table.add(DefaultRoute(SmppClientConnector('abc')), 0)
 
         # Instanciate a SMPPClientManagerPB (a requirement for HTTPApi)

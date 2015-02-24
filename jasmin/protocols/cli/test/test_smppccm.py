@@ -111,7 +111,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'con_fail_delay 10', 
                         'dlr_expiry 86400', 'coding 0', 
                         'submit_throughput 1', 
-                        'elink_interval 10', 
+                        'elink_interval 30', 
                         'bind_to 30', 
                         'port 2775', 
                         'con_fail_retry 1', 
@@ -185,7 +185,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'con_fail_delay 10', 
                         'dlr_expiry 86400', 'coding 0', 
                         'submit_throughput 1', 
-                        'elink_interval 10', 
+                        'elink_interval 30', 
                         'bind_to 30', 
                         'port 122223', 
                         'con_fail_retry 1', 
@@ -297,7 +297,7 @@ class BasicTestCases(HappySMSCTestCase):
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                      'expect': r'Successfully started connector id\:%s' % cid,
-                     'wait': 0.6}]
+                     'wait': 1}]
         yield self._test(r'jcli : ', commands)
     
         # List

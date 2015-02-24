@@ -16,7 +16,7 @@ from hashlib import md5
 LOG_CATEGORY = "jasmin-router"
 
 class RouterPB(pb.Avatar):
-    def setConfig(self, RouterPBConfig):
+    def setConfig(self, RouterPBConfig, persistenceTimer = True):
         self.config = RouterPBConfig
         self.persistenceTimer = None
 
@@ -28,6 +28,7 @@ class RouterPB(pb.Avatar):
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            self.log.propagate = False
         
         # Set pickleProtocol
         self.pickleProtocol = self.config.pickle_protocol
@@ -38,12 +39,13 @@ class RouterPB(pb.Avatar):
         self.users = []
         self.groups = []
         
-        # Activate persistenceTimer, used for persisting users and groups whenever critical updates
-        # occured
-        self.activatePersistenceTimer()
+        if persistenceTimer:
+            # Activate persistenceTimer, used for persisting users and groups whenever critical updates
+            # occured
+            self.activatePersistenceTimer()
         
         # Persistence flag, accessed through perspective_is_persisted
-        self.persistanceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
+        self.persistenceState = {'users': True, 'groups': True, 'moroutes': True, 'mtroutes': True}
         
         self.log.info('Router configured and ready.')
         
@@ -143,6 +145,8 @@ class RouterPB(pb.Avatar):
         """
         msgid = message.content.properties['message-id']
         scid = message.content.properties['headers']['connector-id']
+        concatenated = message.content.properties['headers']['concatenated']
+        will_be_concatenated = message.content.properties['headers']['will_be_concatenated']
         connector = Connector(scid)
         DeliverSmPDU = pickle.loads(message.content.body)
         self.log.debug("Callbacked a deliver_sm with a DeliverSmPDU[%s] (?): %s" % (msgid, DeliverSmPDU))
@@ -161,14 +165,31 @@ class RouterPB(pb.Avatar):
             self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
             routedConnector = route.getConnector()
 
-            
-            self.log.debug("Connector '%s' is set to be a route for this DeliverSmPDU" % routedConnector.cid)
-            yield self.ackMessage(message)
-            
-            # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
-            content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
-            self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (msgid, routedConnector.type, routedConnector.cid))
-            yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % routedConnector.type, content=content)
+            # Smpps will not route any concatenated content, it must instead route
+            # multiparted messages
+            # Only http connector needs concatenated content
+            if concatenated and routedConnector.type != 'http':
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s" % (msgid, routedConnector.type))
+                yield self.rejectMessage(message)
+
+            # Http will not route any multipart messages, it must instead route
+            # concatenated messages
+            # Only smpps connector needs multipart content
+            elif will_be_concatenated and routedConnector.type == 'http':
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts: %s" % (msgid))
+                yield self.rejectMessage(message)
+
+            else:
+                self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU" % (
+                    routedConnector.cid, 
+                    routedConnector.type
+                    ))
+                yield self.ackMessage(message)
+                
+                # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
+                content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
+                self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (msgid, routedConnector.type, routedConnector.cid))
+                yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % routedConnector.type, content=content)
     
     def deliver_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
@@ -244,7 +265,7 @@ class RouterPB(pb.Avatar):
         
         self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
-    def chargeUserForSubmitSms(self, user, bill, submit_sm_count, requirements = []):
+    def chargeUserForSubmitSms(self, user, bill, submit_sm_count = 1, requirements = []):
         """Will charge the user using the bill object after checking requirements
         """
         # Check if User is already existent in Router ?
@@ -331,7 +352,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['groups'] = True
+                self.persistenceState['groups'] = True
 
             if scope in ['all', 'users']:
                 # Persist users configuration
@@ -345,7 +366,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Set persistance state to True
-                self.persistanceState['users'] = True
+                self.persistenceState['users'] = True
                 for u in self.users:
                     u.mt_credential.quotas_updated = False
 
@@ -361,7 +382,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
                 
                 # Set persistance state to True
-                self.persistanceState['moroutes'] = True
+                self.persistenceState['moroutes'] = True
 
             if scope in ['all', 'mtroutes']:
                 # Persist mtroutes configuration
@@ -375,7 +396,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
                 
                 # Set persistance state to True
-                self.persistanceState['mtroutes'] = True
+                self.persistenceState['mtroutes'] = True
 
         except IOError:
             self.log.error('Cannot persist to %s' % path)
@@ -407,7 +428,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new Groups (%d)' % len(self.groups))
 
                 # Set persistance state to True
-                self.persistanceState['groups'] = True
+                self.persistenceState['groups'] = True
 
             if scope in ['all', 'users']:
                 # Load users configuration
@@ -428,7 +449,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new Users (%d)' % len(self.users))
 
                 # Set persistance state to True
-                self.persistanceState['users'] = True
+                self.persistenceState['users'] = True
                 for u in self.users:
                     u.mt_credential.quotas_updated = False
 
@@ -447,7 +468,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new MORoutingTable with %d routes' % len(self.mo_routing_table.getAll()))
 
                 # Set persistance state to True
-                self.persistanceState['moroutes'] = True
+                self.persistenceState['moroutes'] = True
 
             if scope in ['all', 'mtroutes']:
                 # Load mtroutes configuration
@@ -464,7 +485,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Added new MTRoutingTable with %d routes' % len(self.mt_routing_table.getAll()))
 
                 # Set persistance state to True
-                self.persistanceState['mtroutes'] = True
+                self.persistenceState['mtroutes'] = True
 
         except IOError, e:
             self.log.error('Cannot load configuration from %s: %s' % (path, str(e)))
@@ -476,7 +497,7 @@ class RouterPB(pb.Avatar):
         return True
         
     def perspective_is_persisted(self):
-        for _, v in self.persistanceState.iteritems():
+        for _, v in self.persistenceState.iteritems():
             if not v:
                 return False
             
@@ -505,7 +526,7 @@ class RouterPB(pb.Avatar):
         self.users.append(user)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['users'] = False
+        self.persistenceState['users'] = False
 
         return True
     
@@ -528,7 +549,7 @@ class RouterPB(pb.Avatar):
         self.log.error("User with id:%s not found, not removing it." % uid)
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['users'] = False
+        self.persistenceState['users'] = False
 
         return False
 
@@ -538,7 +559,7 @@ class RouterPB(pb.Avatar):
         self.users = []
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['users'] = False
+        self.persistenceState['users'] = False
 
         return True
 
@@ -571,7 +592,7 @@ class RouterPB(pb.Avatar):
         self.groups.append(group)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['groups'] = False
+        self.persistenceState['groups'] = False
 
         return True
     
@@ -596,7 +617,7 @@ class RouterPB(pb.Avatar):
         self.log.error("Group with id:%s not found, not removing it." % gid)
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['groups'] = False
+        self.persistenceState['groups'] = False
 
         return False
 
@@ -618,7 +639,7 @@ class RouterPB(pb.Avatar):
         self.groups = []
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['groups'] = False
+        self.persistenceState['groups'] = False
 
         return True
 
@@ -643,7 +664,7 @@ class RouterPB(pb.Avatar):
             return False
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['mtroutes'] = False
+        self.persistenceState['mtroutes'] = False
 
         return True
     
@@ -662,7 +683,7 @@ class RouterPB(pb.Avatar):
             return False
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['moroutes'] = False
+        self.persistenceState['moroutes'] = False
 
         return True
     
@@ -670,7 +691,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Removing MO Route [%s]', order)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['moroutes'] = False
+        self.persistenceState['moroutes'] = False
 
         return self.mo_routing_table.remove(order)
 
@@ -678,7 +699,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Removing MT Route [%s]', order)
         
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['mtroutes'] = False
+        self.persistenceState['mtroutes'] = False
 
         return self.mt_routing_table.remove(order)
 
@@ -686,7 +707,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Flushing MT Routing table')
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['mtroutes'] = False
+        self.persistenceState['mtroutes'] = False
 
         return self.mt_routing_table.flush()
     
@@ -694,7 +715,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Flushing MO Routing table')
 
         # Set persistance state to False (pending for persistance)
-        self.persistanceState['moroutes'] = False
+        self.persistenceState['moroutes'] = False
 
         return self.mo_routing_table.flush()
     

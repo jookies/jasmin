@@ -73,22 +73,34 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         self.lastSubmitSmPDU = reqPDU
         self.submitRecords.append(reqPDU)
 
-    def trigger_DLR(self):
+    def trigger_deliver_sm(self, pdu):
+        self.sendPDU(pdu)
+
+    def trigger_DLR(self, _id = None, pdu_type = 'deliver_sm', stat = 'DELIVRD'):
         if self.lastSubmitSmRestPDU is None:
             raise Exception('A submit_sm must be sent to this SMSC before requesting sendDeliverSM !')
         
-        # Send back a deliver_sm with containing a DLR
-        pdu = DeliverSM(
-            source_addr=self.lastSubmitSmPDU.params['source_addr'],
-            destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
-            short_message='id:%s sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:DELIVRD err:000 text:%s' % (
-                        self.lastSubmitSmRestPDU.params['message_id'],
-                        self.lastSubmitSmPDU.params['short_message'][:20]
-                        ),
-            message_state=MessageState.DELIVERED,
-            receipted_message_id=self.lastSubmitSmRestPDU.params['message_id'],
-        )
-        self.sendPDU(pdu)
+        if _id is None:
+            _id = self.lastSubmitSmRestPDU.params['message_id']
+        
+        if pdu_type == 'deliver_sm':
+            # Send back a deliver_sm with containing a DLR
+            pdu = DeliverSM(
+                source_addr=self.lastSubmitSmPDU.params['source_addr'],
+                destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
+                short_message='id:%s sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:%s err:000 text:%s' % (
+                            _id,
+                            stat,
+                            self.lastSubmitSmPDU.params['short_message'][:20]
+                            ),
+                message_state=MessageState.DELIVERED,
+                receipted_message_id=self.lastSubmitSmRestPDU.params['message_id'],
+            )
+            self.trigger_deliver_sm(pdu)
+        elif pdu_type == 'data_sm':
+            pass
+        else:
+            raise Exception('Unknown pdu_type (%s) when calling trigger_DLR()' % pdu_type)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

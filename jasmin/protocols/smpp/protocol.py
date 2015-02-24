@@ -1,31 +1,26 @@
 #pylint: disable-msg=W0401,W0611
+import uuid
+import logging
 import struct
+from datetime import datetime
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates, SMPPOutboundTxn, SMPPOutboundTxnResult
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
+from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
+from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn, 
+                                                SMPPOutboundTxnResult, _safelylogOutPdu)
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault, CommandId
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
+from twisted.cred import error
 
+#@todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
 
 class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def __init__( self ):
-        self.recvBuffer = ""
-        self.connectionCorrupted = False
-        self.pduReadTimer = None
-        self.enquireLinkTimer = None
-        self.inactivityTimer = None
-        self.lastSeqNum = 0
-        self.dataRequestHandler = None
-        self.alertNotificationHandler = None
-        self.inTxns = {}
-        self.outTxns = {}
-        self.sessionState = SMPPSessionStates.NONE
-        self.encoder = PDUEncoder()
-        self.disconnectedDeferred = defer.Deferred()
+        twistedSMPPClientProtocol.__init__(self)
         
         self.longSubmitSmTxns = {}
         
@@ -227,3 +222,102 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 self.preSubmitSm(pdu)
         
         return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)
+
+class SMPPServerProtocol( twistedSMPPServerProtocol ):
+    def __init__( self ):
+        twistedSMPPServerProtocol.__init__(self)
+
+        # Divert received messages to the handler defined in the config
+        # Note:
+        # twistedSMPPServerProtocol is using a msgHandler from self.config(), this
+        # SMPPServerProtocol is using self.factory's msgHandler just like SMPPClientProtocol
+        self.dataRequestHandler = lambda *args: self.factory.msgHandler(self.system_id, *args)
+        self.system_id = None
+        self.user = None
+        self.session_id = str(uuid.uuid4())
+        self.log = logging.getLogger(LOG_CATEGORY)
+
+    def PDUReceived(self, pdu):
+        """A better version than vendor's PDUReceived method:
+        - Encode pdu only when in debug mode
+        """
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug("Received PDU: %s" % pdu)
+        
+        if self.log.isEnabledFor(logging.DEBUG):
+            encoded = self.encoder.encode(pdu)
+            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+        
+        #Signal SMPP operation
+        self.onSMPPOperation()
+        
+        if isinstance(pdu, PDURequest):
+            self.PDURequestReceived(pdu)
+        elif isinstance(pdu, PDUResponse):
+            self.PDUResponseReceived(pdu)
+        else:
+            getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+
+    def PDUDataRequestReceived(self, reqPDU):
+        if self.sessionState == SMPPSessionStates.BOUND_RX:
+            # Don't accept submit_sm PDUs when BOUND_RX
+            errMsg = 'Received submit_sm when BOUND_RX %s' % reqPDU
+            self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RINVBNDSTS))
+            return self.fatalErrorOnRequest(reqPDU, errMsg, CommandStatus.ESME_RINVBNDSTS)
+
+        return twistedSMPPServerProtocol.PDUDataRequestReceived(self, reqPDU)
+
+    def PDURequestReceived(self, reqPDU):
+        # Handle only accepted command ids
+        acceptedPDUs = [CommandId.submit_sm, CommandId.bind_transmitter, 
+                CommandId.bind_receiver, CommandId.bind_transceiver, 
+                CommandId.unbind, CommandId.unbind_resp,
+                CommandId.enquire_link, CommandId.data_sm]
+        if reqPDU.id not in acceptedPDUs:
+            errMsg = 'Received unsupported pdu type: %s' % reqPDU.id
+            self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RSYSERR))
+            return self.fatalErrorOnRequest(reqPDU, errMsg, CommandStatus.ESME_RSYSERR)
+
+        twistedSMPPServerProtocol.PDURequestReceived(self, reqPDU)
+
+        # Update CnxStatus
+        if self.user is not None:
+            self.user.CnxStatus.smpps['last_activity_at'] = datetime.now()
+
+    @defer.inlineCallbacks
+    def doBindRequest(self, reqPDU, sessionState):
+        # Check the authentication
+        username, password = reqPDU.params['system_id'], reqPDU.params['password']
+
+        # Authenticate username and password
+        try:
+            iface, auth_avatar, logout = yield self.factory.login(username, password, self.transport.getPeer().host)
+        except error.UnauthorizedLogin, e:
+            self.log.debug('From host %s and using password: %s' % (self.transport.getPeer().host, password))
+            self.log.warning('SMPP Bind request failed for username: "%s", reason: %s' % (username, str(e)))
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, username)
+            return
+        
+        # Check we're not already bound, and are open to being bound
+        if self.sessionState != SMPPSessionStates.OPEN:
+            self.log.warning('Duplicate SMPP bind request received from: %s' % username)
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RALYBND, username)
+            return
+        
+        # Check that username hasn't exceeded number of allowed binds
+        bind_type = reqPDU.commandId
+        if not self.factory.canOpenNewConnection(auth_avatar, bind_type):
+            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (username, bind_type))
+            self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, username)
+            return
+        
+        # If we get to here, bind successfully
+        self.user = auth_avatar
+        self.system_id = username
+        self.sessionState = sessionState
+        self.bind_type = bind_type
+        
+        self.factory.addBoundConnection(self, self.user)
+        bound_cnxns = self.factory.getBoundConnections(self.system_id)
+        self.log.info('Bind request succeeded for %s in session [%s]. %d active binds' % (username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.sendResponse(reqPDU, system_id=self.system_id)
