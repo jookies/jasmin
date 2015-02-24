@@ -297,7 +297,7 @@ class BasicTestCases(HappySMSCTestCase):
         # Start
         commands = [{'command': 'smppccm -1 %s' % cid, 
                      'expect': r'Successfully started connector id\:%s' % cid,
-                     'wait': 0.6}]
+                     'wait': 1}]
         yield self._test(r'jcli : ', commands)
     
         # List
