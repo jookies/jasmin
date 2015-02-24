@@ -189,6 +189,7 @@ class SMPPServerConfig(ConfigFile):
         
         self.id = self._get('smpp-server', 'id', 'smpps_01')
         
+        self.bind = self._get('smpp-server', 'bind', '0.0.0.0')
         self.port = self._getint('smpp-server', 'port', 2775)
 
         # Logging

@@ -2,8 +2,9 @@
 HTTP API
 ########
 
-This document is targeted at software designers/programmers wishing to integrate SMS messaging as a function 
-into their applications, e.g. in connection with WEB-server, unified messaging, information services etc..
+This document is targeted at software designers/programmers wishing to integrate SMS messaging as a function into their applications using HTTP protocol, e.g. in connection with WEB-server, unified messaging, information services etc..
+
+If you need to use a stateful tcp protocol (**SMPP v3.4**), please refer to :doc:`/apis/smpp-server/index`.
 
 SMS Messages can be transmitted using HTTP protocol, the following requirements must be met to enable the service :
 
@@ -18,8 +19,7 @@ SMS Messages can be transmitted using HTTP protocol, the following requirements 
 Features
 ********
 The ja-http API allows you to send and receive SMS through Jasmin's connectors.
-Receive http callbacks for delivery notification when SMS-MT is received (or not) on mobile station, send and receive long 
-(more than 160 characters) SMS, unicode content and receive http callbacks when a mobile station send you a SMS-MO.
+Receive http callbacks for delivery notification when SMS-MT is received (or not) on mobile station, send and receive long (more than 160 characters) SMS, unicode/binary content and receive http callbacks when a mobile station send you a SMS-MO.
 
 .. _sending_sms-mt:
 
@@ -535,5 +535,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - Python's logging module configuration.
 
 .. rubric:: Footnotes
-.. [1]
+.. [1] :doc:`/billing/index`
+
+.. [2]
 .. include:: ../datacoding.table

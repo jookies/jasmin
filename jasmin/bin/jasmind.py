@@ -169,6 +169,7 @@ class JasminDaemon:
         # Start server
         self.components['smpp-server'] = reactor.listenTCP(SMPPServerConfigInstance.port, 
             self.components['smpp-server-factory'],
+            interface = SMPPServerConfigInstance.bind
             )
 
     def stopSMPPServerService(self):
@@ -213,9 +214,9 @@ class JasminDaemon:
         
         self.components['http-api-server'] = reactor.listenTCP(httpApiConfigInstance.port, 
                                      server.Site(httpApi_f, 
-                                                 logPath=httpApiConfigInstance.access_log
+                                                 logPath = httpApiConfigInstance.access_log
                                                  ), 
-                                     interface=httpApiConfigInstance.bind
+                                     interface = httpApiConfigInstance.bind
                                      )
 
     def stopHTTPApiService(self):
