@@ -11,9 +11,7 @@ Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is i
  * Group management
  * etc ..
 
-.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitating the reuse 
-          of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector may be created 
-          once and used many times in MO Routes.
+.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitating the reuse of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector may be created once and used many times in MO Routes.
 
 .. _user_manager:
 
@@ -41,7 +39,8 @@ The User manager module is accessible through the **user** command and is provid
 
 A User object is required for:
 
- * HTTP API authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
+ * :doc:`/apis/smpp-server/index` authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
+ * :doc:`/apis/ja-http/index` authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
  * Creating a **UserFilter** using the **filter** manager (c.f. :ref:`filter_manager`)
 
 Every User **must** be a member of a Group, so before adding a new User, there must be at least one Group 
@@ -139,13 +138,13 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
      - Description
    * - http_send
      - True
-     - Privilege to send SMS through HTTP API
+     - Privilege to send SMS through :doc:`/apis/ja-http/index`
    * - smpps_send
      - True
-     - Privilege to send SMS through SMPP Server API
+     - Privilege to send SMS through :doc:`/apis/smpp-server/index`
    * - http_long_content
      - True
-     - Privilege to send long content SMS through HTTP API
+     - Privilege to send long content SMS through :doc:`/apis/ja-http/index`
    * - dlr_level
      - True
      - Privilege to set **dlr-level** parameter (default is 1)
@@ -322,6 +321,8 @@ The MO Router manager module is accessible through the **morouter** command and 
    * - -f, --flush
      - Flush MO routing table
 
+.. note:: MO Route is used to route inbound messages (SMS MO) through two possible channels: http and smpps (SMPP Server).
+
 MO Router helps managing Jasmin's MORoutingTable, which is responsible of providing routes to received 
 SMS MO, here the basics of Jasmin MO routing mechanism:
 
@@ -361,12 +362,11 @@ Here's an example of adding a **DefaultRoute** to a HTTP Client Connector (http_
    > type DefaultRoute
    jasmin.routing.Routes.DefaultRoute arguments:
    connector
-   > connector http_default
+   > connector http(http_default)
    > ok
    Successfully added MORoute [DefaultRoute] with order:0
 
-.. note:: You don't have to set **order** parameter when the MO Route type is **DefaultRoute**, it will be automatically
-         set to 0
+.. note:: You don't have to set **order** parameter when the MO Route type is **DefaultRoute**, it will be automatically set to 0
 
 Here's an example of adding a **StaticMORoute** to a HTTP Client Connector (http_1)::
 
@@ -376,10 +376,25 @@ Here's an example of adding a **StaticMORoute** to a HTTP Client Connector (http
    jasmin.routing.Routes.StaticMORoute arguments:
    filters, connector
    > order 10
-   > filters filter_1;filter_2
-   > connector http_1
+   > filters filter_1
+   > connector http(http_1)
    > ok
    Successfully added MORoute [StaticMORoute] with order:10
+
+Here's an example of adding a **StaticMORoute** to a SMPP Server user (user_1)::
+
+   jcli : morouter -a
+   Adding a new MO Route: (ok: save, ko: exit)
+   > type StaticMORoute
+   jasmin.routing.Routes.StaticMORoute arguments:
+   filters, connector
+   > order 15
+   > filters filter_2
+   > connector smpps(user_1)
+   > ok
+   Successfully added MORoute [StaticMORoute] with order:15
+
+.. note:: When routing to a smpps connector like the above example the **user_1** designates the **username** of the concerned user, if he's already bound to Jasmin's :doc:`/apis/smpp-server/index` routed messages will be delivered to him, if not, queuing will take care of delivery.
 
 Here's an example of adding a **RandomRoundrobinMORoute** to two HTTP Client Connectors (http_2 and http_3)::
 
@@ -388,36 +403,38 @@ Here's an example of adding a **RandomRoundrobinMORoute** to two HTTP Client Con
    > type RandomRoundrobinMORoute
    jasmin.routing.Routes.RandomRoundrobinMORoute arguments:
    filters, connectors
-   > filters filter_3
-   > connectors http_2;http_3
+   > filters filter_3;filter_1
+   > connectors http(http_2);http(http_3)
    > order 20
    > ok
    Successfully added MORoute [RandomRoundrobinMORoute] with order:20
 
+.. note:: It is possible to use a **RoundRobinMORoute** with a mix of connectors, example: **connectors smpps(user_1);http(http_1);http(http_3)**.
+
 Once the above MO Routes are added to **MORoutingTable**, it is possible to list these routes::
 
    jcli : morouter -l
-   #MO Route order   Type                    Connector ID(s)  Filter(s)
-   #20               RandomRoundrobinMORoute http_2, http_3   <TransparentFilter>
-   #10               StaticMORoute           http_1           <TransparentFilter>, <TransparentFilter>
-   #0                DefaultRoute            http_default
+   #Order Type                    Connector ID(s)                  Filter(s)
+   #20    RandomRoundrobinMORoute http(http_2), http(http_3)       <TransparentFilter>, <TransparentFilter>
+   #15    StaticMORoute           smpps(user_1)                    <TransparentFilter>
+   #10    StaticMORoute           http(http_1)                     <TransparentFilter>
+   #0     DefaultRoute            http(http_default)
    Total MO Routes: 3
 
-.. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and 
-         :ref:`httpccm_manager` for further details
+.. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and :ref:`httpccm_manager` for further details
 
 It is possible to obtain more information of a defined route by typing **moroute -s <order>**::
 
    jcli : morouter -s 20
    RandomRoundrobinMORoute to 2 connectors:
-      - http_2
-      - http_3
+      - http(http_2)
+      - http(http_3)
    
    jcli : morouter -s 10
-   StaticMORoute to cid:http_1
+   StaticMORoute to http(http_1)
    
    jcli : morouter -s 0
-   DefaultRoute to cid:http_default
+   DefaultRoute to http(http_default)
 
 More control commands:
 
@@ -447,6 +464,8 @@ The MT Router manager module is accessible through the **mtrouter** command and 
      - Show MT route using it's ORDER
    * - -f, --flush
      - Flush MT routing table
+
+.. note:: MT Route is used to route outbound messages (SMS MT) through one channel: smppc (SMPP Client).
 
 MT Router helps managing Jasmin's MTRoutingTable, which is responsible of providing routes to outgoing SMS MT, here the basics of Jasmin MT routing mechanism:
 
@@ -489,7 +508,7 @@ Here's an example of adding a **DefaultRoute** to a SMPP Client Connector (smppc
    > type DefaultRoute
    jasmin.routing.Routes.DefaultRoute arguments:
    connector
-   > connector smppcc_default
+   > connector smppc(smppcc_default)
    > rate 0.0
    > ok
    Successfully added MTRoute [DefaultRoute] with order:0
@@ -506,7 +525,7 @@ Here's an example of adding a **StaticMTRoute** to a SMPP Client Connector (smpp
    filters, connector
    > filters filter_1;filter_2
    > order 10
-   > connector smppcc_1
+   > connector smppc(smppcc_1)
    > rate 0.0
    > ok
    Successfully added MTRoute [StaticMTRoute] with order:10
@@ -520,7 +539,7 @@ Here's an example of adding a **RandomRoundrobinMTRoute** to two SMPP Client Con
    jasmin.routing.Routes.RandomRoundrobinMTRoute arguments:
    filters, connectors
    > filters filter_3
-   > connectors smppcc_2;smppcc_3
+   > connectors smppc(smppcc_2);smppc(smppcc_3)
    > rate 0.0
    > ok
    Successfully added MTRoute [RandomRoundrobinMTRoute] with order:20
@@ -528,10 +547,10 @@ Here's an example of adding a **RandomRoundrobinMTRoute** to two SMPP Client Con
 Once the above MT Routes are added to **MTRoutingTable**, it is possible to list these routes::
 
    jcli : mtrouter -l
-   #MT Route order   Type                    Rate    Connector ID(s)     Filter(s)
-   #20               RandomRoundrobinMTRoute 0.00    smppcc_2, smppcc_3  <TransparentFilter>
-   #10               StaticMTRoute           0.00    smppcc_1            <TransparentFilter>, <TransparentFilter>
-   #0                DefaultRoute            0.00    smppcc_default
+   #Order Type                    Rate    Connector ID(s)                     Filter(s)
+   #20    RandomRoundrobinMTRoute 0.00    smppc(smppcc_2), smppc(smppcc_3)    <TransparentFilter>
+   #10    StaticMTRoute           0.00    smppc(smppcc_1)                     <TransparentFilter>, <TransparentFilter>
+   #0     DefaultRoute            0.00    smppc(smppcc_default)
    Total MT Routes: 3
 
 .. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and 
@@ -541,15 +560,15 @@ It is possible to obtain more information of a defined route by typing **mtroute
 
    jcli : mtrouter -s 20
    RandomRoundrobinMTRoute to 2 connectors:
-      - smppcc_2
-      - smppcc_3
+      - smppc(smppcc_2)
+      - smppc(smppcc_3)
    NOT RATED
    
    jcli : mtrouter -s 10
-   StaticMTRoute to cid:smppcc_1 NOT RATED
+   StaticMTRoute to smppc(smppcc_1) NOT RATED
    
    jcli : mtrouter -s 0
-   DefaultRoute to cid:smppcc_default NOT RATED
+   DefaultRoute to smppc(smppcc_default) NOT RATED
 
 More control commands:
 
