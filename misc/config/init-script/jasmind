@@ -11,7 +11,7 @@
 
 VERBOSE='yes'
 NAME='jasmind.py'
-COMMAND=$(which $NAME)
+COMMAND="/usr/local/bin/jasmind.py"
 COMMAND_ARGS='--username jcliadmin --password jclipwd'
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
