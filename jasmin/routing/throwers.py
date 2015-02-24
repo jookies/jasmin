@@ -36,8 +36,8 @@ class Thrower(Service):
 
         self.exchangeName = 'messaging'
         self.consumerTag = 'abstractThrower.%s' % str(uuid.uuid4())
-        self.routingKey = 'abstract_thrower.http'
-        self.queueName = 'abstract_thrower.http'
+        self.routingKey = 'abstract_thrower.*'
+        self.queueName = 'abstract_thrower'
         self.callback = self.throwing_callback
         self.errback = self.throwing_errback
 
@@ -162,7 +162,7 @@ class deliverSmThrower(Thrower):
 
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
-        self.consumerTag = 'deliverSmThrower'
+        self.consumerTag = 'deliverSmThrower.%s' % str(uuid.uuid4())
         self.routingKey = 'deliver_sm_thrower.*'
         self.queueName = 'deliver_sm_thrower'
         
@@ -453,7 +453,7 @@ class DLRThrower(Thrower):
 
         if message.routing_key == 'dlr_thrower.http':
             yield self.http_dlr_callback(message)
-        elif message.routing_key == 'dlr_thrower.smpp':
+        elif message.routing_key == 'dlr_thrower.smpps':
             yield self.smpp_dlr_callback(message)
         else:
             self.log.error('Unknown routing_key in dlr_throwing_callback: %s' % message.routing_key)

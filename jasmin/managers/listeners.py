@@ -361,7 +361,7 @@ class SMPPClientSMListener:
                                                  source_addr,
                                                  destination_addr)
 
-                    routing_key = 'dlr_thrower.smpp'
+                    routing_key = 'dlr_thrower.smpps'
                     self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (msgid, routing_key))
                     yield self.amqpBroker.publish(exchange='messaging', 
                                                   routing_key=routing_key, 
@@ -626,7 +626,7 @@ class SMPPClientSMListener:
                                                          source_addr,
                                                          destination_addr)
 
-                            routing_key = 'dlr_thrower.smpp'
+                            routing_key = 'dlr_thrower.smpps'
                             self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (submit_sm_queue_id, routing_key))
                             yield self.amqpBroker.publish(exchange='messaging', 
                                                           routing_key=routing_key, 

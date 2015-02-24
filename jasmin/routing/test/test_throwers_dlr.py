@@ -208,7 +208,7 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
     @defer.inlineCallbacks
     def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr):
         content = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr)
-        yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.smpp', content=content)
+        yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.smpps', content=content)
 
     @defer.inlineCallbacks
     def test_throwing_smpps_to_bound_connection(self):

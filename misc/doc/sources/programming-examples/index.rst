@@ -2,7 +2,7 @@
 Programming examples
 ####################
 
-Subsequent chapters present how to send and receive messages through Jasmin and some more 
+Subsequent chapters present how to send and receive messages through Jasmin :doc:`/apis/ja-http/index` and some more 
 advanced use cases, such as manipulating receipts and complex routings, will look like. 
 
 It is assumed the reader has already installed Jasmin and at least read the :doc:`/apis/ja-http/index` 

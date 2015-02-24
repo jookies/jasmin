@@ -5,11 +5,12 @@ Billing
 `Jasmin <http://jasminsms.com/>`_ comes with a user billing feature that lets you apply rates on message routes, every time a user sends a SMS through a rated route he'll get charged, once he runs out of credit no more sending will be permitted.
 
 .. important:: New routes created through :ref:`mtrouter_manager` are not rated by default, you must :ref:`define <mtrouter_manager>` the rate of each route in order to enable billing.
+.. note:: Billing is applied on all channels (SMPP Server and HTTP API) the same way.
 
 Billing quotas
 **************
 
-A user can be charged through 2 types of quotas (balance and/or submit_sm_count), if he reaches the limit of one of these quotas no more sending will be permitted.
+A user can be charged through 2 types of quotas (balance and/or submit_sm_count), if he reaches the limit of one of these quotas no more sending will be permitted, no matter the used channel (SMPP Server or HTTP API).
 
 .. _billing_type_1:
 

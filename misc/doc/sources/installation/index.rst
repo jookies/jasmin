@@ -2,7 +2,10 @@
 Installation
 ############
 
-The Installation section is intended to get you up and running quickly with a simple SMS sending scenario. More detailed information can be found in the advanced topics sections.
+The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through 
+:doc:`/apis/ja-http/index`.
+
+More detailed information can be found in the advanced topics sections.
 
 .. note:: Jasmin gateway is supported on POSIX systems (Linux/Unix).
 

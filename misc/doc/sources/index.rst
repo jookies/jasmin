@@ -32,7 +32,7 @@ Getting started
    :columns: 2
    
    * :doc:`/installation/index` -- Install and run Jasmin SMS Gateway
-   * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application
+   * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application via HTTP
    * :doc:`/apis/ja-http/index` -- HTTP API technical specification
    * :doc:`/apis/smpp-server/index` -- SMPP Server API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
