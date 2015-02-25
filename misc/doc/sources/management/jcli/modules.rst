@@ -750,7 +750,7 @@ All the above parameters can be displayed after connector creation::
    elink_interval 10
    bind_to 30
    port 2775
-   con_fail_retry 1
+   con_fail_retry yes
    password password
    src_addr None
    bind_npi 1
@@ -759,7 +759,7 @@ All the above parameters can be displayed after connector creation::
    res_to 60
    def_msg_id 0
    priority 0
-   con_loss_retry 1
+   con_loss_retry yes
    username smppclient
    dst_npi 1
    validity None

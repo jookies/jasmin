@@ -14,10 +14,6 @@ class ConfigInvalidIdError(Exception):
     """Raised when a *Config class is initialized with an invalid ID syntax
     """
     
-class ConfigInvalidLogLevelError(Exception):
-    """Raised when a *Config class is initialized with an invalid Log Level syntax
-    """
-
 class TypeMismatch(Exception):
     """Raised when a *Config element has not a valid type
     """
@@ -48,9 +44,6 @@ class SMPPClientConfig(object):
         # Logging configuration
         self.log_file = kwargs.get('log_file', '/var/log/jasmin/default-%s.log' % self.id)
         self.log_level = kwargs.get('log_level', logging.INFO)
-        if (self.log_level not in 
-            [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
-            raise ConfigInvalidLogLevelError('SMPPClientConfig log_level syntax is invalid')
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = kwargs.get('log_dateformat', '%Y-%m-%d %H:%M:%S')
 
