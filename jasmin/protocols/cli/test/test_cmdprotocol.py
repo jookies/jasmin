@@ -48,7 +48,11 @@ class ProtocolTestCases(unittest.TestCase):
             if 'expect' in cmd:
                 if isinstance(cmd['expect'], str):
                     self.assertGreaterEqual(len(receivedLines), 4, 'Got no return from command %s: %s' % (cmd['command'], receivedLines))
-                    self.assertRegexpMatches(receivedLines[3], cmd['expect'])
+                    receivedContent = ''
+                    for line in range(len(receivedLines)):
+                        if line % 3 == 0:
+                            receivedContent+= receivedLines[line]
+                    self.assertRegexpMatches(receivedContent, cmd['expect'])
                 elif isinstance(cmd['expect'], list):
                     self.assertGreaterEqual(len(receivedLines), 3+(len(cmd['expect']) * 3), 'Got no return from command %s: %s' % (cmd['command'], receivedLines))
                     

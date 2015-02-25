@@ -1,9 +1,12 @@
 import pickle
+import logging
 from twisted.internet import defer, reactor
-from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
 from jasmin.protocols.cli.managers import Manager, Session
-from jasmin.vendor.smpp.pdu.constants import (addr_npi_name_map, addr_ton_name_map,
-                                       replace_if_present_flap_name_map, priority_flag_name_map)
+from jasmin.vendor.smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
+from jasmin.vendor.smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
+from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
+from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
 from jasmin.protocols.cli.protocol import str2num
 
 # A config map between console-configuration keys and SMPPClientConfig keys.
@@ -25,11 +28,11 @@ SMPPClientConfigStringKeys = ['systemType']
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'log_file', 'log_level']
 
-def castToBuiltInType(key, value):
+def castOutputToBuiltInType(key, value):
     'Will cast value to the correct type depending on the key'
 
     if isinstance(value, bool):
-        return 1 if value else 0
+        return 'yes' if value else 'no'
     if key in ['bind_npi', 'dst_npi', 'src_npi']:
         return addr_npi_name_map[str(value)]
     if key in ['bind_ton', 'dst_ton', 'src_ton']:
@@ -38,8 +41,35 @@ def castToBuiltInType(key, value):
         return replace_if_present_flap_name_map[str(value)]
     if key == 'priority':
         return priority_flag_name_map[str(value)]
-    return value
+    else:
+        return value
 
+def castInputToBuiltInType(key, value):
+    'Will cast value to the correct type depending on the key'
+
+    try:
+        if key in ['bind_npi', 'dst_npi', 'src_npi']:
+            return addr_npi_value_map[value]
+        elif key in ['bind_ton', 'dst_ton', 'src_ton']:
+            return addr_ton_value_map[value]
+        elif key == 'ripf':
+            return replace_if_present_flap_value_map[value]
+        elif key == 'priority':
+            return priority_flag_value_map[value]
+        elif key in ['con_fail_retry', 'con_loss_retry']:
+            if value == 'yes':
+                return True
+            elif value == 'no':
+                return False
+            else:
+                raise KeyError('Boolean value must be expressed by yes or no.')
+        elif (key == 'loglevel' 
+            and value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
+            raise KeyError('loglevel must be numeric value of 10, 20, 30, 40 or 50.')
+    except KeyError:
+        raise UnknownValue('Unknown value for key %s: %s' % (key, value))
+
+    return value
 
 class JCliSMPPClientConfig(SMPPClientConfig):
     'Overload SMPPClientConfig with getters and setters for JCli'
@@ -54,7 +84,7 @@ class JCliSMPPClientConfig(SMPPClientConfig):
     def getAll(self):
         r = {}
         for key, value in SMPPClientConfigKeyMap.iteritems():
-            r[key] = castToBuiltInType(key, getattr(self, value))
+            r[key] = castOutputToBuiltInType(key, getattr(self, value))
         return r
 
 def SMPPClientConfigBuild(fCallback):
@@ -85,19 +115,15 @@ def SMPPClientConfigBuild(fCallback):
             if not SMPPClientConfigKeyMap.has_key(cmd):
                 return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
 
-            # Cast to boolean
-            if cmd in ['con_loss_retry', 'con_fail_retry']:
-                if arg.lower() in ['yes', 'y', '1']:
-                    arg = True
-                elif arg.lower() in ['no', 'n', '0']:
-                    arg = False
-
-            # Buffer key for later SMPPClientConfig initiating
-            SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
-                self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
-            else:
-                self.sessBuffer[SMPPClientConfigKey] = arg
+            try:
+                # Buffer key for later SMPPClientConfig initiating
+                SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
+                if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
+                    self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, str2num(arg))
+                else:
+                    self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, arg)
+            except Exception, e:
+                return self.protocol.sendData('Error: %s' % str(e))
 
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
@@ -134,12 +160,15 @@ def SMPPClientConfigUpdate(fCallback):
             if cmd == 'cid':
                 return self.protocol.sendData('Connector id can not be modified !')
 
-            # Buffer key for later (when receiving 'ok')
-            SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
-            if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
-                self.sessBuffer[SMPPClientConfigKey] = str2num(arg)
-            else:
-                self.sessBuffer[SMPPClientConfigKey] = arg
+            try:
+                # Buffer key for later (when receiving 'ok')
+                SMPPClientConfigKey = SMPPClientConfigKeyMap[cmd]
+                if isinstance(arg, str) and SMPPClientConfigKey not in SMPPClientConfigStringKeys:
+                    self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, str2num(arg))
+                else:
+                    self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, arg)
+            except Exception, e:
+                return self.protocol.sendData('Error: %s' % str(e))
 
             return self.protocol.sendData()
     return log_update_requests_and_call
