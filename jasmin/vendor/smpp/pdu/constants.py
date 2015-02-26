@@ -211,6 +211,83 @@ command_status_value_map = {
         'description': 'Unknown Error',
     },
     # Jasmin update:
+    0x00000100L : {
+        'name' : 'ESME_RSERTYPUNAUTH',
+        'description': 'ESME Not authorised to use specified service_type',
+    },
+    0x00000101L : {
+        'name' : 'ESME_RPROHIBITED',
+        'description': 'ESME Prohibited from using specified operation',
+    },
+    0x00000102L : {
+        'name' : 'ESME_RSERTYPUNAVAIL',
+        'description': 'Specified service_type is unavailable',
+    },
+    0x00000103L : {
+        'name' : 'ESME_RSERTYPDENIED',
+        'description': 'Specified service_type is denied',
+    },
+    0x00000104L : {
+        'name' : 'ESME_RINVDCS',
+        'description': 'Invalid Data Coding Scheme',
+    },
+    0x00000105L : {
+        'name' : 'ESME_RINVSRCADDRSUBUNIT',
+        'description': 'Source Address Sub unit is Invalid',
+    },
+    0x00000106L : {
+        'name' : 'ESME_RINVDSTADDRSUBUNIT',
+        'description': 'Destination Address Sub unit is Invalid',
+    },
+    0x00000107L : {
+        'name' : 'ESME_RINVBCASTFREQINT',
+        'description': 'Broadcast Frequency Interval is invalid',
+    },
+    0x00000108L : {
+        'name' : 'ESME_RINVBCASTALIAS_NAME',
+        'description': 'Broadcast Alias Name is invalid',
+    },
+    0x00000109L : {
+        'name' : 'ESME_RINVBCASTAREAFMT',
+        'description': 'Broadcast Area Format is invalid',
+    },
+    0x0000010aL : {
+        'name' : 'ESME_RINVNUMBCAST_AREAS',
+        'description': 'Number of Broadcast Areas is invalid',
+    },
+    0x0000010bL : {
+        'name' : 'ESME_RINVBCASTCNTTYPE',
+        'description': 'Broadcast Content Type is invalid',
+    },
+    0x0000010cL : {
+        'name' : 'ESME_RINVBCASTMSGCLASS',
+        'description': 'Broadcast Message Class is invalid',
+    },
+    0x0000010dL : {
+        'name' : 'ESME_RBCASTFAIL',
+        'description': 'broadcast_sm operation failed',
+    },
+    0x0000010eL : {
+        'name' : 'ESME_RBCASTQUERYFAIL',
+        'description': 'query_broadcast_sm operation failed',
+    },
+    0x0000010fL : {
+        'name' : 'ESME_RBCASTCANCELFAIL',
+        'description': 'cancel_broadcast_sm operation failed',
+    },
+    0x00000110L : {
+        'name' : 'ESME_RINVBCAST_REP',
+        'description': 'Number of Repeated Broadcasts is invalid',
+    },
+    0x00000111L : {
+        'name' : 'ESME_RINVBCASTSRVGRP',
+        'description': 'Broadcast Service Group is invalid',
+    },
+    0x00000112L : {
+        'name' : 'ESME_RINVBCASTCHANIND',
+        'description': 'Broadcast Channel Indicator is invalid',
+    },
+    # Jasmin update:
     -1 : {
         'name' : 'RESERVEDSTATUS_SMPP_EXTENSION',
         'description': 'Reserved for SMPP extension',
