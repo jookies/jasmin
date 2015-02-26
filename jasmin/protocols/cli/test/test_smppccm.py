@@ -114,7 +114,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'elink_interval 30', 
                         'bind_to 30', 
                         'port 2775', 
-                        'con_fail_retry 1', 
+                        'con_fail_retry yes', 
                         'password password', 
                         'src_addr None', 
                         'bind_npi 1', 
@@ -123,7 +123,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'res_to 60', 
                         'def_msg_id 0', 
                         'priority 0', 
-                        'con_loss_retry 1', 
+                        'con_loss_retry yes', 
                         'username smppclient', 
                         'dst_npi 1', 
                         'validity None', 
@@ -188,7 +188,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'elink_interval 30', 
                         'bind_to 30', 
                         'port 122223', 
-                        'con_fail_retry 1', 
+                        'con_fail_retry yes', 
                         'password password', 
                         'src_addr None', 
                         'bind_npi 1', 
@@ -197,7 +197,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'res_to 60', 
                         'def_msg_id 0', 
                         'priority 0', 
-                        'con_loss_retry 1', 
+                        'con_loss_retry yes', 
                         'username smppclient', 
                         'dst_npi 1', 
                         'validity None', 
@@ -277,7 +277,7 @@ class BasicTestCases(HappySMSCTestCase):
         # Add
         cid = 'operator_13'
         extraCommands = [{'command': 'cid %s' % cid},
-                         {'command': 'con_fail_retry 0', 'wait': 0.6}]
+                         {'command': 'con_fail_retry no', 'wait': 0.6}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
         # Start
@@ -377,205 +377,173 @@ class BasicTestCases(HappySMSCTestCase):
 class ParameterValuesTestCases(SmppccmTestCases):
     
     @defer.inlineCallbacks
-    def test_log_level(self):
-        # Set loglevel to WARNING
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'loglevel 30'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set loglevel to WARNING with non numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'loglevel WARNING'},
-                         {'command': 'ok', 'expect': r'Error: SMPPClientConfig log_level syntax is invalid'}]
-        yield self.add_connector(r'> ', extraCommands)
+    def test_add_connector(self):
+        """Will test for value validation for a set of command keys with smppccm -a
+           everything is built through the assert_battery"""
+
+        assert_battery = [
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': '3',          'isValid': True},
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': '300',        'isValid': False},
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': '-1',         'isValid': False},
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '1',          'isValid': True},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '1',          'isValid': True},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '300',        'isValid': False},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '6',          'isValid': True},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': '3',          'isValid': True},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '1',          'isValid': True},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '1',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '0',          'isValid': True},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'priority',  'default_value': '0', 'set_value': 'LEVEL_1',    'isValid': False},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '300',        'isValid': False},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '3',          'isValid': True},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': '0',          'isValid': True},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': 'xx',         'isValid': False},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': 'REPLCACE',   'isValid': False},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': '1',          'isValid': True},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'yes', 'isValid': True},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': '1',   'isValid': False},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'xx',  'isValid': False},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'NON', 'isValid': False},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'no',  'isValid': True},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'yes', 'isValid': True},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': '1',   'isValid': False},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'xx',  'isValid': False},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'NON', 'isValid': False},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'no',  'isValid': True},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': '10',        'isValid': True},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': '1',         'isValid': False},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': 'xx',        'isValid': False},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': 'DEBUG',     'isValid': False},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': '50',        'isValid': True},
+                 ]
+        cid = 0
+
+        for value in assert_battery:
+            if value['isValid']:
+                add_expect = '%s %s> ' % (value['key'], value['set_value'])
+                show_expect = '%s %s' % (value['key'], value['set_value'])
+            else:
+                add_expect = 'Unknown value for key %s' % value['key']
+                show_expect = '%s %s' % (value['key'], value['default_value'])
+
+            # Add and assertions
+            extraCommands = [{'command': 'cid operator_%s' % cid},
+                             {'command': '%s %s' % (value['key'], value['set_value']), 'expect': add_expect},
+                             {'command': 'ok', 'wait': 0.8}]
+            yield self.add_connector(r'jcli : ', extraCommands)
+
+            # Assert value were taken (or not, depending if it's valid)
+            commands = [{'command': 'smppccm -s operator_%s' % cid, 'expect': show_expect}]
+            yield self._test(r'jcli : ', commands)
+
+            cid+= 1
 
     @defer.inlineCallbacks
-    def test_update_log_level(self):
-        cid = 'operator_7'
-        extraCommands = [{'command': 'cid %s' % cid}]
-        yield self.add_connector(r'jcli : ', extraCommands)
+    def test_update_connector(self):
+        """Will test for value validation for a set of command keys with smppccm -u
+           everything is built through the assert_battery"""
 
-        commands = [{'command': 'smppccm -u operator_7', 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
-                    {'command': 'loglevel 30'},
-                    {'command': 'ok'}]
-        yield self._test(r'jcli : ', commands)
+        assert_battery = [
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': '3',          'isValid': True},
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': '300',        'isValid': False},
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': '-1',         'isValid': False},
+                  {'key': 'src_ton',   'default_value': '2', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '1',          'isValid': True},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'dst_ton',   'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '1',          'isValid': True},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '300',        'isValid': False},
+                  {'key': 'bind_ton',  'default_value': '0', 'set_value': '6',          'isValid': True},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': '3',          'isValid': True},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'src_npi',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '1',          'isValid': True},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'dst_npi',   'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '1',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '-1',         'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '300',        'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '0',          'isValid': True},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'priority',  'default_value': '0', 'set_value': 'LEVEL_1',    'isValid': False},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '300',        'isValid': False},
+                  {'key': 'priority',  'default_value': '0', 'set_value': '3',          'isValid': True},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': '0',          'isValid': True},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': 'xx',         'isValid': False},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': 'REPLCACE',   'isValid': False},
+                  {'key': 'ripf',      'default_value': '0', 'set_value': '1',          'isValid': True},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'yes', 'isValid': True},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': '1',   'isValid': False},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'xx',  'isValid': False},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'NON', 'isValid': False},
+                  {'key': 'con_fail_retry', 'default_value': 'yes', 'set_value': 'no',  'isValid': True},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'yes', 'isValid': True},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': '1',   'isValid': False},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'xx',  'isValid': False},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'NON', 'isValid': False},
+                  {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'no',  'isValid': True},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': '10',        'isValid': True},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': '1',         'isValid': False},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': 'xx',        'isValid': False},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': 'DEBUG',     'isValid': False},
+                  {'key': 'loglevel',  'default_value': '20', 'set_value': '50',        'isValid': True},
+                 ]
+        cid = 0
 
-        commands = [{'command': 'smppccm -u operator_7', 'expect': r'Updating connector id \[%s\]\: \(ok\: save, ko\: exit\)' % cid},
-                    {'command': 'loglevel WARNING'},
-                    {'command': 'ok', 'expect': r'Error: SMPPClientConfig log_level syntax is invalid'}]
-        yield self._test(r'> ', commands)
+        for value in assert_battery:
+            if value['isValid']:
+                add_expect = '%s %s> ' % (value['key'], value['set_value'])
+                show_expect = '%s %s' % (value['key'], value['set_value'])
+            else:
+                add_expect = 'Unknown value for key %s' % value['key']
+                show_expect = '%s %s' % (value['key'], value['default_value'])
 
-    @defer.inlineCallbacks
-    def test_boolean_con_loss_retry(self):
-        # Set to True
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'con_loss_retry 1'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to False
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'con_loss_retry No'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'con_loss_retry 31'},
-                         {'command': 'ok', 'expect': r'Error: reconnectOnConnectionLoss must be a boolean'}]
-        yield self.add_connector(r'>', extraCommands)
+            # Add connector with defaults
+            extraCommands = [{'command': 'cid operator_%s' % cid}]
+            yield self.add_connector(r'jcli : ', extraCommands)
 
-    @defer.inlineCallbacks
-    def test_boolean_con_fail_retry(self):
-        # Set to True
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'con_fail_retry 1'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to False
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'con_fail_retry No'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'con_fail_retry 31'},
-                         {'command': 'ok', 'expect': r'Error: reconnectOnConnectionFailure must be a boolean'}]
-        yield self.add_connector(r'>', extraCommands)
+            # Update and assert
+            commands = [{'command': 'smppccm -u operator_%s' % cid},
+                        {'command': 'password anypassword'},
+                        {'command': '%s %s' % (value['key'], value['set_value']), 'expect': add_expect},
+                        {'command': 'ok', 'wait': 0.8}]
+            yield self._test(r'jcli : ', commands)
 
-    @defer.inlineCallbacks
-    def test_src_ton(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_ton_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'src_ton 3'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'src_ton 300'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'src_ton NATIONAL'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
+            # Assert value were taken (or not, depending if it's valid)
+            commands = [{'command': 'smppccm -s operator_%s' % cid, 'expect': show_expect}]
+            yield self._test(r'jcli : ', commands)
 
-    @defer.inlineCallbacks
-    def test_dst_ton(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_ton_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'dst_ton 3'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'dst_ton 300'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'dst_ton NATIONAL'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-    @defer.inlineCallbacks
-    def test_bind_ton(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_ton_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'bind_ton 3'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'bind_ton 300'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'bind_ton NATIONAL'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-    @defer.inlineCallbacks
-    def test_src_npi(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_npi_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'src_npi 3'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'src_npi 5'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'src_npi WAP_CLIENT_ID'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-    @defer.inlineCallbacks
-    def test_dst_npi(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_npi_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'dst_npi 3'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'dst_npi 5'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'dst_npi WAP_CLIENT_ID'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-    @defer.inlineCallbacks
-    def test_bind_npi(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.addr_npi_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'bind_npi 3'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'bind_npi 5'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'bind_npi WAP_CLIENT_ID'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-    @defer.inlineCallbacks
-    def test_priority(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.priority_flag_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'priority 2'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'priority 5'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'priority LEVEL_0'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-
-    @defer.inlineCallbacks
-    def test_ripf(self):
-        # Set to a valid value (from jasmin.vendor.smpp.pdu.constants.replace_if_present_flap_name_map)
-        extraCommands = [{'command': 'cid operator_1'},
-                         {'command': 'ripf 0'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid numeric value
-        extraCommands = [{'command': 'cid operator_2'},
-                         {'command': 'ripf 5'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
-        
-        # Set to invalid value
-        extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'ripf DO_NOT_REPLACE'}]
-        yield self.add_connector(r'jcli : ', extraCommands)
+            cid+= 1
 
 class SMSCTestCases(HappySMSCTestCase):
     
