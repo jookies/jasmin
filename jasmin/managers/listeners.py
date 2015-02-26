@@ -334,7 +334,7 @@ class SMPPClientSMListener:
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'httpapi',}
                     self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                        self.setKeyExpiry, hashKey, smpps_map_expiry)
+                        self.setKeyExpiry, hashKey, dlr_expiry)
             elif pickledSmppsMap is not None:
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...' % (msgid))
 

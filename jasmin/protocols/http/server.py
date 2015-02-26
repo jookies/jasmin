@@ -65,7 +65,7 @@ class Send(Resource):
                 updated_request.args['coding'] = ['0']
             
             # Set default for undefined updated_request.arguments
-            if 'dlr-url' in updated_request.args:
+            if 'dlr-url' in updated_request.args or 'dlr-level' in updated_request.args:
                 updated_request.args['dlr'] = ['yes']
             if 'dlr' not in updated_request.args:
                 # Setting DLR updated_request to 'no'
@@ -144,15 +144,18 @@ class Send(Resource):
             # 2         # Terminal level (only)          # x x x x x x 0 1     #
             # 3         # SMS-C level and Terminal level # x x x x x x 0 1     #
             ####################################################################
-            if updated_request.args['dlr'][0] == 'yes' and 'dlr-url' in updated_request.args:
+            if updated_request.args['dlr'][0] == 'yes':
                 if updated_request.args['dlr-level'][0] == '1':
                     SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
                 elif updated_request.args['dlr-level'][0] == '2' or updated_request.args['dlr-level'][0] == '3':
                     SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
                 self.log.debug("SubmitSmPDU registered_delivery is set to %s" % str(SubmitSmPDU.params['registered_delivery']))
 
-                dlr_url = updated_request.args['dlr-url'][0]
                 dlr_level = int(updated_request.args['dlr-level'][0])
+                if 'dlr-url' in updated_request.args:
+                    dlr_url = updated_request.args['dlr-url'][0]
+                else:
+                    dlr_url = None
                 if updated_request.args['dlr-level'][0] == '1':
                     dlr_level_text = 'SMS-C'
                 elif updated_request.args['dlr-level'][0] == '2':
@@ -200,13 +203,13 @@ class Send(Resource):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid, 
-                                                          SubmitSmPDU, 
-                                                          priority, 
-                                                          pickled = False, 
-                                                          dlr_url = dlr_url, 
-                                                          dlr_level = dlr_level,
-                                                          dlr_method = dlr_method,
-                                                          submit_sm_resp_bill = bill.getSubmitSmRespBill())
+                                                               SubmitSmPDU, 
+                                                               priority, 
+                                                               pickled = False, 
+                                                               dlr_url = dlr_url, 
+                                                               dlr_level = dlr_level,
+                                                               dlr_method = dlr_method,
+                                                               submit_sm_resp_bill = bill.getSubmitSmRespBill())
             
             # Build final response
             if not c.result:
