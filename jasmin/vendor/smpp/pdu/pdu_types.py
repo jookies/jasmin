@@ -126,6 +126,7 @@ PrivacyIndicator = Enum(*constants.privacy_indicator_name_map.keys())
 LanguageIndicator = Enum(*constants.language_indicator_name_map.keys())
 DisplayTime = Enum(*constants.display_time_name_map.keys())
 MsAvailabilityStatus = Enum(*constants.ms_availability_status_name_map.keys())
+NetworkErrorCode = Enum(*constants.network_error_code_name_map.keys())
 DeliveryFailureReason = Enum(*constants.delivery_failure_reason_name_map.keys())
 MoreMessagesToSend = Enum(*constants.more_messages_to_send_name_map.keys())
 
