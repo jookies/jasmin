@@ -683,6 +683,13 @@ class MsAvailabilityStatusEncoder(IntegerWrapperEncoder):
     encoder = Int1Encoder()
     pduType = pdu_types.MsAvailabilityStatus
 
+# Jasmin update:
+class NetworkErrorCodeEncoder(OctetStringEncoder):
+    fieldName = 'network_error_code'
+    nameMap = constants.network_error_code_name_map
+    valueMap = constants.network_error_code_value_map
+    pduType = pdu_types.NetworkErrorCode
+
 class DeliveryFailureReasonEncoder(IntegerWrapperEncoder):
     fieldName = 'delivery_failure_reason'
     nameMap = constants.delivery_failure_reason_name_map
@@ -775,7 +782,8 @@ class OptionEncoder(IEncoder):
             #T.dpf_result: DpfResultEncoder(),
             #T.set_dpf: SetDpfEncoder(),
             T.ms_availability_status: MsAvailabilityStatusEncoder(),
-            #T.network_error_code: NetworkErrorCodeEncoder(),
+            # Jasmin update:
+            T.network_error_code: NetworkErrorCodeEncoder(self.getLength),
             T.message_payload: OctetStringEncoder(self.getLength),
             T.delivery_failure_reason: DeliveryFailureReasonEncoder(),
             T.more_messages_to_send: MoreMessagesToSendEncoder(),
