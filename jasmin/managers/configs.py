@@ -54,6 +54,10 @@ class SMPPClientSMListenerConfig(ConfigFile):
 
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
+
+        self.publish_submit_sm_resp = self._getbool('sm-listener', 
+                                            'publish_submit_sm_resp', 
+                                            False)
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 
