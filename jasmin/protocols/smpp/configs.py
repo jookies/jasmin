@@ -117,13 +117,13 @@ class SMPPClientConfig(object):
         
         # These are default parameters, c.f. _setConfigParamsInPDU method in SMPPOperationFactory
         self.service_type = kwargs.get('service_type', None)
-        self.addressTon = kwargs.get('bind_addr_ton', AddrTon.UNKNOWN)
-        self.addressNpi = kwargs.get('bind_addr_npi', AddrNpi.ISDN)
+        self.addressTon = kwargs.get('addressTon', AddrTon.UNKNOWN)
+        self.addressNpi = kwargs.get('addressNpi', AddrNpi.ISDN)
         self.source_addr_ton = kwargs.get('source_addr_ton', AddrTon.NATIONAL)
         self.source_addr_npi = kwargs.get('source_addr_npi', AddrNpi.ISDN)
         self.dest_addr_ton = kwargs.get('dest_addr_ton', AddrTon.INTERNATIONAL)
         self.dest_addr_npi = kwargs.get('dest_addr_npi', AddrNpi.ISDN)
-        self.addressRange = kwargs.get('address_range', None)
+        self.addressRange = kwargs.get('addressRange', None)
         self.source_addr = kwargs.get('source_addr', None)
         self.esm_class = kwargs.get('esm_class', EsmClass(EsmClassMode.STORE_AND_FORWARD, EsmClassType.DEFAULT))
         self.protocol_id = kwargs.get('protocol_id', None)

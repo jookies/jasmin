@@ -23,7 +23,7 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'dlr_expiry': 'dlr_expiry'
                        }
 # Keys to be kept in string type, as requested in #64 and #105
-SMPPClientConfigStringKeys = ['systemType', 'username', 'password']
+SMPPClientConfigStringKeys = ['systemType', 'username', 'password', 'addressRange']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'log_file', 'log_level']
