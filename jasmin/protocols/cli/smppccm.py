@@ -22,8 +22,8 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
                        'dlr_expiry': 'dlr_expiry'
                        }
-# Keys to be kept in string type, as requested in #64
-SMPPClientConfigStringKeys = ['systemType']
+# Keys to be kept in string type, as requested in #64 and #105
+SMPPClientConfigStringKeys = ['systemType', 'username', 'password']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'log_file', 'log_level']
