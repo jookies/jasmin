@@ -117,13 +117,13 @@ class SMPPClientConfig(object):
         
         # These are default parameters, c.f. _setConfigParamsInPDU method in SMPPOperationFactory
         self.service_type = kwargs.get('service_type', None)
-        self.bind_addr_ton = kwargs.get('bind_addr_ton', AddrTon.UNKNOWN)
-        self.bind_addr_npi = kwargs.get('bind_addr_npi', AddrNpi.ISDN)
+        self.addressTon = kwargs.get('bind_addr_ton', AddrTon.UNKNOWN)
+        self.addressNpi = kwargs.get('bind_addr_npi', AddrNpi.ISDN)
         self.source_addr_ton = kwargs.get('source_addr_ton', AddrTon.NATIONAL)
         self.source_addr_npi = kwargs.get('source_addr_npi', AddrNpi.ISDN)
         self.dest_addr_ton = kwargs.get('dest_addr_ton', AddrTon.INTERNATIONAL)
         self.dest_addr_npi = kwargs.get('dest_addr_npi', AddrNpi.ISDN)
-        self.address_range = kwargs.get('address_range', None)
+        self.addressRange = kwargs.get('address_range', None)
         self.source_addr = kwargs.get('source_addr', None)
         self.esm_class = kwargs.get('esm_class', EsmClass(EsmClassMode.STORE_AND_FORWARD, EsmClassType.DEFAULT))
         self.protocol_id = kwargs.get('protocol_id', None)
@@ -153,11 +153,6 @@ class SMPPClientConfig(object):
         if self.data_coding not in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14]:
             raise UnknownValue('Invalid data_coding: %s' % self.data_coding)
 
-        # These were added to preserve compatibility with smpp.twisted project
-        self.addressTon = self.bind_addr_ton
-        self.addressNpi = self.bind_addr_npi
-        self.addressRange = self.address_range
-        
         # QoS
         # Rejected messages are requeued with a fixed delay
         self.requeue_delay = kwargs.get('requeue_delay', 120)

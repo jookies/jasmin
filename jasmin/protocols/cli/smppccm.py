@@ -15,9 +15,9 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'bind_to': 'sessionInitTimerSecs', 'elink_interval': 'enquireLinkTimerSecs', 'trx_to': 'inactivityTimerSecs',
                        'res_to': 'responseTimerSecs', 'con_loss_retry': 'reconnectOnConnectionLoss', 'con_fail_retry': 'reconnectOnConnectionFailure',
                        'con_loss_delay': 'reconnectOnConnectionLossDelay', 'con_fail_delay': 'reconnectOnConnectionFailureDelay',
-                       'pdu_red_to': 'pduReadTimerSecs', 'bind': 'bindOperation', 'bind_ton': 'bind_addr_ton', 'bind_npi': 'bind_addr_npi',
+                       'pdu_red_to': 'pduReadTimerSecs', 'bind': 'bindOperation', 'bind_ton': 'addressTon', 'bind_npi': 'addressNpi',
                        'src_ton': 'source_addr_ton', 'src_npi': 'source_addr_npi', 'dst_ton': 'dest_addr_ton', 'dst_npi': 'dest_addr_npi',
-                       'addr_range': 'address_range', 'src_addr': 'source_addr', 'proto_id': 'protocol_id',
+                       'addr_range': 'addressRange', 'src_addr': 'source_addr', 'proto_id': 'protocol_id',
                        'priority': 'priority_flag', 'validity': 'validity_period', 'ripf': 'replace_if_present_flag',
                        'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
                        'dlr_expiry': 'dlr_expiry'
