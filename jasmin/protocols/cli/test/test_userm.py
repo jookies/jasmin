@@ -1,4 +1,5 @@
 import re
+from hashlib import md5
 from test_jcli import jCliWithoutAuthTestCases
 from jasmin.routing.jasminApi import MtMessagingCredential, SmppsCredential
     
@@ -309,6 +310,28 @@ class BasicTestCases(UserTestCases):
         commands = [{'command': 'user -l', 'expect': r'Total Users: 0'}]
         return self._test(r'jcli : ', commands)
 
+    def test_crypted_password(self):
+        "Related to #103"
+        uid = 'user_14-1'
+        add_password = 'oldpassword'
+        update_password = 'newpassword'
+        extraCommands = [{'command': 'uid %s' % uid},
+                         {'command': 'password %s' % add_password}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        # assert password is store in crypted format
+        self.assertEqual(1, len(self.RouterPB_f.users))
+        self.assertEqual(md5(add_password).digest(), self.RouterPB_f.users[0].password)
+
+        commands = [{'command': 'user -u %s' % uid},
+                    {'command': 'password %s' % update_password},
+                    {'command': 'ok'}]
+        self._test(r'jcli : ', commands)
+
+        # assert password is store in crypted format
+        self.assertEqual(1, len(self.RouterPB_f.users))
+        self.assertEqual(md5(update_password).digest(), self.RouterPB_f.users[0].password)
+    
 class MtMessagingCredentialTestCases(UserTestCases):
 
     def _test_user_with_MtMessagingCredential(self, uid, gid, username, mtcred):
