@@ -81,8 +81,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def run_test(self, user = None, content = 'anycontent', 
                  dlr_level = None, dlr_method = None, source_address = None, 
-                 priority = None, destination_address = None, default_route = None,
-                 side_effect = None):
+                 priority = None, validity_period = None, destination_address = None, 
+                 default_route = None, side_effect = None):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(user, default_route, side_effect)
         
@@ -96,6 +96,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['from'] = source_address
         if priority is not None:
             self.params['priority'] = priority
+        if validity_period is not None:
+            self.params['validity-period'] = validity_period
         if destination_address is not None:
             self.params['to'] = destination_address
         baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.urlencode(self.params))
@@ -281,6 +283,33 @@ class AuthorizationsTestCases(CredentialsTestCases):
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 
+    @defer.inlineCallbacks
+    def test_default_set_validity_period(self):
+        # User have default authorization to set message validity_period
+        response_text, response_code = yield self.run_test(validity_period = 2)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_unauthorized_set_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_validity_period', False)
+        
+        # User unauthorized
+        response_text, response_code = yield self.run_test(user = user, validity_period = 2)
+        self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Setting validity period is not authorized)."')
+        self.assertEqual(response_code, '400 Bad Request')
+        
+    @defer.inlineCallbacks
+    def test_authorized_user_set_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_validity_period', True)
+
+        # User authorized
+        response_text, response_code = yield self.run_test(user = user, validity_period = 2)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
 class ValueFiltersTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_default_destination_address(self):
@@ -361,12 +390,32 @@ class ValueFiltersTestCases(CredentialsTestCases):
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
-    def test_valid_user_priority(self):
+    def test_valid_priority(self):
         user = copy.copy(self.user1)
         user.mt_credential.setValueFilter('priority', r'^[0-3]$')
 
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_test(user = user, priority = 3)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_invalid_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setValueFilter('validity_period', r'^[0-1]?[0-9]$') # 0 .. 19
+        
+        # Invalid filter (user-level)
+        response_text, response_code = yield self.run_test(user = user, validity_period = 21)
+        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (validity_period filter mismatch)."')
+        self.assertEqual(response_code, '400 Bad Request')
+        
+    @defer.inlineCallbacks
+    def test_valid_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setValueFilter('validity_period', r'^[0-2]?[0-9]$') # 0 .. 29
+
+        # Valid filter (user-level) with user-level invalid filter
+        response_text, response_code = yield self.run_test(user = user, validity_period = 21)
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 

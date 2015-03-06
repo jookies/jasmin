@@ -52,6 +52,8 @@ class Send(Resource):
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
+                      # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
+                      'validity-period' :{'optional': True,     'pattern': re.compile(r'^\d+$')},
                       'dlr'         :{'optional': False,    'pattern': re.compile(r'^(yes|no)$')},
                       'dlr-url'     :{'optional': True,     'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more through HttpAPICredentialValidator
