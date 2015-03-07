@@ -13,6 +13,13 @@ from jasmin.queues.factory import AmqpFactory
 from txamqp.queue import Closed
 from txamqp.content import Content
 
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
+
 class AmqpTestCase(TestCase):
     exchange_name = "CONNECTOR-00"
     message = "Any Message"
@@ -145,9 +152,7 @@ class ConsumeTestCase(ConsumeTools):
         self.queue.get().addCallback(self._callback, self.queue).addErrback(self._errback)
         
         # Wait for 2 seconds
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred                
+        yield waitFor(2)
         
         yield self.queue.close()
         yield self.amqp.disconnect()
@@ -169,9 +174,7 @@ class PublishConsumeTestCase(ConsumeTools):
 
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(2)
 
         yield queue.close()
 
@@ -197,9 +200,7 @@ class PublishConsumeTestCase(ConsumeTools):
 
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(2)
         
         yield queue.close()
 
@@ -228,9 +229,7 @@ class PublishConsumeTestCase(ConsumeTools):
 
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred                
+        yield waitFor(2)
 
         yield self.submit_sm_q.close()
         yield self.deliver_sm_q.close()
@@ -264,9 +263,7 @@ class PublishConsumeTestCase(ConsumeTools):
 
         # Wait for 15 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(15, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(15)
         
         yield queue.close()
 
@@ -320,9 +317,7 @@ class RejectAndRequeueTestCase(ConsumeTools):
 
         # Wait for 20 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(20, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(20)
         
         yield queue.close()
 
@@ -353,9 +348,7 @@ class RejectAndRequeueTestCase(ConsumeTools):
         
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(2)
         
         # Stop consuming and assert
         yield self.amqp.chan.basic_cancel(consumer_tag='qtag')
@@ -364,9 +357,7 @@ class RejectAndRequeueTestCase(ConsumeTools):
 
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(2)
 
         # Start consuming again
         yield self.amqp.chan.basic_consume(queue="submit.sm_all_2", no_ack=False, consumer_tag='qtag')
@@ -376,9 +367,7 @@ class RejectAndRequeueTestCase(ConsumeTools):
         
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)        
-        yield exitDeferred        
+        yield waitFor(2)
 
         # Stop consuming and assert
         yield queue.close()
