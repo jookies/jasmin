@@ -77,12 +77,14 @@ All the above parameters can be displayed after User creation, except the passwo
    mt_messaging_cred valuefilter content .*
    mt_messaging_cred valuefilter src_addr .*
    mt_messaging_cred valuefilter dst_addr .*
+   mt_messaging_cred valuefilter validity_period ^\d+$
+   mt_messaging_cred authorization dlr_level True
    mt_messaging_cred authorization priority True
    mt_messaging_cred authorization http_long_content True
-   mt_messaging_cred authorization src_addr True
-   mt_messaging_cred authorization http_dlr_method True
-   mt_messaging_cred authorization dlr_level True
    mt_messaging_cred authorization http_send True
+   mt_messaging_cred authorization http_dlr_method True
+   mt_messaging_cred authorization src_addr True
+   mt_messaging_cred authorization validity_period True
    mt_messaging_cred authorization smpps_send True
    uid foo
    smpps_cred quota max_bindings ND
@@ -157,6 +159,9 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
    * - priority
      - True
      - Privilege to defined priority of SMS-MT (default is 0)
+   * - validity_period
+     - True
+     - Privilege to defined validity_period of SMS-MT (default is NOT SET)
 
 .. note:: Authorizations keys prefixed by **http_** or **smpps_** are only applicable for their respective channels.
 
@@ -179,6 +184,9 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
    * - priority
      - ^[0-3]$
      - Regex pattern to validate priority of SMS-MT
+   * - validity_period
+     - ^\d+$
+     - Regex pattern to validate validity_period of SMS-MT
 
 .. list-table:: **defaultvalue** section keys
    :widths: 10 10 80
