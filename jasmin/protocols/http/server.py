@@ -4,7 +4,7 @@ This is the http server module serving the /send API
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
@@ -136,6 +136,14 @@ class Send(Resource):
                 priority = int(updated_request.args['priority'][0])
                 SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s" % priority)
+
+            # Set validity_period
+            if 'validity-period' in updated_request.args:
+                delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
+                SubmitSmPDU.params['validity_period'] = datetime.today() + delta
+                self.log.debug("SubmitSmPDU validity_period is set to %s (+%s minutes)" % (
+                    SubmitSmPDU.params['validity_period'],
+                    updated_request.args['validity-period'][0]))
 
             # Set DLR bit mask
             # c.f. 5.2.17 registered_delivery

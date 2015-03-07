@@ -2,6 +2,7 @@ import urllib
 import mock
 import copy
 import random
+from datetime import datetime
 from twisted.web import server
 from twisted.internet import reactor, defer
 from twisted.web.client import getPage
@@ -13,6 +14,32 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.vendor.smpp.pdu.pdu_types import MessageState
+
+class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+
+    @defer.inlineCallbacks
+    def test_validity_period(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['validity-period'] = 1440 # 1 Day = 24 x 60 minutes = 1440 minutes
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period'])
+        timediff = self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period'] - datetime.now()
+        self.assertGreaterEqual(timediff.seconds / 60, (self.params['validity-period'] - 1)) # Tolerate one minute of test latency
+        self.assertLess(timediff.seconds / 60, (self.params['validity-period'] + 1))
 
 class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
