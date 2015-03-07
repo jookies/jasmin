@@ -100,11 +100,13 @@ class MtMessagingCredential(CredentialGenerick):
                           'http_set_dlr_method': default_authorizations,
                           'set_source_address': default_authorizations,
                           'set_priority': default_authorizations,
+                          'set_validity_period': default_authorizations,
                          }
         
         self.value_filters = {'destination_address': re.compile(r'.*'),
                          'source_address': re.compile(r'.*'),
                          'priority': re.compile(r'^[0-3]$'),
+                         'validity_period': re.compile(r'^\d+$'),
                          'content': re.compile(r'.*'),
                          }
         

@@ -79,6 +79,11 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - 2
      - Optional
      - Default is 0 (lowest priority)
+   * - **validity-period**
+     - Integer
+     - 1440
+     - Optional
+     - Message validity (minutes) to be passed to SMSC, default is value is None (message will take SMSC's default)
    * - **dlr**
      - yes or no
      - yes

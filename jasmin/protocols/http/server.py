@@ -4,7 +4,7 @@ This is the http server module serving the /send API
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
@@ -52,6 +52,8 @@ class Send(Resource):
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
+                      # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
+                      'validity-period' :{'optional': True,     'pattern': re.compile(r'^\d+$')},
                       'dlr'         :{'optional': False,    'pattern': re.compile(r'^(yes|no)$')},
                       'dlr-url'     :{'optional': True,     'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more through HttpAPICredentialValidator
@@ -135,20 +137,19 @@ class Send(Resource):
                 SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s" % priority)
 
+            # Set validity_period
+            if 'validity-period' in updated_request.args:
+                delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
+                SubmitSmPDU.params['validity_period'] = datetime.today() + delta
+                self.log.debug("SubmitSmPDU validity_period is set to %s (+%s minutes)" % (
+                    SubmitSmPDU.params['validity_period'],
+                    updated_request.args['validity-period'][0]))
+
             # Set DLR bit mask
-            # c.f. 5.2.17 registered_delivery
-            ####################################################################
-            # dlr-level # Signification                  # registered_delivery #
-            ####################################################################
-            # 1         # SMS-C level                    # x x x x x x 1 0     #
-            # 2         # Terminal level (only)          # x x x x x x 0 1     #
-            # 3         # SMS-C level and Terminal level # x x x x x x 0 1     #
-            ####################################################################
+            # DLR setting is clearly described in #107
+            SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
             if updated_request.args['dlr'][0] == 'yes':
-                if updated_request.args['dlr-level'][0] == '1':
-                    SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
-                elif updated_request.args['dlr-level'][0] == '2' or updated_request.args['dlr-level'][0] == '3':
-                    SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+                SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
                 self.log.debug("SubmitSmPDU registered_delivery is set to %s" % str(SubmitSmPDU.params['registered_delivery']))
 
                 dlr_level = int(updated_request.args['dlr-level'][0])
@@ -165,7 +166,7 @@ class Send(Resource):
                 dlr_method = updated_request.args['dlr-method'][0]
             else:
                 dlr_url = None
-                dlr_level = 1
+                dlr_level = 0
                 dlr_level_text = 'No'
                 dlr_method = None
 

@@ -82,13 +82,38 @@ class SendTestCases(HTTPApiTestCases):
             self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Priority definitions
-        valid_priorities = {-1, 'a', 44, 4}
+        invalid_priorities = {-1, 'a', 44, 4}
         
-        for params['priority'] in valid_priorities:
+        for params['priority'] in invalid_priorities:
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(), 'Error "Argument [priority] has an invalid value: [%s]."' % params['priority'])
+
+    @defer.inlineCallbacks
+    def test_send_with_validity_period(self):
+        params = {'username': self.username, 
+                  'password': 'correct',
+                  'to': '98700177',
+                  'content': 'anycontent'}
+
+        # Validity period definitions
+        valid_vps = {0, 1, 2, 3, 4000}
+        
+        for params['validity-period'] in valid_vps:
+            response = yield self.web.get("send", params)
+            self.assertEqual(response.responseCode, 500)
+            # This is a normal error since SMPPClientManagerPB is not really running
+            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+        # Validity period definitions
+        invalid_vps = {-1, 'a', 1.0}
+        
+        for params['validity-period'] in invalid_vps:
+            response = yield self.web.get("send", params)
+            self.assertEqual(response.responseCode, 400)
+            # This is a normal error since SMPPClientManagerPB is not really running
+            self.assertEqual(response.value(), 'Error "Argument [validity-period] has an invalid value: [%s]."' % params['validity-period'])
 
     @defer.inlineCallbacks
     def test_send_with_inurl_dlr(self):

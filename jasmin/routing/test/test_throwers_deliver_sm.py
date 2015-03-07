@@ -1,6 +1,8 @@
 import mock
+import copy
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
+from datetime import datetime, timedelta
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from jasmin.routing.configs import deliverSmThrowerConfig
@@ -161,6 +163,29 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
         
         self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
+
+    @defer.inlineCallbacks
+    def test_throwing_validity_parameter(self):
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        content = 'test_throwing_http_connector test content'
+        self.testDeliverSMPdu.params['short_message'] = content
+        
+        # Set validity_period in deliver_sm and send it
+        deliver_sm = copy.copy(self.testDeliverSMPdu)
+        vp = datetime.today() + timedelta(minutes=20)
+        deliver_sm.params['validity_period'] = vp
+        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
+
+        yield waitFor(1)
+        
+        # No message retries must be made since ACK was received
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+
+        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        self.assertTrue('validity' in callArgs)
+        self.assertEqual(str(vp), callArgs['validity'][0])
 
 class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     routingKey = 'deliver_sm_thrower.smpps'

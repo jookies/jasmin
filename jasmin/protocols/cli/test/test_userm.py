@@ -133,12 +133,14 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter content .*',
                         'mt_messaging_cred valuefilter src_addr .*',
                         'mt_messaging_cred valuefilter dst_addr .*',
+                        'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
+                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization priority True',
                         'mt_messaging_cred authorization http_long_content True',
-                        'mt_messaging_cred authorization src_addr True',
-                        'mt_messaging_cred authorization http_dlr_method True',
-                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_send True',
+                        'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization src_addr True',
+                        'mt_messaging_cred authorization validity_period True',
                         'mt_messaging_cred authorization smpps_send True',
                         'uid %s' % uid, 
                         'smpps_cred quota max_bindings ND',
@@ -233,12 +235,14 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter content .*',
                         'mt_messaging_cred valuefilter src_addr .*',
                         'mt_messaging_cred valuefilter dst_addr .*',
+                        'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
+                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization priority True',
                         'mt_messaging_cred authorization http_long_content True',
-                        'mt_messaging_cred authorization src_addr True',
-                        'mt_messaging_cred authorization http_dlr_method True',
-                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_send True',
+                        'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization src_addr True',
+                        'mt_messaging_cred authorization validity_period True',
                         'mt_messaging_cred authorization smpps_send True',
                         'uid %s' % uid, 
                         'smpps_cred quota max_bindings ND',
@@ -360,13 +364,15 @@ class MtMessagingCredentialTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter content %s' % re.escape(mtcred.getValueFilter('content').pattern),
                         'mt_messaging_cred valuefilter src_addr %s' % re.escape(mtcred.getValueFilter('source_address').pattern),
                         'mt_messaging_cred valuefilter dst_addr %s' % re.escape(mtcred.getValueFilter('destination_address').pattern),
+                        'mt_messaging_cred valuefilter validity_period %s' % re.escape(mtcred.getValueFilter('validity_period').pattern),
+                        'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
                         'mt_messaging_cred authorization priority %s' % mtcred.getAuthorization('set_priority'),
                         'mt_messaging_cred authorization http_long_content %s' % mtcred.getAuthorization('http_long_content'),
-                        'mt_messaging_cred authorization src_addr %s' % mtcred.getAuthorization('set_source_address'),
-                        'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
-                        'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
                         'mt_messaging_cred authorization http_send %s' % mtcred.getAuthorization('http_send'),
-                        'mt_messaging_cred authorization smpps_send True',
+                        'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
+                        'mt_messaging_cred authorization src_addr %s' % mtcred.getAuthorization('set_source_address'),
+                        'mt_messaging_cred authorization validity_period %s' % mtcred.getAuthorization('set_validity_period'),
+                        'mt_messaging_cred authorization smpps_send %s' % mtcred.getAuthorization('smpps_send'),
                         'uid user_1', 
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
@@ -471,9 +477,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('http_set_dlr_method', False)
         _cred.setAuthorization('set_source_address', False)
         _cred.setAuthorization('set_priority', False)
+        _cred.setAuthorization('set_validity_period', False)
         _cred.setValueFilter('destination_address', '^HELLO$')
         _cred.setValueFilter('source_address', '^World$')
         _cred.setValueFilter('priority', '^1$')
+        _cred.setValueFilter('validity_period', '^1$')
         _cred.setValueFilter('content', '[0-9].*')
         _cred.setDefaultValue('source_address', 'BRAND NAME')
         _cred.setQuota('balance', 40.3)
@@ -486,9 +494,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization http_dlr_method NO'},
                          {'command': 'mt_messaging_cred authorization src_addr false'},
                          {'command': 'mt_messaging_cred authorization priority f'},
+                         {'command': 'mt_messaging_cred authorization validity_period f'},
                          {'command': 'mt_messaging_cred valuefilter dst_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^World$'},
                          {'command': 'mt_messaging_cred valuefilter priority ^1$'},
+                         {'command': 'mt_messaging_cred valuefilter validity_period ^1$'},
                          {'command': 'mt_messaging_cred valuefilter content [0-9].*'},
                          {'command': 'mt_messaging_cred defaultvalue src_addr BRAND NAME'},
                          {'command': 'mt_messaging_cred quota balance 40.3'}]
@@ -502,9 +512,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('http_set_dlr_method', True)
         _cred.setAuthorization('set_source_address', True)
         _cred.setAuthorization('set_priority', True)
+        _cred.setAuthorization('set_validity_period', True)
         _cred.setValueFilter('destination_address', '^WORLD$')
         _cred.setValueFilter('source_address', '^HELLO$')
         _cred.setValueFilter('priority', '^2$')
+        _cred.setValueFilter('validity_period', '^2$')
         _cred.setValueFilter('content', '[2-6].*')
         _cred.setDefaultValue('source_address', 'SEXY NAME')
         _cred.setQuota('balance', 66)
@@ -514,9 +526,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization http_dlr_method YES'},
                          {'command': 'mt_messaging_cred authorization src_addr true'},
                          {'command': 'mt_messaging_cred authorization priority t'},
+                         {'command': 'mt_messaging_cred authorization validity_period t'},
                          {'command': 'mt_messaging_cred valuefilter dst_addr ^WORLD$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter priority ^2$'},
+                         {'command': 'mt_messaging_cred valuefilter validity_period ^2$'},
                          {'command': 'mt_messaging_cred valuefilter content [2-6].*'},
                          {'command': 'mt_messaging_cred defaultvalue src_addr SEXY NAME'},
                          {'command': 'mt_messaging_cred quota balance 66'}]
@@ -568,6 +582,8 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Show and assert
         expectedList = ['username AnyUsername', 
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
