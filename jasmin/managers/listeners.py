@@ -111,10 +111,6 @@ class SMPPClientSMListener:
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
     
     @defer.inlineCallbacks
-    def setKeyExpiry(self, callbackArg, key, expiry):
-        yield self.redisClient.expire(key, expiry)
-
-    @defer.inlineCallbacks
     def submit_sm_callback(self, message):
         """This callback is a queue listener
         it is called whenever a message was consumed from queue
@@ -333,8 +329,9 @@ class SMPPClientSMListener:
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'httpapi',}
-                    self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                        self.setKeyExpiry, hashKey, dlr_expiry)
+                    self.redisClient.set(hashKey, 
+                        dlr_expiry, 
+                        pickle.dumps(hashValues, self.pickleProtocol))
             elif pickledSmppsMap is not None:
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...' % (msgid))
 
@@ -377,8 +374,9 @@ class SMPPClientSMListener:
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'smpps',}
-                    self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                        self.setKeyExpiry, hashKey, smpps_map_expiry)
+                    self.redisClient.set(hashKey, 
+                        smpps_map_expiry, 
+                        pickle.dumps(hashValues, self.pickleProtocol))
         else:
             self.log.warn('No valid RC were found while checking msg[%s] !' % msgid)
         
