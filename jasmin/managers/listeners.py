@@ -329,7 +329,7 @@ class SMPPClientSMListener:
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'httpapi',}
-                    self.redisClient.set(hashKey, 
+                    self.redisClient.setex(hashKey, 
                         dlr_expiry, 
                         pickle.dumps(hashValues, self.pickleProtocol))
             elif pickledSmppsMap is not None:
@@ -374,7 +374,7 @@ class SMPPClientSMListener:
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'smpps',}
-                    self.redisClient.set(hashKey, 
+                    self.redisClient.setex(hashKey, 
                         smpps_map_expiry, 
                         pickle.dumps(hashValues, self.pickleProtocol))
         else:

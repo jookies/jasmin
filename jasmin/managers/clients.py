@@ -594,7 +594,7 @@ class SMPPClientManagerPB(pb.Avatar):
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'registered_delivery': SubmitSmPDU.params['registered_delivery'],
                               'expiry': source_connector.factory.config.dlr_expiry}
-                self.redisClient.set(hashKey, 
+                self.redisClient.setex(hashKey, 
                     source_connector.factory.config.dlr_expiry,
                     pickle.dumps(hashValues, self.pickleProtocol))
         
