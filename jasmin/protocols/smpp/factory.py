@@ -372,10 +372,14 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.warning('New bind rejected for username: "%s", reason: authorization failure.' % user.username)
             return False
         # Still didnt reach max_bindings ?
-        elif (user.smpps_credential.getQuota('max_bindings') is not None and 
-            user.CnxStatus.smpps['bound_connections_count'] >= user.smpps_credential.getQuota('max_bindings')):
-            self.log.warning('New bind rejected for username: "%s", reason: max_bindings limit reached.' % user.username)
-            return False
+        elif user.smpps_credential.getQuota('max_bindings') is not None:
+            bind_count = user.CnxStatus.smpps['bound_connections_count']['bind_transmitter']
+            bind_count+= user.CnxStatus.smpps['bound_connections_count']['bind_receiver']
+            bind_count+= user.CnxStatus.smpps['bound_connections_count']['bind_transceiver']
+            if bind_count >= user.smpps_credential.getQuota('max_bindings'):
+                self.log.warning('New bind rejected for username: "%s", reason: max_bindings limit reached.' % 
+                    user.username)
+                return False
 
         return True
         

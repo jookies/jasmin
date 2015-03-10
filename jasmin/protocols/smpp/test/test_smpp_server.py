@@ -31,6 +31,13 @@ from jasmin.vendor.smpp.pdu.error import SMPPTransactionError
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.test.test_router import id_generator
 
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
+
 class LastProtoSMPPServerFactory(SMPPServerFactory):
     """This a SMPPServerFactory used to keep track of the last protocol instance for
     testing purpose"""
@@ -167,7 +174,7 @@ class BindTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
 
 		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 	@defer.inlineCallbacks
@@ -187,7 +194,10 @@ class BindTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 	@defer.inlineCallbacks
-	def test_bind_max_bindings_limit(self):
+	def test_bind_max_bindings_limit_0(self):
+		"""max_bindings=0:
+		No binds will be permitted
+		"""
 		user = self.routerpb_factory.getUser('u1')
 		user.smpps_credential.setQuota('max_bindings', 0)
 
@@ -196,7 +206,27 @@ class BindTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 	@defer.inlineCallbacks
-	def test_bind_max_bind_authorization(self):
+	def test_bind_max_bindings_limit_1(self):
+		"""max_bindings=1:
+		Only one binding at a time is permitted
+		"""
+		user = self.routerpb_factory.getUser('u1')
+		user.smpps_credential.setQuota('max_bindings', 1)
+
+		# Connect and bind (1)
+		yield self.smppc_factory.connectAndBind()
+
+		# Connect and bind (2) with same user
+		smppc_factory_2 = LastProtoSMPPClientFactory(self.smppc_config)
+		yield smppc_factory_2.connectAndBind()
+
+		self.assertEqual(smppc_factory_2.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+		# Unbind & Disconnect
+ 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+
+	@defer.inlineCallbacks
+	def test_bind_authorization(self):
 		user = self.routerpb_factory.getUser('u1')
 		user.smpps_credential.setAuthorization('bind', False)
 
@@ -256,9 +286,7 @@ class MessagingTestCases(SMPPClientTestCases):
 		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
  		# Wait
-		waitDeferred = defer.Deferred()
-		reactor.callLater(1, waitDeferred.callback, None)
-		yield waitDeferred
+ 		yield waitFor(1)
 
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
