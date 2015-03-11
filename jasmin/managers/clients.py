@@ -508,10 +508,6 @@ class SMPPClientManagerPB(pb.Avatar):
         return pickle.dumps(connector['config'], self.pickleProtocol)
     
     @defer.inlineCallbacks
-    def setKeyExpiry(self, callbackArg, key, expiry):
-        yield self.redisClient.expire(key, expiry)
-    
-    @defer.inlineCallbacks
     def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True, 
                          dlr_url = None, dlr_level = 1, dlr_method = 'POST', submit_sm_resp_bill = None, 
                          source_connector = 'httpapi'):
@@ -574,8 +570,9 @@ class SMPPClientManagerPB(pb.Avatar):
                               'level':dlr_level, 
                               'method':dlr_method, 
                               'expiry':connector['config'].dlr_expiry}
-                self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                            self.setKeyExpiry, hashKey, connector['config'].dlr_expiry)
+                self.redisClient.setex(hashKey, 
+                    connector['config'].dlr_expiry, 
+                    pickle.dumps(hashValues, self.pickleProtocol))
         elif (isinstance(source_connector, SMPPServerProtocol) 
               and SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
@@ -597,7 +594,8 @@ class SMPPClientManagerPB(pb.Avatar):
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'registered_delivery': SubmitSmPDU.params['registered_delivery'],
                               'expiry': source_connector.factory.config.dlr_expiry}
-                self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                            self.setKeyExpiry, hashKey, source_connector.factory.config.dlr_expiry)
+                self.redisClient.setex(hashKey, 
+                    source_connector.factory.config.dlr_expiry,
+                    pickle.dumps(hashValues, self.pickleProtocol))
         
         defer.returnValue(c.properties['message-id'])

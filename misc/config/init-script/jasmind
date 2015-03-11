@@ -35,8 +35,10 @@ getent group "$GROUP" >/dev/null || exit 12
 # Exit if the package is not installed
 [ -x $DAEMON ] || exit 22
 
-# Exit if system folders do not exist
+# Exit if system folders do not exist or could not be created
+[ -d $PIDDIR ] || mkdir $PIDDIR
 [ -d $PIDDIR ] || exit 31
+[ -d $LOGDIR ] || mkdir $LOGDIR
 [ -d $LOGDIR ] || exit 32
 
 # Read configuration variable file if it is present
