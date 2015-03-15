@@ -84,6 +84,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('http_throughput'), None)
+        self.assertEqual(mc.getQuota('smpps_throughput'), None)
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_normal_defaultsargs(self):
@@ -104,6 +106,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('http_throughput'), None)
+        self.assertEqual(mc.getQuota('smpps_throughput'), None)
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_set_and_get(self):
@@ -139,6 +143,10 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getQuota('balance'), 100)
         mc.setQuota('submit_sm_count', 10000)
         self.assertEqual(mc.getQuota('submit_sm_count'), 10000)
+        mc.setQuota('http_throughput', 100)
+        mc.setQuota('smpps_throughput', 10)
+        self.assertEqual(mc.getQuota('http_throughput'), 100)
+        self.assertEqual(mc.getQuota('smpps_throughput'), 10)
         mc.setQuota('early_decrement_balance_percent', 100)
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), 100)
     
@@ -192,6 +200,13 @@ class MtMessagingCredentialTestCase(TestCase):
         mc.setQuota('submit_sm_count', 10)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', -1)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', 1.1)
+        # *_throughput must be a positive int
+        mc.setQuota('http_throughput', 10)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', -1)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', 1.1)
+        mc.setQuota('smpps_throughput', 10)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', -1)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', 1.1)
     
     def test_quotas_updated(self):
         mc = MtMessagingCredential()

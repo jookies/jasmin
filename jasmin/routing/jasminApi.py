@@ -112,7 +112,12 @@ class MtMessagingCredential(CredentialGenerick):
         
         self.defaults = {'source_address': None,}
         
-        self.quotas = {'balance': None, 'early_decrement_balance_percent': None, 'submit_sm_count': None}
+        self.quotas = {'balance': None, 
+                       'early_decrement_balance_percent': None, 
+                       'submit_sm_count': None,
+                       'http_throughput': None,
+                       'smpps_throughput': None,
+                       }
     
     def setQuota(self, key, value):
         "Additional validation steps"

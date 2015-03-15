@@ -126,7 +126,9 @@ class BasicTestCases(UserTestCases):
 
         expectedList = ['username %s' % username, 
                         'mt_messaging_cred defaultvalue src_addr None',
+                        'mt_messaging_cred quota http_throughput ND',
                         'mt_messaging_cred quota balance ND',
+                        'mt_messaging_cred quota smpps_throughput ND',
                         'mt_messaging_cred quota sms_count ND',
                         'mt_messaging_cred quota early_percent ND',
                         'mt_messaging_cred valuefilter priority \^\[0-3\]\$',
@@ -228,7 +230,9 @@ class BasicTestCases(UserTestCases):
         # Show and assert
         expectedList = ['username %s' % username, 
                         'mt_messaging_cred defaultvalue src_addr None',
+                        'mt_messaging_cred quota http_throughput ND',
                         'mt_messaging_cred quota balance ND',
+                        'mt_messaging_cred quota smpps_throughput ND',
                         'mt_messaging_cred quota sms_count ND',
                         'mt_messaging_cred quota early_percent ND',
                         'mt_messaging_cred valuefilter priority \^\[0-3\]\$',
@@ -354,10 +358,22 @@ class MtMessagingCredentialTestCases(UserTestCases):
         else:
             assertEarlyPercent = str(float(mtcred.getQuota('early_decrement_balance_percent')))
 
+        if mtcred.getQuota('http_throughput') is None:
+            assertHttpThroughput = 'ND'
+        else:
+            assertHttpThroughput = str(int(mtcred.getQuota('http_throughput')))
+
+        if mtcred.getQuota('smpps_throughput') is None:
+            assertSmppsThroughput = 'ND'
+        else:
+            assertSmppsThroughput = str(int(mtcred.getQuota('smpps_throughput')))
+
         # Show and assert
         expectedList = ['username AnyUsername', 
                         'mt_messaging_cred defaultvalue src_addr %s' % mtcred.getDefaultValue('source_address'),
+                        'mt_messaging_cred quota http_throughput %s' % assertHttpThroughput,
                         'mt_messaging_cred quota balance %s' % assertBalance,
+                        'mt_messaging_cred quota smpps_throughput %s' % assertSmppsThroughput,
                         'mt_messaging_cred quota sms_count %s' % assertSmsCount,
                         'mt_messaging_cred quota early_percent %s' % assertEarlyPercent,
                         'mt_messaging_cred valuefilter priority %s' % re.escape(mtcred.getValueFilter('priority').pattern),
@@ -485,6 +501,8 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setValueFilter('content', '[0-9].*')
         _cred.setDefaultValue('source_address', 'BRAND NAME')
         _cred.setQuota('balance', 40.3)
+        _cred.setQuota('http_throughput', 2)
+        _cred.setQuota('smpps_throughput', 5)
 
         # Assert User adding
         extraCommands = [{'command': 'uid user_1'},
@@ -501,7 +519,10 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred valuefilter validity_period ^1$'},
                          {'command': 'mt_messaging_cred valuefilter content [0-9].*'},
                          {'command': 'mt_messaging_cred defaultvalue src_addr BRAND NAME'},
-                         {'command': 'mt_messaging_cred quota balance 40.3'}]
+                         {'command': 'mt_messaging_cred quota balance 40.3'},
+                         {'command': 'mt_messaging_cred quota http_throughput 2'},
+                         {'command': 'mt_messaging_cred quota smpps_throughput 5'},
+                        ]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 
@@ -582,6 +603,8 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Show and assert
         expectedList = ['username AnyUsername', 
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',

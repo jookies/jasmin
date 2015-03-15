@@ -782,3 +782,14 @@ class QuotasTestCases(CredentialsTestCases):
         remote_user = pickle.loads(t)[0]
         # After submit_sm_resp, user must be charged 100% of the route rate (x number of submit_sm parts)
         self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - (2.0 * 3))
+
+    @defer.inlineCallbacks
+    def test_throughput_limit_rejection(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('http_throughput', 1)
+        route = DefaultRoute(self.c1, rate = 1.2)
+
+        # Send default SMS
+        response_text, response_code = yield self.run_test(user = user, default_route = route)
+        self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
+        self.assertEqual(response_code, '403 Forbidden')
