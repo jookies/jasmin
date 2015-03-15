@@ -201,15 +201,15 @@ class MtMessagingCredentialTestCase(TestCase):
         mc.setQuota('submit_sm_count', 10)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', -1)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', 1.1)
-        # *_throughput must be a positive int
+        # *_throughput must be a positive float
         mc.setQuota('http_throughput', 10)
+        mc.setQuota('http_throughput', None)
         mc.setQuota('http_throughput', 2.5)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', -1)
-        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', 1.1)
         mc.setQuota('smpps_throughput', 10)
+        mc.setQuota('smpps_throughput', None)
         mc.setQuota('smpps_throughput', 2.5)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', -1)
-        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', 1.1)
     
     def test_quotas_updated(self):
         mc = MtMessagingCredential()
