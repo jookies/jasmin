@@ -1,6 +1,6 @@
 #pylint: disable-msg=W0401,W0611
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
@@ -264,6 +264,21 @@ class SMPPServerFactory(_SMPPServerFactory):
         # Get connector from selected route
         self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
         routedConnector = route.getConnector()
+
+        # QoS throttling
+        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm'] != 0:
+            qos_throughput_second = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
+            qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm']
+            if qos_delay < qos_throughput_ysecond_td:
+                self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
+                                qos_delay,
+                                qos_throughput_ysecond_td,
+                                user
+                                ))
+
+                raise SubmitSmThroughputExceededError()
+        user.CnxStatus.smpps['qos_last_submit_sm'] = datetime.now()
 
         # Pre-sending submit_sm: Billing processing
         bill = route.getBillFor(user)

@@ -23,7 +23,10 @@ MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                'DefaultValue': {'src_addr': 'source_address'},
                                'Quota': {'balance': 'balance',
                                           'early_percent': 'early_decrement_balance_percent',
-                                          'sms_count': 'submit_sm_count'},
+                                          'sms_count': 'submit_sm_count',
+                                          'http_throughput': 'http_throughput',
+                                          'smpps_throughput': 'smpps_throughput',
+                                        },
                                 }
 
 SmppsCredentialKeyMap = {'class': 'SmppsCredential',
@@ -58,6 +61,8 @@ def castToBuiltCorrectCredType(cred, section, key, value):
                 value = float(value)
             elif key == 'submit_sm_count':
                 value = int(value)
+            elif key in ['http_throughput', 'smpps_throughput']:
+                value = float(value)
 
         # Make a final validation: pass value to a temporarly MtMessagingCredential
         # object, an exception will be raised if the type is not correct
@@ -315,11 +320,12 @@ class UsersManager(Manager):
         counter = 0
         
         if (len(users)) > 0:
-            self.protocol.sendData("#%s %s %s %s %s" % ('User id'.ljust(16),
+            self.protocol.sendData("#%s %s %s %s %s %s" % ('User id'.ljust(16),
                                                         'Group id'.ljust(16),
                                                         'Username'.ljust(16),
                                                         'Balance'.ljust(7),
                                                         'MT SMS'.ljust(6),
+                                                        'Throughput'.ljust(8),
                                                        ), prompt=False)
             for user in users:
                 counter += 1
@@ -329,12 +335,20 @@ class UsersManager(Manager):
                 sms_count = user.mt_credential.getQuota('submit_sm_count')
                 if sms_count is None:
                     sms_count = 'ND'
-                self.protocol.sendData("#%s %s %s %s %s" % (
+                http_throughput = user.mt_credential.getQuota('http_throughput')
+                if http_throughput is None:
+                    http_throughput = 'ND'
+                smpps_throughput = user.mt_credential.getQuota('smpps_throughput')
+                if smpps_throughput is None:
+                    smpps_throughput = 'ND'
+                throughput = '%s/%s' % (http_throughput, smpps_throughput)
+                self.protocol.sendData("#%s %s %s %s %s %s" % (
                     str(user.uid).ljust(16),
                     str(user.group.gid).ljust(16),
                     str(user.username).ljust(16),
                     str(balance).ljust(7),
                     str(sms_count).ljust(6),
+                    str(throughput).ljust(8),
                     ), prompt=False)
                 self.protocol.sendData(prompt=False)        
         

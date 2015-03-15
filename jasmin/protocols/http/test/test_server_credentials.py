@@ -5,6 +5,7 @@ import copy
 import time
 import urllib
 import mock
+from datetime import datetime
 from twisted.internet import reactor
 from twisted.web.client import getPage
 from twisted.internet import defer
@@ -41,7 +42,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid, port = self.SMSCPort.getHost().port, 
-                                    bindOperation = 'transceiver')
+                                    bindOperation = 'transceiver', submit_sm_throughput = 0)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector
@@ -782,3 +783,50 @@ class QuotasTestCases(CredentialsTestCases):
         remote_user = pickle.loads(t)[0]
         # After submit_sm_resp, user must be charged 100% of the route rate (x number of submit_sm parts)
         self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - (2.0 * 3))
+
+    @defer.inlineCallbacks
+    def test_throughput_limit_rejection(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('http_throughput', 2)
+        route = DefaultRoute(self.c1, rate = 0.0)
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector(user, route)
+        
+        # Set content
+        self.params['content'] = 'Any Content'
+        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.urlencode(self.params))
+        
+        # Send a bunch of MT messages
+        # We should receive a msg id for success and error when throughput is exceeded
+        start_time = datetime.now()
+        throughput_exceeded_errors = 0
+        request_counter = 0
+        for x in range(5000):
+            try:
+                response_text = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+                response_code = 'Success'
+            except Exception, error:
+                response_text = error.response
+                response_code = str(error)
+
+            request_counter+= 1
+            if response_code == '403 Forbidden' and response_text == 'Error "User throughput exceeded"':
+                throughput_exceeded_errors+= 1
+        end_time = datetime.now()
+        
+        # Wait 2 seconds before stopping SmppClientConnectors
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+
+        # Asserts (tolerance of -/+ 3 messages)
+        throughput = 1 / float(user.mt_credential.getQuota('http_throughput'))
+        dt = end_time - start_time
+        max_unsuccessfull_requests = request_counter - (dt.seconds / throughput)
+        unsuccessfull_requests = throughput_exceeded_errors
+
+        self.assertGreaterEqual(unsuccessfull_requests, max_unsuccessfull_requests - 3)
+        self.assertLessEqual(unsuccessfull_requests, max_unsuccessfull_requests + 3)

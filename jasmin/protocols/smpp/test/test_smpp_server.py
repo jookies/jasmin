@@ -1,8 +1,5 @@
 """
 Test cases for smpp server
-- These are test cases for only Jasmin's code, smpp.twisted tests are not included here.
-- These are test done through real tcp network (smpp.twisted tests are done through 
-	proto_helpers.StringTransport())
 """
 
 import logging
