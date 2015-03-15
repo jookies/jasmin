@@ -303,27 +303,6 @@ class PDUEncoderTest(EncoderTest):
         pdu = GenericNack(None, CommandStatus.ESME_RSYSERR)
         self.do_conversion_test(PDUEncoder(), pdu, '00000010800000000000000800000000')
 
-    def test_DeliverSM_network_error_code(self):
-        pdu = DeliverSM(2676551972,
-            service_type = 'ANY',
-            source_addr_ton=AddrTon.INTERNATIONAL,
-            source_addr_npi=AddrNpi.ISDN,
-            source_addr='16505551234',
-            dest_addr_ton=AddrTon.INTERNATIONAL,
-            dest_addr_npi=AddrNpi.ISDN,
-            destination_addr='17735554070',
-            esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT),
-            protocol_id=0,
-            priority_flag=PriorityFlag.LEVEL_0,
-            registered_delivery=RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED),
-            replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
-            data_coding=DataCoding(schemeData=DataCodingDefault.LATIN_1),
-            short_message='there is no spoon',
-            sm_default_msg_id=0,
-            network_error_code='300',
-        )
-        self.do_conversion_test(PDUEncoder(), pdu, '0000005200000005000000009f88f124414e590001013136353035353531323334000101313737333535353430373000000000000000000300117468657265206973206e6f2073706f6f6e04230003323000')
-
     def test_DeliverSM_syniverse_MO_conversion(self):
         pdu = DeliverSM(2676551972,
             service_type = 'AWSBD',
