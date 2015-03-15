@@ -70,7 +70,9 @@ All the above parameters can be displayed after User creation, except the passwo
    jcli : user -s foo
    username foo
    mt_messaging_cred defaultvalue src_addr None
+   mt_messaging_cred quota http_throughput ND
    mt_messaging_cred quota balance ND
+   mt_messaging_cred quota smpps_throughput ND
    mt_messaging_cred quota sms_count ND
    mt_messaging_cred quota early_percent ND
    mt_messaging_cred valuefilter priority ^[0-3]$
@@ -94,8 +96,8 @@ All the above parameters can be displayed after User creation, except the passwo
 Listing Users will show currently added Users with their UID, GID and Username::
 
    jcli : user -l
-   #User id          Group id         Username         Balance MT SMS
-   #foo              1                foo              ND      ND             
+   #User id          Group id         Username         Balance MT SMS Throughput
+   #foo              1                foo              ND      ND     ND/ND
    Total Users: 1
 
 .. _user_credentials:
@@ -113,7 +115,7 @@ As seen above, User have an optional **mt_messaging_cred** parameter which defin
 * **Default values**: Default parameter values to be set by Jasmin when not manually set by User,
 * **Quotas**: Everything about :doc:`/billing/index`,
 
-For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to set a source address **value filter**, a balance of **44.2** and **unlimited** sms_count::
+For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to set a source address **value filter**, a balance of **44.2**, **unlimited** sms_count and limit SMS throughput in smpp server to 2 messages per second::
 
    jcli : user -a
    Adding a new User: (ok: save, ko: exit)
@@ -124,6 +126,7 @@ For each section of the above, there's keys to be defined when adding/updating a
    > mt_messaging_cred valuefilter src_addr ^JASMIN$
    > mt_messaging_cred quota balance 44.2
    > mt_messaging_cred quota sms_count none
+   > mt_messaging_cred quota smpps_throughput 2
    > ok
    Successfully added User [foo] to Group [marketing]
 
@@ -215,6 +218,12 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
    * - early_percent
      - ND
      - c.f. :ref:`billing_async`
+   * - http_throughput
+     - ND
+     - Max. number of messages per second to accept through HTTP API
+   * - smpps_throughput
+     - ND
+     - Max. number of messages per second to accept through SMPP Server
 
 SMPP Server section
 -------------------

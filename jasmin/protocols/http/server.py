@@ -181,7 +181,7 @@ class Send(Resource):
                 qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
                 qos_delay = datetime.now() - user.CnxStatus.httpapi['qos_last_submit_sm']
                 if qos_delay < qos_throughput_ysecond_td:
-                self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
+                    self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
                                 qos_delay,
                                 qos_throughput_ysecond_td,
                                 user
