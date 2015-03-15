@@ -59,8 +59,10 @@ def castToBuiltCorrectCredType(cred, section, key, value):
                 value = None
             elif key == 'balance' or key == 'early_decrement_balance_percent':
                 value = float(value)
-            elif key in ['submit_sm_count', 'http_throughput', 'smpps_throughput']:
+            elif key == 'submit_sm_count':
                 value = int(value)
+            elif key in ['http_throughput', 'smpps_throughput']:
+                value = float(value)
 
         # Make a final validation: pass value to a temporarly MtMessagingCredential
         # object, an exception will be raised if the type is not correct

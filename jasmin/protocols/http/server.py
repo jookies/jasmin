@@ -10,7 +10,12 @@ from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError, ChargingError
+from jasmin.protocols.http.errors import (AuthenticationError, 
+                                        ServerError, 
+                                        RouteNotFoundError, 
+                                        ChargingError,
+                                        ThroughputExceededError,
+                                        )
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
@@ -169,6 +174,15 @@ class Send(Resource):
                 dlr_level = 0
                 dlr_level_text = 'No'
                 dlr_method = None
+
+            # QoS throttling
+            if user.mt_credential.getQuota('http_throughput') >= 0 and user.CnxStatus.httpapi['qos_last_submit_sm'] != 0:
+                qos_throughput_second = 1 / float(user.mt_credential.getQuota('http_throughput'))
+                qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+                qos_delay = datetime.now() - user.CnxStatus.httpapi['qos_last_submit_sm']
+                if qos_delay < qos_throughput_ysecond_td:
+                    raise ThroughputExceededError("User throughput exceeded")
+            user.CnxStatus.httpapi['qos_last_submit_sm'] = datetime.now()
 
             # Get number of PDUs to be sent (for billing purpose)
             _pdu = SubmitSmPDU

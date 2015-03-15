@@ -129,6 +129,8 @@ class MtMessagingCredential(CredentialGenerick):
         elif (key == 'submit_sm_count' and value is not None and 
               ( value < 0 or type(value) != int )):
             raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+        elif key in ['http_throughput', 'smpps_throughput'] and value is not None and ( value < 0 ):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be None or a positive number' % ( key, value ))
             
         CredentialGenerick.setQuota(self, key, value)
 
@@ -175,7 +177,9 @@ class CnxStatus(jasminApiGenerick):
 
         self.httpapi = {'connects_count': 0,
                         'last_activity_at': 0,
-                        'submit_sm_request_count': 0,}
+                        'submit_sm_request_count': 0,
+                        'qos_last_submit_sm': 0,
+                        }
 
 class User(jasminApiGenerick):
     """Jasmin user"""

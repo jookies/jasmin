@@ -191,6 +191,7 @@ class MtMessagingCredentialTestCase(TestCase):
         # Balance must be None or a positive float
         mc.setQuota('balance', None)
         mc.setQuota('balance', 0)
+        mc.setQuota('balance', 2.2)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'balance', -1.0)
         # early_decrement_balance_percent must be None or 1-100
         mc.setQuota('early_decrement_balance_percent', None)
@@ -202,9 +203,11 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', 1.1)
         # *_throughput must be a positive int
         mc.setQuota('http_throughput', 10)
+        mc.setQuota('http_throughput', 2.5)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', -1)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', 1.1)
         mc.setQuota('smpps_throughput', 10)
+        mc.setQuota('smpps_throughput', 2.5)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', -1)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', 1.1)
     
@@ -265,9 +268,10 @@ class SmppsCredentialTestCase(TestCase):
         # Authorization must be a boolean
         sc.setAuthorization('bind', True)
         self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'bind', 'anyvalue')
-        # Balance must be None or a positive float
+        # max_bindings must be None or a positive int
         sc.setQuota('max_bindings', None)
         sc.setQuota('max_bindings', 0)
+        sc.setQuota('max_bindings', 2)
         self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', 1.0)
         self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', -1.0)
         self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', -1)

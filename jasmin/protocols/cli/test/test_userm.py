@@ -501,8 +501,8 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setValueFilter('content', '[0-9].*')
         _cred.setDefaultValue('source_address', 'BRAND NAME')
         _cred.setQuota('balance', 40.3)
-        _cred.setQuota('http_throughput', 2)
-        _cred.setQuota('smpps_throughput', 5)
+        _cred.setQuota('http_throughput', 2.2)
+        _cred.setQuota('smpps_throughput', 0.5)
 
         # Assert User adding
         extraCommands = [{'command': 'uid user_1'},
@@ -520,8 +520,8 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred valuefilter content [0-9].*'},
                          {'command': 'mt_messaging_cred defaultvalue src_addr BRAND NAME'},
                          {'command': 'mt_messaging_cred quota balance 40.3'},
-                         {'command': 'mt_messaging_cred quota http_throughput 2'},
-                         {'command': 'mt_messaging_cred quota smpps_throughput 5'},
+                         {'command': 'mt_messaging_cred quota http_throughput 2.2'},
+                         {'command': 'mt_messaging_cred quota smpps_throughput 0.5'},
                         ]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
