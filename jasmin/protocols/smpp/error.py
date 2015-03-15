@@ -51,6 +51,13 @@ class SubmitSmChargingError(SubmitSmEventHandlerErrorNoShutdown):
         self.status = pdu_types.CommandStatus.ESME_RSYSERR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
+class SubmitSmThroughputExceededError(SubmitSmEventHandlerErrorNoShutdown):
+    """Raised when throughput is exceeded
+    """
+    def __init__(self):
+        self.status = pdu_types.CommandStatus.ESME_RTHROTTLED
+        SubmitSmEventHandlerErrorNoShutdown.__init__(self)
+
 class CredentialValidationError(SubmitSmEventHandlerErrorShutdown):
     """
     Raised when user credential validation fails

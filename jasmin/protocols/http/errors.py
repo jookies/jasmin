@@ -51,7 +51,7 @@ class ChargingError(HttpApiError):
 
 class ThroughputExceededError(HttpApiError):
     """
-    Raised throughput is exceeded
+    Raised when throughput is exceeded
     """
     def __init__(self, message = None):
         HttpApiError.__init__(self, 403, message)

@@ -1,5 +1,6 @@
 import mock
 import copy
+from datetime import datetime
 from twisted.internet import defer
 from jasmin.protocols.smpp.test.test_smpp_server import SMPPClientTestCases
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
@@ -625,8 +626,44 @@ class QuotasTestCases(SMPPClientTestCases):
 		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
 		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 		# Assert quotas after SMS is sent
 		self.assertEqual(user.mt_credential.getQuota('balance'), 8.0)
+
+	@defer.inlineCallbacks
+	def test_throughput_limit_rejection(self):
+		user = self.routerpb_factory.getUser('u1')
+		user.mt_credential.setQuota('smpps_throughput', 2)
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# SMPPClient > SMPPServer
+		# Send a bunch of MT messages
+		# We should receive a ESME_ROK for success and ESME_RTHROTTLED when throughput is exceeded
+		start_time = datetime.now()
+		throughput_exceeded_errors = 0
+		request_counter = 0
+		for x in range(5000):
+			responsePDU = yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+			request_counter+= 1
+			if str(responsePDU.response.status) == 'ESME_RTHROTTLED':
+				throughput_exceeded_errors+= 1
+		end_time = datetime.now()
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+		# Asserts (tolerance of -/+ 3 messages)
+		throughput = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
+		dt = end_time - start_time
+		max_unsuccessfull_requests = request_counter - (dt.seconds / throughput)
+		unsuccessfull_requests = throughput_exceeded_errors
+
+		self.assertGreaterEqual(unsuccessfull_requests, max_unsuccessfull_requests - 3)
+		self.assertLessEqual(unsuccessfull_requests, max_unsuccessfull_requests + 3)

@@ -171,9 +171,11 @@ class CnxStatus(jasminApiGenerick):
                         'bind_receiver': 0,
                         'bind_transceiver': 0,
                         'bind_transmitter': 0,
-                      },
+                       },
                       'submit_sm_request_count': 0,
-                      'last_activity_at': 0,}
+                      'last_activity_at': 0,
+                      'qos_last_submit_sm': 0,
+                      }
 
         self.httpapi = {'connects_count': 0,
                         'last_activity_at': 0,
