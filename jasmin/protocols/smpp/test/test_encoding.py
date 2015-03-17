@@ -16,3 +16,14 @@ class PDUDecoderTest(unittest.TestCase):
 
         # Asserts
         self.assertEquals('000', pdu.params['network_error_code'])
+
+    def test_any_network_type(self):
+    	"Related to #120"
+
+        pduHex = '0000004500000005000000000000000100020135393232393631383600040933373435320000000000000000000000000e00010100060001010424000848692066696b7279'
+        pdu = self.getPDU(pduHex)
+        SMStringEncoder().decodeSM(pdu)
+
+        # Asserts
+        self.assertEquals('GSM', str(pdu.params['source_network_type']))
+        self.assertEquals('GSM', str(pdu.params['dest_network_type']))
