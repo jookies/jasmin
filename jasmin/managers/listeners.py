@@ -187,6 +187,7 @@ class SMPPClientSMListener:
             submit_sm_resp_bill = None
         else:  
             submit_sm_resp_bill = pickle.loads(amqpMessage.content.properties['headers']['submit_sm_resp_bill'])
+            userid = submit_sm_resp_bill.user.uid
         
         if r.response.status == CommandStatus.ESME_ROK:
             # Get bill information
@@ -230,9 +231,10 @@ class SMPPClientSMListener:
             else:
                 short_message = r.request.params['short_message']
             
-            self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
+            self.log.info("SMS-MT [cid:%s] [user-id:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (
                            self.SMPPClientFactory.config.id,
+                           userid,
                            msgid,
                            r.response.params['message_id'],
                            r.response.status,
@@ -246,9 +248,10 @@ class SMPPClientSMListener:
                            short_message
                            ))
         else:
-            self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
+            self.log.info("SMS-MT [cid:%s] [user-id:%s] [queue-msgid:%s] [status:ERROR/%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (
                            self.SMPPClientFactory.config.id,
+                           userid,
                            msgid,
                            r.response.status,
                            amqpMessage.content.properties['priority'],
@@ -382,8 +385,8 @@ class SMPPClientSMListener:
         
         # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer
         if total_bill_amount > 0:
-            pubQueueName = 'bill_request.submit_sm_resp.%s' % submit_sm_resp_bill.user.uid
-            content = SubmitSmRespBillContent(submit_sm_resp_bill.bid, submit_sm_resp_bill.user.uid, total_bill_amount)
+            pubQueueName = 'bill_request.submit_sm_resp.%s' % userid
+            content = SubmitSmRespBillContent(submit_sm_resp_bill.bid, userid, total_bill_amount)
             self.log.debug("Requesting a SubmitSmRespBillContent from a bill [bid:%s] with routing_key[%s]: %s" % 
                            (submit_sm_resp_bill.bid, pubQueueName, total_bill_amount))
             yield self.amqpBroker.publish(exchange='billing', 
