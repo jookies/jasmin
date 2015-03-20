@@ -6,8 +6,7 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, 
                                             EsmClassType, EsmClassGsmFeatures, 
-                                            MoreMessagesToSend, MessageState,
-                                            EsmClass, EsmClassMode, EsmClassType)
+                                            MoreMessagesToSend, MessageState)
 
 class UnknownMessageStatusError(Exception):
     """Raised when message_status is not recognized
