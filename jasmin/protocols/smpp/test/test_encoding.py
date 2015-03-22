@@ -38,3 +38,14 @@ class PDUDecoderTest(unittest.TestCase):
         self.assertEquals('bind_transceiver_resp', str(pdu.id))
         self.assertEquals('1', str(pdu.seqNum))
         self.assertEquals('ESME_RINVSYSTYP', str(pdu.status))
+
+    def test_invalid_command_length_2(self):
+        "Related to #128"
+
+        pduHex = '00000019800000040000000a00000002303030303030303000'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEquals('submit_sm_resp', str(pdu.id))
+        self.assertEquals('2', str(pdu.seqNum))
+        self.assertEquals('ESME_RINVSRCADR', str(pdu.status))
