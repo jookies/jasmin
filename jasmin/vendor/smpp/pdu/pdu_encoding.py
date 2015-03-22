@@ -928,8 +928,11 @@ class PDUEncoder(IEncoder):
         
         iAfterDecode = file.tell()
         parsedLen = iAfterDecode - iBeforeDecode
-        if parsedLen != headerParams['command_length']:
-            raise PDUCorruptError("Invalid command length: expected %d, parsed %d" % (headerParams['command_length'], parsedLen), pdu_types.CommandStatus.ESME_RINVCMDLEN)
+        # Jasmin update:
+        # Related to #124, don't error if parsedLen is not equal to command_length,
+        # there can be some padding in PDUs, this is a fix to be confirmed for stability
+        #if parsedLen != headerParams['command_length']:
+        #    raise PDUCorruptError("Invalid command length: expected %d, parsed %d" % (headerParams['command_length'], parsedLen), pdu_types.CommandStatus.ESME_RINVCMDLEN)
                     
         return pdu
     
