@@ -459,6 +459,7 @@ class PDUEncoderTest(EncoderTest):
     def test_decode_command_length_too_short(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '0000000f000000060000000000000000')
 
+    @unittest.skip("c.f. #124 and PDUEncoder's decode() method for more details")
     def test_decode_command_length_too_long(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '00000011000000060000000000000000ff')
 
@@ -468,6 +469,7 @@ class PDUEncoderTest(EncoderTest):
     def test_decode_bad_message_length_msg_too_short(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVMSGLEN, '000000fd80000009000000000000000154534937353838000210000134')
 
+    @unittest.skip("c.f. #124 and PDUEncoder's decode() method for more details")
     def test_decode_bad_message_length_msg_too_long(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '0000001c80000009000000000000000154534937353838000210000134')
 

@@ -928,7 +928,14 @@ class PDUEncoder(IEncoder):
         
         iAfterDecode = file.tell()
         parsedLen = iAfterDecode - iBeforeDecode
-        if parsedLen != headerParams['command_length']:
+        # Jasmin update:
+        # Related to #124, don't error if parsedLen is greater than command_length,
+        # there can be some padding in PDUs, this is a fix to be confirmed for stability
+        if headerParams['command_length'] > parsedLen:
+            padBytes = file.read(headerParams['command_length'] - parsedLen)
+            if len(padBytes) != headerParams['command_length'] - parsedLen:
+                raise PDUCorruptError("Invalid command length: expected %d, parsed %d, padding bytes not found" % (headerParams['command_length'], parsedLen), pdu_types.CommandStatus.ESME_RINVCMDLEN)
+        elif parsedLen < headerParams['command_length']:
             raise PDUCorruptError("Invalid command length: expected %d, parsed %d" % (headerParams['command_length'], parsedLen), pdu_types.CommandStatus.ESME_RINVCMDLEN)
                     
         return pdu

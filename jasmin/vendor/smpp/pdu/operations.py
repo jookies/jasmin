@@ -233,6 +233,12 @@ class DeliverSM(PDUDataRequest):
         'short_message',
     ]
     optionalParams = [
+        # Jasmin update:
+        # *_network_type are not optional parameters in standard SMPP
+        # it is added for compatibility with some providers (c.f. #120)
+        'source_network_type',
+        'dest_network_type',
+
         'user_message_reference',
         'source_port',
         'destination_port',

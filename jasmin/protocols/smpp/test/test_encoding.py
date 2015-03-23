@@ -16,3 +16,36 @@ class PDUDecoderTest(unittest.TestCase):
 
         # Asserts
         self.assertEquals('000', pdu.params['network_error_code'])
+
+    def test_any_network_type(self):
+        "Related to #120"
+
+        pduHex = '0000004500000005000000000000000100020135393232393631383600040933373435320000000000000000000000000e00010100060001010424000848692066696b7279'
+        pdu = self.getPDU(pduHex)
+        SMStringEncoder().decodeSM(pdu)
+
+        # Asserts
+        self.assertEquals('GSM', str(pdu.params['source_network_type']))
+        self.assertEquals('GSM', str(pdu.params['dest_network_type']))
+
+    def test_invalid_command_length(self):
+        "Related to #124"
+
+        pduHex = '0000001180000009000000530000000100'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEquals('bind_transceiver_resp', str(pdu.id))
+        self.assertEquals('1', str(pdu.seqNum))
+        self.assertEquals('ESME_RINVSYSTYP', str(pdu.status))
+
+    def test_invalid_command_length_2(self):
+        "Related to #128"
+
+        pduHex = '00000019800000040000000a00000002303030303030303000'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEquals('submit_sm_resp', str(pdu.id))
+        self.assertEquals('2', str(pdu.seqNum))
+        self.assertEquals('ESME_RINVSRCADR', str(pdu.status))
