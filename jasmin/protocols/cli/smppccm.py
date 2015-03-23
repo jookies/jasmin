@@ -2,7 +2,7 @@ import pickle
 import logging
 from twisted.internet import defer, reactor
 from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.vendor.smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
 from jasmin.vendor.smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
 from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
@@ -189,7 +189,7 @@ class ConnectorExist:
             return self.protocol.sendData('Unknown connector: %s' % cid)
         return exist_connector_and_call
 
-class SmppCCManager(Manager):
+class SmppCCManager(PersistableManager):
     managerName = 'smppcc'
 
     def persist(self, arg, opts):

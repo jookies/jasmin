@@ -1,7 +1,7 @@
 import re
 import inspect
 import pickle
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MOFILTERS
 from jasmin.routing.jasminApi import SmppServerSystemIdConnector
 from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute)
@@ -207,7 +207,7 @@ class MORouteExist:
             return self.protocol.sendData('Unknown MO Route: %s' % order)
         return exist_moroute_and_call
     
-class MoRouterManager(Manager):
+class MoRouterManager(PersistableManager):
     managerName = 'morouter'
     
     def persist(self, arg, opts):

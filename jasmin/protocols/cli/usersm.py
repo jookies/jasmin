@@ -1,7 +1,7 @@
 import pickle
 import re
 from hashlib import md5
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.protocol import str2num
 from jasmin.routing.jasminApi import User, MtMessagingCredential, SmppsCredential, jasminApiCredentialError
 
@@ -294,7 +294,7 @@ def UserUpdate(fCallback):
             return self.protocol.sendData()
     return log_update_requests_and_call
 
-class UsersManager(Manager):
+class UsersManager(PersistableManager):
     managerName = 'user'
     
     def persist(self, arg, opts):

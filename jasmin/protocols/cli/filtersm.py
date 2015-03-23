@@ -3,7 +3,7 @@ import inspect
 import pickle
 import time
 from dateutil import parser
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     ConnectorFilter, SourceAddrFilter, DestinationAddrFilter,
@@ -209,14 +209,14 @@ class FilterExist:
             return self.protocol.sendData('Unknown Filter: %s' % fid)
         return exist_filter_and_call
 
-class FiltersManager(Manager):
+class FiltersManager(PersistableManager):
     '''FiltersManager does not have a PB like other managers (router, users, groups ...), it is
     used to simplify route adding syntax by creating reusable filters, these filters are saved in
     self.filters'''
     managerName = 'filter'
     
     def __init__(self, protocol):
-        Manager.__init__(self, protocol, None)
+        PersistableManager.__init__(self, protocol, None)
         
         self.filters = {}
         

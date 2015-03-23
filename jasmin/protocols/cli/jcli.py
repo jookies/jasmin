@@ -1,5 +1,6 @@
 from hashlib import md5
 from optparse import make_option
+from jasmin.protocols.cli.managers import PersistableManager
 from jasmin.protocols.cli.options import options
 from jasmin.protocols.cli.protocol import CmdProtocol
 from jasmin.protocols.cli.smppccm import SmppCCManager
@@ -9,6 +10,7 @@ from jasmin.protocols.cli.morouterm import MoRouterManager
 from jasmin.protocols.cli.mtrouterm import MtRouterManager
 from jasmin.protocols.cli.filtersm import FiltersManager
 from jasmin.protocols.cli.httpccm import HttpccManager
+from jasmin.protocols.cli.statsm import StatsManager
         
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'
@@ -39,6 +41,8 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('smppccm')
         if 'httpccm' not in self.commands:
             self.commands.append('httpccm')
+        if 'stats' not in self.commands:
+            self.commands.append('stats')
 
     def connectionMade(self):
         # Provision security
@@ -56,10 +60,15 @@ class JCliProtocol(CmdProtocol):
             self.terminal.write('Authentication required.\n\n')
 
         # Provision managers
-        self.managers = {'user': UsersManager(self, self.factory.pb), 'group': GroupsManager(self, self.factory.pb), 
-                         'morouter': MoRouterManager(self, self.factory.pb), 'mtrouter': MtRouterManager(self, self.factory.pb), 
-                         'smppccm': SmppCCManager(self, self.factory.pb), 'filter': FiltersManager(self),
-                         'httpccm': HttpccManager(self)}
+        self.managers = {'user': UsersManager(self, self.factory.pb), 
+                         'group': GroupsManager(self, self.factory.pb), 
+                         'morouter': MoRouterManager(self, self.factory.pb), 
+                         'mtrouter': MtRouterManager(self, self.factory.pb), 
+                         'smppccm': SmppCCManager(self, self.factory.pb), 
+                         'filter': FiltersManager(self),
+                         'httpccm': HttpccManager(self),
+                         'stats': StatsManager(self, self.factory.pb), 
+                         }
         
     def lineReceived(self, line):
         "Go to CmdProtocol.lineReceived when authenticated only"
@@ -320,7 +329,7 @@ class JCliProtocol(CmdProtocol):
         'Persist current configuration profile to disk in PROFILE'
         
         for _, manager in self.managers.iteritems():
-            if manager is not None:
+            if manager is not None and isinstance(manager, PersistableManager):
                 manager.persist(arg, opts)
         self.sendData()
 
@@ -331,6 +340,53 @@ class JCliProtocol(CmdProtocol):
         'Load configuration PROFILE profile from disk'
         
         for _, manager in self.managers.iteritems():
-            if manager is not None:
+            if manager is not None and isinstance(manager, PersistableManager):
                 manager.load(arg, opts)
         self.sendData()
+
+    @options([make_option(None, '--user', type="string", metavar="UID", 
+                          help = "Show user stats"),
+              make_option(None, '--users', action="store_true",
+                          help = "Show all users stats"),
+              make_option(None, '--smppc', type="string", metavar="CID", 
+                          help = "Show smpp connector stats"),
+              make_option(None, '--smppcs', action="store_true",
+                          help = "Show all smpp connectors stats"),
+              make_option(None, '--moroute', type="string", metavar="ORDER", 
+                          help = "Show MO Route stats"),
+              make_option(None, '--moroutes', action="store_true",
+                          help = "Show all MO Routes stats"),
+              make_option(None, '--mtroute', type="string", metavar="ORDER", 
+                          help = "Show MT Route stats"),
+              make_option(None, '--mtroutes', action="store_true",
+                          help = "Show all MT Routes stats"),
+              make_option(None, '--httpapi', action="store_true",
+                          help = "Show HTTP API stats"),
+              make_option(None, '--smppsapi', action="store_true",
+                          help = "Show SMPP Server API stats"),
+              ], '')
+    def do_stats(self, arg, opts = None):
+        'Stats management'
+
+        if opts.user:
+            self.managers['stats'].user(arg, opts)
+        elif opts.users:
+            self.managers['stats'].users(arg, opts)
+        elif opts.smppc:
+            self.managers['stats'].smppc(arg, opts)
+        elif opts.smppcs:
+            self.managers['stats'].smppcs(arg, opts)
+        elif opts.moroute:
+            self.managers['stats'].moroute(arg, opts)
+        elif opts.moroutes:
+            self.managers['stats'].moroutes(arg, opts)
+        elif opts.mtroute:
+            self.managers['stats'].mtroute(arg, opts)
+        elif opts.mtroutes:
+            self.managers['stats'].mtroutes(arg, opts)
+        elif opts.httpapi:
+            self.managers['stats'].httpapi(arg, opts)
+        elif opts.smppsapi:
+            self.managers['stats'].smppsapi(arg, opts)
+        else:
+            return self.sendData('Missing required option')
