@@ -228,7 +228,7 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
 SMPP Server section
 -------------------
 
-User have an other optional **smpps_credential** parameter which define a specialized set of sections for defining his credentials for using the :doc:`/apis/smpp-server/index`:
+User have an other optional **smpps_cred** parameter which define a specialized set of sections for defining his credentials for using the :doc:`/apis/smpp-server/index`:
 
 * **Authorizations**: Privileges to bind,
 * **Quotas**: Maximum bound connections at a time (multi binding),
@@ -241,12 +241,12 @@ For each section of the above, there's keys to be defined when adding/updating a
    > password bar
    > gid marketing
    > uid foo
-   > smpps_credential authorization bind yes
-   > smpps_credential quota max_bindings 2
+   > smpps_cred authorization bind yes
+   > smpps_cred quota max_bindings 2
    > ok
    Successfully added User [foo] to Group [marketing]
 
-In the below tables, you can find exhaustive list of keys for each **smpps_credential** section:
+In the below tables, you can find exhaustive list of keys for each **smpps_cred** section:
 
 .. list-table:: **authorization** section keys
    :widths: 10 10 80
