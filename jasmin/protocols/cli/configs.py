@@ -14,7 +14,7 @@ class JCliConfig(ConfigFile):
         self.bind = self._get('jcli', 'bind', '127.0.0.1')
         self.port = self._getint('jcli', 'port', 8990)
         
-        self.authentication = self._getint('jcli', 'authentication', True)
+        self.authentication = self._getbool('jcli', 'authentication', True)
         self.admin_username = self._get('jcli', 'admin_username', 'jcliadmin')
         self.admin_password = self._get('jcli', 'admin_password', '79e9b0aa3f3e7c53e916f7ac47439bcb').decode('hex')
 
