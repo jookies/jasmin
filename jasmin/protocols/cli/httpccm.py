@@ -1,6 +1,6 @@
 import pickle
 import time
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import HttpConnector
 
 # A config map between console-configuration keys and Httpcc keys.
@@ -63,14 +63,14 @@ class HttpccExist:
             return self.protocol.sendData('Unknown Httpcc: %s' % cid)
         return exist_httpcc_and_call
 
-class HttpccManager(Manager):
+class HttpccManager(PersistableManager):
     '''HttpccManager does not have a PB like other managers (router, users, groups ...), it is
     used to simplify route adding syntax by creating reusable httpccs, these httpccs are saved in
     self.httpccs'''
     managerName = 'httpcc'
     
     def __init__(self, protocol):
-        Manager.__init__(self, protocol, None)
+        PersistableManager.__init__(self, protocol, None)
         
         self.httpccs = {}
         

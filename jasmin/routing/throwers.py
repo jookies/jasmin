@@ -122,7 +122,7 @@ class Thrower(Service):
         self.thrower_q = yield self.amqpBroker.client.queue(self.consumerTag)
         self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
         self.log.info('Consuming from routing key: %s', self.routingKey)
-        
+
     def rejectAndRequeueMessage(self, message, delay = True):
         msgid = message.content.properties['message-id']
         

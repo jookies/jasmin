@@ -1,5 +1,5 @@
 import pickle
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import Group
 
 # A config map between console-configuration keys and Group keys.
@@ -56,7 +56,7 @@ class GroupExist:
             return self.protocol.sendData('Unknown Group: %s' % gid)
         return exist_group_and_call
 
-class GroupsManager(Manager):
+class GroupsManager(PersistableManager):
     managerName = 'group'
     
     def persist(self, arg, opts):

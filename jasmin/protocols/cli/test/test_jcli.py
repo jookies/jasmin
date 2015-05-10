@@ -90,6 +90,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         'mtrouter            MT Router management', 
                         'smppccm             SMPP connector management', 
                         'httpccm             HTTP client connector management', 
+                        'stats               Stats management',
                         '', 
                         'Control commands:', 
                         '=================', 
@@ -103,11 +104,11 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_persist(self):
         expectedList = [r'mtrouter configuration persisted \(profile:jcli-prod\)',
-                        r'filter configuration persisted \(profile\:jcli-prod\)',
-                        r'group configuration persisted \(profile\:jcli-prod\)',
                         r'smppcc configuration persisted \(profile\:jcli-prod\)',
-                        r'httpcc configuration persisted \(profile\:jcli-prod\)',
+                        r'group configuration persisted \(profile\:jcli-prod\)',
                         r'user configuration persisted \(profile\:jcli-prod\)',
+                        r'httpcc configuration persisted \(profile\:jcli-prod\)',
+                        r'filter configuration persisted \(profile\:jcli-prod\)',
                         r'morouter configuration persisted \(profile\:jcli-prod\)',
                         ]
         commands = [{'command': 'persist', 'expect': expectedList}]
@@ -116,11 +117,11 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_persist_profile(self):
         expectedList = [r'mtrouter configuration persisted \(profile:testprofile\)',
-                        r'filter configuration persisted \(profile\:testprofile\)',
-                        r'group configuration persisted \(profile\:testprofile\)',
                         r'smppcc configuration persisted \(profile\:testprofile\)',
-                        r'httpcc configuration persisted \(profile\:testprofile\)',
+                        r'group configuration persisted \(profile\:testprofile\)',
                         r'user configuration persisted \(profile\:testprofile\)',
+                        r'httpcc configuration persisted \(profile\:testprofile\)',
+                        r'filter configuration persisted \(profile\:testprofile\)',
                         r'morouter configuration persisted \(profile\:testprofile\)',
                         ]
         commands = [{'command': 'persist -p testprofile', 'expect': expectedList}]
@@ -133,11 +134,11 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
         yield self._test(r'jcli : ', commands)
 
         expectedList = [r'mtrouter configuration loaded \(profile\:jcli-prod\)',
-                        r'filter configuration loaded \(profile\:jcli-prod\)',
-                        r'group configuration loaded \(profile\:jcli-prod\)',
                         r'smppcc configuration loaded \(profile\:jcli-prod\)',
-                        r'httpcc configuration loaded \(profile\:jcli-prod\)',
+                        r'group configuration loaded \(profile\:jcli-prod\)',
                         r'user configuration loaded \(profile\:jcli-prod\)',
+                        r'httpcc configuration loaded \(profile\:jcli-prod\)',
+                        r'filter configuration loaded \(profile\:jcli-prod\)',
                         r'morouter configuration loaded \(profile\:jcli-prod\)',
                         ]
         commands = [{'command': 'load', 'expect': expectedList}]
@@ -150,11 +151,11 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
         yield self._test(r'jcli : ', commands)
 
         expectedList = [r'mtrouter configuration loaded \(profile\:testprofile\)',
-                        r'filter configuration loaded \(profile\:testprofile\)',
-                        r'group configuration loaded \(profile\:testprofile\)',
                         r'smppcc configuration loaded \(profile\:testprofile\)',
-                        r'httpcc configuration loaded \(profile\:testprofile\)',
+                        r'group configuration loaded \(profile\:testprofile\)',
                         r'user configuration loaded \(profile\:testprofile\)',
+                        r'httpcc configuration loaded \(profile\:testprofile\)',
+                        r'filter configuration loaded \(profile\:testprofile\)',
                         r'morouter configuration loaded \(profile\:testprofile\)',
                         ]
         commands = [{'command': 'load -p testprofile', 'expect': expectedList}]
@@ -163,11 +164,11 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_load_unknown_profile(self):
         expectedList = [r'Failed to load mtrouter configuration \(profile\:any_profile\)',
-                        r'Failed to load filter configuration \(profile\:any_profile\)',
-                        r'Failed to load group configuration \(profile\:any_profile\)',
                         r'Failed to load smppcc configuration \(profile\:any_profile\)',
-                        r'Failed to load httpcc configuration \(profile\:any_profile\)',
+                        r'Failed to load group configuration \(profile\:any_profile\)',
                         r'Failed to load user configuration \(profile\:any_profile\)',
+                        r'Failed to load httpcc configuration \(profile\:any_profile\)',
+                        r'Failed to load filter configuration \(profile\:any_profile\)',
                         r'Failed to load morouter configuration \(profile\:any_profile\)',
                         ]
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
