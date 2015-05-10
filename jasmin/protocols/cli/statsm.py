@@ -4,31 +4,31 @@ class StatsManager(Manager):
     managerName = 'stats'
     
     def user(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def users(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def smppc(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def smppcs(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def moroute(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def moroutes(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def mtroute(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def mtroutes(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
         
     def httpapi(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
 
     def smppsapi(self, arg, opts):
-        pass
+        return self.protocol.sendData('Not implemented yet.')
