@@ -234,8 +234,8 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         # the received pdu must be a DataSM
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.id, pdu_types.CommandId.data_sm)
-        self.assertEqual(received_pdu_1.params['source_addr'], '999')
-        self.assertEqual(received_pdu_1.params['destination_addr'], '000')
+        self.assertEqual(received_pdu_1.params['source_addr'], '000')
+        self.assertEqual(received_pdu_1.params['destination_addr'], '999')
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
         self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
 
@@ -268,8 +268,8 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         # the received pdu must be a DeliverSM
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(received_pdu_1.params['source_addr'], '999')
-        self.assertEqual(received_pdu_1.params['destination_addr'], '000')
+        self.assertEqual(received_pdu_1.params['source_addr'], '000')
+        self.assertEqual(received_pdu_1.params['destination_addr'], '999')
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
         self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
 
@@ -288,7 +288,6 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.prepareRoutingsAndStartConnector()
         yield self.smppc_factory.connectAndBind()
 
-        print self.smppc_factory.lastProto
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
         yield waitFor(1)

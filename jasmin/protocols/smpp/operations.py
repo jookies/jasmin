@@ -159,16 +159,16 @@ class SMPPOperationFactory():
             # Note:
             #  message_payload is not set in pdu since it seems there's a bug in smpp.pdu
             pdu = DeliverSM(
-                source_addr = source_addr,
-                destination_addr = destination_addr,
+                source_addr = destination_addr,
+                destination_addr = source_addr,
                 esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id = msgid,
             )
         else:
             # Build DataSM pdu
             pdu = DataSM(
-                source_addr = source_addr,
-                destination_addr = destination_addr,
+                source_addr = destination_addr,
+                destination_addr = source_addr,
                 esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id = msgid,
             )
