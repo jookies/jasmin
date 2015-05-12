@@ -522,8 +522,8 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
         self.assertEqual(response_pdu_2.seqNum, 1)
         self.assertEqual(response_pdu_2.status, pdu_types.CommandStatus.ESME_ROK)
-        self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['source_addr'])
-        self.assertEqual(response_pdu_2.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+        self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+        self.assertEqual(response_pdu_2.params['destination_addr'], SubmitSmPDU.params['source_addr'])
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
         self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
         # smpps last response was a unbind_resp
@@ -568,8 +568,8 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
         self.assertEqual(response_pdu_2.seqNum, 1)
         self.assertEqual(response_pdu_2.status, pdu_types.CommandStatus.ESME_ROK)
-        self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['source_addr'])
-        self.assertEqual(response_pdu_2.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+        self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+        self.assertEqual(response_pdu_2.params['destination_addr'], SubmitSmPDU.params['source_addr'])
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
         self.assertEqual(str(response_pdu_2.params['message_state']), 'UNDELIVERABLE')
 
