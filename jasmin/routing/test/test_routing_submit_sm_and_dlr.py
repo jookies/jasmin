@@ -849,7 +849,7 @@ class SmppsDlrCallbacking(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTo
 
 class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
     @defer.inlineCallbacks
-    def test_receipt_as_data_sm(self):
+    def test_receipt_as_deliver_sm(self):
         """Will:
         1. Set a SMS-MT route to connector A
         2. Send a SMS-MT to that route from a SMPPc and request DLR
@@ -956,18 +956,18 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
-    def test_receipt_as_deliver_sm(self):
+    def test_receipt_as_data_sm(self):
         """Will:
         1. Set a SMS-MT route to connector A
         2. Send a SMS-MT to that route from a SMPPc and request DLR
-        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a deliver_sm
+        3. Wait for the DLR (data_sm) to be routed back to SMPPc through SMPPs as a data_sm
         """
         #
         # TODO: include this test in the previous one (test_receipt_as_deliver_sm) as 
-        # an iteration (trigger_DLR type = deliver_sm)
+        # an iteration (trigger_DLR type = data_sm)
         #
         yield self.connect('127.0.0.1', self.pbPort)
-    test_receipt_as_deliver_sm.skip = 'TODO #92'
+    test_receipt_as_data_sm.skip = 'TODO #92'
 
     @defer.inlineCallbacks
     def test_receipt_for_unknown_message(self):
