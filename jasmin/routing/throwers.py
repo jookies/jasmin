@@ -412,7 +412,8 @@ class DLRThrower(Thrower):
                 raise NoDelivererForSystemId(system_id)
 
             # Build the Receipt PDU (data_sm)
-            pdu = self.opFactory.getReceipt(msgid = msgid, 
+            pdu = self.opFactory.getReceipt(dlr_pdu = self.config.dlr_pdu,
+                                            msgid = msgid, 
                                             source_addr = source_addr, 
                                             destination_addr = destination_addr,
                                             message_status = message_status,

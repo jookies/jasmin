@@ -5,6 +5,7 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
 from jasmin.routing.configs import DLRThrowerConfig
 from jasmin.routing.throwers import DLRThrower
+from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.managers.content import DLRContentForHttpapi, DLRContentForSmpps
 from jasmin.routing.test.http_server import LeafServer, TimeoutLeafServer, AckServer, NoAckServer, Error404Server
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
@@ -211,6 +212,72 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.smpps', content=content)
 
     @defer.inlineCallbacks
+    def test_throwing_smpps_to_bound_connection_as_data_sm(self):
+        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+
+        # Bind
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+
+        yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
+
+        yield waitFor(1)
+
+        # Run tests
+        self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
+        # the received pdu must be a DataSM
+        received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
+        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(received_pdu_1.params['source_addr'], '999')
+        self.assertEqual(received_pdu_1.params['destination_addr'], '000')
+        self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
+        self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+    @defer.inlineCallbacks
+    def test_throwing_smpps_to_bound_connection_as_deliver_sm(self):
+        self.DLRThrower.config.dlr_pdu = 'deliver_sm'
+
+        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+
+        # Bind
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+
+        yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
+
+        yield waitFor(1)
+
+        # Run tests
+        self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
+        # the received pdu must be a DeliverSM
+        received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
+        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.params['source_addr'], '999')
+        self.assertEqual(received_pdu_1.params['destination_addr'], '000')
+        self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
+        self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+    @defer.inlineCallbacks
     def test_throwing_smpps_to_bound_connection(self):
         self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
         self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
@@ -221,6 +288,7 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.prepareRoutingsAndStartConnector()
         yield self.smppc_factory.connectAndBind()
 
+        print self.smppc_factory.lastProto
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
         yield waitFor(1)

@@ -2,7 +2,7 @@
 import struct
 import math
 import re
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, 
                                             EsmClassMode, 
@@ -151,16 +151,27 @@ class SMPPOperationFactory():
         
         return pdu
 
-    def getReceipt(self, msgid, source_addr, destination_addr, message_status):
-        "Will build a DataSm containing a receipt data"
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status):
+        "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
-        # Build pdu
-        pdu = DataSM(
-            source_addr = source_addr,
-            destination_addr = destination_addr,
-            esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
-            receipted_message_id = msgid,
-        )
+        if dlr_pdu == 'deliver_sm':
+            # Build DeliverSM pdu
+            # Note:
+            #  message_payload is not set in pdu since it seems there's a bug in smpp.pdu
+            pdu = DeliverSM(
+                source_addr = source_addr,
+                destination_addr = destination_addr,
+                esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+                receipted_message_id = msgid,
+            )
+        else:
+            # Build DataSM pdu
+            pdu = DataSM(
+                source_addr = source_addr,
+                destination_addr = destination_addr,
+                esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+                receipted_message_id = msgid,
+            )
 
         # Set pdu.message_state
         if message_status[:5] == 'ESME_':
