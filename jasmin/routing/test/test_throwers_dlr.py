@@ -42,11 +42,11 @@ class DLRThrowerTestCases(unittest.TestCase):
         DLRThrowerConfigInstance.retry_delay = 1
         DLRThrowerConfigInstance.max_retries = 2
         
-        # Launch the deliverSmThrower
+        # Launch the DLRThrower
         self.DLRThrower = DLRThrower()
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
         
-        # Add the broker to the deliverSmThrower
+        # Add the broker to the DLRThrower
         yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
 
     @defer.inlineCallbacks
