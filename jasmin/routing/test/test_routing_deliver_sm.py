@@ -50,8 +50,8 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
         # Lower the timeout config to pass the timeout tests quickly
         deliverSmThrowerConfigInstance.timeout = 2
-        deliverSmThrowerConfigInstance.retryDelay = 1
-        deliverSmThrowerConfigInstance.maxRetries = 2
+        deliverSmThrowerConfigInstance.retry_delay = 1
+        deliverSmThrowerConfigInstance.max_retries = 2
         
         # Launch the deliverSmThrower
         self.deliverSmThrower = deliverSmThrower()

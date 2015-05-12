@@ -37,8 +37,8 @@ class deliverSmThrowerConfig(ConfigFile):
         ConfigFile.__init__(self, config_file)
         
         self.timeout = self._getint('deliversm-thrower', 'http_timeout', 30)
-        self.retryDelay = self._getint('deliversm-thrower', 'retry_delay', 30)
-        self.maxRetries = self._getint('deliversm-thrower', 'max_retries', 3)
+        self.retry_delay = self._getint('deliversm-thrower', 'retry_delay', 30)
+        self.max_retries = self._getint('deliversm-thrower', 'max_retries', 3)
         
         # Logging
         self.log_level = logging.getLevelName(self._get('deliversm-thrower', 'log_level', 'INFO'))
