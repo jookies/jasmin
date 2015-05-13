@@ -905,8 +905,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             self.assertEqual(response_pdu_x.id, pdu_types.CommandId.data_sm)
             self.assertEqual(response_pdu_x.seqNum, x - 1)
             self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
-            self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['source_addr'])
-            self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+            self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+            self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
             self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
             self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
 
@@ -935,8 +935,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 self.assertEqual(response_pdu_x.id, pdu_types.CommandId.data_sm)
                 self.assertEqual(response_pdu_x.seqNum, x - 1)
                 self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
-                self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['source_addr'])
-                self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+                self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+                self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
                 self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
                 self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
                 final_state_triggered = True
