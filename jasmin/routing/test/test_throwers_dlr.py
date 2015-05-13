@@ -1,4 +1,5 @@
 import mock
+import datetime
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from jasmin.queues.factory import AmqpFactory
@@ -207,8 +208,11 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.DLRThrower.config.max_retries = 2
 
     @defer.inlineCallbacks
-    def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr):
-        content = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr)
+    def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date = None):
+        if sub_date is None:
+            sub_date = datetime.datetime.now()
+
+        content = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date)
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.smpps', content=content)
 
     @defer.inlineCallbacks
@@ -259,7 +263,8 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         # Install mocks
         self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
-        yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
+        sub_date = datetime.datetime.now()
+        yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000', sub_date)
 
         yield waitFor(1)
 
@@ -272,6 +277,10 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.assertEqual(received_pdu_1.params['destination_addr'], '999')
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
         self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
+        self.assertEqual(received_pdu_1.params['message_payload'], 'id:MSGID submit date:%s done date:%s stat:ACCEPTED err:000' % (
+            sub_date.strftime("%Y%m%d%H%M"),
+            sub_date.strftime("%Y%m%d%H%M"),
+        ))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

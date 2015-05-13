@@ -170,8 +170,9 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         system_id = 'username'
         source_addr = '999'
         destination_addr = '111'
+        sub_date = datetime.now()
 
-        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr)
+        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date)
         
         self.assertEquals(c.body, msgid)
         self.assertEquals(len(c['headers']), 5)
@@ -186,6 +187,7 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         system_id = 'username'
         source_addr = '999'
         destination_addr = '111'
+        sub_date = datetime.now()
         
         validStatuses = ['ESME_ROK', 'DELIVRD', 'EXPIRED', 'DELETED', 
                                   'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
@@ -195,7 +197,7 @@ class DLRContentForSmppsTestCase(ContentTestCase):
             
             self.assertEquals(c['headers']['message_status'], status)
         
-        self.assertRaises(InvalidParameterError, DLRContentForSmpps, 'anystatus', msgid, system_id, source_addr, destination_addr)
+        self.assertRaises(InvalidParameterError, DLRContentForSmpps, 'anystatus', msgid, system_id, source_addr, destination_addr, sub_date)
         
 class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):

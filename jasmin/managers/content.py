@@ -67,7 +67,7 @@ class DLRContentForSmpps(Content):
     """A DLR Content holding information about the origin SubmitSm sent from smpps and 
     receipt acknowledgment details"""
 
-    def __init__(self, message_status, msgid, system_id, source_addr, destination_addr):
+    def __init__(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date):
         properties = {}
         
         # ESME_* statuses are returned from SubmitSmResp
@@ -81,7 +81,8 @@ class DLRContentForSmpps(Content):
                                  'message_status': message_status,
                                  'system_id': system_id,
                                  'source_addr': source_addr,
-                                 'destination_addr': destination_addr}
+                                 'destination_addr': destination_addr,
+                                 'sub_date': str(sub_date)}
         
         Content.__init__(self, msgid, properties = properties)
 

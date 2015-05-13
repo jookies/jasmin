@@ -326,7 +326,6 @@ class DLRThrower(Thrower):
         url = message.content.properties['headers']['url']
         method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
-        DLRContentForHttpapi = message.content.body
         self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
         
         # If any, clear requeuing timer
@@ -394,7 +393,7 @@ class DLRThrower(Thrower):
         message_status = message.content.properties['headers']['message_status']
         source_addr = message.content.properties['headers']['source_addr']
         destination_addr = message.content.properties['headers']['destination_addr']
-        DLRContentForSmpps = message.content.body
+        sub_date = message.content.properties['headers']['sub_date']
         self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
 
         # If any, clear requeuing timer
@@ -417,6 +416,7 @@ class DLRThrower(Thrower):
                                             source_addr = source_addr, 
                                             destination_addr = destination_addr,
                                             message_status = message_status,
+                                            sub_date = sub_date,
                                             )
 
             # Deliver (or throw) the receipt through the deliverer

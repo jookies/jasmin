@@ -746,6 +746,24 @@ class ShortMessageEncoder(IEncoder):
         smLength = self.smLengthEncoder.decode(file)
         return OctetStringEncoder(smLength).decode(file)
 
+class MessagePayloadEncoder(IEncoder):
+    # Length is 65k from the smpp specs, this encoded is created to resolve #139 where it seems
+    # message_payload were not implemented correctly from smpp.pdu, so this is a "to be rethinked"
+    # in future.
+    # For now, it is a requirement to get the deliver_sm receipt working
+    smLengthEncoder = Int1Encoder(max=254)
+        
+    def encode(self, messagePayload):
+        if messagePayload is None:
+            messagePayload = ''
+        smLength = len(messagePayload)
+
+        return self.smLengthEncoder.encode(smLength) + OctetStringEncoder(smLength).encode(messagePayload)
+
+    def decode(self, file):
+        smLength = self.smLengthEncoder.decode(file)
+        return OctetStringEncoder(smLength).decode(file)
+
 class OptionEncoder(IEncoder):
 
     def __init__(self):
@@ -784,7 +802,7 @@ class OptionEncoder(IEncoder):
             T.ms_availability_status: MsAvailabilityStatusEncoder(),
             # Jasmin update:
             T.network_error_code: NetworkErrorCodeEncoder(self.getLength),
-            T.message_payload: OctetStringEncoder(self.getLength),
+            T.message_payload: MessagePayloadEncoder(),
             T.delivery_failure_reason: DeliveryFailureReasonEncoder(),
             T.more_messages_to_send: MoreMessagesToSendEncoder(),
             T.message_state: MessageStateEncoder(),

@@ -339,6 +339,7 @@ class SMPPClientSMListener:
                 system_id = smpps_map['system_id']
                 source_addr = smpps_map['source_addr']
                 destination_addr = smpps_map['destination_addr']
+                sub_date = smpps_map['sub_date']
                 registered_delivery = smpps_map['registered_delivery']
                 smpps_map_expiry = smpps_map['expiry']
 
@@ -356,7 +357,8 @@ class SMPPClientSMListener:
                                                  msgid, 
                                                  system_id,
                                                  source_addr,
-                                                 destination_addr)
+                                                 destination_addr,
+                                                 sub_date)
 
                     routing_key = 'dlr_thrower.smpps'
                     self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (msgid, routing_key))
@@ -604,6 +606,7 @@ class SMPPClientSMListener:
                         system_id = smpps_map['system_id']
                         source_addr = smpps_map['source_addr']
                         destination_addr = smpps_map['destination_addr']
+                        sub_date = smpps_map['sub_date']
                         registered_delivery = smpps_map['registered_delivery']
                         smpps_map_expiry = smpps_map['expiry']
 
@@ -623,7 +626,8 @@ class SMPPClientSMListener:
                                                          submit_sm_queue_id, 
                                                          system_id,
                                                          source_addr,
-                                                         destination_addr)
+                                                         destination_addr,
+                                                         sub_date)
 
                             routing_key = 'dlr_thrower.smpps'
                             self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (submit_sm_queue_id, routing_key))
