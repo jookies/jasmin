@@ -508,29 +508,5 @@ class PDUEncoderTest(EncoderTest):
         self.assertEquals(0, len(pduExpected.params))
         self.do_decode_test(PDUEncoder(), pduExpected, hex)
 
-    def test_DeliverSM_receipt_with_message_payload(self):
-        pdu = DeliverSM(1,
-            service_type = 'CMT',
-            source_addr_ton=AddrTon.NATIONAL,
-            source_addr_npi=AddrNpi.NATIONAL,
-            dest_addr_ton=AddrTon.NATIONAL,
-            dest_addr_npi=AddrNpi.NATIONAL,
-            protocol_id=0,
-            priority_flag=PriorityFlag.LEVEL_0,
-            registered_delivery=RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED),
-            replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
-            data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DEFAULT_ALPHABET, DataCodingGsmMsgClass.CLASS_2)),
-            sm_default_msg_id=0,
-            short_message = '',
-
-            source_addr = '999',
-            destination_addr = '000',
-            esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
-            receipted_message_id = 'SOMEID',
-            message_state = MessageState.DELIVERED,
-            message_payload = '11111111',
-        )
-        self.do_conversion_test(PDUEncoder(), pdu, '00000046000000050000000000000001434d540002083939390002083030300004000000000000f200000424000831313131313131310427000102001e0007534f4d45494400')
-
 if __name__ == '__main__':
     unittest.main()

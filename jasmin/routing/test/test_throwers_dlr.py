@@ -277,7 +277,7 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.assertEqual(received_pdu_1.params['destination_addr'], '999')
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
         self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
-        self.assertEqual(received_pdu_1.params['message_payload'], 'id:MSGID submit date:%s done date:%s stat:ACCEPTED err:000' % (
+        self.assertEqual(received_pdu_1.params['short_message'], 'id:MSGID submit date:%s done date:%s stat:ACCEPTED err:000' % (
             sub_date.strftime("%Y%m%d%H%M"),
             sub_date.strftime("%Y%m%d%H%M"),
         ))

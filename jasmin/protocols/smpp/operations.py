@@ -190,7 +190,7 @@ class SMPPOperationFactory():
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            message_payload = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
                 msgid,
                 dateutil.parser.parse(sub_date).strftime("%Y%m%d%H%M"),
                 datetime.datetime.now().strftime("%Y%m%d%H%M"),
@@ -204,7 +204,7 @@ class SMPPOperationFactory():
                 destination_addr = source_addr,
                 esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id = msgid,
-                message_payload = message_payload,
+                short_message = short_message,
                 message_state = message_state,
             )
         else:

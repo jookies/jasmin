@@ -28,6 +28,15 @@ class PDUDecoderTest(unittest.TestCase):
         self.assertEquals('GSM', str(pdu.params['source_network_type']))
         self.assertEquals('GSM', str(pdu.params['dest_network_type']))
 
+    def test_deliver_sm_with_message_payload(self):
+        pduHex = '0000009200000005000000000001693c00000032313635333532303730330000003737383800040000000001000000000424004f69643a30303030343336393439207375626d697420646174653a3135303432313135303820646f6e6520646174653a3135303432313135303820737461743a44454c49565244206572723a30303000001e00063661616435000427000102'
+        pdu = self.getPDU(pduHex)
+        SMStringEncoder().decodeSM(pdu)
+
+        # Asserts
+        self.assertEquals('id:0000436949 submit date:1504211508 done date:1504211508 stat:DELIVRD err:000\x00', str(pdu.params['message_payload']))
+        self.assertEquals('6aad5', str(pdu.params['receipted_message_id']))
+
     def test_invalid_command_length(self):
         "Related to #124"
 
