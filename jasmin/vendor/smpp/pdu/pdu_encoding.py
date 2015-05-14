@@ -746,6 +746,9 @@ class ShortMessageEncoder(IEncoder):
         smLength = self.smLengthEncoder.decode(file)
         return OctetStringEncoder(smLength).decode(file)
 
+class MessagePayloadEncoder(OctetStringEncoder):
+    pass
+
 class OptionEncoder(IEncoder):
 
     def __init__(self):
@@ -784,7 +787,7 @@ class OptionEncoder(IEncoder):
             T.ms_availability_status: MsAvailabilityStatusEncoder(),
             # Jasmin update:
             T.network_error_code: NetworkErrorCodeEncoder(self.getLength),
-            T.message_payload: OctetStringEncoder(self.getLength),
+            T.message_payload: MessagePayloadEncoder(self.getLength),
             T.delivery_failure_reason: DeliveryFailureReasonEncoder(),
             T.more_messages_to_send: MoreMessagesToSendEncoder(),
             T.message_state: MessageStateEncoder(),

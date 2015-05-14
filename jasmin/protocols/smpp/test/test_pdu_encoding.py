@@ -280,8 +280,6 @@ class PDUEncoderTest(EncoderTest):
         respPdu = reqPdu.requireAck(1, CommandStatus.ESME_ROK, system_id='TSI7588', sc_interface_version=0x34)
         self.do_conversion_test(PDUEncoder(), respPdu, '0000001d%s000000000000000154534937353838000210000134' % respCommandIdHex)
 
-
-
     def test_BindTransmitter_conversion(self):
         self.do_bind_conversion_test(BindTransmitter, '00000002', '80000002')
 

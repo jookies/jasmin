@@ -592,6 +592,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 hashValues = {'system_id': source_connector.system_id, 
                               'source_addr': SubmitSmPDU.params['source_addr'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
+                              'sub_date': datetime.datetime.now(),
                               'registered_delivery': SubmitSmPDU.params['registered_delivery'],
                               'expiry': source_connector.factory.config.dlr_expiry}
                 self.redisClient.setex(hashKey, 
