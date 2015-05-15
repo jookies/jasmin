@@ -23,7 +23,28 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         twistedSMPPClientProtocol.__init__(self)
         
         self.longSubmitSmTxns = {}
+
+    def PDUReceived(self, pdu):
+        self.log.debug("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug("Complete PDU dump: %s" % pdu)
         
+        """A better version than vendor's PDUReceived method:
+        - Dont re-encode pdu !
+        if self.log.isEnabledFor(logging.DEBUG):
+            encoded = self.encoder.encode(pdu)
+            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+        """
+        
+        #Signal SMPP operation
+        self.onSMPPOperation()
+        
+        if isinstance(pdu, PDURequest):
+            self.PDURequestReceived(pdu)
+        elif isinstance(pdu, PDUResponse):
+            self.PDUResponseReceived(pdu)
+        else:
+            getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+
     def connectionMade(self):
         twistedSMPPClientProtocol.connectionMade(self)
         self.log.info("Connection made to %s:%s" % (self.factory.config.host, self.factory.config.port))
@@ -238,15 +259,15 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.log = logging.getLogger(LOG_CATEGORY)
 
     def PDUReceived(self, pdu):
-        """A better version than vendor's PDUReceived method:
-        - Encode pdu only when in debug mode
-        """
-        if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug("Received PDU: %s" % pdu)
+        self.log.debug("SMPP Server received PDU from system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (self.system_id, pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug("Complete PDU dump: %s" % pdu)
         
+        """A better version than vendor's PDUReceived method:
+        - Dont re-encode pdu !
         if self.log.isEnabledFor(logging.DEBUG):
             encoded = self.encoder.encode(pdu)
             self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+        """
         
         #Signal SMPP operation
         self.onSMPPOperation()

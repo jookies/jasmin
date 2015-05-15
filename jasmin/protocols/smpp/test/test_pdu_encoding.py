@@ -385,6 +385,31 @@ class PDUEncoderTest(EncoderTest):
         )
         self.do_conversion_test(PDUEncoder(), pdu, '00000066000000050000000000000001424d38000101343631323334353637383900010131343034363635333431300000000000000000f2001b48656c6c6f2049276d206120626967672066616e206f6620796f7502020004a037343202030005a034313331')
 
+    def test_DeliverSM_with_networ_error_code(self):
+        "Related to #117"
+
+        pdu = DeliverSM(1,
+            service_type = '',
+            source_addr_ton=AddrTon.INTERNATIONAL,
+            source_addr_npi=AddrNpi.ISDN,
+            source_addr='4915256794887',
+            dest_addr_ton=AddrTon.INTERNATIONAL,
+            dest_addr_npi=AddrNpi.ISDN,
+            destination_addr='04051306999',
+            esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT),
+            protocol_id=0,
+            priority_flag=PriorityFlag.LEVEL_0,
+            registered_delivery=RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED),
+            replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
+            data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DEFAULT_ALPHABET, DataCodingGsmMsgClass.CLASS_2)),
+            short_message='id:bc59b8aa-2fd2-4035-8113-19301e050079 sub:001 dlvrd:001 submit date:150508144058 done date:150508144058 stat:DELIVRD err:000 text:-',
+            sm_default_msg_id=0,
+            message_state=MessageState.DELIVERED,
+            receipted_message_id='bc59b8aa-2fd2-4035-8113-19301e050079',
+            network_error_code='\x03\x00\x00',
+        )
+        self.do_conversion_test(PDUEncoder(), pdu, '000000f30000000500000000000000010001013439313532353637393438383700010130343035313330363939390000000000000000f2008569643a62633539623861612d326664322d343033352d383131332d313933303165303530303739207375623a30303120646c7672643a303031207375626d697420646174653a31353035303831343430353820646f6e6520646174653a31353035303831343430353820737461743a44454c49565244206572723a30303020746578743a2d042300030300000427000102001e002562633539623861612d326664322d343033352d383131332d31393330316530353030373900')
+
     def test_EnquireLink_conversion(self):
         pdu = EnquireLink(6, CommandStatus.ESME_ROK)
         self.do_conversion_test(PDUEncoder(), pdu, '00000010000000150000000000000006')
