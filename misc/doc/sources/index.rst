@@ -36,6 +36,8 @@ Getting started
    * :doc:`/apis/ja-http/index` -- HTTP API technical specification
    * :doc:`/apis/smpp-server/index` -- SMPP Server API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
+   * :doc:`/faq/index` -- Frequently asked questions
+   * :doc:`/management/jcli/index` -- How to manage Jasmin ?
 
 Full contents
 *************
