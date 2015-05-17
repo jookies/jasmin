@@ -37,7 +37,6 @@ Getting started
    * :doc:`/apis/smpp-server/index` -- SMPP Server API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
    * :doc:`/faq/index` -- Frequently asked questions
-   * :doc:`/management/jcli/index` -- How to manage Jasmin ?
 
 Full contents
 *************
@@ -45,6 +44,7 @@ Full contents
    :maxdepth: 2
 
    /architecture/index
+   /support/index
    /installation/index
    /programming-examples/index
    /apis/smpp-server/index
