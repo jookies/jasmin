@@ -1128,6 +1128,10 @@ The Stats manager module is accessible through the **stats** command and is prov
      - Show user stats using it's UID
    * - --users
      - Show all users stats
+   * - --smppc=CID
+     - Show smpp connector stats using it's CID
+   * - --smppcs
+     - Show all smpp connectors stats
 
 The Stats manager covers different sections, this includes Users, SMPP Client connectors, Routes (MO and MT), APIs (HTTP and SMPP).
 
@@ -1219,3 +1223,94 @@ This is clearly a more detailed view for user **sandra**, the following table ex
    * - submit_sm_request_count
      - HTTP Api
      - Number of SubmitSM (MT messages) sent
+
+SMPP Client connectors statistics
+=================================
+
+The Stats manager exposes an overall view of all existent smppc connectors as well as a per-smppc information view:
+
+ * **stats --smppcs**: Will show an overall view of all existent smppc connectors
+ * **stats --smppc foo**: Will show detailed information for **foo**
+
+Here's an example of showing an overall view where smppc connectors **MTN** and **ORANGE** are actives, connector **SFONE** made no activity at all::
+
+   jcli : stats --smppcs
+   #Connector id  Bound count  Connected at         Bound at             Disconnected at      Sent elink at        Received elink at
+   #MTN           6            2019-06-02 15:35:01  2019-06-02 15:35:01  2019-06-01 10:18:21  2019-06-02 15:34:57  2019-06-02 15:32:28
+   #Orange        1            2019-06-02 15:35:01  2019-06-02 15:35:01  2019-06-01 11:12:33  2019-06-02 15:33:26  2019-06-02 15:32:41
+   #SFONE         0            ND                   ND                   ND                   ND                   ND
+   Total connectors: 3
+
+The columns shown for each user are explained in the following table:
+
+.. list-table:: Columns of the overall statistics for smppcs
+   :widths: 10 90
+   :header-rows: 1
+
+   * - Column
+     - Description
+   * - Bound count
+     - Binds counter value
+   * - Connected at
+     - Last connection date & time
+   * - Bound at
+     - Last successful bind date & time
+   * - Disconnected at
+     - Last disconnection date & time
+   * - Sent elink at
+     - Date & time of last sent enquire_link PDU
+   * - Received elink at
+     - Date & time of last received enquire_link PDU
+
+Here's an example of showing **MTN**'s detailed statistics::
+
+   jcli : stats --smppc MTN
+   #Item                    Value
+   #disconnected_count      2
+   #last_received_pdu_at    2019-06-02 15:36:01
+   #last_received_elink_at  2019-06-02 15:32:28
+   #connected_count         3
+   #connected_at            2019-06-02 15:35:01
+   #last_seqNum             1733
+   #disconnected_at         2019-06-01 10:18:21
+   #bound_at                2019-06-02 15:35:01
+   #created_at              2019-06-01 12:29:42
+   #last_sent_elink_at      2019-06-02 15:34:57
+   #bound_count             3
+   #last_seqNum_at          2019-06-02 15:35:57
+   #last_sent_pdu_at        2019-06-02 15:35:59
+
+This is clearly a more detailed view for connector **MTN**, the following table explains the items shown for **MTN**:
+
+.. list-table:: Details smppc statistics view items
+   :widths: 10 80
+   :header-rows: 1
+
+   * - Item
+     - Description
+   * - created_at
+     - Connector creation date & time
+   * - last_received_pdu_at
+     - Date & time of last received PDU
+   * - last_sent_pdu_at
+     - Date & time of last sent PDU
+   * - last_received_elink_at
+     - Date & time of last received enquire_link PDU
+   * - last_sent_elink_at
+     - Date & time of last sent enquire_link PDU
+   * - last_seqNum_at
+     - Date & time of last sequence_number claim
+   * - last_seqNum
+     - Value of last claimed sequence_number
+   * - connected_at
+     - Last connection date & time
+   * - bound_at
+     - Last successful bind date & time
+   * - disconnected_at
+     - Last disconnection date & time
+   * - connected_count
+     - Last connection date & time
+   * - bound_count
+     - Binds counter value
+   * - disconnected_count
+     - Last disconnection date & time
