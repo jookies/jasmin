@@ -22,6 +22,9 @@ This is common question, since Jasmin is still tagged as a 'Beta' version, pip i
   $ sudo pip install --pre jasmin
   ...
 
+.. hint::
+    This is clearly documented in :ref:`installation_linux_steps` installation steps.
+
 .. _faq_02:
 
 Cannot connect to telnet console after starting Jasmin
@@ -33,6 +36,9 @@ If you already have these requirements, please check jcli and redis-client logs:
 
 * /var/log/jasmin/redis-client.log
 * /var/log/jasmin/jcli.log
+
+.. hint::
+    Please check :ref:`installation_prerequisites` before installing.
 
 .. _faq_03:
 

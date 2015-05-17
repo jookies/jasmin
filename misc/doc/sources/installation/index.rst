@@ -55,13 +55,15 @@ You may optionally install and use:
 * `Sphinx <http://sphinx-doc.org/>`_ if you need to compile local `documentation <http://jasmin.readthedocs.org>`_.
 * In order to run unit tests: `Testing requirements <https://github.com/jookies/jasmin/blob/master/test-requirements>`_.
 
+.. _installation_linux_steps:
+
 On Linux
 ********
 
 Once :ref:`installation_prerequisites` are done (installed packages, created jasmin system user and the folders it 
 depends on), the last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
-    sudo pip install jasmin
+    sudo pip install --pre jasmin
 
 After getting jasmin installed, it is time to start it as a system service::
 
