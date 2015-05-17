@@ -1,6 +1,8 @@
 import unittest
+from twisted.internet import defer
 from test_jcli import jCliWithoutAuthTestCases
 from .test_userm import UserTestCases
+from .test_smppccm import SmppccmTestCases
 
 class BasicTestCases(jCliWithoutAuthTestCases):
 
@@ -16,16 +18,16 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'stats --users', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
-    @unittest.skip("Work in progress #123")
     def test_smppc(self):
         cid = 'foo'
 
-        commands = [{'command': 'stats --smppc=%s' % cid, 'expect': r'????'}]
+        commands = [{'command': 'stats --smppc=%s' % cid, 'expect': r'Unknown connector: %s' % cid}]
         return self._test(r'jcli : ', commands)
     
-    @unittest.skip("Work in progress #123")
     def test_smppcs(self):
-        commands = [{'command': 'stats --smppcs', 'expect': r'????'}]
+        expectedList = ['#Connector id    Bound count    Connected at    Bound at    Disconnected at    Sent elink at    Received elink at', 
+                        'Total connectors: 0']
+        commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
     @unittest.skip("Work in progress #123")
@@ -90,3 +92,43 @@ class UserStatsTestCases(UserTestCases):
                         '#submit_sm_request_count  HTTP Api     0']
         commands = [{'command': 'stats --user=user_1', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
+
+class SmppcStatsTestCases(SmppccmTestCases):
+    @defer.inlineCallbacks
+    def test_smppcs(self):
+        extraCommands = [{'command': 'cid operator_1'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        expectedList = ['#Connector id    Bound count    Connected at    Bound at    Disconnected at    Sent elink at    Received elink at', 
+                        '#operator_1      0              ND              ND          ND                 ND               ND', 
+                        'Total connectors: 1']
+        commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_smppc(self):
+        extraCommands = [{'command': 'cid operator_1'}]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        expectedList = ['#Connector id    Bound count    Connected at    Bound at    Disconnected at    Sent elink at    Received elink at', 
+                        '#operator_1      0              ND              ND          ND                 ND               ND', 
+                        'Total connectors: 1']
+        commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+        expectedList = ['#Item                    Value', 
+                        '#disconnected_count      0',
+                        '#last_received_pdu_at    ND',
+                        '#last_received_elink_at  ND',
+                        '#connected_count         0',
+                        '#connected_at            ND',
+                        '#last_seqNum',
+                        '#disconnected_at         ND',
+                        '#bound_at                ND',
+                        '#created_at              \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                        '#last_sent_elink_at      ND',
+                        '#bound_count             0',
+                        '#last_seqNum_at          ND',
+                        '#last_sent_pdu_at        ND']
+        commands = [{'command': 'stats --smppc=operator_1', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)

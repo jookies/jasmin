@@ -1,6 +1,8 @@
 import pickle
 from jasmin.protocols.cli.managers import Manager
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from .usersm import UserExist
+from .smppccm import ConnectorExist
 from tabulate import tabulate
 
 def formatDateTime(dt):
@@ -66,11 +68,44 @@ class StatsManager(Manager):
         self.protocol.sendData(tabulate(table, headers, tablefmt = "plain", numalign = "left").encode('ascii'), prompt = False)
         self.protocol.sendData('Total users: %s' % (len(table)))
 
+    @ConnectorExist(cid_key='smppc')
     def smppc(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
+        sc = SMPPClientStatsCollector()
+        headers = ["#Item", "Value"]
+
+        table = []
+        for k, v in sc.get(opts.smppc)._stats.iteritems():
+            row = []
+            row.append('#%s' % k)
+            if k[-3:] == '_at':
+                row.append(formatDateTime(v))
+            else:
+                row.append(v)
+
+            table.append(row)
+
+        self.protocol.sendData(tabulate(table, headers, tablefmt = "plain", numalign = "left").encode('ascii'))
 
     def smppcs(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
+        sc = SMPPClientStatsCollector()
+        headers = ["#Connector id", "Bound count", "Connected at", "Bound at", "Disconnected at", "Sent elink at", "Received elink at"]
+
+        table = []
+        connectors = self.pb['smppcm'].perspective_connector_list()
+        for connector in connectors:
+            row = []
+            row.append('#%s' % connector['id'])
+            row.append(sc.get(connector['id']).get('bound_count'))
+            row.append(formatDateTime(sc.get(connector['id']).get('connected_at')))
+            row.append(formatDateTime(sc.get(connector['id']).get('bound_at')))
+            row.append(formatDateTime(sc.get(connector['id']).get('disconnected_at')))
+            row.append(formatDateTime(sc.get(connector['id']).get('last_sent_elink_at')))
+            row.append(formatDateTime(sc.get(connector['id']).get('last_received_elink_at')))
+
+            table.append(row)
+
+        self.protocol.sendData(tabulate(table, headers, tablefmt = "plain", numalign = "left").encode('ascii'), prompt = False)
+        self.protocol.sendData('Total connectors: %s' % (len(table)))
 
     def moroute(self, arg, opts):
         return self.protocol.sendData('Not implemented yet.')
