@@ -1,12 +1,14 @@
 #pylint: disable-msg=W0401,W0611
 import logging
+from datetime import datetime
 from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
-from jasmin.protocols.smpp.error import *
-from jasmin.protocols.smpp.validation import SmppsCredentialValidator
+from .stats import SMPPClientStatsCollector
+from .protocol import SMPPClientProtocol, SMPPServerProtocol
+from .error import *
+from .validation import SmppsCredentialValidator
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from jasmin.vendor.smpp.pdu import pdu_types, constants
@@ -30,6 +32,10 @@ class SMPPClientFactory(ClientFactory):
         self.smpp = None
         self.connectionRetry = True
         self.config = config
+
+        # Setup statistics collector
+        self.stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        self.stats.set('created_at', datetime.now())
                 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE+".%s" % config.id)
@@ -47,9 +53,11 @@ class SMPPClientFactory(ClientFactory):
             self.msgHandler = msgHandler
     
     def buildProtocol(self, addr):
-        """Provision protocol with the dedicated logger
+        """Provision protocol
         """
         proto = ClientFactory.buildProtocol(self, addr)
+
+        # Setup logger
         proto.log = self.log
         
         return proto

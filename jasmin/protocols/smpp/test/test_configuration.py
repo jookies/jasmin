@@ -2,12 +2,11 @@
 Test cases for jasmin.protocols.smpp.configs module.
 """
 
-import logging
 from twisted.trial.unittest import TestCase
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.configs import ConfigUndefinedIdError, ConfigInvalidIdError
 
-class SMPPClientConfigTest(TestCase):
+class BasicTestCases(TestCase):
     def test_id_is_mandatory(self):
         self.assertRaises(ConfigUndefinedIdError, SMPPClientConfig)
         
