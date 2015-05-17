@@ -1109,6 +1109,8 @@ Listing Connectors will show currently added Connectors with their CID, Type, Me
    #HTTP-01          HttpConnector          GET    http://10.10.20.125/receive-sms/mo.php
    Total Httpccs: 1
 
+.. _stats_manager:
+
 Stats manager
 *************
 

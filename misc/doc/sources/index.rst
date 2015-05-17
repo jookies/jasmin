@@ -52,6 +52,7 @@ Full contents
    /routing/index
    /billing/index
    /messaging/index
+   /faq/index
 
 Links
 *****
