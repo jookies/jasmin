@@ -174,13 +174,13 @@ class CnxStatus(jasminApiGenerick):
                        },
                       'submit_sm_request_count': 0,
                       'last_activity_at': 0,
-                      'qos_last_submit_sm': 0,
+                      'qos_last_submit_sm_at': 0,
                       }
 
         self.httpapi = {'connects_count': 0,
                         'last_activity_at': 0,
                         'submit_sm_request_count': 0,
-                        'qos_last_submit_sm': 0,
+                        'qos_last_submit_sm_at': 0,
                         }
 
 class User(jasminApiGenerick):

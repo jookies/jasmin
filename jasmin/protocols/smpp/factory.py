@@ -266,10 +266,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         routedConnector = route.getConnector()
 
         # QoS throttling
-        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm'] != 0:
+        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm_at'] != 0:
             qos_throughput_second = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
             qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
-            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm']
+            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm_at']
             if qos_delay < qos_throughput_ysecond_td:
                 self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
                                 qos_delay,
@@ -278,7 +278,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                                 ))
 
                 raise SubmitSmThroughputExceededError()
-        user.CnxStatus.smpps['qos_last_submit_sm'] = datetime.now()
+        user.CnxStatus.smpps['qos_last_submit_sm_at'] = datetime.now()
 
         # Pre-sending submit_sm: Billing processing
         bill = route.getBillFor(user)

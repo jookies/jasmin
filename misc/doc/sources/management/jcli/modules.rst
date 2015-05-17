@@ -1108,3 +1108,114 @@ Listing Connectors will show currently added Connectors with their CID, Type, Me
    #Httpcc id        Type                   Method URL
    #HTTP-01          HttpConnector          GET    http://10.10.20.125/receive-sms/mo.php
    Total Httpccs: 1
+
+Stats manager
+*************
+
+The Stats manager module is responsible for showing real time statistics, aggregated counters and values such as current bound connections of a User, number of http requests, number of sent messages through a Route, Filter, Connector ...
+
+.. note:: All values are collected during Jasmin's uptime and they are lost when Jasmin goes off, Stats manager shall be used for monitoring activities but not for advanced business reports.
+
+The Stats manager module is accessible through the **stats** command and is providing the following features:
+
+.. list-table:: **stats** command line options
+   :widths: 10 90
+   :header-rows: 1
+
+   * - Command
+     - Description
+   * - --user=UID
+     - Show user stats using it's UID
+   * - --users
+     - Show all users stats
+
+The Stats manager covers different sections, this includes Users, SMPP Client connectors, Routes (MO and MT), APIs (HTTP and SMPP).
+
+User statistics
+===============
+
+The Stats manager exposes an overall view of all existent users as well as a per-user information view:
+
+ * **stats --users**: Will show an overall view of all existent users
+ * **stats --user foo**: Will show detailed information for **foo**
+
+Here's an example of showing an overall view where users **sandra** and **foo** are actually having 2 and 6 SMPP bound connections, user **bar** is using the HTTP Api only and **sandra** is using both APIs::
+
+   jcli : stats --users
+   #User id  SMPP Bound connections  SMPP L.A.            HTTP requests counter  HTTP L.A.
+   #sandra   2                       2019-06-02 15:35:01  20                     2019-06-01 12:12:33
+   #foo      6                       2019-06-02 15:35:10  0                      ND
+   #bar      0                       ND                   1289                   2019-06-02 15:39:12
+   Total users: 3
+
+The columns shown for each user are explained in the following table:
+
+.. list-table:: Columns of the overall statistics for users
+   :widths: 10 90
+   :header-rows: 1
+
+   * - Column
+     - Description
+   * - SMPP Bound connections
+     - Number of current bound SMPP connections
+   * - SMPP L.A.
+     - SMPP Server Last Activity date & time
+   * - HTTP requests counter
+     - Counter of all http requests done by the user
+   * - HTTP L.A.
+     - HTTP Api Last Activity date & time
+
+Here's an example of showing **sandra**'s detailed statistics::
+
+   jcli : stats --user sandra
+   #Item                     Type         Value
+   #last_activity_at         SMPP Server  2019-06-02 15:35:01
+   #bind_count               SMPP Server  26
+   #bound_connections_count  SMPP Server  {'bind_transmitter': 1, 'bind_receiver': 1, 'bind_transceiver': 0}
+   #submit_sm_request_count  SMPP Server  1506
+   #qos_last_submit_sm_at    SMPP Server  2019-06-02 12:31:23
+   #unbind_count             SMPP Server  24
+   #qos_last_submit_sm_at    HTTP Api     2019-05-22 15:56:02
+   #connects_count           HTTP Api     156
+   #last_activity_at         HTTP Api     2019-06-01 12:12:33
+   #submit_sm_request_count  HTTP Api     102
+
+This is clearly a more detailed view for user **sandra**, the following table explains the items shown for **sandra**:
+
+.. list-table:: Details user statistics view items
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Item
+     - Type
+     - Description
+   * - last_activity_at
+     - SMPP Server
+     - Date & time of last received PDU from user
+   * - bind_count
+     - SMPP Server
+     - Binds counter value
+   * - bound_connections_count
+     - SMPP Server
+     - Currently bound connections
+   * - submit_sm_request_count
+     - SMPP Server
+     - Number of SubmitSM (MT messages) sent
+   * - qos_last_submit_sm_at
+     - SMPP Server
+     - Date & time of last SubmitSM (MT Message) sent
+   * - unbind_count
+     - SMPP Server
+     - Unbinds counter value
+   * - qos_last_submit_sm_at
+     - HTTP Api
+     - Date & time of last SubmitSM (MT Message sent)
+   * - connects_count
+     - HTTP Api
+     - HTTP request counter value
+   * - last_activity_at
+     - HTTP Api
+     - Date & time of last HTTP request
+   * - submit_sm_request_count
+     - HTTP Api
+     - Number of SubmitSM (MT messages) sent
