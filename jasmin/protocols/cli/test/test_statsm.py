@@ -13,7 +13,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         return self._test(r'jcli : ', commands)
     
     def test_users(self):
-        expectedList = ['#User id    SMPP Bound connections    SMPP L.A.    HTTP requests counter    HTTP L.A.', 
+        expectedList = ['#User id\s+SMPP Bound connections\s+SMPP L.A.\s+HTTP requests counter\s+HTTP L.A.', 
                         'Total users: 0']
         commands = [{'command': 'stats --users', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -25,7 +25,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         return self._test(r'jcli : ', commands)
     
     def test_smppcs(self):
-        expectedList = ['#Connector id    Bound count    Connected at    Bound at    Disconnected at    Sent elink at    Received elink at', 
+        expectedList = ['#Connector id\s+Bound count\s+Connected at\s+Bound at\s+Disconnected at\s+Sent elink at\s+Received elink at', 
                         'Total connectors: 0']
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -99,8 +99,8 @@ class SmppcStatsTestCases(SmppccmTestCases):
         extraCommands = [{'command': 'cid operator_1'}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        expectedList = ['#Connector id    Bound count    Connected at    Bound at    Disconnected at    Sent elink at    Received elink at', 
-                        '#operator_1      0              ND              ND          ND                 ND               ND', 
+        expectedList = ['#Connector id\s+Bound count\s+Connected at\s+Bound at\s+Disconnected at\s+Sent elink at\s+Received elink at', 
+                        '#operator_1\s+0\s+ND\s+ND\s+ND\s+ND\s+ND', 
                         'Total connectors: 1']
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -110,8 +110,8 @@ class SmppcStatsTestCases(SmppccmTestCases):
         extraCommands = [{'command': 'cid operator_1'}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        expectedList = ['#Connector id    Bound count    Connected at    Bound at    Disconnected at    Sent elink at    Received elink at', 
-                        '#operator_1      0              ND              ND          ND                 ND               ND', 
+        expectedList = ['#Connector id\s+Bound count\s+Connected at\s+Bound at\s+Disconnected at\s+Sent elink at\s+Received elink at', 
+                        '#operator_1\s+0\s+ND\s+ND\s+ND\s+ND\s+ND', 
                         'Total connectors: 1']
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
