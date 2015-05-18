@@ -2,10 +2,15 @@
 Frequently Asked Questions
 ##########################
 
-.. _faq_01:
+.. _faq_for_users:
+
+For users
+*********
+
+.. _faq_1_Cnfavtstrj:
 
 Could not find a version that satisfies the requirement jasmin
-**************************************************************
+==============================================================
 
 Installing Jasmin using **pip** will through this error::
 
@@ -25,10 +30,10 @@ This is common question, since Jasmin is still tagged as a 'Beta' version, pip i
 .. hint::
     This is clearly documented in :ref:`installation_linux_steps` installation steps.
 
-.. _faq_02:
+.. _faq_1_CcttcasJ:
 
 Cannot connect to telnet console after starting Jasmin
-******************************************************
+======================================================
 
 According to the installation guide, Jasmin requires running RabbitMQ and Redis servers, when starting it will wait for these servers to go up.
 
@@ -40,10 +45,15 @@ If you already have these requirements, please check jcli and redis-client logs:
 .. hint::
     Please check :ref:`installation_prerequisites` before installing.
 
-.. _faq_03:
+.. _faq_for_developers:
+
+For developers
+**************
+
+.. _faq_2_Htlmiatpd:
 
 How to 'log' messages in a third party database ?
-*************************************************
+=================================================
 
 Jasmin runs without a database, everything is in-memory and messages are exchanged through AMQP broker (RabbitMQ), if you need to get these messages you have to consume from the right queues as described in :doc:`/messaging/index`.
 
@@ -51,3 +61,25 @@ Here's an example:
 
 .. literalinclude:: consume_MT_messages.py
    :language: python
+
+.. _faq_2_HtdatPBA:
+
+How to directly access the Perspective Broker API ?
+===================================================
+
+Management tasks can be done directly when accessing PerspectiveBroker_ API, it will be possible to:
+
+* Manage SMPP Client connectors,
+* Check status of all connectors,
+* Send SMS,
+* Manage Users & Groups,
+* Manage Routes (MO / MT),
+* Access statistics,
+* ...
+
+Here's an example:
+
+.. literalinclude:: using_pb.py
+   :language: python
+
+.. _PerspectiveBroker: http://twistedmatrix.com/documents/current/core/howto/pb-intro.html
