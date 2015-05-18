@@ -1390,6 +1390,7 @@ class StatsTestCases(SimulatorTestCase):
 
     @defer.inlineCallbacks
     def test_enquirelink(self):
+        self.config.id = 'test_enquirelink'
         stats = SMPPClientStatsCollector().get(cid = self.config.id)
         
         self.assertEqual(stats.get('last_received_elink_at'), 0)
