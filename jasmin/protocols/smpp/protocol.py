@@ -77,6 +77,8 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.factory.stats.set('last_seqNum_at', datetime.now())
         self.factory.stats.set('last_seqNum', seqNum)
 
+        return seqNum
+
     def enquireLinkTimerExpired(self):
         twistedSMPPClientProtocol.enquireLinkTimerExpired(self)
 
