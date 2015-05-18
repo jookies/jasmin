@@ -1332,6 +1332,7 @@ class DeliverSmAckTestCase(SimulatorTestCase):
 class StatsTestCases(SimulatorTestCase):
     @defer.inlineCallbacks
     def test_simply_create_connect_and_bind(self):
+        self.config.id = 'test_simply_create_connect_and_bind'
         stats = SMPPClientStatsCollector().get(cid = self.config.id)
         
         self.assertEqual(stats.get('created_at'), 0)
