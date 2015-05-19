@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from .stats import SMPPClientStatsCollector
+from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
 from .protocol import SMPPClientProtocol, SMPPServerProtocol
 from .error import *
 from .validation import SmppsCredentialValidator
@@ -201,6 +201,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         self._auth_portal = auth_portal
         self.RouterPB = RouterPB
         self.SMPPClientManagerPB = SMPPClientManagerPB
+
+        # Setup statistics collector
+        self.stats = SMPPServerStatsCollector().get(cid = self.config.id)
+        self.stats.set('created_at', datetime.now())
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)

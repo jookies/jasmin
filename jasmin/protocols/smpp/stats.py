@@ -55,25 +55,25 @@ class ClientConnectorStatistics(ConnectorStatistics):
 		}
 
 class ServerConnectorStatistics(ConnectorStatistics):
-	"One client connector statistics holder"
+	"One server connector statistics holder"
 
 	def __init__(self, cid):
 		self.cid = cid
 
 		self._stats = {
 			'created_at': 0,
-			'last_received_pdu_at': 0,
-			'last_sent_pdu_at': 0,
-			'last_received_elink_at': 0,
-			'last_sent_elink_at': 0,
-			'last_seqNum_at': 0,
-			'last_seqNum': None,
-			'connected_at': 0,
-			'bound_at': 0,
-			'disconnected_at': 0,
-			'connected_count': 0,
-			'bound_count': 0,
-			'disconnected_count': 0,
+			'last_received_pdu_at': 0,#TODO
+			'last_sent_pdu_at': 0,#TODO
+			'last_received_elink_at': 0,#TODO
+			'last_sent_elink_at': 0,#TODO
+			'last_seqNum_at': 0,#TODO
+			'last_seqNum': None,#TODO
+			'connected_at': 0,#TODO
+			'bound_at': 0,#TODO
+			'disconnected_at': 0,#TODO
+			'connected_count': 0,#TODO
+			'bound_count': 0,#TODO
+			'disconnected_count': 0,#TODO
 		}
 
 class SMPPClientStatsCollector:
