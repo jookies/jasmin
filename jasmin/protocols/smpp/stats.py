@@ -10,27 +10,7 @@ class KeyNotIncrementable(Exception):
     Raised when trying to increment a non integer key
     """
 
-class ClientConnectorStatistics:
-	"One client connector statistics holder"
-
-	def __init__(self, cid):
-		self.cid = cid
-
-		self._stats = {
-			'created_at': 0,
-			'last_received_pdu_at': 0,
-			'last_sent_pdu_at': 0,
-			'last_received_elink_at': 0,
-			'last_sent_elink_at': 0,
-			'last_seqNum_at': 0,
-			'last_seqNum': None,
-			'connected_at': 0,
-			'bound_at': 0,
-			'disconnected_at': 0,
-			'connected_count': 0,
-			'bound_count': 0,
-			'disconnected_count': 0,
-		}
+class ConnectorStatistics:
 
 	def set(self, key, value):
 		if key not in self._stats:
@@ -52,6 +32,50 @@ class ClientConnectorStatistics:
 
 		self._stats[key]+= inc
 
+class ClientConnectorStatistics(ConnectorStatistics):
+	"One client connector statistics holder"
+
+	def __init__(self, cid):
+		self.cid = cid
+
+		self._stats = {
+			'created_at': 0,
+			'last_received_pdu_at': 0,
+			'last_sent_pdu_at': 0,
+			'last_received_elink_at': 0,
+			'last_sent_elink_at': 0,
+			'last_seqNum_at': 0,
+			'last_seqNum': None,
+			'connected_at': 0,
+			'bound_at': 0,
+			'disconnected_at': 0,
+			'connected_count': 0,
+			'bound_count': 0,
+			'disconnected_count': 0,
+		}
+
+class ServerConnectorStatistics(ConnectorStatistics):
+	"One client connector statistics holder"
+
+	def __init__(self, cid):
+		self.cid = cid
+
+		self._stats = {
+			'created_at': 0,
+			'last_received_pdu_at': 0,
+			'last_sent_pdu_at': 0,
+			'last_received_elink_at': 0,
+			'last_sent_elink_at': 0,
+			'last_seqNum_at': 0,
+			'last_seqNum': None,
+			'connected_at': 0,
+			'bound_at': 0,
+			'disconnected_at': 0,
+			'connected_count': 0,
+			'bound_count': 0,
+			'disconnected_count': 0,
+		}
+
 class SMPPClientStatsCollector:
 	"SMPP Clients statistics collection holder"
 	__metaclass__ = Singleton
@@ -61,5 +85,17 @@ class SMPPClientStatsCollector:
 		"Return a connector's stats object or instanciate a new one"
 		if cid not in self.connectors:
 			self.connectors[cid] = ClientConnectorStatistics(cid)
+		
+		return self.connectors[cid]
+
+class SMPPServerStatsCollector:
+	"SMPP Servers statistics collection holder"
+	__metaclass__ = Singleton
+	connectors = {}
+
+	def get(self, cid):
+		"Return a connector's stats object or instanciate a new one"
+		if cid not in self.connectors:
+			self.connectors[cid] = ServerConnectorStatistics(cid)
 		
 		return self.connectors[cid]
