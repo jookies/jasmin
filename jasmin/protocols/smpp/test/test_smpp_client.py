@@ -12,12 +12,20 @@ from twisted.internet import defer
 from twisted.trial.unittest import TestCase
 from twisted.internet.protocol import Factory 
 from twisted.python import log
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPClientFactory
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.vendor.smpp.pdu.operations import *
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.routing.test.codepages import GSM0338, ISO8859_1
+
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
 
 class SimulatorTestCase(TestCase):
     protocol = HappySMSC
@@ -1320,6 +1328,101 @@ class DeliverSmAckTestCase(SimulatorTestCase):
         self.assertTrue(isinstance(recv1, sent1.requireAck))
         self.assertEqual(recv1.status, CommandStatus.ESME_ROK)
         self.verifyUnbindSuccess(smpp, sent2, recv2)
+
+class StatsTestCases(SimulatorTestCase):
+    @defer.inlineCallbacks
+    def test_simply_create_connect_and_bind(self):
+        self.config.id = 'test_simply_create_connect_and_bind'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        self.assertEqual(stats.get('created_at'), 0)
+        self.assertEqual(stats.get('last_received_pdu_at'), 0)
+        self.assertEqual(stats.get('last_sent_pdu_at'), 0)
+        self.assertEqual(stats.get('last_seqNum_at'), 0)
+        self.assertEqual(stats.get('last_seqNum'), None)
+        self.assertEqual(stats.get('connected_at'), 0)
+        self.assertEqual(stats.get('connected_count'), 0)
+        self.assertEqual(stats.get('disconnected_at'), 0)
+        self.assertEqual(stats.get('disconnected_count'), 0)
+        self.assertEqual(stats.get('bound_at'), 0)
+        self.assertEqual(stats.get('bound_count'), 0)
+
+        client = SMPPClientFactory(self.config)
+
+        self.assertTrue(type(stats.get('created_at')) == datetime)
+        self.assertEqual(stats.get('last_received_pdu_at'), 0)
+        self.assertEqual(stats.get('last_sent_pdu_at'), 0)
+        self.assertEqual(stats.get('last_seqNum_at'), 0)
+        self.assertEqual(stats.get('last_seqNum'), None)
+        self.assertEqual(stats.get('connected_at'), 0)
+        self.assertEqual(stats.get('connected_count'), 0)
+        self.assertEqual(stats.get('disconnected_at'), 0)
+        self.assertEqual(stats.get('disconnected_count'), 0)
+        self.assertEqual(stats.get('bound_at'), 0)
+        self.assertEqual(stats.get('bound_count'), 0)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.assertTrue(type(stats.get('last_received_pdu_at')) == datetime)
+        self.assertTrue(type(stats.get('last_sent_pdu_at')) == datetime)
+        self.assertTrue(type(stats.get('last_seqNum_at')) == datetime)
+        self.assertEqual(stats.get('last_seqNum'), 1)
+        self.assertTrue(type(stats.get('connected_at')) == datetime)
+        self.assertEqual(stats.get('connected_count'), 1)
+        self.assertEqual(stats.get('disconnected_at'), 0)
+        self.assertEqual(stats.get('disconnected_count'), 0)
+        self.assertTrue(type(stats.get('bound_at')) == datetime)
+        self.assertEqual(stats.get('bound_count'), 1)
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Wait some secs in order to get the stats update done
+        yield waitFor(2)
+
+        self.assertEqual(stats.get('last_seqNum'), 2)
+        self.assertEqual(stats.get('connected_count'), 1)
+        self.assertTrue(type(stats.get('disconnected_at')) == datetime)
+        self.assertEqual(stats.get('disconnected_count'), 1)
+        self.assertEqual(stats.get('disconnected_count'), 1)
+        self.assertEqual(stats.get('bound_count'), 1)
+
+    @defer.inlineCallbacks
+    def test_enquirelink(self):
+        self.config.id = 'test_enquirelink'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        self.assertEqual(stats.get('last_received_elink_at'), 0)
+        self.assertEqual(stats.get('last_sent_elink_at'), 0)
+        self.assertEqual(stats.get('last_seqNum'), None)
+
+        self.config.enquireLinkTimerSecs = 1
+        client = SMPPClientFactory(self.config)
+
+        self.assertEqual(stats.get('last_received_elink_at'), 0)
+        self.assertEqual(stats.get('last_sent_elink_at'), 0)
+        self.assertEqual(stats.get('last_seqNum'), None)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+        self.assertEqual(stats.get('last_received_elink_at'), 0)
+        self.assertEqual(stats.get('last_sent_elink_at'), 0)
+        self.assertEqual(stats.get('last_seqNum'), 1)
+
+        # Wait some secs in order to get some elinks sent
+        yield waitFor(6)
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Wait some secs in order to get the stats update done
+        yield waitFor(2)
+
+        self.assertEqual(stats.get('last_received_elink_at'), 0)
+        self.assertTrue(type(stats.get('last_sent_elink_at')) == datetime)
+        self.assertEqual(stats.get('last_seqNum'), 7)
 
 if __name__ == '__main__':
     observer = log.PythonLoggingObserver()

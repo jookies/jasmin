@@ -1,12 +1,14 @@
 #pylint: disable-msg=W0401,W0611
 import logging
+from datetime import datetime
 from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
-from jasmin.protocols.smpp.error import *
-from jasmin.protocols.smpp.validation import SmppsCredentialValidator
+from .stats import SMPPClientStatsCollector
+from .protocol import SMPPClientProtocol, SMPPServerProtocol
+from .error import *
+from .validation import SmppsCredentialValidator
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from jasmin.vendor.smpp.pdu import pdu_types, constants
@@ -30,6 +32,10 @@ class SMPPClientFactory(ClientFactory):
         self.smpp = None
         self.connectionRetry = True
         self.config = config
+
+        # Setup statistics collector
+        self.stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        self.stats.set('created_at', datetime.now())
                 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE+".%s" % config.id)
@@ -47,9 +53,11 @@ class SMPPClientFactory(ClientFactory):
             self.msgHandler = msgHandler
     
     def buildProtocol(self, addr):
-        """Provision protocol with the dedicated logger
+        """Provision protocol
         """
         proto = ClientFactory.buildProtocol(self, addr)
+
+        # Setup logger
         proto.log = self.log
         
         return proto
@@ -266,10 +274,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         routedConnector = route.getConnector()
 
         # QoS throttling
-        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm'] != 0:
+        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm_at'] != 0:
             qos_throughput_second = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
             qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
-            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm']
+            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm_at']
             if qos_delay < qos_throughput_ysecond_td:
                 self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
                                 qos_delay,
@@ -278,7 +286,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                                 ))
 
                 raise SubmitSmThroughputExceededError()
-        user.CnxStatus.smpps['qos_last_submit_sm'] = datetime.now()
+        user.CnxStatus.smpps['qos_last_submit_sm_at'] = datetime.now()
 
         # Pre-sending submit_sm: Billing processing
         bill = route.getBillFor(user)
