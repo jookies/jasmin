@@ -10,8 +10,8 @@ class KeyNotIncrementable(Exception):
     Raised when trying to increment a non integer key
     """
 
-class ConnectorStatistics:
-	"One connector statistics holder"
+class ClientConnectorStatistics:
+	"One client connector statistics holder"
 
 	def __init__(self, cid):
 		self.cid = cid
@@ -60,6 +60,6 @@ class SMPPClientStatsCollector:
 	def get(self, cid):
 		"Return a connector's stats object or instanciate a new one"
 		if cid not in self.connectors:
-			self.connectors[cid] = ConnectorStatistics(cid)
+			self.connectors[cid] = ClientConnectorStatistics(cid)
 		
 		return self.connectors[cid]
