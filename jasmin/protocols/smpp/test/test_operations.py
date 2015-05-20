@@ -151,3 +151,24 @@ class DeliveryParsingTest(OperationsTest):
         self.assertEquals(isDlr['stat'], 'DELIVRD')
         self.assertEquals(isDlr['err'], '000')
         self.assertEquals(isDlr['text'], 'HOLA')
+
+    def test_is_delivery_jasmin(self):
+        """Related to #153
+        Parsing jasmin's DLRs
+        """
+        pdu = DeliverSM(
+            source_addr='1234',
+            destination_addr='4567',
+            short_message='id:4a38dc46-5125-4969-90be-72104c340d5c sub:001 dlvrd:001 submit date:150519232657 done date:150519232657 stat:DELIVRD err:000 text:-',
+        )
+        
+        isDlr = self.opFactory.isDeliveryReceipt(pdu)
+        self.assertTrue(isDlr is not None)
+        self.assertEquals(isDlr['id'], '4a38dc46-5125-4969-90be-72104c340d5c')
+        self.assertEquals(isDlr['sub'], '001')
+        self.assertEquals(isDlr['dlvrd'], '001')
+        self.assertEquals(isDlr['sdate'], '150519232657')
+        self.assertEquals(isDlr['ddate'], '150519232657')
+        self.assertEquals(isDlr['stat'], 'DELIVRD')
+        self.assertEquals(isDlr['err'], '000')
+        self.assertEquals(isDlr['text'], '-')

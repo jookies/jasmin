@@ -220,7 +220,7 @@ class deliverSmThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %s.' % (msgid, dc.cid, dc.baseurl, str(e)))
+            self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %r.' % (msgid, dc.cid, dc.baseurl, e))
             
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
@@ -271,7 +271,7 @@ class deliverSmThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
+            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %r.' % (msgid, system_id, e))
 
             # List of exceptions after which, no further retrying shall be made
             noRetryExceptions = [SmppsNotSetError]
@@ -370,7 +370,7 @@ class DLRThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %s.' % (msgid, baseurl, str(e)))
+            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.' % (msgid, baseurl, e))
             
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
@@ -426,7 +426,7 @@ class DLRThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
+            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.' % (msgid, system_id, e))
 
             # List of exceptions after which, no further retrying shall be made
             noRetryExceptions = [SmppsNotSetError]
