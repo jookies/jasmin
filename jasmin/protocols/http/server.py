@@ -176,10 +176,10 @@ class Send(Resource):
                 dlr_method = None
 
             # QoS throttling
-            if user.mt_credential.getQuota('http_throughput') >= 0 and user.CnxStatus.httpapi['qos_last_submit_sm'] != 0:
+            if user.mt_credential.getQuota('http_throughput') >= 0 and user.CnxStatus.httpapi['qos_last_submit_sm_at'] != 0:
                 qos_throughput_second = 1 / float(user.mt_credential.getQuota('http_throughput'))
                 qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
-                qos_delay = datetime.now() - user.CnxStatus.httpapi['qos_last_submit_sm']
+                qos_delay = datetime.now() - user.CnxStatus.httpapi['qos_last_submit_sm_at']
                 if qos_delay < qos_throughput_ysecond_td:
                     self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
                                 qos_delay,
@@ -188,7 +188,7 @@ class Send(Resource):
                                 ))
 
                     raise ThroughputExceededError("User throughput exceeded")
-            user.CnxStatus.httpapi['qos_last_submit_sm'] = datetime.now()
+            user.CnxStatus.httpapi['qos_last_submit_sm_at'] = datetime.now()
 
             # Get number of PDUs to be sent (for billing purpose)
             _pdu = SubmitSmPDU

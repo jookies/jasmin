@@ -53,7 +53,7 @@ class SMPPOperationFactory():
         # Example of DLR content
         # id:IIIIIIIIII sub:SSS dlvrd:DDD submit date:YYMMDDhhmm done
         # date:YYMMDDhhmm stat:DDDDDDD err:E text: . . . . . . . . .
-        pattern = r"^id:(?P<id>[\dA-F]+) sub:(?P<sub>\d{3}) dlvrd:(?P<dlvrd>\d{3}) submit date:(?P<sdate>\d+) done date:(?P<ddate>\d+) stat:(?P<stat>\w{7}) err:(?P<err>\w{3}) text:(?P<text>.*)"
+        pattern = r"^id:(?P<id>[\dA-Fa-f-]+) sub:(?P<sub>\d{3}) dlvrd:(?P<dlvrd>\d{3}) submit date:(?P<sdate>\d+) done date:(?P<ddate>\d+) stat:(?P<stat>\w{7}) err:(?P<err>\w{3}) text:(?P<text>.*)"
         m = re.search(pattern, DeliverSM.params['short_message'], flags=re.IGNORECASE)
         if m is not None:
             ret = m.groupdict()

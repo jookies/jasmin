@@ -27,6 +27,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
     def PDUReceived(self, pdu):
         self.log.debug("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.id, pdu.seqNum, pdu.status))
         self.log.debug("Complete PDU dump: %s" % pdu)
+        self.factory.stats.set('last_received_pdu_at', datetime.now())
         
         """A better version than vendor's PDUReceived method:
         - Dont re-encode pdu !
@@ -47,9 +48,47 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
 
     def connectionMade(self):
         twistedSMPPClientProtocol.connectionMade(self)
-        self.log.info("Connection made to %s:%s" % (self.factory.config.host, self.factory.config.port))
+        self.factory.stats.set('connected_at', datetime.now())
+        self.factory.stats.inc('connected_count')
+
+        self.log.info("Connection made to %s:%s" % (self.config().host, self.config().port))
 
         self.factory.connectDeferred.callback(self)
+
+    def connectionLost( self, reason ):
+        twistedSMPPClientProtocol.connectionLost(self, reason)
+
+        self.factory.stats.set('disconnected_at', datetime.now())
+        self.factory.stats.inc('disconnected_count')
+
+    def onPDURequest_enquire_link(self, reqPDU):
+        twistedSMPPClientProtocol.onPDURequest_enquire_link(self, reqPDU)
+
+        self.factory.stats.set('last_received_elink_at', datetime.now())
+
+    def sendPDU(self, pdu):
+        twistedSMPPClientProtocol.sendPDU(self, pdu)
+
+        self.factory.stats.set('last_sent_pdu_at', datetime.now())
+
+    def claimSeqNum(self):
+        seqNum = twistedSMPPClientProtocol.claimSeqNum(self)
+
+        self.factory.stats.set('last_seqNum_at', datetime.now())
+        self.factory.stats.set('last_seqNum', seqNum)
+
+        return seqNum
+
+    def enquireLinkTimerExpired(self):
+        twistedSMPPClientProtocol.enquireLinkTimerExpired(self)
+
+        self.factory.stats.set('last_sent_elink_at', datetime.now())
+
+    def bindSucceeded(self, result, nextState):
+        self.factory.stats.set('bound_at', datetime.now())
+        self.factory.stats.inc('bound_count')
+
+        return twistedSMPPClientProtocol.bindSucceeded(self, result, nextState)
         
     def bindAsReceiver(self):
         """This is a different signature where msgHandler is taken from factory
