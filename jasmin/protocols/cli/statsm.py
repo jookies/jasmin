@@ -1,6 +1,6 @@
 import pickle
 from jasmin.protocols.cli.managers import Manager
-from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector
 from .usersm import UserExist
 from .smppccm import ConnectorExist
 from tabulate import tabulate
@@ -123,4 +123,22 @@ class StatsManager(Manager):
         return self.protocol.sendData('Not implemented yet.')
 
     def smppsapi(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
+        """As of Jasmin's 0.6 version, there can be only one SMPPs API, the smpp server id
+        is set for later evolution to handle multiple APIs, this is why the id is hard coded
+        to 'smpps_01'.
+        """
+        sc = SMPPServerStatsCollector()
+        headers = ["#Item", "Value"]
+
+        table = []
+        for k, v in sc.get('smpps_01')._stats.iteritems():
+            row = []
+            row.append('#%s' % k)
+            if k[-3:] == '_at':
+                row.append(formatDateTime(v))
+            else:
+                row.append(v)
+
+            table.append(row)
+
+        self.protocol.sendData(tabulate(table, headers, tablefmt = "plain", numalign = "left").encode('ascii'))

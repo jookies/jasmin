@@ -59,10 +59,24 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'stats --httpapi', 'expect': r'????'}]
         return self._test(r'jcli : ', commands)
 
-    @unittest.skip("Work in progress #123")
     def test_smppsapi(self):
-        commands = [{'command': 'stats --smppsapi', 'expect': r'????'}]
-        return self._test(r'jcli : ', commands)
+        expectedList = ['#Item                    Value',
+                        '#disconnect_count        0',
+                        '#bound_tx_count          0',
+                        '#bind_rx_count           0',
+                        '#last_received_pdu_at    \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                        '#last_received_elink_at  ND',
+                        '#connected_count         0',
+                        '#bound_trx_count         0',
+                        '#unbind_count            0',
+                        '#bind_tx_count           0',
+                        '#bound_rx_count          0',
+                        '#bind_trx_count          0',
+                        '#created_at              \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                        '#connect_count           0',
+                        '#last_sent_pdu_at        \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}']
+        commands = [{'command': 'stats --smppsapi', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
 
 class UserStatsTestCases(UserTestCases):
     def test_users(self):
