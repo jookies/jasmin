@@ -62,18 +62,21 @@ class ServerConnectorStatistics(ConnectorStatistics):
 
 		self._stats = {
 			'created_at': 0,
-			'last_received_pdu_at': 0,#TODO
-			'last_sent_pdu_at': 0,#TODO
-			'last_received_elink_at': 0,#TODO
-			'last_sent_elink_at': 0,#TODO
-			'last_seqNum_at': 0,#TODO
-			'last_seqNum': None,#TODO
-			'connected_at': 0,#TODO
-			'bound_at': 0,#TODO
-			'disconnected_at': 0,#TODO
-			'connected_count': 0,#TODO
-			'bound_count': 0,#TODO
-			'disconnected_count': 0,#TODO
+			'last_received_pdu_at': 0,
+			'last_sent_pdu_at': 0,
+			'last_received_elink_at': 0,
+			'last_seqNum_at': 0,
+			'last_seqNum': None,
+			'connected_count': 0,
+			'connect_count': 0,
+			'disconnect_count': 0,
+			'bound_trx_count': 0,
+			'bound_rx_count': 0,
+			'bound_tx_count': 0,
+			'bind_trx_count': 0,
+			'bind_rx_count': 0,
+			'bind_tx_count': 0,
+			'unbind_count': 0,
 		}
 
 class SMPPClientStatsCollector:

@@ -347,6 +347,8 @@ class SMPPServerFactory(_SMPPServerFactory):
         """Provision protocol with the dedicated logger
         """
         proto = _SMPPServerFactory.buildProtocol(self, addr)
+
+        # Setup logger
         proto.log = self.log
         
         return proto
