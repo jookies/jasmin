@@ -1132,6 +1132,8 @@ The Stats manager module is accessible through the **stats** command and is prov
      - Show smpp connector stats using it's CID
    * - --smppcs
      - Show all smpp connectors stats
+   * - --smppsapi
+     - Show SMPP Server API stats
 
 The Stats manager covers different sections, this includes Users, SMPP Client connectors, Routes (MO and MT), APIs (HTTP and SMPP).
 
@@ -1314,3 +1316,64 @@ This is clearly a more detailed view for connector **MTN**, the following table 
      - Binds counter value
    * - disconnected_count
      - Last disconnection date & time
+
+SMPP Server API statistics
+==========================
+
+The Stats manager exposes collected statistics in SMPP Server API through the following *jCli* command:
+
+ * **stats --smppsapi**
+
+Here's an example of showing the statistics::
+
+   jcli : stats --smppsapi
+   #Item                    Value
+   #disconnect_count        2
+   #bound_tx_count          0
+   #bind_rx_count           0
+   #last_received_pdu_at    2019-06-05 12:16:21
+   #last_received_elink_at  ND
+   #connected_count         2
+   #bound_trx_count         1
+   #unbind_count            6
+   #bind_tx_count           6
+   #bound_rx_count          1
+   #bind_trx_count          0
+   #created_at              2019-06-04 02:22:17
+   #connect_count           16
+   #last_sent_pdu_at        2019-06-05 12:12:13
+
+The following table explains the items shown in the above example:
+
+.. list-table:: Details smppsapi statistics view items
+   :widths: 10 80
+   :header-rows: 1
+
+   * - Item
+     - Description
+   * - created_at
+     - Connector creation date & time
+   * - last_received_pdu_at
+     - Date & time of last received PDU
+   * - last_sent_pdu_at
+     - Date & time of last sent PDU
+   * - last_received_elink_at
+     - Date & time of last received enquire_link PDU
+   * - connected_count
+     - Last connection date & time
+   * - connect_count
+     - TCP Connection request count
+   * - disconnect_count
+     - Disconnection count
+   * - bind_trx_count
+     - Transceiver bind request count
+   * - bound_trx_count
+     - Actually bound transceiver connections count
+   * - bind_rx_count
+     - Receiver bind request count
+   * - bound_rx_count
+     - Actually bound receiver connections count
+   * - bind_tx_count
+     - Transmitter bind request count
+   * - bound_tx_count
+     - Actually bound transmitter connections count
