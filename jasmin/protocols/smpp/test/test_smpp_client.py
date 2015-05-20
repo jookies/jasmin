@@ -1389,8 +1389,8 @@ class StatsTestCases(SimulatorTestCase):
         self.assertEqual(stats.get('bound_count'), 1)
 
     @defer.inlineCallbacks
-    def test_enquirelink(self):
-        self.config.id = 'test_enquirelink'
+    def test_enquire_link(self):
+        self.config.id = 'test_enquire_link'
         stats = SMPPClientStatsCollector().get(cid = self.config.id)
         
         self.assertEqual(stats.get('last_received_elink_at'), 0)

@@ -32,6 +32,14 @@ class ConnectorStatistics:
 
 		self._stats[key]+= inc
 
+	def dec(self, key, inc = 1):
+		if key not in self._stats:
+			raise KeyNotFound(key)
+		if type(self._stats[key]) != int:
+			raise KeyNotIncrementable(key)
+
+		self._stats[key]-= inc
+
 class ClientConnectorStatistics(ConnectorStatistics):
 	"One client connector statistics holder"
 
@@ -65,8 +73,6 @@ class ServerConnectorStatistics(ConnectorStatistics):
 			'last_received_pdu_at': 0,
 			'last_sent_pdu_at': 0,
 			'last_received_elink_at': 0,
-			'last_seqNum_at': 0,
-			'last_seqNum': None,
 			'connected_count': 0,
 			'connect_count': 0,
 			'disconnect_count': 0,

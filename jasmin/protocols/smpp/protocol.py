@@ -71,14 +71,6 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
 
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
 
-    def claimSeqNum(self):
-        seqNum = twistedSMPPClientProtocol.claimSeqNum(self)
-
-        self.factory.stats.set('last_seqNum_at', datetime.now())
-        self.factory.stats.set('last_seqNum', seqNum)
-
-        return seqNum
-
     def enquireLinkTimerExpired(self):
         twistedSMPPClientProtocol.enquireLinkTimerExpired(self)
 
@@ -330,13 +322,13 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         self.factory.stats.inc('disconnect_count')
         self.factory.stats.dec('connected_count')
-        if str(self.bind_type) == 'bind_transceiver':
-            self.factory.stats.dec('bound_trx_count')
-        elif str(self.bind_type) == 'bind_receiver':
-            self.factory.stats.dec('bound_rx_count')
-        elif str(self.bind_type) == 'bind_transmitter':
-            self.factory.stats.dec('bound_tx_count')
-        self.bind_type = None
+        if self.sessionState in [SMPPSessionStates.BOUND_RX, SMPPSessionStates.BOUND_TX, SMPPSessionStates.BOUND_TRX]:
+            if str(self.bind_type) == 'bind_transceiver':
+                self.factory.stats.dec('bound_trx_count')
+            elif str(self.bind_type) == 'bind_receiver':
+                self.factory.stats.dec('bound_rx_count')
+            elif str(self.bind_type) == 'bind_transmitter':
+                self.factory.stats.dec('bound_tx_count')
 
     def onPDURequest_enquire_link(self, reqPDU):
         twistedSMPPServerProtocol.onPDURequest_enquire_link(self, reqPDU)
@@ -366,7 +358,6 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
             self.factory.stats.dec('bound_rx_count')
         elif str(self.bind_type) == 'bind_transmitter':
             self.factory.stats.dec('bound_tx_count')
-        self.bind_type = None
 
     def PDUDataRequestReceived(self, reqPDU):
         if self.sessionState == SMPPSessionStates.BOUND_RX:
