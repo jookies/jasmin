@@ -483,7 +483,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
     @defer.inlineCallbacks
     def test_receive_ACCEPT_on_ESME_ROK(self):
         """If registered_delivery flag is set to SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE then
-        SMPPc will receive a data_sm with ACCEPT state indicating message is accepted for delivery
+        SMPPc will receive a deliver_sm with ACCEPT state indicating message is accepted for delivery
         on the routed connector
         """
         yield self.connect('127.0.0.1', self.pbPort)
@@ -517,9 +517,9 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(response_pdu_1.seqNum, 2)
         self.assertEqual(response_pdu_1.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertTrue(response_pdu_1.params['message_id'] is not None)
-        # smpps response #2 was a data_sm with ACCEPTED
+        # smpps response #2 was a deliver_sm with ACCEPTED
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(response_pdu_2.seqNum, 1)
         self.assertEqual(response_pdu_2.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['destination_addr'])
@@ -563,9 +563,9 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(response_pdu_1.seqNum, 2)
         self.assertEqual(response_pdu_1.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertTrue(response_pdu_1.params['message_id'] is not None)
-        # (2) a data_sm
+        # (2) a deliver_sm
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(response_pdu_2.seqNum, 1)
         self.assertEqual(response_pdu_2.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['destination_addr'])
@@ -616,7 +616,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
          - User have early_decrement_balance_percent set to 10 (%)
          - Submit a message to SMPPs
          - Message is routed to a SMPPc
-         - Delivery is errored (data_sm received in SMPPc)
+         - Delivery is errored (deliver_sm received in SMPPc)
 
         The user will be charged for 10% of the rate, the rest is not charged because
         message were not delivered to destination.
@@ -661,7 +661,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertTrue(response_pdu_1.params['message_id'] is not None)
         # (2) a deliver_sm
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(str(response_pdu_2.params['message_state']), 'UNDELIVERABLE')
         # (3) an unbind_resp
         response_pdu_3 = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]

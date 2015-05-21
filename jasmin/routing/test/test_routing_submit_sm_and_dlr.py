@@ -853,7 +853,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         """Will:
         1. Set a SMS-MT route to connector A
         2. Send a SMS-MT to that route from a SMPPc and request DLR
-        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a data_sm
+        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a deliver_sm
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
@@ -879,9 +879,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        # smpps response #2 was a data_sm with ACCEPTED
+        # smpps response #2 was a deliver_sm with ACCEPTED
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
         self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
 
@@ -899,10 +899,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             yield exitDeferred
 
             # Run tests
-            # smpps response #x was a data_sm with stat = msg_stat
+            # smpps response #x was a deliver_sm with stat = msg_stat
             self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
             response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.data_sm)
+            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
             self.assertEqual(response_pdu_x.seqNum, x - 1)
             self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
             self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
@@ -929,10 +929,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
             # Run tests
             if not final_state_triggered:
-                # smpps response #x was a data_sm with stat = msg_stat
+                # smpps response #x was a deliver_sm with stat = msg_stat
                 self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
                 response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.data_sm)
+                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
                 self.assertEqual(response_pdu_x.seqNum, x - 1)
                 self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
                 self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
@@ -943,7 +943,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 x_value_when_fstate_triggered = x
             else:
                 # SMPPs map must be deleted when a final state were triggered
-                # We get no more data_sm receipts for any further triggered DLR
+                # We get no more deliver_sm receipts for any further triggered DLR
                 self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x_value_when_fstate_triggered)
 
         # Unbind & Disconnect
@@ -998,9 +998,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        # smpps response #2 was a data_sm with ACCEPTED
+        # smpps response #2 was a deliver_sm with ACCEPTED
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
         self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
 
@@ -1017,7 +1017,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        # smpps last response was a unbind_resp, and there were no further data_sm
+        # smpps last response was a unbind_resp, and there were no further deliver_sm
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)

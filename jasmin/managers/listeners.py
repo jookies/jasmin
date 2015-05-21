@@ -353,7 +353,8 @@ class SMPPClientSMListener:
                                                                                                        registered_delivery,
                                                                                                        system_id))
                     
-                    if self.config.smpp_receipt_on_submit_sm_resp:
+                    if (r.response.status != CommandStatus.ESME_ROK or 
+                        (r.response.status == CommandStatus.ESME_ROK and self.config.smpp_receipt_on_success_submit_sm_resp)):
                         # Send back a receipt (by throwing deliver_sm or data_sm)
                         content = DLRContentForSmpps(str(r.response.status), 
                                                      msgid, 

@@ -59,9 +59,9 @@ class SMPPClientSMListenerConfig(ConfigFile):
                                                     'publish_submit_sm_resp', 
                                                     False)
 
-        self.smpp_receipt_on_submit_sm_resp = self._getbool('sm-listener', 
-                                                            'smpp_receipt_on_submit_sm_resp', 
-                                                            False)
+        self.smpp_receipt_on_success_submit_sm_resp = self._getbool('sm-listener', 
+                                                                    'smpp_receipt_on_success_submit_sm_resp', 
+                                                                    True)
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 
