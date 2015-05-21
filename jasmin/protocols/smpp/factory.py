@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from .stats import SMPPClientStatsCollector
+from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
 from .protocol import SMPPClientProtocol, SMPPServerProtocol
 from .error import *
 from .validation import SmppsCredentialValidator
@@ -202,6 +202,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.RouterPB = RouterPB
         self.SMPPClientManagerPB = SMPPClientManagerPB
 
+        # Setup statistics collector
+        self.stats = SMPPServerStatsCollector().get(cid = self.config.id)
+        self.stats.set('created_at', datetime.now())
+
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)
         if len(self.log.handlers) != 1:
@@ -343,6 +347,8 @@ class SMPPServerFactory(_SMPPServerFactory):
         """Provision protocol with the dedicated logger
         """
         proto = _SMPPServerFactory.buildProtocol(self, addr)
+
+        # Setup logger
         proto.log = self.log
         
         return proto
