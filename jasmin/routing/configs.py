@@ -57,7 +57,8 @@ class DLRThrowerConfig(ConfigFile):
         self.max_retries = self._getint('dlr-thrower', 'max_retries', 3)
 
         #139: need configuration to send deliver_sm instead of data_sm for SMPP delivery receipt
-        self.dlr_pdu = self._get('dlr-thrower', 'dlr_pdu', 'data_sm')
+        # 20150521: it seems better to get deliver_sm the default pdu for receipts
+        self.dlr_pdu = self._get('dlr-thrower', 'dlr_pdu', 'deliver_sm')
         
         # Logging
         self.log_level = logging.getLevelName(self._get('dlr-thrower', 'log_level', 'INFO'))
