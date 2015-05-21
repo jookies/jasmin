@@ -875,15 +875,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield exitDeferred
 
         # Run tests
-        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        # smpps response #2 was a deliver_sm with ACCEPTED
-        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
-        self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
 
         # Trigger receipts with non final states
         x = self.smpps_factory.lastProto.sendPDU.call_count
@@ -994,15 +989,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield exitDeferred
 
         # Run tests
-        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        # smpps response #2 was a deliver_sm with ACCEPTED
-        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
-        self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
 
         # Trigger receipt with an unknown id
         yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD', _id = '77unknown_id77')
@@ -1018,6 +1008,6 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Run tests
         # smpps last response was a unbind_resp, and there were no further deliver_sm
-        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
