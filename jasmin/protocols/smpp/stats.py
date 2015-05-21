@@ -12,6 +12,11 @@ class KeyNotIncrementable(Exception):
 
 class ConnectorStatistics:
 
+	def __init__(self, cid):
+		self.cid = cid
+
+		self.init()
+
 	def set(self, key, value):
 		if key not in self._stats:
 			raise KeyNotFound(key)
@@ -43,9 +48,7 @@ class ConnectorStatistics:
 class ClientConnectorStatistics(ConnectorStatistics):
 	"One client connector statistics holder"
 
-	def __init__(self, cid):
-		self.cid = cid
-
+	def init(self):
 		self._stats = {
 			'created_at': 0,
 			'last_received_pdu_at': 0,
@@ -65,9 +68,7 @@ class ClientConnectorStatistics(ConnectorStatistics):
 class ServerConnectorStatistics(ConnectorStatistics):
 	"One server connector statistics holder"
 
-	def __init__(self, cid):
-		self.cid = cid
-
+	def init(self):
 		self._stats = {
 			'created_at': 0,
 			'last_received_pdu_at': 0,

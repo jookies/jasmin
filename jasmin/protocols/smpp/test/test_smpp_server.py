@@ -617,6 +617,11 @@ class StatsTestCases(SMPPClientTestCases):
 	def setUp(self):
 		SMPPClientTestCases.setUp(self)
 
+		# Re-init stats singleton collector
+		created_at = SMPPServerStatsCollector().get(cid = self.smpps_config.id).get('created_at')
+		SMPPServerStatsCollector().get(cid = self.smpps_config.id).init()
+		SMPPServerStatsCollector().get(cid = self.smpps_config.id).set('created_at', created_at)
+
 	@defer.inlineCallbacks
 	def test_01_smpps_basic(self):
 		"A simple test of _some_ stats parameters"
