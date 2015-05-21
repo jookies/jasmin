@@ -248,7 +248,7 @@ class Send(Resource):
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
                 self.stats.inc('success_count')
-                self.stats.set('last_success_at')
+                self.stats.set('last_success_at', datetime.now())
                 self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s' % (routedConnector.cid, c.result))
                 response = {'return': c.result, 'status': 200}
         except Exception, e:
