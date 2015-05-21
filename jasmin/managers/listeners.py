@@ -353,18 +353,20 @@ class SMPPClientSMListener:
                                                                                                        registered_delivery,
                                                                                                        system_id))
                     
-                    content = DLRContentForSmpps(str(r.response.status), 
-                                                 msgid, 
-                                                 system_id,
-                                                 source_addr,
-                                                 destination_addr,
-                                                 sub_date)
+                    if self.config.smpp_receipt_on_submit_sm_resp:
+                        # Send back a receipt (by throwing deliver_sm or data_sm)
+                        content = DLRContentForSmpps(str(r.response.status), 
+                                                     msgid, 
+                                                     system_id,
+                                                     source_addr,
+                                                     destination_addr,
+                                                     sub_date)
 
-                    routing_key = 'dlr_thrower.smpps'
-                    self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (msgid, routing_key))
-                    yield self.amqpBroker.publish(exchange='messaging', 
-                                                  routing_key=routing_key, 
-                                                  content=content)
+                        routing_key = 'dlr_thrower.smpps'
+                        self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (msgid, routing_key))
+                        yield self.amqpBroker.publish(exchange='messaging', 
+                                                      routing_key=routing_key, 
+                                                      content=content)
 
                     # Map received submit_sm_resp's message_id to the msg for later rceipt handling
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
