@@ -64,7 +64,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         '#disconnect_count        0',
                         '#bound_tx_count          0',
                         '#bind_rx_count           0',
-                        '#last_received_pdu_at    \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                        '#last_received_pdu_at    ND',
                         '#last_received_elink_at  ND',
                         '#connected_count         0',
                         '#bound_trx_count         0',
@@ -74,7 +74,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         '#bind_trx_count          0',
                         '#created_at              \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
                         '#connect_count           0',
-                        '#last_sent_pdu_at        \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}']
+                        '#last_sent_pdu_at        ND']
         commands = [{'command': 'stats --smppsapi', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
