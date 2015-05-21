@@ -76,7 +76,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         '#connect_count           0',
                         '#last_sent_pdu_at        \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}']
         commands = [{'command': 'stats --smppsapi', 'expect': expectedList}]
-        yield self._test(r'jcli : ', commands)
+        return self._test(r'jcli : ', commands)
 
 class UserStatsTestCases(UserTestCases):
     def test_users(self):
