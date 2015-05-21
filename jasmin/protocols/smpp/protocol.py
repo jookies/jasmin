@@ -71,6 +71,14 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
 
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
 
+    def claimSeqNum(self):
+        seqNum = twistedSMPPClientProtocol.claimSeqNum(self)
+
+        self.factory.stats.set('last_seqNum_at', datetime.now())
+        self.factory.stats.set('last_seqNum', seqNum)
+
+        return seqNum
+
     def enquireLinkTimerExpired(self):
         twistedSMPPClientProtocol.enquireLinkTimerExpired(self)
 
@@ -339,14 +347,6 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         twistedSMPPServerProtocol.sendPDU(self, pdu)
 
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
-
-    def claimSeqNum(self):
-        seqNum = twistedSMPPServerProtocol.claimSeqNum(self)
-
-        self.factory.stats.set('last_seqNum_at', datetime.now())
-        self.factory.stats.set('last_seqNum', seqNum)
-
-        return seqNum
 
     def onPDURequest_unbind(self, reqPDU):
         twistedSMPPServerProtocol.onPDURequest_unbind(self, reqPDU)
