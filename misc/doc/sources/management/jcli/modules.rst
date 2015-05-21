@@ -1377,3 +1377,54 @@ The following table explains the items shown in the above example:
      - Transmitter bind request count
    * - bound_tx_count
      - Actually bound transmitter connections count
+
+HTTP API statistics
+===================
+
+The Stats manager exposes collected statistics in HTTP API through the following *jCli* command:
+
+ * **stats --httpapi**
+
+Here's an example of showing the statistics::
+
+   jcli : stats --httpapi
+   #Item                    Value
+   #server_error_count      120
+   #last_request_at         ND
+   #throughput_error_count  4
+   #success_count           14332
+   #route_error_count       156
+   #request_count           20126
+   #auth_error_count        78
+   #created_at              2019-06-04 02:22:17
+   #last_success_at         2019-06-05 18:20:29
+   #charging_error_count    178
+
+The following table explains the items shown in the above example:
+
+.. list-table:: Details httpapi statistics view items
+   :widths: 10 80
+   :header-rows: 1
+
+   * - Item
+     - Description
+   * - created_at
+     - Connector creation date & time
+   * - last_request_at
+     - Date & time of last http request
+   * - last_success_at
+     - Date & time of last successful http request (SMS is accepted for sending)
+   * - request_count
+     - HTTP request count
+   * - success_count
+     - Successful HTTP request count (SMS is accepted for sending)
+   * - auth_error_count
+     - Authentication errors count
+   * - route_error_count
+     - Route not found errors count
+   * - throughput_error_count
+     - Throughput exceeded errors count
+   * - charging_error_count
+     - Charging/Billing errors count
+   * - server_error_count
+     - Unknown server errors count
