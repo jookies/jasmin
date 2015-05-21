@@ -8,28 +8,20 @@ from jasmin.protocols.http.stats import HttpAPIStatsCollector
 from jasmin.tools.stats import KeyNotFound, KeyNotIncrementable
 
 class BasicTestCases(TestCase):
-	def test_01_get_will_create_api(self):
-		c = HttpAPIStatsCollector()
-		self.assertTrue('main' not in c.apis)
-
-		c.get()
-		self.assertTrue('main' in c.apis)
-
-	def test_02_stats(self):
+	def test_stats(self):
 		stats = HttpAPIStatsCollector().get()
 
-		self.assertEqual(stats._stats, {
-			'created_at': 0,
-			'request_count': 0,
-			'last_request_at': 0,
-			'auth_error_count': 0,
-			'route_error_count': 0,
-			'throughput_error_count': 0,
-			'charging_error_count': 0,
-			'server_error_count': 0,
-			'success_count': 0,
-			'last_success_at': 0,
-		})
+		self.assertEqual(len(stats._stats), 10)
+		self.assertTrue('created_at' in stats._stats)
+		self.assertTrue('request_count' in stats._stats)
+		self.assertTrue('last_request_at' in stats._stats)
+		self.assertTrue('auth_error_count' in stats._stats)
+		self.assertTrue('route_error_count' in stats._stats)
+		self.assertTrue('throughput_error_count' in stats._stats)
+		self.assertTrue('charging_error_count' in stats._stats)
+		self.assertTrue('server_error_count' in stats._stats)
+		self.assertTrue('success_count' in stats._stats)
+		self.assertTrue('last_success_at' in stats._stats)
 
 	def test_is_singleton(self):
 		i1 = HttpAPIStatsCollector()
