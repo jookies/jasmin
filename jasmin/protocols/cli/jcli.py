@@ -352,14 +352,6 @@ class JCliProtocol(CmdProtocol):
                           help = "Show smpp connector stats using it's CID"),
               make_option(None, '--smppcs', action="store_true",
                           help = "Show all smpp connectors stats"),
-              make_option(None, '--moroute', type="string", metavar="ORDER", 
-                          help = "Show MO Route stats using it's ORDER"),
-              make_option(None, '--moroutes', action="store_true",
-                          help = "Show all MO Routes stats"),
-              make_option(None, '--mtroute', type="string", metavar="ORDER", 
-                          help = "Show MT Route stats using it's ORDER"),
-              make_option(None, '--mtroutes', action="store_true",
-                          help = "Show all MT Routes stats"),
               make_option(None, '--httpapi', action="store_true",
                           help = "Show HTTP API stats"),
               make_option(None, '--smppsapi', action="store_true",
@@ -376,14 +368,6 @@ class JCliProtocol(CmdProtocol):
             self.managers['stats'].smppc(arg, opts)
         elif opts.smppcs:
             self.managers['stats'].smppcs(arg, opts)
-        elif opts.moroute:
-            self.managers['stats'].moroute(arg, opts)
-        elif opts.moroutes:
-            self.managers['stats'].moroutes(arg, opts)
-        elif opts.mtroute:
-            self.managers['stats'].mtroute(arg, opts)
-        elif opts.mtroutes:
-            self.managers['stats'].mtroutes(arg, opts)
         elif opts.httpapi:
             self.managers['stats'].httpapi(arg, opts)
         elif opts.smppsapi:

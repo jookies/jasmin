@@ -1,6 +1,7 @@
 import pickle
 from jasmin.protocols.cli.managers import Manager
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector
+from jasmin.protocols.http.stats import HttpAPIStatsCollector
 from .usersm import UserExist
 from .smppccm import ConnectorExist
 from tabulate import tabulate
@@ -106,21 +107,23 @@ class StatsManager(Manager):
 
         self.protocol.sendData(tabulate(table, headers, tablefmt = "plain", numalign = "left").encode('ascii'), prompt = False)
         self.protocol.sendData('Total connectors: %s' % (len(table)))
-
-    def moroute(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
-
-    def moroutes(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
-
-    def mtroute(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
-
-    def mtroutes(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
         
     def httpapi(self, arg, opts):
-        return self.protocol.sendData('Not implemented yet.')
+        sc = HttpAPIStatsCollector()
+        headers = ["#Item", "Value"]
+
+        table = []
+        for k, v in sc.get()._stats.iteritems():
+            row = []
+            row.append('#%s' % k)
+            if k[-3:] == '_at':
+                row.append(formatDateTime(v))
+            else:
+                row.append(v)
+
+            table.append(row)
+
+        self.protocol.sendData(tabulate(table, headers, tablefmt = "plain", numalign = "left").encode('ascii'))
 
     def smppsapi(self, arg, opts):
         """As of Jasmin's 0.6 version, there can be only one SMPPs API, the smpp server id

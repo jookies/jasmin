@@ -30,33 +30,19 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
-    @unittest.skip("Work in progress #123")
-    def test_moroute(self):
-        order = '20'
-
-        commands = [{'command': 'stats --moroute=%s' % order, 'expect': r'????'}]
-        return self._test(r'jcli : ', commands)
-    
-    @unittest.skip("Work in progress #123")
-    def test_moroutes(self):
-        commands = [{'command': 'stats --moroutes', 'expect': r'????'}]
-        return self._test(r'jcli : ', commands)
-
-    @unittest.skip("Work in progress #123")
-    def test_mtroute(self):
-        order = '20'
-
-        commands = [{'command': 'stats --mtroute=%s' % order, 'expect': r'????'}]
-        return self._test(r'jcli : ', commands)
-    
-    @unittest.skip("Work in progress #123")
-    def test_mtroutes(self):
-        commands = [{'command': 'stats --mtroutes', 'expect': r'????'}]
-        return self._test(r'jcli : ', commands)
-
-    @unittest.skip("Work in progress #123")
     def test_httpapi(self):
-        commands = [{'command': 'stats --httpapi', 'expect': r'????'}]
+        expectedList = ['#Item                    Value',
+                        '#server_error_count      0',
+                        '#last_request_at         ND',
+                        '#throughput_error_count  0',
+                        '#success_count           0',
+                        '#route_error_count       0',
+                        '#request_count           0',
+                        '#auth_error_count        0',
+                        '#created_at              ND',
+                        '#last_success_at         ND',
+                        '#charging_error_count    0']
+        commands = [{'command': 'stats --httpapi', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
     def test_smppsapi(self):
