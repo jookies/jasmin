@@ -72,7 +72,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         '#bind_tx_count           0',
                         '#bound_rx_count          0',
                         '#bind_trx_count          0',
-                        '#created_at              \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                        '#created_at              ND',
                         '#connect_count           0',
                         '#last_sent_pdu_at        ND']
         commands = [{'command': 'stats --smppsapi', 'expect': expectedList}]
