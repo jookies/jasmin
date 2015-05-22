@@ -59,11 +59,6 @@ Jasmin runs without a database, everything is in-memory and messages are exchang
 
 Here's an example:
 
-.. literalinclude:: consume_MT_messages.py
-   :language: python
-
-*More on this:*
-
 Thanks to Pedro_'s contribution::
 
   Here is the PySQLPool mod to @zoufou ´s gist
@@ -79,6 +74,11 @@ Thanks to Pedro_'s contribution::
 
   Cheers
   Pedro
+
+*More on this:*
+
+.. literalinclude:: consume_MT_messages.py
+   :language: python
 
 .. _Pedro: https://github.com/pguillem
 
