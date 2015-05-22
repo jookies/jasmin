@@ -62,6 +62,26 @@ Here's an example:
 .. literalinclude:: consume_MT_messages.py
    :language: python
 
+*More on this:*
+
+Thanks to Pedro_'s contribution::
+
+  Here is the PySQLPool mod to @zoufou ´s gist
+  https://gist.github.com/pguillem/5750e8db352f001138f2
+
+  Here is the code to launch the consumer as a system Daemon in Debian/Ubuntu
+  https://gist.github.com/pguillem/19693defb3feb0c02fe7
+
+  1) create jasmind_consumer file in /etc/init.d/
+  2) chmod a+x
+  3) Modify the path and script name of your consumer in jasmind_consumer
+  4) Remember to exec "update-rc.d jasmind_consumer defaults" in order to start at boot
+
+  Cheers
+  Pedro
+
+.. _Pedro: https://github.com/pguillem
+
 .. _faq_2_HtdatPBA:
 
 How to directly access the Perspective Broker API ?
