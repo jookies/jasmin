@@ -216,7 +216,7 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.smpps', content=content)
 
     @defer.inlineCallbacks
-    def test_throwing_smpps_to_bound_connection_as_data_sm(self):
+    def test_throwing_smpps_to_bound_connection_as_deliver_sm(self):
         self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
         self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
         self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
@@ -235,9 +235,9 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
         # Run tests
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
-        # the received pdu must be a DataSM
+        # the received pdu must be a DeliverSM
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.data_sm)
+        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
         self.assertEqual(received_pdu_1.params['source_addr'], '000')
         self.assertEqual(received_pdu_1.params['destination_addr'], '999')
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')

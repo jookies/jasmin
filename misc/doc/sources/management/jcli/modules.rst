@@ -1051,6 +1051,7 @@ following global variables set:
           the **routable** object.
 .. note:: Using **EvalPyFilter** offers the possibility to call external webservices, databases ... for powerfull 
           routing or even for logging, rating & billing through external third party systems.
+.. hint:: More examples in the this FAQ's question: :ref:`faq_2_CypaeohtuE`
 
 .. _httpccm_manager:
 
@@ -1109,6 +1110,8 @@ Listing Connectors will show currently added Connectors with their CID, Type, Me
    #HTTP-01          HttpConnector          GET    http://10.10.20.125/receive-sms/mo.php
    Total Httpccs: 1
 
+.. _stats_manager:
+
 Stats manager
 *************
 
@@ -1132,6 +1135,8 @@ The Stats manager module is accessible through the **stats** command and is prov
      - Show smpp connector stats using it's CID
    * - --smppcs
      - Show all smpp connectors stats
+   * - --smppsapi
+     - Show SMPP Server API stats
 
 The Stats manager covers different sections, this includes Users, SMPP Client connectors, Routes (MO and MT), APIs (HTTP and SMPP).
 
@@ -1314,3 +1319,115 @@ This is clearly a more detailed view for connector **MTN**, the following table 
      - Binds counter value
    * - disconnected_count
      - Last disconnection date & time
+
+SMPP Server API statistics
+==========================
+
+The Stats manager exposes collected statistics in SMPP Server API through the following *jCli* command:
+
+ * **stats --smppsapi**
+
+Here's an example of showing the statistics::
+
+   jcli : stats --smppsapi
+   #Item                    Value
+   #disconnect_count        2
+   #bound_tx_count          0
+   #bind_rx_count           0
+   #last_received_pdu_at    2019-06-05 12:16:21
+   #last_received_elink_at  ND
+   #connected_count         2
+   #bound_trx_count         1
+   #unbind_count            6
+   #bind_tx_count           6
+   #bound_rx_count          1
+   #bind_trx_count          0
+   #created_at              2019-06-04 02:22:17
+   #connect_count           16
+   #last_sent_pdu_at        2019-06-05 12:12:13
+
+The following table explains the items shown in the above example:
+
+.. list-table:: Details smppsapi statistics view items
+   :widths: 10 80
+   :header-rows: 1
+
+   * - Item
+     - Description
+   * - created_at
+     - Connector creation date & time
+   * - last_received_pdu_at
+     - Date & time of last received PDU
+   * - last_sent_pdu_at
+     - Date & time of last sent PDU
+   * - last_received_elink_at
+     - Date & time of last received enquire_link PDU
+   * - connected_count
+     - Last connection date & time
+   * - connect_count
+     - TCP Connection request count
+   * - disconnect_count
+     - Disconnection count
+   * - bind_trx_count
+     - Transceiver bind request count
+   * - bound_trx_count
+     - Actually bound transceiver connections count
+   * - bind_rx_count
+     - Receiver bind request count
+   * - bound_rx_count
+     - Actually bound receiver connections count
+   * - bind_tx_count
+     - Transmitter bind request count
+   * - bound_tx_count
+     - Actually bound transmitter connections count
+
+HTTP API statistics
+===================
+
+The Stats manager exposes collected statistics in HTTP API through the following *jCli* command:
+
+ * **stats --httpapi**
+
+Here's an example of showing the statistics::
+
+   jcli : stats --httpapi
+   #Item                    Value
+   #server_error_count      120
+   #last_request_at         ND
+   #throughput_error_count  4
+   #success_count           14332
+   #route_error_count       156
+   #request_count           20126
+   #auth_error_count        78
+   #created_at              2019-06-04 02:22:17
+   #last_success_at         2019-06-05 18:20:29
+   #charging_error_count    178
+
+The following table explains the items shown in the above example:
+
+.. list-table:: Details httpapi statistics view items
+   :widths: 10 80
+   :header-rows: 1
+
+   * - Item
+     - Description
+   * - created_at
+     - Connector creation date & time
+   * - last_request_at
+     - Date & time of last http request
+   * - last_success_at
+     - Date & time of last successful http request (SMS is accepted for sending)
+   * - request_count
+     - HTTP request count
+   * - success_count
+     - Successful HTTP request count (SMS is accepted for sending)
+   * - auth_error_count
+     - Authentication errors count
+   * - route_error_count
+     - Route not found errors count
+   * - throughput_error_count
+     - Throughput exceeded errors count
+   * - charging_error_count
+     - Charging/Billing errors count
+   * - server_error_count
+     - Unknown server errors count
