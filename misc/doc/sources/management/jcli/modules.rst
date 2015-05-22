@@ -1051,6 +1051,7 @@ following global variables set:
           the **routable** object.
 .. note:: Using **EvalPyFilter** offers the possibility to call external webservices, databases ... for powerfull 
           routing or even for logging, rating & billing through external third party systems.
+.. hint:: More examples in the this FAQ's question: :ref:`faq_2_CypaeohtuE`
 
 .. _httpccm_manager:
 
