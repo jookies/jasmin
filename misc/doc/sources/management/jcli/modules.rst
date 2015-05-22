@@ -1051,6 +1051,7 @@ following global variables set:
           the **routable** object.
 .. note:: Using **EvalPyFilter** offers the possibility to call external webservices, databases ... for powerfull 
           routing or even for logging, rating & billing through external third party systems.
+.. hint:: More examples in the this FAQ's question: :ref:`faq_2_CypaeohtuE`
 
 .. _httpccm_manager:
 
@@ -1108,6 +1109,8 @@ Listing Connectors will show currently added Connectors with their CID, Type, Me
    #Httpcc id        Type                   Method URL
    #HTTP-01          HttpConnector          GET    http://10.10.20.125/receive-sms/mo.php
    Total Httpccs: 1
+
+.. _stats_manager:
 
 Stats manager
 *************
