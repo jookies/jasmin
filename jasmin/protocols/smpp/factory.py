@@ -1,12 +1,14 @@
 #pylint: disable-msg=W0401,W0611
 import logging
 from datetime import datetime
+from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
-from jasmin.protocols.smpp.error import *
-from jasmin.protocols.smpp.validation import SmppsCredentialValidator
+from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
+from .protocol import SMPPClientProtocol, SMPPServerProtocol
+from .error import *
+from .validation import SmppsCredentialValidator
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from jasmin.vendor.smpp.pdu import pdu_types, constants
@@ -30,6 +32,10 @@ class SMPPClientFactory(ClientFactory):
         self.smpp = None
         self.connectionRetry = True
         self.config = config
+
+        # Setup statistics collector
+        self.stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        self.stats.set('created_at', datetime.now())
                 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE+".%s" % config.id)
@@ -47,9 +53,11 @@ class SMPPClientFactory(ClientFactory):
             self.msgHandler = msgHandler
     
     def buildProtocol(self, addr):
-        """Provision protocol with the dedicated logger
+        """Provision protocol
         """
         proto = ClientFactory.buildProtocol(self, addr)
+
+        # Setup logger
         proto.log = self.log
         
         return proto
@@ -194,6 +202,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.RouterPB = RouterPB
         self.SMPPClientManagerPB = SMPPClientManagerPB
 
+        # Setup statistics collector
+        self.stats = SMPPServerStatsCollector().get(cid = self.config.id)
+        self.stats.set('created_at', datetime.now())
+
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)
         if len(self.log.handlers) != 1:
@@ -265,6 +277,21 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
         routedConnector = route.getConnector()
 
+        # QoS throttling
+        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm_at'] != 0:
+            qos_throughput_second = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
+            qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm_at']
+            if qos_delay < qos_throughput_ysecond_td:
+                self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
+                                qos_delay,
+                                qos_throughput_ysecond_td,
+                                user
+                                ))
+
+                raise SubmitSmThroughputExceededError()
+        user.CnxStatus.smpps['qos_last_submit_sm_at'] = datetime.now()
+
         # Pre-sending submit_sm: Billing processing
         bill = route.getBillFor(user)
         self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU" % 
@@ -320,6 +347,8 @@ class SMPPServerFactory(_SMPPServerFactory):
         """Provision protocol with the dedicated logger
         """
         proto = _SMPPServerFactory.buildProtocol(self, addr)
+
+        # Setup logger
         proto.log = self.log
         
         return proto
@@ -372,10 +401,14 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.warning('New bind rejected for username: "%s", reason: authorization failure.' % user.username)
             return False
         # Still didnt reach max_bindings ?
-        elif (user.smpps_credential.getQuota('max_bindings') is not None and 
-            user.CnxStatus.smpps['bound_connections_count'] >= user.smpps_credential.getQuota('max_bindings')):
-            self.log.warning('New bind rejected for username: "%s", reason: max_bindings limit reached.' % user.username)
-            return False
+        elif user.smpps_credential.getQuota('max_bindings') is not None:
+            bind_count = user.CnxStatus.smpps['bound_connections_count']['bind_transmitter']
+            bind_count+= user.CnxStatus.smpps['bound_connections_count']['bind_receiver']
+            bind_count+= user.CnxStatus.smpps['bound_connections_count']['bind_transceiver']
+            if bind_count >= user.smpps_credential.getQuota('max_bindings'):
+                self.log.warning('New bind rejected for username: "%s", reason: max_bindings limit reached.' % 
+                    user.username)
+                return False
 
         return True
         

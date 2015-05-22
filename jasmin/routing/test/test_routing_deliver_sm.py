@@ -50,8 +50,8 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
         # Lower the timeout config to pass the timeout tests quickly
         deliverSmThrowerConfigInstance.timeout = 2
-        deliverSmThrowerConfigInstance.retryDelay = 1
-        deliverSmThrowerConfigInstance.maxRetries = 2
+        deliverSmThrowerConfigInstance.retry_delay = 1
+        deliverSmThrowerConfigInstance.max_retries = 2
         
         # Launch the deliverSmThrower
         self.deliverSmThrower = deliverSmThrower()
@@ -513,6 +513,34 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(received_pdu_3.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_3.params['esm_class'], basePdu.params['esm_class'])
         self.assertEqual(received_pdu_3.params['short_message'][6:], pdu_part3.params['short_message'][6:])
+
+        # Unbind and disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+    @defer.inlineCallbacks
+    def test_delivery_SmppClientConnector_with_network_error_code(self):
+        "Related to #117"
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+
+        # Send a deliver_sm from the SMSC
+        DeliverSmPDU = copy.deepcopy(self.DeliverSmPDU)
+        DeliverSmPDU.params['network_error_code'] = '\x03\x00\x00'
+        yield self.triggerDeliverSmFromSMSC([DeliverSmPDU])
+
+        # Run tests
+        self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
+        # the received pdu must be our DeliverSmPDU
+        received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
+        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.params['network_error_code'], DeliverSmPDU.params['network_error_code'])
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

@@ -5,6 +5,7 @@ import copy
 import time
 import urllib
 import mock
+from datetime import datetime
 from twisted.internet import reactor
 from twisted.web.client import getPage
 from twisted.internet import defer
@@ -41,7 +42,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid, port = self.SMSCPort.getHost().port, 
-                                    bindOperation = 'transceiver')
+                                    bindOperation = 'transceiver', submit_sm_throughput = 0)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector
@@ -81,8 +82,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def run_test(self, user = None, content = 'anycontent', 
                  dlr_level = None, dlr_method = None, source_address = None, 
-                 priority = None, destination_address = None, default_route = None,
-                 side_effect = None):
+                 priority = None, validity_period = None, destination_address = None, 
+                 default_route = None, side_effect = None):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(user, default_route, side_effect)
         
@@ -96,6 +97,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['from'] = source_address
         if priority is not None:
             self.params['priority'] = priority
+        if validity_period is not None:
+            self.params['validity-period'] = validity_period
         if destination_address is not None:
             self.params['to'] = destination_address
         baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.urlencode(self.params))
@@ -281,6 +284,33 @@ class AuthorizationsTestCases(CredentialsTestCases):
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 
+    @defer.inlineCallbacks
+    def test_default_set_validity_period(self):
+        # User have default authorization to set message validity_period
+        response_text, response_code = yield self.run_test(validity_period = 2)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_unauthorized_set_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_validity_period', False)
+        
+        # User unauthorized
+        response_text, response_code = yield self.run_test(user = user, validity_period = 2)
+        self.assertEqual(response_text, 'Error "Authorization failed for username [u1] (Setting validity period is not authorized)."')
+        self.assertEqual(response_code, '400 Bad Request')
+        
+    @defer.inlineCallbacks
+    def test_authorized_user_set_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_validity_period', True)
+
+        # User authorized
+        response_text, response_code = yield self.run_test(user = user, validity_period = 2)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
 class ValueFiltersTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_default_destination_address(self):
@@ -361,12 +391,32 @@ class ValueFiltersTestCases(CredentialsTestCases):
         self.assertEqual(response_code, '400 Bad Request')
         
     @defer.inlineCallbacks
-    def test_valid_user_priority(self):
+    def test_valid_priority(self):
         user = copy.copy(self.user1)
         user.mt_credential.setValueFilter('priority', r'^[0-3]$')
 
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_test(user = user, priority = 3)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_invalid_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setValueFilter('validity_period', r'^[0-1]?[0-9]$') # 0 .. 19
+        
+        # Invalid filter (user-level)
+        response_text, response_code = yield self.run_test(user = user, validity_period = 21)
+        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (validity_period filter mismatch)."')
+        self.assertEqual(response_code, '400 Bad Request')
+        
+    @defer.inlineCallbacks
+    def test_valid_validity_period(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setValueFilter('validity_period', r'^[0-2]?[0-9]$') # 0 .. 29
+
+        # Valid filter (user-level) with user-level invalid filter
+        response_text, response_code = yield self.run_test(user = user, validity_period = 21)
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 
@@ -733,3 +783,50 @@ class QuotasTestCases(CredentialsTestCases):
         remote_user = pickle.loads(t)[0]
         # After submit_sm_resp, user must be charged 100% of the route rate (x number of submit_sm parts)
         self.assertEqual(remote_user.mt_credential.getQuota('balance'), 10 - (2.0 * 3))
+
+    @defer.inlineCallbacks
+    def test_throughput_limit_rejection(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setQuota('http_throughput', 2)
+        route = DefaultRoute(self.c1, rate = 0.0)
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector(user, route)
+        
+        # Set content
+        self.params['content'] = 'Any Content'
+        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.urlencode(self.params))
+        
+        # Send a bunch of MT messages
+        # We should receive a msg id for success and error when throughput is exceeded
+        start_time = datetime.now()
+        throughput_exceeded_errors = 0
+        request_counter = 0
+        for x in range(5000):
+            try:
+                response_text = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+                response_code = 'Success'
+            except Exception, error:
+                response_text = error.response
+                response_code = str(error)
+
+            request_counter+= 1
+            if response_code == '403 Forbidden' and response_text == 'Error "User throughput exceeded"':
+                throughput_exceeded_errors+= 1
+        end_time = datetime.now()
+        
+        # Wait 2 seconds before stopping SmppClientConnectors
+        exitDeferred = defer.Deferred()
+        reactor.callLater(2, exitDeferred.callback, None)
+        yield exitDeferred
+
+        yield self.stopSmppClientConnectors()
+
+        # Asserts (tolerance of -/+ 3 messages)
+        throughput = 1 / float(user.mt_credential.getQuota('http_throughput'))
+        dt = end_time - start_time
+        max_unsuccessfull_requests = request_counter - (dt.seconds / throughput)
+        unsuccessfull_requests = throughput_exceeded_errors
+
+        self.assertGreaterEqual(unsuccessfull_requests, max_unsuccessfull_requests - 3)
+        self.assertLessEqual(unsuccessfull_requests, max_unsuccessfull_requests + 3)

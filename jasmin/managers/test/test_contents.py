@@ -170,32 +170,35 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         system_id = 'username'
         source_addr = '999'
         destination_addr = '111'
+        sub_date = datetime.now()
 
-        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr)
+        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date)
         
         self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 5)
+        self.assertEquals(len(c['headers']), 6)
         self.assertEquals(c['headers']['try-count'], 0)
         self.assertEquals(c['headers']['message_status'], message_status)
         self.assertEquals(c['headers']['system_id'], system_id)
         self.assertEquals(c['headers']['source_addr'], source_addr)
         self.assertEquals(c['headers']['destination_addr'], destination_addr)
+        self.assertEquals(c['headers']['sub_date'], str(sub_date))
         
     def test_message_status(self):
         msgid = 'msgid'
         system_id = 'username'
         source_addr = '999'
         destination_addr = '111'
+        sub_date = datetime.now()
         
         validStatuses = ['ESME_ROK', 'DELIVRD', 'EXPIRED', 'DELETED', 
                                   'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
         
         for status in validStatuses:
-            c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr)
+            c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr, sub_date)
             
             self.assertEquals(c['headers']['message_status'], status)
         
-        self.assertRaises(InvalidParameterError, DLRContentForSmpps, 'anystatus', msgid, system_id, source_addr, destination_addr)
+        self.assertRaises(InvalidParameterError, DLRContentForSmpps, 'anystatus', msgid, system_id, source_addr, destination_addr, sub_date)
         
 class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):

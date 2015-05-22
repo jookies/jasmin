@@ -543,9 +543,6 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
     receivedSubmitSmResp = None
     
-    def submit_sm_callback(self, message):
-        self.receivedSubmitSmResp = pickle.loads(message.content.body)
-    
     @defer.inlineCallbacks
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)
@@ -574,13 +571,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
                 break;
             else:
                 time.sleep(0.2)
-
-        # Listen on the submit.sm.resp queue
-        routing_key_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
-        consumerTag = 'test_submitSm'
-        yield self.amqpBroker.chan.basic_consume(queue=routing_key_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
-        queue = yield self.amqpBroker.client.queue(consumerTag)
-        queue.get().addCallback(self.submit_sm_callback)
 
         # Send submit_sm
         assertionKey = str(randint(10000, 99999999999))
@@ -611,9 +601,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         self.assertEqual(ReceivedSubmitSmPDU.params['short_message'], assertionKey)
         # @todo: Should be a real uuid pattern testing 
         self.assertApproximates(len(msgid), 35, 5)
-        # Submit_sm_resp was returned
-        self.assertTrue(self.receivedSubmitSmResp is not None)
-        self.assertIsInstance(self.receivedSubmitSmResp, SubmitSMResp)
 
     @defer.inlineCallbacks
     def test_submitSm_priority(self):
@@ -889,9 +876,6 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
 class LoggingTestCases(SMSCSimulatorRecorder):
     receivedSubmitSmResp = None
     
-    def submit_sm_callback(self, message):
-        self.receivedSubmitSmResp = pickle.loads(message.content.body)
-    
     @defer.inlineCallbacks
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)
@@ -916,13 +900,6 @@ class LoggingTestCases(SMSCSimulatorRecorder):
                 break;
             else:
                 time.sleep(0.2)
-
-        # Listen on the submit.sm.resp queue
-        routing_key_submit_sm_resp = 'submit.sm.resp.%s' % self.defaultConfig.id
-        consumerTag = 'test_submitSm'
-        yield self.amqpBroker.chan.basic_consume(queue=routing_key_submit_sm_resp, no_ack=True, consumer_tag=consumerTag)
-        queue = yield self.amqpBroker.client.queue(consumerTag)
-        queue.get().addCallback(self.submit_sm_callback)
 
         # Build a long submit_sm
         assertionKey = str(randint(10, 99)) * 100 + 'EOF' # 203 chars

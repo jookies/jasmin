@@ -100,17 +100,24 @@ class MtMessagingCredential(CredentialGenerick):
                           'http_set_dlr_method': default_authorizations,
                           'set_source_address': default_authorizations,
                           'set_priority': default_authorizations,
+                          'set_validity_period': default_authorizations,
                          }
         
         self.value_filters = {'destination_address': re.compile(r'.*'),
                          'source_address': re.compile(r'.*'),
                          'priority': re.compile(r'^[0-3]$'),
+                         'validity_period': re.compile(r'^\d+$'),
                          'content': re.compile(r'.*'),
                          }
         
         self.defaults = {'source_address': None,}
         
-        self.quotas = {'balance': None, 'early_decrement_balance_percent': None, 'submit_sm_count': None}
+        self.quotas = {'balance': None, 
+                       'early_decrement_balance_percent': None, 
+                       'submit_sm_count': None,
+                       'http_throughput': None,
+                       'smpps_throughput': None,
+                       }
     
     def setQuota(self, key, value):
         "Additional validation steps"
@@ -122,6 +129,8 @@ class MtMessagingCredential(CredentialGenerick):
         elif (key == 'submit_sm_count' and value is not None and 
               ( value < 0 or type(value) != int )):
             raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+        elif key in ['http_throughput', 'smpps_throughput'] and value is not None and ( value < 0 ):
+            raise jasminApiCredentialError('%s is not a valid value (%s), it must be None or a positive number' % ( key, value ))
             
         CredentialGenerick.setQuota(self, key, value)
 
@@ -162,13 +171,17 @@ class CnxStatus(jasminApiGenerick):
                         'bind_receiver': 0,
                         'bind_transceiver': 0,
                         'bind_transmitter': 0,
-                      },
+                       },
                       'submit_sm_request_count': 0,
-                      'last_activity_at': 0,}
+                      'last_activity_at': 0,
+                      'qos_last_submit_sm_at': 0,
+                      }
 
         self.httpapi = {'connects_count': 0,
                         'last_activity_at': 0,
-                        'submit_sm_request_count': 0,}
+                        'submit_sm_request_count': 0,
+                        'qos_last_submit_sm_at': 0,
+                        }
 
 class User(jasminApiGenerick):
     """Jasmin user"""

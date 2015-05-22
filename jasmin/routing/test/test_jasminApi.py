@@ -76,6 +76,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('http_set_dlr_method'), True)
         self.assertEqual(mc.getAuthorization('set_source_address'), True)
         self.assertEqual(mc.getAuthorization('set_priority'), True)
+        self.assertEqual(mc.getAuthorization('set_validity_period'), True)
         self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('source_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('priority'), re.compile(r'^[0-3]$'))
@@ -83,6 +84,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('http_throughput'), None)
+        self.assertEqual(mc.getQuota('smpps_throughput'), None)
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_normal_defaultsargs(self):
@@ -95,6 +98,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('http_set_dlr_method'), False)
         self.assertEqual(mc.getAuthorization('set_source_address'), False)
         self.assertEqual(mc.getAuthorization('set_priority'), False)
+        self.assertEqual(mc.getAuthorization('set_validity_period'), False)
         self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('source_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('priority'), re.compile(r'^[0-3]$'))
@@ -102,6 +106,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getDefaultValue('source_address'), None)
         self.assertEqual(mc.getQuota('balance'), None)
         self.assertEqual(mc.getQuota('submit_sm_count'), None)
+        self.assertEqual(mc.getQuota('http_throughput'), None)
+        self.assertEqual(mc.getQuota('smpps_throughput'), None)
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_set_and_get(self):
@@ -121,6 +127,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('set_source_address'), False)
         mc.setAuthorization('set_priority', False)
         self.assertEqual(mc.getAuthorization('set_priority'), False)
+        mc.setAuthorization('set_validity_period', False)
+        self.assertEqual(mc.getAuthorization('set_validity_period'), False)
         mc.setValueFilter('destination_address', r'^D.*')
         self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'^D.*'))
         mc.setValueFilter('source_address', r'^S.*')
@@ -135,6 +143,10 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getQuota('balance'), 100)
         mc.setQuota('submit_sm_count', 10000)
         self.assertEqual(mc.getQuota('submit_sm_count'), 10000)
+        mc.setQuota('http_throughput', 100)
+        mc.setQuota('smpps_throughput', 10)
+        self.assertEqual(mc.getQuota('http_throughput'), 100)
+        self.assertEqual(mc.getQuota('smpps_throughput'), 10)
         mc.setQuota('early_decrement_balance_percent', 100)
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), 100)
     
@@ -164,6 +176,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('http_set_dlr_method'), False)
         self.assertEqual(mc.getAuthorization('set_source_address'), False)
         self.assertEqual(mc.getAuthorization('set_priority'), False)
+        self.assertEqual(mc.getAuthorization('set_validity_period'), False)
     
     def test_set_invalid_value(self):
         mc = MtMessagingCredential()
@@ -178,6 +191,7 @@ class MtMessagingCredentialTestCase(TestCase):
         # Balance must be None or a positive float
         mc.setQuota('balance', None)
         mc.setQuota('balance', 0)
+        mc.setQuota('balance', 2.2)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'balance', -1.0)
         # early_decrement_balance_percent must be None or 1-100
         mc.setQuota('early_decrement_balance_percent', None)
@@ -187,6 +201,15 @@ class MtMessagingCredentialTestCase(TestCase):
         mc.setQuota('submit_sm_count', 10)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', -1)
         self.assertRaises(jasminApiCredentialError, mc.setQuota, 'submit_sm_count', 1.1)
+        # *_throughput must be a positive float
+        mc.setQuota('http_throughput', 10)
+        mc.setQuota('http_throughput', None)
+        mc.setQuota('http_throughput', 2.5)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'http_throughput', -1)
+        mc.setQuota('smpps_throughput', 10)
+        mc.setQuota('smpps_throughput', None)
+        mc.setQuota('smpps_throughput', 2.5)
+        self.assertRaises(jasminApiCredentialError, mc.setQuota, 'smpps_throughput', -1)
     
     def test_quotas_updated(self):
         mc = MtMessagingCredential()
@@ -245,9 +268,10 @@ class SmppsCredentialTestCase(TestCase):
         # Authorization must be a boolean
         sc.setAuthorization('bind', True)
         self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'bind', 'anyvalue')
-        # Balance must be None or a positive float
+        # max_bindings must be None or a positive int
         sc.setQuota('max_bindings', None)
         sc.setQuota('max_bindings', 0)
+        sc.setQuota('max_bindings', 2)
         self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', 1.0)
         self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', -1.0)
         self.assertRaises(jasminApiCredentialError, sc.setQuota, 'max_bindings', -1)

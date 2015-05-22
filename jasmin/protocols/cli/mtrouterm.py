@@ -1,7 +1,7 @@
 import re
 import inspect
 import pickle
-from jasmin.protocols.cli.managers import Manager, Session
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import SmppClientConnector
 from jasmin.routing.Routes import (DefaultRoute, StaticMTRoute, RandomRoundrobinMTRoute)
@@ -204,7 +204,7 @@ class MTRouteExist:
             return self.protocol.sendData('Unknown MT Route: %s' % order)
         return exist_mtroute_and_call
     
-class MtRouterManager(Manager):
+class MtRouterManager(PersistableManager):
     managerName = 'mtrouter'
     
     def persist(self, arg, opts):

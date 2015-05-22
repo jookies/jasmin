@@ -2,6 +2,7 @@ import urllib
 import mock
 import copy
 import random
+from datetime import datetime
 from twisted.web import server
 from twisted.internet import reactor, defer
 from twisted.web.client import getPage
@@ -13,6 +14,119 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.vendor.smpp.pdu.pdu_types import MessageState
+
+class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+
+    @defer.inlineCallbacks
+    def test_validity_period(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['validity-period'] = 1440 # 1 Day = 24 x 60 minutes = 1440 minutes
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period'])
+        timediff = self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period'] - datetime.now()
+        self.assertGreaterEqual(timediff.seconds / 60, (self.params['validity-period'] - 1)) # Tolerate one minute of test latency
+        self.assertLess(timediff.seconds / 60, (self.params['validity-period'] + 1))
+
+    @defer.inlineCallbacks
+    def test_dlr_level_default(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+            'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
+
+    @defer.inlineCallbacks
+    def test_dlr_level_1(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-level'] = 1
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+            'SMSC_DELIVERY_RECEIPT_REQUESTED')
+
+    @defer.inlineCallbacks
+    def test_dlr_level_2(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-level'] = 1
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+            'SMSC_DELIVERY_RECEIPT_REQUESTED')
+
+    @defer.inlineCallbacks
+    def test_dlr_level_3(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        self.params['dlr-level'] = 1
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+            'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
 class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -739,7 +853,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         """Will:
         1. Set a SMS-MT route to connector A
         2. Send a SMS-MT to that route from a SMPPc and request DLR
-        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a data_sm
+        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a deliver_sm
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
@@ -761,15 +875,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield exitDeferred
 
         # Run tests
-        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        # smpps response #2 was a data_sm with ACCEPTED
-        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
-        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
-        self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
 
         # Trigger receipts with non final states
         x = self.smpps_factory.lastProto.sendPDU.call_count
@@ -785,14 +894,14 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             yield exitDeferred
 
             # Run tests
-            # smpps response #x was a data_sm with stat = msg_stat
+            # smpps response #x was a deliver_sm with stat = msg_stat
             self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
             response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.data_sm)
+            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
             self.assertEqual(response_pdu_x.seqNum, x - 1)
             self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
-            self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['source_addr'])
-            self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+            self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+            self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
             self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
             self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
 
@@ -815,21 +924,21 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
             # Run tests
             if not final_state_triggered:
-                # smpps response #x was a data_sm with stat = msg_stat
+                # smpps response #x was a deliver_sm with stat = msg_stat
                 self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
                 response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.data_sm)
+                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
                 self.assertEqual(response_pdu_x.seqNum, x - 1)
                 self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
-                self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['source_addr'])
-                self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['destination_addr'])
+                self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+                self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
                 self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
                 self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
                 final_state_triggered = True
                 x_value_when_fstate_triggered = x
             else:
                 # SMPPs map must be deleted when a final state were triggered
-                # We get no more data_sm receipts for any further triggered DLR
+                # We get no more deliver_sm receipts for any further triggered DLR
                 self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x_value_when_fstate_triggered)
 
         # Unbind & Disconnect
@@ -880,15 +989,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield exitDeferred
 
         # Run tests
-        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
-        # smpps response #2 was a data_sm with ACCEPTED
-        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.data_sm)
-        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
-        self.assertEqual(str(response_pdu_2.params['message_state']), 'ACCEPTED')
 
         # Trigger receipt with an unknown id
         yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD', _id = '77unknown_id77')
@@ -903,7 +1007,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        # smpps last response was a unbind_resp, and there were no further data_sm
-        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        # smpps last response was a unbind_resp, and there were no further deliver_sm
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)

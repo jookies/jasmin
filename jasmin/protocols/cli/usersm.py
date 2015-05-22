@@ -1,6 +1,7 @@
 import pickle
 import re
-from jasmin.protocols.cli.managers import Manager, Session
+from hashlib import md5
+from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.protocol import str2num
 from jasmin.routing.jasminApi import User, MtMessagingCredential, SmppsCredential, jasminApiCredentialError
 
@@ -12,15 +13,20 @@ MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                                   'dlr_level': 'set_dlr_level',
                                                   'http_dlr_method': 'http_set_dlr_method',
                                                   'src_addr': 'set_source_address',
-                                                  'priority': 'set_priority'},
+                                                  'priority': 'set_priority',
+                                                  'validity_period': 'set_validity_period'},
                                'ValueFilter': {'dst_addr': 'destination_address',
                                                 'src_addr': 'source_address',
                                                 'priority': 'priority',
+                                                'validity_period': 'validity_period',
                                                 'content': 'content'},
                                'DefaultValue': {'src_addr': 'source_address'},
                                'Quota': {'balance': 'balance',
                                           'early_percent': 'early_decrement_balance_percent',
-                                          'sms_count': 'submit_sm_count'},
+                                          'sms_count': 'submit_sm_count',
+                                          'http_throughput': 'http_throughput',
+                                          'smpps_throughput': 'smpps_throughput',
+                                        },
                                 }
 
 SmppsCredentialKeyMap = {'class': 'SmppsCredential',
@@ -35,6 +41,8 @@ UserKeyMap = {'uid': 'uid', 'gid': 'gid',
               'password': 'password', 
               'mt_messaging_cred': MtMessagingCredentialKeyMap,
               'smpps_cred': SmppsCredentialKeyMap}
+
+UserConfigStringKeys = ['username', 'password', 'uid', 'gid']
 
 TrueBoolCastMap = ['true', '1', 't', 'y', 'yes']
 FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
@@ -55,6 +63,8 @@ def castToBuiltCorrectCredType(cred, section, key, value):
                 value = float(value)
             elif key == 'submit_sm_count':
                 value = int(value)
+            elif key in ['http_throughput', 'smpps_throughput']:
+                value = float(value)
 
         # Make a final validation: pass value to a temporarly MtMessagingCredential
         # object, an exception will be raised if the type is not correct
@@ -174,8 +184,11 @@ def UserBuild(fCallback):
                 else:
                     # Buffer key for later User initiating
                     UserKey = UserKeyMap[cmd]
-                    self.sessBuffer[UserKey] = arg
-            
+		    if UserKey not in UserConfigStringKeys:
+                	self.sessBuffer[UserKey] = str2num(arg)
+                    else:
+                        self.sessBuffer[UserKey] = arg
+
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
@@ -281,12 +294,15 @@ def UserUpdate(fCallback):
                 else:
                     # Buffer key for later (when receiving 'ok')
                     UserKey = UserKeyMap[cmd]
-                    self.sessBuffer[UserKey] = str2num(arg)
-            
+		    if UserKey not in UserConfigStringKeys:
+                	self.sessBuffer[UserKey] = str2num(arg)
+                    else:
+                        self.sessBuffer[UserKey] = arg
+
             return self.protocol.sendData()
     return log_update_requests_and_call
 
-class UsersManager(Manager):
+class UsersManager(PersistableManager):
     managerName = 'user'
     
     def persist(self, arg, opts):
@@ -312,11 +328,12 @@ class UsersManager(Manager):
         counter = 0
         
         if (len(users)) > 0:
-            self.protocol.sendData("#%s %s %s %s %s" % ('User id'.ljust(16),
+            self.protocol.sendData("#%s %s %s %s %s %s" % ('User id'.ljust(16),
                                                         'Group id'.ljust(16),
                                                         'Username'.ljust(16),
                                                         'Balance'.ljust(7),
                                                         'MT SMS'.ljust(6),
+                                                        'Throughput'.ljust(8),
                                                        ), prompt=False)
             for user in users:
                 counter += 1
@@ -326,12 +343,20 @@ class UsersManager(Manager):
                 sms_count = user.mt_credential.getQuota('submit_sm_count')
                 if sms_count is None:
                     sms_count = 'ND'
-                self.protocol.sendData("#%s %s %s %s %s" % (
+                http_throughput = user.mt_credential.getQuota('http_throughput')
+                if http_throughput is None:
+                    http_throughput = 'ND'
+                smpps_throughput = user.mt_credential.getQuota('smpps_throughput')
+                if smpps_throughput is None:
+                    smpps_throughput = 'ND'
+                throughput = '%s/%s' % (http_throughput, smpps_throughput)
+                self.protocol.sendData("#%s %s %s %s %s %s" % (
                     str(user.uid).ljust(16),
                     str(user.group.gid).ljust(16),
                     str(user.username).ljust(16),
                     str(balance).ljust(7),
                     str(sms_count).ljust(6),
+                    str(throughput).ljust(8),
                     ), prompt=False)
                 self.protocol.sendData(prompt=False)        
         
@@ -375,7 +400,10 @@ class UsersManager(Manager):
                     for SectionKey, SectionValue in update[1].iteritems():
                         getattr(subUserObject,  'set%s' % section)(SectionKey, SectionValue)
             else:
-                setattr(user, key, value)
+                if key == 'password':
+                    setattr(user, key, md5(value).digest())
+                else:
+                    setattr(user, key, value)
         
         self.protocol.sendData('Successfully updated User [%s]' % self.sessionContext['uid'], prompt=False)
         self.stopSession()

@@ -23,12 +23,72 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         twistedSMPPClientProtocol.__init__(self)
         
         self.longSubmitSmTxns = {}
+
+    def PDUReceived(self, pdu):
+        self.log.debug("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug("Complete PDU dump: %s" % pdu)
+        self.factory.stats.set('last_received_pdu_at', datetime.now())
         
+        """A better version than vendor's PDUReceived method:
+        - Dont re-encode pdu !
+        if self.log.isEnabledFor(logging.DEBUG):
+            encoded = self.encoder.encode(pdu)
+            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+        """
+        
+        #Signal SMPP operation
+        self.onSMPPOperation()
+        
+        if isinstance(pdu, PDURequest):
+            self.PDURequestReceived(pdu)
+        elif isinstance(pdu, PDUResponse):
+            self.PDUResponseReceived(pdu)
+        else:
+            getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+
     def connectionMade(self):
         twistedSMPPClientProtocol.connectionMade(self)
-        self.log.info("Connection made to %s:%s" % (self.factory.config.host, self.factory.config.port))
+        self.factory.stats.set('connected_at', datetime.now())
+        self.factory.stats.inc('connected_count')
+
+        self.log.info("Connection made to %s:%s" % (self.config().host, self.config().port))
 
         self.factory.connectDeferred.callback(self)
+
+    def connectionLost( self, reason ):
+        twistedSMPPClientProtocol.connectionLost(self, reason)
+
+        self.factory.stats.set('disconnected_at', datetime.now())
+        self.factory.stats.inc('disconnected_count')
+
+    def onPDURequest_enquire_link(self, reqPDU):
+        twistedSMPPClientProtocol.onPDURequest_enquire_link(self, reqPDU)
+
+        self.factory.stats.set('last_received_elink_at', datetime.now())
+
+    def sendPDU(self, pdu):
+        twistedSMPPClientProtocol.sendPDU(self, pdu)
+
+        self.factory.stats.set('last_sent_pdu_at', datetime.now())
+
+    def claimSeqNum(self):
+        seqNum = twistedSMPPClientProtocol.claimSeqNum(self)
+
+        self.factory.stats.set('last_seqNum_at', datetime.now())
+        self.factory.stats.set('last_seqNum', seqNum)
+
+        return seqNum
+
+    def enquireLinkTimerExpired(self):
+        twistedSMPPClientProtocol.enquireLinkTimerExpired(self)
+
+        self.factory.stats.set('last_sent_elink_at', datetime.now())
+
+    def bindSucceeded(self, result, nextState):
+        self.factory.stats.set('bound_at', datetime.now())
+        self.factory.stats.inc('bound_count')
+
+        return twistedSMPPClientProtocol.bindSucceeded(self, result, nextState)
         
     def bindAsReceiver(self):
         """This is a different signature where msgHandler is taken from factory
@@ -234,19 +294,21 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.dataRequestHandler = lambda *args: self.factory.msgHandler(self.system_id, *args)
         self.system_id = None
         self.user = None
+        self.bind_type = None
         self.session_id = str(uuid.uuid4())
         self.log = logging.getLogger(LOG_CATEGORY)
 
     def PDUReceived(self, pdu):
-        """A better version than vendor's PDUReceived method:
-        - Encode pdu only when in debug mode
-        """
-        if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug("Received PDU: %s" % pdu)
+        self.log.debug("SMPP Server received PDU from system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (self.system_id, pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug("Complete PDU dump: %s" % pdu)
+        self.factory.stats.set('last_received_pdu_at', datetime.now())
         
+        """A better version than vendor's PDUReceived method:
+        - Dont re-encode pdu !
         if self.log.isEnabledFor(logging.DEBUG):
             encoded = self.encoder.encode(pdu)
             self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+        """
         
         #Signal SMPP operation
         self.onSMPPOperation()
@@ -257,6 +319,45 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
             self.PDUResponseReceived(pdu)
         else:
             getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+
+    def connectionMade(self):
+        twistedSMPPServerProtocol.connectionMade(self)
+        self.factory.stats.inc('connect_count')
+        self.factory.stats.inc('connected_count')
+
+    def connectionLost(self, reason):
+        twistedSMPPServerProtocol.connectionLost(self, reason)
+
+        self.factory.stats.inc('disconnect_count')
+        self.factory.stats.dec('connected_count')
+        if self.sessionState in [SMPPSessionStates.BOUND_RX, SMPPSessionStates.BOUND_TX, SMPPSessionStates.BOUND_TRX]:
+            if str(self.bind_type) == 'bind_transceiver':
+                self.factory.stats.dec('bound_trx_count')
+            elif str(self.bind_type) == 'bind_receiver':
+                self.factory.stats.dec('bound_rx_count')
+            elif str(self.bind_type) == 'bind_transmitter':
+                self.factory.stats.dec('bound_tx_count')
+
+    def onPDURequest_enquire_link(self, reqPDU):
+        twistedSMPPServerProtocol.onPDURequest_enquire_link(self, reqPDU)
+
+        self.factory.stats.set('last_received_elink_at', datetime.now())
+
+    def sendPDU(self, pdu):
+        twistedSMPPServerProtocol.sendPDU(self, pdu)
+
+        self.factory.stats.set('last_sent_pdu_at', datetime.now())
+
+    def onPDURequest_unbind(self, reqPDU):
+        twistedSMPPServerProtocol.onPDURequest_unbind(self, reqPDU)
+
+        self.factory.stats.inc('unbind_count')
+        if str(self.bind_type) == 'bind_transceiver':
+            self.factory.stats.dec('bound_trx_count')
+        elif str(self.bind_type) == 'bind_receiver':
+            self.factory.stats.dec('bound_rx_count')
+        elif str(self.bind_type) == 'bind_transmitter':
+            self.factory.stats.dec('bound_tx_count')
 
     def PDUDataRequestReceived(self, reqPDU):
         if self.sessionState == SMPPSessionStates.BOUND_RX:
@@ -286,6 +387,16 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
     @defer.inlineCallbacks
     def doBindRequest(self, reqPDU, sessionState):
+        bind_type = reqPDU.commandId
+
+        # Update stats
+        if str(bind_type) == 'bind_transceiver':
+            self.factory.stats.inc('bind_trx_count')
+        elif str(bind_type) == 'bind_receiver':
+            self.factory.stats.inc('bind_rx_count')
+        elif str(bind_type) == 'bind_transmitter':
+            self.factory.stats.inc('bind_tx_count')
+
         # Check the authentication
         username, password = reqPDU.params['system_id'], reqPDU.params['password']
 
@@ -305,7 +416,6 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
             return
         
         # Check that username hasn't exceeded number of allowed binds
-        bind_type = reqPDU.commandId
         if not self.factory.canOpenNewConnection(auth_avatar, bind_type):
             self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (username, bind_type))
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, username)
@@ -316,8 +426,16 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.system_id = username
         self.sessionState = sessionState
         self.bind_type = bind_type
-        
+
         self.factory.addBoundConnection(self, self.user)
         bound_cnxns = self.factory.getBoundConnections(self.system_id)
         self.log.info('Bind request succeeded for %s in session [%s]. %d active binds' % (username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
         self.sendResponse(reqPDU, system_id=self.system_id)
+
+        # Update stats
+        if str(bind_type) == 'bind_transceiver':
+            self.factory.stats.inc('bound_trx_count')
+        elif str(bind_type) == 'bind_receiver':
+            self.factory.stats.inc('bound_rx_count')
+        elif str(bind_type) == 'bind_transmitter':
+            self.factory.stats.inc('bound_tx_count')

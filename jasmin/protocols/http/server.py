@@ -4,25 +4,32 @@ This is the http server module serving the /send API
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.protocols.http.errors import AuthenticationError, ServerError, RouteNotFoundError, ChargingError
-from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
+from .errors import (AuthenticationError, 
+                     ServerError, 
+                     RouteNotFoundError, 
+                     ChargingError,
+                     ThroughputExceededError,
+                    )
+from .validation import UrlArgsValidator, HttpAPICredentialValidator
+from .stats import HttpAPIStatsCollector
 
 LOG_CATEGORY = "jasmin-http-api"
 
 class Send(Resource):
-    def __init__(self, HTTPApiConfig, RouterPB, SMPPClientManagerPB, log):
+    def __init__(self, HTTPApiConfig, RouterPB, SMPPClientManagerPB, stats, log):
         Resource.__init__(self)
         
         self.SMPPClientManagerPB = SMPPClientManagerPB
         self.RouterPB = RouterPB
         self.log = log
-        
+        self.stats = stats
+
         # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
         self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
                                               long_content_split = HTTPApiConfig.long_content_split)
@@ -39,6 +46,9 @@ class Send(Resource):
                                                                            request.getClientIP()))
         response = {'return': None, 'status': 200}
         
+        self.stats.inc('request_count')
+        self.stats.set('last_request_at', datetime.now())
+
         # updated_request will be filled with default values where request will never get modified
         # updated_request is used for sending the SMS, request is just kept as an original request object
         updated_request = request
@@ -52,6 +62,8 @@ class Send(Resource):
                       'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
                       # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
+                      # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
+                      'validity-period' :{'optional': True,     'pattern': re.compile(r'^\d+$')},
                       'dlr'         :{'optional': False,    'pattern': re.compile(r'^(yes|no)$')},
                       'dlr-url'     :{'optional': True,     'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more through HttpAPICredentialValidator
@@ -91,6 +103,7 @@ class Send(Resource):
             # Authentication
             user = self.RouterPB.authenticateUser(username = updated_request.args['username'][0], password = updated_request.args['password'][0])
             if user is None:
+                self.stats.inc('auth_error_count')
                 self.log.debug("Authentication failure for username:%s and password:%s" % (updated_request.args['username'][0], updated_request.args['password'][0]))
                 self.log.error("Authentication failure for username:%s" % updated_request.args['username'][0])
                 raise AuthenticationError('Authentication failure for username:%s' % updated_request.args['username'][0])
@@ -121,6 +134,7 @@ class Send(Resource):
             routable = RoutableSubmitSm(SubmitSmPDU, user)
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
+                self.stats.inc('route_error_count')
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (user, SubmitSmPDU))
                 raise RouteNotFoundError("No route found")
 
@@ -135,20 +149,19 @@ class Send(Resource):
                 SubmitSmPDU.params['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s" % priority)
 
+            # Set validity_period
+            if 'validity-period' in updated_request.args:
+                delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
+                SubmitSmPDU.params['validity_period'] = datetime.today() + delta
+                self.log.debug("SubmitSmPDU validity_period is set to %s (+%s minutes)" % (
+                    SubmitSmPDU.params['validity_period'],
+                    updated_request.args['validity-period'][0]))
+
             # Set DLR bit mask
-            # c.f. 5.2.17 registered_delivery
-            ####################################################################
-            # dlr-level # Signification                  # registered_delivery #
-            ####################################################################
-            # 1         # SMS-C level                    # x x x x x x 1 0     #
-            # 2         # Terminal level (only)          # x x x x x x 0 1     #
-            # 3         # SMS-C level and Terminal level # x x x x x x 0 1     #
-            ####################################################################
+            # DLR setting is clearly described in #107
+            SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
             if updated_request.args['dlr'][0] == 'yes':
-                if updated_request.args['dlr-level'][0] == '1':
-                    SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
-                elif updated_request.args['dlr-level'][0] == '2' or updated_request.args['dlr-level'][0] == '3':
-                    SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+                SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
                 self.log.debug("SubmitSmPDU registered_delivery is set to %s" % str(SubmitSmPDU.params['registered_delivery']))
 
                 dlr_level = int(updated_request.args['dlr-level'][0])
@@ -165,9 +178,25 @@ class Send(Resource):
                 dlr_method = updated_request.args['dlr-method'][0]
             else:
                 dlr_url = None
-                dlr_level = 1
+                dlr_level = 0
                 dlr_level_text = 'No'
                 dlr_method = None
+
+            # QoS throttling
+            if user.mt_credential.getQuota('http_throughput') >= 0 and user.CnxStatus.httpapi['qos_last_submit_sm_at'] != 0:
+                qos_throughput_second = 1 / float(user.mt_credential.getQuota('http_throughput'))
+                qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+                qos_delay = datetime.now() - user.CnxStatus.httpapi['qos_last_submit_sm_at']
+                if qos_delay < qos_throughput_ysecond_td:
+                    self.stats.inc('throughput_error_count')
+                    self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
+                                qos_delay,
+                                qos_throughput_ysecond_td,
+                                user
+                                ))
+
+                    raise ThroughputExceededError("User throughput exceeded")
+            user.CnxStatus.httpapi['qos_last_submit_sm_at'] = datetime.now()
 
             # Get number of PDUs to be sent (for billing purpose)
             _pdu = SubmitSmPDU
@@ -195,6 +224,7 @@ class Send(Resource):
                                               (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
             if self.RouterPB.chargeUserForSubmitSms(user, bill, submit_sm_count, charging_requirements) is None:
+                self.stats.inc('charging_error_count')
                 self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] SubmitSmPDU (x%s)' % 
                                                                 (user, bill.bid, bill.getTotalAmounts(), submit_sm_count))
                 raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
@@ -213,9 +243,12 @@ class Send(Resource):
             
             # Build final response
             if not c.result:
+                self.stats.inc('server_error_count')
                 self.log.error('Failed to send SubmitSmPDU to [cid:%s]' % routedConnector.cid)
                 raise ServerError('Cannot send submit_sm, check SMPPClientManagerPB log file for details')
             else:
+                self.stats.inc('success_count')
+                self.stats.set('last_success_at', datetime.now())
                 self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s' % (routedConnector.cid, c.result))
                 response = {'return': c.result, 'status': 200}
         except Exception, e:
@@ -251,6 +284,10 @@ class HTTPApi(Resource):
         self.SMPPClientManagerPB = SMPPClientManagerPB
         self.RouterPB = RouterPB
 
+        # Setup stats collector
+        self.stats = HttpAPIStatsCollector().get()
+        self.stats.set('created_at', datetime.now())
+
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
@@ -263,4 +300,4 @@ class HTTPApi(Resource):
 
         # Set http url routings
         self.log.debug("Setting http url routing for /send")
-        self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.log))
+        self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.stats, self.log))

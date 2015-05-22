@@ -1,4 +1,5 @@
 import pickle
+import mock
 from twisted.internet import defer, reactor
 from test_jcli import jCliWithoutAuthTestCases
 from jasmin.protocols.smpp.test.smsc_simulator import *
@@ -31,7 +32,7 @@ class LastClientFactory(Factory):
         return self.lastClient
 
 class HappySMSCTestCase(SmppccmTestCases):
-    protocol = HappySMSC
+    protocol = HappySMSCRecorder
     
     @defer.inlineCallbacks
     def setUp(self):
@@ -619,6 +620,92 @@ class SMSCTestCases(HappySMSCTestCase):
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
+    def test_username(self):
+        """Testing for #105, will set username to an int value and start the connector to ensure
+        it is correctly encoded in bind pdu"""
+
+        # Add a connector, set systype and start it
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'username 999999'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        yield self.start_connector('operator_1')
+
+        # List and assert it is BOUND
+        expectedList = ['#Connector id                        Service Session          Starts Stops', 
+                        '#operator_1                          started BOUND_TRX        1      0    ', 
+                        'Total connectors: 1']
+        commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_update_username(self):
+        """Testing for #105, will set username to an int value and start the connector to ensure
+        it is correctly encoded in bind pdu"""
+
+        # Add a connector, set systype and start it
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        # Update the connector to set systype and start it
+        commands = [{'command': 'smppccm -u operator_1'},
+                    {'command': 'username 999999'},
+                    {'command': 'ok'}]
+        yield self._test(r'jcli : ', commands)
+        yield self.start_connector('operator_1')
+
+        # List and assert it is BOUND
+        expectedList = ['#Connector id                        Service Session          Starts Stops', 
+                        '#operator_1                          started BOUND_TRX        1      0    ', 
+                        'Total connectors: 1']
+        commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_password(self):
+        """Testing for #105, will set password to an int value and start the connector to ensure
+        it is correctly encoded in bind pdu"""
+
+        # Add a connector, set systype and start it
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'password 999999'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+        yield self.start_connector('operator_1')
+
+        # List and assert it is BOUND
+        expectedList = ['#Connector id                        Service Session          Starts Stops', 
+                        '#operator_1                          started BOUND_TRX        1      0    ', 
+                        'Total connectors: 1']
+        commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_update_password(self):
+        """Testing for #105, will set password to an int value and start the connector to ensure
+        it is correctly encoded in bind pdu"""
+
+        # Add a connector, set systype and start it
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        # Update the connector to set systype and start it
+        commands = [{'command': 'smppccm -u operator_1'},
+                    {'command': 'password 999999'},
+                    {'command': 'ok'}]
+        yield self._test(r'jcli : ', commands)
+        yield self.start_connector('operator_1')
+
+        # List and assert it is BOUND
+        expectedList = ['#Connector id                        Service Session          Starts Stops', 
+                        '#operator_1                          started BOUND_TRX        1      0    ', 
+                        'Total connectors: 1']
+        commands = [{'command': 'smppccm -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
     def test_quick_restart(self):
         "Testing for #68, restarting quickly a connector will loose its session state"
 
@@ -686,3 +773,30 @@ class SMSCTestCases(HappySMSCTestCase):
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_update_bind_ton_npi_and_address_range(self):
+        """Testing for #104, updating bind_ton & bind_npi through jcli must take effect"""
+
+        # Add a connector, set bind_ton
+        extraCommands = [{'command': 'cid operator_1'},
+                         {'command': 'bind_ton 1'},
+                         {'command': 'bind_npi 1'},
+                         {'command': 'addr_range ^32.*{6}$'},
+                         {'command': 'port %s' % self.SMSCPort.getHost().port},]
+        yield self.add_connector(r'jcli : ', extraCommands)
+
+        # Update connector and start it
+        commands = [{'command': 'smppccm -u operator_1'},
+                    {'command': 'bind_ton 5'}, # ALPHANUMERIC
+                    {'command': 'bind_npi 8'}, # NATIONAL
+                    {'command': 'addr_range ^34.*{6}$'}, # NATIONAL
+                    {'command': 'ok'}]
+        yield self._test(r'jcli : ', commands)
+        yield self.start_connector('operator_1')
+
+        # Assert bind_ton value
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.pduRecords))
+        self.assertEqual('ALPHANUMERIC', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_ton']))
+        self.assertEqual('NATIONAL', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_npi']))
+        self.assertEqual('^34.*{6}$', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['address_range']))

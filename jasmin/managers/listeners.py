@@ -111,10 +111,6 @@ class SMPPClientSMListener:
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
     
     @defer.inlineCallbacks
-    def setKeyExpiry(self, callbackArg, key, expiry):
-        yield self.redisClient.expire(key, expiry)
-
-    @defer.inlineCallbacks
     def submit_sm_callback(self, message):
         """This callback is a queue listener
         it is called whenever a message was consumed from queue
@@ -333,8 +329,9 @@ class SMPPClientSMListener:
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'httpapi',}
-                    self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                        self.setKeyExpiry, hashKey, dlr_expiry)
+                    self.redisClient.setex(hashKey, 
+                        dlr_expiry, 
+                        pickle.dumps(hashValues, self.pickleProtocol))
             elif pickledSmppsMap is not None:
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...' % (msgid))
 
@@ -342,6 +339,7 @@ class SMPPClientSMListener:
                 system_id = smpps_map['system_id']
                 source_addr = smpps_map['source_addr']
                 destination_addr = smpps_map['destination_addr']
+                sub_date = smpps_map['sub_date']
                 registered_delivery = smpps_map['registered_delivery']
                 smpps_map_expiry = smpps_map['expiry']
 
@@ -355,17 +353,21 @@ class SMPPClientSMListener:
                                                                                                        registered_delivery,
                                                                                                        system_id))
                     
-                    content = DLRContentForSmpps(str(r.response.status), 
-                                                 msgid, 
-                                                 system_id,
-                                                 source_addr,
-                                                 destination_addr)
+                    if (r.response.status != CommandStatus.ESME_ROK or 
+                        (r.response.status == CommandStatus.ESME_ROK and self.config.smpp_receipt_on_success_submit_sm_resp)):
+                        # Send back a receipt (by throwing deliver_sm or data_sm)
+                        content = DLRContentForSmpps(str(r.response.status), 
+                                                     msgid, 
+                                                     system_id,
+                                                     source_addr,
+                                                     destination_addr,
+                                                     sub_date)
 
-                    routing_key = 'dlr_thrower.smpps'
-                    self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (msgid, routing_key))
-                    yield self.amqpBroker.publish(exchange='messaging', 
-                                                  routing_key=routing_key, 
-                                                  content=content)
+                        routing_key = 'dlr_thrower.smpps'
+                        self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (msgid, routing_key))
+                        yield self.amqpBroker.publish(exchange='messaging', 
+                                                      routing_key=routing_key, 
+                                                      content=content)
 
                     # Map received submit_sm_resp's message_id to the msg for later rceipt handling
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
@@ -377,8 +379,9 @@ class SMPPClientSMListener:
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 
                                   'connector_type': 'smpps',}
-                    self.redisClient.set(hashKey, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                        self.setKeyExpiry, hashKey, smpps_map_expiry)
+                    self.redisClient.setex(hashKey, 
+                        smpps_map_expiry, 
+                        pickle.dumps(hashValues, self.pickleProtocol))
         else:
             self.log.warn('No valid RC were found while checking msg[%s] !' % msgid)
         
@@ -606,6 +609,7 @@ class SMPPClientSMListener:
                         system_id = smpps_map['system_id']
                         source_addr = smpps_map['source_addr']
                         destination_addr = smpps_map['destination_addr']
+                        sub_date = smpps_map['sub_date']
                         registered_delivery = smpps_map['registered_delivery']
                         smpps_map_expiry = smpps_map['expiry']
 
@@ -625,7 +629,8 @@ class SMPPClientSMListener:
                                                          submit_sm_queue_id, 
                                                          system_id,
                                                          source_addr,
-                                                         destination_addr)
+                                                         destination_addr,
+                                                         sub_date)
 
                             routing_key = 'dlr_thrower.smpps'
                             self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (submit_sm_queue_id, routing_key))

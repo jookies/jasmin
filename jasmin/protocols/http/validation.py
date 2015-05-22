@@ -31,7 +31,7 @@ class UrlArgsValidator:
                 fieldData = self.fields[field]
                     
                 if field in args:
-                    if isinstance(args[field][0], int):
+                    if isinstance(args[field][0], int) or isinstance(args[field][0], float):
                         value = str(args[field][0])
                     else:
                         value = args[field][0]
@@ -67,6 +67,8 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting source address is not authorized).' % self.user)
         if 'priority' in self.request.args and not self.user.mt_credential.getAuthorization('set_priority'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting priority is not authorized).' % self.user)
+        if 'validity-period' in self.request.args and not self.user.mt_credential.getAuthorization('set_validity_period'):
+            raise CredentialValidationError('Authorization failed for username [%s] (Setting validity period is not authorized).' % self.user)
         
     def _checkSendFilters(self):
         "MT Filters check"
@@ -80,6 +82,9 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
         if 'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or 
                                                 not self.user.mt_credential.getValueFilter('priority').match(str(self.request.args['priority'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (priority filter mismatch).' % self.user)
+        if 'validity-period' in self.request.args and (self.user.mt_credential.getValueFilter('validity_period') is None or 
+                                                not self.user.mt_credential.getValueFilter('validity_period').match(str(self.request.args['validity-period'][0]))):
+            raise CredentialValidationError('Value filter failed for username [%s] (validity_period filter mismatch).' % self.user)
         if (self.user.mt_credential.getValueFilter('content') is None or 
             not self.user.mt_credential.getValueFilter('content').match(str(self.request.args['content'][0]))):
             raise CredentialValidationError('Value filter failed for username [%s] (content filter mismatch).' % self.user)

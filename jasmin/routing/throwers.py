@@ -122,7 +122,7 @@ class Thrower(Service):
         self.thrower_q = yield self.amqpBroker.client.queue(self.consumerTag)
         self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
         self.log.info('Consuming from routing key: %s', self.routingKey)
-        
+
     def rejectAndRequeueMessage(self, message, delay = True):
         msgid = message.content.properties['message-id']
         
@@ -220,7 +220,7 @@ class deliverSmThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %s.' % (msgid, dc.cid, dc.baseurl, str(e)))
+            self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %r.' % (msgid, dc.cid, dc.baseurl, e))
             
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
@@ -271,7 +271,7 @@ class deliverSmThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
+            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %r.' % (msgid, system_id, e))
 
             # List of exceptions after which, no further retrying shall be made
             noRetryExceptions = [SmppsNotSetError]
@@ -326,7 +326,6 @@ class DLRThrower(Thrower):
         url = message.content.properties['headers']['url']
         method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
-        DLRContentForHttpapi = message.content.body
         self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
         
         # If any, clear requeuing timer
@@ -371,7 +370,7 @@ class DLRThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %s.' % (msgid, baseurl, str(e)))
+            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.' % (msgid, baseurl, e))
             
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
@@ -394,7 +393,7 @@ class DLRThrower(Thrower):
         message_status = message.content.properties['headers']['message_status']
         source_addr = message.content.properties['headers']['source_addr']
         destination_addr = message.content.properties['headers']['destination_addr']
-        DLRContentForSmpps = message.content.body
+        sub_date = message.content.properties['headers']['sub_date']
         self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
 
         # If any, clear requeuing timer
@@ -412,10 +411,12 @@ class DLRThrower(Thrower):
                 raise NoDelivererForSystemId(system_id)
 
             # Build the Receipt PDU (data_sm)
-            pdu = self.opFactory.getReceipt(msgid = msgid, 
+            pdu = self.opFactory.getReceipt(dlr_pdu = self.config.dlr_pdu,
+                                            msgid = msgid, 
                                             source_addr = source_addr, 
                                             destination_addr = destination_addr,
                                             message_status = message_status,
+                                            sub_date = sub_date,
                                             )
 
             # Deliver (or throw) the receipt through the deliverer
@@ -425,7 +426,7 @@ class DLRThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %s.' % (msgid, system_id, str(e)))
+            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.' % (msgid, system_id, e))
 
             # List of exceptions after which, no further retrying shall be made
             noRetryExceptions = [SmppsNotSetError]

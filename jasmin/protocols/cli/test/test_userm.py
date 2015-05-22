@@ -1,4 +1,5 @@
 import re
+from hashlib import md5
 from test_jcli import jCliWithoutAuthTestCases
 from jasmin.routing.jasminApi import MtMessagingCredential, SmppsCredential
     
@@ -73,8 +74,8 @@ class BasicTestCases(UserTestCases):
         extraCommands = [{'command': 'uid user_4'}]
         self.add_user('jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
 
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#user_4           AnyGroup         AnyUsername      ND      ND', 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
+                        '#user_4           AnyGroup         AnyUsername      ND      ND     ND/ND', 
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -94,16 +95,16 @@ class BasicTestCases(UserTestCases):
         self.add_user(r'jcli : ', extraCommands, GID = gid2, Username = username2)
 
         # List all users
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)),
-                        '#%s %s %s %s %s' % (uid2.ljust(16), gid2.ljust(16), username2.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)),
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
+                        '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)),
+                        '#%s %s %s %s %s %s' % (uid2.ljust(16), gid2.ljust(16), username2.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users: 2']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
     
         # List gid1 only users
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)),
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
+                        '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users in group \[%s\]\: 1' % gid1]
         commands = [{'command': 'user -l %s' % gid1, 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -125,19 +126,23 @@ class BasicTestCases(UserTestCases):
 
         expectedList = ['username %s' % username, 
                         'mt_messaging_cred defaultvalue src_addr None',
+                        'mt_messaging_cred quota http_throughput ND',
                         'mt_messaging_cred quota balance ND',
+                        'mt_messaging_cred quota smpps_throughput ND',
                         'mt_messaging_cred quota sms_count ND',
                         'mt_messaging_cred quota early_percent ND',
                         'mt_messaging_cred valuefilter priority \^\[0-3\]\$',
                         'mt_messaging_cred valuefilter content .*',
                         'mt_messaging_cred valuefilter src_addr .*',
                         'mt_messaging_cred valuefilter dst_addr .*',
+                        'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
+                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization priority True',
                         'mt_messaging_cred authorization http_long_content True',
-                        'mt_messaging_cred authorization src_addr True',
-                        'mt_messaging_cred authorization http_dlr_method True',
-                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_send True',
+                        'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization src_addr True',
+                        'mt_messaging_cred authorization validity_period True',
                         'mt_messaging_cred authorization smpps_send True',
                         'uid %s' % uid, 
                         'smpps_cred quota max_bindings ND',
@@ -225,19 +230,23 @@ class BasicTestCases(UserTestCases):
         # Show and assert
         expectedList = ['username %s' % username, 
                         'mt_messaging_cred defaultvalue src_addr None',
+                        'mt_messaging_cred quota http_throughput ND',
                         'mt_messaging_cred quota balance ND',
+                        'mt_messaging_cred quota smpps_throughput ND',
                         'mt_messaging_cred quota sms_count ND',
                         'mt_messaging_cred quota early_percent ND',
                         'mt_messaging_cred valuefilter priority \^\[0-3\]\$',
                         'mt_messaging_cred valuefilter content .*',
                         'mt_messaging_cred valuefilter src_addr .*',
                         'mt_messaging_cred valuefilter dst_addr .*',
+                        'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
+                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization priority True',
                         'mt_messaging_cred authorization http_long_content True',
-                        'mt_messaging_cred authorization src_addr True',
-                        'mt_messaging_cred authorization http_dlr_method True',
-                        'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_send True',
+                        'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization src_addr True',
+                        'mt_messaging_cred authorization validity_period True',
                         'mt_messaging_cred authorization smpps_send True',
                         'uid %s' % uid, 
                         'smpps_cred quota max_bindings ND',
@@ -266,8 +275,8 @@ class BasicTestCases(UserTestCases):
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
     
         # List
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s AnyGroup         AnyUsername      %s %s' % (uid.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)), 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
+                        '#%s AnyGroup         AnyUsername      %s %s %s' % (uid.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)), 
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -309,6 +318,28 @@ class BasicTestCases(UserTestCases):
         commands = [{'command': 'user -l', 'expect': r'Total Users: 0'}]
         return self._test(r'jcli : ', commands)
 
+    def test_crypted_password(self):
+        "Related to #103"
+        uid = 'user_14-1'
+        add_password = 'oldpassword'
+        update_password = 'newpassword'
+        extraCommands = [{'command': 'uid %s' % uid},
+                         {'command': 'password %s' % add_password}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        # assert password is store in crypted format
+        self.assertEqual(1, len(self.RouterPB_f.users))
+        self.assertEqual(md5(add_password).digest(), self.RouterPB_f.users[0].password)
+
+        commands = [{'command': 'user -u %s' % uid},
+                    {'command': 'password %s' % update_password},
+                    {'command': 'ok'}]
+        self._test(r'jcli : ', commands)
+
+        # assert password is store in crypted format
+        self.assertEqual(1, len(self.RouterPB_f.users))
+        self.assertEqual(md5(update_password).digest(), self.RouterPB_f.users[0].password)
+    
 class MtMessagingCredentialTestCases(UserTestCases):
 
     def _test_user_with_MtMessagingCredential(self, uid, gid, username, mtcred):
@@ -327,23 +358,37 @@ class MtMessagingCredentialTestCases(UserTestCases):
         else:
             assertEarlyPercent = str(float(mtcred.getQuota('early_decrement_balance_percent')))
 
+        if mtcred.getQuota('http_throughput') is None:
+            assertHttpThroughput = 'ND'
+        else:
+            assertHttpThroughput = str(int(mtcred.getQuota('http_throughput')))
+
+        if mtcred.getQuota('smpps_throughput') is None:
+            assertSmppsThroughput = 'ND'
+        else:
+            assertSmppsThroughput = str(int(mtcred.getQuota('smpps_throughput')))
+
         # Show and assert
         expectedList = ['username AnyUsername', 
                         'mt_messaging_cred defaultvalue src_addr %s' % mtcred.getDefaultValue('source_address'),
+                        'mt_messaging_cred quota http_throughput %s' % assertHttpThroughput,
                         'mt_messaging_cred quota balance %s' % assertBalance,
+                        'mt_messaging_cred quota smpps_throughput %s' % assertSmppsThroughput,
                         'mt_messaging_cred quota sms_count %s' % assertSmsCount,
                         'mt_messaging_cred quota early_percent %s' % assertEarlyPercent,
                         'mt_messaging_cred valuefilter priority %s' % re.escape(mtcred.getValueFilter('priority').pattern),
                         'mt_messaging_cred valuefilter content %s' % re.escape(mtcred.getValueFilter('content').pattern),
                         'mt_messaging_cred valuefilter src_addr %s' % re.escape(mtcred.getValueFilter('source_address').pattern),
                         'mt_messaging_cred valuefilter dst_addr %s' % re.escape(mtcred.getValueFilter('destination_address').pattern),
+                        'mt_messaging_cred valuefilter validity_period %s' % re.escape(mtcred.getValueFilter('validity_period').pattern),
+                        'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
                         'mt_messaging_cred authorization priority %s' % mtcred.getAuthorization('set_priority'),
                         'mt_messaging_cred authorization http_long_content %s' % mtcred.getAuthorization('http_long_content'),
-                        'mt_messaging_cred authorization src_addr %s' % mtcred.getAuthorization('set_source_address'),
-                        'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
-                        'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
                         'mt_messaging_cred authorization http_send %s' % mtcred.getAuthorization('http_send'),
-                        'mt_messaging_cred authorization smpps_send True',
+                        'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
+                        'mt_messaging_cred authorization src_addr %s' % mtcred.getAuthorization('set_source_address'),
+                        'mt_messaging_cred authorization validity_period %s' % mtcred.getAuthorization('set_validity_period'),
+                        'mt_messaging_cred authorization smpps_send %s' % mtcred.getAuthorization('smpps_send'),
                         'uid user_1', 
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
@@ -448,12 +493,16 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('http_set_dlr_method', False)
         _cred.setAuthorization('set_source_address', False)
         _cred.setAuthorization('set_priority', False)
+        _cred.setAuthorization('set_validity_period', False)
         _cred.setValueFilter('destination_address', '^HELLO$')
         _cred.setValueFilter('source_address', '^World$')
         _cred.setValueFilter('priority', '^1$')
+        _cred.setValueFilter('validity_period', '^1$')
         _cred.setValueFilter('content', '[0-9].*')
         _cred.setDefaultValue('source_address', 'BRAND NAME')
         _cred.setQuota('balance', 40.3)
+        _cred.setQuota('http_throughput', 2.2)
+        _cred.setQuota('smpps_throughput', 0.5)
 
         # Assert User adding
         extraCommands = [{'command': 'uid user_1'},
@@ -463,12 +512,17 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization http_dlr_method NO'},
                          {'command': 'mt_messaging_cred authorization src_addr false'},
                          {'command': 'mt_messaging_cred authorization priority f'},
+                         {'command': 'mt_messaging_cred authorization validity_period f'},
                          {'command': 'mt_messaging_cred valuefilter dst_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^World$'},
                          {'command': 'mt_messaging_cred valuefilter priority ^1$'},
+                         {'command': 'mt_messaging_cred valuefilter validity_period ^1$'},
                          {'command': 'mt_messaging_cred valuefilter content [0-9].*'},
                          {'command': 'mt_messaging_cred defaultvalue src_addr BRAND NAME'},
-                         {'command': 'mt_messaging_cred quota balance 40.3'}]
+                         {'command': 'mt_messaging_cred quota balance 40.3'},
+                         {'command': 'mt_messaging_cred quota http_throughput 2.2'},
+                         {'command': 'mt_messaging_cred quota smpps_throughput 0.5'},
+                        ]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 
@@ -479,9 +533,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('http_set_dlr_method', True)
         _cred.setAuthorization('set_source_address', True)
         _cred.setAuthorization('set_priority', True)
+        _cred.setAuthorization('set_validity_period', True)
         _cred.setValueFilter('destination_address', '^WORLD$')
         _cred.setValueFilter('source_address', '^HELLO$')
         _cred.setValueFilter('priority', '^2$')
+        _cred.setValueFilter('validity_period', '^2$')
         _cred.setValueFilter('content', '[2-6].*')
         _cred.setDefaultValue('source_address', 'SEXY NAME')
         _cred.setQuota('balance', 66)
@@ -491,9 +547,11 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization http_dlr_method YES'},
                          {'command': 'mt_messaging_cred authorization src_addr true'},
                          {'command': 'mt_messaging_cred authorization priority t'},
+                         {'command': 'mt_messaging_cred authorization validity_period t'},
                          {'command': 'mt_messaging_cred valuefilter dst_addr ^WORLD$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter priority ^2$'},
+                         {'command': 'mt_messaging_cred valuefilter validity_period ^2$'},
                          {'command': 'mt_messaging_cred valuefilter content [2-6].*'},
                          {'command': 'mt_messaging_cred defaultvalue src_addr SEXY NAME'},
                          {'command': 'mt_messaging_cred quota balance 66'}]
@@ -545,6 +603,10 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Show and assert
         expectedList = ['username AnyUsername', 
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',

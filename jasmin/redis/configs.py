@@ -11,10 +11,10 @@ class RedisForJasminConfig(ConfigFile):
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
         
-        self.host = self._getint('redis-client', 'host', '127.0.0.1')
+        self.host = self._get('redis-client', 'host', '127.0.0.1')
         self.port = self._getint('redis-client', 'port', 6379)
         self.dbid = self._getint('redis-client', 'dbid', '1')
-        self.password = self._getint('redis-client', 'password', None)
+        self.password = self._get('redis-client', 'password', None)
         self.poolsize = self._getint('redis-client', 'poolsize', 10)
         
         self.log_level = logging.getLevelName(self._get('redis-client', 'log_level', 'INFO'))

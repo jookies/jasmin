@@ -2,12 +2,17 @@
 import struct
 import math
 import re
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM
+import datetime
+import dateutil
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, 
-                                            EsmClassType, EsmClassGsmFeatures, 
-                                            MoreMessagesToSend, MessageState,
-                                            EsmClass, EsmClassMode, EsmClassType)
+from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, 
+                                            EsmClassMode, 
+                                            EsmClassType, 
+                                            EsmClassGsmFeatures, 
+                                            MoreMessagesToSend, 
+                                            MessageState
+                                            )
 
 class UnknownMessageStatusError(Exception):
     """Raised when message_status is not recognized
@@ -48,7 +53,7 @@ class SMPPOperationFactory():
         # Example of DLR content
         # id:IIIIIIIIII sub:SSS dlvrd:DDD submit date:YYMMDDhhmm done
         # date:YYMMDDhhmm stat:DDDDDDD err:E text: . . . . . . . . .
-        pattern = r"^id:(?P<id>[\dA-F]+) sub:(?P<sub>\d{3}) dlvrd:(?P<dlvrd>\d{3}) submit date:(?P<sdate>\d+) done date:(?P<ddate>\d+) stat:(?P<stat>\w{7}) err:(?P<err>\w{3}) text:(?P<text>.*)"
+        pattern = r"^id:(?P<id>[\dA-Za-z-_]+) sub:(?P<sub>\d{3}) dlvrd:(?P<dlvrd>\d{3}) submit date:(?P<sdate>\d+) done date:(?P<ddate>\d+) stat:(?P<stat>\w{7}) err:(?P<err>\w{3}) text:(?P<text>.*)"
         m = re.search(pattern, DeliverSM.params['short_message'], flags=re.IGNORECASE)
         if m is not None:
             ret = m.groupdict()
@@ -148,46 +153,68 @@ class SMPPOperationFactory():
         
         return pdu
 
-    def getReceipt(self, msgid, source_addr, destination_addr, message_status):
-        "Will build a DataSm containing a receipt data"
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
+        "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
-        # Build pdu
-        pdu = DataSM(
-            source_addr = source_addr,
-            destination_addr = destination_addr,
-            esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
-            receipted_message_id = msgid,
-        )
-
-        # Set pdu.message_state
+        # Prepare message_state
         if message_status[:5] == 'ESME_':
-            # It is a receipt catched from a submit_sm_resp
             if message_status == 'ESME_ROK':
-                pdu.params['message_state'] = MessageState.ACCEPTED
+                message_state = MessageState.ACCEPTED
+                err = 0
             else:
-                pdu.params['message_state'] = MessageState.UNDELIVERABLE
+                message_state = MessageState.UNDELIVERABLE
+                err = 10
         elif message_status == 'UNDELIV':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.UNDELIVERABLE
+            message_state = MessageState.UNDELIVERABLE
+            err = 10
         elif message_status == 'REJECTD':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.REJECTED
+            message_state = MessageState.REJECTED
+            err = 20
         elif message_status == 'DELIVRD':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.DELIVERED
+            err = 0
+            message_state = MessageState.DELIVERED
         elif message_status == 'EXPIRED':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.EXPIRED
+            err = 30
+            message_state = MessageState.EXPIRED
         elif message_status == 'DELETED':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.DELETED
+            err = 40
+            message_state = MessageState.DELETED
         elif message_status == 'ACCEPTD':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.ACCEPTED
+            err = 0
+            message_state = MessageState.ACCEPTED
         elif message_status == 'UNKNOWN':
-            # It is a receipt catched from a deliver_sm
-            pdu.params['message_state'] = MessageState.UNKNOWN
+            err = 50
+            message_state = MessageState.UNKNOWN
         else:
             raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)
+
+        # Build pdu
+        if dlr_pdu == 'deliver_sm':
+            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+                msgid,
+                dateutil.parser.parse(sub_date).strftime("%Y%m%d%H%M"),
+                datetime.datetime.now().strftime("%Y%m%d%H%M"),
+                message_state,
+                err,
+            )
+
+            # Build DeliverSM pdu
+            pdu = DeliverSM(
+                source_addr = destination_addr,
+                destination_addr = source_addr,
+                esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+                receipted_message_id = msgid,
+                short_message = short_message,
+                message_state = message_state,
+            )
+        else:
+            # Build DataSM pdu
+            pdu = DataSM(
+                source_addr = destination_addr,
+                destination_addr = source_addr,
+                esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+                receipted_message_id = msgid,
+                message_state = message_state,
+            )
 
         return pdu

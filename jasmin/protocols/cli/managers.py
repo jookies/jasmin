@@ -58,6 +58,11 @@ class Manager:
         'Tab completition is disabled inside a session'
         self.lineBuffer = ''
         
+    def __init__(self, protocol, pb):
+        self.protocol = protocol
+        self.pb = pb
+
+class PersistableManager(Manager):
     def persist(self, arg, opts):
         'Must be implemeted by manager to persist current configuration to disk'
         raise NotImplementedError
@@ -65,7 +70,3 @@ class Manager:
     def load(self, arg, opts):
         'Must be implemeted by manager to reload  current configuration to disk'
         raise NotImplementedError
-
-    def __init__(self, protocol, pb):
-        self.protocol = protocol
-        self.pb = pb

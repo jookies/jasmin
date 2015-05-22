@@ -10,8 +10,16 @@ class NoSubmitSmWhenReceiverIsBoundSMSC(HappySMSC):
         self.sendResponse(reqPDU, CommandStatus.ESME_RINVBNDSTS)
         
 class HappySMSCRecorder(HappySMSC):
-    submitRecords = []
+    def __init__(self):
+        HappySMSC.__init__(self)
+
+        self.pduRecords = []
+        self.submitRecords = []
     
+    def PDUReceived( self, pdu ):
+        HappySMSC.PDUReceived( self, pdu )
+        self.pduRecords.append(pdu)
+
     def handleSubmit(self, reqPDU):
         self.submitRecords.append(reqPDU)
         self.sendSuccessResponse(reqPDU)

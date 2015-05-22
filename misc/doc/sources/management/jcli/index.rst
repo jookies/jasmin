@@ -79,6 +79,8 @@ on the Perspective brokers used and the actions they are exposing:
 
 .. note:: (*): These actions are not exposed through jCli
 
+.. hint:: **SMPPClientManagerPB** and **RouterPB** are available for third party applications to implement specific business processes, there's a :ref:`FAQ subject including an example <faq_2_HtdatPBA>` of how an external application can use these Perspective Brokers.
+
 .. _configuration_jcli:
 
 Configuration

@@ -1,8 +1,10 @@
+from datetime import datetime
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 from twisted_web_test_utils import DummySite
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
+from jasmin.protocols.http.stats import HttpAPIStatsCollector
 from jasmin.routing.router import RouterPB
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.managers.clients import SMPPClientManagerPB
@@ -82,13 +84,38 @@ class SendTestCases(HTTPApiTestCases):
             self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Priority definitions
-        valid_priorities = {-1, 'a', 44, 4}
+        invalid_priorities = {-1, 'a', 44, 4}
         
-        for params['priority'] in valid_priorities:
+        for params['priority'] in invalid_priorities:
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(), 'Error "Argument [priority] has an invalid value: [%s]."' % params['priority'])
+
+    @defer.inlineCallbacks
+    def test_send_with_validity_period(self):
+        params = {'username': self.username, 
+                  'password': 'correct',
+                  'to': '98700177',
+                  'content': 'anycontent'}
+
+        # Validity period definitions
+        valid_vps = {0, 1, 2, 3, 4000}
+        
+        for params['validity-period'] in valid_vps:
+            response = yield self.web.get("send", params)
+            self.assertEqual(response.responseCode, 500)
+            # This is a normal error since SMPPClientManagerPB is not really running
+            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+        # Validity period definitions
+        invalid_vps = {-1, 'a', 1.0}
+        
+        for params['validity-period'] in invalid_vps:
+            response = yield self.web.get("send", params)
+            self.assertEqual(response.responseCode, 400)
+            # This is a normal error since SMPPClientManagerPB is not really running
+            self.assertEqual(response.value(), 'Error "Argument [validity-period] has an invalid value: [%s]."' % params['validity-period'])
 
     @defer.inlineCallbacks
     def test_send_with_inurl_dlr(self):
@@ -142,3 +169,70 @@ class SendTestCases(HTTPApiTestCases):
         response = yield self.web.get("send", {'username': self.username})
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
+
+class StatsTestCases(HTTPApiTestCases):
+    username = 'fourat'
+
+    def setUp(self):
+      HTTPApiTestCases.setUp(self)
+
+      # Re-init stats singleton collector
+      created_at = HttpAPIStatsCollector().get().get('created_at')
+      HttpAPIStatsCollector().get().init()
+      HttpAPIStatsCollector().get().set('created_at', created_at)
+
+    @defer.inlineCallbacks
+    def test_send_with_auth_failure(self):
+        stats = HttpAPIStatsCollector().get()
+
+        self.assertTrue(type(stats.get('created_at')) == datetime)
+        self.assertEqual(stats.get('request_count'), 0)
+        self.assertEqual(stats.get('last_request_at'), 0)
+        self.assertEqual(stats.get('auth_error_count'), 0)
+        self.assertEqual(stats.get('route_error_count'), 0)
+        self.assertEqual(stats.get('throughput_error_count'), 0)
+        self.assertEqual(stats.get('charging_error_count'), 0)
+        self.assertEqual(stats.get('server_error_count'), 0)
+        self.assertEqual(stats.get('success_count'), 0)
+        self.assertEqual(stats.get('last_success_at'), 0)
+
+        response = yield self.web.get("send", {'username': self.username, 
+                                               'password': 'incorrect',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+
+        self.assertTrue(type(stats.get('created_at')) == datetime)
+        self.assertEqual(stats.get('request_count'), 1)
+        self.assertTrue(type(stats.get('last_request_at')) == datetime)
+        self.assertEqual(stats.get('auth_error_count'), 1)
+        self.assertEqual(stats.get('route_error_count'), 0)
+        self.assertEqual(stats.get('throughput_error_count'), 0)
+        self.assertEqual(stats.get('charging_error_count'), 0)
+        self.assertEqual(stats.get('server_error_count'), 0)
+        self.assertEqual(stats.get('success_count'), 0)
+        self.assertEqual(stats.get('last_success_at'), 0)
+
+    @defer.inlineCallbacks
+    def test_send_with_auth_success(self):
+        stats = HttpAPIStatsCollector().get()
+
+        response = yield self.web.get("send", {'username': self.username, 
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 500)
+        # This is a normal error since SMPPClientManagerPB is not really running
+        self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+        self.assertTrue(type(stats.get('created_at')) == datetime)
+        self.assertEqual(stats.get('request_count'), 1)
+        self.assertTrue(type(stats.get('last_request_at')) == datetime)
+        self.assertEqual(stats.get('auth_error_count'), 0)
+        self.assertEqual(stats.get('route_error_count'), 0)
+        self.assertEqual(stats.get('throughput_error_count'), 0)
+        self.assertEqual(stats.get('charging_error_count'), 0)
+        self.assertEqual(stats.get('server_error_count'), 1)
+        self.assertEqual(stats.get('success_count'), 0)
+        self.assertEqual(stats.get('last_success_at'), 0)
