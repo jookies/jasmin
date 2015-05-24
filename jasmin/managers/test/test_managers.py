@@ -26,6 +26,13 @@ from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from jasmin.managers.proxies import ConnectError
 
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
+
 class SMPPClientPBTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self, authentication = False):
@@ -565,12 +572,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.start(self.defaultConfig.id)
 
         # Wait for 'BOUND_TRX' state
-        while True:
-            ssRet = yield self.session_state(self.defaultConfig.id)
-            if ssRet == 'BOUND_TRX':
-                break;
-            else:
-                time.sleep(0.2)
+        yield waitFor(2)
 
         # Send submit_sm
         assertionKey = str(randint(10000, 99999999999))
@@ -579,17 +581,12 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
         
         # Wait 2 seconds
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(2, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(2)
 
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(self.defaultConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(self.defaultConfig.id)
+        yield waitFor(2)
             
         # Assertions
         # There were a connection to the SMSC
@@ -631,9 +628,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
 
             # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(1, waitingDeferred.callback, None)
-            yield waitingDeferred
+            yield waitFor(1)
 
             counter += 1
         endAt = datetime.now()
@@ -641,14 +636,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(localConfig.id)
-        while ssRet != 'NONE':
-            # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(0.5, waitingDeferred.callback, None)
-            yield waitingDeferred
-
-            ssRet = yield self.session_state(localConfig.id)
+        yield waitFor(2)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message
@@ -689,9 +677,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             _receivedSubmitsCount = len(receivedSubmits)
 
             # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(1, waitingDeferred.callback, None)
-            yield waitingDeferred
+            yield waitFor(1)
 
             counter += 1
         endAt = datetime.now()
@@ -699,14 +685,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(localConfig.id)
-        while ssRet != 'NONE':
-            # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(0.5, waitingDeferred.callback, None)
-            yield waitingDeferred
-
-            ssRet = yield self.session_state(localConfig.id)
+        yield waitFor(2)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message
@@ -735,49 +714,29 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             submitCounter += 1
             
         # Wait for 2 seconds before stopping
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(2, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(2)
         
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(localConfig.id)
-        while ssRet != 'NONE':
-            # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(0.5, waitingDeferred.callback, None)
-            yield waitingDeferred
-
-            ssRet = yield self.session_state(localConfig.id)
+        yield waitFor(2)
 
         # Save the count before starting the connector
         _submitRecordsCount = len(self.SMSCPort.factory.lastClient.submitRecords)
 
         # Wait for 3 seconds before starting again
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(3, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(3)
 
         # Start the connector again
         yield self.start(localConfig.id)
 
         # Wait for 5 seconds before stopping , all the rest of the queue must be sent
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(5, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(5)
 
         yield self.stop(localConfig.id)    
 
         # Wait for unbound state
-        ssRet = yield self.session_state(localConfig.id)
-        while ssRet != 'NONE':
-            # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(0.5, waitingDeferred.callback, None)
-            yield waitingDeferred
-
-            ssRet = yield self.session_state(localConfig.id)
+        yield waitFor(2)
 
         # Update the counter
         _submitRecordsCount+= len(self.SMSCPort.factory.lastClient.submitRecords)
@@ -807,29 +766,18 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             submitCounter += 1
 
         # Wait for 3 seconds
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(3, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(3)
 
         # Start the connector again
         yield self.start(localConfig.id)
 
         # Wait for 15 seconds, all the rest of the queue must be sent
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(15, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(15)
 
         yield self.stop(localConfig.id)    
 
         # Wait for unbound state
-        ssRet = yield self.session_state(localConfig.id)
-        while ssRet != 'NONE':
-            # Wait some time
-            waitingDeferred = defer.Deferred()
-            reactor.callLater(0.5, waitingDeferred.callback, None)
-            yield waitingDeferred
-
-            ssRet = yield self.session_state(localConfig.id)
+        yield waitFor(2)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message
@@ -855,17 +803,12 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             submitCounter += 1
         
         # Wait 5 seconds
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(5, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(5)
         
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(localConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(localConfig.id)
+        yield waitFor(2)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message.
@@ -894,12 +837,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         yield self.start(self.defaultConfig.id)
 
         # Wait for 'BOUND_TRX' state
-        while True:
-            ssRet = yield self.session_state(self.defaultConfig.id)
-            if ssRet == 'BOUND_TRX':
-                break;
-            else:
-                time.sleep(0.2)
+        yield waitFor(2)
 
         # Build a long submit_sm
         assertionKey = str(randint(10, 99)) * 100 + 'EOF' # 203 chars
@@ -915,17 +853,12 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU)
         
         # Wait 2 seconds
-        waitingDeferred = defer.Deferred()
-        reactor.callLater(2, waitingDeferred.callback, None)
-        yield waitingDeferred
+        yield waitFor(2)
 
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(self.defaultConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(self.defaultConfig.id)
+        yield waitFor(2)
         
         
         # Assertions
@@ -975,12 +908,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         # Give the reactor a run
         yield self.session_state(self.defaultConfig.id)
         # Wait for 'BOUND_TRX' state
-        while True:
-            ssRet = yield self.session_state(self.defaultConfig.id)
-            if ssRet == 'BOUND_TRX':
-                break;
-            else:
-                time.sleep(0.2)
+        yield waitFor(2)
 
         # Listen on the deliver.sm queue
         queueName = 'deliver.sm.%s' % self.defaultConfig.id
@@ -992,10 +920,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(self.defaultConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(self.defaultConfig.id)
+        yield waitFor(2)
 
         # Assertions
         self.assertTrue(self.receivedDeliverSm is not None)
@@ -1020,10 +945,7 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
-        ssRet = yield self.session_state(self.defaultConfig.id)
-        while ssRet != 'NONE':
-            time.sleep(0.2)
-            ssRet = yield self.session_state(self.defaultConfig.id)
+        yield waitFor(2)
         
         cDetails = yield self.connector_details(self.defaultConfig.id)
         self.assertEqual(1, cDetails['stop_count'])
