@@ -34,8 +34,9 @@ class SMPPClientSMListener:
         self.submit_sm_q = None
         self.qos_last_submit_sm_at = None
         self.rejectTimers = {}
+        self.submit_retrials = {}
         self.qosTimer = None
-        
+
         # Set pickleProtocol
         self.pickleProtocol = SMPPClientPBConfig(self.config.config_file).pickle_protocol
 
@@ -80,14 +81,14 @@ class SMPPClientSMListener:
         msgid = message.content.properties['message-id']
         
         if delay != False:
-            self.log.debug("Requeuing SubmitSmPDU[%s] in %s seconds" % 
-                           (msgid, self.SMPPClientFactory.config.requeue_delay))
-
             # Use configured requeue_delay or specific one
             if delay is not bool:
                 requeue_delay = delay
             else:
                 requeue_delay = self.SMPPClientFactory.config.requeue_delay
+
+            self.log.debug("Requeuing SubmitSmPDU[%s] in %s seconds" % 
+                           (msgid, requeue_delay))
 
             # Requeue the message with a delay
             t = reactor.callLater(requeue_delay, 
@@ -122,6 +123,12 @@ class SMPPClientSMListener:
         self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
 
         self.log.debug("Callbacked a submit_sm with a SubmitSmPDU[%s] (?): %s" % (msgid, SubmitSmPDU))
+
+        # Update submit_sm retrial tracker
+        if msgid in self.submit_retrials:
+            self.submit_retrials[msgid]+= 1
+        else:
+            self.submit_retrials[msgid] = 1
 
         if self.qos_last_submit_sm_at is None:
             self.qos_last_submit_sm_at = datetime(1970, 1, 1)    
@@ -181,6 +188,7 @@ class SMPPClientSMListener:
     def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
         total_bill_amount = None
+        will_be_retried = False
         
         if ('headers' not in amqpMessage.content.properties or 
             'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
@@ -189,6 +197,9 @@ class SMPPClientSMListener:
             submit_sm_resp_bill = pickle.loads(amqpMessage.content.properties['headers']['submit_sm_resp_bill'])
         
         if r.response.status == CommandStatus.ESME_ROK:
+            # No more retrials !
+            del self.submit_retrials[msgid]
+
             # Get bill information
             total_bill_amount = 0.0
             if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
@@ -246,11 +257,23 @@ class SMPPClientSMListener:
                            short_message
                            ))
         else:
-            self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
+            # Message must be retried ?
+            if str(r.response.status) in self.config.submit_error_retrial:
+                retrial = self.config.submit_error_retrial[str(r.response.status)]
+
+                # Still have some retrys to go ?
+                if self.submit_retrials[msgid] < retrial['count']:
+                    # Requeue the message for later redelivery
+                    yield self.rejectAndRequeueMessage(amqpMessage, delay = retrial['delay'])
+                    will_be_retried = True
+
+            # Log the message
+            self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (
                            self.SMPPClientFactory.config.id,
                            msgid,
                            r.response.status,
+                           will_be_retried,
                            amqpMessage.content.properties['priority'],
                            r.request.params['registered_delivery'].receipt,
                            'none' if ('headers' not in amqpMessage.content.properties 
@@ -261,14 +284,16 @@ class SMPPClientSMListener:
                            r.request.params['short_message']
                            ))
 
-        # Cancel any mapped rejectTimer to this message (in case this message was rejected in the past)
-        self.clearRejectTimer(msgid)
-
-        self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]", msgid, amqpMessage.routing_key)
-        # ACK the message in queue, this will remove it from the queue
-        yield self.ackMessage(amqpMessage)
+        # It is a final submit_sm_resp !
+        if not will_be_retried:
+            # Cancel any mapped rejectTimer to this message (in case this message was rejected in the past)
+            self.clearRejectTimer(msgid)
+            self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]", msgid, amqpMessage.routing_key)
+            # ACK the message in queue, this will remove it from the queue
+            yield self.ackMessage(amqpMessage)
         
         # Redis client is connected ?
+        # Check DLR mappings and publish receipt for later throwing
         if self.redisClient is not None:
             # Check for HTTP DLR request from redis 'dlr' key
             # If there's a pending delivery receipt request then serve it
@@ -318,8 +343,8 @@ class SMPPClientSMListener:
                 else:
                     self.log.debug('Terminal level receipt is requested, will not send any DLR receipt at this level.')
                 
-                if dlr_level in [2, 3]:
-                    # Map received submit_sm_resp's message_id to the msg for later rceipt handling
+                if dlr_level in [2, 3] and r.response.status == CommandStatus.ESME_ROK:
+                    # Map received submit_sm_resp's message_id to the msg for later receipt handling
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
                                     r.response.params['message_id'],
                                     msgid, 
@@ -369,19 +394,20 @@ class SMPPClientSMListener:
                                                       routing_key=routing_key, 
                                                       content=content)
 
-                    # Map received submit_sm_resp's message_id to the msg for later rceipt handling
-                    self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
-                                    r.response.params['message_id'],
-                                    msgid, 
-                                    smpps_map_expiry
-                                    )
-                                   )
-                    hashKey = "queue-msgid:%s" % r.response.params['message_id']
-                    hashValues = {'msgid': msgid, 
-                                  'connector_type': 'smpps',}
-                    self.redisClient.setex(hashKey, 
-                        smpps_map_expiry, 
-                        pickle.dumps(hashValues, self.pickleProtocol))
+                    if r.response.status == CommandStatus.ESME_ROK:
+                        # Map received submit_sm_resp's message_id to the msg for later rceipt handling
+                        self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
+                                        r.response.params['message_id'],
+                                        msgid, 
+                                        smpps_map_expiry
+                                        )
+                                       )
+                        hashKey = "queue-msgid:%s" % r.response.params['message_id']
+                        hashValues = {'msgid': msgid, 
+                                      'connector_type': 'smpps',}
+                        self.redisClient.setex(hashKey, 
+                            smpps_map_expiry, 
+                            pickle.dumps(hashValues, self.pickleProtocol))
         else:
             self.log.warn('No valid RC were found while checking msg[%s] !' % msgid)
         
@@ -405,6 +431,9 @@ class SMPPClientSMListener:
             yield self.amqpBroker.publish(exchange='messaging', 
                                           routing_key=amqpMessage.content.properties['reply-to'], 
                                           content=content)
+
+        if will_be_retried:
+            defer.returnValue(False)
 
     def submit_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
