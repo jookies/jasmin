@@ -56,3 +56,14 @@ If for some reasons you cannot consider these practices, here's a simple iptable
   iptables -A RULE_SMPP -j DROP
 
 This will drop any SMPP Connection request coming from the same source IP with more than 3 times per minute ...
+
+.. _faq_1_DJpictd:
+
+Does Jasmin persist its configuration to disk ?
+***********************************************
+
+Since everything in Jasmin runs fully in-memory, what will happen if i restart Jasmin or if it crashes for some reason ? how can i ensure my configuration (Connectors, Users, Routes, Filters ...) will be reloaded with the same state they were in before Jasmin goes off ?
+
+Jasmin is doing everything in-memory for performance reasons, and is automatically persisting newly updated configurations every **persistence_timer_secs** seconds as defined in jasmin.cfg file.
+
+.. important:: Set **persistence_timer_secs** to a reasonable value, keep in mind that every disk-access operation will cost you few performance points, and don’t set it too high as you can loose critical updates such as User balance updates.
