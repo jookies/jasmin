@@ -548,8 +548,6 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         self.assertEqual(cnfRet.id, localConfig.id)
 
 class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
-    receivedSubmitSmResp = None
-    
     @defer.inlineCallbacks
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)
@@ -816,9 +814,84 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # will lead to rejecting 3 expired messages from the queue
         self.assertApproximates(len(self.SMSCPort.factory.lastClient.submitRecords), 2, 1)
 
+class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SMSCSimulatorRecorder.setUp(self)
+
+        self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
+        
+        config = SMPPClientConfig(id='defaultId')
+        opFactory = SMPPOperationFactory(config)
+        self.SubmitSmPDU = opFactory.SubmitSM(
+            source_addr='1423',
+            destination_addr='98700177',
+            short_message='Hello world !',
+        )
+
+    @defer.inlineCallbacks
+    def test_ESME_RSYSERR(self):
+        """Ensure that errors specified in jasmin.cfg's submit_error_retrial parameter
+        are retried.
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+
+        # Wait for 'BOUND_TRX' state
+        yield waitFor(2)
+
+        # Send submit_sm
+        SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
+        SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RSYSERR'
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
+        
+        # Wait
+        yield waitFor(70)
+
+        yield self.stop(self.defaultConfig.id)
+
+        # Wait for unbound state
+        yield waitFor(2)
+            
+        # Assertions
+        receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
+        # By default, ESME_RSYSERR is retried 2 times in 70s
+        self.assertEqual(len(receivedSubmits), 2)
+
+    @defer.inlineCallbacks
+    def test_ESME_RREPLACEFAIL(self):
+        """Ensure that errors NOT specified in jasmin.cfg's submit_error_retrial parameter
+        are not retried.
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        yield self.add(self.defaultConfig)
+        yield self.start(self.defaultConfig.id)
+
+        # Wait for 'BOUND_TRX' state
+        yield waitFor(2)
+
+        # Send submit_sm
+        SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
+        SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RREPLACEFAIL'
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
+        
+        # Wait
+        yield waitFor(70)
+
+        yield self.stop(self.defaultConfig.id)
+
+        # Wait for unbound state
+        yield waitFor(2)
+            
+        # Assertions
+        receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
+        # By default, ESME_RREPLACEFAIL is not retried !
+        self.assertEqual(len(receivedSubmits), 1)
+
 class LoggingTestCases(SMSCSimulatorRecorder):
-    receivedSubmitSmResp = None
-    
     @defer.inlineCallbacks
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)

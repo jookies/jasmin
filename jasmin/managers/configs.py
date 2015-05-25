@@ -2,8 +2,9 @@
 Config file handlers for 'client-management' and 'sm-listener' section in jasmin.conf
 """
 
-from jasmin.config.tools import ConfigFile
 import logging
+import ast
+from jasmin.config.tools import ConfigFile
 
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 
@@ -62,6 +63,15 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.smpp_receipt_on_success_submit_sm_resp = self._getbool('sm-listener', 
                                                                     'smpp_receipt_on_success_submit_sm_resp', 
                                                                     False)
+
+        self.submit_error_retrial = ast.literal_eval(
+                self._get('sm-listener', 'submit_error_retrial', """{
+                            'ESME_RSYSERR':         {'count': 2, 'delay': 30},
+                            'ESME_RTHROTTLED':      {'count': 6, 'delay': 5},
+                            'ESME_RMSGQFUL':        {'count': 2, 'delay': 180},
+                            'ESME_RINVSCHED':       {'count': 2, 'delay': 300},
+                       }""")
+            )
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 
