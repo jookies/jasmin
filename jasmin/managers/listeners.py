@@ -267,7 +267,6 @@ class SMPPClientSMListener:
                     yield self.rejectAndRequeueMessage(amqpMessage, delay = retrial['delay'])
                     will_be_retried = True
 
-            # TODO:
             # Log the message
             self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" % 
                           (
@@ -344,7 +343,7 @@ class SMPPClientSMListener:
                 else:
                     self.log.debug('Terminal level receipt is requested, will not send any DLR receipt at this level.')
                 
-                if dlr_level in [2, 3]:
+                if dlr_level in [2, 3] and r.response.status == CommandStatus.ESME_ROK:
                     # Map received submit_sm_resp's message_id to the msg for later receipt handling
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
                                     r.response.params['message_id'],
@@ -395,19 +394,20 @@ class SMPPClientSMListener:
                                                       routing_key=routing_key, 
                                                       content=content)
 
-                    # Map received submit_sm_resp's message_id to the msg for later rceipt handling
-                    self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
-                                    r.response.params['message_id'],
-                                    msgid, 
-                                    smpps_map_expiry
-                                    )
-                                   )
-                    hashKey = "queue-msgid:%s" % r.response.params['message_id']
-                    hashValues = {'msgid': msgid, 
-                                  'connector_type': 'smpps',}
-                    self.redisClient.setex(hashKey, 
-                        smpps_map_expiry, 
-                        pickle.dumps(hashValues, self.pickleProtocol))
+                    if r.response.status == CommandStatus.ESME_ROK:
+                        # Map received submit_sm_resp's message_id to the msg for later rceipt handling
+                        self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s' % (
+                                        r.response.params['message_id'],
+                                        msgid, 
+                                        smpps_map_expiry
+                                        )
+                                       )
+                        hashKey = "queue-msgid:%s" % r.response.params['message_id']
+                        hashValues = {'msgid': msgid, 
+                                      'connector_type': 'smpps',}
+                        self.redisClient.setex(hashKey, 
+                            smpps_map_expiry, 
+                            pickle.dumps(hashValues, self.pickleProtocol))
         else:
             self.log.warn('No valid RC were found while checking msg[%s] !' % msgid)
         
