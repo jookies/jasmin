@@ -22,8 +22,23 @@ class HappySMSCRecorder(HappySMSC):
 
     def handleSubmit(self, reqPDU):
         self.submitRecords.append(reqPDU)
-        self.sendSuccessResponse(reqPDU)
+
+        self.sendSubmitSmResponse(reqPDU)
         
+    def sendSubmitSmResponse(self, reqPDU):
+        if reqPDU.params['short_message'] == 'test_error: ESME_RTHROTTLED':
+            status = CommandStatus.ESME_RTHROTTLED
+        elif reqPDU.params['short_message'] == 'test_error: ESME_RSYSERR':
+            status = CommandStatus.ESME_RSYSERR
+        elif reqPDU.params['short_message'] == 'test_error: ESME_RREPLACEFAIL':
+            status = CommandStatus.ESME_RREPLACEFAIL
+        else:
+            status = CommandStatus.ESME_ROK
+
+        # Return back a pdu
+        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, status=status, message_id = str(random.randint(10000000, 9999999999)))
+        self.sendPDU(self.lastSubmitSmRestPDU)
+
     def handleData(self, reqPDU):
         self.sendSuccessResponse(reqPDU)
                 

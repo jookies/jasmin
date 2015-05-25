@@ -566,7 +566,8 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
          - User have early_decrement_balance_percent set to 10 (%)
          - Submit a message to SMPPs
          - Message is routed to a SMPPc
-         - Delivery is errored (deliver_sm received in SMPPc)
+         - Delivery is errored (submit_sm_resp received in SMPPc and transmitted as
+           a deliver_sm through SMPPs)
 
         The user will be charged for 10% of the rate, the rest is not charged because
         message were not delivered to destination.
