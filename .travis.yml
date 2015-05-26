@@ -41,7 +41,7 @@ before_install:
     # As documented here http://docs.jasminsms.com/en/latest/installation/index.html
     - sudo apt-get install -qq python-dev libffi-dev libssl-dev
     - sudo useradd jasmin
-    - sudo ln -s /etc/jasmin/init-script/jasmind /etc/init.d/
+    - sudo ln -s /etc/jasmin/init-script/jasmind-ubuntu /etc/init.d/
     - sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/init-script /etc/jasmin/store /var/run/jasmin
     - sudo chown `whoami` /etc/jasmin /etc/jasmin/resource /etc/jasmin/init-script
     - sudo chown jasmin. /var/log/jasmin /etc/jasmin/store /var/run/jasmin
