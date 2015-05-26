@@ -84,7 +84,7 @@ setup(
                         'misc/config/resource/amqp0-9-1.xml'
                     ],),
                     ('/etc/jasmin/init-script', [
-                        'misc/config/init-script/jasmind-ubuntu'
+                        'misc/config/init-script/jasmind-ubuntu',
                         'misc/config/init-script/jasmind-redhat'
                     ]),
                 ],
