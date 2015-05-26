@@ -59,7 +59,7 @@ setup(
     long_description=open('README.rst', 'r').read(),
     keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
     packages=find_packages(),
-    scripts=['jasmin/bin/*'],
+    scripts=['jasmin/bin/jasmind.py'],
     include_package_data=True,
     install_requires=[str(ir.req) for ir in install_reqs],
     tests_require=[str(ir.req) for ir in test_reqs],
@@ -77,9 +77,15 @@ setup(
         'Topic :: Communications :: Telephony',
     ],
     platforms='POSIX',
-    data_files=[('/etc/jasmin', ['misc/config/jasmin.cfg']),
-                ('/etc/jasmin/resource', [
-                    'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
-                    'misc/config/resource/amqp0-9-1.xml'],),
-                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmind']),],
+    data_files=[
+                    ('/etc/jasmin', ['misc/config/jasmin.cfg']),
+                    ('/etc/jasmin/resource', [
+                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
+                        'misc/config/resource/amqp0-9-1.xml'
+                    ],),
+                    ('/etc/jasmin/init-script', [
+                        'misc/config/init-script/jasmind-ubuntu'
+                        'misc/config/init-script/jasmind-redhat'
+                    ]),
+                ],
 )
