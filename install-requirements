@@ -1,6 +1,5 @@
 pyasn1>=0.1.7
 txAMQP>=0.6.2
-txredisapi>=1.0
 pyOpenSSL>=0.13
 twisted>=13.0.0
 pyparsing>=2.0.0

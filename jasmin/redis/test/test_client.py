@@ -1,5 +1,5 @@
 from twisted.trial.unittest import TestCase
-import txredisapi as redis
+import jasmin.vendor.txredisapi as redis
 from twisted.internet import defer
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
