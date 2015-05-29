@@ -1,5 +1,5 @@
 import logging
-import txredisapi as redis
+import jasmin.vendor.txredisapi as redis
 from twisted.internet import reactor
 from twisted.internet import defer
 from jasmin.redis.configs import RedisForJasminConfig

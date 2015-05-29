@@ -77,9 +77,15 @@ setup(
         'Topic :: Communications :: Telephony',
     ],
     platforms='POSIX',
-    data_files=[('/etc/jasmin', ['misc/config/jasmin.cfg']),
-                ('/etc/jasmin/resource', [
-                    'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
-                    'misc/config/resource/amqp0-9-1.xml'],),
-                ('/etc/jasmin/init-script', ['misc/config/init-script/jasmind']),],
+    data_files=[
+                    ('/etc/jasmin', ['misc/config/jasmin.cfg']),
+                    ('/etc/jasmin/resource', [
+                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
+                        'misc/config/resource/amqp0-9-1.xml'
+                    ],),
+                    ('/etc/jasmin/init-script', [
+                        'misc/config/init-script/jasmind-ubuntu',
+                        'misc/config/init-script/jasmind-redhat'
+                    ]),
+                ],
 )
