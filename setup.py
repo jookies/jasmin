@@ -78,5 +78,6 @@ setup(
                         'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
                         'misc/config/resource/amqp0-9-1.xml'
                     ],),
+                    ('/etc/jasmin/store', []),
                 ],
 )
