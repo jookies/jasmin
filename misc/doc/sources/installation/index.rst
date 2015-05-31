@@ -2,19 +2,76 @@
 Installation
 ############
 
-The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through 
-:doc:`/apis/ja-http/index`.
+The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/ja-http/index` or :doc:`/apis/smpp-server/index`.
 
-.. note:: You can also send your first SMS through :doc:`/apis/smpp-server/index`.
+.. important:: Jasmin needs a working **RabbitMQ** and **Redis** servers, more info in :ref:`installation_prerequisites`.
 
-More detailed information can be found in the advanced topics sections.
+RHEL & CentOS
+*************
 
-.. note:: Jasmin gateway is supported on POSIX systems (Linux/Unix).
+`Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
+
+  curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.rpm.sh | sudo bash
+  yum install python-jasmin
+
+.. list-table:: RPM OS compliance
+   :header-rows: 1
+
+   * - Distribution
+     - Tested
+     - Result
+   * - **RHEL 6.x**
+     - Yes
+     - *Compliant*
+   * - **RHEL 7.x**
+     - Yes
+     - *Compliant*
+   * - **CentOS 6.x**
+     - Yes
+     - *Compliant*
+   * - **CentOS 7.x**
+     - Yes
+     - *Compliant*
+
+Debian & Ubuntu
+***************
+
+`Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
+
+  curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.deb.sh | sudo bash
+  apt-get install python-jasmin
+
+.. list-table:: DEB OS compliance
+   :header-rows: 1
+
+   * - Distribution
+     - Tested
+     - Result
+   * - **Ubuntu 14.04**
+     - Yes
+     - *Compliant*
+   * - **Ubuntu 14.10**
+     - Yes
+     - *Compliant*
+   * - **Ubuntu 15.04**
+     - Yes
+     - *Compliant*
+   * - **Debian 7**
+     - Yes
+     - *Non-compliant*
+   * - **Debian 8**
+     - Yes
+     - *Non-compliant*
+
+Pypi
+****
+
+Having another OS not covered by package installations described above ? using the Python package installer will be possible, you may have to follow these instructions:
 
 .. _installation_prerequisites:
 
 Prerequisites
-*************
+=============
 
 `Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_. Download the latest version from http://www.python.org/. It is highly recommended that users install the latest patch version of python as these contain many fixes to serious bugs.
 
@@ -46,34 +103,26 @@ In order to run as a POSIX system service, Jasmin requires the creation of the f
     /var/log/jasmin         #> Must be owned by jasmin user
     /var/run/jasmin         #> Must be owned by jasmin user
 
-Optional packages
-=================
-
-You may optionally install and use:
-
-* `Sphinx <http://sphinx-doc.org/>`_ if you need to compile local `documentation <http://jasmin.readthedocs.org>`_.
-* In order to run unit tests: `Testing requirements <https://github.com/jookies/jasmin/blob/master/test-requirements>`_.
-
 .. _installation_linux_steps:
 
-On Linux
-********
+Installation
+============
 
-Once :ref:`installation_prerequisites` are done (installed packages, created jasmin system user and the folders it 
-depends on), the last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
+The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
     sudo pip install --pre jasmin
 
 After getting jasmin installed, it is time to start it as a system service::
 
-    # TODO: to be fixed after finishing rpm/deb packaging
-    sudo ln -s /etc/jasmin/init-script/jasmind-ubuntu /etc/init.d/jasmind
-    sudo /etc/init.d/jasmind start
+    sudo find /usr/lib -name 'jasmind-ubuntu' -exec cp '{}' /etc/init.d/jasmind \;
+    sudo chmod +x /etc/init.d/jasmind
+    sudo update-rc.d jasmind defaults
+    sudo invoke-rc.d jasmind start
 
-.. note:: In order to add Jasmin service to system auto startup services: **sudo update-rc.d jasmind defaults** or **sudo systemctl enable jasmind** on recent Linux distributions.
+.. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind** instead of **update-rc.d jasmind defaults**.
 
 Sending your first SMS
-======================
+**********************
 
 For the really impatient, if you want to give Jasmin a whirl right now and send your first SMS, you'll have to connect to :doc:`/management/jcli/index` and setup a connection to your SMS-C, let's **assume** you have the following SMPP connection parameters as provided from your partner:
 
@@ -103,7 +152,7 @@ For the really impatient, if you want to give Jasmin a whirl right now and send 
 .. note:: In the next sections we'll be heavily using jCli console, if you feel lost, please refer to :doc:`/management/jcli/index` for detailed information.
 
 1. Adding SMPP connection
-*************************
+=========================
 
 Connect to jCli console through telnet (**telnet 127.0.0.1 8990**) using **jcliadmin/jclipwd** default authentication parameters and add a new connector with an *CID=DEMO_CONNECTOR*::
 
@@ -126,7 +175,7 @@ Connect to jCli console through telnet (**telnet 127.0.0.1 8990**) using **jclia
     Successfully added connector [DEMO_CONNECTOR]
 
 2. Starting the connector
-*************************
+=========================
 
 Let's start the newly added connector::
 
@@ -141,7 +190,7 @@ You can check if the connector is bound to your provider by checking its log fil
 	Total connectors: 1
 
 3. Configure simple route
-*************************
+=========================
 
 We'll configure a default route to send all SMS through our newly created DEMO_CONNECTOR::
 
@@ -156,7 +205,7 @@ We'll configure a default route to send all SMS through our newly created DEMO_C
 	Successfully added MTRoute [DefaultRoute] with order:0
 
 4. Create a user
-****************
+================
 
 In order to use Jasmin's HTTP API to send SMS messages, you have to get a valid user account, that's what we're going to do below.
 
@@ -180,7 +229,7 @@ And then create the new user::
 	Successfully added User [foo] to Group [foogroup]
 
 5. Send SMS
-***********
+===========
 
 Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/ja-http/index` for detailed information about sending and receiving SMS and receipts)::
 

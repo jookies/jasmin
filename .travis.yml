@@ -10,11 +10,11 @@ install:
 # Commands to run tests:
 script:
     # Service startup test:
-    - sudo /etc/init.d/jasmind start
+    - sudo invoke-rc.d jasmind start
     - sleep 2
-    - sudo /etc/init.d/jasmind status
+    - sudo invoke-rc.d jasmind status
     # Stop service:
-    - sudo /etc/init.d/jasmind stop
+    - sudo invoke-rc.d jasmind stop
     # Cleaning before going for further tests:
     - sudo rm -f /var/log/jasmin/*;sudo rm -f /etc/jasmin/store/*
     # Trial tests and coverage:
