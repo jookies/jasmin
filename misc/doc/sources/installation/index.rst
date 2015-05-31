@@ -41,8 +41,7 @@ In order to run as a POSIX system service, Jasmin requires the creation of the f
 
     /etc/jasmin
     /etc/jasmin/resource
-    /etc/jasmin/init-d
-    /etc/jasmin/init-script
+    /etc/jasmin/init.d
     /etc/jasmin/store       #> Must be owned by jasmin user
     /var/log/jasmin         #> Must be owned by jasmin user
     /var/run/jasmin         #> Must be owned by jasmin user
@@ -67,6 +66,7 @@ depends on), the last step is to install jasmin through `pip <https://pypi.pytho
 
 After getting jasmin installed, it is time to start it as a system service::
 
+    # TODO: to be fixed after finishing rpm/deb packaging
     sudo ln -s /etc/jasmin/init-script/jasmind-ubuntu /etc/init.d/jasmind
     sudo /etc/init.d/jasmind start
 
