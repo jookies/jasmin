@@ -62,7 +62,7 @@ do_start()
 	local pids=$(ps ax|grep "$NAME"|grep "$DAEMON")
 	[ -z "$pids" ] || return 1
 
-	su $USER -c "$DAEMON $COMMAND $COMMAND_ARGS" &
+	su -s /bin/bash $USER -c "$DAEMON $COMMAND $COMMAND_ARGS" &
 	[ "$?" -eq "0" ] || return 2
 	echo "$!" > "$PIDFILE"
 
