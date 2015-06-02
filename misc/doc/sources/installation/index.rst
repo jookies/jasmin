@@ -14,19 +14,24 @@ RHEL & CentOS
   curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.rpm.sh | sudo bash
   yum install python-jasmin
 
+You may get the following error if **RabbitMQ** or **Redis** server are not installed::
+
+  No package redis available.
+  No package rabbitmq-server available.
+
+These requirements are available from the `EPEL repository <https://fedoraproject.org/wiki/EPEL>`_, you'll need to enable it before installing Jasmin::
+
+  ## RHEL/CentOS 7 64-Bit ##
+  # wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+  # rpm -ivh epel-release-7-5.noarch.rpm
+
 .. list-table:: RPM OS compliance
    :header-rows: 1
 
    * - Distribution
      - Tested
      - Result
-   * - **RHEL 6.x**
-     - Yes
-     - *Compliant*
    * - **RHEL 7.x**
-     - Yes
-     - *Compliant*
-   * - **CentOS 6.x**
      - Yes
      - *Compliant*
    * - **CentOS 7.x**
@@ -56,12 +61,6 @@ Debian & Ubuntu
    * - **Ubuntu 15.04**
      - Yes
      - *Compliant*
-   * - **Debian 7**
-     - Yes
-     - *Non-compliant*
-   * - **Debian 8**
-     - Yes
-     - *Non-compliant*
 
 Pypi
 ****
