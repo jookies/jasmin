@@ -1,3 +1,5 @@
+.. image:: https://github.com/pyghassen/jasmin/blob/master/misc/doc/sources/_static/jasmin-logo-small.png
+
 Jasmin - Open source SMS gateway
 ################################
 
@@ -155,4 +157,3 @@ Change Log
     :alt: Documentation status
     :scale: 100%
     :target: http://docs.jasminsms.com
-

@@ -42,6 +42,8 @@ UserKeyMap = {'uid': 'uid', 'gid': 'gid',
               'mt_messaging_cred': MtMessagingCredentialKeyMap,
               'smpps_cred': SmppsCredentialKeyMap}
 
+UserConfigStringKeys = ['username', 'password', 'uid', 'gid']
+
 TrueBoolCastMap = ['true', '1', 't', 'y', 'yes']
 FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
 
@@ -182,8 +184,11 @@ def UserBuild(fCallback):
                 else:
                     # Buffer key for later User initiating
                     UserKey = UserKeyMap[cmd]
-                    self.sessBuffer[UserKey] = str2num(arg)
-            
+		    if UserKey not in UserConfigStringKeys:
+                	self.sessBuffer[UserKey] = str2num(arg)
+                    else:
+                        self.sessBuffer[UserKey] = arg
+
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
@@ -289,8 +294,11 @@ def UserUpdate(fCallback):
                 else:
                     # Buffer key for later (when receiving 'ok')
                     UserKey = UserKeyMap[cmd]
-                    self.sessBuffer[UserKey] = str2num(arg)
-            
+		    if UserKey not in UserConfigStringKeys:
+                	self.sessBuffer[UserKey] = str2num(arg)
+                    else:
+                        self.sessBuffer[UserKey] = arg
+
             return self.protocol.sendData()
     return log_update_requests_and_call
 
