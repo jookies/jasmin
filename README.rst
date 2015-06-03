@@ -1,7 +1,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|python_ver| |current_version| |ci| |docs| |downloads| |status|
+|ci| |docs|
 
 Introduction
 ************
@@ -118,16 +118,6 @@ Change Log
 
 * SMPP Client API
 
-.. |python_ver| image:: https://pypip.in/py_versions/jasmin/badge.svg
-    :alt: Python version
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
-.. |current_version| image:: https://pypip.in/v/jasmin/badge.png?text=version
-    :alt: Current version
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
 .. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png
     :alt: Build status
     :scale: 100%
@@ -137,13 +127,3 @@ Change Log
     :alt: Documentation status
     :scale: 100%
     :target: http://docs.jasminsms.com
-
-.. |downloads| image:: https://pypip.in/download/jasmin/badge.svg
-    :alt: Downloads through pypi
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
-.. |status| image:: https://pypip.in/status/jasmin/badge.svg
-    :alt: Development status
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
