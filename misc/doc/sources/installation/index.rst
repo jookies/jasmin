@@ -22,8 +22,8 @@ You may get the following error if **RabbitMQ** or **Redis** server are not inst
 These requirements are available from the `EPEL repository <https://fedoraproject.org/wiki/EPEL>`_, you'll need to enable it before installing Jasmin::
 
   ## RHEL/CentOS 7 64-Bit ##
-  # wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
-  # rpm -ivh epel-release-7-5.noarch.rpm
+  wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+  rpm -ivh epel-release-7-5.noarch.rpm
 
 .. list-table:: RPM OS compliance
    :header-rows: 1
