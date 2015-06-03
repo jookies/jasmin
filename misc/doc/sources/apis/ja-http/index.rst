@@ -31,7 +31,7 @@ The Jasmin gateway accepts requests at the following URL:
 
 http://127.0.0.1:1401/send
 
-.. note:: Host ``127.0.0.1`` and port ``1401`` are default values and configurable in ``/etc/jasmin/jasmin.cfg``, see :ref:`configuration_http-api`
+.. note:: Host ``127.0.0.1`` and port ``1401`` are default values and configurable in ``/etc/jasmin/jasmin.cfg``, see :ref:`configuration_http-api`.
 
 This guide will help understand how the API works and provide :ref:`examples` for sending SMS-MT.
 

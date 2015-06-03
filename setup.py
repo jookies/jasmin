@@ -14,31 +14,26 @@ if "install" in sys.argv:
         pwd.getpwnam('jasmin')
         grp.getgrnam('jasmin')
     except KeyError:
-        print 'jasmin user or group not found !'
-        sys.exit(1)
+        print 'WARNING: jasmin user or group not found !'
 
     # 2. Check if system folders are created
     sysdirs = ['/etc/jasmin', 
                 '/etc/jasmin/resource', 
-                '/etc/jasmin/init-script', 
                 '/etc/jasmin/store', 
                 '/var/log/jasmin', 
                 '/var/run/jasmin',]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
-            print '%s does not exist !' % sysdir
-            sys.exit(2)
+            print 'WARNING: %s does not exist !' % sysdir
 
     # 3. Check for permission to write jasmin.cfg in /etc/jasmin
     if not os.access('/etc/jasmin', os.W_OK):
-        print '/etc/jasmin must be writeable by the current user (%s)' % getpass.getuser()
-        sys.exit(3)
+        print 'WARNING: /etc/jasmin must be writeable by the current user (%s)' % getpass.getuser()
 
     # 4. Check if sysdirs are owned by jasmin user
     for sysdir in sysdirs[3:]:
-        if pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
-            print '%s is not owned by jasmin user !' % sysdir
-            sys.exit(4)
+        if os.path.exists(sysdir) and pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
+            print 'WARNING: %s is not owned by jasmin user !' % sysdir
 
 session = uuid.uuid1()
 install_reqs = parse_requirements('install-requirements', session = session)
@@ -83,9 +78,6 @@ setup(
                         'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
                         'misc/config/resource/amqp0-9-1.xml'
                     ],),
-                    ('/etc/jasmin/init-script', [
-                        'misc/config/init-script/jasmind-ubuntu',
-                        'misc/config/init-script/jasmind-redhat'
-                    ]),
+                    ('/etc/jasmin/store', []),
                 ],
 )
