@@ -6,38 +6,6 @@ The Installation section is intended to get you up and running quickly with a si
 
 .. important:: Jasmin needs a working **RabbitMQ** and **Redis** servers, more info in :ref:`installation_prerequisites`.
 
-RHEL & CentOS
-*************
-
-`Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
-
-  curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.rpm.sh | sudo bash
-  yum install python-jasmin
-
-You may get the following error if **RabbitMQ** or **Redis** server are not installed::
-
-  No package redis available.
-  No package rabbitmq-server available.
-
-These requirements are available from the `EPEL repository <https://fedoraproject.org/wiki/EPEL>`_, you'll need to enable it before installing Jasmin::
-
-  ## RHEL/CentOS 7 64-Bit ##
-  wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
-  rpm -ivh epel-release-7-5.noarch.rpm
-
-.. list-table:: RPM OS compliance
-   :header-rows: 1
-
-   * - Distribution
-     - Tested
-     - Result
-   * - **RHEL 7.x**
-     - Yes
-     - *Compliant*
-   * - **CentOS 7.x**
-     - Yes
-     - *Compliant*
-
 Debian & Ubuntu
 ***************
 
@@ -59,6 +27,37 @@ Debian & Ubuntu
      - Yes
      - *Compliant*
    * - **Ubuntu 15.04**
+     - Yes
+     - *Compliant*
+
+RHEL & CentOS
+*************
+
+`Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
+
+  curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.rpm.sh | sudo bash
+  yum install python-jasmin
+
+You may get the following error if **RabbitMQ** or **Redis** server are not installed::
+
+  No package redis available.
+  No package rabbitmq-server available.
+
+These requirements are available from the `EPEL repository <https://fedoraproject.org/wiki/EPEL>`_, you'll need to enable it before installing Jasmin::
+
+  ## RHEL/CentOS 7 64-Bit ##
+  yum -y install http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+
+.. list-table:: RPM OS compliance
+   :header-rows: 1
+
+   * - Distribution
+     - Tested
+     - Result
+   * - **RHEL 7.x**
+     - Yes
+     - *Compliant*
+   * - **CentOS 7.x**
      - Yes
      - *Compliant*
 
