@@ -72,7 +72,10 @@ Having another OS not covered by package installations described above ? using t
 Prerequisites
 =============
 
-`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_. Download the latest version from http://www.python.org/. It is highly recommended that users install the latest patch version of python as these contain many fixes to serious bugs.
+`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
+
+.. hint:: Latest pip module installation:
+          # **curl https://bootstrap.pypa.io/get-pip.py | python**
 
 Depending on the Linux distribution you are using, you may need to install the following dependencies:
 
@@ -81,7 +84,6 @@ Depending on the Linux distribution you are using, you may need to install the f
 * header files and a static library for Python, Ubuntu package name: **python-dev**
 * Foreign Function Interface library (development files), Ubuntu package name: **libffi-dev**
 * Secure Sockets Layer toolkit - development files, Ubuntu package name: **libssl-dev**
-* **pip**: Python package installer, needed if you are going to install *jasmin* from `the Python Package Index <https://pypi.python.org/pypi>`_
 
 System user
 ===========
@@ -97,7 +99,6 @@ In order to run as a POSIX system service, Jasmin requires the creation of the f
 
     /etc/jasmin
     /etc/jasmin/resource
-    /etc/jasmin/init.d
     /etc/jasmin/store       #> Must be owned by jasmin user
     /var/log/jasmin         #> Must be owned by jasmin user
     /var/run/jasmin         #> Must be owned by jasmin user
@@ -113,7 +114,7 @@ The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pi
 
 After getting jasmin installed, it is time to start it as a system service::
 
-    sudo find /usr/lib -name 'jasmind-ubuntu' -exec cp '{}' /etc/init.d/jasmind \;
+    sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
     sudo chmod +x /etc/init.d/jasmind
     sudo update-rc.d jasmind defaults
     sudo invoke-rc.d jasmind start
