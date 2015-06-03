@@ -4,7 +4,7 @@ from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStat
 from jasmin.protocols.http.stats import HttpAPIStatsCollector
 from .usersm import UserExist
 from .smppccm import ConnectorExist
-from tabulate import tabulate
+from jasmin.vendor.tabulate import tabulate
 
 def formatDateTime(dt):
     if dt == 0:

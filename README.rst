@@ -3,7 +3,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|python_ver| |current_version| |ci| |docs| |downloads| |status|
+|ci| |docs|
 
 Introduction
 ************
@@ -76,10 +76,38 @@ Change Log
 0.6 (*under development*)
 =========================
 
+* Setting "bind_ton 1" on connector is broken #97
+* Check Tarik's bug (dlr-level and the value of registered_delivery) #87
+* SMPP Client is disconnecting when receiving a submit_sm_resp with 0x00000106 (Destination Address Sub unit is Invalid.
+* SMPP Server #49
+* Publishing submit_sm_resp must be optional #66
+* Implement NetworkErrorCodeEncoder() #65
+* bind_ton and src_ton settings on connector not working #104
+* A numeric password set through jCli will cause an exception when trying to bind #105
+* Add validity period parameter in http api #109
+* Incorrect http dlr-level parameter mapping to smpp registered_delivery parameter #107
+* Incorrect comparison of bound_connections_count #114
+* Tuning: change redis set to setex
+* Add throughput in User MTCredentials and apply it on SMPP and HTTP #51
+* PDUParseError #120
+* Command Length is invalid #124
+* PDUCorruptError: Command Length is invalid #128
+* Error on receiving message on smpp connector #117
+* need configuration to send deliver_sm instead of data_sm for SMPP delivery receipt #139
+* Error when throwing deliver_sm through smpp: deliverSmThrowerConfig instance has no attribute 'max_retries' #147
+* Services don´t start unless jasmin.cfg is missing or commented #144
+* Fix problem with numeric logins and passwords #138
+* Receipts are not transmitted to smpp client #153
+* Expose real time statistics in jCli #123
+* SMPP Server: Omit sending deliver_sm receipt when receiving a submit_sm_resp receipt #159
+* Implement submit_sm retry on failure depending on the error type (for example ESME_RTHROTTLED ...) #60
+* Don't charge messages when sending SMS through SMPP returns an error in submit_sm_resp #164
+* CentOS / Red Hat Jasmin init script seems to be not working properly #165
+* Provide deb and rpm packages for Jasmin #169
+* Dockerize Jasmin #170
 * SMPP Server API #49
 * Basic statistics in user-level #77
 * Delivery retrial on specific/configurable errors #60
-* Better User credentials: expiry and QoS #50, #51
 * Easier installation procedure through Linux packages #78
 
 0.5
@@ -120,16 +148,6 @@ Change Log
 
 * SMPP Client API
 
-.. |python_ver| image:: https://pypip.in/py_versions/jasmin/badge.svg
-    :alt: Python version
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
-.. |current_version| image:: https://pypip.in/v/jasmin/badge.png?text=version
-    :alt: Current version
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
 .. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png
     :alt: Build status
     :scale: 100%
@@ -139,13 +157,3 @@ Change Log
     :alt: Documentation status
     :scale: 100%
     :target: http://docs.jasminsms.com
-
-.. |downloads| image:: https://pypip.in/download/jasmin/badge.svg
-    :alt: Downloads through pypi
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
-
-.. |status| image:: https://pypip.in/status/jasmin/badge.svg
-    :alt: Development status
-    :scale: 100%
-    :target: https://pypi.python.org/pypi/jasmin
