@@ -5,8 +5,8 @@ Test cases for jasmin.protocols.smpp.operations module.
 import binascii
 from twisted.trial.unittest import TestCase
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus
+from jasmin.protocols.smpp.operations import SMPPOperationFactory, UnknownMessageStatusError
+from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, MessageState
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 
 class OperationsTest(TestCase):
@@ -172,3 +172,73 @@ class DeliveryParsingTest(OperationsTest):
         self.assertEquals(isDlr['stat'], 'DELIVRD')
         self.assertEquals(isDlr['err'], '000')
         self.assertEquals(isDlr['text'], '-')
+
+class ReceiptCreationTestCases(OperationsTest):
+    message_state_map = {
+        'ESME_ROK': {'sm': 'ACCEPTD', 'state': MessageState.ACCEPTED},
+        'UNDELIV':  {'sm': 'UNDELIV', 'state': MessageState.UNDELIVERABLE},
+        'REJECTD':  {'sm': 'REJECTD', 'state': MessageState.REJECTED},
+        'DELIVRD':  {'sm': 'DELIVRD', 'state': MessageState.DELIVERED},
+        'EXPIRED':  {'sm': 'EXPIRED', 'state': MessageState.EXPIRED},
+        'DELETED':  {'sm': 'DELETED', 'state': MessageState.DELETED},
+        'ACCEPTD':  {'sm': 'ACCEPTD', 'state': MessageState.ACCEPTED},
+        'UNKNOWN':  {'sm': 'UNKNOWN', 'state': MessageState.UNKNOWN},
+    }
+
+    def test_unknown_message_state(self):
+        for dlr_pdu in ['deliver_sm', 'data_sm']:
+            self.assertRaises(UnknownMessageStatusError, self.opFactory.getReceipt, 
+                dlr_pdu,
+                'anyid',
+                'JASMIN',
+                '98700177',
+                'ANY_STATus',
+                '2017-07-19 17:50:12')
+
+    def test_deliver_sm(self):
+        for message_state, _test in self.message_state_map.iteritems():
+            pdu = self.opFactory.getReceipt(
+                'deliver_sm', 
+                'anyid',
+                'JASMIN',
+                '98700177',
+                message_state,
+                '2017-07-19 17:50:12')
+
+            self.assertEquals(pdu.params['message_state'], _test['state'])
+            self.assertTrue('stat:%s' % _test['sm'] in pdu.params['short_message'])
+
+        # Test other ESME_* states:
+        pdu = self.opFactory.getReceipt(
+            'deliver_sm', 
+            'anyid',
+            'JASMIN',
+            '98700177',
+            'ESME_RTHROTTLED',
+            '2017-07-19 17:50:12')
+
+        self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)
+        self.assertTrue('stat:UNDELIV' in pdu.params['short_message'])
+
+    def test_data_sm(self):
+        for message_state, _test in self.message_state_map.iteritems():
+            pdu = self.opFactory.getReceipt(
+                'data_sm', 
+                'anyid',
+                'JASMIN',
+                '98700177',
+                message_state,
+                '2017-07-19 17:50:12')
+
+            self.assertEquals(pdu.params['message_state'], _test['state'])
+
+        # Test other ESME_* states:
+        pdu = self.opFactory.getReceipt(
+            'data_sm', 
+            'anyid',
+            'JASMIN',
+            '98700177',
+            'ESME_RTHROTTLED',
+            '2017-07-19 17:50:12')
+
+        self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)

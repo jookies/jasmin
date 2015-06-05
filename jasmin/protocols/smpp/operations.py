@@ -3,7 +3,7 @@ import struct
 import math
 import re
 import datetime
-import dateutil
+import dateutil.parser as parser
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, 
@@ -156,13 +156,16 @@ class SMPPOperationFactory():
     def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
         "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
+        sm_message_stat = message_status
         # Prepare message_state
         if message_status[:5] == 'ESME_':
             if message_status == 'ESME_ROK':
                 message_state = MessageState.ACCEPTED
+                sm_message_stat = 'ACCEPTD'
                 err = 0
             else:
                 message_state = MessageState.UNDELIVERABLE
+                sm_message_stat = 'UNDELIV'
                 err = 10
         elif message_status == 'UNDELIV':
             message_state = MessageState.UNDELIVERABLE
@@ -192,9 +195,9 @@ class SMPPOperationFactory():
         if dlr_pdu == 'deliver_sm':
             short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
                 msgid,
-                dateutil.parser.parse(sub_date).strftime("%Y%m%d%H%M"),
+                parser.parse(sub_date).strftime("%Y%m%d%H%M"),
                 datetime.datetime.now().strftime("%Y%m%d%H%M"),
-                message_state,
+                sm_message_stat,
                 err,
             )
 
