@@ -286,6 +286,7 @@ class MessagingTestCases(SMPPClientTestCases):
  		# Wait
  		yield waitFor(1)
 
+ 		# Assert SMPP client got rejected and connection was shutdown
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
 	@defer.inlineCallbacks
