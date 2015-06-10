@@ -23,6 +23,13 @@ from twisted.cred import portal
 from twisted.test import proto_helpers
 from jasmin.protocols.smpp.test.smsc_simulator import *
 
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
+
 class LastProtoSMPPServerFactory(SMPPServerFactory):
     """This a SMPPServerFactory used to keep track of the last protocol instance for
     testing purpose"""
@@ -162,7 +169,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCases):
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
-        
+
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(self.u1)
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
@@ -296,9 +303,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
         
@@ -329,9 +334,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
         
@@ -360,9 +363,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
         
@@ -400,9 +401,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         self.smpps_proto.dataReceived(self.encoder.encode(self.SubmitSmPDU))
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
         
@@ -460,9 +459,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -497,9 +494,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -540,9 +535,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -594,9 +587,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

@@ -479,6 +479,32 @@ class PDUEncoderTest(EncoderTest):
         )
         self.do_conversion_test(PDUEncoder(), pdu, '000000a900000004000000000006f3910005006d6f62696c65776179000101333336393830393334320040000000000100f5007506050415811581024a3a5db5a5cdcda5bdb8040084d8c51381481381481381481381481381381481581681781881881061881061b81081181081881061881061681081781081881061881061b81081181081881061881061681081781081b81881321081b81881221081b818811210824dc1446000')
 
+    def test_SubmitSM_with_data_coding_mclass_1(self):
+        pdu = SubmitSM(2,
+            source_addr = '385915222656',
+            destination_addr = '385953926992',
+            short_message = 'jsmtest2 dc f1',
+            data_coding = DataCoding(
+                DataCodingScheme.GSM_MESSAGE_CLASS, 
+                DataCodingGsmMsg(
+                    DataCodingGsmMsgCoding.DEFAULT_ALPHABET, 
+                    DataCodingGsmMsgClass.CLASS_1
+                    )
+                ),
+            service_type = '',
+            esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT, []),
+            protocol_id = 0,
+            priority_flag = PriorityFlag.LEVEL_0,
+            registered_delivery = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED),
+            replace_if_present_flag = ReplaceIfPresentFlag.DO_NOT_REPLACE,
+            sm_default_msg_id = 0,
+            source_addr_ton = AddrTon.INTERNATIONAL,
+            source_addr_npi = AddrNpi.ISDN,
+            dest_addr_ton=AddrTon.INTERNATIONAL,
+            dest_addr_npi=AddrNpi.ISDN,
+        )
+        self.do_conversion_test(PDUEncoder(), pdu, '000000470000000400000000000000020001013338353931353232323635360001013338353935333932363939320000000000000100f1000e6a736d7465737432206463206631')
+
     def test_decode_command_length_too_short(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '0000000f000000060000000000000000')
 
