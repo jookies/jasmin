@@ -646,10 +646,10 @@ class SMPPClientSMListener:
                         final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                         # Do we need to forward the receipt to the original sender ?
                         if ((pdu.dlr['stat'] in success_states and 
-                                str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED', 
-                                                                     'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])
+                                str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED')
                             or (pdu.dlr['stat'] not in success_states and 
-                                str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
+                                str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED', 
+                                                                     'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
 
                             self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s' % (submit_sm_queue_id, 
                                                                                                                       registered_delivery,
