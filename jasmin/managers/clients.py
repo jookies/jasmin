@@ -72,7 +72,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
     def getConnector(self, cid):
         for c in self.connectors:
-            if c['id'] == cid:
+            if str(c['id']) == str(cid):
                 self.log.debug('getConnector [%s] returned a connector', cid)
                 return c
         
@@ -97,7 +97,7 @@ class SMPPClientManagerPB(pb.Avatar):
     
     def delConnector(self, cid):
         for i in range (len(self.connectors)):
-            if self.connectors[i]['id'] == cid:
+            if str(self.connectors[i]['id']) == str(cid):
                 del self.connectors[i]
                 self.log.debug('Deleted connector [%s].', cid)
                 return True
