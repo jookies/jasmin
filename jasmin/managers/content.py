@@ -4,6 +4,7 @@ Multiple classes extending of txamqp.content.Content
 
 import uuid
 import pickle
+import datetime
 from txamqp.content import Content
 
 class InvalidParameterError(Exception):
@@ -27,6 +28,11 @@ class PDU(Content):
         if prePickle == True:
             body = pickle.dumps(body, self.pickleProtocol)
         
+        # Add creation date in header
+        if 'headers' not in properties:
+            properties['headers'] = {}
+        properties['headers']['created_at'] = str(datetime.datetime.now())
+
         Content.__init__(self, body, children, properties)
 
 class DLRContentForHttpapi(Content):

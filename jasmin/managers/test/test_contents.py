@@ -24,6 +24,7 @@ class SubmitSmContentTestCase(ContentTestCase):
         self.assertEquals(c['priority'], 1)
         self.assertEquals(c['headers']['expiration'], self.expiration)
         self.assertNotEquals(c['message-id'], None)
+        self.assertTrue('created_at' in c['headers'])
         
     def test_minimal_arguments(self):
         c = SubmitSmContent(self.body, self.replyto)
@@ -51,6 +52,7 @@ class SubmitSmRespContentTestCase(ContentTestCase):
         
         self.assertEquals(c.body, self.body)
         self.assertEquals(c['message-id'], 1)
+        self.assertTrue('created_at' in c['headers'])
         
     def test_normal_pickling(self):
         c = SubmitSmRespContent(self.body, 1)
@@ -58,6 +60,7 @@ class SubmitSmRespContentTestCase(ContentTestCase):
         self.assertNotEquals(c.body, self.body)
         self.assertEquals(c.body, pickle.dumps(self.body, 2))
         self.assertEquals(c['message-id'], 1)
+        self.assertTrue('created_at' in c['headers'])
         
 class DLRContentForHttpapiTestCase(ContentTestCase):
     def test_normal_level1(self):
@@ -208,6 +211,7 @@ class DeliverSmContentTestCase(ContentTestCase):
         self.assertEquals(c['headers']['connector-id'], 'connector1')
         self.assertEquals(c['headers']['concatenated'], False)
         self.assertFalse(c['message-id'] == None)
+        self.assertTrue('created_at' in c['headers'])
         
     def test_normal_pickling(self):
         c = DeliverSmContent(self.body, 'connector1')
@@ -217,12 +221,14 @@ class DeliverSmContentTestCase(ContentTestCase):
         self.assertEquals(c['headers']['connector-id'], 'connector1')
         self.assertEquals(c['headers']['concatenated'], False)
         self.assertFalse(c['message-id'] == None)
+        self.assertTrue('created_at' in c['headers'])
 
     def test_headers_concatenated(self):
         c = DeliverSmContent(self.body, 'connector1', prePickle=False, concatenated = True)
         
         self.assertEquals(c['headers']['concatenated'], True)
         self.assertFalse(c['message-id'] == None)
+        self.assertTrue('created_at' in c['headers'])
 
 class SubmitSmRespBillContentTestCase(ContentTestCase):
     def test_normal(self):
