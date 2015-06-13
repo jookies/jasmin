@@ -521,6 +521,9 @@ class RouterPB(pb.Avatar):
         for _user in self.users:
             if user.uid == _user.uid or user.username == _user.username:
                 self.users.remove(_user)
+
+                # Save old CnxStatus in new user
+                user.CnxStatus = _user.CnxStatus
                 break 
 
         self.users.append(user)

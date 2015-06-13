@@ -501,6 +501,36 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         u = pickle.loads(u)
         self.assertEqual(u3.username, u.username)
 
+    @defer.inlineCallbacks
+    def test_user_unicity_with_same_CnxStatus(self):
+        """When replacing a user with user_add, user.CnxStatus
+        must not be intiated again.
+        """
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        g1 = Group(1)
+        yield self.group_add(g1)
+        
+        # One: add new user
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+
+        # Get CnxStatus
+        self.assertEqual(1, len(self.pbRoot_f.users))
+        oldCnxStatus = self.pbRoot_f.users[0].CnxStatus
+
+        # Two: update password
+        u1 = User(1, g1, 'username', 'newpassword')
+        yield self.user_add(u1)
+
+        # Get CnxStatus
+        self.assertEqual(1, len(self.pbRoot_f.users))
+        newCnxStatus = self.pbRoot_f.users[0].CnxStatus
+
+        # Asserts
+        self.assertEqual(oldCnxStatus, newCnxStatus)
+
 class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def tearDown(self):
