@@ -131,6 +131,10 @@ class SMPPClientManagerPBProxy:
         if isinstance(SubmitSmPDU, SubmitSM) == False:
             raise Exception("Object is not an instance of SubmitSm")
         
+        # Remove schedule_delivery_time / not supported right now
+        if SubmitSmPDU.params['schedule_delivery_time'] is not None:
+            SubmitSmPDU.params['schedule_delivery_time'] = None
+
         # Set the message priority
         if SubmitSmPDU.params['priority_flag'] != None:
             priority_flag = SubmitSmPDU.params['priority_flag'].index
