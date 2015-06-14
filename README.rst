@@ -3,7 +3,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|ci| |docs|
+|qa| |ci| |docs|
 
 Introduction
 ************
@@ -147,6 +147,11 @@ Change Log
 =====
 
 * SMPP Client API
+
+.. |qa| image:: https://www.codacy.com/project/badge/33dd57d6bade41fc9804b834695c0816
+    :alt: Code analysis
+    :scale: 100%
+    :target: https://www.codacy.com/app/support_3/jasmin
 
 .. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png
     :alt: Build status
