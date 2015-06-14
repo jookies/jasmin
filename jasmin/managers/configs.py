@@ -72,6 +72,10 @@ class SMPPClientSMListenerConfig(ConfigFile):
                             'ESME_RINVSCHED':       {'count': 2, 'delay': 300},
                        }""")
             )
+
+        self.submit_max_age_smppc_not_ready = self._getint('sm-listener', 
+            'submit_max_age_smppc_not_ready', 
+            1200)
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 

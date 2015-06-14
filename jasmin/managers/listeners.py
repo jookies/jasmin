@@ -170,14 +170,52 @@ class SMPPClientSMListener:
                 defer.returnValue(False)
         # SMPP Client should be already connected
         if self.SMPPClientFactory.smpp == None:
-            self.log.error("SMPP Client is not connected: requeuing SubmitSmPDU[%s]" % msgid)
-            yield self.rejectAndRequeueMessage(message)
-            defer.returnValue(False)
+            created_at = parser.parse(message.content.properties['headers']['created_at'])
+            msgAge = datetime.now() - created_at
+            if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
+                self.log.error("SMPPC [cid:%s] is not connected: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds." % (
+                    self.SMPPClientFactory.config.id, 
+                    self.submit_retrials[msgid],
+                    msgid,
+                    msgAge.seconds,
+                    )
+                )
+                yield self.rejectMessage(message)
+                defer.returnValue(False)
+            else:
+                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds." % (
+                    self.SMPPClientFactory.config.id, 
+                    self.submit_retrials[msgid],
+                    msgid,
+                    msgAge.seconds,
+                    )
+                )
+                yield self.rejectAndRequeueMessage(message)
+                defer.returnValue(False)
         # SMPP Client should be already bound as transceiver or transmitter
         if self.SMPPClientFactory.smpp.isBound() == False:
-            self.log.error("SMPP Client is not bound: Requeuing SubmitSmPDU[%s]" % msgid)
-            yield self.rejectAndRequeueMessage(message)
-            defer.returnValue(False)
+            created_at = parser.parse(message.content.properties['headers']['created_at'])
+            msgAge = datetime.now() - created_at
+            if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
+                self.log.error("SMPPC [cid:%s] is not bound: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds." % (
+                    self.SMPPClientFactory.config.id, 
+                    self.submit_retrials[msgid],
+                    msgid,
+                    msgAge.seconds,
+                    )
+                )
+                yield self.rejectMessage(message)
+                defer.returnValue(False)
+            else:
+                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds."% (
+                    self.SMPPClientFactory.config.id, 
+                    self.submit_retrials[msgid],
+                    msgid,
+                    msgAge,
+                    )
+                )
+                yield self.rejectAndRequeueMessage(message)
+                defer.returnValue(False)
 
         self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
         yield self.SMPPClientFactory.smpp.sendDataRequest(
@@ -646,10 +684,10 @@ class SMPPClientSMListener:
                         final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                         # Do we need to forward the receipt to the original sender ?
                         if ((pdu.dlr['stat'] in success_states and 
-                                str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED', 
-                                                                     'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])
+                                str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED')
                             or (pdu.dlr['stat'] not in success_states and 
-                                str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
+                                str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED', 
+                                                                     'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
 
                             self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s' % (submit_sm_queue_id, 
                                                                                                                       registered_delivery,

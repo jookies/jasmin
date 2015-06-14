@@ -228,7 +228,7 @@ class MtRouterManager(PersistableManager):
         if (len(mtroutes)) > 0:
             self.protocol.sendData("#%s %s %s %s %s" % ('Order'.ljust(5),
                                                                         'Type'.ljust(23),
-                                                                        'Rate'.ljust(7),
+                                                                        'Rate'.ljust(10),
                                                                         'Connector ID(s)'.ljust(48),
                                                                         'Filter(s)'.ljust(64),
                                                                         ), prompt=False)
@@ -255,11 +255,11 @@ class MtRouterManager(PersistableManager):
                     filters += repr(f)
 
                 # Prepare display for rate
-                rate = str('%.2f' % mtroute.getRate())
+                rate = str('%.5f' % mtroute.getRate())
                 
                 self.protocol.sendData("#%s %s %s %s %s" % (str(order).ljust(5),
                                                                   str(mtroute.__class__.__name__).ljust(23),
-                                                                  rate.ljust(7),
+                                                                  rate.ljust(10),
                                                                   connectors.ljust(48),
                                                                   filters.ljust(64),
                                                                   ), prompt=False)
