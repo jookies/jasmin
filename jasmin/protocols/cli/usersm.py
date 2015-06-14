@@ -184,8 +184,8 @@ def UserBuild(fCallback):
                 else:
                     # Buffer key for later User initiating
                     UserKey = UserKeyMap[cmd]
-            if UserKey not in UserConfigStringKeys:
-                    self.sessBuffer[UserKey] = str2num(arg)
+                    if UserKey not in UserConfigStringKeys:
+                        self.sessBuffer[UserKey] = str2num(arg)
                     else:
                         self.sessBuffer[UserKey] = arg
 
@@ -294,8 +294,8 @@ def UserUpdate(fCallback):
                 else:
                     # Buffer key for later (when receiving 'ok')
                     UserKey = UserKeyMap[cmd]
-            if UserKey not in UserConfigStringKeys:
-                    self.sessBuffer[UserKey] = str2num(arg)
+                    if UserKey not in UserConfigStringKeys:
+                        self.sessBuffer[UserKey] = str2num(arg)
                     else:
                         self.sessBuffer[UserKey] = arg
 
