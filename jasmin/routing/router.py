@@ -300,7 +300,7 @@ class RouterPB(pb.Avatar):
     
     def getUser(self, uid):
         for _user in self.users:
-            if _user.uid == uid:
+            if str(_user.uid) == str(uid):
                 self.log.debug('getUser [uid:%s] returned a User', uid)
                 return _user
         
@@ -309,7 +309,7 @@ class RouterPB(pb.Avatar):
     
     def getGroup(self, gid):
         for _group in self.groups:
-            if _group.gid == gid:
+            if str(_group.gid) == str(gid):
                 self.log.debug('getGroup [gid:%s] returned a Group', gid)
                 return _group
         
@@ -521,6 +521,9 @@ class RouterPB(pb.Avatar):
         for _user in self.users:
             if user.uid == _user.uid or user.username == _user.username:
                 self.users.remove(_user)
+
+                # Save old CnxStatus in new user
+                user.CnxStatus = _user.CnxStatus
                 break 
 
         self.users.append(user)

@@ -72,7 +72,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
     def getConnector(self, cid):
         for c in self.connectors:
-            if c['id'] == cid:
+            if str(c['id']) == str(cid):
                 self.log.debug('getConnector [%s] returned a connector', cid)
                 return c
         
@@ -97,7 +97,7 @@ class SMPPClientManagerPB(pb.Avatar):
     
     def delConnector(self, cid):
         for i in range (len(self.connectors)):
-            if self.connectors[i]['id'] == cid:
+            if str(self.connectors[i]['id']) == str(cid):
                 del self.connectors[i]
                 self.log.debug('Deleted connector [%s].', cid)
                 return True
@@ -542,6 +542,11 @@ class SMPPClientManagerPB(pb.Avatar):
         
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
+            # Remove schedule_delivery_time / not supported right now
+            if SubmitSmPDU.params['schedule_delivery_time'] is not None:
+                SubmitSmPDU.params['schedule_delivery_time'] = None
+                self.log.warn('Removing schedule_delivery_time from SubmitSmPDU.')
+
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
             submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
         else:
@@ -549,10 +554,10 @@ class SMPPClientManagerPB(pb.Avatar):
             SubmitSmPDU = pickle.loads(PickledSubmitSmPDU)
         
         # Publishing a pickled PDU
-        self.log.info('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
+        self.log.debug('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
         c = SubmitSmContent(PickledSubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = submit_sm_resp_bill)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
-        
+
         if source_connector == 'httpapi' and dlr_url is not None:
             # Enqueue DLR request in redis 'dlr' key if it is a httpapi request
             if self.redisClient is None or str(self.redisClient) == '<Redis Connection: Not connected>':

@@ -453,7 +453,12 @@ class DataCodingEncoder(Int1Encoder):
         return constants.data_coding_scheme_name_map[schemeName]
         
     def _encodeSchemeDataAsInt(self, dataCoding):
-        if dataCoding.scheme == pdu_types.DataCodingScheme.GSM_MESSAGE_CLASS:
+        # Jasmin update:
+        # Related to #182
+        # When pdu is unpickled (from smpps or http api), the comparison below will always
+        # be False since memory addresses of both objects are different.
+        # Using str() will get the comparison on the 'GSM_MESSAGE_CLASS' string value
+        if str(dataCoding.scheme) == str(pdu_types.DataCodingScheme.GSM_MESSAGE_CLASS):
             return self._encodeGsmMsgSchemeDataAsInt(dataCoding)
         # Jasmin update:
         # As reported in https://github.com/mozes/smpp.pdu/issues/12

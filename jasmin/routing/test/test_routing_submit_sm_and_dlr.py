@@ -866,7 +866,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
         
         # Wait 3 seconds for submit_sm_resp
