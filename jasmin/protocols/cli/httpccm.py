@@ -36,7 +36,7 @@ def HttpccBuild(fCallback):
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
-            if not HttpccKeyMap.has_key(cmd):
+            if cmd not in HttpccKeyMap:
                 return self.protocol.sendData('Unknown Httpcc key: %s' % cmd)
             
             # Buffer key for later SMPPClientConfig initiating

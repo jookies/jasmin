@@ -63,7 +63,7 @@ def MTRouteBuild(fCallback):
             ra = []
             if 'route_args' in self.sessBuffer:
                 ra = self.sessBuffer['route_args']
-            if not MTRouteKeyMap.has_key(cmd) and cmd not in ra:
+            if cmd not in MTRouteKeyMap and cmd not in ra:
                 return self.protocol.sendData('Unknown Route key: %s' % cmd)
             
             # IF we got the type, check if it's a correct one

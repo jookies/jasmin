@@ -75,7 +75,7 @@ def FilterBuild(fCallback):
             fa = []
             if 'filter_args' in self.sessBuffer:
                 fa = self.sessBuffer['filter_args']
-            if not FilterKeyMap.has_key(cmd) and cmd not in fa:
+            if cmd not in FilterKeyMap and cmd not in fa:
                 return self.protocol.sendData('Unknown Filter key: %s' % cmd)
             
             # IF we got the type, check if it's a correct one

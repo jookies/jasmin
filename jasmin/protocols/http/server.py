@@ -104,9 +104,13 @@ class Send(Resource):
             user = self.RouterPB.authenticateUser(username = updated_request.args['username'][0], password = updated_request.args['password'][0])
             if user is None:
                 self.stats.inc('auth_error_count')
-                self.log.debug("Authentication failure for username:%s and password:%s" % (updated_request.args['username'][0], updated_request.args['password'][0]))
-                self.log.error("Authentication failure for username:%s" % updated_request.args['username'][0])
-                raise AuthenticationError('Authentication failure for username:%s' % updated_request.args['username'][0])
+                
+                self.log.debug("Authentication failure for username:%s and password:%s" % (
+                    updated_request.args['username'][0], updated_request.args['password'][0]))
+                self.log.error("Authentication failure for username:%s" % 
+                    updated_request.args['username'][0])
+                raise AuthenticationError('Authentication failure for username:%s' % 
+                    updated_request.args['username'][0])
             
             # Update CnxStatus
             user.CnxStatus.httpapi['connects_count']+= 1

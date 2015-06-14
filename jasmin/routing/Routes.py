@@ -177,7 +177,7 @@ class RoundrobinRoute():
         for _filter in filters:
             if not isinstance(_filter, Filter):
                 raise InvalidRouteParameterError("filter must be an instance of Filter, %s found" % type(_filter))
-            if not self.type in _filter.forRoutes:
+            if self.type not in _filter.forRoutes:
                 raise InvalidRouteFilterError("filter types (%s) is not compatible with this route type (%s)" % (_filter.forRoutes, self.type))
          
         self.filters = filters

@@ -68,7 +68,7 @@ class SMPPClientSMListener:
             del self.rejectTimers[msgid]
                 
     def clearQosTimer(self):
-        if self.qosTimer is not None and self.qosTimer.called == False:
+        if self.qosTimer is not None and self.qosTimer.called is False:
             self.qosTimer.cancel()
             self.qosTimer = None
         
@@ -157,7 +157,7 @@ class SMPPClientSMListener:
             self.qos_last_submit_sm_at = datetime.now()
         
         # Verify if message is a SubmitSm PDU
-        if isinstance(SubmitSmPDU, SubmitSM) == False:
+        if isinstance(SubmitSmPDU, SubmitSM) is False:
             self.log.error("Received an object[%s] which is not an instance of SubmitSm: discarding this unkown object from the queue" % msgid)
             yield self.rejectMessage(message)
             defer.returnValue(False)
@@ -169,7 +169,7 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
         # SMPP Client should be already connected
-        if self.SMPPClientFactory.smpp == None:
+        if self.SMPPClientFactory.smpp is None:
             created_at = parser.parse(message.content.properties['headers']['created_at'])
             msgAge = datetime.now() - created_at
             if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
@@ -193,7 +193,7 @@ class SMPPClientSMListener:
                 yield self.rejectAndRequeueMessage(message)
                 defer.returnValue(False)
         # SMPP Client should be already bound as transceiver or transmitter
-        if self.SMPPClientFactory.smpp.isBound() == False:
+        if self.SMPPClientFactory.smpp.isBound() is False:
             created_at = parser.parse(message.content.properties['headers']['created_at'])
             msgAge = datetime.now() - created_at
             if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
@@ -287,8 +287,8 @@ class SMPPClientSMListener:
                            r.response.status,
                            amqpMessage.content.properties['priority'],
                            r.request.params['registered_delivery'].receipt,
-                           'none' if ('headers' not in amqpMessage.content.properties 
-                                      or 'expiration' not in amqpMessage.content.properties['headers']) 
+                           'none' if ('headers' not in amqpMessage.content.properties or
+                                      'expiration' not in amqpMessage.content.properties['headers']) 
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
@@ -314,8 +314,8 @@ class SMPPClientSMListener:
                            will_be_retried,
                            amqpMessage.content.properties['priority'],
                            r.request.params['registered_delivery'].receipt,
-                           'none' if ('headers' not in amqpMessage.content.properties 
-                                      or 'expiration' not in amqpMessage.content.properties['headers']) 
+                           'none' if ('headers' not in amqpMessage.content.properties or
+                                      'expiration' not in amqpMessage.content.properties['headers']) 
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
@@ -479,7 +479,7 @@ class SMPPClientSMListener:
         without errbacking here so this is a workaround to make it clean, it can be considered
         as a @TODO requiring knowledge of the queue api behaviour
         """
-        if error.check(Closed) == None:
+        if error.check(Closed) is None:
             #@todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside submit_sm_callback
@@ -562,13 +562,15 @@ class SMPPClientSMListener:
                 total_segments = pdu.params['sar_total_segments']
                 segment_seqnum = pdu.params['sar_segment_seqnum']
                 msg_ref_num = pdu.params['sar_msg_ref_num']
-                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
+                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (
+                    msgid, total_segments, segment_seqnum, msg_ref_num))
             elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
                 splitMethod = 'udh'
                 total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
                 segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
                 msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
-                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (msgid, total_segments, segment_seqnum, msg_ref_num))
+                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (
+                    msgid, total_segments, segment_seqnum, msg_ref_num))
             
             if splitMethod is None:
                 # It's a simple short message or a part of a concatenated message
@@ -607,7 +609,8 @@ class SMPPClientSMListener:
                                                     msg_ref_num, 
                                                     segment_seqnum)
                 
-                self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (msgid, total_segments))
+                self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (
+                    msgid, total_segments))
 
                 # Flag it as "will_be_concatenated" and publish it to router
                 routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
@@ -713,7 +716,7 @@ class SMPPClientSMListener:
             else:
                 self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
 
-            self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [submitted/delivered messages:%s/%s] [err:%s] [content:%s]" % 
+            self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%s]" % 
                       (
                        self.SMPPClientFactory.config.id,
                        pdu.dlr['id'],
