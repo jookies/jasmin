@@ -263,7 +263,7 @@ class BasicTestCases(UserTestCases):
     def test_remove(self):
         uid = 'user_10'
         extraCommands = [{'command': 'uid %s' % uid}]
-        return self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
     
         commands = [{'command': 'user -r %s' % uid, 'expect': r'Successfully removed User id\:%s' % uid}]
         return self._test(r'jcli : ', commands)

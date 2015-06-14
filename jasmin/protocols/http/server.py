@@ -262,6 +262,10 @@ class Send(Resource):
             self.log.debug("Returning %s to %s." % (response, updated_request.getClientIP()))
             updated_request.setResponseCode(response['status'])
             
+            # Default return
+            _return = 'Error "%s"' % response['return']
+
+            # Success return
             if response['status'] == 200 and routedConnector is not None:
                 self.log.info('SMS-MT [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]' 
                               % (routedConnector.cid,
@@ -271,9 +275,9 @@ class Send(Resource):
                               SubmitSmPDU.params['source_addr'], 
                               updated_request.args['to'][0], 
                               updated_request.args['content'][0]))
-                return 'Success "%s"' % response['return']
-            else:
-                return 'Error "%s"' % response['return']
+                _return = 'Success "%s"' % response['return']
+            
+            return _return
     
 class HTTPApi(Resource):
     
