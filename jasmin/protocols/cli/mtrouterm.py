@@ -171,7 +171,7 @@ def MTRouteBuild(fCallback):
                             _Filter = self.protocol.managers['filter'].filters[fid]
                             
                             if _Filter.__class__.__name__ not in MTFILTERS:
-                                return self.protocol.sendData('%s#%s is not a valid filter for MTRoute' % (_Filter.__class__.__name__, fid))
+                                return self.protocol.sendData('%s#%s is not a valid filter for MTRoute (not in MTFILTERS)' % (_Filter.__class__.__name__, fid))
                             else:
                                 arg.append(_Filter)
 

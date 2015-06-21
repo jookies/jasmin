@@ -174,7 +174,7 @@ def MORouteBuild(fCallback):
                             _Filter = self.protocol.managers['filter'].filters[fid]
                             
                             if _Filter.__class__.__name__ not in MOFILTERS:
-                                return self.protocol.sendData('%s#%s is not a valid filter for MORoute' % (_Filter.__class__.__name__, fid))
+                                return self.protocol.sendData('%s#%s is not a valid filter for MORoute (not in MOFILTERS)' % (_Filter.__class__.__name__, fid))
                             else:
                                 arg.append(_Filter)
 
