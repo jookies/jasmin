@@ -411,19 +411,19 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 	@defer.inlineCallbacks
 	def test_smpps_binds_count(self):
 		# User have never binded
-		self.assertEqual(self.user.CnxStatus.smpps['bind_count'], 0)
-		self.assertEqual(self.user.CnxStatus.smpps['unbind_count'], 0)
-		self.assertEqual(self.user.CnxStatus.smpps['last_activity_at'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['last_activity_at'], 0)
 
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
 		# One bind
-		self.assertEqual(self.user.CnxStatus.smpps['bind_count'], 1)
-		self.assertEqual(self.user.CnxStatus.smpps['unbind_count'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], 1)
+		self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], 0)
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 		# Unbind & Disconnect
@@ -431,10 +431,10 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 		# Still one bind
-		self.assertEqual(self.user.CnxStatus.smpps['bind_count'], 1)
-		self.assertEqual(self.user.CnxStatus.smpps['unbind_count'], 1)
+		self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], 1)
+		self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], 1)
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 	@defer.inlineCallbacks
@@ -453,26 +453,26 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
  		yield waitFor(1)
 
 		# Unbind were triggered on server side
-		self.assertEqual(self.user.CnxStatus.smpps['unbind_count'], 1)
+		self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], 1)
 
 	@defer.inlineCallbacks
 	def test_smpps_bound_trx(self):
 		# User have never binded
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
-		self.assertEqual(self.user.CnxStatus.smpps['last_activity_at'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['last_activity_at'], 0)
 
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
 		# One bind
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 1,})
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 		# Unbind & Disconnect
@@ -480,11 +480,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 		# Still one bind
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 	@defer.inlineCallbacks
@@ -492,21 +492,21 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.smppc_config.bindOperation = 'receiver'
 
 		# User have never binded
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
-		self.assertEqual(self.user.CnxStatus.smpps['last_activity_at'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['last_activity_at'], 0)
 
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
 
 		# One bind
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 1,
 																				'bind_transceiver': 0,})
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 		# Unbind & Disconnect
@@ -514,11 +514,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 		# Still one bind
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 	@defer.inlineCallbacks
@@ -526,21 +526,21 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.smppc_config.bindOperation = 'transmitter'
 
 		# User have never binded
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
-		self.assertEqual(self.user.CnxStatus.smpps['last_activity_at'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['last_activity_at'], 0)
 
 		# Connect and bind
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TX)
 
 		# One bind
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 1,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 1,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 		# Unbind & Disconnect
@@ -548,11 +548,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 		# Still one bind
-		self.assertEqual(self.user.CnxStatus.smpps['bound_connections_count'], {'bind_transmitter': 0,
+		self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
 																				'bind_receiver': 0,
 																				'bind_transceiver': 0,})
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
 
 	@defer.inlineCallbacks
@@ -567,7 +567,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
  		yield waitFor(5)
 
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 1 ))
 
 		# Unbind & Disconnect
@@ -587,7 +587,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
 		self.assertApproximates(datetime.now(), 
-								self.user.CnxStatus.smpps['last_activity_at'], 
+								self.user.getCnxStatus().smpps['last_activity_at'], 
 								timedelta( seconds = 1 ))
 
 		# Unbind & Disconnect
@@ -601,13 +601,13 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
 		# Assert before
-		self.assertEqual(self.user.CnxStatus.smpps['submit_sm_request_count'], 0)
+		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], 0)
 
 		# SMPPClient > SMPPServer
 		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
 		# Assert after
-		self.assertEqual(self.user.CnxStatus.smpps['submit_sm_request_count'], 1)
+		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], 1)
 
 		# Unbind & Disconnect
  		yield self.smppc_factory.smpp.unbindAndDisconnect()

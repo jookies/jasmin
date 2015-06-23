@@ -449,7 +449,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Removing current Users (%d)' % len(self.users))
                 self.perspective_user_remove_all()
     
-                # Adding new groups
+                # Adding new users
                 self.users = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new Users (%d)' % len(self.users))
 
@@ -528,7 +528,7 @@ class RouterPB(pb.Avatar):
                 self.users.remove(_user)
 
                 # Save old CnxStatus in new user
-                user.CnxStatus = _user.CnxStatus
+                user.setCnxStatus(_user.getCnxStatus())
                 break 
 
         self.users.append(user)

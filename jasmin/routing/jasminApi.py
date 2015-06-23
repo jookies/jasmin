@@ -4,6 +4,7 @@ A set of objects used by Jasmin to manage users, groups and connectors in memory
 
 import re
 from hashlib import md5
+from jasmin.tools.singleton import Singleton
 
 class jasminApiInvalidParamError(Exception):
     """Raised when trying to instanciate a jasminApi object with invalid parameter
@@ -183,6 +184,21 @@ class CnxStatus(jasminApiGenerick):
                         'qos_last_submit_sm_at': 0,
                         }
 
+class UserStats:
+    "User statistics singleton holder"
+    __metaclass__ = Singleton
+    users = {}
+
+    def get(self, uid):
+        "Return a user stats dic or create a new one"
+        if uid not in self.users:
+            self.users[uid] = {'cnx': CnxStatus()}
+        
+        return self.users[uid]
+
+    def set(self, uid, stats):
+        self.users[uid] = stats
+
 class User(jasminApiGenerick):
     """Jasmin user"""
     
@@ -203,8 +219,13 @@ class User(jasminApiGenerick):
         if self.smpps_credential is None:
             self.smpps_credential = SmppsCredential()
 
-        # Statistics
-        self.CnxStatus = CnxStatus()
+    def getCnxStatus(self):
+        """CnxStatus is a singleton which is not persisted to disk,
+        this will resolve the reported issue #207."""
+        return UserStats().get(self.uid)['cnx']
+
+    def setCnxStatus(self, status):
+        UserStats().set(self.uid, {'cnx': status})
 
     def __str__(self):
         return self.username

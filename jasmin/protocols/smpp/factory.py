@@ -246,7 +246,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         SubmitSmPDU = args[1]
 
         # Update CnxStatus
-        user.CnxStatus.smpps['submit_sm_request_count']+= 1
+        user.getCnxStatus().smpps['submit_sm_request_count']+= 1
 
         # Basic validation
         if len(SubmitSmPDU.params['destination_addr']) < 1 or SubmitSmPDU.params['destination_addr'] is None:
@@ -277,10 +277,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         routedConnector = route.getConnector()
 
         # QoS throttling
-        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.CnxStatus.smpps['qos_last_submit_sm_at'] != 0:
+        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0:
             qos_throughput_second = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
             qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
-            qos_delay = datetime.now() - user.CnxStatus.smpps['qos_last_submit_sm_at']
+            qos_delay = datetime.now() - user.getCnxStatus().smpps['qos_last_submit_sm_at']
             if qos_delay < qos_throughput_ysecond_td:
                 self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
                                 qos_delay,
@@ -289,7 +289,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                                 ))
 
                 raise SubmitSmThroughputExceededError()
-        user.CnxStatus.smpps['qos_last_submit_sm_at'] = datetime.now()
+        user.getCnxStatus().smpps['qos_last_submit_sm_at'] = datetime.now()
 
         # Pre-sending submit_sm: Billing processing
         bill = route.getBillFor(user)
@@ -401,9 +401,9 @@ class SMPPServerFactory(_SMPPServerFactory):
             return False
         # Still didnt reach max_bindings ?
         elif user.smpps_credential.getQuota('max_bindings') is not None:
-            bind_count = user.CnxStatus.smpps['bound_connections_count']['bind_transmitter']
-            bind_count+= user.CnxStatus.smpps['bound_connections_count']['bind_receiver']
-            bind_count+= user.CnxStatus.smpps['bound_connections_count']['bind_transceiver']
+            bind_count = user.getCnxStatus().smpps['bound_connections_count']['bind_transmitter']
+            bind_count+= user.getCnxStatus().smpps['bound_connections_count']['bind_receiver']
+            bind_count+= user.getCnxStatus().smpps['bound_connections_count']['bind_transceiver']
             if bind_count >= user.smpps_credential.getQuota('max_bindings'):
                 self.log.warning('New bind rejected for username: "%s", reason: max_bindings limit reached.' % 
                     user.username)
@@ -433,12 +433,12 @@ class SMPPBindManager(_SMPPBindManager):
         _SMPPBindManager.addBinding(self, connection)
 
         # Update CnxStatus
-        self.user.CnxStatus.smpps['bind_count']+= 1
-        self.user.CnxStatus.smpps['bound_connections_count'][str(connection.bind_type)]+= 1
+        self.user.getCnxStatus().smpps['bind_count']+= 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][str(connection.bind_type)]+= 1
 
     def removeBinding(self, connection):
         _SMPPBindManager.removeBinding(self, connection)
 
         # Update CnxStatus
-        self.user.CnxStatus.smpps['unbind_count']+= 1
-        self.user.CnxStatus.smpps['bound_connections_count'][str(connection.bind_type)]-= 1
+        self.user.getCnxStatus().smpps['unbind_count']+= 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][str(connection.bind_type)]-= 1

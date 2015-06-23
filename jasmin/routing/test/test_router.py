@@ -503,7 +503,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
 
     @defer.inlineCallbacks
     def test_user_unicity_with_same_CnxStatus(self):
-        """When replacing a user with user_add, user.CnxStatus
+        """When replacing a user with user_add, user.getCnxStatus()
         must not be intiated again.
         """
 
@@ -518,7 +518,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
 
         # Get CnxStatus
         self.assertEqual(1, len(self.pbRoot_f.users))
-        oldCnxStatus = self.pbRoot_f.users[0].CnxStatus
+        oldCnxStatus = self.pbRoot_f.users[0].getCnxStatus()
 
         # Two: update password
         u1 = User(1, g1, 'username', 'newpassword')
@@ -526,7 +526,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
 
         # Get CnxStatus
         self.assertEqual(1, len(self.pbRoot_f.users))
-        newCnxStatus = self.pbRoot_f.users[0].CnxStatus
+        newCnxStatus = self.pbRoot_f.users[0].getCnxStatus()
 
         # Asserts
         self.assertEqual(oldCnxStatus, newCnxStatus)
