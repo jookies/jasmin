@@ -81,7 +81,7 @@ class SMPPClientManagerPB(pb.Avatar):
     
     def getConnectorDetails(self, cid):
         c = self.getConnector(cid)
-        if c == None:
+        if c is None:
             self.log.debug('getConnectorDetails [%s] returned None', cid)
             return None
         
@@ -195,10 +195,10 @@ class SMPPClientManagerPB(pb.Avatar):
 
         self.log.debug('Adding a new connector %s', c.id)
         
-        if self.getConnector(c.id) != None:
+        if self.getConnector(c.id) is not None:
             self.log.error('Trying to add a new connector with an already existant cid: %s', c.id)
             defer.returnValue(False)
-        if self.amqpBroker == None:
+        if self.amqpBroker is None:
             self.log.error('AMQP Broker is not added')
             defer.returnValue(False)
         if self.amqpBroker.connected == False:
@@ -271,7 +271,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Removing connector [%s]', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to remove a connector with an unknown cid: %s', cid)
             defer.returnValue(False)
         if connector['service'].running == 1:
@@ -318,10 +318,10 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Starting connector [%s]', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to start a connector with an unknown cid: %s', cid)
             defer.returnValue(False)
-        if self.amqpBroker == None:
+        if self.amqpBroker is None:
             self.log.error('AMQP Broker is not added')
             defer.returnValue(False)
         if self.amqpBroker.connected == False:
@@ -379,7 +379,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Stopping connector [%s]', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to stop a connector with an unknown cid: %s', cid)
             defer.returnValue(False)
         if connector['service'].running == 0:
@@ -450,7 +450,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Requested service status %s', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to get service status of a connector with an unknown cid: %s', cid)
             return False
         
@@ -466,14 +466,14 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Requested session state for connector [%s]', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to get session state of a connector with an unknown cid: %s', cid)
             return False
         
         session_state = connector['service'].SMPPClientFactory.getSessionState()
         self.log.info('Connector [%s] session state is: %s', cid, str(session_state))
 
-        if session_state == None:
+        if session_state is None:
             return None
         else:
             # returning Enum would raise this on the client side:
@@ -488,7 +488,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Requested details for connector [%s]', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to get details of a connector with an unknown cid: %s', cid)
             return False
         
@@ -501,7 +501,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Requested config for connector [%s]', cid)
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to get config of a connector with an unknown cid: %s', cid)
             return False
         
@@ -520,13 +520,13 @@ class SMPPClientManagerPB(pb.Avatar):
                            (submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts()))
 
         connector = self.getConnector(cid)
-        if connector == None:
+        if connector is None:
             self.log.error('Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: %s', cid)
             defer.returnValue(False)
-        if self.amqpBroker == None:
+        if self.amqpBroker is None:
             self.log.error('AMQP Broker is not added')
             defer.returnValue(False)
-        if self.amqpBroker == None:
+        if self.amqpBroker is None:
             self.log.error('Trying to enqueue a SUBMIT_SM when no broker were added')
             defer.returnValue(False)
         
@@ -578,8 +578,8 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.redisClient.setex(hashKey, 
                     connector['config'].dlr_expiry, 
                     pickle.dumps(hashValues, self.pickleProtocol))
-        elif (isinstance(source_connector, SMPPServerProtocol) 
-              and SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
+        elif (isinstance(source_connector, SMPPServerProtocol) and 
+              SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
             # requested, then map message-id to the source_connector to permit related deliver_sm 
             # messages holding further receipts to be sent back to the right connector

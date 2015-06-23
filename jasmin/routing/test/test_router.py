@@ -1103,7 +1103,7 @@ class SubmitSmTestCaseTools():
             else:
                 time.sleep(0.2)
 
-class NoSubmitSmWhenReceiverIsBoundSMSC(SMPPClientManagerPBTestCase):
+class NoSubmitSmWhenReceiverIsBoundSMSCTestCases(SMPPClientManagerPBTestCase):
     protocol = NoSubmitSmWhenReceiverIsBoundSMSC
     
     @defer.inlineCallbacks
@@ -1120,10 +1120,10 @@ class NoSubmitSmWhenReceiverIsBoundSMSC(SMPPClientManagerPBTestCase):
         
         yield self.SMSCPort.stopListening()
 
-class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMSC, SubmitSmTestCaseTools):
+class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMSCTestCases, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def setUp(self):
-        yield NoSubmitSmWhenReceiverIsBoundSMSC.setUp(self)
+        yield NoSubmitSmWhenReceiverIsBoundSMSCTestCases.setUp(self)
         
         # Start http servers
         self.AckServerResource = AckServer()
@@ -1131,7 +1131,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield NoSubmitSmWhenReceiverIsBoundSMSC.tearDown(self)
+        yield NoSubmitSmWhenReceiverIsBoundSMSCTestCases.tearDown(self)
         
         yield self.AckServer.stopListening()
 

@@ -25,7 +25,7 @@ class PDU(Content):
     def __init__(self, body = "", children = None, properties = None, pickleProtocol = 2, prePickle = False):
         self.pickleProtocol = pickleProtocol
         
-        if prePickle == True:
+        if prePickle is True:
             body = pickle.dumps(body, self.pickleProtocol)
         
         # Add creation date in header

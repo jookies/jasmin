@@ -62,7 +62,7 @@ class RouterPB(pb.Avatar):
         self.amqpBroker = amqpBroker
         self.log.info('Added amqpBroker to RouterPB')
         
-        if self.amqpBroker.connected == False:
+        if not self.amqpBroker.connected:
             self.log.warn('AMQP Broker channel is not yet ready, waiting for it to become ready.')
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
@@ -169,14 +169,16 @@ class RouterPB(pb.Avatar):
             # multiparted messages
             # Only http connector needs concatenated content
             if concatenated and routedConnector.type != 'http':
-                self.log.debug("DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s" % (msgid, routedConnector.type))
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s" % (
+                    msgid, routedConnector.type))
                 yield self.rejectMessage(message)
 
             # Http will not route any multipart messages, it must instead route
             # concatenated messages
             # Only smpps connector needs multipart content
             elif will_be_concatenated and routedConnector.type == 'http':
-                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts: %s" % (msgid))
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts: %s" % (
+                    msgid))
                 yield self.rejectMessage(message)
 
             else:
@@ -188,8 +190,10 @@ class RouterPB(pb.Avatar):
                 
                 # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
                 content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
-                self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (msgid, routedConnector.type, routedConnector.cid))
-                yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % routedConnector.type, content=content)
+                self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]" % (
+                    msgid, routedConnector.type, routedConnector.cid))
+                yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' % 
+                    routedConnector.type, content=content)
     
     def deliver_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
@@ -294,7 +298,8 @@ class RouterPB(pb.Avatar):
                               % (user.uid, _user.mt_credential.getQuota('submit_sm_count'), bill.getAction('decrement_submit_sm_count') * submit_sm_count))
                 return None
             _user.mt_credential.updateQuota('submit_sm_count', -(bill.getAction('decrement_submit_sm_count') * submit_sm_count))
-            self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count))
+            self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s' % (
+                user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count))
         
         return True
     

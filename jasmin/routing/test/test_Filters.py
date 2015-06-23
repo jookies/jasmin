@@ -1,3 +1,4 @@
+import pickle
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU
 from jasmin.routing.jasminApi import *
@@ -200,3 +201,20 @@ else:
     def test_syntax_error(self):
         f = EvalPyFilter("def class anything ...")
         self.assertRaises(SyntaxError, f.match, self.routable)
+
+    def test_is_picklable(self):
+        """Related to #196:
+        It appears that an EvalPyFilter raises an error when dumped through pickle
+        after getting his .node defined (when .match is called)
+        """
+
+        # Before match
+        unpickledFilter = pickle.loads(pickle.dumps(self.f))
+        self.assertTrue(unpickledFilter.pyCode == self.f.pyCode)
+
+        # Call the match() method to get the .node defined
+        self.f.match(self.routable)
+
+        # After match
+        unpickledFilter = pickle.loads(pickle.dumps(self.f))
+        self.assertTrue(unpickledFilter.pyCode == self.f.pyCode)

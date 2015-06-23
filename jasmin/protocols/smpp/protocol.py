@@ -112,7 +112,11 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         # Any status of a SubmitSMResp must be handled as a normal status
         if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
             if not isinstance(respPDU, txn.request.requireAck):
-                txn.ackDeferred.errback(SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (type(respPDU), type(txn.request))))
+                txn.ackDeferred.errback(
+                    SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (
+                        type(respPDU), type(txn.request)
+                        )
+                    ))
                 return
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
@@ -299,7 +303,8 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.log = logging.getLogger(LOG_CATEGORY)
 
     def PDUReceived(self, pdu):
-        self.log.debug("SMPP Server received PDU from system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (self.system_id, pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug("SMPP Server received PDU from system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (
+            self.system_id, pdu.id, pdu.seqNum, pdu.status))
         self.log.debug("Complete PDU dump: %s" % pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
         
@@ -402,10 +407,14 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         # Authenticate username and password
         try:
-            iface, auth_avatar, logout = yield self.factory.login(username, password, self.transport.getPeer().host)
+            iface, auth_avatar, logout = yield self.factory.login(
+                username, 
+                password, 
+                self.transport.getPeer().host)
         except error.UnauthorizedLogin, e:
             self.log.debug('From host %s and using password: %s' % (self.transport.getPeer().host, password))
-            self.log.warning('SMPP Bind request failed for username: "%s", reason: %s' % (username, str(e)))
+            self.log.warning('SMPP Bind request failed for username: "%s", reason: %s' % (
+                username, str(e)))
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, username)
             return
         
@@ -417,7 +426,8 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         
         # Check that username hasn't exceeded number of allowed binds
         if not self.factory.canOpenNewConnection(auth_avatar, bind_type):
-            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (username, bind_type))
+            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (
+                username, bind_type))
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, username)
             return
         
@@ -429,7 +439,8 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         self.factory.addBoundConnection(self, self.user)
         bound_cnxns = self.factory.getBoundConnections(self.system_id)
-        self.log.info('Bind request succeeded for %s in session [%s]. %d active binds' % (username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.log.info('Bind request succeeded for %s in session [%s]. %d active binds' % (
+            username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
         self.sendResponse(reqPDU, system_id=self.system_id)
 
         # Update stats

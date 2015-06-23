@@ -18,7 +18,7 @@ def ConnectedPB(fCallback):
     if connection is not established
     '''
     def check_cnx_and_call(self, *args, **kwargs):
-        if self.isConnected == False:
+        if self.isConnected is False:
             raise Exception("PB proxy is not connected !")
         
         return fCallback(self, *args, **kwargs)

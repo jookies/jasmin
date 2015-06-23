@@ -6,10 +6,10 @@ class SubmitSmEventHandlerErrorNoShutdown(SMPPProtocolError):
     Any error raising this exception will not cause connection shutdown
     """
     def __init__(self, message = None):
-    	if message is None:
-        	SMPPProtocolError.__init__(self, "%s" % self.getStatusDescription(), self.status)
+        if message is None:
+            SMPPProtocolError.__init__(self, "%s" % self.getStatusDescription(), self.status)
         else:
-        	SMPPProtocolError.__init__(self, message, self.status)
+            SMPPProtocolError.__init__(self, message, self.status)
 
 class SubmitSmEventHandlerErrorShutdown(SMPPError):
     """Errors raised from jasmin.protocols.smpp.factory.SMPPServerFactory.submit_sm_event()

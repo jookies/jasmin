@@ -50,7 +50,7 @@ class AmqpFactory(ClientFactory):
             self.connectDeferred
 
             # Reset deferred if it were called before
-            if self.connectDeferred.called == True:
+            if self.connectDeferred.called is True:
                 self.connectDeferred = defer.Deferred()
                 self.connectDeferred.addCallback(self.authenticate)
         except AttributeError:
@@ -186,7 +186,7 @@ class AmqpFactory(ClientFactory):
         using self.queues which holds all declared queues in the connection
         """
         
-        if self.connected == False:
+        if not self.connected:
             self.log.error("AMQP Client is not connected, cannot queue_declare")
             return None
 
@@ -206,7 +206,7 @@ class AmqpFactory(ClientFactory):
         it is intended for connection checking before publishing
         """
         
-        if self.connected == False:
+        if not self.connected:
             self.log.error("AMQP Client is not connected, cannot publish: %s" % args)
             return None
 
