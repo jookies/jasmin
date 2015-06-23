@@ -48,17 +48,40 @@ class SMPPOperationFactory():
     def isDeliveryReceipt(self, DeliverSM):
         """Check whether DeliverSM is a DLR or not, will return None if not
         or a dict with the DLR elements"""
-        ret = None
+
+        # Fill return object with default values
+        # These values are not mandatory, this means the DeliverSM will
+        # be considered as a DLR even when they are not set !
+        ret = {'dlvrd': 'ND', 'sub': 'ND', 'text': 'ND'}
         
         # Example of DLR content
         # id:IIIIIIIIII sub:SSS dlvrd:DDD submit date:YYMMDDhhmm done
         # date:YYMMDDhhmm stat:DDDDDDD err:E text: . . . . . . . . .
-        pattern = r"^id:(?P<id>[\dA-Za-z-_]+) sub:(?P<sub>\d{3}) dlvrd:(?P<dlvrd>\d{3}) submit date:(?P<sdate>\d+) done date:(?P<ddate>\d+) stat:(?P<stat>\w{7}) err:(?P<err>\w{3}) text:(?P<text>.*)"
-        m = re.search(pattern, DeliverSM.params['short_message'], flags=re.IGNORECASE)
-        if m is not None:
-            ret = m.groupdict()
-        
-        return ret
+        patterns = [r"id:(?P<id>[\dA-Za-z-_]+)",
+            r"sub:(?P<sub>\d{3})",
+            r"dlvrd:(?P<dlvrd>\d{3})",
+            r"submit date:(?P<sdate>\d+)",
+            r"done date:(?P<ddate>\d+)",
+            r"stat:(?P<stat>\w{7})",
+            r"err:(?P<err>\w{3})",
+            r"text:(?P<text>.*)",
+        ]
+
+        # Look for patterns and compose return object
+        for pattern in patterns:
+            m = re.search(pattern, DeliverSM.params['short_message'])
+            if m:
+                ret.update(m.groupdict())
+
+        # Should we consider this as a DLR ?
+        if ('id' in ret and 
+            'ddate' in ret and
+            'sdate' in ret and
+            'stat' in ret and
+            'err' in ret):
+            return ret
+        else:
+            return None
     
     def claimLongSmSeqNum(self):
         if self.lastLongSmSeqNum > 65535:
