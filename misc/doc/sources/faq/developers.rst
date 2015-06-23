@@ -64,7 +64,7 @@ Can you provide an example of how to use EvalPyFilter ?
 
 Let's say you need your filter to pass only messages from username **foo**::
 
-  if routable.user == 'foo':
+  if routable.user.username == 'foo':
       result = False
   else:
       result = True
@@ -84,6 +84,21 @@ Now let's make an advanced example, the below filter will:
 
 .. literalinclude:: advanced_evalpyfilter.py
    :language: python
+
+.. _faq_2_HtleiaE:
+
+How to log events inside an EvalPyFilter ?
+******************************************
+
+It is a usual method to get the filter logging directly to the Router's log file (default is **router.log**), here's a very simple example of doing it:
+
+.. literalinclude:: logging_evalpyfilter.py
+   :language: python
+
+.. note::
+    More on python logging: here_.
+
+.. _here: https://docs.python.org/2/howto/logging-cookbook.html
 
 .. _faq_2_HtsaEfaMR:
 
