@@ -18,7 +18,7 @@ class CnxStatusCases(HTTPApiTestCases):
 
 	@defer.inlineCallbacks
 	def test_last_activity_at(self):
-		self.assertEqual(self.u1.getCnxStatus().httpapi['last_activity_at'], 0)
+		before_test = self.u1.getCnxStatus().httpapi['last_activity_at']
 
 		yield self.web.get("send", {'username': self.u1.username, 
                                    	'password': 'correct',
@@ -28,10 +28,11 @@ class CnxStatusCases(HTTPApiTestCases):
 		self.assertApproximates(datetime.now(), 
 								self.u1.getCnxStatus().httpapi['last_activity_at'], 
 								timedelta( seconds = 0.1 ))
+		self.assertNotEqual(self.u1.getCnxStatus().httpapi['last_activity_at'], before_test)
 
 	@defer.inlineCallbacks
 	def test_submit_sm_request_count(self):
-		self.assertEqual(self.u1.getCnxStatus().httpapi['submit_sm_request_count'], 0)
+		before_test = self.u1.getCnxStatus().httpapi['submit_sm_request_count']
 
 		for i in range(100):
 			yield self.web.get("send", {'username': self.u1.username, 
@@ -39,4 +40,4 @@ class CnxStatusCases(HTTPApiTestCases):
                                     	'to': '98700177',
                                     	'content': 'anycontent'})
 
-		self.assertEqual(self.u1.getCnxStatus().httpapi['submit_sm_request_count'], 100)
+		self.assertEqual(self.u1.getCnxStatus().httpapi['submit_sm_request_count'], before_test+100)
