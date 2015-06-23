@@ -16,7 +16,7 @@ class ConfigFile:
         
         # Parse config files and set options
         self.config = ConfigParser.RawConfigParser()
-        if self.config_file != None:
+        if self.config_file is not None:
             self.config.read(config_file)
         
     def getConfigFile(self):

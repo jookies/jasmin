@@ -20,7 +20,7 @@ def ConnectedPB(fCallback):
     if connection is not established
     '''
     def check_cnx_and_call(self, *args, **kwargs):
-        if self.isConnected == False:
+        if self.isConnected is False:
             raise Exception("PB proxy is not connected !")
         
         return fCallback(self, *args, **kwargs)
@@ -57,8 +57,8 @@ class SMPPClientManagerPBProxy:
         if isinstance(rootObj, RemoteReference):
             self.isConnected = True
             self.pb = rootObj
-        elif (type(rootObj) == tuple and type(rootObj[0]) == bool 
-              and rootObj[0] is False and type(rootObj[1]) == str):
+        elif (type(rootObj) == tuple and type(rootObj[0]) == bool and
+              rootObj[0] is False and type(rootObj[1]) == str):
             raise ConnectError(rootObj[1])
         else:
             raise InvalidConnectResponseError(rootObj)
@@ -83,7 +83,7 @@ class SMPPClientManagerPBProxy:
     
     @ConnectedPB
     def add(self, config):
-        if isinstance(config, SMPPClientConfig) == False:
+        if isinstance(config, SMPPClientConfig) is False:
             raise Exception("Object is not an instance of SMPPClientConfig")
 
         return self.pb.callRemote('connector_add', self.pickle(config))
@@ -128,7 +128,7 @@ class SMPPClientManagerPBProxy:
     
     @ConnectedPB
     def submit_sm(self, cid, SubmitSmPDU):
-        if isinstance(SubmitSmPDU, SubmitSM) == False:
+        if isinstance(SubmitSmPDU, SubmitSM) is False:
             raise Exception("Object is not an instance of SubmitSm")
         
         # Remove schedule_delivery_time / not supported right now
@@ -136,13 +136,13 @@ class SMPPClientManagerPBProxy:
             SubmitSmPDU.params['schedule_delivery_time'] = None
 
         # Set the message priority
-        if SubmitSmPDU.params['priority_flag'] != None:
+        if SubmitSmPDU.params['priority_flag'] is not None:
             priority_flag = SubmitSmPDU.params['priority_flag'].index
         else:
             priority_flag = 0
             
         # Set the message validity date
-        if SubmitSmPDU.params['validity_period'] != None:
+        if SubmitSmPDU.params['validity_period'] is not None:
             validity_period = SubmitSmPDU.params[
                                                  'validity_period'
                                                  ].strftime('%Y-%m-%d %H:%M:%S')

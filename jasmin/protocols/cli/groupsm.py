@@ -30,7 +30,7 @@ def GroupBuild(fCallback):
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
-            if not GroupKeyMap.has_key(cmd):
+            if cmd not in GroupKeyMap:
                 return self.protocol.sendData('Unknown Group key: %s' % cmd)
             
             # Buffer key for later Group initiating

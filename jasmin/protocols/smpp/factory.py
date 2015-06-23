@@ -1,6 +1,5 @@
 #pylint: disable-msg=W0401,W0611
 import logging
-from datetime import datetime
 from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
@@ -108,7 +107,7 @@ class SMPPClientFactory(ClientFactory):
             self.log.error("No connector to retry !")
         else:
             # Reset deferred if it were called before
-            if self.connectDeferred.called == True:
+            if self.connectDeferred.called is True:
                 self.connectDeferred = defer.Deferred()
                 self.connectDeferred.addCallback(self.bind)
             
@@ -361,7 +360,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         """
         system_id = connection.system_id
         self.log.debug('Adding SMPP binding for %s' % system_id)
-        if not system_id in self.bound_connections:
+        if system_id not in self.bound_connections:
             self.bound_connections[system_id] = SMPPBindManager(user)
         self.bound_connections[system_id].addBinding(connection)
         bind_type = connection.bind_type

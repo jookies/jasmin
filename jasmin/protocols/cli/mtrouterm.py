@@ -63,7 +63,7 @@ def MTRouteBuild(fCallback):
             ra = []
             if 'route_args' in self.sessBuffer:
                 ra = self.sessBuffer['route_args']
-            if not MTRouteKeyMap.has_key(cmd) and cmd not in ra:
+            if cmd not in MTRouteKeyMap and cmd not in ra:
                 return self.protocol.sendData('Unknown Route key: %s' % cmd)
             
             # IF we got the type, check if it's a correct one
@@ -171,7 +171,7 @@ def MTRouteBuild(fCallback):
                             _Filter = self.protocol.managers['filter'].filters[fid]
                             
                             if _Filter.__class__.__name__ not in MTFILTERS:
-                                return self.protocol.sendData('%s#%s is not a valid filter for MTRoute' % (_Filter.__class__.__name__, fid))
+                                return self.protocol.sendData('%s#%s is not a valid filter for MTRoute (not in MTFILTERS)' % (_Filter.__class__.__name__, fid))
                             else:
                                 arg.append(_Filter)
 

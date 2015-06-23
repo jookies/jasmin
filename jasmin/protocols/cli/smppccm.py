@@ -19,8 +19,8 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'src_ton': 'source_addr_ton', 'src_npi': 'source_addr_npi', 'dst_ton': 'dest_addr_ton', 'dst_npi': 'dest_addr_npi',
                        'addr_range': 'addressRange', 'src_addr': 'source_addr', 'proto_id': 'protocol_id',
                        'priority': 'priority_flag', 'validity': 'validity_period', 'ripf': 'replace_if_present_flag',
-                       'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 'submit_throughput': 'submit_sm_throughput',
-                       'dlr_expiry': 'dlr_expiry'
+                       'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 
+                       'submit_throughput': 'submit_sm_throughput', 'dlr_expiry': 'dlr_expiry'
                        }
 # Keys to be kept in string type, as requested in #64 and #105
 SMPPClientConfigStringKeys = ['systemType', 'username', 'password', 'addressRange']
@@ -63,8 +63,8 @@ def castInputToBuiltInType(key, value):
                 return False
             else:
                 raise KeyError('Boolean value must be expressed by yes or no.')
-        elif (key == 'loglevel' 
-            and value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
+        elif (key == 'loglevel' and 
+            value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
             raise KeyError('loglevel must be numeric value of 10, 20, 30, 40 or 50.')
     except KeyError:
         raise UnknownValue('Unknown value for key %s: %s' % (key, value))
@@ -112,7 +112,7 @@ def SMPPClientConfigBuild(fCallback):
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
-            if not SMPPClientConfigKeyMap.has_key(cmd):
+            if cmd not in SMPPClientConfigKeyMap:
                 return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
 
             try:
@@ -155,7 +155,7 @@ def SMPPClientConfigUpdate(fCallback):
             return fCallback(self, self.sessBuffer)
         else:
             # Unknown key
-            if not SMPPClientConfigKeyMap.has_key(cmd):
+            if cmd not in SMPPClientConfigKeyMap:
                 return self.protocol.sendData('Unknown SMPPClientConfig key: %s' % cmd)
             if cmd == 'cid':
                 return self.protocol.sendData('Connector id can not be modified !')
