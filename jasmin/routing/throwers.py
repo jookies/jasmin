@@ -55,7 +55,7 @@ class Thrower(Service):
         without errbacking here so this is a workaround to make it clean, it can be considered
         as a @TODO requiring knowledge of the queue api behaviour
         """
-        if error.check(Closed) == None:
+        if error.check(Closed) is None:
             # @todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside throwing_callback
@@ -104,7 +104,7 @@ class Thrower(Service):
         self.amqpBroker = amqpBroker
         self.log.info('Added amqpBroker')
         
-        if self.amqpBroker.connected == False:
+        if not self.amqpBroker.connected:
             self.log.warn('AMQP Broker channel is not yet ready, waiting for it to become ready.')
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
@@ -147,7 +147,7 @@ class Thrower(Service):
         else:
             self.log.debug("Requeuing Content[%s] without delay" % msgid)
             return self.amqpBroker.publish(exchange = 'messaging', 
-                                           routing_key = routing_key, 
+                                           routing_key = message.routing_key, 
                                            content = message.content)
     def rejectMessage(self, message):
         return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)

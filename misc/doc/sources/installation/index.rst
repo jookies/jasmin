@@ -111,9 +111,18 @@ The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pi
 
     sudo pip install --pre jasmin
 
-After getting jasmin installed, it is time to start it as a system service::
+After getting jasmin installed, it is time to start it as a system service:
+
+Using Debian systems (Debian, Ubuntu ...)::
 
     sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
+    sudo chmod +x /etc/init.d/jasmind
+    sudo update-rc.d jasmind defaults
+    sudo invoke-rc.d jasmind start
+
+Using RHEL systems (Red Hat, CentOS ...)::
+
+    sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
     sudo chmod +x /etc/init.d/jasmind
     sudo update-rc.d jasmind defaults
     sudo invoke-rc.d jasmind start

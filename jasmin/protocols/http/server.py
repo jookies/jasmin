@@ -104,9 +104,13 @@ class Send(Resource):
             user = self.RouterPB.authenticateUser(username = updated_request.args['username'][0], password = updated_request.args['password'][0])
             if user is None:
                 self.stats.inc('auth_error_count')
-                self.log.debug("Authentication failure for username:%s and password:%s" % (updated_request.args['username'][0], updated_request.args['password'][0]))
-                self.log.error("Authentication failure for username:%s" % updated_request.args['username'][0])
-                raise AuthenticationError('Authentication failure for username:%s' % updated_request.args['username'][0])
+                
+                self.log.debug("Authentication failure for username:%s and password:%s" % (
+                    updated_request.args['username'][0], updated_request.args['password'][0]))
+                self.log.error("Authentication failure for username:%s" % 
+                    updated_request.args['username'][0])
+                raise AuthenticationError('Authentication failure for username:%s' % 
+                    updated_request.args['username'][0])
             
             # Update CnxStatus
             user.CnxStatus.httpapi['connects_count']+= 1
@@ -262,6 +266,10 @@ class Send(Resource):
             self.log.debug("Returning %s to %s." % (response, updated_request.getClientIP()))
             updated_request.setResponseCode(response['status'])
             
+            # Default return
+            _return = 'Error "%s"' % response['return']
+
+            # Success return
             if response['status'] == 200 and routedConnector is not None:
                 self.log.info('SMS-MT [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]' 
                               % (routedConnector.cid,
@@ -271,9 +279,9 @@ class Send(Resource):
                               SubmitSmPDU.params['source_addr'], 
                               updated_request.args['to'][0], 
                               updated_request.args['content'][0]))
-                return 'Success "%s"' % response['return']
-            else:
-                return 'Error "%s"' % response['return']
+                _return = 'Success "%s"' % response['return']
+            
+            return _return
     
 class HTTPApi(Resource):
     

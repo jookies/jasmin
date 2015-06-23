@@ -6,6 +6,7 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 import datetime
 from jasmin.routing.Routables import Routable
 from jasmin.routing.jasminApi import *
+from jasmin.tools.singleton import Singleton
 
 class InvalidFilterParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
@@ -209,10 +210,22 @@ class TimeIntervalFilter(Filter):
         Filter.match(self, routable)
 
         return True if self.timeInterval[0] <= routable.datetime.time() <= self.timeInterval[1] else False
-            
+
+class CompiledNode:
+    "A compiled code holder singleton to be used by EvalPyFilter"
+    __metaclass__ = Singleton
+    nodes = {}
+
+    def get(self, pyCode):
+        "Return a compiled pyCode object or instanciate a new one"
+        pyCodeHash = pyCode.encode('hex')
+        if pyCodeHash not in self.nodes:
+            self.nodes[pyCodeHash] = compile(pyCode, '', 'exec')
+        
+        return self.nodes[pyCodeHash]
+
 class EvalPyFilter(Filter):
     def __init__(self, pyCode):
-        self.node = None
         self.pyCode = pyCode
         
         self._repr = '<%s (pyCode=%s ..)>' % (self.__class__.__name__, pyCode[:10].replace('\n', ''))
@@ -221,11 +234,10 @@ class EvalPyFilter(Filter):
     def match(self, routable):
         Filter.match(self, routable)
         
-        if self.node is None:
-            self.node = compile(self.pyCode, '', 'exec')
+        node = CompiledNode().get(self.pyCode)
 
         glo = {'routable': routable, 'result': False}
-        eval(self.node, {}, glo)
+        eval(node, {}, glo)
         
         if not isinstance(glo['result'], bool):
             return False

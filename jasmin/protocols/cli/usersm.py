@@ -123,7 +123,7 @@ def UserBuild(fCallback):
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
-            if not UserKeyMap.has_key(cmd):
+            if cmd not in UserKeyMap:
                 return self.protocol.sendData('Unknown User key: %s' % cmd)
             
             if type(UserKeyMap[cmd]) == dict:
@@ -184,8 +184,8 @@ def UserBuild(fCallback):
                 else:
                     # Buffer key for later User initiating
                     UserKey = UserKeyMap[cmd]
-		    if UserKey not in UserConfigStringKeys:
-                	self.sessBuffer[UserKey] = str2num(arg)
+                    if UserKey not in UserConfigStringKeys:
+                        self.sessBuffer[UserKey] = str2num(arg)
                     else:
                         self.sessBuffer[UserKey] = arg
 
@@ -226,7 +226,7 @@ def UserUpdate(fCallback):
             return fCallback(self, self.sessBuffer)
         else:
             # Unknown key
-            if not UserKeyMap.has_key(cmd):
+            if cmd not in UserKeyMap:
                 return self.protocol.sendData('Unknown User key: %s' % cmd)
             if cmd == 'uid':
                 return self.protocol.sendData('User id can not be modified !')
@@ -294,8 +294,8 @@ def UserUpdate(fCallback):
                 else:
                     # Buffer key for later (when receiving 'ok')
                     UserKey = UserKeyMap[cmd]
-		    if UserKey not in UserConfigStringKeys:
-                	self.sessBuffer[UserKey] = str2num(arg)
+                    if UserKey not in UserConfigStringKeys:
+                        self.sessBuffer[UserKey] = str2num(arg)
                     else:
                         self.sessBuffer[UserKey] = arg
 
