@@ -1042,7 +1042,7 @@ class SubmitSmTestCaseTools():
     
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = 0.0, 
-                                         user = None, port = None):
+                                         user = None, port = None, dlr_msg_id_bases = 0):
         # Routing stuff
         g1 = Group(1)
         yield self.group_add(g1)
@@ -1063,7 +1063,8 @@ class SubmitSmTestCaseTools():
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid, port = port, 
-                                    bindOperation = bindOperation)
+                                    bindOperation = bindOperation,
+                                    dlr_msg_id_bases = dlr_msg_id_bases)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector

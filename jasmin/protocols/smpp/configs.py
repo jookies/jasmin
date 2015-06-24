@@ -161,6 +161,14 @@ class SMPPClientConfig(object):
         self.submit_sm_throughput = kwargs.get('submit_sm_throughput', 1)
         if not isinstance(self.submit_sm_throughput, int) and not isinstance(self.submit_sm_throughput, float):
             raise TypeMismatch('submit_sm_throughput must be an integer or float')
+
+        # DLR Message id bases from submit_sm_resp to deliver_sm, possible values:
+        # [0] (default) : submit_sm_resp and deliver_sm messages IDs are on the same base.
+        # [1]           : submit_sm_resp msg-id is in hexadecimal base, deliver_sm msg-id is in
+        #                 decimal base.
+        # [2]           : submit_sm_resp msg-id is in decimal base, deliver_sm msg-id is in
+        #                 hexadecimal base.
+        self.dlr_msg_id_bases = kwargs.get('dlr_msg_id_bases', 0)
                 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):

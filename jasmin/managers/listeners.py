@@ -5,7 +5,7 @@ import struct
 from datetime import datetime, timedelta
 from dateutil import parser
 from twisted.internet import defer
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, CommandId
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.vendor.smpp.pdu.error import *
 from txamqp.queue import Closed
@@ -530,6 +530,31 @@ class SMPPClientSMListener:
             # 2. Set the new short_message
             pdu.params['short_message'] = short_message
             yield self.deliver_sm_event(smpp = None, pdu = pdu, concatenated = True)
+
+    def code_dlr_msgid(self, pdu):
+        "Code the dlr msg id accordingly to SMPPc's dlr_msg_id_bases value"
+
+        try:
+            if pdu.id == CommandId.deliver_sm:
+                if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
+                    ret = '%x' % int(pdu.dlr['id'])
+                elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
+                    ret = int(str(pdu.dlr['id']), 16)
+                else:
+                    ret = pdu.dlr['id']
+            else:
+                # TODO: code dlr for submit_sm_resp maybe ? TBC
+                ret = pdu.dlr['id']
+        except Exception, e:
+            self.log.error('code_dlr_msgid, cannot code msgid [%s] with dlr_msg_id_bases:%s' % (
+                pdu.dlr['id'],
+                self.SMPPClientFactory.config.dlr_msg_id_bases,
+            ))
+            self.log.error('code_dlr_msgid, error details: %s' % e)
+            ret = pdu.dlr['id']
+
+        self.log.debug('code_dlr_msgid: %s coded to %s' % (pdu.dlr['id'], ret))
+        return ret
     
     @defer.inlineCallbacks
     def deliver_sm_event(self, smpp, pdu, concatenated = False):
@@ -621,7 +646,9 @@ class SMPPClientSMListener:
             # This is a DLR !
             # Check for DLR request
             if self.redisClient is not None:
-                q = yield self.redisClient.get("queue-msgid:%s" % pdu.dlr['id'])
+                _coded_dlr_id = self.code_dlr_msgid(pdu)
+
+                q = yield self.redisClient.get("queue-msgid:%s" % _coded_dlr_id)
                 submit_sm_queue_id = None
                 connector_type = None
                 if q is not None:
@@ -649,7 +676,7 @@ class SMPPClientSMListener:
                                                  # of the actual delivery receipt (2) and not the 
                                                  # requested one (maybe 2 or 3)
                                                  dlr_level = 2, 
-                                                 id_smsc = pdu.dlr['id'], 
+                                                 id_smsc = _coded_dlr_id, 
                                                  sub = pdu.dlr['sub'], 
                                                  dlvrd = pdu.dlr['dlvrd'], 
                                                  subdate = pdu.dlr['sdate'], 
@@ -719,7 +746,7 @@ class SMPPClientSMListener:
             self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%s]" % 
                       (
                        self.SMPPClientFactory.config.id,
-                       pdu.dlr['id'],
+                       _coded_dlr_id,
                        pdu.dlr['stat'],
                        pdu.dlr['sdate'],
                        pdu.dlr['ddate'],

@@ -1011,3 +1011,120 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
+    @defer.inlineCallbacks
+    def test_msg_id_dec_then_hex(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route from a SMPPc and get a message id as integer
+        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a deliver_sm with hex
+           based message id
+        """
+        msgid_dec = random.randint(1, 9999999999)
+        msgid_hex = '%x' % msgid_dec
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases = 2)
+        
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Tell the SMSCPort to response with the defined MsgId
+        self.SMSCPort.factory.lastClient.nextResponseMsgId = msgid_dec
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger receipt with different base
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id = msgid_hex)
+
+        # Wait some time before testing
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        # smpps response #2 was a deliver_sm: dlr mapping were done correctly !
+        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+    @defer.inlineCallbacks
+    def test_msg_id_hex_then_dec(self):
+        """Will:
+        1. Set a SMS-MT route to connector A
+        2. Send a SMS-MT to that route from a SMPPc and get a message id as hex
+        3. Wait for the DLR (deliver_sm) to be routed back to SMPPc through SMPPs as a deliver_sm with int
+           based message id
+        """
+        msgid_dec = random.randint(1, 9999999999)
+        msgid_hex = '%x' % msgid_dec
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases = 1)
+        
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Tell the SMSCPort to response with the defined MsgId
+        self.SMSCPort.factory.lastClient.nextResponseMsgId = msgid_hex
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        
+        # Wait 3 seconds for submit_sm_resp
+        exitDeferred = defer.Deferred()
+        reactor.callLater(3, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Trigger receipt with different base
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id = msgid_dec)
+
+        # Wait some time before testing
+        exitDeferred = defer.Deferred()
+        reactor.callLater(1, exitDeferred.callback, None)
+        yield exitDeferred
+
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        # smpps response #2 was a deliver_sm: dlr mapping were done correctly !
+        response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
