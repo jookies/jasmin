@@ -2,6 +2,7 @@ import time
 import logging
 import pickle
 import uuid
+import jasmin
 from twisted.spread import pb
 from twisted.internet import defer, reactor
 from txamqp.queue import Closed
@@ -352,7 +353,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.groups, self.pickleProtocol))
                 fh.close()
 
@@ -366,7 +367,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
                 fh.close()
 
@@ -382,7 +383,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
                 fh.close()
                 
@@ -396,7 +397,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
                 fh.close()
                 

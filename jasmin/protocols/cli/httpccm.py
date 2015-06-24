@@ -1,5 +1,6 @@
 import pickle
 import time
+import jasmin
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import HttpConnector
 
@@ -89,7 +90,7 @@ class HttpccManager(PersistableManager):
         try:
             # Write configuration with datetime stamp
             fh = open(path,'w')
-            fh.write('Persisted on %s\n' % time.strftime("%c"))
+            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
             fh.write(pickle.dumps(self.httpccs, 2))
             fh.close()
         except IOError:
