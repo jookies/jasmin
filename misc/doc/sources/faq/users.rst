@@ -9,7 +9,7 @@ Could not find a version that satisfies the requirement jasmin
 
 Installing Jasmin using **pip** will through this error::
 
-  $ sudo pip install jasmin
+  $ sudo pip install python-jasmin
   [sudo] password for richard: 
   Downloading/unpacking jasmin
       Could not find a version that satisfies the requirement jasmin (from versions: 0.6b1, 0.6b10, 0.6b11, 0.6b12, 0.6b13, 0.6b14, 0.6b2, 0.6b3, 0.6b4, 0.6b5, 0.6b6, 0.6b7, 0.6b8, 0.6b9)
@@ -19,7 +19,7 @@ Installing Jasmin using **pip** will through this error::
 
 This is common question, since Jasmin is still tagged as a 'Beta' version, pip installation must be done with the **--pre** parameter::
 
-  $ sudo pip install --pre jasmin
+  $ sudo pip install --pre python-jasmin
   ...
 
 .. hint::

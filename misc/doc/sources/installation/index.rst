@@ -36,7 +36,7 @@ RHEL & CentOS
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
   curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.rpm.sh | sudo bash
-  yum install python-jasmin
+  sudo yum install python-jasmin
 
 You may get the following error if **RabbitMQ** or **Redis** server are not installed::
 
