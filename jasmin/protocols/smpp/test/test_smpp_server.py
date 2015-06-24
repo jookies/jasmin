@@ -599,14 +599,14 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
-		# Assert before
-		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], 0)
+		# Save the 'before' value
+		_submit_sm_request_count = self.user.getCnxStatus().smpps['submit_sm_request_count']
 
 		# SMPPClient > SMPPServer
 		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
 		# Assert after
-		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], 1)
+		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count+1)
 
 		# Unbind & Disconnect
  		yield self.smppc_factory.smpp.unbindAndDisconnect()
