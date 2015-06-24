@@ -169,6 +169,8 @@ class SMPPClientConfig(object):
         # [2]           : submit_sm_resp msg-id is in decimal base, deliver_sm msg-id is in
         #                 hexadecimal base.
         self.dlr_msg_id_bases = kwargs.get('dlr_msg_id_bases', 0)
+        if self.dlr_msg_id_bases not in [0, 1, 2]:
+            raise UnknownValue('Invalid dlr_msg_id_bases: %s' % self.dlr_msg_id_bases)
                 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):
