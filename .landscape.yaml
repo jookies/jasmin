@@ -8,3 +8,5 @@ requirements:
 ignore-paths:
     - misc
     - jasmin/vendor
+ignore-patterns:
+    - (^|/)test(/|$)

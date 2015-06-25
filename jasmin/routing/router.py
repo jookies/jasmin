@@ -2,6 +2,7 @@ import time
 import logging
 import pickle
 import uuid
+import jasmin
 from twisted.spread import pb
 from twisted.internet import defer, reactor
 from txamqp.queue import Closed
@@ -352,7 +353,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.groups, self.pickleProtocol))
                 fh.close()
 
@@ -366,7 +367,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
                 fh.close()
 
@@ -382,7 +383,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
                 fh.close()
                 
@@ -396,7 +397,7 @@ class RouterPB(pb.Avatar):
     
                 fh = open(path,'w')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s\n' % time.strftime("%c"))
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
                 fh.close()
                 
@@ -449,7 +450,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Removing current Users (%d)' % len(self.users))
                 self.perspective_user_remove_all()
     
-                # Adding new groups
+                # Adding new users
                 self.users = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new Users (%d)' % len(self.users))
 
@@ -528,7 +529,7 @@ class RouterPB(pb.Avatar):
                 self.users.remove(_user)
 
                 # Save old CnxStatus in new user
-                user.CnxStatus = _user.CnxStatus
+                user.setCnxStatus(_user.getCnxStatus())
                 break 
 
         self.users.append(user)

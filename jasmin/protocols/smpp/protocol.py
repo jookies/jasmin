@@ -388,7 +388,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         # Update CnxStatus
         if self.user is not None:
-            self.user.CnxStatus.smpps['last_activity_at'] = datetime.now()
+            self.user.getCnxStatus().smpps['last_activity_at'] = datetime.now()
 
     @defer.inlineCallbacks
     def doBindRequest(self, reqPDU, sessionState):

@@ -23,7 +23,7 @@ class StatsManager(Manager):
 
         user = self.pb['router'].getUser(opts.user)
         # SMPP Server stats
-        for k,v in user.CnxStatus.smpps.iteritems():
+        for k,v in user.getCnxStatus().smpps.iteritems():
             row = []
             row.append('#%s' % k)
             row.append('SMPP Server')
@@ -35,7 +35,7 @@ class StatsManager(Manager):
             table.append(row)
 
         # HTTP API stats
-        for k,v in user.CnxStatus.httpapi.iteritems():
+        for k,v in user.getCnxStatus().httpapi.iteritems():
             row = []
             row.append('#%s' % k)
             row.append('HTTP Api')
@@ -56,13 +56,13 @@ class StatsManager(Manager):
         for user in users:
             row = []
             row.append('#%s' % user.uid)
-            row.append(user.CnxStatus.smpps['bound_connections_count']['bind_receiver'] + 
-                       user.CnxStatus.smpps['bound_connections_count']['bind_transmitter'] +
-                       user.CnxStatus.smpps['bound_connections_count']['bind_transceiver']
+            row.append(user.getCnxStatus().smpps['bound_connections_count']['bind_receiver'] + 
+                       user.getCnxStatus().smpps['bound_connections_count']['bind_transmitter'] +
+                       user.getCnxStatus().smpps['bound_connections_count']['bind_transceiver']
             )
-            row.append(formatDateTime(user.CnxStatus.smpps['last_activity_at']))
-            row.append(user.CnxStatus.httpapi['connects_count'])
-            row.append(formatDateTime(user.CnxStatus.httpapi['last_activity_at']))
+            row.append(formatDateTime(user.getCnxStatus().smpps['last_activity_at']))
+            row.append(user.getCnxStatus().httpapi['connects_count'])
+            row.append(formatDateTime(user.getCnxStatus().httpapi['last_activity_at']))
 
             table.append(row)
 

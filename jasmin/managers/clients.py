@@ -3,6 +3,7 @@ import pickle
 import uuid
 import time
 import datetime
+import jasmin
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
@@ -120,7 +121,7 @@ class SMPPClientManagerPB(pb.Avatar):
             
             # Write configuration with datetime stamp
             fh = open(path,'w')
-            fh.write('Persisted on %s\n' % time.strftime("%c"))
+            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
             fh.write(pickle.dumps(connectors, self.pickleProtocol))
             fh.close()
 

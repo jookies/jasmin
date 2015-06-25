@@ -2,6 +2,7 @@
 import inspect
 import pickle
 import time
+import jasmin
 from dateutil import parser
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import *
@@ -235,7 +236,7 @@ class FiltersManager(PersistableManager):
         try:
             # Write configuration with datetime stamp
             fh = open(path,'w')
-            fh.write('Persisted on %s\n' % time.strftime("%c"))
+            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
             fh.write(pickle.dumps(self.filters, 2))
             fh.close()
         except IOError:

@@ -503,7 +503,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
 
     @defer.inlineCallbacks
     def test_user_unicity_with_same_CnxStatus(self):
-        """When replacing a user with user_add, user.CnxStatus
+        """When replacing a user with user_add, user.getCnxStatus()
         must not be intiated again.
         """
 
@@ -518,7 +518,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
 
         # Get CnxStatus
         self.assertEqual(1, len(self.pbRoot_f.users))
-        oldCnxStatus = self.pbRoot_f.users[0].CnxStatus
+        oldCnxStatus = self.pbRoot_f.users[0].getCnxStatus()
 
         # Two: update password
         u1 = User(1, g1, 'username', 'newpassword')
@@ -526,7 +526,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
 
         # Get CnxStatus
         self.assertEqual(1, len(self.pbRoot_f.users))
-        newCnxStatus = self.pbRoot_f.users[0].CnxStatus
+        newCnxStatus = self.pbRoot_f.users[0].getCnxStatus()
 
         # Asserts
         self.assertEqual(oldCnxStatus, newCnxStatus)
@@ -1042,7 +1042,7 @@ class SubmitSmTestCaseTools():
     
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = 0.0, 
-                                         user = None, port = None):
+                                         user = None, port = None, dlr_msg_id_bases = 0):
         # Routing stuff
         g1 = Group(1)
         yield self.group_add(g1)
@@ -1063,7 +1063,8 @@ class SubmitSmTestCaseTools():
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid, port = port, 
-                                    bindOperation = bindOperation)
+                                    bindOperation = bindOperation,
+                                    dlr_msg_id_bases = dlr_msg_id_bases)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector
