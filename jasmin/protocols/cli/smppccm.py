@@ -20,7 +20,7 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
                        'addr_range': 'addressRange', 'src_addr': 'source_addr', 'proto_id': 'protocol_id',
                        'priority': 'priority_flag', 'validity': 'validity_period', 'ripf': 'replace_if_present_flag',
                        'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay', 
-                       'submit_throughput': 'submit_sm_throughput', 'dlr_expiry': 'dlr_expiry'
+                       'submit_throughput': 'submit_sm_throughput', 'dlr_expiry': 'dlr_expiry', 'dlr_msgid': 'dlr_msg_id_bases'
                        }
 # Keys to be kept in string type, as requested in #64 and #105
 SMPPClientConfigStringKeys = ['systemType', 'username', 'password', 'addressRange']
@@ -84,7 +84,12 @@ class JCliSMPPClientConfig(SMPPClientConfig):
     def getAll(self):
         r = {}
         for key, value in SMPPClientConfigKeyMap.iteritems():
-            r[key] = castOutputToBuiltInType(key, getattr(self, value))
+            if hasattr(self, value):
+                r[key] = castOutputToBuiltInType(key, getattr(self, value))
+            else:
+                # Related to #192
+                r[key] = 'Unknown (object is from an old Jasmin release !)'
+
         return r
 
 def SMPPClientConfigBuild(fCallback):

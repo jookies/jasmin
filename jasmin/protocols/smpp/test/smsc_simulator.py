@@ -78,6 +78,8 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
 
     def __init__(self):
         HappySMSC.__init__(self)
+
+        self.nextResponseMsgId = None
         
     def sendSuccessResponse(self, reqPDU):
         if str(reqPDU.commandId)[:5] == 'bind_':
@@ -86,7 +88,16 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         HappySMSC.sendSuccessResponse(self, reqPDU)
 
     def sendSubmitSmResponse(self, reqPDU):
-        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, status=CommandStatus.ESME_ROK, message_id = str(random.randint(10000000, 9999999999)))
+        if self.nextResponseMsgId is None:
+            msgid = str(random.randint(10000000, 9999999999))
+        else:
+            msgid = str(self.nextResponseMsgId)
+            self.nextResponseMsgId = None
+
+        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, 
+            status=CommandStatus.ESME_ROK, 
+            message_id = msgid,
+            )
         self.sendPDU(self.lastSubmitSmRestPDU)
 
     def handleSubmit(self, reqPDU):
@@ -112,12 +123,12 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
                 source_addr=self.lastSubmitSmPDU.params['source_addr'],
                 destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
                 short_message='id:%s sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:%s err:000 text:%s' % (
-                            _id,
+                            str(_id),
                             stat,
                             self.lastSubmitSmPDU.params['short_message'][:20]
                             ),
                 message_state=MessageState.DELIVERED,
-                receipted_message_id=self.lastSubmitSmRestPDU.params['message_id'],
+                receipted_message_id=str(_id),
             )
             self.trigger_deliver_sm(pdu)
         elif pdu_type == 'data_sm':

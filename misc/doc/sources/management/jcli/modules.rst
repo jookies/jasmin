@@ -739,6 +739,9 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
    * - **ripf**
      - Replace if present flag: 0=Do not replace, 1=Replace
      - 0
+   * - **dlr_msgid**
+     - Indicates how to read msg id when receiving a receipt: 0=msg id is identical in submit_sm_resp and deliver_sm, 1=submit_sm_resp msg-id is in hexadecimal base, deliver_sm msg-id is in decimal base, 2=submit_sm_resp msg-id is in decimal base, deliver_sm msg-id is in hexadecimal base.
+     - 0
 
 .. note:: When adding a SMPP Client connector, only it's **cid** is required, all the other parameters will 
          be set to their respective defaults.
