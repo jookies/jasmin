@@ -4,7 +4,26 @@ Installation
 
 The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/ja-http/index` or :doc:`/apis/smpp-server/index`.
 
-.. important:: Jasmin needs a working **RabbitMQ** and **Redis** servers, more info in :ref:`installation_prerequisites`.
+.. important:: Jasmin needs a working **RabbitMQ** and **Redis** servers, more info in :ref:`installation_prerequisites` below.
+
+.. _installation_prerequisites:
+
+Prerequisites & Dependencies
+****************************
+
+`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
+
+.. hint:: Latest pip module installation:
+          # **curl https://bootstrap.pypa.io/get-pip.py | python**
+
+Depending on the Linux distribution you are using, you may need to install the following dependencies:
+
+* `RabbitMQ Server <https://www.rabbitmq.com>`_, Ubuntu package name: **rabbitmq-server**. RabbitMQ is used heavily by Jasmin as its core AMQP.
+* `Redis Server <http://redis.io/>`_, Ubuntu package name: **redis-server**. Redis is used mainly for mapping message ID's when receiving delivery receipts.
+* header files and a static library for Python, Ubuntu package name: **python-dev**
+* Foreign Function Interface library (development files), Ubuntu package name: **libffi-dev**
+* Secure Sockets Layer toolkit - development files, Ubuntu package name: **libssl-dev**
+* `Twisted Matrix <https://twistedmatrix.com/>` _ - Python Event-driven networking engine, Ubuntu package name: **python-twisted**
 
 Debian & Ubuntu
 ***************
@@ -12,8 +31,16 @@ Debian & Ubuntu
 `Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
   curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.deb.sh | sudo bash
-  apt-get install python-jasmin
+  sudo apt-get install python-jasmin
 
+Once Jasmin installed, execute the following steps to start Jasmin as a system service::
+
+  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
+  sudo chmod +x /etc/init.d/jasmind
+  sudo update-rc.d jasmind defaults
+  sudo invoke-rc.d jasmind start
+
+  
 .. list-table:: DEB OS compliance
    :header-rows: 1
 
@@ -36,7 +63,7 @@ RHEL & CentOS
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
   curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.rpm.sh | sudo bash
-  yum install python-jasmin
+  sudo yum install python-jasmin
 
 You may get the following error if **RabbitMQ** or **Redis** server are not installed::
 
@@ -48,6 +75,15 @@ These requirements are available from the `EPEL repository <https://fedoraprojec
   ## RHEL/CentOS 7 64-Bit ##
   yum -y install http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
 
+Once Jasmin installed, execute the following steps to start Jasmin as a system service::
+
+  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
+  sudo chmod +x /etc/init.d/jasmind
+  sudo chkconfig jasmind on
+  sudo service jasmind start
+
+.. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind**.
+  
 .. list-table:: RPM OS compliance
    :header-rows: 1
 
@@ -65,24 +101,6 @@ Pypi
 ****
 
 Having another OS not covered by package installations described above ? using the Python package installer will be possible, you may have to follow these instructions:
-
-.. _installation_prerequisites:
-
-Prerequisites
-=============
-
-`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
-
-.. hint:: Latest pip module installation:
-          # **curl https://bootstrap.pypa.io/get-pip.py | python**
-
-Depending on the Linux distribution you are using, you may need to install the following dependencies:
-
-* `RabbitMQ Server <https://www.rabbitmq.com>`_, Ubuntu package name: **rabbitmq-server**
-* `Redis Server <http://redis.io/>`_, Ubuntu package name: **redis-server**
-* header files and a static library for Python, Ubuntu package name: **python-dev**
-* Foreign Function Interface library (development files), Ubuntu package name: **libffi-dev**
-* Secure Sockets Layer toolkit - development files, Ubuntu package name: **libssl-dev**
 
 System user
 ===========
@@ -110,24 +128,6 @@ Installation
 The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
     sudo pip install --pre jasmin
-
-After getting jasmin installed, it is time to start it as a system service:
-
-Using Debian systems (Debian, Ubuntu ...)::
-
-    sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
-    sudo chmod +x /etc/init.d/jasmind
-    sudo update-rc.d jasmind defaults
-    sudo invoke-rc.d jasmind start
-
-Using RHEL systems (Red Hat, CentOS ...)::
-
-    sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
-    sudo chmod +x /etc/init.d/jasmind
-    sudo update-rc.d jasmind defaults
-    sudo invoke-rc.d jasmind start
-
-.. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind** instead of **update-rc.d jasmind defaults**.
 
 Sending your first SMS
 **********************
