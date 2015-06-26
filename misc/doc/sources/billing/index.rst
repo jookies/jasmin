@@ -10,7 +10,7 @@ Billing
 Billing quotas
 **************
 
-A user can be charged through 2 types of quotas (balance and/or submit_sm_count), if he reaches the limit of one of these quotas no more sending will be permitted, no matter the used channel (SMPP Server or HTTP API).
+A user can be charged through 2 types of quotas (balance and/or sms_count), if he reaches the limit of one of these quotas no more sending will be permitted, no matter the used channel (SMPP Server or HTTP API).
 
 .. _billing_type_1:
 
@@ -66,18 +66,18 @@ Using asynchronous billing can be helpful in many use cases:
 
 .. _billing_type_2:
 
-2. submit_sm_count quota
+2. sms_count quota
 ========================
 
-Simpler than *Balance* management, *submit_sm_count* is a counter to be decreased whenever the user submits the SMS for sending, let's get into these use cases for better comprehension:
+Simpler than *Balance* management, *sms_count* is a counter to be decreased whenever the user submits the SMS for sending, let's get into these use cases for better comprehension:
 
-* When sending one SMS through a route, user's *submit_sm_count* will get decreased by **1**
-* When sending five SMS through a route, user's *submit_sm_count* will get decreased by **5**
+* When sending one SMS through a route, user's *sms_count* will get decreased by **1**
+* When sending five SMS through a route, user's *sms_count* will get decreased by **5**
 
 
-.. note:: When defined, *submit_sm_count* is always decreased no matter the route is rated or not.
+.. note:: When defined, *sms_count* is always decreased no matter the route is rated or not.
 
-.. important:: New users created through :ref:`user_manager` will have unlimited submit_sm_count by default, assuming you'll apply postpaid billing (*or no billing at all*), user's *submit_sm_count* must be :ref:`defined <user_credentials>` in order to enable billing (or limit).
+.. important:: New users created through :ref:`user_manager` will have unlimited sms_count by default, assuming you'll apply postpaid billing (*or no billing at all*), user's *sms_count* must be :ref:`defined <user_credentials>` in order to enable billing (or limit).
 
 .. _billing_process_flow:
 
@@ -87,7 +87,7 @@ Process flow
 The following process flow shows how billing is done through HTTP Api (same process is applied on SMPP Server), it is including all types of billing:
 
 * balance quota billing (:ref:`ref <billing_type_1>`) including asynchronous billing (:ref:`ref <billing_async>`)
-* submit_sm_count quota billing (:ref:`ref <billing_type_2>`)
+* sms_count quota billing (:ref:`ref <billing_type_2>`)
 
 .. figure:: /resources/billing/billing-process.png
    :alt: Billing process flow
