@@ -33,14 +33,12 @@ Debian & Ubuntu
   curl -s https://packagecloud.io/install/repositories/jookies/python-jasmin/script.deb.sh | sudo bash
   sudo apt-get install python-jasmin
 
-Once Jasmin installed, execute the following steps to start Jasmin as a system service::
+Once Jasmin installed, you may simply start the **jasmind** service::
 
-  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
-  sudo chmod +x /etc/init.d/jasmind
-  sudo update-rc.d jasmind defaults
   sudo invoke-rc.d jasmind start
 
-  
+.. note:: redis and rabbitmq must be started with jasmin.
+
 .. list-table:: DEB OS compliance
    :header-rows: 1
 
@@ -75,15 +73,12 @@ These requirements are available from the `EPEL repository <https://fedoraprojec
   ## RHEL/CentOS 7 64-Bit ##
   yum -y install http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
 
-Once Jasmin installed, execute the following steps to start Jasmin as a system service::
+Once Jasmin installed, you may simply start the **jasmind** service::
 
-  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
-  sudo chmod +x /etc/init.d/jasmind
-  sudo chkconfig jasmind on
-  sudo service jasmind start
+  sudo invoke-rc.d jasmind start
 
-.. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind**.
-  
+.. note:: redis and rabbitmq must be started with jasmin.
+
 .. list-table:: RPM OS compliance
    :header-rows: 1
 
@@ -128,6 +123,22 @@ Installation
 The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
     sudo pip install --pre jasmin
+
+Once Jasmin installed, execute the following steps to start Jasmin as a system service::
+
+  # On ubuntu:
+  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
+  # On redhat, centos:
+  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
+
+  # Then:
+  sudo chmod +x /etc/init.d/jasmind
+  sudo update-rc.d jasmind defaults
+  sudo invoke-rc.d jasmind start
+
+.. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind**.
+
+.. note:: redis and rabbitmq must be started with jasmin.
 
 Sending your first SMS
 **********************
