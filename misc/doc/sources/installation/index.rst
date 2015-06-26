@@ -23,7 +23,7 @@ Depending on the Linux distribution you are using, you may need to install the f
 * header files and a static library for Python, Ubuntu package name: **python-dev**
 * Foreign Function Interface library (development files), Ubuntu package name: **libffi-dev**
 * Secure Sockets Layer toolkit - development files, Ubuntu package name: **libssl-dev**
-* `Twisted Matrix <https://twistedmatrix.com/>` _ - Python Event-driven networking engine, Ubuntu package name: **python-twisted**
+* `Twisted Matrix <https://twistedmatrix.com>`_, Python Event-driven networking engine, Ubuntu package name: **python-twisted**
 
 Debian & Ubuntu
 ***************
