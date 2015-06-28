@@ -521,7 +521,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         oldCnxStatus = self.pbRoot_f.users[0].getCnxStatus()
 
         # Two: update password
-        u1 = User(1, g1, 'username', 'newpassword')
+        u1 = User(1, g1, 'username', 'newpwd')
         yield self.user_add(u1)
 
         # Get CnxStatus

@@ -195,7 +195,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'gid g1'},
                     {'command': 'uid u1'},
                     {'command': 'username fourat'},
-                    {'command': 'password fouratpwd'},
+                    {'command': 'password fpwd'},
                     {'command': 'ok', 'expect': 'Successfully added User'}]
         yield self._test(r'jcli : ', commands)
         # Add HTTP Connector
