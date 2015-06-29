@@ -739,7 +739,7 @@ class SMPPClientSMListener:
                                 self.log.debug('Removing SMPPs map for msgid[%s]' % submit_sm_queue_id)
                                 yield self.redisClient.delete('smppsmap:%s' % submit_sm_queue_id)
                 else:
-                    self.log.warn('Got a DLR for an unknown message id: %s' % pdu.dlr['id'])
+                    self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu.dlr['id'], _coded_dlr_id))
             else:
                 self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
 
