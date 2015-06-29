@@ -52,7 +52,7 @@ class SMPPOperationFactory():
         # Fill return object with default values
         # These values are not mandatory, this means the DeliverSM will
         # be considered as a DLR even when they are not set !
-        ret = {'dlvrd': 'ND', 'sub': 'ND', 'text': 'ND'}
+        ret = {'dlvrd': 'ND', 'sub': 'ND', 'text': ''}
         
         # Example of DLR content
         # id:IIIIIIIIII sub:SSS dlvrd:DDD submit date:YYMMDDhhmm done
