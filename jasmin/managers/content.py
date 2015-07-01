@@ -6,6 +6,7 @@ import uuid
 import pickle
 import datetime
 from txamqp.content import Content
+from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 
 class InvalidParameterError(Exception):
     """Raised when a parameter is invalid
@@ -95,7 +96,7 @@ class DLRContentForSmpps(Content):
 class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
-    def __init__(self, body, replyto, priority = 1, expiration = None, msgid = None, submit_sm_resp_bill = None):
+    def __init__(self, body, replyto, priority = 1, expiration = None, msgid = None, submit_sm_resp_bill = None, source_connector = 'httpapi'):
         props = {}
         
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -104,6 +105,8 @@ class SubmitSmContent(PDU):
         if priority < 0 or priority > 3:
             raise InvalidParameterError("Priority must be set from 0 to 3, it is actually set to %s" % 
                                         priority)
+        if source_connector != 'httpapi' and not isinstance(source_connector, SMPPServerProtocol):
+            raise InvalidParameterError('Invalid source_connector value: %s, must be "httpapi" or an instance of SMPPServerProtocol')
         if msgid is None:
             msgid = randomUniqueId()
         
@@ -111,7 +114,7 @@ class SubmitSmContent(PDU):
         props['message-id'] = msgid
         props['reply-to'] = replyto
         
-        props['headers'] = {}
+        props['headers'] = {'source_connector': source_connector}
         if submit_sm_resp_bill is not None:
             props['headers']['submit_sm_resp_bill'] = submit_sm_resp_bill
         if expiration is not None:

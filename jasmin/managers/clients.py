@@ -556,7 +556,12 @@ class SMPPClientManagerPB(pb.Avatar):
         
         # Publishing a pickled PDU
         self.log.debug('Publishing SubmitSmPDU with routing_key=%s, priority=%s' % (pubQueueName, priority))
-        c = SubmitSmContent(PickledSubmitSmPDU, responseQueueName, priority, validity_period, submit_sm_resp_bill = submit_sm_resp_bill)
+        c = SubmitSmContent(PickledSubmitSmPDU, 
+            responseQueueName, 
+            priority, 
+            validity_period, 
+            submit_sm_resp_bill = submit_sm_resp_bill,
+            source_connector = source_connector)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
         if source_connector == 'httpapi' and dlr_url is not None:

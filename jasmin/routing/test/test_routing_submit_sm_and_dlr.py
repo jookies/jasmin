@@ -13,7 +13,7 @@ from jasmin.routing.test.test_router import (HappySMSCTestCase, SubmitSmTestCase
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.protocols.smpp.test.smsc_simulator import *
-from jasmin.vendor.smpp.pdu.pdu_types import MessageState
+from jasmin.vendor.smpp.pdu.pdu_types import MessageState, AddrTon, AddrNpi
 
 class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
 
@@ -127,6 +127,28 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
             'SMSC_DELIVERY_RECEIPT_REQUESTED')
+
+    @defer.inlineCallbacks
+    def test_connector_source_addr_ton(self):
+        "Related to #104"
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector(source_addr_ton = AddrTon.ABBREVIATED)
+        
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+        
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']), 
+            'ABBREVIATED')
 
 class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
