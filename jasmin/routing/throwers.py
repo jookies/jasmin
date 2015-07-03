@@ -2,6 +2,7 @@ import pickle
 import logging
 import urllib
 import uuid
+from logging.handlers import TimedRotatingFileHandler
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.web.client import getPage
@@ -91,7 +92,8 @@ class Thrower(Service):
         self.log = logging.getLogger(self.log_category)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = logging.FileHandler(filename=self.config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -212,9 +214,9 @@ class deliverSmThrower(Thrower):
                                      'Accept'           : 'text/plain'})
             self.log.info('Throwed message [msgid:%s] to connector [cid:%s] using http to %s.' % (msgid, dc.cid, dc.baseurl))
             
-            self.log.debug('Destination end replied to message [msgid:%s]: %s' % (msgid, content))
+            self.log.debug('Destination end replied to message [msgid:%s]: %r' % (msgid, content))
             # Check for acknowledgement
-            if content != 'ACK/Jasmin':
+            if content.strip() != 'ACK/Jasmin':
                 raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the message.')
 
             yield self.ackMessage(message)
@@ -361,9 +363,9 @@ class DLRThrower(Thrower):
                                      'Accept'           : 'text/plain'})
             self.log.info('Throwed DLR [msgid:%s] to %s.' % (msgid, baseurl))
             
-            self.log.debug('Destination end replied to message [msgid:%s]: %s' % (msgid, content))
+            self.log.debug('Destination end replied to message [msgid:%s]: %r' % (msgid, content))
             # Check for acknowledgement
-            if content != 'ACK/Jasmin':
+            if content.strip() != 'ACK/Jasmin':
                 raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the DLR message.')
 
             # Everything is okay ? then:

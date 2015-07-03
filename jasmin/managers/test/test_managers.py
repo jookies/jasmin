@@ -73,7 +73,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         self.defaultConfig = SMPPClientConfig(id=defaultSMPPClientId,
                                               username='smppclient1',
                                               reconnectOnConnectionFailure=True,
-                                              port=9002
+                                              port=9002,
                                               )
 
     @defer.inlineCallbacks

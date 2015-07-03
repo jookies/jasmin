@@ -41,8 +41,11 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
 
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=self.c1.cid, port = self.SMSCPort.getHost().port, 
-                                    bindOperation = 'transceiver', submit_sm_throughput = 0)
+        c1Config = SMPPClientConfig(id=self.c1.cid, 
+            port = self.SMSCPort.getHost().port, 
+            bindOperation = 'transceiver', 
+            submit_sm_throughput = 0,
+            )
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector

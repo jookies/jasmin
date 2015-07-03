@@ -43,6 +43,7 @@ class SMPPClientConfig(object):
 
         # Logging configuration
         self.log_file = kwargs.get('log_file', '/var/log/jasmin/default-%s.log' % self.id)
+        self.log_rotate = kwargs.get('log_rotate', 'midnight')
         self.log_level = kwargs.get('log_level', logging.INFO)
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = kwargs.get('log_dateformat', '%Y-%m-%d %H:%M:%S')
@@ -118,7 +119,7 @@ class SMPPClientConfig(object):
         # These are default parameters, c.f. _setConfigParamsInPDU method in SMPPOperationFactory
         self.service_type = kwargs.get('service_type', None)
         self.addressTon = kwargs.get('addressTon', AddrTon.UNKNOWN)
-        self.addressNpi = kwargs.get('addressNpi', AddrNpi.ISDN)
+        self.addressNpi = kwargs.get('addressNpi', AddrNpi.UNKNOWN)
         self.source_addr_ton = kwargs.get('source_addr_ton', AddrTon.NATIONAL)
         self.source_addr_npi = kwargs.get('source_addr_npi', AddrNpi.ISDN)
         self.dest_addr_ton = kwargs.get('dest_addr_ton', AddrTon.INTERNATIONAL)
@@ -177,9 +178,10 @@ class SMPPClientServiceConfig(ConfigFile):
         ConfigFile.__init__(self, config_file)
         
         self.log_level = logging.getLevelName(self._get('service-smppclient', 'log_level', 'INFO'))
-        self.log_file = self._get('services-smppclient', 'log_file', '/var/log/jasmin/service-smppclient.log')
-        self.log_format = self._get('services-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
-        self.log_date_format = self._get('services-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+        self.log_file = self._get('service-smppclient', 'log_file', '/var/log/jasmin/service-smppclient.log')
+        self.log_rotate = self._get('service-smppclient', 'log_rotate', 'W6')
+        self.log_format = self._get('service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_date_format = self._get('service-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
 class SMPPServerConfig(ConfigFile):
     def __init__(self, config_file = None):
@@ -193,6 +195,7 @@ class SMPPServerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
         self.log_file = self._get('smpp-server', 'log_file', '/var/log/jasmin/default-%s.log' % self.id)
+        self.log_rotate = self._get('smpp-server', 'log_rotate', 'midnight')
         self.log_format = self._get('smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('smpp-server', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 

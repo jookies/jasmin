@@ -22,6 +22,7 @@ class AmqpConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('amqp-broker', 'log_level', 'INFO'))
         self.log_file = self._get('amqp-broker', 'log_file', '/var/log/jasmin/amqp-client.log')
+        self.log_rotate = self._get('amqp-broker', 'log_rotate', 'W6')
         self.log_format = self._get('amqp-broker', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('amqp-broker', 'log_date_format', '%Y-%m-%d %H:%M:%S')
                 

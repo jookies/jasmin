@@ -1,7 +1,9 @@
 #pylint: disable-msg=W0401,W0611
+import re
 import logging
 import pickle
 import struct
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from dateutil import parser
 from twisted.internet import defer
@@ -17,6 +19,42 @@ from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 
 LOG_CATEGORY = "jasmin-sm-listener"
+
+def SubmitSmPDUUpdate(fCallback):
+    '''Will extract SubmitSmPDU and update it (if needed) then pass it to fCallback'''
+    def update_submit_sm_pdu(self, *args, **kwargs):
+        message = args[0]
+        SubmitSmPDU = pickle.loads(message.content.body)
+
+        if 'headers' in message.content.properties:
+            headers = message.content.properties['headers']
+            """SubmitSmPDU is sent through httpapi, in this case, some params that cannot be defined
+            through the api must be set here (from the connector config):"""
+            if 'source_connector' in headers and headers['source_connector'] == 'httpapi':
+                update_params = [
+                    'protocol_id', 
+                    'replace_if_present_flag', 
+                    'dest_addr_ton',
+                    'source_addr_npi',
+                    'dest_addr_npi',
+                    'service_type',
+                    'source_addr_ton',
+                    'sm_default_msg_id',
+                ]
+
+                for param in update_params:
+                    _pdu = SubmitSmPDU
+
+                    # Set param in main pdu
+                    _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
+
+                    # Set param in sub-pdus (multipart use case)
+                    while hasattr(_pdu, 'nextPdu'):
+                        _pdu = _pdu.nextPdu
+                        _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
+
+        return fCallback(self, message, SubmitSmPDU)
+    return update_submit_sm_pdu
 
 class SMPPClientSMListener:
     debug_it = {'rejectCount': 0}
@@ -44,7 +82,8 @@ class SMPPClientSMListener:
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = logging.FileHandler(filename=self.config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -110,15 +149,15 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def ackMessage(self, message):
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
-    
+
+    @SubmitSmPDUUpdate
     @defer.inlineCallbacks
-    def submit_sm_callback(self, message):
+    def submit_sm_callback(self, message, SubmitSmPDU):
         """This callback is a queue listener
         it is called whenever a message was consumed from queue
         c.f. test_amqp.ConsumeTestCase for use cases
         """
         msgid = message.content.properties['message-id']
-        SubmitSmPDU = pickle.loads(message.content.body)
 
         self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
 
@@ -183,14 +222,19 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds." % (
+                if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                else:
+                    delay_str = ''
+                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds." % (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
+                    delay_str,
                     msgAge.seconds,
                     )
                 )
-                yield self.rejectAndRequeueMessage(message)
+                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                 defer.returnValue(False)
         # SMPP Client should be already bound as transceiver or transmitter
         if self.SMPPClientFactory.smpp.isBound() is False:
@@ -207,14 +251,19 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds."% (
+                if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                else:
+                    delay_str = ''
+                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds."% (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
+                    delay_str,
                     msgAge,
                     )
                 )
-                yield self.rejectAndRequeueMessage(message)
+                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                 defer.returnValue(False)
 
         self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
@@ -292,7 +341,7 @@ class SMPPClientSMListener:
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           short_message
+                           re.sub(r'[^\x20-\x7E]+','.', short_message)
                            ))
         else:
             # Message must be retried ?
@@ -319,7 +368,7 @@ class SMPPClientSMListener:
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           r.request.params['short_message']
+                           re.sub(r'[^\x20-\x7E]+','.', r.request.params['short_message'])
                            ))
 
         # It is a final submit_sm_resp !
@@ -560,6 +609,8 @@ class SMPPClientSMListener:
     def deliver_sm_event(self, smpp, pdu, concatenated = False):
         """This event is called whenever a deliver_sm pdu is received through a SMPPc
         It will hand the pdu to the router or a dlr thrower (depending if its a DLR or not).
+        
+        Note: this event will catch data_sm pdus as well
         """
 
         pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
@@ -612,7 +663,7 @@ class SMPPClientSMListener:
                            pdu.params['validity_period'],
                            pdu.params['source_addr'],
                            pdu.params['destination_addr'],
-                           pdu.params['short_message']
+                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
                            ))
             else:
                 # Long message part received
@@ -739,7 +790,7 @@ class SMPPClientSMListener:
                                 self.log.debug('Removing SMPPs map for msgid[%s]' % submit_sm_queue_id)
                                 yield self.redisClient.delete('smppsmap:%s' % submit_sm_queue_id)
                 else:
-                    self.log.warn('Got a DLR for an unknown message id: %s' % pdu.dlr['id'])
+                    self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu.dlr['id'], _coded_dlr_id))
             else:
                 self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
 

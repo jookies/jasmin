@@ -67,3 +67,26 @@ Since everything in Jasmin runs fully in-memory, what will happen if i restart J
 Jasmin is doing everything in-memory for performance reasons, and is automatically persisting newly updated configurations every **persistence_timer_secs** seconds as defined in jasmin.cfg file.
 
 .. important:: Set **persistence_timer_secs** to a reasonable value, keep in mind that every disk-access operation will cost you few performance points, and don’t set it too high as you can loose critical updates such as User balance updates.
+
+.. _faq_1_WraDGaDfaumi:
+
+When receiving a DLR: Got a DLR for an unknown message id
+*********************************************************
+
+The following error may appear in **messages.log** while receiving a receipt (DLR)::
+
+  WARNING  4403 Got a DLR for an unknown message id: 788821
+
+This issue can be caused by one of these:
+
+* The receipt is received and it indicates a message id that did not get sent by Jasmin,
+* The receipt is received for a message sent by Jasmin, but message id is not recognize, if it's the case then find below what you can do.
+
+**What's happening:**
+
+When sending a message (**submit_sm**) the upstream connector will reply back with a first receipt (**submit_sm_resp**) where it indicates the message id for further tracking, then it will send back another receipt (**deliver_sm** or **data_sm**) with the same message it and different delivery state.
+The problem occurs when the upstream connector returns the same message id but in different encodings.
+
+**Solution:**
+
+Use the **dlr_msgid** parameter as shown in :ref:`smppccm_manager` to indicate the encoding strategy of the upstream partner/connector.
