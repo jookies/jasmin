@@ -17,7 +17,7 @@ class UserTestCases(jCliWithoutAuthTestCases):
         if GID:
             commands.append({'command': 'gid %s' % GID})
         if Username:
-            password = 'RANDOM_PASSWORD'
+            password = 'RND_PWD'
             commands.append({'command': 'username %s' % Username})
             commands.append({'command': 'password %s' % password})
         for extraCommand in extraCommands:
@@ -321,8 +321,8 @@ class BasicTestCases(UserTestCases):
     def test_crypted_password(self):
         "Related to #103"
         uid = 'user_14-1'
-        add_password = 'oldpassword'
-        update_password = 'newpassword'
+        add_password = 'oldpwd'
+        update_password = 'newpwd'
         extraCommands = [{'command': 'uid %s' % uid},
                          {'command': 'password %s' % add_password}]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')

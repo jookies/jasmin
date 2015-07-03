@@ -310,7 +310,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                                           (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
         if self.RouterPB.chargeUserForSubmitSms(user, bill, requirements = charging_requirements) is None:
-            self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s]' % 
+            self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)' % 
                                                 (user, bill.bid, bill.getTotalAmounts()))
             raise SubmitSmChargingError()
 
