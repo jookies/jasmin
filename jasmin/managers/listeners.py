@@ -118,6 +118,10 @@ class SMPPClientSMListener:
     def rejectAndRequeueMessage(self, message, delay = True):
         msgid = message.content.properties['message-id']
         
+        # Delay may be None as set in configuration
+        if delay is None:
+            delay = False
+
         if delay != False:
             # Use configured requeue_delay or specific one
             if delay is not bool:
