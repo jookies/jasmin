@@ -955,12 +955,94 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         2. Send a SMS-MT to that route from a SMPPc and request DLR
         3. Wait for the DLR (data_sm) to be routed back to SMPPc through SMPPs as a data_sm
         """
-        #
-        # TODO: include this test in the previous one (test_receipt_as_deliver_sm) as 
-        # an iteration (trigger_DLR type = data_sm)
-        #
         yield self.connect('127.0.0.1', self.pbPort)
-    test_receipt_as_data_sm.skip = 'TODO #92'
+        yield self.prepareRoutingsAndStartConnector()
+        
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
+        # smpps response #1 was a submit_sm_resp with ESME_ROK
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+
+        # Trigger receipts with non final states
+        x = self.smpps_factory.lastProto.sendPDU.call_count
+        for msg_stat in self.msg_stats_non_final:
+            # Trigger a receipt
+            stat = str(msg_stat)
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = stat, pdu_type = 'data_sm')
+            x+= 1
+
+            # Wait some time before testing
+            yield waitFor(0.5)
+
+            # Run tests
+            # smpps response #x was a deliver_sm with stat = msg_stat
+            self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
+            response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
+            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
+            self.assertEqual(response_pdu_x.seqNum, x - 1)
+            self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
+            self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+            self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
+            self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
+            self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
+
+        # Trigger receipts with final states
+        # pick up a random final state, there must be only one receipt (the first one) because
+        # SMPPs map is deleted when message is receipted (delivered or not)
+        x = self.smpps_factory.lastProto.sendPDU.call_count
+        random.shuffle(self.msg_stats_final)
+        final_state_triggered = False
+        for msg_stat in self.msg_stats_final:
+            # Trigger a receipt
+            stat = str(msg_stat)
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = stat, pdu_type = 'data_sm')
+            x+= 1
+
+            # Wait some time before testing
+            yield waitFor(0.5)
+
+            # Run tests
+            if not final_state_triggered:
+                # smpps response #x was a deliver_sm with stat = msg_stat
+                self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
+                response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
+                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
+                self.assertEqual(response_pdu_x.seqNum, x - 1)
+                self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
+                self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
+                self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
+                self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
+                self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
+                final_state_triggered = True
+                x_value_when_fstate_triggered = x
+            else:
+                # SMPPs map must be deleted when a final state were triggered
+                # We get no more deliver_sm receipts for any further triggered DLR
+                self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x_value_when_fstate_triggered)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[x_value_when_fstate_triggered][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_for_unknown_message(self):

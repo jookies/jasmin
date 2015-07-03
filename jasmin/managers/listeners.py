@@ -596,6 +596,8 @@ class SMPPClientSMListener:
     def deliver_sm_event(self, smpp, pdu, concatenated = False):
         """This event is called whenever a deliver_sm pdu is received through a SMPPc
         It will hand the pdu to the router or a dlr thrower (depending if its a DLR or not).
+        
+        Note: this event will catch data_sm pdus as well
         """
 
         pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
