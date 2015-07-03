@@ -105,8 +105,8 @@ class SubmitSmContent(PDU):
         if priority < 0 or priority > 3:
             raise InvalidParameterError("Priority must be set from 0 to 3, it is actually set to %s" % 
                                         priority)
-        if source_connector != 'httpapi' and not isinstance(source_connector, SMPPServerProtocol):
-            raise InvalidParameterError('Invalid source_connector value: %s, must be "httpapi" or an instance of SMPPServerProtocol')
+        if source_connector not in ['httpapi', 'smppsapi']:
+            raise InvalidParameterError('Invalid source_connector value: %s.')
         if msgid is None:
             msgid = randomUniqueId()
         

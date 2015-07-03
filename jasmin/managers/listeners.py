@@ -35,14 +35,21 @@ def SubmitSmPDUUpdate(fCallback):
                     'dest_addr_ton',
                     'source_addr_npi',
                     'dest_addr_npi',
-                    'esm_class',
                     'service_type',
                     'source_addr_ton',
                     'sm_default_msg_id',
                 ]
 
                 for param in update_params:
-                    SubmitSmPDU.params[param] = getattr(self.SMPPClientFactory.config, param)
+                    _pdu = SubmitSmPDU
+
+                    # Set param in main pdu
+                    _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
+
+                    # Set param in sub-pdus (multipart use case)
+                    while hasattr(_pdu, 'nextPdu'):
+                        _pdu = _pdu.nextPdu
+                        _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
 
         return fCallback(self, message, SubmitSmPDU)
     return update_submit_sm_pdu

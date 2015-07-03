@@ -561,7 +561,7 @@ class SMPPClientManagerPB(pb.Avatar):
             priority, 
             validity_period, 
             submit_sm_resp_bill = submit_sm_resp_bill,
-            source_connector = source_connector)
+            source_connector = 'httpapi' if source_connector == 'httpapi' else 'smppsapi')
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
         if source_connector == 'httpapi' and dlr_url is not None:

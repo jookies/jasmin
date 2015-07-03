@@ -192,7 +192,7 @@ class DeliveryParsingTest(OperationsTest):
         self.assertEquals(isDlr['ddate'], '201506201641')
         self.assertEquals(isDlr['stat'], 'DELIVRD')
         self.assertEquals(isDlr['err'], '000')
-        self.assertEquals(isDlr['text'], 'ND')
+        self.assertEquals(isDlr['text'], '')
 
 class ReceiptCreationTestCases(OperationsTest):
     message_state_map = {
