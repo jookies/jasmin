@@ -32,7 +32,8 @@ from jasmin.routing.Filters import GroupFilter
 from jasmin.routing.jasminApi import *
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
-from jasmin.vendor.smpp.pdu.pdu_types import EsmClass, EsmClassMode, MoreMessagesToSend
+from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, MoreMessagesToSend, 
+    AddrTon, AddrNpi)
 from twisted.cred import portal
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot 
@@ -521,7 +522,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         oldCnxStatus = self.pbRoot_f.users[0].getCnxStatus()
 
         # Two: update password
-        u1 = User(1, g1, 'username', 'newpassword')
+        u1 = User(1, g1, 'username', 'newpwd')
         yield self.user_add(u1)
 
         # Get CnxStatus
@@ -1042,7 +1043,9 @@ class SubmitSmTestCaseTools():
     
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = 0.0, 
-                                         user = None, port = None, dlr_msg_id_bases = 0):
+                                         user = None, port = None, dlr_msg_id_bases = 0, 
+                                         source_addr_ton = AddrTon.NATIONAL, source_addr_npi = AddrNpi.ISDN, 
+                                         dest_addr_ton = AddrTon.INTERNATIONAL, dest_addr_npi = AddrNpi.ISDN):
         # Routing stuff
         g1 = Group(1)
         yield self.group_add(g1)
@@ -1064,7 +1067,12 @@ class SubmitSmTestCaseTools():
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid, port = port, 
                                     bindOperation = bindOperation,
-                                    dlr_msg_id_bases = dlr_msg_id_bases)
+                                    dlr_msg_id_bases = dlr_msg_id_bases,
+                                    source_addr_ton = source_addr_ton,
+                                    source_addr_npi = source_addr_npi,
+                                    dest_addr_ton = dest_addr_ton,
+                                    dest_addr_npi = dest_addr_npi,
+                                    )
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # Start the connector

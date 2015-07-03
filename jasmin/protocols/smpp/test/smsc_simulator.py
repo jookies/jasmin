@@ -4,6 +4,17 @@ import random
 
 LOG_CATEGORY="jasmin.smpp.tests.smsc_simulator"
 
+message_state_map = {
+    'ACCEPTD':                  MessageState.ACCEPTED,
+    'UNDELIV':                  MessageState.UNDELIVERABLE,
+    'REJECTD':                  MessageState.REJECTED,
+    'DELIVRD':                  MessageState.DELIVERED,
+    'EXPIRED':                  MessageState.EXPIRED,
+    'DELETED':                  MessageState.DELETED,
+    'ACCEPTD':                  MessageState.ACCEPTED,
+    'UNKNOWN':                  MessageState.UNKNOWN,
+}
+
 class NoSubmitSmWhenReceiverIsBoundSMSC(HappySMSC):
     
     def handleSubmit(self, reqPDU):
@@ -110,6 +121,9 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
     def trigger_deliver_sm(self, pdu):
         self.sendPDU(pdu)
 
+    def trigger_data_sm(self, pdu):
+        self.sendPDU(pdu)
+
     def trigger_DLR(self, _id = None, pdu_type = 'deliver_sm', stat = 'DELIVRD'):
         if self.lastSubmitSmRestPDU is None:
             raise Exception('A submit_sm must be sent to this SMSC before requesting sendDeliverSM !')
@@ -127,12 +141,19 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
                             stat,
                             self.lastSubmitSmPDU.params['short_message'][:20]
                             ),
-                message_state=MessageState.DELIVERED,
+                message_state=message_state_map[stat],
                 receipted_message_id=str(_id),
             )
             self.trigger_deliver_sm(pdu)
         elif pdu_type == 'data_sm':
-            pass
+            # Send back a data_sm with containing a DLR
+            pdu = DataSM(
+                source_addr=self.lastSubmitSmPDU.params['source_addr'],
+                destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
+                message_state=message_state_map[stat],
+                receipted_message_id=str(_id),
+            )
+            self.trigger_data_sm(pdu)
         else:
             raise Exception('Unknown pdu_type (%s) when calling trigger_DLR()' % pdu_type)
 

@@ -46,12 +46,12 @@ Full contents
    /architecture/index
    /support/index
    /installation/index
-   /programming-examples/index
-   /apis/smpp-server/index
    /apis/ja-http/index
+   /apis/smpp-server/index
+   /routing/index
+   /programming-examples/index
    /management/jcli/index
    /management/jcli/modules
-   /routing/index
    /billing/index
    /messaging/index
    /faq/users

@@ -123,7 +123,7 @@ class Send(Resource):
                 destination_addr = updated_request.args['to'][0],
                 short_message = updated_request.args['content'][0],
                 data_coding = int(updated_request.args['coding'][0]),
-            )                
+            )
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
             # Make Credential validation
