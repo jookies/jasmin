@@ -329,7 +329,7 @@ class SMPPClientSMListener:
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           short_message
+                           re.sub(r'[^\x20-\x7E]+','.', short_message)
                            ))
         else:
             # Message must be retried ?
@@ -356,7 +356,7 @@ class SMPPClientSMListener:
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           r.request.params['short_message']
+                           re.sub(r'[^\x20-\x7E]+','.', r.request.params['short_message'])
                            ))
 
         # It is a final submit_sm_resp !
@@ -651,7 +651,7 @@ class SMPPClientSMListener:
                            pdu.params['validity_period'],
                            pdu.params['source_addr'],
                            pdu.params['destination_addr'],
-                           pdu.params['short_message']
+                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
                            ))
             else:
                 # Long message part received
