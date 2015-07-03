@@ -2,6 +2,7 @@
 import logging
 import pickle
 import struct
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from dateutil import parser
 from twisted.internet import defer
@@ -80,7 +81,8 @@ class SMPPClientSMListener:
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = logging.FileHandler(filename=self.config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

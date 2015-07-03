@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import jasmin.vendor.txredisapi as redis
 from twisted.internet import reactor
 from twisted.internet import defer
@@ -43,7 +44,8 @@ class RedisForJasminFactory(redis.RedisFactory):
         self.log = logging.getLogger(LOG_CATEGORY)
         if config is not None:
             self.log.setLevel(config.log_level)
-            handler = logging.FileHandler(filename=config.log_file)
+            handler = TimedRotatingFileHandler(filename=config.log_file, 
+                when = config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
         else:

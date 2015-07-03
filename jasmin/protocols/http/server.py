@@ -4,6 +4,7 @@ This is the http server module serving the /send API
 
 import logging
 import re
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from twisted.web.resource import Resource
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
@@ -300,7 +301,8 @@ class HTTPApi(Resource):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
-            handler = logging.FileHandler(filename=config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

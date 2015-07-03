@@ -26,6 +26,7 @@ class RouterPBConfig(ConfigFile):
 
         # Logging
         self.log_level = logging.getLevelName(self._get('router', 'log_level', 'INFO'))
+        self.log_rotate = self._get('router', 'log_rotate', 'W6')
         self.log_file = self._get('router', 'log_file', '/var/log/jasmin/router.log')
         self.log_format = self._get('router', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('router', 'log_date_format', '%Y-%m-%d %H:%M:%S')
@@ -43,6 +44,7 @@ class deliverSmThrowerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('deliversm-thrower', 'log_level', 'INFO'))
         self.log_file = self._get('deliversm-thrower', 'log_file', '/var/log/jasmin/deliversm-thrower.log')
+        self.log_rotate = self._get('deliversm-thrower', 'log_rotate', 'W6')
         self.log_format = self._get('deliversm-thrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('deliversm-thrower', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
@@ -63,5 +65,6 @@ class DLRThrowerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('dlr-thrower', 'log_level', 'INFO'))
         self.log_file = self._get('dlr-thrower', 'log_file', '/var/log/jasmin/dlr-thrower.log')
+        self.log_rotate = self._get('dlr-thrower', 'log_rotate', 'W6')
         self.log_format = self._get('dlr-thrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('dlr-thrower', 'log_date_format', '%Y-%m-%d %H:%M:%S')
