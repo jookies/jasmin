@@ -212,9 +212,9 @@ class deliverSmThrower(Thrower):
                                      'Accept'           : 'text/plain'})
             self.log.info('Throwed message [msgid:%s] to connector [cid:%s] using http to %s.' % (msgid, dc.cid, dc.baseurl))
             
-            self.log.debug('Destination end replied to message [msgid:%s]: %s' % (msgid, content))
+            self.log.debug('Destination end replied to message [msgid:%s]: %r' % (msgid, content))
             # Check for acknowledgement
-            if content != 'ACK/Jasmin':
+            if content.strip() != 'ACK/Jasmin':
                 raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the message.')
 
             yield self.ackMessage(message)
@@ -361,9 +361,9 @@ class DLRThrower(Thrower):
                                      'Accept'           : 'text/plain'})
             self.log.info('Throwed DLR [msgid:%s] to %s.' % (msgid, baseurl))
             
-            self.log.debug('Destination end replied to message [msgid:%s]: %s' % (msgid, content))
+            self.log.debug('Destination end replied to message [msgid:%s]: %r' % (msgid, content))
             # Check for acknowledgement
-            if content != 'ACK/Jasmin':
+            if content.strip() != 'ACK/Jasmin':
                 raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the DLR message.')
 
             # Everything is okay ? then:

@@ -26,7 +26,7 @@ SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username
 SMPPClientConfigStringKeys = ['systemType', 'username', 'password', 'addressRange']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
-RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType', 'log_file', 'log_level']
+RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']
 
 def castOutputToBuiltInType(key, value):
     'Will cast value to the correct type depending on the key'

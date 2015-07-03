@@ -23,6 +23,7 @@ class SubmitSmContentTestCase(ContentTestCase):
         self.assertEquals(c['reply-to'], self.replyto)
         self.assertEquals(c['priority'], 1)
         self.assertEquals(c['headers']['expiration'], self.expiration)
+        self.assertEquals(c['headers']['source_connector'], 'httpapi')
         self.assertNotEquals(c['message-id'], None)
         self.assertTrue('created_at' in c['headers'])
         
@@ -46,6 +47,9 @@ class SubmitSmContentTestCase(ContentTestCase):
             self.assertEquals(msgIds.count(c['message-id']), 0, "Collision detected at position %s/%s" % (counter, maxCounter))
             msgIds.append(c['message-id'])
             
+    def test_set_incorrect_source_connector(self):
+        self.assertRaises(InvalidParameterError, SubmitSmContent, self.body, self.replyto, source_connector = 'anythingelse')
+
 class SubmitSmRespContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
         c = SubmitSmRespContent(self.body, 1, prePickle=False)

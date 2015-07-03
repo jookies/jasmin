@@ -14,6 +14,17 @@ from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass,
                                             MessageState
                                             )
 
+message_state_map = {
+    MessageState.ACCEPTED:      'ACCEPTD',
+    MessageState.UNDELIVERABLE: 'UNDELIV',
+    MessageState.REJECTED:      'REJECTD',
+    MessageState.DELIVERED:     'DELIVRD',
+    MessageState.EXPIRED:       'EXPIRED',
+    MessageState.DELETED:       'DELETED',
+    MessageState.ACCEPTED:      'ACCEPTD',
+    MessageState.UNKNOWN:       'UNKNOWN',
+}
+
 class UnknownMessageStatusError(Exception):
     """Raised when message_status is not recognized
     """
@@ -45,40 +56,57 @@ class SMPPOperationFactory():
 
         return pdu
     
-    def isDeliveryReceipt(self, DeliverSM):
-        """Check whether DeliverSM is a DLR or not, will return None if not
-        or a dict with the DLR elements"""
+    def isDeliveryReceipt(self, pdu):
+        """Check whether pdu is a DLR or not, will return None if not
+        or a dict with the DLR elements.
+        It'll proceed through 2 steps:
+         1. looking for receipted_message_id and message_state
+         2. then parsing the message content for extra fields
+        """
+
+        # Delivery receipt can be in form of DeliverSM or DataSM
+        if not isinstance(pdu, DeliverSM) and not isinstance(pdu, DataSM):
+            return None
 
         # Fill return object with default values
-        # These values are not mandatory, this means the DeliverSM will
+        # These values are not mandatory, this means the pdu will
         # be considered as a DLR even when they are not set !
-        ret = {'dlvrd': 'ND', 'sub': 'ND', 'text': 'ND'}
+        ret = {'dlvrd': 'ND', 'sub': 'ND', 'sdate': 'ND', 'ddate': 'ND', 'err': 'ND', 'text': ''}
         
+        # 1.Looking for optional parameters
+        ###################################
+        if 'receipted_message_id' in pdu.params and 'message_state' in pdu.params:
+            ret['id'] = pdu.params['receipted_message_id']
+
+            if pdu.params['message_state'] in message_state_map:
+                ret['stat'] = message_state_map[pdu.params['message_state']]
+            else:
+                ret['stat'] = 'UNKNOWN'
+
+        # 2.Message content parsing if short_message exists:
+        ####################################################
         # Example of DLR content
         # id:IIIIIIIIII sub:SSS dlvrd:DDD submit date:YYMMDDhhmm done
         # date:YYMMDDhhmm stat:DDDDDDD err:E text: . . . . . . . . .
-        patterns = [r"id:(?P<id>[\dA-Za-z-_]+)",
-            r"sub:(?P<sub>\d{3})",
-            r"dlvrd:(?P<dlvrd>\d{3})",
-            r"submit date:(?P<sdate>\d+)",
-            r"done date:(?P<ddate>\d+)",
-            r"stat:(?P<stat>\w{7})",
-            r"err:(?P<err>\w{3})",
-            r"text:(?P<text>.*)",
-        ]
+        if 'short_message' in pdu.params:
+            patterns = [r"id:(?P<id>[\dA-Za-z-_]+)",
+                r"sub:(?P<sub>\d{3})",
+                r"dlvrd:(?P<dlvrd>\d{3})",
+                r"submit date:(?P<sdate>\d+)",
+                r"done date:(?P<ddate>\d+)",
+                r"stat:(?P<stat>\w{7})",
+                r"err:(?P<err>\w{3})",
+                r"text:(?P<text>.*)",
+            ]
 
-        # Look for patterns and compose return object
-        for pattern in patterns:
-            m = re.search(pattern, DeliverSM.params['short_message'])
-            if m:
-                ret.update(m.groupdict())
+            # Look for patterns and compose return object
+            for pattern in patterns:
+                m = re.search(pattern, pdu.params['short_message'])
+                if m:
+                    ret.update(m.groupdict())
 
         # Should we consider this as a DLR ?
-        if ('id' in ret and 
-            'ddate' in ret and
-            'sdate' in ret and
-            'stat' in ret and
-            'err' in ret):
+        if ('id' in ret and 'stat' in ret):
             return ret
         else:
             return None

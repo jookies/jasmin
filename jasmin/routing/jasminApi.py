@@ -207,8 +207,11 @@ class User(jasminApiGenerick):
         self.group = group
         self.username = username
         if type(password) == str:
+            if len(password) == 0 or len(password) > 8:
+                raise jasminApiInvalidParamError('Invalid password length !')
             self.password = md5(password).digest()
         else:
+            # Password is already encrypted:
             self.password = password
 
         # Credentials

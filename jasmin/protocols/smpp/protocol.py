@@ -61,15 +61,20 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.factory.stats.set('disconnected_at', datetime.now())
         self.factory.stats.inc('disconnected_count')
 
-    def onPDURequest_enquire_link(self, reqPDU):
-        twistedSMPPClientProtocol.onPDURequest_enquire_link(self, reqPDU)
+    def doPDURequest(self, reqPDU, handler):
+        twistedSMPPClientProtocol.doPDURequest(self, reqPDU, handler)
 
-        self.factory.stats.set('last_received_elink_at', datetime.now())
-
+        # Stats
+        if reqPDU.id == CommandId.enquire_link:
+            self.factory.stats.set('last_received_elink_at', datetime.now())
+        
     def sendPDU(self, pdu):
         twistedSMPPClientProtocol.sendPDU(self, pdu)
 
+        # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
+        if pdu.id == CommandId.enquire_link:
+            self.factory.stats.set('last_sent_elink_at', datetime.now())
 
     def claimSeqNum(self):
         seqNum = twistedSMPPClientProtocol.claimSeqNum(self)
@@ -78,11 +83,6 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.factory.stats.set('last_seqNum', seqNum)
 
         return seqNum
-
-    def enquireLinkTimerExpired(self):
-        twistedSMPPClientProtocol.enquireLinkTimerExpired(self)
-
-        self.factory.stats.set('last_sent_elink_at', datetime.now())
 
     def bindSucceeded(self, result, nextState):
         self.factory.stats.set('bound_at', datetime.now())
@@ -348,9 +348,17 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         self.factory.stats.set('last_received_elink_at', datetime.now())
 
+    def doPDURequest(self, reqPDU, handler):
+        twistedSMPPServerProtocol.doPDURequest(self, reqPDU, handler)
+
+        # Stats
+        if reqPDU.id == CommandId.enquire_link:
+            self.factory.stats.set('last_received_elink_at', datetime.now())
+
     def sendPDU(self, pdu):
         twistedSMPPServerProtocol.sendPDU(self, pdu)
 
+        # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
 
     def onPDURequest_unbind(self, reqPDU):
