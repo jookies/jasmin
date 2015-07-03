@@ -243,14 +243,15 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds."% (
+                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s] with delay %s seconds, aged %s seconds."% (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
+                    self.config.submit_retrial_delay_smppc_not_ready,
                     msgAge,
                     )
                 )
-                yield self.rejectAndRequeueMessage(message)
+                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                 defer.returnValue(False)
 
         self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")

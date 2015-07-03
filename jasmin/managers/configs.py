@@ -76,6 +76,10 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.submit_max_age_smppc_not_ready = self._getint('sm-listener', 
             'submit_max_age_smppc_not_ready', 
             1200)
+
+        self.submit_retrial_delay_smppc_not_ready = self._getint('sm-listener', 
+            'submit_retrial_delay_smppc_not_ready', 
+            60)
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 
