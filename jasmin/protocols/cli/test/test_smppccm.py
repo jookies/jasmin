@@ -717,7 +717,7 @@ class SMSCTestCases(HappySMSCTestCase):
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)
-        yield self.start_connector('operator_1', wait = 3)
+        yield self.start_connector('operator_1', wait = 4)
 
         # List and assert it is BOUND
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
