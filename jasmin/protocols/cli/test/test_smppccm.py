@@ -762,7 +762,7 @@ class SMSCTestCases(HappySMSCTestCase):
 
         # Update loglevel which is in RequireRestartKeys and will lead to a connector restart
         commands = [{'command': 'smppccm -u operator_1'},
-                    {'command': 'loglevel 10'},
+                    {'command': 'systemType ANY'},
                     {'command': 'ok', 'wait': 7, 
                         'expect': ['Restarting connector \[operator_1\] for updates to take effect ...',
                                    'Failed starting connector, will retry in 5 seconds',
