@@ -1,4 +1,5 @@
 #pylint: disable-msg=W0401,W0611
+import re
 import logging
 import pickle
 import struct
@@ -118,10 +119,6 @@ class SMPPClientSMListener:
     def rejectAndRequeueMessage(self, message, delay = True):
         msgid = message.content.properties['message-id']
         
-        # Delay may be None as set in configuration
-        if delay is None:
-            delay = False
-
         if delay != False:
             # Use configured requeue_delay or specific one
             if delay is not bool:
@@ -225,11 +222,15 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s] with delay %s seconds, aged %s seconds." % (
+                if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                else:
+                    delay_str = ''
+                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds." % (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
-                    self.config.submit_retrial_delay_smppc_not_ready,
+                    delay_str,
                     msgAge.seconds,
                     )
                 )
@@ -250,11 +251,15 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s] with delay %s seconds, aged %s seconds."% (
+                if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                else:
+                    delay_str = ''
+                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds."% (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
-                    self.config.submit_retrial_delay_smppc_not_ready,
+                    delay_str,
                     msgAge,
                     )
                 )
