@@ -111,6 +111,7 @@ class BasicTestCases(HappySMSCTestCase):
         expectedList = ['ripf 0', 
                         'con_fail_delay 10', 
                         'dlr_expiry 86400', 'coding 0', 
+                        'logrotate midnight',
                         'submit_throughput 1', 
                         'elink_interval 30', 
                         'bind_to 30', 
@@ -118,7 +119,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'con_fail_retry yes', 
                         'password password', 
                         'src_addr None', 
-                        'bind_npi 1', 
+                        'bind_npi 0', 
                         'addr_range None', 
                         'dst_ton 1', 
                         'res_to 60', 
@@ -186,6 +187,7 @@ class BasicTestCases(HappySMSCTestCase):
         expectedList = ['ripf 0', 
                         'con_fail_delay 10', 
                         'dlr_expiry 86400', 'coding 0', 
+                        'logrotate midnight',
                         'submit_throughput 1', 
                         'elink_interval 30', 
                         'bind_to 30', 
@@ -193,7 +195,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'con_fail_retry yes', 
                         'password password', 
                         'src_addr None', 
-                        'bind_npi 1', 
+                        'bind_npi 0', 
                         'addr_range None', 
                         'dst_ton 1', 
                         'res_to 60', 
@@ -408,11 +410,11 @@ class ParameterValuesTestCases(SmppccmTestCases):
                   {'key': 'dst_npi',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
                   {'key': 'dst_npi',   'default_value': '1', 'set_value': '300',        'isValid': False},
                   {'key': 'dst_npi',   'default_value': '1', 'set_value': '6',          'isValid': True},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '1',          'isValid': True},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '-1',         'isValid': False},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '300',        'isValid': False},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '1',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '300',        'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '6',          'isValid': True},
                   {'key': 'priority',  'default_value': '0', 'set_value': '0',          'isValid': True},
                   {'key': 'priority',  'default_value': '0', 'set_value': '-1',         'isValid': False},
                   {'key': 'priority',  'default_value': '0', 'set_value': 'LEVEL_1',    'isValid': False},
@@ -490,11 +492,11 @@ class ParameterValuesTestCases(SmppccmTestCases):
                   {'key': 'dst_npi',   'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
                   {'key': 'dst_npi',   'default_value': '1', 'set_value': '300',        'isValid': False},
                   {'key': 'dst_npi',   'default_value': '1', 'set_value': '6',          'isValid': True},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '1',          'isValid': True},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '-1',         'isValid': False},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': 'NATIONAL',   'isValid': False},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '300',        'isValid': False},
-                  {'key': 'bind_npi',  'default_value': '1', 'set_value': '6',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '1',          'isValid': True},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '-1',         'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': 'NATIONAL',   'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '300',        'isValid': False},
+                  {'key': 'bind_npi',  'default_value': '0', 'set_value': '6',          'isValid': True},
                   {'key': 'priority',  'default_value': '0', 'set_value': '0',          'isValid': True},
                   {'key': 'priority',  'default_value': '0', 'set_value': '-1',         'isValid': False},
                   {'key': 'priority',  'default_value': '0', 'set_value': 'LEVEL_1',    'isValid': False},
@@ -715,7 +717,7 @@ class SMSCTestCases(HappySMSCTestCase):
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)
-        yield self.start_connector('operator_1', wait = 3)
+        yield self.start_connector('operator_1', wait = 4)
 
         # List and assert it is BOUND
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
@@ -762,7 +764,7 @@ class SMSCTestCases(HappySMSCTestCase):
 
         # Update loglevel which is in RequireRestartKeys and will lead to a connector restart
         commands = [{'command': 'smppccm -u operator_1'},
-                    {'command': 'loglevel 10'},
+                    {'command': 'systype ANY'},
                     {'command': 'ok', 'wait': 7, 
                         'expect': ['Restarting connector \[operator_1\] for updates to take effect ...',
                                    'Failed starting connector, will retry in 5 seconds',
@@ -783,7 +785,7 @@ class SMSCTestCases(HappySMSCTestCase):
         # Add a connector, set bind_ton
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'bind_ton 1'},
-                         {'command': 'bind_npi 1'},
+                         {'command': 'bind_npi 0'},
                          {'command': 'addr_range ^32.*{6}$'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)

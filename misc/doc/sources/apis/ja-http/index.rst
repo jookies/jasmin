@@ -462,32 +462,32 @@ The following parameters are sent to the receiving end point (at dlr-url) when D
    * - **subdate**
      - Date & time format: YYMMDDhhmm
      - 1311022338
-     - Always
+     - Optional
      - The time and date at which the short message was submitted
    * - **donedate**
      - Date & time format: YYMMDDhhmm
      - 1311022338
-     - Always
+     - Optional
      - The time and date at which the short message reached it’s final state
    * - **sub**
      - Integer
      - 1
-     - Always
+     - Optional
      - Number of short messages originally submitted. This is only relevant when the original message was submitted to a distribution list.The value is padded with leading zeros if necessary
    * - **dlvrd**
      - Integer
      - 1
-     - Always
+     - Optional
      - Number of short messages delivered. This is only relevant where the original message was submitted to a distribution list.The value is padded with leading zeros if necessary
    * - **err**
      - Integer
      - 0
-     - Always
+     - Optional
      - Where appropriate this may hold a Network specific error code or an SMSC error code for the attempted delivery of the message
    * - **text**
      - Text (20 char. max)
      - Hello foo bar
-     - Always
+     - Optional
      - The first 20 characters of the short message
 
 .. _DLRThrower_process:

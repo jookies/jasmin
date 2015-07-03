@@ -40,6 +40,7 @@ class SMPPClientPBConfig(ConfigFile):
         self.log_file = self._get('client-management', 
                                   'log_file', 
                                   '/var/log/jasmin/smppclient-manager.log')
+        self.log_rotate = self._get('client-management', 'log_rotate', 'W6')
         self.log_format = self._get('client-management', 
                                     'log_format', 
                                     DEFAULT_LOGFORMAT)
@@ -76,6 +77,10 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.submit_max_age_smppc_not_ready = self._getint('sm-listener', 
             'submit_max_age_smppc_not_ready', 
             1200)
+
+        self.submit_retrial_delay_smppc_not_ready = self._getint('sm-listener', 
+            'submit_retrial_delay_smppc_not_ready', 
+            False)
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 
@@ -83,6 +88,7 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.log_file = self._get('sm-listener', 
                                   'log_file', 
                                   '/var/log/jasmin/messages.log')
+        self.log_rotate = self._get('sm-listener', 'log_rotate', 'midnight')
         self.log_format = self._get('sm-listener', 
                                     'log_format', 
                                     DEFAULT_LOGFORMAT)

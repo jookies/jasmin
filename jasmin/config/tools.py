@@ -49,6 +49,8 @@ class ConfigFile:
             return default
         if self.config.has_option(section, option) == False:
             return default
+        if self.config.get(section, option) == 'None':
+            return default
         
         return self.config.getint(section, option)
     

@@ -31,6 +31,23 @@ class UserTestCase(TestCase):
         
         self.assertEqual(u.mt_credential, mt_c)
 
+    def test_user_password(self):
+        # Password length is 0
+        self.assertRaises(jasminApiInvalidParamError, 
+            User, 
+            'UID', 
+            self.group, 
+            'foo', 
+            '')
+
+        # Password length is >8
+        self.assertRaises(jasminApiInvalidParamError, 
+            User, 
+            'UID', 
+            self.group, 
+            'foo', 
+            '123456789')
+
 class UserAndCredentialsTestCase(TestCase):
     
     def setUp(self):
