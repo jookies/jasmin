@@ -194,6 +194,27 @@ class DeliveryParsingTest(OperationsTest):
         self.assertEquals(isDlr['err'], '000')
         self.assertEquals(isDlr['text'], '')
 
+    def test_is_delivery_jasmin_224(self):
+        """Related to #224, this is a Sicap's MMG deliver_sm receipt"""
+        pdu = DeliverSM(
+            source_addr='21698700177',
+            destination_addr='JOOKIES',
+            short_message='362d9701 2',
+            message_state=MessageState.DELIVERED,
+            receipted_message_id='362d9701',
+        )
+        
+        isDlr = self.opFactory.isDeliveryReceipt(pdu)
+        self.assertTrue(isDlr is not None)
+        self.assertEquals(isDlr['id'], '362d9701')
+        self.assertEquals(isDlr['sub'], 'ND')
+        self.assertEquals(isDlr['dlvrd'], 'ND')
+        self.assertEquals(isDlr['sdate'], 'ND')
+        self.assertEquals(isDlr['ddate'], 'ND')
+        self.assertEquals(isDlr['stat'], 'DELIVRD')
+        self.assertEquals(isDlr['err'], 'ND')
+        self.assertEquals(isDlr['text'], '')
+
 class ReceiptCreationTestCases(OperationsTest):
     message_state_map = {
         'ESME_ROK': {'sm': 'ACCEPTD', 'state': MessageState.ACCEPTED},
