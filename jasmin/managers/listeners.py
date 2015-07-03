@@ -221,14 +221,15 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds." % (
+                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s] with delay %s seconds, aged %s seconds." % (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
+                    self.config.submit_retrial_delay_smppc_not_ready,
                     msgAge.seconds,
                     )
                 )
-                yield self.rejectAndRequeueMessage(message)
+                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                 defer.returnValue(False)
         # SMPP Client should be already bound as transceiver or transmitter
         if self.SMPPClientFactory.smpp.isBound() is False:

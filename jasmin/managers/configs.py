@@ -80,7 +80,7 @@ class SMPPClientSMListenerConfig(ConfigFile):
 
         self.submit_retrial_delay_smppc_not_ready = self._getint('sm-listener', 
             'submit_retrial_delay_smppc_not_ready', 
-            60)
+            None)
         
         self.log_level = logging.getLevelName(self._get('sm-listener', 
                                                         'log_level', 
