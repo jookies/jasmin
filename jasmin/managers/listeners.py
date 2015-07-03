@@ -1,7 +1,9 @@
 #pylint: disable-msg=W0401,W0611
+import re
 import logging
 import pickle
 import struct
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from dateutil import parser
 from twisted.internet import defer
@@ -80,7 +82,8 @@ class SMPPClientSMListener:
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = logging.FileHandler(filename=self.config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -219,14 +222,19 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s], aged %s seconds." % (
+                if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                else:
+                    delay_str = ''
+                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds." % (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
+                    delay_str,
                     msgAge.seconds,
                     )
                 )
-                yield self.rejectAndRequeueMessage(message)
+                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                 defer.returnValue(False)
         # SMPP Client should be already bound as transceiver or transmitter
         if self.SMPPClientFactory.smpp.isBound() is False:
@@ -243,11 +251,15 @@ class SMPPClientSMListener:
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
             else:
-                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s] with delay %s seconds, aged %s seconds."% (
+                if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                else:
+                    delay_str = ''
+                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds."% (
                     self.SMPPClientFactory.config.id, 
                     self.submit_retrials[msgid],
                     msgid,
-                    self.config.submit_retrial_delay_smppc_not_ready,
+                    delay_str,
                     msgAge,
                     )
                 )
@@ -329,7 +341,7 @@ class SMPPClientSMListener:
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           short_message
+                           re.sub(r'[^\x20-\x7E]+','.', short_message)
                            ))
         else:
             # Message must be retried ?
@@ -356,7 +368,7 @@ class SMPPClientSMListener:
                                   else amqpMessage.content.properties['headers']['expiration'],
                            r.request.params['source_addr'],
                            r.request.params['destination_addr'],
-                           r.request.params['short_message']
+                           re.sub(r'[^\x20-\x7E]+','.', r.request.params['short_message'])
                            ))
 
         # It is a final submit_sm_resp !
@@ -651,7 +663,7 @@ class SMPPClientSMListener:
                            pdu.params['validity_period'],
                            pdu.params['source_addr'],
                            pdu.params['destination_addr'],
-                           pdu.params['short_message']
+                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
                            ))
             else:
                 # Long message part received

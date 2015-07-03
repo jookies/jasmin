@@ -1,5 +1,6 @@
 #pylint: disable-msg=W0401,W0611
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from OpenSSL import SSL
 from twisted.internet.protocol import ClientFactory
@@ -40,7 +41,8 @@ class SMPPClientFactory(ClientFactory):
         self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE+".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
-            handler = logging.FileHandler(filename=config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -209,7 +211,8 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
-            handler = logging.FileHandler(filename=config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

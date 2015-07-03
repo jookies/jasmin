@@ -2,6 +2,7 @@ import pickle
 import logging
 import urllib
 import uuid
+from logging.handlers import TimedRotatingFileHandler
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.web.client import getPage
@@ -91,7 +92,8 @@ class Thrower(Service):
         self.log = logging.getLogger(self.log_category)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = logging.FileHandler(filename=self.config.log_file)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
+                when = self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

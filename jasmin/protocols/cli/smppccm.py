@@ -11,7 +11,7 @@ from jasmin.protocols.cli.protocol import str2num
 
 # A config map between console-configuration keys and SMPPClientConfig keys.
 SMPPClientConfigKeyMap = {'cid': 'id', 'host': 'host', 'port': 'port', 'username': 'username',
-                       'password': 'password', 'systype': 'systemType', 'logfile': 'log_file', 'loglevel': 'log_level',
+                       'password': 'password', 'systype': 'systemType', 'logfile': 'log_file', 'loglevel': 'log_level', 'logrotate': 'log_rotate',
                        'bind_to': 'sessionInitTimerSecs', 'elink_interval': 'enquireLinkTimerSecs', 'trx_to': 'inactivityTimerSecs',
                        'res_to': 'responseTimerSecs', 'con_loss_retry': 'reconnectOnConnectionLoss', 'con_fail_retry': 'reconnectOnConnectionFailure',
                        'con_loss_delay': 'reconnectOnConnectionLossDelay', 'con_fail_delay': 'reconnectOnConnectionFailureDelay',

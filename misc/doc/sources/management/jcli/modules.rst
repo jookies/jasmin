@@ -640,6 +640,9 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
    * - **logfile**
      - 
      - /var/log/jasmin/default-**<cid>**.log
+   * - **logrotate**
+     - When to rotate the log file, possible values: S=Seconds, M=Minutes, H=Hours, D=Days, W0-W6=Weekday (0=Monday) and midnight=Roll over at midnight
+     - midnight
    * - **loglevel**
      - Logging numeric level: 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICCAL 
      - 20

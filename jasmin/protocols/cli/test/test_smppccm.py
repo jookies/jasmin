@@ -111,6 +111,7 @@ class BasicTestCases(HappySMSCTestCase):
         expectedList = ['ripf 0', 
                         'con_fail_delay 10', 
                         'dlr_expiry 86400', 'coding 0', 
+                        'logrotate midnight',
                         'submit_throughput 1', 
                         'elink_interval 30', 
                         'bind_to 30', 
@@ -186,6 +187,7 @@ class BasicTestCases(HappySMSCTestCase):
         expectedList = ['ripf 0', 
                         'con_fail_delay 10', 
                         'dlr_expiry 86400', 'coding 0', 
+                        'logrotate midnight',
                         'submit_throughput 1', 
                         'elink_interval 30', 
                         'bind_to 30', 
@@ -715,7 +717,7 @@ class SMSCTestCases(HappySMSCTestCase):
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)
-        yield self.start_connector('operator_1', wait = 3)
+        yield self.start_connector('operator_1', wait = 4)
 
         # List and assert it is BOUND
         expectedList = ['#Connector id                        Service Session          Starts Stops', 
@@ -762,7 +764,7 @@ class SMSCTestCases(HappySMSCTestCase):
 
         # Update loglevel which is in RequireRestartKeys and will lead to a connector restart
         commands = [{'command': 'smppccm -u operator_1'},
-                    {'command': 'loglevel 10'},
+                    {'command': 'systype ANY'},
                     {'command': 'ok', 'wait': 7, 
                         'expect': ['Restarting connector \[operator_1\] for updates to take effect ...',
                                    'Failed starting connector, will retry in 5 seconds',
