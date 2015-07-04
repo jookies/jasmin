@@ -1,6 +1,6 @@
 language: python
 python:
-    - "2.7"
+    - '2.7'
 # Command to install dependencies
 install:
     - python setup.py sdist
@@ -44,3 +44,6 @@ before_install:
     - sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/init-script /etc/jasmin/store /var/run/jasmin
     - sudo chown `whoami` /etc/jasmin /etc/jasmin/resource /etc/jasmin/init-script
     - sudo chown jasmin. /var/log/jasmin /etc/jasmin/store /var/run/jasmin
+notifications:
+    slack:
+        secure: guCY7vL67vUhvNYLzInV/EIPMZ7ciq+/s0UlfmKvGYrjIMwXdgfshgKXdHF194eQ9+f0dF8ea1P1/aGqCE4Q4ULPZ555FbftNy/bVLfUPn01+odorAux3rVNq4ezX2QlQc06DpVS2r7U+grM+MQtNdRjoZIuAeipp3YRhyyuIr8=
