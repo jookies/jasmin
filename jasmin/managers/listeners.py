@@ -747,8 +747,8 @@ class SMPPClientSMListener:
                         else:
                             self.log.debug('SMS-C receipt is requested, will not send any DLR receipt at this level.')
                     else:
-                        self.log.warn('Got invalid DLR information for msgid[%s], url:%s, level:%s' % 
-                                      (submit_sm_queue_id, dlr_url, dlr_level))
+                        self.log.warn('DLR for msgid[%s] not found !' % 
+                                      (submit_sm_queue_id))
                 elif submit_sm_queue_id is not None and connector_type == 'smpps':
                     pickledSmppsMap = yield self.redisClient.get("smppsmap:%s" % submit_sm_queue_id)
                     
