@@ -202,13 +202,14 @@ class deliverSmThrower(Thrower):
             encodedArgs = urllib.urlencode(args)
             postdata = None
             baseurl = dc.baseurl
-            if dc.method == 'GET':
+            _method = dc.method.upper()
+            if _method == 'GET':
                 baseurl += '?%s' % encodedArgs
             else:
                 postdata = encodedArgs
 
-            self.log.debug('Calling %s with args %s using %s method.' % (dc.baseurl, args, dc.method))
-            content = yield getPage(baseurl, method = dc.method, postdata = postdata, 
+            self.log.debug('Calling %s with args %s using %s method.' % (dc.baseurl, args, _method))
+            content = yield getPage(baseurl, method = _method, postdata = postdata, 
                           timeout = self.config.timeout, agent = 'Jasmin gateway/1.0 deliverSmHttpThrower',
                           headers = {'Content-Type'     : 'application/x-www-form-urlencoded',
                                      'Accept'           : 'text/plain'})
