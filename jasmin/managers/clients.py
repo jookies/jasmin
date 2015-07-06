@@ -215,7 +215,7 @@ class SMPPClientManagerPB(pb.Avatar):
         submit_sm_queue = 'submit.sm.%s' % c.id
         routing_key = 'submit.sm.%s' % c.id
         self.log.info('Binding %s queue to %s route_key' % (submit_sm_queue, routing_key))
-        yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue)
+        yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue, exclusive = True, auto_delete = True)
         yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue, 
                                               exchange="messaging", 
                                               routing_key=routing_key)
