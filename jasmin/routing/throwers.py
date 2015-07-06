@@ -1,7 +1,6 @@
 import pickle
 import logging
 import urllib
-import uuid
 from logging.handlers import TimedRotatingFileHandler
 from twisted.application.service import Service
 from twisted.internet import defer

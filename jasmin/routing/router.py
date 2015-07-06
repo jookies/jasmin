@@ -1,7 +1,6 @@
 import time
 import logging
 import pickle
-import uuid
 import jasmin
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb

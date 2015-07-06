@@ -1,6 +1,5 @@
 import logging
 import pickle
-import uuid
 import time
 import datetime
 import jasmin
@@ -215,7 +214,7 @@ class SMPPClientManagerPB(pb.Avatar):
         submit_sm_queue = 'submit.sm.%s' % c.id
         routing_key = 'submit.sm.%s' % c.id
         self.log.info('Binding %s queue to %s route_key' % (submit_sm_queue, routing_key))
-        yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue, exclusive = True, auto_delete = True)
+        yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue, exclusive = True)
         yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue, 
                                               exchange="messaging", 
                                               routing_key=routing_key)
@@ -328,9 +327,17 @@ class SMPPClientManagerPB(pb.Avatar):
         # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
         submit_sm_queue = 'submit.sm.%s' % connector['id']
         consumerTag = 'SMPPClientFactory-%s' % (connector['id'])
-        yield self.amqpBroker.chan.basic_consume(queue = submit_sm_queue, 
-                                                 no_ack = False, 
-                                                 consumer_tag = consumerTag)
+
+        try:
+            # Using the same consumerTag will prevent getting multiple consumers on the same queue
+            # This can resolve the dark hole issue #234
+            yield self.amqpBroker.chan.basic_consume(queue = submit_sm_queue, 
+                                                     no_ack = False, 
+                                                     consumer_tag = consumerTag)
+        except Exception, e:
+            self.log.error('Error consuming from queue %s: %s' % (submit_sm_queue, e))
+            defer.returnValue(False)
+
         submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
         self.log.info('%s is consuming from queue: %s', consumerTag, submit_sm_queue)
 
@@ -392,8 +399,9 @@ class SMPPClientManagerPB(pb.Avatar):
         connector['sm_listener'].clearAllTimers()
 
         # Stop the queue consumer
-        self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-        yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+        if connector['consumer_tag'] is not None:
+            self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
+            yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
 
         # Cleaning
         self.log.debug('Cleaning objects in connector [%s]', cid)
