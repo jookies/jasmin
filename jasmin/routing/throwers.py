@@ -36,7 +36,7 @@ class Thrower(Service):
         self.log_category = "abstract-thrower"
 
         self.exchangeName = 'messaging'
-        self.consumerTag = 'abstractThrower.%s' % str(uuid.uuid4())
+        self.consumerTag = 'abstractThrower'
         self.routingKey = 'abstract_thrower.*'
         self.queueName = 'abstract_thrower'
         self.callback = self.throwing_callback
@@ -164,7 +164,7 @@ class deliverSmThrower(Thrower):
 
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
-        self.consumerTag = 'deliverSmThrower.%s' % str(uuid.uuid4())
+        self.consumerTag = 'deliverSmThrower'
         self.routingKey = 'deliver_sm_thrower.*'
         self.queueName = 'deliver_sm_thrower'
         
