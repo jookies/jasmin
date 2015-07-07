@@ -331,6 +331,13 @@ class SMPPClientManagerPB(pb.Avatar):
         try:
             # Using the same consumerTag will prevent getting multiple consumers on the same queue
             # This can resolve the dark hole issue #234
+
+            # Stop the queue consumer if any
+            if connector['consumer_tag'] is not None:
+                self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
+                yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+
+            # Start a new consumer
             yield self.amqpBroker.chan.basic_consume(queue = submit_sm_queue, 
                                                      no_ack = False, 
                                                      consumer_tag = consumerTag)
@@ -372,6 +379,17 @@ class SMPPClientManagerPB(pb.Avatar):
         if connector is None:
             self.log.error('Trying to stop a connector with an unknown cid: %s', cid)
             defer.returnValue(False)
+
+        # Stop the queue consumer
+        if connector['consumer_tag'] is not None:
+            self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
+            yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+
+            # Cleaning
+            self.log.debug('Cleaning objects in connector [%s]', cid)
+            connector['submit_sm_q'] = None
+            connector['consumer_tag'] = None
+
         if connector['service'].running == 0:
             self.log.error('Connector [%s] is already stopped.', cid)
             defer.returnValue(False)
@@ -397,17 +415,7 @@ class SMPPClientManagerPB(pb.Avatar):
         # Stop timers in message listeners
         self.log.debug('Clearing sm_listener timers in connector [%s]', cid)
         connector['sm_listener'].clearAllTimers()
-
-        # Stop the queue consumer
-        if connector['consumer_tag'] is not None:
-            self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-            yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
-
-        # Cleaning
-        self.log.debug('Cleaning objects in connector [%s]', cid)
         connector['sm_listener'].submit_sm_q = None
-        connector['submit_sm_q'] = None
-        connector['consumer_tag'] = None
 
         # Stop SMPP connector
         connector['service'].stopService()
