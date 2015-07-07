@@ -252,7 +252,9 @@ class BasicTestCases(HappySMSCTestCase):
         yield self._test(r'jcli : ', commands)
 
         # Remove
-        commands = [{'command': 'smppccm -r %s' % cid, 'expect': r'Successfully removed connector id\:%s' % cid}]
+        commands = [{'command': 'smppccm -r %s' % cid, 
+                     'expect': r'Successfully removed connector id\:%s' % cid,
+                     'wait': 0.6}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
