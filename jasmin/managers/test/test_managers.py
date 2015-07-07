@@ -983,6 +983,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         # Bind to deliver.sm.CID
         routingKey = 'deliver.sm.%s' % self.defaultConfig.id
         queueName = 'test_deliverSm'
+        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         yield self.amqpBroker.named_queue_declare(queue=queueName, exclusive = True, auto_delete = True)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
 
