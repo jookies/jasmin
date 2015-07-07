@@ -1,6 +1,5 @@
 import logging
 import pickle
-import uuid
 import time
 import datetime
 import jasmin
@@ -209,36 +208,16 @@ class SMPPClientManagerPB(pb.Avatar):
             defer.returnValue(False)
 
         # Declare queues
-        # First declare the messaging exchange
+        # First declare the messaging exchange (has no effect if its already declared)
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         # submit.sm queue declaration and binding
-        routing_key_submit_sm = 'submit.sm.%s' % c.id
-        self.log.info('Declaring submit_sm queue to listen to: %s', routing_key_submit_sm)
-        yield self.amqpBroker.named_queue_declare(queue=routing_key_submit_sm)
-        yield self.amqpBroker.chan.queue_bind(queue=routing_key_submit_sm, 
+        submit_sm_queue = 'submit.sm.%s' % c.id
+        routing_key = 'submit.sm.%s' % c.id
+        self.log.info('Binding %s queue to %s route_key' % (submit_sm_queue, routing_key))
+        yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue, exclusive = True)
+        yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue, 
                                               exchange="messaging", 
-                                              routing_key=routing_key_submit_sm)
-        # submit.sm.resp queue declaration and binding
-        routing_key_submit_sm_resp = 'submit.sm.resp.%s' % c.id
-        self.log.info('Declaring submit_sm_resp queue to publish to: %s', routing_key_submit_sm_resp)
-        yield self.amqpBroker.named_queue_declare(queue=routing_key_submit_sm_resp)
-        yield self.amqpBroker.chan.queue_bind(queue=routing_key_submit_sm_resp, 
-                                              exchange="messaging", 
-                                              routing_key=routing_key_submit_sm_resp)
-        # deliver.sm queue declaration and binding
-        routing_key_deliver_sm = 'deliver.sm.%s' % c.id
-        self.log.info('Declaring deliver_sm queue to publish to: %s', routing_key_deliver_sm)
-        yield self.amqpBroker.named_queue_declare(queue=routing_key_deliver_sm)
-        yield self.amqpBroker.chan.queue_bind(queue=routing_key_deliver_sm, 
-                                              exchange="messaging", 
-                                              routing_key=routing_key_deliver_sm)
-        # dlr queue declaration and binding
-        routing_key_dlr = 'dlr.%s' % c.id
-        self.log.info('Declaring dlr queue to publish to: %s', routing_key_dlr)
-        yield self.amqpBroker.named_queue_declare(queue=routing_key_dlr)
-        yield self.amqpBroker.chan.queue_bind(queue=routing_key_dlr, 
-                                              exchange="messaging", 
-                                              routing_key=routing_key_dlr)
+                                              routing_key=routing_key)
         
         # Instanciate smpp client service manager
         serviceManager = SMPPClientService(c, self.config)        
@@ -346,15 +325,23 @@ class SMPPClientManagerPB(pb.Avatar):
 
         # Subscribe to submit.sm.%cid queue
         # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
-        routing_key_submit_sm = 'submit.sm.%s' % connector['id']
-        consumerTag = 'SMPPClientFactory-%s.%s' % (connector['id'], str(uuid.uuid4()))
-        yield self.amqpBroker.chan.basic_consume(queue = routing_key_submit_sm, 
-                                                 no_ack = False, 
-                                                 consumer_tag = consumerTag)
-        submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.log.info('%s is consuming from routing key: %s', consumerTag, routing_key_submit_sm)
+        submit_sm_queue = 'submit.sm.%s' % connector['id']
+        consumerTag = 'SMPPClientFactory-%s' % (connector['id'])
 
-        # Set callbacks for every consumed message from routing_key_submit_sm
+        try:
+            # Using the same consumerTag will prevent getting multiple consumers on the same queue
+            # This can resolve the dark hole issue #234
+            yield self.amqpBroker.chan.basic_consume(queue = submit_sm_queue, 
+                                                     no_ack = False, 
+                                                     consumer_tag = consumerTag)
+        except Exception, e:
+            self.log.error('Error consuming from queue %s: %s' % (submit_sm_queue, e))
+            defer.returnValue(False)
+
+        submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.log.info('%s is consuming from queue: %s', consumerTag, submit_sm_queue)
+
+        # Set callbacks for every consumed message from submit_sm_queue queue
         d = submit_sm_q.get()
         d.addCallback(
                     connector['sm_listener'].submit_sm_callback
@@ -412,8 +399,9 @@ class SMPPClientManagerPB(pb.Avatar):
         connector['sm_listener'].clearAllTimers()
 
         # Stop the queue consumer
-        self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-        yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+        if connector['consumer_tag'] is not None:
+            self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
+            yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
 
         # Cleaning
         self.log.debug('Cleaning objects in connector [%s]', cid)

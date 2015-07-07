@@ -1,7 +1,6 @@
 import time
 import logging
 import pickle
-import uuid
 import jasmin
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
@@ -72,10 +71,10 @@ class RouterPB(pb.Avatar):
          
         # Subscribe to deliver.sm.* queues
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        consumerTag = 'RouterPB.%s' % str(uuid.uuid4())
+        consumerTag = 'RouterPB-delivers'
         routingKey = 'deliver.sm.*'
         queueName = 'RouterPB_deliver_sm_all' # A local queue to RouterPB
-        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.named_queue_declare(queue=queueName, exclusive = True, auto_delete = True)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
         yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
         self.deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
@@ -84,10 +83,10 @@ class RouterPB(pb.Avatar):
         
         # Subscribe to bill_request.submit_sm_resp.* queues
         yield self.amqpBroker.chan.exchange_declare(exchange='billing', type='topic')
-        consumerTag = 'RouterPB.%s' % str(uuid.uuid4())
+        consumerTag = 'RouterPB-billrequests'
         routingKey = 'bill_request.submit_sm_resp.*'
         queueName = 'RouterPB_bill_request_submit_sm_resp_all' # A local queue to RouterPB
-        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.named_queue_declare(queue=queueName, exclusive = True, auto_delete = True)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="billing", routing_key=routingKey)
         yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
         self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
@@ -98,15 +97,12 @@ class RouterPB(pb.Avatar):
                                                                           )
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
 
-    def rejectAndRequeueMessage(self, message):
-        msgid = message.content.properties['message-id']
-        
-        self.log.debug("Requeuing DeliverSmPDU[%s] without delay" % msgid)
-        return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=1)
+    @defer.inlineCallbacks
     def rejectMessage(self, message):
-        return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
+        yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
+    @defer.inlineCallbacks
     def ackMessage(self, message):
-        return self.amqpBroker.chan.basic_ack(message.delivery_tag)
+        yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
     
     def activatePersistenceTimer(self):
         if self.persistenceTimer and self.persistenceTimer.active():
