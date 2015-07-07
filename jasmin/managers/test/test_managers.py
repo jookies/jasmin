@@ -464,7 +464,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     def test_start_sameconnector_twice_with_noreconnecting_on_failure(self):
         """It was discovered that starting the connector twice would lead
         to a multiple consumers on same queue, as of now, starting connector
-        twice is no more permitted
+        twice will cancel current consumer and reconsume again
         Related to #234"""
 
         yield self.connect('127.0.0.1', self.pbPort)
@@ -475,7 +475,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         yield self.start(localConfig.id)
         startRet = yield self.start(localConfig.id)
         
-        self.assertEqual(False, startRet)
+        self.assertEqual(True, startRet)
         
         yield self.stopall()
 
@@ -983,6 +983,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         # Bind to deliver.sm.CID
         routingKey = 'deliver.sm.%s' % self.defaultConfig.id
         queueName = 'test_deliverSm'
+        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         yield self.amqpBroker.named_queue_declare(queue=queueName, exclusive = True, auto_delete = True)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
 
