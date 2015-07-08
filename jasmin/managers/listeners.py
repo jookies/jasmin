@@ -121,7 +121,7 @@ class SMPPClientSMListener:
         
         if delay != False:
             # Use configured requeue_delay or specific one
-            if delay is not bool:
+            if type(delay) != bool:
                 requeue_delay = delay
             else:
                 requeue_delay = self.SMPPClientFactory.config.requeue_delay
@@ -266,10 +266,15 @@ class SMPPClientSMListener:
                 yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                 defer.returnValue(False)
 
-        self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
-        yield self.SMPPClientFactory.smpp.sendDataRequest(
-                                                          SubmitSmPDU
-                                                          ).addCallback(self.submit_sm_resp_event, message)
+        try:
+            self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
+            d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
+            d.addCallback(self.submit_sm_resp_event, message)
+            yield d
+        except SMPPRequestTimoutError:
+            self.log.error("SubmitSmPDU request timed out, message requeued.")
+            self.rejectAndRequeueMessage(message)
+            defer.returnValue(False)
 
     @defer.inlineCallbacks
     def submit_sm_resp_event(self, r, amqpMessage):

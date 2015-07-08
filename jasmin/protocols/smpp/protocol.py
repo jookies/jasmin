@@ -11,7 +11,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodi
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
 from twisted.internet import defer, reactor
-from jasmin.vendor.smpp.pdu.error import *
+from .error import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 from twisted.cred import error
 
