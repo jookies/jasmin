@@ -9,7 +9,8 @@ from twisted.web.client import getPage
 from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.routing.test.http_server import AckServer
 from jasmin.routing.test.test_router import (HappySMSCTestCase, SubmitSmTestCaseTools,
-											composeMessage)
+											composeMessage, SMPPClientManagerPBTestCase,
+                                            LastClientFactory)
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.protocols.smpp.test.smsc_simulator import *
@@ -832,6 +833,59 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
         self.assertEqual(callArgs_level1['id'][0], msgId)
         self.assertEqual(callArgs_level2['id'][0], msgId)
+
+class NoResponseOnSubmitSMSCTestCase(SMPPClientManagerPBTestCase):
+    protocol = NoResponseOnSubmitSMSCRecorder
+    
+    @defer.inlineCallbacks
+    def setUp(self):
+        yield SMPPClientManagerPBTestCase.setUp(self)
+        
+        self.smsc_f = LastClientFactory()
+        self.smsc_f.protocol = self.protocol
+        self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
+                
+    @defer.inlineCallbacks
+    def tearDown(self):
+        yield SMPPClientManagerPBTestCase.tearDown(self)
+        
+        yield self.SMSCPort.stopListening()
+
+class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMSCTestCase, SubmitSmTestCaseTools):
+
+    @defer.inlineCallbacks
+    def test_submit_sm_with_no_submit_sm_resp(self):
+        """Related to #247
+
+        Send sms to a NoResponseOnSubmitSMSC and check that sms was requeued on pdu request timeout
+        error.
+        """
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector(reconnectOnConnectionLoss = False)
+        
+        self.params['dlr-level'] = 1
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+
+        # Wait till the connector unbinds because of no response
+        yield waitFor(2)
+        yield self.stopSmppClientConnectors()
+
+        yield self.SMPPClientManagerPBProxy.start(self.c1.cid)
+
+        # Wait till the connector unbinds because of no response
+        yield waitFor(2)
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
 
 class SmppsDlrCallbacking(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     msg_stats_final = ['UNDELIV',

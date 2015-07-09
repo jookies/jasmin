@@ -40,6 +40,13 @@ from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from jasmin.routing.proxies import ConnectError
 
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
+
 def composeMessage(characters, length):
     if length <= len(characters):
         return ''.join(random.sample(characters, length))
@@ -955,9 +962,7 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 1)
 
         # Wait 2 seconds for automatic persistence to be done
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(2)
 
         # assert for 2 calls to persist: 1.users and 2.groups
         self.assertEqual(self.pbRoot_f.perspective_persist.call_count, 2)
@@ -1042,8 +1047,8 @@ class SubmitSmTestCaseTools():
     """
     
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, bindOperation = 'transceiver', route_rate = 0.0, 
-                                         user = None, port = None, dlr_msg_id_bases = 0, 
+    def prepareRoutingsAndStartConnector(self, reconnectOnConnectionLoss = True, bindOperation = 'transceiver', 
+                                         route_rate = 0.0, user = None, port = None, dlr_msg_id_bases = 0, 
                                          source_addr_ton = AddrTon.NATIONAL, source_addr_npi = AddrNpi.ISDN, 
                                          dest_addr_ton = AddrTon.INTERNATIONAL, dest_addr_npi = AddrNpi.ISDN):
         # Routing stuff
@@ -1066,6 +1071,8 @@ class SubmitSmTestCaseTools():
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
         c1Config = SMPPClientConfig(id=self.c1.cid, port = port, 
+                                    reconnectOnConnectionLoss = reconnectOnConnectionLoss,
+                                    responseTimerSecs = 1,
                                     bindOperation = bindOperation,
                                     dlr_msg_id_bases = dlr_msg_id_bases,
                                     source_addr_ton = source_addr_ton,
@@ -1083,7 +1090,7 @@ class SubmitSmTestCaseTools():
             if ssRet[:6] == 'BOUND_':
                 break;
             else:
-                time.sleep(0.2)
+                yield waitFor(0.2)
 
         # Configuration
         self.method = 'GET'
@@ -1107,10 +1114,10 @@ class SubmitSmTestCaseTools():
         # Wait for 'BOUND_TRX' state
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(self.c1.cid)
-            if ssRet == 'NONE':
+            if ssRet == 'NONE' or ssRet == 'UNBOUND':
                 break;
             else:
-                time.sleep(0.2)
+                yield waitFor(0.2)
 
 class NoSubmitSmWhenReceiverIsBoundSMSCTestCases(SMPPClientManagerPBTestCase):
     protocol = NoSubmitSmWhenReceiverIsBoundSMSC
@@ -1158,9 +1165,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         msgId = c[9:45]
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
 
@@ -1189,9 +1194,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield getPage(baseurl, method = self.method, postdata = self.postdata)
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
         
@@ -1215,9 +1218,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield getPage(baseurl, method = self.method, postdata = self.postdata)
         
         # Wait 1 seconds for submit_sm_resp
-        exitDeferred = defer.Deferred()
-        reactor.callLater(1, exitDeferred.callback, None)
-        yield exitDeferred
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
         
