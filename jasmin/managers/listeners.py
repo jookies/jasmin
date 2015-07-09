@@ -74,6 +74,7 @@ class SMPPClientSMListener:
         self.rejectTimers = {}
         self.submit_retrials = {}
         self.qosTimer = None
+        self.re_patterns = {}
 
         # Set pickleProtocol
         self.pickleProtocol = SMPPClientPBConfig(self.config.config_file).pickle_protocol

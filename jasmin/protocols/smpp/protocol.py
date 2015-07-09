@@ -224,6 +224,13 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             # pdus, each with an OutboundTransaction
             # - Every OutboundTransaction is closed upon receiving the correct submit_sm_resp
             # - Every LongSubmitSmTransaction is closed upong closing all included OutboundTransactions
+            #
+            # Update 20150709 #234:
+            # If the pdu has no nextPdu attribute then it may be a part of a long message not managed
+            # by Jasmin: it may come from SMPPs already parted, in this case Jasmin must pass the 
+            # message as is without starting LongSubmitSmTransaction.
+            # The downside of this behaviour is that each part of the message will be logged in a single 
+            # line in messages.log
             
             # UDH is set ?
             UDHI_INDICATOR_SET = False
@@ -231,6 +238,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 for gsmFeature in pdu.params['esm_class'].gsmFeatures:
                     if str(gsmFeature) == 'UDHI_INDICATOR_SET':
                         UDHI_INDICATOR_SET = True
+                        break
             
             # Discover any splitting method, otherwise, it is a single SubmitSm
             if 'sar_msg_ref_num' in pdu.params:
@@ -240,7 +248,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             else:
                 splitMethod = None
             
-            if splitMethod is not None:
+            if splitMethod is not None and hasattr(pdu, 'nextPdu'):
                 partedSmPdu = pdu
                 first = True
                 
