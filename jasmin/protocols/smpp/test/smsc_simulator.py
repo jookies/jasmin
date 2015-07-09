@@ -20,17 +20,20 @@ class NoSubmitSmWhenReceiverIsBoundSMSC(HappySMSC):
     def handleSubmit(self, reqPDU):
         self.sendResponse(reqPDU, CommandStatus.ESME_RINVBNDSTS)
 
-class HappyRecorderSMSC(HappySMSC):
+class NoResponseOnSubmitSMSCRecorder(HappySMSC):
     submitRecords = []
-    pduRecords = []
-
-class NoResponseOnSubmitSMSCRecorder(HappyRecorderSMSC):
     
     def handleSubmit(self, reqPDU):
         self.submitRecords.append(reqPDU)
         pass
 
-class HappySMSCRecorder(HappyRecorderSMSC):
+class HappySMSCRecorder(HappySMSC):
+    def __init__(self):
+        HappySMSC.__init__(self)
+
+        self.pduRecords = []
+        self.submitRecords = []
+
     def PDUReceived( self, pdu ):
         HappySMSC.PDUReceived( self, pdu )
         self.pduRecords.append(pdu)
@@ -83,10 +86,11 @@ class DeliveryReceiptSMSC(HappySMSC):
         )
         self.sendPDU(pdu)
 
-class ManualDeliveryReceiptHappySMSC(HappyRecorderSMSC):
+class ManualDeliveryReceiptHappySMSC(HappySMSC):
     """Will send a deliver_sm through trigger_DLR() method
     A submit_sm must be sent to this SMSC before requesting sendDeliverSM !
     """
+    submitRecords = []
     lastSubmitSmRestPDU = None
     lastSubmitSmPDU = None
 
