@@ -36,6 +36,13 @@ class HTTPApiTestCases(TestCase):
     def tearDown(self):
         self.RouterPB_f.cancelPersistenceTimer()
 
+class PingTestCases(HTTPApiTestCases):
+    @defer.inlineCallbacks
+    def test_basic_ping(self):
+        response = yield self.web.get("ping")
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(response.value(), "Jasmin/PONG")
+
 class SendTestCases(HTTPApiTestCases):
     username = 'fourat'
 

@@ -284,6 +284,25 @@ class Send(Resource):
             
             return _return
     
+class Ping(Resource):
+    def __init__(self, log):
+        Resource.__init__(self)
+        self.log = log
+    
+    def render(self, request):
+        """
+        /ping request processing
+
+        Note: Ping is used to check Jasmin's http api
+        """
+        
+        self.log.debug("Rendering /ping response with args: %s from %s" % (
+                                                                           request.args, 
+                                                                           request.getClientIP()))
+        self.log.info("Received ping from %s" % request.getClientIP())
+        request.setResponseCode(200)
+        return 'Jasmin/PONG'
+
 class HTTPApi(Resource):
     
     def __init__(self, RouterPB, SMPPClientManagerPB, config):
@@ -311,3 +330,4 @@ class HTTPApi(Resource):
         # Set http url routings
         self.log.debug("Setting http url routing for /send")
         self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.stats, self.log))
+        self.putChild('ping', Ping(self.log))
