@@ -7,6 +7,7 @@ import pickle
 import time
 import string
 import urllib
+import jasmin
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from twisted.spread import pb
@@ -212,6 +213,15 @@ class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
             
         self.assertFalse(self.isConnected)
         
+class BasicTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_version_release(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        version_release = yield self.version_release()
+        
+        self.assertEqual(version_release, jasmin.get_release())
+
 class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_add_list_and_flush_mt_route(self):

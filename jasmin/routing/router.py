@@ -342,6 +342,9 @@ class RouterPB(pb.Avatar):
         self.log.debug('getMTRoute [order:%s] returned None', order)
         return None
     
+    def perspective_version_release(self):
+        return jasmin.get_release()
+
     def perspective_persist(self, profile = 'jcli-prod', scope = 'all'):
         try:
             if scope in ['all', 'groups']:

@@ -63,6 +63,10 @@ class RouterPBProxy:
         return pickle.loads(obj)
     
     @ConnectedPB
+    def version_release(self):
+        return self.pb.callRemote('version_release')
+    
+    @ConnectedPB
     def persist(self, profile = "jcli-prod", scope = 'all'):
         return self.pb.callRemote('persist', profile, scope)
     
