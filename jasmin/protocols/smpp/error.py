@@ -34,14 +34,14 @@ class SubmitSmRouteNotFoundError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when no route is found for a given submit_sm
     """
     def __init__(self):
-        self.status = pdu_types.CommandStatus.ESME_RSYSERR
+        self.status = pdu_types.CommandStatus.ESME_RINVDSTADR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
 class SubmitSmRoutingError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when failing to send SubmitSm to routedConnector
     """
     def __init__(self):
-        self.status = pdu_types.CommandStatus.ESME_RSYSERR
+        self.status = pdu_types.CommandStatus.ESME_RSUBMITFAIL
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
 class SubmitSmChargingError(SubmitSmEventHandlerErrorNoShutdown):
