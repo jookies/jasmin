@@ -432,6 +432,13 @@ class LongSubmitSmTestCase(SimulatorTestCase):
         smpp.endLongSubmitSmTransaction = mock.Mock(wraps=smpp.endLongSubmitSmTransaction)
         
 class LongSubmitSmWithSARTestCase(LongSubmitSmTestCase):
+    def setUp(self):
+        LongSubmitSmTestCase.setUp(self)
+
+        # Reset opFactory with long_content_split = 'sar'
+        self.opFactory = SMPPOperationFactory(self.config, long_content_split = 'sar')
+        self.long_content_max_parts = self.opFactory.long_content_max_parts
+
     def runAsserts(self, smpp, content, nbrParts):
         self.assertEquals(nbrParts + 1, smpp.PDUReceived.call_count)
         self.assertEquals(nbrParts + 1, smpp.sendPDU.call_count)
@@ -629,7 +636,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         # Send submit_sm
         UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
-        content = self.composeMessage(UCS2, 335) # 335 = 67 * 5
+        content = self.composeMessage(UCS2, 670) # 670 = (67*2) * 5
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -643,7 +650,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 67)
+        self.runAsserts(smpp, content, len(content) / (67*2))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):
@@ -793,7 +800,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         # Send submit_sm
         UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
-        content = self.composeMessage(UCS2, 335) # 335 = 67 * 5
+        content = self.composeMessage(UCS2, 670) # 670 = (67*2) * 5
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -807,7 +814,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 67)
+        self.runAsserts(smpp, content, len(content) / (67*2))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):
@@ -819,7 +826,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         # Send submit_sm
         UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
-        content = self.composeMessage(UCS2, 536) # 536 = 67 * 8
+        content = self.composeMessage(UCS2, 1072) # 1072 = (67*2) * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -964,7 +971,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         # Send submit_sm
         UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
-        content = self.composeMessage(UCS2, 536) # 536 = 67 * 8
+        content = self.composeMessage(UCS2, 1072) # 536 = (67*2) * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -978,7 +985,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 67)
+        self.runAsserts(smpp, content, len(content) / (67*2))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):
@@ -1135,7 +1142,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         # Send submit_sm
         UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
-        content = self.composeMessage(UCS2, 536) # 536 = 67 * 8
+        content = self.composeMessage(UCS2, 1072) # 1072 = (67*2) * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -1149,7 +1156,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 67)
+        self.runAsserts(smpp, content, len(content) / (67*2))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):

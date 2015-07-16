@@ -216,7 +216,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    long_content_max_parts = 5
    # Splitting long content can be made through SAR options or UDH
    # Possible values are: sar and udh
-   long_content_split = sar
+   long_content_split = udh
    
    access_log         = /var/log/jasmin/http-access.log
    log_level          = INFO
@@ -241,7 +241,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 5
      - If the message to be sent is to be split into several parts. This is the maximum number of individual SMS-MT messages that can be used.
    * - long_content_split
-     - sar
+     - udh
      - Splitting method: 'udh': Will split using 6-byte long User Data Header, 'sar': Will split using sar_total_segments, sar_segment_seqnum, and sar_msg_ref_num options.
    * - access_log
      - /var/log/jasmin/http-access.log
