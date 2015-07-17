@@ -485,6 +485,61 @@ class MtMessagingCredentialTestCases(UserTestCases):
         self.update_user(r'jcli : ', 'user_1', extraCommands)
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 
+    def test_increase_decrease_quota_float(self):
+        # Add with initial quota
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'mt_messaging_cred quota balance 100'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        _cred = MtMessagingCredential()
+        _cred.setQuota('balance', 20)
+
+        # Assert User increasing/decreasing quota
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'mt_messaging_cred quota balance -90.2'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'mt_messaging_cred quota balance +10.2'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_increase_decrease_quota_int(self):
+        # Add with initial quota
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'mt_messaging_cred quota sms_count 100'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        _cred = MtMessagingCredential()
+        _cred.setQuota('submit_sm_count', 20)
+
+        # Assert User increasing/decreasing quota
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'mt_messaging_cred quota sms_count -90'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'mt_messaging_cred quota sms_count +10'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_increase_decrease_quota_invalid_type(self):
+        # Add with initial quota
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'mt_messaging_cred quota sms_count 100'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        # Quota will remain the same since the following updates are using incorrect type
+        _cred = MtMessagingCredential()
+        _cred.setQuota('submit_sm_count', 100)
+
+        # Assert User increasing/decreasing quota
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'mt_messaging_cred quota sms_count -90.2'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'mt_messaging_cred quota sms_count +10.2'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
     def test_all(self):
         _cred = MtMessagingCredential()
         _cred.setAuthorization('http_send', False)
@@ -681,6 +736,43 @@ class SmppsCredentialTestCases(UserTestCases):
         _cred.setQuota('max_bindings', 20)
         extraCommands = [{'command': 'password anypassword'},
                          {'command': 'smpps_cred quota max_bindings 20'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_increase_decrease_quota_int(self):
+        # Add with initial quota
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'smpps_cred quota max_bindings 100'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        _cred = SmppsCredential()
+        _cred.setQuota('max_bindings', 20)
+
+        # Assert User increasing/decreasing quota
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'smpps_cred quota max_bindings -90'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'smpps_cred quota max_bindings +10'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
+
+    def test_increase_decrease_quota_invalid_type(self):
+        # Add with initial quota
+        extraCommands = [{'command': 'uid user_1'},
+                         {'command': 'smpps_cred quota max_bindings 100'}]
+        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+        # Quota will remain the same since the following updates are using incorrect type
+        _cred = SmppsCredential()
+        _cred.setQuota('max_bindings', 100)
+
+        # Assert User increasing/decreasing quota
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'smpps_cred quota max_bindings -90.2'}]
+        self.update_user(r'jcli : ', 'user_1', extraCommands)
+        extraCommands = [{'command': 'password anypassword'},
+                         {'command': 'smpps_cred quota max_bindings +10.2'}]
         self.update_user(r'jcli : ', 'user_1', extraCommands)
         self._test_user_with_SmppsCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 

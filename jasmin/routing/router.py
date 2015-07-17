@@ -527,6 +527,7 @@ class RouterPB(pb.Avatar):
         # Replace existant users
         for _user in self.users:
             if user.uid == _user.uid or user.username == _user.username:
+                self.log.warn('User (id:%s) already existant, will be replaced !' % user.uid)
                 self.users.remove(_user)
 
                 # Save old CnxStatus in new user

@@ -225,6 +225,8 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
      - ND
      - Max. number of messages per second to accept through SMPP Server
 
+.. note:: It is possible to increment a quota by indicating a sign, ex: *+10* will increment a quota value by 10, *-22.4* will decrease a quota value by 22.4.
+
 SMPP Server section
 -------------------
 
@@ -269,6 +271,8 @@ In the below tables, you can find exhaustive list of keys for each **smpps_cred*
    * - max_bindings
      - ND
      - Maximum bound connections at a time (multi binding)
+
+.. note:: It is possible to increment a quota by indicating a sign, ex: *+10* will increment a quota value by 10, *-2* will decrease a quota value by 2.
 
 .. _group_manager:
 
