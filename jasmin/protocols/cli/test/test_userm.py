@@ -136,14 +136,17 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter src_addr .*',
                         'mt_messaging_cred valuefilter dst_addr .*',
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
-                        'mt_messaging_cred authorization dlr_level True',
-                        'mt_messaging_cred authorization priority True',
-                        'mt_messaging_cred authorization http_long_content True',
                         'mt_messaging_cred authorization http_send True',
                         'mt_messaging_cred authorization http_dlr_method True',
-                        'mt_messaging_cred authorization src_addr True',
-                        'mt_messaging_cred authorization validity_period True',
+                        'mt_messaging_cred authorization http_balance True',
                         'mt_messaging_cred authorization smpps_send True',
+                        'mt_messaging_cred authorization priority True',
+                        'mt_messaging_cred authorization http_long_content True',
+                        'mt_messaging_cred authorization src_addr True',
+                        'mt_messaging_cred authorization dlr_level True',
+                        'mt_messaging_cred authorization http_rate True',
+                        'mt_messaging_cred authorization validity_period True',
+                        'mt_messaging_cred authorization http_bulk False',
                         'uid %s' % uid, 
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
@@ -240,14 +243,17 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter src_addr .*',
                         'mt_messaging_cred valuefilter dst_addr .*',
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
-                        'mt_messaging_cred authorization dlr_level True',
-                        'mt_messaging_cred authorization priority True',
-                        'mt_messaging_cred authorization http_long_content True',
                         'mt_messaging_cred authorization http_send True',
                         'mt_messaging_cred authorization http_dlr_method True',
-                        'mt_messaging_cred authorization src_addr True',
-                        'mt_messaging_cred authorization validity_period True',
+                        'mt_messaging_cred authorization http_balance True',
                         'mt_messaging_cred authorization smpps_send True',
+                        'mt_messaging_cred authorization priority True',
+                        'mt_messaging_cred authorization http_long_content True',
+                        'mt_messaging_cred authorization src_addr True',
+                        'mt_messaging_cred authorization dlr_level True',
+                        'mt_messaging_cred authorization http_rate True',
+                        'mt_messaging_cred authorization validity_period True',
+                        'mt_messaging_cred authorization http_bulk False',
                         'uid %s' % uid, 
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
@@ -381,14 +387,17 @@ class MtMessagingCredentialTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter src_addr %s' % re.escape(mtcred.getValueFilter('source_address').pattern),
                         'mt_messaging_cred valuefilter dst_addr %s' % re.escape(mtcred.getValueFilter('destination_address').pattern),
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape(mtcred.getValueFilter('validity_period').pattern),
-                        'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
-                        'mt_messaging_cred authorization priority %s' % mtcred.getAuthorization('set_priority'),
-                        'mt_messaging_cred authorization http_long_content %s' % mtcred.getAuthorization('http_long_content'),
                         'mt_messaging_cred authorization http_send %s' % mtcred.getAuthorization('http_send'),
                         'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
-                        'mt_messaging_cred authorization src_addr %s' % mtcred.getAuthorization('set_source_address'),
-                        'mt_messaging_cred authorization validity_period %s' % mtcred.getAuthorization('set_validity_period'),
+                        'mt_messaging_cred authorization http_balance %s' % mtcred.getAuthorization('http_balance'),
                         'mt_messaging_cred authorization smpps_send %s' % mtcred.getAuthorization('smpps_send'),
+                        'mt_messaging_cred authorization priority %s' % mtcred.getAuthorization('set_priority'),
+                        'mt_messaging_cred authorization http_long_content %s' % mtcred.getAuthorization('http_long_content'),
+                        'mt_messaging_cred authorization src_addr %s' % mtcred.getAuthorization('set_source_address'),
+                        'mt_messaging_cred authorization dlr_level %s' % mtcred.getAuthorization('set_dlr_level'),
+                        'mt_messaging_cred authorization http_rate %s' % mtcred.getAuthorization('http_rate'),
+                        'mt_messaging_cred authorization validity_period %s' % mtcred.getAuthorization('set_validity_period'),
+                        'mt_messaging_cred authorization http_bulk %s' % mtcred.getAuthorization('http_bulk'),
                         'uid user_1', 
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
@@ -420,17 +429,27 @@ class MtMessagingCredentialTestCases(UserTestCases):
     def test_authorization(self):
         _cred = MtMessagingCredential()
         _cred.setAuthorization('http_send', False)
+        _cred.setAuthorization('http_balance', False)
+        _cred.setAuthorization('http_bulk', True)
 
         # Assert User adding
         extraCommands = [{'command': 'uid user_1'},
-                         {'command': 'mt_messaging_cred authorization http_send no'}]
+                         {'command': 'mt_messaging_cred authorization http_send no'},
+                         {'command': 'mt_messaging_cred authorization http_balance no'},
+                         {'command': 'mt_messaging_cred authorization http_bulk yes'},
+                         ]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 
         # Assert User updating
         _cred.setAuthorization('http_send', True)
+        _cred.setAuthorization('http_balance', True)
+        _cred.setAuthorization('http_bulk', False)
         extraCommands = [{'command': 'password anypassword'},
-                         {'command': 'mt_messaging_cred authorization http_send 1'}]
+                         {'command': 'mt_messaging_cred authorization http_send 1'},
+                         {'command': 'mt_messaging_cred authorization http_balance yes'},
+                         {'command': 'mt_messaging_cred authorization http_bulk 0'},
+                         ]
         self.update_user(r'jcli : ', 'user_1', extraCommands)
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 
@@ -658,6 +677,9 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Show and assert
         expectedList = ['username AnyUsername', 
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
+                        'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',

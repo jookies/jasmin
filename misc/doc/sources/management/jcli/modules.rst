@@ -80,14 +80,17 @@ All the above parameters can be displayed after User creation, except the passwo
    mt_messaging_cred valuefilter src_addr .*
    mt_messaging_cred valuefilter dst_addr .*
    mt_messaging_cred valuefilter validity_period ^\d+$
-   mt_messaging_cred authorization dlr_level True
-   mt_messaging_cred authorization priority True
-   mt_messaging_cred authorization http_long_content True
    mt_messaging_cred authorization http_send True
    mt_messaging_cred authorization http_dlr_method True
-   mt_messaging_cred authorization src_addr True
-   mt_messaging_cred authorization validity_period True
+   mt_messaging_cred authorization http_balance True
    mt_messaging_cred authorization smpps_send True
+   mt_messaging_cred authorization priority True
+   mt_messaging_cred authorization http_long_content True
+   mt_messaging_cred authorization src_addr True
+   mt_messaging_cred authorization dlr_level True
+   mt_messaging_cred authorization http_rate True
+   mt_messaging_cred authorization validity_period True
+   mt_messaging_cred authorization http_bulk False
    uid foo
    smpps_cred quota max_bindings ND
    smpps_cred authorization bind True
@@ -143,13 +146,22 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
      - Description
    * - http_send
      - True
-     - Privilege to send SMS through :doc:`/apis/ja-http/index`
+     - Privilege to send SMS through :ref:`sending_sms-mt`
+   * - http_balance
+     - True
+     - Privilege to check balance through :ref:`check_balance`
+   * - http_rate
+     - True
+     - Privilege to check a message rate through :ref:`check_rate`
+   * - http_bulk
+     - False
+     - Privilege to send bulks through http api *(Not implemented yet)*
    * - smpps_send
      - True
      - Privilege to send SMS through :doc:`/apis/smpp-server/index`
    * - http_long_content
      - True
-     - Privilege to send long content SMS through :doc:`/apis/ja-http/index`
+     - Privilege to send long content SMS through :ref:`sending_sms-mt`
    * - dlr_level
      - True
      - Privilege to set **dlr-level** parameter (default is 1)
@@ -1194,10 +1206,12 @@ Here's an example of showing **sandra**'s detailed statistics::
    #submit_sm_request_count  SMPP Server  1506
    #qos_last_submit_sm_at    SMPP Server  2019-06-02 12:31:23
    #unbind_count             SMPP Server  24
-   #qos_last_submit_sm_at    HTTP Api     2019-05-22 15:56:02
    #connects_count           HTTP Api     156
    #last_activity_at         HTTP Api     2019-06-01 12:12:33
+   #rate_request_count       HTTP Api     20
    #submit_sm_request_count  HTTP Api     102
+   #qos_last_submit_sm_at    HTTP Api     2019-05-22 15:56:02
+   #balance_request_count    HTTP Api     16
 
 This is clearly a more detailed view for user **sandra**, the following table explains the items shown for **sandra**:
 
@@ -1238,6 +1252,12 @@ This is clearly a more detailed view for user **sandra**, the following table ex
    * - submit_sm_request_count
      - HTTP Api
      - Number of SubmitSM (MT messages) sent
+   * - rate_request_count
+     - HTTP Api
+     - Number of rate requests
+   * - balance_request_count
+     - HTTP Api
+     - Number of balance requests
 
 SMPP Client connectors statistics
 =================================

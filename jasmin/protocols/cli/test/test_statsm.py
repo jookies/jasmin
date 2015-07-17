@@ -86,10 +86,13 @@ class UserStatsTestCases(UserTestCases):
                         '#submit_sm_request_count  SMPP Server  0',
                         '#qos_last_submit_sm_at    SMPP Server  ND',
                         '#unbind_count             SMPP Server  0',
-                        '#qos_last_submit_sm_at    HTTP Api     ND',
                         '#connects_count           HTTP Api     0',
                         '#last_activity_at         HTTP Api     ND',
-                        '#submit_sm_request_count  HTTP Api     0']
+                        '#rate_request_count       HTTP Api     0',
+                        '#submit_sm_request_count  HTTP Api     0',
+                        '#qos_last_submit_sm_at    HTTP Api     ND',
+                        '#balance_request_count    HTTP Api     0',
+                        ]
         commands = [{'command': 'stats --user=test_user', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 

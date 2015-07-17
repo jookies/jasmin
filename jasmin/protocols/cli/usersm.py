@@ -8,24 +8,27 @@ from jasmin.routing.jasminApi import User, MtMessagingCredential, SmppsCredentia
 MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                'keyMapValue': 'mt_credential', 
                                'Authorization': {'http_send': 'http_send',
-                                                  'smpps_send': 'smpps_send',
-                                                  'http_long_content': 'http_long_content',
-                                                  'dlr_level': 'set_dlr_level',
-                                                  'http_dlr_method': 'http_set_dlr_method',
-                                                  'src_addr': 'set_source_address',
-                                                  'priority': 'set_priority',
-                                                  'validity_period': 'set_validity_period'},
+                                                 'http_balance': 'http_balance',
+                                                 'http_rate': 'http_rate',
+                                                 'http_bulk': 'http_bulk',
+                                                 'smpps_send': 'smpps_send',
+                                                 'http_long_content': 'http_long_content',
+                                                 'dlr_level': 'set_dlr_level',
+                                                 'http_dlr_method': 'http_set_dlr_method',
+                                                 'src_addr': 'set_source_address',
+                                                 'priority': 'set_priority',
+                                                 'validity_period': 'set_validity_period'},
                                'ValueFilter': {'dst_addr': 'destination_address',
-                                                'src_addr': 'source_address',
-                                                'priority': 'priority',
-                                                'validity_period': 'validity_period',
-                                                'content': 'content'},
+                                               'src_addr': 'source_address',
+                                               'priority': 'priority',
+                                               'validity_period': 'validity_period',
+                                               'content': 'content'},
                                'DefaultValue': {'src_addr': 'source_address'},
                                'Quota': {'balance': 'balance',
-                                          'early_percent': 'early_decrement_balance_percent',
-                                          'sms_count': 'submit_sm_count',
-                                          'http_throughput': 'http_throughput',
-                                          'smpps_throughput': 'smpps_throughput',
+                                         'early_percent': 'early_decrement_balance_percent',
+                                         'sms_count': 'submit_sm_count',
+                                         'http_throughput': 'http_throughput',
+                                         'smpps_throughput': 'smpps_throughput',
                                         },
                                 }
 
@@ -433,7 +436,10 @@ class UsersManager(PersistableManager):
                             else:
                                 getattr(subUserObject,  'update%s' % section)(SectionKey, SectionValue)
                         else:
-                            getattr(subUserObject,  'set%s' % section)(SectionKey, SectionValue)
+                            try:
+                                getattr(subUserObject,  'set%s' % section)(SectionKey, SectionValue)
+                            except jasminApiCredentialError:
+                                self.protocol.sendData('%s not supported in this object, ignoring its value.' % SectionKey, prompt=False)
             else:
                 if key == 'password':
                     setattr(user, key, md5(value).digest())
@@ -476,7 +482,11 @@ class UsersManager(PersistableManager):
                         if section in ['class', 'keyMapValue']:
                             continue
                         for SectionShortKey, SectionLongKey in value[section].iteritems():
-                            sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
+                            try:
+                                sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
+                            except jasminApiCredentialError:
+                                sectionValue = 'Unknown (object is from an old Jasmin release !)'
+
                             if section == 'ValueFilter':
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:

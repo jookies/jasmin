@@ -4,6 +4,7 @@ This is the http server module serving the /send API
 
 import logging
 import re
+import json
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from twisted.web.resource import Resource
@@ -45,6 +46,7 @@ class Send(Resource):
         self.log.debug("Rendering /send response with args: %s from %s" % (
                                                                            request.args, 
                                                                            request.getClientIP()))
+        request.responseHeaders.addRawHeader(b"content-type", b"text/plain")
         response = {'return': None, 'status': 200}
         
         self.stats.inc('request_count')
@@ -55,12 +57,12 @@ class Send(Resource):
         updated_request = request
         
         try:
-            # Validation
+            # Validation (must have almost the same params as /rate service)
             fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
                       'from'        :{'optional': True},
                       'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,30}$')},
+                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
                       # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
@@ -128,7 +130,7 @@ class Send(Resource):
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
             
             # Make Credential validation
-            v = HttpAPICredentialValidator('Send', user, SubmitSmPDU, request)
+            v = HttpAPICredentialValidator('Send', user, request, submit_sm = SubmitSmPDU)
             v.validate()
             
             # Update SubmitSmPDU by default values from user MtMessagingCredential
@@ -284,6 +286,214 @@ class Send(Resource):
             
             return _return
     
+class Rate(Resource):
+    def __init__(self, HTTPApiConfig, RouterPB, stats, log):
+        Resource.__init__(self)
+        
+        self.RouterPB = RouterPB
+        self.log = log
+        self.stats = stats
+
+        # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
+        self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
+                                              long_content_split = HTTPApiConfig.long_content_split)
+    
+    def render(self, request):
+        """
+        /rate request processing
+
+        Note: This method will indicate the rate of the message once sent
+        """
+        
+        self.log.debug("Rendering /rate response with args: %s from %s" % (
+                                                                           request.args, 
+                                                                           request.getClientIP()))
+        request.responseHeaders.addRawHeader(b"content-type", b"application/json")
+        response = {'return': None, 'status': 200}
+        
+        self.stats.inc('request_count')
+        self.stats.set('last_request_at', datetime.now())
+
+        try:
+            # Validation (must be almost the same params as /send service)
+            fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
+                      'from'        :{'optional': True},
+                      'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
+                      'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
+                      # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
+                      'validity-period' :{'optional': True,     'pattern': re.compile(r'^\d+$')},
+                      'content'     :{'optional': True},
+                      }
+            
+            # Default coding is 0 when not provided
+            if 'coding' not in request.args:
+                request.args['coding'] = ['0']
+            
+            # Content is optional, defaults to empty string
+            if 'content' not in request.args:
+                request.args['content'] = ['']
+
+            # Make validation
+            v = UrlArgsValidator(request, fields)
+            v.validate()
+            
+            # Authentication
+            user = self.RouterPB.authenticateUser(username = request.args['username'][0], password = request.args['password'][0])
+            if user is None:
+                self.stats.inc('auth_error_count')
+                
+                self.log.debug("Authentication failure for username:%s and password:%s" % (
+                    request.args['username'][0], request.args['password'][0]))
+                self.log.error("Authentication failure for username:%s" % 
+                    request.args['username'][0])
+                raise AuthenticationError('Authentication failure for username:%s' % 
+                    request.args['username'][0])
+            
+            # Update CnxStatus
+            user.getCnxStatus().httpapi['connects_count']+= 1
+            user.getCnxStatus().httpapi['rate_request_count']+= 1
+            user.getCnxStatus().httpapi['last_activity_at'] = datetime.now()
+
+            # Build SubmitSmPDU
+            SubmitSmPDU = self.opFactory.SubmitSM(
+                source_addr = None if 'from' not in request.args else request.args['from'][0],
+                destination_addr = request.args['to'][0],
+                short_message = request.args['content'][0],
+                data_coding = int(request.args['coding'][0]),
+            )
+            self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
+            
+            # Make Credential validation
+            v = HttpAPICredentialValidator('Rate', user, request, submit_sm = SubmitSmPDU)
+            v.validate()
+            
+            # Update SubmitSmPDU by default values from user MtMessagingCredential
+            SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
+
+            # Routing
+            routedConnector = None # init
+            routable = RoutableSubmitSm(SubmitSmPDU, user)
+            route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
+            if route is None:
+                self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (user, SubmitSmPDU))
+                raise RouteNotFoundError("No route found")
+
+            # Get connector from selected route
+            self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+            routedConnector = route.getConnector()
+            
+            # Get number of PDUs to be sent (for billing purpose)
+            _pdu = SubmitSmPDU
+            submit_sm_count = 1
+            while hasattr(_pdu, 'nextPdu'):
+                _pdu = _pdu.nextPdu
+                submit_sm_count += 1
+                
+            # Get the bill
+            bill = route.getBillFor(user)
+
+            response = {'return': {'unit_rate': bill.getTotalAmounts(), 'submit_sm_count': submit_sm_count}, 'status': 200}
+        except Exception, e:
+            self.log.error("Error: %s" % e)
+            
+            if hasattr(e, 'code'):
+                response = {'return': e.message, 'status': e.code}
+            else:
+                response = {'return': "Unknown error: %s" % e, 'status': 500}
+        finally:
+            self.log.debug("Returning %s to %s." % (response, request.getClientIP()))
+
+            # Return message
+            if response['return'] is None:
+                response['return'] = 'System error'
+                request.setResponseCode(500)
+            else:
+                request.setResponseCode(response['status'])
+            return json.dumps(response['return'])
+
+class Balance(Resource):
+    def __init__(self, RouterPB, stats, log):
+        Resource.__init__(self)
+        
+        self.RouterPB = RouterPB
+        self.stats = stats
+        self.log = log
+    
+    def render(self, request):
+        """
+        /balance request processing
+
+        Note: Balance is used by user to check his balance
+        """
+        
+        self.log.debug("Rendering /balance response with args: %s from %s" % (
+                                                                           request.args, 
+                                                                           request.getClientIP()))
+        request.responseHeaders.addRawHeader(b"content-type", b"application/json")
+        response = {'return': None, 'status': 200}
+        
+        self.stats.inc('request_count')
+        self.stats.set('last_request_at', datetime.now())
+
+        try:
+            # Validation
+            fields = {'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      }
+                        
+            # Make validation
+            v = UrlArgsValidator(request, fields)
+            v.validate()
+            
+            # Authentication
+            user = self.RouterPB.authenticateUser(username = request.args['username'][0], password = request.args['password'][0])
+            if user is None:
+                self.stats.inc('auth_error_count')
+                
+                self.log.debug("Authentication failure for username:%s and password:%s" % (
+                    request.args['username'][0], request.args['password'][0]))
+                self.log.error("Authentication failure for username:%s" % 
+                    request.args['username'][0])
+                raise AuthenticationError('Authentication failure for username:%s' % 
+                    request.args['username'][0])
+            
+            # Update CnxStatus
+            user.getCnxStatus().httpapi['connects_count']+= 1
+            user.getCnxStatus().httpapi['balance_request_count']+= 1
+            user.getCnxStatus().httpapi['last_activity_at'] = datetime.now()
+
+            # Make Credential validation
+            v = HttpAPICredentialValidator('Balance', user, request)
+            v.validate()
+
+            balance = user.mt_credential.getQuota('balance')
+            if balance is None:
+                balance = 'ND'
+            sms_count = user.mt_credential.getQuota('submit_sm_count')
+            if sms_count is None:
+                sms_count = 'ND'
+            response = {'return': {'balance': balance, 'sms_count': sms_count}, 'status': 200}
+        except Exception, e:
+            self.log.error("Error: %s" % e)
+            
+            if hasattr(e, 'code'):
+                response = {'return': e.message, 'status': e.code}
+            else:
+                response = {'return': "Unknown error: %s" % e, 'status': 500}
+        finally:
+            self.log.debug("Returning %s to %s." % (response, request.getClientIP()))
+
+            # Return message
+            if response['return'] is None:
+                response['return'] = 'System error'
+                request.setResponseCode(500)
+            else:
+                request.setResponseCode(response['status'])
+            return json.dumps(response['return'])
+
 class Ping(Resource):
     def __init__(self, log):
         Resource.__init__(self)
@@ -330,4 +540,6 @@ class HTTPApi(Resource):
         # Set http url routings
         self.log.debug("Setting http url routing for /send")
         self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.stats, self.log))
+        self.putChild('rate', Rate(self.config, self.RouterPB, self.stats, self.log))
+        self.putChild('balance', Balance(self.RouterPB, self.stats, self.log))
         self.putChild('ping', Ping(self.log))
