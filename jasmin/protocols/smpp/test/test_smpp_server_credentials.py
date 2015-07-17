@@ -363,7 +363,7 @@ class QuotasTestCases(SMPPClientTestCases):
 	@defer.inlineCallbacks
 	def test_unrated_route_limited_quotas(self):
 		user = self.routerpb_factory.getUser('u1')
-		user.mt_credential.setQuota('balance', 10)
+		user.mt_credential.setQuota('balance', 10.0)
 		user.mt_credential.setQuota('submit_sm_count', 10)
 
 		# Connect and bind
@@ -405,7 +405,7 @@ class QuotasTestCases(SMPPClientTestCases):
 	@defer.inlineCallbacks
 	def test_rated_route_limited_quotas(self):
 		user = self.routerpb_factory.getUser('u1')
-		user.mt_credential.setQuota('balance', 10)
+		user.mt_credential.setQuota('balance', 10.0)
 		user.mt_credential.setQuota('submit_sm_count', 10)
 		default_route = self.routerpb_factory.getMTRoutingTable().getAll()[0][0]
 		default_route.rate = 1.2
@@ -548,7 +548,7 @@ class QuotasTestCases(SMPPClientTestCases):
 		user must not be charged in this case, he have to get a balance covering the total rate'''
 
 		user = self.routerpb_factory.getUser('u1')
-		user.mt_credential.setQuota('balance', 1)
+		user.mt_credential.setQuota('balance', 1.0)
 		user.mt_credential.setQuota('early_decrement_balance_percent', 25)
 		default_route = self.routerpb_factory.getMTRoutingTable().getAll()[0][0]
 		default_route.rate = 2.0
@@ -585,7 +585,7 @@ class QuotasTestCases(SMPPClientTestCases):
 		test_router_smpps.BillRequestSubmitSmRespCallbackingTestCases
 		"""
 		user = self.routerpb_factory.getUser('u1')
-		user.mt_credential.setQuota('balance', 10)
+		user.mt_credential.setQuota('balance', 10.0)
 		user.mt_credential.setQuota('early_decrement_balance_percent', 25)
 		default_route = self.routerpb_factory.getMTRoutingTable().getAll()[0][0]
 		default_route.rate = 2.0
@@ -613,7 +613,7 @@ class QuotasTestCases(SMPPClientTestCases):
 		test_router_smpps.BillRequestSubmitSmRespCallbackingTestCases
 		"""
 		user = self.routerpb_factory.getUser('u1')
-		user.mt_credential.setQuota('balance', 10)
+		user.mt_credential.setQuota('balance', 10.0)
 		user.mt_credential.setQuota('early_decrement_balance_percent', 100)
 		default_route = self.routerpb_factory.getMTRoutingTable().getAll()[0][0]
 		default_route.rate = 2.0

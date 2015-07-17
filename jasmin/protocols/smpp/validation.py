@@ -11,7 +11,9 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
     "Will check for user MtMessagingCredential"
 
     def __init__(self, action, user, submit_sm):
-        AbstractCredentialValidator.__init__(self, action, user, submit_sm)
+        AbstractCredentialValidator.__init__(self, action, user)
+
+        self.submit_sm = submit_sm
         
     def _checkSendAuthorizations(self):
         "MT Authorizations check"

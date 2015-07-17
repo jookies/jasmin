@@ -673,7 +673,7 @@ class QuotasTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_rated_route_limited_quotas(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('balance', 10.0)
         user.mt_credential.setQuota('submit_sm_count', 10)
         route = DefaultRoute(self.c1, rate = 1.2)
 
@@ -691,7 +691,7 @@ class QuotasTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_rated_route_long_message(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('balance', 10.0)
         user.mt_credential.setQuota('submit_sm_count', 10)
         route = DefaultRoute(self.c1, rate = 1.2)
 
@@ -803,7 +803,7 @@ class QuotasTestCases(CredentialsTestCases):
         user must not be charged in this case, he have to get a balance covering the total rate'''
         
         user = copy.copy(self.user1)
-        user.mt_credential.setQuota('balance', 1)
+        user.mt_credential.setQuota('balance', 1.0)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)
         route = DefaultRoute(self.c1, rate = 2.0)
 
@@ -815,7 +815,7 @@ class QuotasTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('balance', 10.0)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)
         route = DefaultRoute(self.c1, rate = 2.0)
 
@@ -845,8 +845,8 @@ class QuotasTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_100_percent(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setQuota('balance', 10)
-        user.mt_credential.setQuota('early_decrement_balance_percent', 100)
+        user.mt_credential.setQuota('balance', 10.0)
+        user.mt_credential.setQuota('early_decrement_balance_percent', 100.0)
         route = DefaultRoute(self.c1, rate = 2.0)
 
         _QuotasTestCases = self
@@ -875,7 +875,7 @@ class QuotasTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent_long_message(self):
         user = copy.copy(self.user1)
-        user.mt_credential.setQuota('balance', 10)
+        user.mt_credential.setQuota('balance', 10.0)
         user.mt_credential.setQuota('early_decrement_balance_percent', 25)
         route = DefaultRoute(self.c1, rate = 2.0)
 
