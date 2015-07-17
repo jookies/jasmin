@@ -236,6 +236,14 @@ class MtMessagingCredentialTestCase(TestCase):
         mc.updateQuota('submit_sm_count', 1)
         self.assertEqual(mc.quotas_updated, True)
 
+    def test_quotas_update_types(self):
+        sc = MtMessagingCredential()
+        sc.setQuota('submit_sm_count', 2)
+        sc.setQuota('balance', 2)
+
+        self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'balance', 'A')
+        self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'submit_sm_count', 0.2)
+
 class SmppsCredentialTestCase(TestCase):
     def test_normal_noargs(self):
         sc = SmppsCredential()
@@ -300,6 +308,13 @@ class SmppsCredentialTestCase(TestCase):
         self.assertEqual(sc.quotas_updated, False)
         sc.updateQuota('max_bindings', 1)
         self.assertEqual(sc.quotas_updated, True)
+
+    def test_quotas_update_types(self):
+        sc = SmppsCredential()
+        sc.setQuota('max_bindings', 2)
+
+        self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'max_bindings', 'A')
+        self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'max_bindings', 0.2)
 
 class HttpConnectorTestCase(TestCase):
     def test_normal(self):

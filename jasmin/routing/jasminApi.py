@@ -77,6 +77,10 @@ class CredentialGenerick(jasminApiGenerick):
             raise jasminApiCredentialError('%s is not a valid Quota key' % key)
         if self.quotas[key] is None:
             raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
+        if type(difference) not in [float, int]:
+            raise jasminApiCredentialError('Incorrect type for value (%s), must be int or float' % difference)
+        if type(self.quotas[key]) == int and type(difference) == float:
+            raise jasminApiCredentialError('Type mismatch, cannot update an int with a float value')
             
         self.quotas[key] += difference
         self.quotas_updated = True

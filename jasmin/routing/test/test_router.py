@@ -978,6 +978,69 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         self.assertEqual(self.pbRoot_f.perspective_persist.call_count, 2)
         self.assertEqual(self.pbRoot_f.perspective_persist.call_args_list, [mock.call(scope='groups'), mock.call(scope='users')])
 
+    @defer.inlineCallbacks
+    def test_increase_decrease_quota(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('balance', 2.0)
+        mt_c.setQuota('submit_sm_count', 10)
+        smpps_c = SmppsCredential()
+        smpps_c.setQuota('max_bindings', 10)
+        u1 = User(1, g1, 'username', 'password', mt_c, smpps_c)
+        yield self.user_add(u1)
+
+        # Update quotas
+        r = yield self.user_update_quota(1, 'mt_credential', 'balance', -0.2)
+        self.assertTrue(r)
+        yield self.user_update_quota(1, 'mt_credential', 'balance', +0.5)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 2.3)
+        r = yield self.user_update_quota(1, 'mt_credential', 'submit_sm_count', -2)
+        self.assertTrue(r)
+        yield self.user_update_quota(1, 'mt_credential', 'submit_sm_count', +5)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('submit_sm_count'), 13)
+        r = yield self.user_update_quota(1, 'smpps_credential', 'max_bindings', -2)
+        self.assertTrue(r)
+        yield self.user_update_quota(1, 'smpps_credential', 'max_bindings', +5)
+        self.assertEqual(self.pbRoot_f.users[0].smpps_credential.getQuota('max_bindings'), 13)
+
+    @defer.inlineCallbacks
+    def test_increase_decrease_quota_invalid_cred(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+        # Add a user
+        u1 = User(1, g1, 'username', 'password')
+        yield self.user_add(u1)
+
+        # Update quotas
+        r = yield self.user_update_quota(1, 'any_cred', 'balance', -0.2)
+        self.assertFalse(r)
+
+    @defer.inlineCallbacks
+    def test_increase_decrease_quota_invalid_type(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        # Add a group
+        g1 = Group(1)
+        yield self.group_add(g1)
+        # Add a user
+        mt_c = MtMessagingCredential()
+        mt_c.setQuota('submit_sm_count', 10)
+        u1 = User(1, g1, 'username', 'password', mt_c)
+        yield self.user_add(u1)
+
+        # Update quotas
+        r = yield self.user_update_quota(1, 'mt_credential', 'submit_sm_count', -2.2)
+        self.assertFalse(r)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('submit_sm_count'), 10)
+
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
     def test_delivery(self):
