@@ -63,6 +63,10 @@ class RouterPBProxy:
         return pickle.loads(obj)
     
     @ConnectedPB
+    def version_release(self):
+        return self.pb.callRemote('version_release')
+    
+    @ConnectedPB
     def persist(self, profile = "jcli-prod", scope = 'all'):
         return self.pb.callRemote('persist', profile, scope)
     
@@ -93,6 +97,10 @@ class RouterPBProxy:
     @ConnectedPB
     def user_get_all(self, gid = None):
         return self.pb.callRemote('user_get_all', gid)
+
+    @ConnectedPB
+    def user_update_quota(self, uid, cred, quota, value):
+        return self.pb.callRemote('user_update_quota', uid, cred, quota, value)
 
     @ConnectedPB
     def group_add(self, group):

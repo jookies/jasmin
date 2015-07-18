@@ -257,7 +257,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCases):
         response_pdu = self.smpps_proto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
         self.assertEqual(response_pdu.seqNum, 1)
-        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSUBMITFAIL)
         self.assertTrue('message_id' not in response_pdu.params)
 
     @defer.inlineCallbacks
@@ -279,7 +279,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCases):
         response_pdu = self.smpps_proto.sendPDU.call_args_list[0][0][0]
         self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
         self.assertEqual(response_pdu.seqNum, 1)
-        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RINVDSTADR)
         self.assertTrue('message_id' not in response_pdu.params)
 
 class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestCases, 

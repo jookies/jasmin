@@ -37,21 +37,27 @@ class SMPPClientStatsCollectorBasicTestCases(TestCase):
 	def test_stats(self):
 		stats = SMPPClientStatsCollector().get(cid = 'test_stats')
 
-		self.assertEqual(stats._stats, {
-			'created_at': 0,
-			'last_received_pdu_at': 0,
-			'last_sent_pdu_at': 0,
-			'last_received_elink_at': 0,
-			'last_sent_elink_at': 0,
-			'last_seqNum_at': 0,
-			'last_seqNum': None,
-			'connected_at': 0,
-			'bound_at': 0,
-			'disconnected_at': 0,
-			'connected_count': 0,
+		self.assertEqual(stats._stats, {'bound_at': 0,
 			'bound_count': 0,
+			'connected_at': 0,
+			'connected_count': 0,
+			'created_at': 0,
+			'data_sm_count': 0,
+			'deliver_sm_count': 0,
+			'disconnected_at': 0,
 			'disconnected_count': 0,
-		})
+			'elink_count': 0,
+			'last_received_elink_at': 0,
+			'last_received_pdu_at': 0,
+			'last_sent_elink_at': 0,
+			'last_sent_pdu_at': 0,
+			'last_seqNum': None,
+			'last_seqNum_at': 0,
+			'other_submit_error_count': 0,
+			'submit_sm_count': 0,
+			'submit_sm_request_count': 0,
+			'throttling_error_count': 0,
+ 		})
 
 	def test_stats_set(self):
 		stats = SMPPClientStatsCollector().get(cid = 'test_stats_set')
@@ -109,22 +115,28 @@ class SMPPServerStatsCollectorBasicTestCases(TestCase):
 	def test_stats(self):
 		stats = SMPPServerStatsCollector().get(cid = 'test_stats')
 
-		self.assertEqual(stats._stats, {
+		self.assertEqual(stats._stats, {'bind_rx_count': 0,
+			'bind_trx_count': 0,
+			'bind_tx_count': 0,
+			'bound_rx_count': 0,
+			'bound_trx_count': 0,
+			'bound_tx_count': 0,
+			'connect_count': 0,
+			'connected_count': 0,
 			'created_at': 0,
+			'data_sm_count': 0,
+			'deliver_sm_count': 0,
+			'disconnect_count': 0,
+			'elink_count': 0,
+			'last_received_elink_at': 0,
 			'last_received_pdu_at': 0,
 			'last_sent_pdu_at': 0,
-			'last_received_elink_at': 0,
-			'connected_count': 0,
-			'connect_count': 0,
-			'disconnect_count': 0,
-			'bound_trx_count': 0,
-			'bound_rx_count': 0,
-			'bound_tx_count': 0,
-			'bind_trx_count': 0,
-			'bind_rx_count': 0,
-			'bind_tx_count': 0,
+			'other_submit_error_count': 0,
+			'submit_sm_count': 0,
+			'submit_sm_request_count': 0,
+			'throttling_error_count': 0,
 			'unbind_count': 0,
-		})
+ 		})
 
 	def test_stats_set(self):
 		stats = SMPPServerStatsCollector().get(cid = 'test_stats_set')

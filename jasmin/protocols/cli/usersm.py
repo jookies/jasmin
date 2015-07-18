@@ -8,24 +8,27 @@ from jasmin.routing.jasminApi import User, MtMessagingCredential, SmppsCredentia
 MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                'keyMapValue': 'mt_credential', 
                                'Authorization': {'http_send': 'http_send',
-                                                  'smpps_send': 'smpps_send',
-                                                  'http_long_content': 'http_long_content',
-                                                  'dlr_level': 'set_dlr_level',
-                                                  'http_dlr_method': 'http_set_dlr_method',
-                                                  'src_addr': 'set_source_address',
-                                                  'priority': 'set_priority',
-                                                  'validity_period': 'set_validity_period'},
+                                                 'http_balance': 'http_balance',
+                                                 'http_rate': 'http_rate',
+                                                 'http_bulk': 'http_bulk',
+                                                 'smpps_send': 'smpps_send',
+                                                 'http_long_content': 'http_long_content',
+                                                 'dlr_level': 'set_dlr_level',
+                                                 'http_dlr_method': 'http_set_dlr_method',
+                                                 'src_addr': 'set_source_address',
+                                                 'priority': 'set_priority',
+                                                 'validity_period': 'set_validity_period'},
                                'ValueFilter': {'dst_addr': 'destination_address',
-                                                'src_addr': 'source_address',
-                                                'priority': 'priority',
-                                                'validity_period': 'validity_period',
-                                                'content': 'content'},
+                                               'src_addr': 'source_address',
+                                               'priority': 'priority',
+                                               'validity_period': 'validity_period',
+                                               'content': 'content'},
                                'DefaultValue': {'src_addr': 'source_address'},
                                'Quota': {'balance': 'balance',
-                                          'early_percent': 'early_decrement_balance_percent',
-                                          'sms_count': 'submit_sm_count',
-                                          'http_throughput': 'http_throughput',
-                                          'smpps_throughput': 'smpps_throughput',
+                                         'early_percent': 'early_decrement_balance_percent',
+                                         'sms_count': 'submit_sm_count',
+                                         'http_throughput': 'http_throughput',
+                                         'smpps_throughput': 'smpps_throughput',
                                         },
                                 }
 
@@ -47,9 +50,10 @@ UserConfigStringKeys = ['username', 'password', 'uid', 'gid']
 TrueBoolCastMap = ['true', '1', 't', 'y', 'yes']
 FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
 
-def castToBuiltCorrectCredType(cred, section, key, value):
+def castToBuiltCorrectCredType(cred, section, key, value, update = False):
     'Will cast value to the correct type depending on the cred class, section and key'
-    
+    keep_original_value = None
+
     if cred == 'MtMessagingCredential':
         if section == 'Authorization':
             if value.lower() in TrueBoolCastMap:
@@ -59,12 +63,25 @@ def castToBuiltCorrectCredType(cred, section, key, value):
         elif section == 'Quota':
             if value.lower() == 'none':
                 value = None
-            elif key == 'balance' or key == 'early_decrement_balance_percent':
+            elif update and value[:1] in ['+', '-']:
+                if key in ['balance', 'early_decrement_balance_percent', 'http_throughput', 'smpps_throughput']:
+                    keep_original_value = float(value)
+                    if keep_original_value > 0:
+                        # Since 'plus' sign will vanish, this is a way to keep track of it ...
+                        # 'plus' and type of the value are encoded
+                        keep_original_value = '+f%s' % float(value)
+                    value = abs(float(value))
+                elif key == 'submit_sm_count':
+                    keep_original_value = int(value)
+                    if keep_original_value > 0:
+                        # Since 'plus' sign will vanish, this is a way to keep track of it ...
+                        # 'plus' and type of the value are encoded
+                        keep_original_value = '+i%s' % int(value)
+                    value = abs(int(value))
+            elif key in ['balance', 'early_decrement_balance_percent', 'http_throughput', 'smpps_throughput']:
                 value = float(value)
             elif key == 'submit_sm_count':
                 value = int(value)
-            elif key in ['http_throughput', 'smpps_throughput']:
-                value = float(value)
 
         # Make a final validation: pass value to a temporarly MtMessagingCredential
         # object, an exception will be raised if the type is not correct
@@ -79,6 +96,14 @@ def castToBuiltCorrectCredType(cred, section, key, value):
         elif section == 'Quota':
             if value.lower() == 'none':
                 value = None
+            elif update and value[:1] in ['+', '-']:
+                if key == 'max_bindings':
+                    keep_original_value = int(value)
+                    if keep_original_value > 0:
+                        # Since 'plus' sign will vanish, this is a way to keep track of it ...
+                        # 'plus' and type of the value are encoded
+                        keep_original_value = '+i%s' % int(value)
+                    value = abs(int(value))
             elif key == 'max_bindings':
                 value = int(value)
 
@@ -87,7 +112,10 @@ def castToBuiltCorrectCredType(cred, section, key, value):
         _o = SmppsCredential()
         getattr(_o, 'set%s' % section)(key, value)
 
-    return value
+    if keep_original_value is not None:
+        return keep_original_value
+    else:
+        return value
 
 def UserBuild(fCallback):
     'Parse args and try to build a jasmin.routing.jasminApi.User instance to pass it to fCallback'
@@ -269,7 +297,7 @@ def UserUpdate(fCallback):
                 try:
                     # Input value are received in string type, castToBuiltCorrectCredType will fix the
                     # type depending on class, section and SectionKey
-                    SectionValue = castToBuiltCorrectCredType(subKeyMap['class'], section, SectionKey, value)
+                    SectionValue = castToBuiltCorrectCredType(subKeyMap['class'], section, SectionKey, value, update = True)
 
                     # Instanciate a new sub-User dict to receive update-log to be applied
                     # once 'ok' is received
@@ -398,7 +426,20 @@ class UsersManager(PersistableManager):
                         continue
 
                     for SectionKey, SectionValue in update[1].iteritems():
-                        getattr(subUserObject,  'set%s' % section)(SectionKey, SectionValue)
+                        if str(SectionValue)[:1] in ['+', '-']:
+                            if str(SectionValue)[:1] == '+':
+                                # Decode the value and its type
+                                if str(SectionValue)[1:2] == 'f':
+                                    getattr(subUserObject,  'update%s' % section)(SectionKey, float(SectionValue[2:]))
+                                elif str(SectionValue)[1:2] == 'i':
+                                    getattr(subUserObject,  'update%s' % section)(SectionKey, int(SectionValue[2:]))
+                            else:
+                                getattr(subUserObject,  'update%s' % section)(SectionKey, SectionValue)
+                        else:
+                            try:
+                                getattr(subUserObject,  'set%s' % section)(SectionKey, SectionValue)
+                            except jasminApiCredentialError:
+                                self.protocol.sendData('%s not supported in this object, ignoring its value.' % SectionKey, prompt=False)
             else:
                 if key == 'password':
                     setattr(user, key, md5(value).digest())
@@ -441,7 +482,11 @@ class UsersManager(PersistableManager):
                         if section in ['class', 'keyMapValue']:
                             continue
                         for SectionShortKey, SectionLongKey in value[section].iteritems():
-                            sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
+                            try:
+                                sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
+                            except jasminApiCredentialError:
+                                sectionValue = 'Unknown (object is from an old Jasmin release !)'
+
                             if section == 'ValueFilter':
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:

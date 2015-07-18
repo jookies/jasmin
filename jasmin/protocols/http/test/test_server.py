@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
@@ -10,7 +11,8 @@ from jasmin.routing.configs import RouterPBConfig
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
-from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.Filters import UserFilter, GroupFilter
+from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
 
 class HTTPApiTestCases(TestCase):
     def setUp(self):
@@ -35,6 +37,13 @@ class HTTPApiTestCases(TestCase):
     
     def tearDown(self):
         self.RouterPB_f.cancelPersistenceTimer()
+
+class PingTestCases(HTTPApiTestCases):
+    @defer.inlineCallbacks
+    def test_basic_ping(self):
+        response = yield self.web.get("ping")
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(response.value(), "Jasmin/PONG")
 
 class SendTestCases(HTTPApiTestCases):
     username = 'fourat'
@@ -169,6 +178,196 @@ class SendTestCases(HTTPApiTestCases):
         response = yield self.web.get("send", {'username': self.username})
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
+
+class RateTestCases(HTTPApiTestCases):
+    def setUp(self):
+        HTTPApiTestCases.setUp(self)
+
+        # Provision Router with additional Users and Routes
+        u2 = User(2, Group(2), 'user2', 'correct')
+        u3 = User(3, Group(2), 'user3', 'correct')
+        u3.mt_credential.setQuota('balance', 10)
+        self.RouterPB_f.users.append(u2)
+        self.RouterPB_f.users.append(u3)
+        filters = [GroupFilter(Group(2))]
+        route = StaticMTRoute(filters, SmppClientConnector('abc'), 1.5)
+        self.RouterPB_f.mt_routing_table.add(route, 2)
+
+    @defer.inlineCallbacks
+    def test_rate_with_correct_args(self):
+        response = yield self.web.get("rate", {'username': 'fourat', 
+                                               'password': 'incorrect',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(json.loads(response.value()), u'Authentication failure for username:%s' % 'fourat')
+
+    @defer.inlineCallbacks
+    def test_rate_with_incorrect_args(self):
+        response = yield self.web.get("rate", {'username': 'fourat', 
+                                               'passwd': 'correct',
+                                               'content': 'hello',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 400)
+        self.assertEqual(json.loads(response.value()), u'Mandatory argument [password] is not found.')
+
+    @defer.inlineCallbacks
+    def test_rate_with_auth_success(self):
+        response = yield self.web.get("rate", {'username': 'fourat', 
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 1, u'unit_rate': 0.0})
+
+    @defer.inlineCallbacks
+    def test_rate_rated_route_unlimited_balance(self):
+        response = yield self.web.get("rate", {'username': 'user2', 
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 1, u'unit_rate': 0.0})
+
+    @defer.inlineCallbacks
+    def test_rate_rated_route_unlimited_balance_long_content(self):
+        response = yield self.web.get("rate", {'username': 'user2', 
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 2, u'unit_rate': 0.0})
+
+    @defer.inlineCallbacks
+    def test_rate_rated_route_defined_balance(self):
+        response = yield self.web.get("rate", {'username': 'user3', 
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 1, u'unit_rate': 1.5})
+
+    @defer.inlineCallbacks
+    def test_rate_rated_route_defined_balance_long_content(self):
+        response = yield self.web.get("rate", {'username': 'user3', 
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 2, u'unit_rate': 1.5})
+
+class BalanceTestCases(HTTPApiTestCases):
+    def setUp(self):
+        HTTPApiTestCases.setUp(self)
+
+        # Provision Router with additional Users and Routes
+        u2 = User(2, Group(2), 'user2', 'correct')
+        u2.mt_credential.setQuota('balance', 100.2)
+        u2.mt_credential.setQuota('submit_sm_count', 30)
+        u3 = User(3, Group(2), 'user3', 'correct')
+        u3.mt_credential.setQuota('balance', 10)
+        self.RouterPB_f.users.append(u2)
+        self.RouterPB_f.users.append(u3)
+
+    @defer.inlineCallbacks
+    def test_balance_with_correct_args(self):
+        response = yield self.web.get("balance", {'username': 'fourat', 
+                                               'password': 'incorrect'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(json.loads(response.value()), u'Authentication failure for username:%s' % 'fourat')
+
+    @defer.inlineCallbacks
+    def test_balance_with_incorrect_args(self):
+        response = yield self.web.get("balance", {'username': 'fourat', 
+                                               'passwd': 'correct'})
+        self.assertEqual(response.responseCode, 400)
+        self.assertEqual(json.loads(response.value()), u'Mandatory argument [password] is not found.')
+
+    @defer.inlineCallbacks
+    def test_balance_with_auth_success_unlimited_quotas(self):
+        response = yield self.web.get("balance", {'username': 'fourat', 
+                                               'password': 'correct'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'balance': u'ND', u'sms_count': u'ND'})
+
+    @defer.inlineCallbacks
+    def test_balance_with_auth_success_defined_quotas_u2(self):
+        response = yield self.web.get("balance", {'username': 'user2', 
+                                               'password': 'correct'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'balance': 100.2, u'sms_count': 30})
+
+    @defer.inlineCallbacks
+    def test_balance_with_auth_success_defined_quotas_u3(self):
+        response = yield self.web.get("balance", {'username': 'user3', 
+                                               'password': 'correct'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(json.loads(response.value()), {u'balance': 10, u'sms_count': u'ND'})
+
+class UserStatsTestCases(HTTPApiTestCases):
+    username = 'fourat'
+
+    @defer.inlineCallbacks
+    def test_send_failure(self):
+        # Save before
+        _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
+
+        response = yield self.web.get("send", {'username': 'fourat', 
+                                               'password': 'incorrect',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertNotEqual(response.responseCode, 200)
+        self.assertEqual(_submit_sm_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
+
+    @defer.inlineCallbacks
+    def test_send_success(self):
+        # Save before
+        _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
+
+        response = yield self.web.get("send", {'username': 'fourat', 
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 500)
+        self.assertEqual(_submit_sm_request_count+1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
+
+    @defer.inlineCallbacks
+    def test_balance_failure(self):
+        # Save before
+        _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
+
+        response = yield self.web.get("balance", {'username': 'fourat', 
+                                               'password': 'incorrect'})
+        self.assertNotEqual(response.responseCode, 200)
+        self.assertEqual(_balance_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
+
+    @defer.inlineCallbacks
+    def test_balance_success(self):
+        # Save before
+        _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
+
+        response = yield self.web.get("balance", {'username': 'fourat', 
+                                               'password': 'correct'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(_balance_request_count+1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
+
+    @defer.inlineCallbacks
+    def test_rate_failure(self):
+        # Save before
+        _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
+
+        response = yield self.web.get("rate", {'username': 'fourat', 
+                                               'password': 'incorrect',
+                                               'to': '98700177'})
+        self.assertNotEqual(response.responseCode, 200)
+        self.assertEqual(_rate_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
+
+    @defer.inlineCallbacks
+    def test_rate_success(self):
+        # Save before
+        _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
+
+        response = yield self.web.get("rate", {'username': 'fourat', 
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(_rate_request_count+1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
 
 class StatsTestCases(HTTPApiTestCases):
     username = 'fourat'
