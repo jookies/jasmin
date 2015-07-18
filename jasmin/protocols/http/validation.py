@@ -47,9 +47,10 @@ class UrlArgsValidator:
 class HttpAPICredentialValidator(AbstractCredentialValidator):
     "Will check for user MtMessagingCredential"
 
-    def __init__(self, action, user, submit_sm, request):
-        AbstractCredentialValidator.__init__(self, action, user, submit_sm)
+    def __init__(self, action, user, request, submit_sm = None):
+        AbstractCredentialValidator.__init__(self, action, user)
 
+        self.submit_sm = submit_sm
         self.request = request
         
     def _checkSendAuthorizations(self):
@@ -69,6 +70,18 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting priority is not authorized).' % self.user)
         if 'validity-period' in self.request.args and not self.user.mt_credential.getAuthorization('set_validity_period'):
             raise CredentialValidationError('Authorization failed for username [%s] (Setting validity period is not authorized).' % self.user)
+        
+    def _checkBalanceAuthorizations(self):
+        "Balance Authorizations check"
+        
+        if not self.user.mt_credential.getAuthorization('http_balance'):
+            raise CredentialValidationError('Authorization failed for username [%s] (Can not check balance).' % self.user)
+        
+    def _checkRateAuthorizations(self):
+        "Rate Authorizations check"
+        
+        if not self.user.mt_credential.getAuthorization('http_rate'):
+            raise CredentialValidationError('Authorization failed for username [%s] (Can not check rate).' % self.user)
         
     def _checkSendFilters(self):
         "MT Filters check"
@@ -104,5 +117,9 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
         if self.action == 'Send':
             self._checkSendAuthorizations()
             self._checkSendFilters()
+        elif self.action == 'Rate':
+            self._checkRateAuthorizations()
+        elif self.action == 'Balance':
+            self._checkBalanceAuthorizations()
         else:
             raise CredentialValidationError('Unknown action [%s].' % self.action)

@@ -64,6 +64,7 @@ on the Perspective brokers used and the actions they are exposing:
     #. **user_remove**: Remove a user
     #. **user_remove_all**: Remove all users
     #. **user_get_all**: Get all users
+    #. **user_update_quota**: Update a user quota
     #. **group_add**: Add a group
     #. **group_remove**: Remove a group
     #. **group_remove_all**: Remove all groups

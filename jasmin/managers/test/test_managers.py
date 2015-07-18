@@ -4,6 +4,7 @@ import mock
 import pickle
 import glob
 import os
+import jasmin
 from hashlib import md5
 from testfixtures import LogCapture
 from twisted.internet import reactor, defer
@@ -170,6 +171,15 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
             self.assertTrue(False, "ConnectError not raised")
             
         self.assertFalse(self.isConnected)
+
+class BasicTestCases(SMPPClientPBProxyTestCase):
+    @defer.inlineCallbacks
+    def test_version_release(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        version_release = yield self.version_release()
+        
+        self.assertEqual(version_release, jasmin.get_release())
 
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks

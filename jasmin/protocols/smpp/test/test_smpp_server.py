@@ -124,6 +124,12 @@ class SMPPClientTestCases(SMPPServerTestCases):
 			short_message = 'hello !',
 			seqNum = 1,
 		)
+		self.DataSmPDU = DataSM(
+			source_addr = '4567',
+			destination_addr = '1234',
+			short_message = 'hello !',
+			seqNum = 1,
+		)
 
 		# SMPPClientConfig init
 		args = {'id': 'smppc_01', 'port': self.smpps_config.port,
@@ -406,7 +412,15 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 	def setUp(self):
 		SMPPClientTestCases.setUp(self)
 
-		self.user = self.routerpb_factory.getUser('u1')		
+		# Provision a user and default route into RouterPB
+		# Add throughput limit on user
+		self.foo = User('u1', Group('test'), 'username', 'password')
+		self.foo.mt_credential.setQuota('smpps_throughput', 2)
+		self.c1 = SmppClientConnector(id_generator())
+		self.defaultroute = DefaultRoute(self.c1)
+		self.provision_user_defaultroute(user = self.foo, defaultroute = self.defaultroute)
+
+		self.user = self.routerpb_factory.getUser('u1')
 
 	@defer.inlineCallbacks
 	def test_smpps_binds_count(self):
@@ -543,7 +557,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 								timedelta( seconds = 0.1 ))
 
 		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 		# Still one bind
@@ -562,8 +576,8 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		yield self.smppc_factory.connectAndBind()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
- 		# Wait
- 		yield waitFor(5)
+		# Wait
+		yield waitFor(5)
 
 		self.assertApproximates(datetime.now(), 
 								self.user.getCnxStatus().smpps['last_activity_at'], 
@@ -609,7 +623,260 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count+1)
 
 		# Unbind & Disconnect
- 		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_elink_count(self):
+		self.smppc_config.enquireLinkTimerSecs = 1
+
+		# Save the 'before' value
+		_elink_count = self.user.getCnxStatus().smpps['elink_count']
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Wait
+		yield waitFor(5)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+		# Asserts
+		self.assertEqual(_elink_count+4, self.user.getCnxStatus().smpps['elink_count'])
+
+	@defer.inlineCallbacks
+	def test_throttling_error_count(self):
+		"""In this test it is demonstrated the
+		difference between submit_sm_request_count and submit_sm_count:
+		* submit_sm_request_count: is the number of submit_sm requested by user
+		* submit_sm_count: is number of submit_sm accepted from him
+		"""
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Save the 'before' value
+		_submit_sm_request_count = self.user.getCnxStatus().smpps['submit_sm_request_count']
+		_throttling_error_count = self.user.getCnxStatus().smpps['throttling_error_count']
+		_other_submit_error_count = self.user.getCnxStatus().smpps['other_submit_error_count']
+		_submit_sm_count = self.user.getCnxStatus().smpps['submit_sm_count']
+
+		# SMPPClient > SMPPServer
+		for _ in range(50):
+			yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+			yield waitFor(0.1)
+
+		# Assert after
+		self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count+50)
+		self.assertEqual(self.user.getCnxStatus().smpps['other_submit_error_count'], _other_submit_error_count)
+		self.assertLess(self.user.getCnxStatus().smpps['throttling_error_count'], _submit_sm_request_count+50)
+		self.assertGreater(self.user.getCnxStatus().smpps['throttling_error_count'], 0)
+		self.assertGreater(self.user.getCnxStatus().smpps['submit_sm_count'], _submit_sm_count)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_other_submit_error_count(self):
+		"Send a submit_sm wile bound_rx: will get a resp with ESME_RINVBNDSTS"
+
+		self.smppc_config.bindOperation = 'receiver'
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
+
+		# Save the 'before' value
+		_other_submit_error_count = self.user.getCnxStatus().smpps['other_submit_error_count']
+		_throttling_error_count = self.user.getCnxStatus().smpps['throttling_error_count']
+
+		# SMPPClient > SMPPServer
+		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+		# Assert after
+		self.assertEqual(self.user.getCnxStatus().smpps['other_submit_error_count'], _other_submit_error_count+1)
+		self.assertEqual(self.user.getCnxStatus().smpps['throttling_error_count'], _throttling_error_count)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_deliver_sm_count(self):
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Save the 'before' value
+		_deliver_sm_count = self.user.getCnxStatus().smpps['deliver_sm_count']
+
+		# SMPPServer > SMPPClient
+		yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
+
+		# Assert after
+		self.assertEqual(self.user.getCnxStatus().smpps['deliver_sm_count'], _deliver_sm_count+1)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_data_sm_count(self):
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Save the 'before' value
+		_data_sm_count = self.user.getCnxStatus().smpps['data_sm_count']
+
+		# SMPPServer > SMPPClient
+		yield self.smpps_factory.lastProto.sendDataRequest(self.DataSmPDU)
+
+		# Assert after
+		self.assertEqual(self.user.getCnxStatus().smpps['data_sm_count'], _data_sm_count+1)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+class SmppsStatsTestCases(SMPPClientTestCases):
+
+	def setUp(self):
+		SMPPClientTestCases.setUp(self)
+
+		# Provision a user and default route into RouterPB
+		# Add throughput limit on user
+		self.foo = User('u1', Group('test'), 'username', 'password')
+		self.foo.mt_credential.setQuota('smpps_throughput', 2)
+		self.c1 = SmppClientConnector(id_generator())
+		self.defaultroute = DefaultRoute(self.c1)
+		self.provision_user_defaultroute(user = self.foo, defaultroute = self.defaultroute)
+
+		self.stats = SMPPServerStatsCollector().get(cid = self.smpps_config.id)
+
+	@defer.inlineCallbacks
+	def test_elink_count(self):
+		self.smppc_config.enquireLinkTimerSecs = 1
+
+		# Save the 'before' value
+		_elink_count = self.stats.get('elink_count')
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Wait
+		yield waitFor(5)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+		# Asserts
+		self.assertEqual(_elink_count+4, self.stats.get('elink_count'))
+
+	@defer.inlineCallbacks
+	def test_throttling_error_count(self):
+		"""In this test it is demonstrated the
+		difference between submit_sm_request_count and submit_sm_count:
+		* submit_sm_request_count: is the number of submit_sm requested
+		* submit_sm_count: is number of submit_sm accepted (replied with ESME_ROK)
+		"""
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Save the 'before' value
+		_submit_sm_request_count = self.stats.get('submit_sm_request_count')
+		_throttling_error_count = self.stats.get('throttling_error_count')
+		_other_submit_error_count = self.stats.get('other_submit_error_count')
+		_submit_sm_count = self.stats.get('submit_sm_count')
+
+		# SMPPClient > SMPPServer
+		for _ in range(50):
+			yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+			yield waitFor(0.1)
+
+		# Assert after
+		self.assertEqual(self.stats.get('submit_sm_request_count'), _submit_sm_request_count+50)
+		self.assertEqual(self.stats.get('other_submit_error_count'), _other_submit_error_count)
+		self.assertLess(self.stats.get('throttling_error_count'), _submit_sm_request_count+50)
+		self.assertGreater(self.stats.get('throttling_error_count'), 0)
+		self.assertGreater(self.stats.get('submit_sm_count'), _submit_sm_count)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_other_submit_error_count(self):
+		"""Send a submit_sm wile bound_rx: will get a resp with ESME_RINVBNDSTS
+		Will also ensure
+		"""
+
+		self.smppc_config.bindOperation = 'receiver'
+
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
+
+		# Save the 'before' value
+		_other_submit_error_count = self.stats.get('other_submit_error_count')
+		_throttling_error_count = self.stats.get('throttling_error_count')
+
+		# SMPPClient > SMPPServer
+		yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+		# Assert after
+		self.assertEqual(self.stats.get('other_submit_error_count'), _other_submit_error_count+1)
+		self.assertEqual(self.stats.get('throttling_error_count'), _throttling_error_count)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_deliver_sm_count(self):
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Save the 'before' value
+		_deliver_sm_count = self.stats.get('deliver_sm_count')
+
+		# SMPPServer > SMPPClient
+		yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
+
+		# Assert after
+		self.assertEqual(self.stats.get('deliver_sm_count'), _deliver_sm_count+1)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+	@defer.inlineCallbacks
+	def test_data_sm_count(self):
+		# Connect and bind
+		yield self.smppc_factory.connectAndBind()
+		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
+
+		# Save the 'before' value
+		_data_sm_count = self.stats.get('data_sm_count')
+
+		# SMPPServer > SMPPClient
+		yield self.smpps_factory.lastProto.sendDataRequest(self.DataSmPDU)
+
+		# Assert after
+		self.assertEqual(self.stats.get('data_sm_count'), _data_sm_count+1)
+
+		# Unbind & Disconnect
+		yield self.smppc_factory.smpp.unbindAndDisconnect()
 		self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
 class StatsTestCases(SMPPClientTestCases):

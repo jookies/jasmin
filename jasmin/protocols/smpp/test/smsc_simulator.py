@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from jasmin.vendor.smpp.twisted.tests.smsc_simulator import *
 from jasmin.vendor.smpp.pdu.pdu_types import *
 import random
@@ -163,6 +164,23 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
             self.trigger_data_sm(pdu)
         else:
             raise Exception('Unknown pdu_type (%s) when calling trigger_DLR()' % pdu_type)
+
+class QoSSMSC_2MPS(HappySMSC):
+    "A throttled SMSC that only accept 2 Messages per second"
+    last_submit_at = None
+    
+    def handleSubmit(self, reqPDU):
+        # Calculate MPS
+        permitted_throughput = 1 / 2.0
+        permitted_delay = timedelta( microseconds = permitted_throughput * 1000000)
+        if self.last_submit_at is not None:
+            delay = datetime.now() - self.last_submit_at
+        
+        if self.last_submit_at is not None and delay < permitted_delay:
+            self.sendResponse(reqPDU, CommandStatus.ESME_RTHROTTLED)
+        else:
+            self.last_submit_at = datetime.now()
+            self.sendResponse(reqPDU, CommandStatus.ESME_ROK)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

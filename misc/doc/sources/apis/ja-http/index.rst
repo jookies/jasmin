@@ -216,7 +216,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    long_content_max_parts = 5
    # Splitting long content can be made through SAR options or UDH
    # Possible values are: sar and udh
-   long_content_split = sar
+   long_content_split = udh
    
    access_log         = /var/log/jasmin/http-access.log
    log_level          = INFO
@@ -241,141 +241,11 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 5
      - If the message to be sent is to be split into several parts. This is the maximum number of individual SMS-MT messages that can be used.
    * - long_content_split
-     - sar
+     - udh
      - Splitting method: 'udh': Will split using 6-byte long User Data Header, 'sar': Will split using sar_total_segments, sar_segment_seqnum, and sar_msg_ref_num options.
    * - access_log
      - /var/log/jasmin/http-access.log
      - Where to log all http requests (and errors).
-   * - log_*
-     - 
-     - Python's logging module configuration.
-
-.. _receiving_sms-mo:
-
-Receiving SMS-MO
-****************
-
-**SMS-MO** incoming messages (**M**\obile **O**\riginated) are forwarded by Jasmin to defined URLs using simple **HTTP GET/POST**, the forwarding is 
-made by *deliverSmHttpThrower* service, and the URL of the receiving endpoint is selected through a route checking process (c.f. :doc:`/routing/index`).
-
-Receiving endpoint is a third party application which acts on the messages received and potentially generates replies, (:ref:`httpccm_manager` for more details about 
-HTTP Client connector management).
-
-The parameters below are transmitted for each SMS-MO, the receiving end point must provide an url (set in **jasminApi.HttpConnector.baseurl**) and parse the
-below parameters using GET or POST method (depends on **jasminApi.HttpConnector.method**).
-
-The receiving end point must reply back using a "**200 OK**" status header **and** a body containing an **acknowledgement** of receiving the SMS-MO, if one or both of
-these conditions are not met, the *deliverSmHttpThrower service* will consider reshipment of the same message if **config/deliversm-thrower/max_retries** is not reached, 
-(see :ref:`configuration_deliversm-thrower`).
-
-In order to acknowledge SMS-MO receipt, the receiving end point must reply back with **exactly** the following html body content::
-
-   ACK/Jasmin
-
-.. note:: It is very important to acknowledge back each received SMS-MO, this will prevent to receive the same message many times, c.f. :ref:`deliverSmHttpThrower_process` for details
-.. note:: Reshipment of a message will be delayed for **config/deliversm-thrower/retry_delay** seconds (see :ref:`configuration_deliversm-thrower`).
-
-HTTP Parameters
-===============
-When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the below parameters are delivered (at least *Always* present ones).
-
-.. list-table:: ja-http receiving SMS parameters
-   :header-rows: 1
-
-   * - Parameter
-     - Value / Pattern
-     - Example(s)
-     - Presence
-     - Description / Notes
-   * - **id**
-     - Universally Unique IDentifier (UUID)
-     - 16fd2706-8baf-433b-82eb-8c7fada847da
-     - Always
-     - Internal Jasmin's gateway message id
-   * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
-     - +21620203060, 20203060, Jasmin
-     - Always
-     - Originating address
-   * - **to**
-     - Msisdn with or without international prefix, alphanumeric value
-     - +21620203060, 20203060, Jasmin
-     - Always
-     - Destination address, only one address is supported per request
-   * - **origin-connector**
-     - Alphanumeric id
-     - 23, bcd, MTN, clickatell, beepsend
-     - Always
-     - Jasmin http connector id
-   * - **priority**
-     - 1, 2 or 3
-     - 2
-     - Optional
-     - Default is 1 (lowest priority)
-   * - **coding**
-     - Numeric
-     - 8
-     - Optional
-     - Default is 0, accepts values all allowed values in SMPP protocol [2]
-   * - **validity**
-     - YYYY-MM-DD hh:mm:ss
-     - 2013-07-16 00-46:54
-     - Optional
-     - The validity period parameter indicates the Jasmin GW expiration time, after which the message should be discarded if not delivered to the destination
-   * - **content**
-     - Text
-     - Hello world !
-     - Always
-     - Content of the message
-
-.. note:: When receiving multiple parts of a long SMS-MO, *deliverSmHttpThrower service* will concatenate the content of all the parts and then throw one http call with 
-          concatenated *content*. 
-
-.. _deliverSmHttpThrower_process:
-
-Processing
-==========
-The flowchart below describes how message delivery and retrying policy are done inside *deliverSmHttpThrower* service:
-
-.. figure:: /resources/ja-http/sms-mo-flowchart.png
-   :alt: MO delivery flowchart as processed by deliverSmHttpThrower service
-   :align: Center
-   
-.. _configuration_deliversm-thrower:
-
-jasmin.cfg / deliversm-thrower
-==============================
-
-The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **deliversm-thrower** where all deliverSmHttpThrower service related config elements are:
-
-.. code-block:: ini
-   :linenos:
-   
-   [deliversm-thrower]
-   http_timeout       = 30
-   retry_delay        = 30
-   max_retries        = 3
-   log_level          = INFO
-   log_file           = /var/log/jasmin/deliversm-thrower.log
-   log_format         = %(asctime)s %(levelname)-8s %(process)d %(message)s
-   log_date_format    = %Y-%m-%d %H:%M:%S
-
-.. list-table:: [http-api] configuration section
-   :widths: 10 10 80
-   :header-rows: 1
-
-   * - Element
-     - Default
-     - Description
-   * - http_timeout
-     - 30
-     - Sets socket timeout in seconds for outgoing client http connections.
-   * - retry_delay
-     - 30
-     - Define how many seconds should pass within the queuing system for retrying a failed throw.
-   * - max_retries
-     - 3
-     - Define how many retries should be performed for failing throws of SMS-MO.
    * - log_*
      - 
      - Python's logging module configuration.
@@ -538,6 +408,282 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
    * - log_*
      - 
      - Python's logging module configuration.
+
+.. _receiving_sms-mo:
+
+Receiving SMS-MO
+****************
+
+**SMS-MO** incoming messages (**M**\obile **O**\riginated) are forwarded by Jasmin to defined URLs using simple **HTTP GET/POST**, the forwarding is 
+made by *deliverSmHttpThrower* service, and the URL of the receiving endpoint is selected through a route checking process (c.f. :doc:`/routing/index`).
+
+Receiving endpoint is a third party application which acts on the messages received and potentially generates replies, (:ref:`httpccm_manager` for more details about 
+HTTP Client connector management).
+
+The parameters below are transmitted for each SMS-MO, the receiving end point must provide an url (set in **jasminApi.HttpConnector.baseurl**) and parse the
+below parameters using GET or POST method (depends on **jasminApi.HttpConnector.method**).
+
+The receiving end point must reply back using a "**200 OK**" status header **and** a body containing an **acknowledgement** of receiving the SMS-MO, if one or both of
+these conditions are not met, the *deliverSmHttpThrower service* will consider reshipment of the same message if **config/deliversm-thrower/max_retries** is not reached, 
+(see :ref:`configuration_deliversm-thrower`).
+
+In order to acknowledge SMS-MO receipt, the receiving end point must reply back with **exactly** the following html body content::
+
+   ACK/Jasmin
+
+.. note:: It is very important to acknowledge back each received SMS-MO, this will prevent to receive the same message many times, c.f. :ref:`deliverSmHttpThrower_process` for details
+.. note:: Reshipment of a message will be delayed for **config/deliversm-thrower/retry_delay** seconds (see :ref:`configuration_deliversm-thrower`).
+
+HTTP Parameters
+===============
+When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the below parameters are delivered (at least *Always* present ones).
+
+.. list-table:: ja-http receiving SMS parameters
+   :header-rows: 1
+
+   * - Parameter
+     - Value / Pattern
+     - Example(s)
+     - Presence
+     - Description / Notes
+   * - **id**
+     - Universally Unique IDentifier (UUID)
+     - 16fd2706-8baf-433b-82eb-8c7fada847da
+     - Always
+     - Internal Jasmin's gateway message id
+   * - **from**
+     - Msisdn with or without international prefix, alphanumeric value
+     - +21620203060, 20203060, Jasmin
+     - Always
+     - Originating address
+   * - **to**
+     - Msisdn with or without international prefix, alphanumeric value
+     - +21620203060, 20203060, Jasmin
+     - Always
+     - Destination address, only one address is supported per request
+   * - **origin-connector**
+     - Alphanumeric id
+     - 23, bcd, MTN, clickatell, beepsend
+     - Always
+     - Jasmin http connector id
+   * - **priority**
+     - 1, 2 or 3
+     - 2
+     - Optional
+     - Default is 1 (lowest priority)
+   * - **coding**
+     - Numeric
+     - 8
+     - Optional
+     - Default is 0, accepts values all allowed values in SMPP protocol [2]
+   * - **validity**
+     - YYYY-MM-DD hh:mm:ss
+     - 2013-07-16 00-46:54
+     - Optional
+     - The validity period parameter indicates the Jasmin GW expiration time, after which the message should be discarded if not delivered to the destination
+   * - **content**
+     - Text
+     - Hello world !
+     - Always
+     - Content of the message
+
+.. note:: When receiving multiple parts of a long SMS-MO, *deliverSmHttpThrower service* will concatenate the content of all the parts and then throw one http call with 
+          concatenated *content*. 
+
+.. _deliverSmHttpThrower_process:
+
+Processing
+==========
+The flowchart below describes how message delivery and retrying policy are done inside *deliverSmHttpThrower* service:
+
+.. figure:: /resources/ja-http/sms-mo-flowchart.png
+   :alt: MO delivery flowchart as processed by deliverSmHttpThrower service
+   :align: Center
+   
+.. _configuration_deliversm-thrower:
+
+jasmin.cfg / deliversm-thrower
+==============================
+
+The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **deliversm-thrower** where all deliverSmHttpThrower service related config elements are:
+
+.. code-block:: ini
+   :linenos:
+   
+   [deliversm-thrower]
+   http_timeout       = 30
+   retry_delay        = 30
+   max_retries        = 3
+   log_level          = INFO
+   log_file           = /var/log/jasmin/deliversm-thrower.log
+   log_format         = %(asctime)s %(levelname)-8s %(process)d %(message)s
+   log_date_format    = %Y-%m-%d %H:%M:%S
+
+.. list-table:: [http-api] configuration section
+   :widths: 10 10 80
+   :header-rows: 1
+
+   * - Element
+     - Default
+     - Description
+   * - http_timeout
+     - 30
+     - Sets socket timeout in seconds for outgoing client http connections.
+   * - retry_delay
+     - 30
+     - Define how many seconds should pass within the queuing system for retrying a failed throw.
+   * - max_retries
+     - 3
+     - Define how many retries should be performed for failing throws of SMS-MO.
+   * - log_*
+     - 
+     - Python's logging module configuration.
+
+.. _check_balance:
+
+Checking account balance
+************************
+
+In order to check user account balance and quotas, user may request a **HTTP GET/POST** from the following URL:
+
+http://127.0.0.1:1401/balance
+
+.. note:: Host ``127.0.0.1`` and port ``1401`` are default values and configurable in ``/etc/jasmin/jasmin.cfg``, see :ref:`configuration_http-api`.
+
+.. _http_balance_request_parameters:
+
+HTTP request parameters
+=======================
+
+.. list-table:: ja-http balance request parameters
+   :header-rows: 1
+
+   * - Parameter
+     - Value / Pattern
+     - Example(s)
+     - Presence
+     - Description / Notes
+   * - **username**
+     - Text (30 char. max)
+     - jasmin_user
+     - Mandatory
+     - Username for Jasmin user account.
+   * - **password**
+     - Text (30 char. max)
+     - jasmin_pass
+     - Mandatory
+     - Password for Jasmin user account.
+
+.. _http_balance_response:
+
+HTTP response
+=============
+
+Successful response:
+
+.. code-block:: javascript
+
+  {"balance": 100.0, "sms_count": "ND"}
+  
+Otherwise, an error is returned.
+
+.. _balance_request_examples:
+
+Examples
+========
+
+Here is an example of how to check balance:
+
+.. literalinclude:: example_balance.py
+   :language: python
+
+.. _check_rate:
+
+Checking rate price
+*******************
+
+It is possible to ask Jasmin's HTTPAPI for a message rate price before sending it, the request will lookup the route to be considered for the message and will provide the rate price if defined.
+
+Request is done through **HTTP GET/POST** to the following URL:
+
+http://127.0.0.1:1401/rate
+
+.. note:: Host ``127.0.0.1`` and port ``1401`` are default values and configurable in ``/etc/jasmin/jasmin.cfg``, see :ref:`configuration_http-api`.
+
+.. _http_rate_request_parameters:
+
+HTTP request parameters
+=======================
+
+.. list-table:: ja-http rate request parameters
+   :header-rows: 1
+
+   * - Parameter
+     - Value / Pattern
+     - Example(s)
+     - Presence
+     - Description / Notes
+   * - **to**
+     - Msisdn with or without international prefix
+     - 20203050
+     - Mandatory
+     - Destination address, only one address is supported per request
+   * - **from**
+     - Msisdn with or without international prefix, alphanumeric value
+     - 20203050, Jasmin
+     - Optional
+     - Originating address, In case rewriting of the sender's address is supported or permitted by the SMS-C used to transmit the message, this number is transmitted as the originating address
+   * - **coding**
+     - 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13 or 14
+     - 1
+     - Optional
+     - Sets the Data Coding Scheme bits, default is 0, accepts values all allowed values in SMPP protocol [1]_
+   * - **username**
+     - Text (30 char. max)
+     - jasmin_user
+     - Mandatory
+     - Username for Jasmin user account.
+   * - **password**
+     - Text (30 char. max)
+     - jasmin_pass
+     - Mandatory
+     - Password for Jasmin user account.
+   * - **content**
+     - Text
+     - Hello world !
+     - Optional
+     - Content to be sent
+
+.. _http_rate_response:
+
+HTTP response
+=============
+
+Successful response:
+
+.. code-block:: javascript
+
+  {"submit_sm_count": 2, "unit_rate": 2.8}
+
+Where **submit_sm_count** is the number of message units if the **content** is longer than 160 characters, **content** parameter is optional for requesting rate price.
+  
+Otherwise, an error is returned.
+
+Otherwise, an error is returned:
+   
+.. code-block:: text
+
+  Error "No route found"
+
+.. _rate_request_examples:
+
+Examples
+========
+
+Here is an example of how to check rate price:
+
+.. literalinclude:: example_rate.py
+   :language: python
 
 .. rubric:: Footnotes
 .. [1] :doc:`/billing/index`

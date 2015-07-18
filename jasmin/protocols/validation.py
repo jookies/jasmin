@@ -2,9 +2,8 @@ class AbstractCredentialValidator:
     """An abstract CredentialValidator, when inherited it must validate self.user credentials
     agains self.action"""
 
-    def __init__(self, action, user, submit_sm):
+    def __init__(self, action, user):
         self.action = action
-        self.submit_sm = submit_sm
         self.user = user
         
     def updatePDUWithUserDefaults(self, PDU):

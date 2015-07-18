@@ -342,6 +342,9 @@ class RouterPB(pb.Avatar):
         self.log.debug('getMTRoute [order:%s] returned None', order)
         return None
     
+    def perspective_version_release(self):
+        return jasmin.get_release()
+
     def perspective_persist(self, profile = 'jcli-prod', scope = 'all'):
         try:
             if scope in ['all', 'groups']:
@@ -524,6 +527,7 @@ class RouterPB(pb.Avatar):
         # Replace existant users
         for _user in self.users:
             if user.uid == _user.uid or user.username == _user.username:
+                self.log.warn('User (id:%s) already existant, will be replaced !' % user.uid)
                 self.users.remove(_user)
 
                 # Save old CnxStatus in new user
@@ -531,7 +535,7 @@ class RouterPB(pb.Avatar):
                 break 
 
         self.users.append(user)
-        
+
         # Set persistance state to False (pending for persistance)
         self.persistenceState['users'] = False
 
@@ -544,19 +548,18 @@ class RouterPB(pb.Avatar):
         return self.authenticateUser(username, password, True)
     
     def perspective_user_remove(self, uid):
-        self.log.debug('Removing a User with uid: %s' % uid)
         self.log.info('Removing a User (id:%s)' % uid)
 
         # Remove user
         for _user in self.users:
             if uid == _user.uid:
                 self.users.remove(_user)
+
+                # Set persistance state to False (pending for persistance)
+                self.persistenceState['users'] = False
                 return True
         
         self.log.error("User with id:%s not found, not removing it." % uid)
-
-        # Set persistance state to False (pending for persistance)
-        self.persistenceState['users'] = False
 
         return False
 
@@ -585,6 +588,37 @@ class RouterPB(pb.Avatar):
             return pickle.dumps(_users)
             
     
+    def perspective_user_update_quota(self, uid, cred, quota, value):
+        self.log.info('Updating a User (id:%s) quota: %s/%s %s' % (uid, cred, quota, value))
+
+        # Find user
+        for _user in self.users:
+            if uid == _user.uid:
+                try:
+                    if not hasattr(_user, cred):
+                        raise Exception("Invalid cred: %s" % cred)
+                    else:
+                        _cred = getattr(_user, cred)
+
+                    if quota not in _cred.quotas:
+                        raise Exception("Unknown quota: %s" % quota)
+
+                    # Update the quota
+                    _cred.updateQuota(quota, value)
+
+                except Exception, e:
+                    self.log.error("Error updating user (id:%s): %s" % (uid, e))
+                    return False
+                else:
+                    # Successful update !
+                    # Set persistance state to False (pending for persistance)
+                    self.persistenceState['users'] = False
+                    return True
+        
+        self.log.error("User with id:%s not found, not updating it." % uid)
+
+        return False
+
     def perspective_group_add(self, group):
         group = pickle.loads(group)
         self.log.debug('Adding a Group: %s' % group)

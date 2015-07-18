@@ -65,16 +65,35 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         twistedSMPPClientProtocol.doPDURequest(self, reqPDU, handler)
 
         # Stats
-        if reqPDU.id == CommandId.enquire_link:
+        if reqPDU.commandId == CommandId.enquire_link:
             self.factory.stats.set('last_received_elink_at', datetime.now())
-        
+        elif reqPDU.commandId == CommandId.deliver_sm:
+            self.factory.stats.inc('deliver_sm_count')
+        elif reqPDU.commandId == CommandId.data_sm:
+            self.factory.stats.inc('data_sm_count')
+
+    def PDUResponseReceived(self, pdu):
+        twistedSMPPClientProtocol.PDUResponseReceived(self, pdu)
+
+        if pdu.commandId == CommandId.submit_sm_resp:
+            if pdu.status == CommandStatus.ESME_RTHROTTLED:
+                self.factory.stats.inc('throttling_error_count')
+            elif pdu.status != CommandStatus.ESME_ROK:
+                self.factory.stats.inc('other_submit_error_count')
+            else:
+                # We got a ESME_ROK
+                self.factory.stats.inc('submit_sm_count')
+
     def sendPDU(self, pdu):
         twistedSMPPClientProtocol.sendPDU(self, pdu)
 
         # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
-        if pdu.id == CommandId.enquire_link:
+        if pdu.commandId == CommandId.enquire_link:
             self.factory.stats.set('last_sent_elink_at', datetime.now())
+            self.factory.stats.inc('elink_count')
+        elif pdu.commandId == CommandId.submit_sm:
+            self.factory.stats.inc('submit_sm_request_count')
 
     def claimSeqNum(self):
         seqNum = twistedSMPPClientProtocol.claimSeqNum(self)
@@ -355,6 +374,9 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         twistedSMPPServerProtocol.onPDURequest_enquire_link(self, reqPDU)
 
         self.factory.stats.set('last_received_elink_at', datetime.now())
+        self.factory.stats.inc('elink_count')
+        if self.user is not None:
+            self.user.getCnxStatus().smpps['elink_count']+= 1
 
     def doPDURequest(self, reqPDU, handler):
         twistedSMPPServerProtocol.doPDURequest(self, reqPDU, handler)
@@ -362,12 +384,37 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         # Stats
         if reqPDU.id == CommandId.enquire_link:
             self.factory.stats.set('last_received_elink_at', datetime.now())
+        elif reqPDU.id == CommandId.submit_sm:
+            self.factory.stats.inc('submit_sm_request_count')
 
     def sendPDU(self, pdu):
         twistedSMPPServerProtocol.sendPDU(self, pdu)
 
         # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
+        if pdu.id == CommandId.deliver_sm:
+            self.factory.stats.inc('deliver_sm_count')
+            if self.user is not None:
+                self.user.getCnxStatus().smpps['deliver_sm_count']+= 1
+        elif pdu.id == CommandId.data_sm:
+            self.factory.stats.inc('data_sm_count')
+            if self.user is not None:
+                self.user.getCnxStatus().smpps['data_sm_count']+= 1
+        elif pdu.id == CommandId.submit_sm_resp:
+            if pdu.status == CommandStatus.ESME_RTHROTTLED:
+                self.factory.stats.inc('throttling_error_count')
+                if self.user is not None:
+                    self.user.getCnxStatus().smpps['throttling_error_count']+= 1
+            elif pdu.status != CommandStatus.ESME_ROK:
+                self.factory.stats.inc('other_submit_error_count')
+                if self.user is not None:
+                    self.user.getCnxStatus().smpps['other_submit_error_count']+= 1
+            else:
+                # We got a ESME_ROK
+                self.factory.stats.inc('submit_sm_count')
+                if self.user is not None:
+                    self.user.getCnxStatus().smpps['submit_sm_count']+= 1
+
 
     def onPDURequest_unbind(self, reqPDU):
         twistedSMPPServerProtocol.onPDURequest_unbind(self, reqPDU)
