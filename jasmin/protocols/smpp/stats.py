@@ -26,6 +26,13 @@ class ClientConnectorStatistics(ConnectorStatistics):
 			'connected_count': 0,
 			'bound_count': 0,
 			'disconnected_count': 0,
+			'submit_sm_request_count': 0,
+			'submit_sm_count': 0,
+			'deliver_sm_count': 0,
+			'data_sm_count': 0,
+			'elink_count': 0,
+			'throttling_error_count': 0,
+			'other_submit_error_count': 0,
 		}
 
 class ServerConnectorStatistics(ConnectorStatistics):
@@ -47,6 +54,13 @@ class ServerConnectorStatistics(ConnectorStatistics):
 			'bind_rx_count': 0,
 			'bind_tx_count': 0,
 			'unbind_count': 0,
+			'submit_sm_request_count': 0,
+			'submit_sm_count': 0,
+			'deliver_sm_count': 0,
+			'data_sm_count': 0,
+			'elink_count': 0,
+			'throttling_error_count': 0,
+			'other_submit_error_count': 0,
 		}
 
 class SMPPClientStatsCollector:

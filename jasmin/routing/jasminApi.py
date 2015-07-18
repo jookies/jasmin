@@ -77,6 +77,10 @@ class CredentialGenerick(jasminApiGenerick):
             raise jasminApiCredentialError('%s is not a valid Quota key' % key)
         if self.quotas[key] is None:
             raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
+        if type(difference) not in [float, int]:
+            raise jasminApiCredentialError('Incorrect type for value (%s), must be int or float' % difference)
+        if type(self.quotas[key]) == int and type(difference) == float:
+            raise jasminApiCredentialError('Type mismatch, cannot update an int with a float value')
             
         self.quotas[key] += difference
         self.quotas_updated = True
@@ -95,6 +99,9 @@ class MtMessagingCredential(CredentialGenerick):
             default_authorizations = False
         
         self.authorizations = {'http_send': default_authorizations,
+                          'http_bulk': False,
+                          'http_balance': default_authorizations,
+                          'http_rate': default_authorizations,
                           'smpps_send': default_authorizations,
                           'http_long_content': default_authorizations,
                           'set_dlr_level': default_authorizations,
@@ -176,11 +183,19 @@ class CnxStatus(jasminApiGenerick):
                       'submit_sm_request_count': 0,
                       'last_activity_at': 0,
                       'qos_last_submit_sm_at': 0,
+                      'submit_sm_count': 0,
+                      'deliver_sm_count': 0,
+                      'data_sm_count': 0,
+                      'elink_count': 0,
+                      'throttling_error_count': 0,
+                      'other_submit_error_count': 0,
                       }
 
         self.httpapi = {'connects_count': 0,
                         'last_activity_at': 0,
                         'submit_sm_request_count': 0,
+                        'balance_request_count': 0,
+                        'rate_request_count': 0,
                         'qos_last_submit_sm_at': 0,
                         }
 

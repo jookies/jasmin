@@ -24,4 +24,4 @@ class HTTPApiConfig(ConfigFile):
 
         # Long message splitting
         self.long_content_max_parts = self._get('http-api', 'long_content_max_parts', 5)
-        self.long_content_split = self._get('http-api', 'long_content_split', 'sar') # sar or udh
+        self.long_content_split = self._get('http-api', 'long_content_split', 'udh') # sar or udh

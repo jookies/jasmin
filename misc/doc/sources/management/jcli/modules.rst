@@ -80,14 +80,17 @@ All the above parameters can be displayed after User creation, except the passwo
    mt_messaging_cred valuefilter src_addr .*
    mt_messaging_cred valuefilter dst_addr .*
    mt_messaging_cred valuefilter validity_period ^\d+$
-   mt_messaging_cred authorization dlr_level True
-   mt_messaging_cred authorization priority True
-   mt_messaging_cred authorization http_long_content True
    mt_messaging_cred authorization http_send True
    mt_messaging_cred authorization http_dlr_method True
-   mt_messaging_cred authorization src_addr True
-   mt_messaging_cred authorization validity_period True
+   mt_messaging_cred authorization http_balance True
    mt_messaging_cred authorization smpps_send True
+   mt_messaging_cred authorization priority True
+   mt_messaging_cred authorization http_long_content True
+   mt_messaging_cred authorization src_addr True
+   mt_messaging_cred authorization dlr_level True
+   mt_messaging_cred authorization http_rate True
+   mt_messaging_cred authorization validity_period True
+   mt_messaging_cred authorization http_bulk False
    uid foo
    smpps_cred quota max_bindings ND
    smpps_cred authorization bind True
@@ -143,13 +146,22 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
      - Description
    * - http_send
      - True
-     - Privilege to send SMS through :doc:`/apis/ja-http/index`
+     - Privilege to send SMS through :ref:`sending_sms-mt`
+   * - http_balance
+     - True
+     - Privilege to check balance through :ref:`check_balance`
+   * - http_rate
+     - True
+     - Privilege to check a message rate through :ref:`check_rate`
+   * - http_bulk
+     - False
+     - Privilege to send bulks through http api *(Not implemented yet)*
    * - smpps_send
      - True
      - Privilege to send SMS through :doc:`/apis/smpp-server/index`
    * - http_long_content
      - True
-     - Privilege to send long content SMS through :doc:`/apis/ja-http/index`
+     - Privilege to send long content SMS through :ref:`sending_sms-mt`
    * - dlr_level
      - True
      - Privilege to set **dlr-level** parameter (default is 1)
@@ -225,6 +237,8 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
      - ND
      - Max. number of messages per second to accept through SMPP Server
 
+.. note:: It is possible to increment a quota by indicating a sign, ex: *+10* will increment a quota value by 10, *-22.4* will decrease a quota value by 22.4.
+
 SMPP Server section
 -------------------
 
@@ -269,6 +283,8 @@ In the below tables, you can find exhaustive list of keys for each **smpps_cred*
    * - max_bindings
      - ND
      - Maximum bound connections at a time (multi binding)
+
+.. note:: It is possible to increment a quota by indicating a sign, ex: *+10* will increment a quota value by 10, *-2* will decrease a quota value by 2.
 
 .. _group_manager:
 
@@ -1184,16 +1200,24 @@ Here's an example of showing **sandra**'s detailed statistics::
 
    jcli : stats --user sandra
    #Item                     Type         Value
-   #last_activity_at         SMPP Server  2019-06-02 15:35:01
-   #bind_count               SMPP Server  26
-   #bound_connections_count  SMPP Server  {'bind_transmitter': 1, 'bind_receiver': 1, 'bind_transceiver': 0}
-   #submit_sm_request_count  SMPP Server  1506
-   #qos_last_submit_sm_at    SMPP Server  2019-06-02 12:31:23
-   #unbind_count             SMPP Server  24
-   #qos_last_submit_sm_at    HTTP Api     2019-05-22 15:56:02
-   #connects_count           HTTP Api     156
-   #last_activity_at         HTTP Api     2019-06-01 12:12:33
-   #submit_sm_request_count  HTTP Api     102
+   #bind_count                SMPP Server  26
+   #submit_sm_count           SMPP Server  1500
+   #submit_sm_request_count   SMPP Server  1506
+   #unbind_count              SMPP Server  24
+   #data_sm_count             SMPP Server  0
+   #last_activity_at          SMPP Server  2019-06-02 15:35:01
+   #other_submit_error_count  SMPP Server  4
+   #throttling_error_count    SMPP Server  2
+   #bound_connections_count   SMPP Server  {'bind_transmitter': 1, 'bind_receiver': 1, 'bind_transceiver': 0}
+   #elink_count               SMPP Server  16
+   #qos_last_submit_sm_at     SMPP Server  2019-06-02 12:31:23
+   #deliver_sm_count          SMPP Server  1430
+   #connects_count            HTTP Api     156
+   #last_activity_at          HTTP Api     2019-06-01 12:12:33
+   #rate_request_count        HTTP Api     20
+   #submit_sm_request_count   HTTP Api     102
+   #qos_last_submit_sm_at     HTTP Api     2019-05-22 15:56:02
+   #balance_request_count     HTTP Api     16
 
 This is clearly a more detailed view for user **sandra**, the following table explains the items shown for **sandra**:
 
@@ -1215,7 +1239,25 @@ This is clearly a more detailed view for user **sandra**, the following table ex
      - Currently bound connections
    * - submit_sm_request_count
      - SMPP Server
-     - Number of SubmitSM (MT messages) sent
+     - Number of requested SubmitSM (MT messages)
+   * - submit_sm_count
+     - SMPP Server
+     - Number of SubmitSM (MT messages) *really* sent by user
+   * - throttling_error_count
+     - SMPP Server
+     - Throttling errors received by user
+   * - other_submit_error_count
+     - SMPP Server
+     - Any other error received in response of SubmitSM requests
+   * - elink_count
+     - SMPP Server
+     - Number of enquire_link PDUs sent by user
+   * - deliver_sm_count
+     - SMPP Server
+     - Number of DeliverSM (MO messages or receipts) received
+   * - data_sm_count
+     - SMPP Server
+     - Number of DataSM (MO messages or receipts) received
    * - qos_last_submit_sm_at
      - SMPP Server
      - Date & time of last SubmitSM (MT Message) sent
@@ -1234,6 +1276,12 @@ This is clearly a more detailed view for user **sandra**, the following table ex
    * - submit_sm_request_count
      - HTTP Api
      - Number of SubmitSM (MT messages) sent
+   * - rate_request_count
+     - HTTP Api
+     - Number of rate requests
+   * - balance_request_count
+     - HTTP Api
+     - Number of balance requests
 
 SMPP Client connectors statistics
 =================================
@@ -1246,10 +1294,10 @@ The Stats manager exposes an overall view of all existent smppc connectors as we
 Here's an example of showing an overall view where smppc connectors **MTN** and **ORANGE** are actives, connector **SFONE** made no activity at all::
 
    jcli : stats --smppcs
-   #Connector id  Bound count  Connected at         Bound at             Disconnected at      Sent elink at        Received elink at
-   #MTN           6            2019-06-02 15:35:01  2019-06-02 15:35:01  2019-06-01 10:18:21  2019-06-02 15:34:57  2019-06-02 15:32:28
-   #Orange        1            2019-06-02 15:35:01  2019-06-02 15:35:01  2019-06-01 11:12:33  2019-06-02 15:33:26  2019-06-02 15:32:41
-   #SFONE         0            ND                   ND                   ND                   ND                   ND
+   #Connector id  Connected at Bound at             Disconnected at     Submits Delivers QoS errs Other errs
+   #MTN           6            2019-06-02 15:35:01  2019-06-02 15:35:01 12/10   9/10     2        0
+   #Orange        1            2019-06-02 15:35:01  2019-06-02 15:35:01 0/0     12022/0  0        0
+   #SFONE         0            ND                   ND                  0/0     0/0      0        0
    Total connectors: 3
 
 The columns shown for each user are explained in the following table:
@@ -1268,28 +1316,39 @@ The columns shown for each user are explained in the following table:
      - Last successful bind date & time
    * - Disconnected at
      - Last disconnection date & time
-   * - Sent elink at
-     - Date & time of last sent enquire_link PDU
-   * - Received elink at
-     - Date & time of last received enquire_link PDU
+   * - Submits
+     - Number of requested SubmitSM PDUs **/** Sent SubmitSM PDUs
+   * - Delivers
+     - Number of received DeliverSM PDUs **/** Number of received DataSM PDUs
+   * - QoS errs
+     - Number of rejected SubmitSM PDUs due to throttling limitation
+   * - Other errs
+     - Number of all other rejections of SubmitSM PDUs
 
 Here's an example of showing **MTN**'s detailed statistics::
 
    jcli : stats --smppc MTN
-   #Item                    Value
-   #disconnected_count      2
-   #last_received_pdu_at    2019-06-02 15:36:01
-   #last_received_elink_at  2019-06-02 15:32:28
-   #connected_count         3
-   #connected_at            2019-06-02 15:35:01
-   #last_seqNum             1733
-   #disconnected_at         2019-06-01 10:18:21
-   #bound_at                2019-06-02 15:35:01
-   #created_at              2019-06-01 12:29:42
-   #last_sent_elink_at      2019-06-02 15:34:57
-   #bound_count             3
-   #last_seqNum_at          2019-06-02 15:35:57
-   #last_sent_pdu_at        2019-06-02 15:35:59
+   #Item                      Value
+   #bound_at                  2019-06-02 15:35:01
+   #disconnected_count        2
+   #other_submit_error_count  0
+   #submit_sm_count           2300
+   #created_at                2019-06-01 12:29:42
+   #bound_count               3
+   #last_received_elink_at    2019-06-02 15:32:28
+   #elink_count               34
+   #throttling_error_count    44
+   #last_sent_elink_at        2019-06-02 15:34:57
+   #connected_count           3
+   #connected_at              2019-06-02 15:35:01
+   #deliver_sm_count          1302
+   #data_sm_count             0
+   #submit_sm_request_count   2344
+   #last_seqNum               1733
+   #last_seqNum_at            2019-06-02 15:35:57
+   #last_sent_pdu_at          2019-06-02 15:35:59
+   #disconnected_at           2019-06-01 10:18:21
+   #last_received_pdu_at      2019-06-02 15:36:01
 
 This is clearly a more detailed view for connector **MTN**, the following table explains the items shown for **MTN**:
 
@@ -1325,6 +1384,21 @@ This is clearly a more detailed view for connector **MTN**, the following table 
      - Binds counter value
    * - disconnected_count
      - Last disconnection date & time
+   * - submit_sm_request_count
+     - Number of requested SubmitSM (MT messages)
+   * - submit_sm_count
+     - Number of SubmitSM (MT messages) *really* sent (having **ESME_ROK** response)
+   * - throttling_error_count
+     - Throttling errors received
+   * - other_submit_error_count
+     - Any other error received in response of SubmitSM requests
+   * - elink_count
+     - Number of enquire_link PDUs sent
+   * - deliver_sm_count
+     - Number of DeliverSM (MO messages or receipts) received
+   * - data_sm_count
+     - Number of DataSM (MO messages or receipts) received
+
 
 SMPP Server API statistics
 ==========================
@@ -1336,21 +1410,28 @@ The Stats manager exposes collected statistics in SMPP Server API through the fo
 Here's an example of showing the statistics::
 
    jcli : stats --smppsapi
-   #Item                    Value
-   #disconnect_count        2
-   #bound_tx_count          0
-   #bind_rx_count           0
-   #last_received_pdu_at    2019-06-05 12:16:21
-   #last_received_elink_at  ND
-   #connected_count         2
-   #bound_trx_count         1
-   #unbind_count            6
-   #bind_tx_count           6
-   #bound_rx_count          1
-   #bind_trx_count          0
-   #created_at              2019-06-04 02:22:17
-   #connect_count           16
-   #last_sent_pdu_at        2019-06-05 12:12:13
+   #Item                      Value
+   #disconnect_count          2
+   #bound_rx_count            1
+   #bound_tx_count            0
+   #other_submit_error_count  0
+   #bind_rx_count             0
+   #bind_trx_count            0
+   #created_at                2019-06-04 02:22:17
+   #last_received_elink_at    ND
+   #elink_count               89
+   #throttling_error_count    1
+   #submit_sm_count           199
+   #connected_count           2
+   #connect_count             16
+   #bound_trx_count           1
+   #data_sm_count             2
+   #submit_sm_request_count   200
+   #deliver_sm_count          145
+   #last_sent_pdu_at          2019-06-05 12:12:13
+   #unbind_count              6
+   #last_received_pdu_at      2019-06-05 12:16:21
+   #bind_tx_count             6
 
 The following table explains the items shown in the above example:
 
@@ -1386,6 +1467,20 @@ The following table explains the items shown in the above example:
      - Transmitter bind request count
    * - bound_tx_count
      - Actually bound transmitter connections count
+   * - submit_sm_request_count
+     - Number of requested SubmitSM (MT messages)
+   * - submit_sm_count
+     - Number of SubmitSM (MT messages) accepted (returned a **ESME_ROK** response)
+   * - deliver_sm_count
+     - Number of DeliverSM (MO messages or receipts) sent
+   * - data_sm_count
+     - Number of DataSM (MO messages or receipts) sent
+   * - elink_count
+     - Number of enquire_link PDUs received
+   * - throttling_error_count
+     - Throttling errors returned
+   * - other_submit_error_count
+     - Any other error returned in response of SubmitSM requests
 
 HTTP API statistics
 ===================

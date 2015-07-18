@@ -107,6 +107,9 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log.debug('Deleting connector [%s] failed.', cid)
         return False
     
+    def perspective_version_release(self):
+        return jasmin.get_release()
+
     def perspective_persist(self, profile = 'jcli-prod'):
         path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))

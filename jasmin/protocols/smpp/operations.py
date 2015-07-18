@@ -132,20 +132,26 @@ class SMPPOperationFactory():
         # coding (7, 8 or 16 bits)
         if kwargs['data_coding'] in [3, 6, 7, 10]:
             # 8 bit coding
+            bits = 8
             maxSmLength = 140
             slicedMaxSmLength = maxSmLength - 6
         elif kwargs['data_coding'] in [2, 4, 5, 8, 9, 13, 14]:
             # 16 bit coding
+            bits = 16
             maxSmLength = 70
             slicedMaxSmLength = maxSmLength - 3
         else:
             # 7 bit coding is the default 
             # for data_coding in [0, 1] or any other invalid value
+            bits = 7
             maxSmLength = 160
             slicedMaxSmLength = 153
 
         longMessage = kwargs['short_message']
-        smLength = len(kwargs['short_message'])
+        if bits == 16:
+            smLength = len(kwargs['short_message']) / 2
+        else:
+            smLength = len(kwargs['short_message'])
         
         # if SM is longer than maxSmLength, build multiple SubmitSMs
         # and link them
@@ -167,7 +173,10 @@ class SMPPOperationFactory():
                 except NameError:
                     previousPdu = None
 
-                kwargs['short_message'] = longMessage[slicedMaxSmLength*i:slicedMaxSmLength*(i+1)]
+                if bits == 16:
+                    kwargs['short_message'] = longMessage[slicedMaxSmLength*i*2:slicedMaxSmLength*(i+1)*2]
+                else:
+                    kwargs['short_message'] = longMessage[slicedMaxSmLength*i:slicedMaxSmLength*(i+1)]
                 tmpPdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
                 if self.long_content_split == 'sar':
                     # Slice short_message and create the PDU using SAR options
