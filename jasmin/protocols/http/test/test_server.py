@@ -305,57 +305,69 @@ class UserStatsTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_send_failure(self):
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
+        # Save before
+        _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
+
         response = yield self.web.get("send", {'username': 'fourat', 
                                                'password': 'incorrect',
                                                'to': '98700177',
                                                'content': 'anycontent'})
         self.assertNotEqual(response.responseCode, 200)
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
+        self.assertEqual(_submit_sm_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
 
     @defer.inlineCallbacks
     def test_send_success(self):
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
+        # Save before
+        _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
+
         response = yield self.web.get("send", {'username': 'fourat', 
                                                'password': 'correct',
                                                'to': '98700177',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 500)
-        self.assertEqual(1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
+        self.assertEqual(_submit_sm_request_count+1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count'])
 
     @defer.inlineCallbacks
     def test_balance_failure(self):
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
+        # Save before
+        _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
+
         response = yield self.web.get("balance", {'username': 'fourat', 
                                                'password': 'incorrect'})
         self.assertNotEqual(response.responseCode, 200)
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
+        self.assertEqual(_balance_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
 
     @defer.inlineCallbacks
     def test_balance_success(self):
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
+        # Save before
+        _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
+
         response = yield self.web.get("balance", {'username': 'fourat', 
                                                'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
+        self.assertEqual(_balance_request_count+1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
 
     @defer.inlineCallbacks
     def test_rate_failure(self):
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
+        # Save before
+        _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
+
         response = yield self.web.get("rate", {'username': 'fourat', 
                                                'password': 'incorrect',
                                                'to': '98700177'})
         self.assertNotEqual(response.responseCode, 200)
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
+        self.assertEqual(_rate_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
 
     @defer.inlineCallbacks
     def test_rate_success(self):
-        self.assertEqual(0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
+        # Save before
+        _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
+
         response = yield self.web.get("rate", {'username': 'fourat', 
                                                'password': 'correct',
                                                'to': '98700177'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
+        self.assertEqual(_rate_request_count+1, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
 
 class StatsTestCases(HTTPApiTestCases):
     username = 'fourat'
