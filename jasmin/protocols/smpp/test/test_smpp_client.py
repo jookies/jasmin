@@ -27,8 +27,14 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+class LastClientFactory(Factory):
+    lastClient = None
+    def buildProtocol(self, addr):
+        self.lastClient = Factory.buildProtocol(self, addr)
+        return self.lastClient
+
 class SimulatorTestCase(TestCase):
-    protocol = HappySMSC
+    protocol = DeliverSmSMSC
     
     configArgs = {
         'id': 'test-id',
@@ -49,10 +55,10 @@ class SimulatorTestCase(TestCase):
     destination_addr = '11111111'
     
     def setUp(self):
-        self.factory = Factory()
+        self.factory = LastClientFactory()
         self.factory.protocol = self.protocol
-        self.port = reactor.listenTCP(9001, self.factory)
-        self.testPort = self.port.getHost().port
+        self.SMSCPort = reactor.listenTCP(9001, self.factory)
+        self.testPort = self.SMSCPort.getHost().port
         
         args = self.configArgs.copy()
         args['host'] = self.configArgs.get('host', 'localhost')
@@ -65,7 +71,7 @@ class SimulatorTestCase(TestCase):
         self.opFactory = SMPPOperationFactory(self.config)
         
     def tearDown(self):
-        self.port.stopListening()
+        self.SMSCPort.stopListening()
         
     def composeMessage(self, characters, length):
         if length <= len(characters):
@@ -285,7 +291,7 @@ class ReconnectionOnConnectionFailureTestCase(SimulatorTestCase):
         reactor.callLater(5, self.startListening, self.config.port)
 
     def startListening(self, port):
-        self.port = reactor.listenTCP(port, self.factory)
+        self.SMSCPort = reactor.listenTCP(port, self.factory)
     
     @defer.inlineCallbacks
     def test_reconnect_on_connection_failure(self):
@@ -1337,11 +1343,13 @@ class DeliverSmAckTestCase(SimulatorTestCase):
         self.verifyUnbindSuccess(smpp, sent2, recv2)
 
 class StatsTestCases(SimulatorTestCase):
+
     @defer.inlineCallbacks
     def test_simply_create_connect_and_bind(self):
         self.config.id = 'test_simply_create_connect_and_bind'
         stats = SMPPClientStatsCollector().get(cid = self.config.id)
         
+        # Asserts
         self.assertEqual(stats.get('created_at'), 0)
         self.assertEqual(stats.get('last_received_pdu_at'), 0)
         self.assertEqual(stats.get('last_sent_pdu_at'), 0)
@@ -1356,6 +1364,7 @@ class StatsTestCases(SimulatorTestCase):
 
         client = SMPPClientFactory(self.config)
 
+        # Asserts
         self.assertTrue(type(stats.get('created_at')) == datetime)
         self.assertEqual(stats.get('last_received_pdu_at'), 0)
         self.assertEqual(stats.get('last_sent_pdu_at'), 0)
@@ -1371,6 +1380,7 @@ class StatsTestCases(SimulatorTestCase):
         # Connect and bind
         yield client.connectAndBind()
         smpp = client.smpp
+        # Asserts
         self.assertTrue(type(stats.get('last_received_pdu_at')) == datetime)
         self.assertTrue(type(stats.get('last_sent_pdu_at')) == datetime)
         self.assertTrue(type(stats.get('last_seqNum_at')) == datetime)
@@ -1385,9 +1395,10 @@ class StatsTestCases(SimulatorTestCase):
         # Unbind & Disconnect
         yield smpp.unbindAndDisconnect()
 
-        # Wait some secs in order to get the stats update done
+        # Wait some secs in order to get the disconnection stats update done
         yield waitFor(2)
 
+        # Asserts
         self.assertEqual(stats.get('last_seqNum'), 2)
         self.assertEqual(stats.get('connected_count'), 1)
         self.assertTrue(type(stats.get('disconnected_at')) == datetime)
@@ -1400,6 +1411,7 @@ class StatsTestCases(SimulatorTestCase):
         self.config.id = 'test_enquire_link'
         stats = SMPPClientStatsCollector().get(cid = self.config.id)
         
+        # Asserts
         self.assertEqual(stats.get('last_received_elink_at'), 0)
         self.assertEqual(stats.get('last_sent_elink_at'), 0)
         self.assertEqual(stats.get('last_seqNum'), None)
@@ -1407,6 +1419,7 @@ class StatsTestCases(SimulatorTestCase):
         self.config.enquireLinkTimerSecs = 1
         client = SMPPClientFactory(self.config)
 
+        # Asserts
         self.assertEqual(stats.get('last_received_elink_at'), 0)
         self.assertEqual(stats.get('last_sent_elink_at'), 0)
         self.assertEqual(stats.get('last_seqNum'), None)
@@ -1414,6 +1427,7 @@ class StatsTestCases(SimulatorTestCase):
         # Connect and bind
         yield client.connectAndBind()
         smpp = client.smpp
+        # Asserts
         self.assertEqual(stats.get('last_received_elink_at'), 0)
         self.assertEqual(stats.get('last_sent_elink_at'), 0)
         self.assertEqual(stats.get('last_seqNum'), 1)
@@ -1424,12 +1438,198 @@ class StatsTestCases(SimulatorTestCase):
         # Unbind & Disconnect
         yield smpp.unbindAndDisconnect()
 
-        # Wait some secs in order to get the stats update done
-        yield waitFor(2)
-
+        # Asserts
         self.assertEqual(stats.get('last_received_elink_at'), 0)
         self.assertTrue(type(stats.get('last_sent_elink_at')) == datetime)
         self.assertEqual(stats.get('last_seqNum'), 7)
+
+    @defer.inlineCallbacks
+    def test_elink_count(self):
+        self.config.id = 'test_elink_count'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        # Asserts
+        self.assertEqual(stats.get('elink_count'), 0)
+
+        self.config.enquireLinkTimerSecs = 1
+        client = SMPPClientFactory(self.config)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+
+        # Wait some secs in order to get some elinks sent
+        yield waitFor(2)
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Asserts
+        self.assertGreater(stats.get('elink_count'), 0)
+
+    @defer.inlineCallbacks
+    def test_submit_sm_request_count(self):
+        self.config.id = 'test_submit_sm_request_count'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        # Asserts
+        self.assertEqual(stats.get('submit_sm_request_count'), 0)
+
+        client = SMPPClientFactory(self.config)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+
+        # Send submit_sm
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=self.shortMsg,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Asserts
+        self.assertEqual(stats.get('submit_sm_request_count'), 1)
+
+    @defer.inlineCallbacks
+    def test_deliver_sm_count(self):
+        self.config.id = 'test_deliver_sm_count'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        # Asserts
+        self.assertEqual(stats.get('deliver_sm_count'), 0)
+
+        client = SMPPClientFactory(self.config)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+
+        DeliverSmPDU = DeliverSM(
+            source_addr='4567',
+            destination_addr='1234',
+            short_message='any content',
+            seqNum = 1,
+        )
+        yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(DeliverSmPDU)
+
+        yield waitFor(0.5)
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Asserts
+        self.assertEqual(stats.get('deliver_sm_count'), 1)
+
+    @defer.inlineCallbacks
+    def test_data_sm_count(self):
+        self.config.id = 'test_deliver_sm_count'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        # Asserts
+        self.assertEqual(stats.get('data_sm_count'), 0)
+
+        client = SMPPClientFactory(self.config)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+
+        DataSmPDU = DataSM(
+            source_addr='4567',
+            destination_addr='1234',
+            short_message='any content',
+            seqNum = 1,
+        )
+        yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(DataSmPDU)
+
+        yield waitFor(0.5)
+        
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Asserts
+        self.assertEqual(stats.get('data_sm_count'), 1)
+
+class SubmitErrorStatsTestCases(SimulatorTestCase):
+    protocol = NoSubmitSmWhenReceiverIsBoundSMSC
+
+    @defer.inlineCallbacks
+    def test_other_submit_error_count(self):
+        self.config.id = 'test_other_submit_error_count'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        # Asserts
+        self.assertEqual(stats.get('other_submit_error_count'), 0)
+        self.assertEqual(stats.get('throttling_error_count'), 0)
+
+        client = SMPPClientFactory(self.config)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+
+        # Send submit_sm
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=self.shortMsg,
+        )
+        yield smpp.sendDataRequest(SubmitSmPDU)
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Asserts
+        self.assertEqual(stats.get('other_submit_error_count'), 1)
+        self.assertEqual(stats.get('throttling_error_count'), 0)
+
+class ThrottlingStatsTestCases(SimulatorTestCase):
+    protocol = QoSSMSC_2MPS
+
+    @defer.inlineCallbacks
+    def test_throttling_error_count(self):
+        """In this test it is demonstrated the
+        difference between submit_sm_request_count and submit_sm_count:
+        * submit_sm_request_count: is the number of submit_sm requested by user
+        * submit_sm_count: is number of submit_sm accepted from him
+        """
+
+        self.config.id = 'test_throttling_error_count'
+        stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        
+        # Asserts
+        self.assertEqual(stats.get('submit_sm_request_count'), 0)
+        self.assertEqual(stats.get('submit_sm_count'), 0)
+        self.assertEqual(stats.get('throttling_error_count'), 0)
+
+        client = SMPPClientFactory(self.config)
+
+        # Connect and bind
+        yield client.connectAndBind()
+        smpp = client.smpp
+
+        # Send many submit_sm
+        SubmitSmPDU = self.opFactory.SubmitSM(
+            source_addr=self.source_addr,
+            destination_addr=self.destination_addr,
+            short_message=self.shortMsg,
+        )
+        for _ in range(50):
+            yield smpp.sendDataRequest(SubmitSmPDU)
+            yield waitFor(0.1)        
+
+        # Unbind & Disconnect
+        yield smpp.unbindAndDisconnect()
+
+        # Asserts
+        self.assertEqual(stats.get('submit_sm_request_count'), 50)
+        self.assertLess(stats.get('submit_sm_count'), stats.get('submit_sm_request_count'))
+        self.assertGreater(stats.get('throttling_error_count'), 0)
 
 if __name__ == '__main__':
     observer = log.PythonLoggingObserver()

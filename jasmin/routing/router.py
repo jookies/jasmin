@@ -535,7 +535,7 @@ class RouterPB(pb.Avatar):
                 break 
 
         self.users.append(user)
-        
+
         # Set persistance state to False (pending for persistance)
         self.persistenceState['users'] = False
 
