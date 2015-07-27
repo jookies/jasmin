@@ -269,16 +269,27 @@ class SMPPClientSMListener:
                     defer.returnValue(False)
 
             # Finally: send the sms !
-            self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
+            self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s]" % (
+                msgid,
+                self.SMPPClientFactory.config.id
+            ))
             d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
             d.addCallback(self.submit_sm_resp_event, message)
             yield d
         except SMPPRequestTimoutError:
-            self.log.error("SubmitSmPDU request timed out, message requeued.")
+            self.log.error("SubmitSmPDU[%s] request timed out through [cid:%s], message requeued." % (
+                msgid,
+                self.SMPPClientFactory.config.id
+            ))
             self.rejectAndRequeueMessage(message)
             defer.returnValue(False)
         except Exception, e:
-            self.log.critical("Rejecting message for an unknown error (%s): %s" % (type(e), e))
+            self.log.critical("Rejecting SubmitSmPDU[%s] through [cid:%s] for an unknown error (%s): %s" % (
+                msgid,
+                self.SMPPClientFactory.config.id,
+                type(e), 
+                e
+            ))
             self.rejectMessage(message)
             defer.returnValue(False)
 
