@@ -1,5 +1,6 @@
 #pylint: disable-msg=W0401,W0611
 import logging
+import re
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from OpenSSL import SSL
@@ -343,6 +344,16 @@ class SMPPServerFactory(_SMPPServerFactory):
             raise SubmitSmRoutingError()
         else:
             self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s' % (routedConnector.cid, c.result))
+
+            self.log.info('SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]' 
+                          % (user.uid,
+                          routedConnector.cid,
+                          c.result, 
+                          priority, 
+                          SubmitSmPDU.params['source_addr'], 
+                          SubmitSmPDU.params['destination_addr'], 
+                          re.sub(r'[^\x20-\x7E]+','.', SubmitSmPDU.params['short_message'])))
+            
             return DataHandlerResponse(status=pdu_types.CommandStatus.ESME_ROK,
                                        message_id=c.result)
 

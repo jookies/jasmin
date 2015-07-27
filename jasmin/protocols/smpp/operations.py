@@ -30,7 +30,7 @@ class UnknownMessageStatusError(Exception):
     """
 
 class SMPPOperationFactory():
-    lastLongSmSeqNum = 0
+    lastLongMsgRefNum = 0
     
     def __init__(self, config = None, long_content_max_parts = 5, long_content_split = 'sar'):
         if config is not None:
@@ -111,13 +111,13 @@ class SMPPOperationFactory():
         else:
             return None
     
-    def claimLongSmSeqNum(self):
-        if self.lastLongSmSeqNum > 65535:
-            self.lastLongSmSeqNum = 0
+    def claimLongMsgRefNum(self):
+        if self.lastLongMsgRefNum >= 255:
+            self.lastLongMsgRefNum = 0
 
-        self.lastLongSmSeqNum += 1
+        self.lastLongMsgRefNum += 1
         
-        return self.lastLongSmSeqNum
+        return self.lastLongMsgRefNum
 
     def SubmitSM(self, short_message, data_coding = 0, **kwargs):
         """Depending on the short_message length, this method will return a classical SubmitSM or 
@@ -161,8 +161,8 @@ class SMPPOperationFactory():
             if total_segments > self.long_content_max_parts:
                 total_segments = self.long_content_max_parts
             
-            msg_ref_num = self.claimLongSmSeqNum()
-            
+            msg_ref_num = self.claimLongMsgRefNum()
+
             for i in range(total_segments):
                 segment_seqnum = i+1
                 

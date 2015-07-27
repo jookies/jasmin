@@ -1,3 +1,4 @@
+import jasmin
 from hashlib import md5
 from optparse import make_option
 from jasmin.protocols.cli.managers import PersistableManager
@@ -13,7 +14,7 @@ from jasmin.protocols.cli.httpccm import HttpccManager
 from jasmin.protocols.cli.statsm import StatsManager
         
 class JCliProtocol(CmdProtocol):
-    motd = 'Welcome to Jasmin console\nType help or ? to list commands.\n'
+    motd = 'Welcome to Jasmin %s console\nType help or ? to list commands.\n' % jasmin.get_release()
     prompt = 'jcli : '
     
     def __init__(self, log_category = 'jcli'):

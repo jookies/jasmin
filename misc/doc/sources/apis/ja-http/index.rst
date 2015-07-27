@@ -6,7 +6,7 @@ This document is targeted at software designers/programmers wishing to integrate
 
 If you need to use a stateful tcp protocol (**SMPP v3.4**), please refer to :doc:`/apis/smpp-server/index`.
 
-SMS Messages can be transmitted using HTTP protocol, the following requirements must be met to enable the service :
+SMS Messages can be transmitted using HTTP protocol, the following requirements must be met to enable the service:
 
  * You need a Jasmin user account
  * You need sufficient credit on your Jasmin user account [1]_
@@ -18,8 +18,14 @@ SMS Messages can be transmitted using HTTP protocol, the following requirements 
 
 Features
 ********
-The ja-http API allows you to send and receive SMS through Jasmin's connectors.
-Receive http callbacks for delivery notification when SMS-MT is received (or not) on mobile station, send and receive long (more than 160 characters) SMS, unicode/binary content and receive http callbacks when a mobile station send you a SMS-MO.
+
+The ja-http API allows you to:
+
+* Send and receive SMS through Jasmin's connectors,
+* Receive http callbacks for delivery notification (*receipts*) when SMS-MT is received (or not) on mobile station,
+* Send and receive long (more than 160 characters) SMS, unicode/binary content and receive http callbacks when a mobile station send you a SMS-MO.
+* Check your balance status,
+* Check a message rate price before sending it.
 
 .. _sending_sms-mt:
 

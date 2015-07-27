@@ -530,6 +530,22 @@ class LongSubmitSmWithUDHTestCase(LongSubmitSmTestCase):
         self.verifyUnbindSuccess(smpp, sent[nbrParts], recv[nbrParts])
         
 class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
+    def test_long_submit_sm_msg_ref_num_gt_than_255(self):
+        """Related to #271
+
+        This test must not raise a struct.error
+        """
+
+        # Generate 10000 submit_sms
+        for _ in range(10000):
+            content = self.composeMessage(GSM0338, 765) # 765 = 153 * 5
+            SubmitSmPDU = self.opFactory.SubmitSM(
+                source_addr=self.source_addr,
+                destination_addr=self.destination_addr,
+                short_message=content,
+                data_coding = 0,
+            )
+
     @defer.inlineCallbacks
     def test_long_submit_sm_7bit(self):
         client = SMPPClientFactory(self.config)
@@ -693,6 +709,22 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         'reconnectOnConnectionLoss': False,
         'username': 'smppclient1',
     }
+
+    def test_long_submit_sm_msg_ref_num_gt_than_255(self):
+        """Related to #271
+
+        This test must not raise a struct.error
+        """
+
+        # Generate 10000 submit_sms
+        for _ in range(10000):
+            content = self.composeMessage(GSM0338, 765) # 765 = 153 * 5
+            SubmitSmPDU = self.opFactory.SubmitSM(
+                source_addr=self.source_addr,
+                destination_addr=self.destination_addr,
+                short_message=content,
+                data_coding = 0,
+            )
     
     @defer.inlineCallbacks
     def test_long_submit_sm_7bit(self):
