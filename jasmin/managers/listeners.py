@@ -158,116 +158,117 @@ class SMPPClientSMListener:
         it is called whenever a message was consumed from queue
         c.f. test_amqp.ConsumeTestCase for use cases
         """
-        msgid = message.content.properties['message-id']
-
-        self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
-
-        self.log.debug("Callbacked a submit_sm with a SubmitSmPDU[%s] (?): %s" % (msgid, SubmitSmPDU))
-
-        # Update submit_sm retrial tracker
-        if msgid in self.submit_retrials:
-            self.submit_retrials[msgid]+= 1
-        else:
-            self.submit_retrials[msgid] = 1
-
-        if self.qos_last_submit_sm_at is None:
-            self.qos_last_submit_sm_at = datetime(1970, 1, 1)    
-            
-        if self.SMPPClientFactory.config.submit_sm_throughput > 0:
-            # QoS throttling
-            qos_throughput_second = 1 / float(self.SMPPClientFactory.config.submit_sm_throughput)
-            qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
-            qos_delay = datetime.now() - self.qos_last_submit_sm_at
-            if qos_delay < qos_throughput_ysecond_td:
-                qos_slow_down = float((qos_throughput_ysecond_td - qos_delay).microseconds) / 1000000
-                # We're faster than submit_sm_throughput, slow down before taking a new message from the queue
-                self.log.debug("QoS: submit_sm_callback is faster (%s) than fixed throughput (%s), slowing down by %s seconds (message will be requeued)." % (
-                                qos_delay,
-                                qos_throughput_ysecond_td,
-                                qos_slow_down
-                                ))
-
-                # Relaunch queue callbacking after qos_slow_down seconds
-                #self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
-                #self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
-                # Requeue the message
-                yield self.rejectAndRequeueMessage(message, delay = qos_slow_down)
-                defer.returnValue(False)
-            
-            self.qos_last_submit_sm_at = datetime.now()
-        
-        # Verify if message is a SubmitSm PDU
-        if isinstance(SubmitSmPDU, SubmitSM) is False:
-            self.log.error("Received an object[%s] which is not an instance of SubmitSm: discarding this unkown object from the queue" % msgid)
-            yield self.rejectMessage(message)
-            defer.returnValue(False)
-        # If the message has expired in the queue
-        if 'headers' in message.content.properties and 'expiration' in message.content.properties['headers']:
-            expiration_datetime = parser.parse(message.content.properties['headers']['expiration'])
-            if expiration_datetime < datetime.now():
-                self.log.info("Discarding expired message[%s]: expiration is %s" % (msgid, expiration_datetime))
-                yield self.rejectMessage(message)
-                defer.returnValue(False)
-        # SMPP Client should be already connected
-        if self.SMPPClientFactory.smpp is None:
-            created_at = parser.parse(message.content.properties['headers']['created_at'])
-            msgAge = datetime.now() - created_at
-            if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
-                self.log.error("SMPPC [cid:%s] is not connected: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds." % (
-                    self.SMPPClientFactory.config.id, 
-                    self.submit_retrials[msgid],
-                    msgid,
-                    msgAge.seconds,
-                    )
-                )
-                yield self.rejectMessage(message)
-                defer.returnValue(False)
-            else:
-                if self.config.submit_retrial_delay_smppc_not_ready != False:
-                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
-                else:
-                    delay_str = ''
-                self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds." % (
-                    self.SMPPClientFactory.config.id, 
-                    self.submit_retrials[msgid],
-                    msgid,
-                    delay_str,
-                    msgAge.seconds,
-                    )
-                )
-                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
-                defer.returnValue(False)
-        # SMPP Client should be already bound as transceiver or transmitter
-        if self.SMPPClientFactory.smpp.isBound() is False:
-            created_at = parser.parse(message.content.properties['headers']['created_at'])
-            msgAge = datetime.now() - created_at
-            if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
-                self.log.error("SMPPC [cid:%s] is not bound: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds." % (
-                    self.SMPPClientFactory.config.id, 
-                    self.submit_retrials[msgid],
-                    msgid,
-                    msgAge.seconds,
-                    )
-                )
-                yield self.rejectMessage(message)
-                defer.returnValue(False)
-            else:
-                if self.config.submit_retrial_delay_smppc_not_ready != False:
-                    delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
-                else:
-                    delay_str = ''
-                self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds."% (
-                    self.SMPPClientFactory.config.id, 
-                    self.submit_retrials[msgid],
-                    msgid,
-                    delay_str,
-                    msgAge,
-                    )
-                )
-                yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
-                defer.returnValue(False)
-
         try:
+            msgid = message.content.properties['message-id']
+
+            self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
+
+            self.log.debug("Callbacked a submit_sm with a SubmitSmPDU[%s] (?): %s" % (msgid, SubmitSmPDU))
+
+            # Update submit_sm retrial tracker
+            if msgid in self.submit_retrials:
+                self.submit_retrials[msgid]+= 1
+            else:
+                self.submit_retrials[msgid] = 1
+
+            if self.qos_last_submit_sm_at is None:
+                self.qos_last_submit_sm_at = datetime(1970, 1, 1)    
+                
+            if self.SMPPClientFactory.config.submit_sm_throughput > 0:
+                # QoS throttling
+                qos_throughput_second = 1 / float(self.SMPPClientFactory.config.submit_sm_throughput)
+                qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+                qos_delay = datetime.now() - self.qos_last_submit_sm_at
+                if qos_delay < qos_throughput_ysecond_td:
+                    qos_slow_down = float((qos_throughput_ysecond_td - qos_delay).microseconds) / 1000000
+                    # We're faster than submit_sm_throughput, slow down before taking a new message from the queue
+                    self.log.debug("QoS: submit_sm_callback is faster (%s) than fixed throughput (%s), slowing down by %s seconds (message will be requeued)." % (
+                                    qos_delay,
+                                    qos_throughput_ysecond_td,
+                                    qos_slow_down
+                                    ))
+
+                    # Relaunch queue callbacking after qos_slow_down seconds
+                    #self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
+                    #self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
+                    # Requeue the message
+                    yield self.rejectAndRequeueMessage(message, delay = qos_slow_down)
+                    defer.returnValue(False)
+                
+                self.qos_last_submit_sm_at = datetime.now()
+            
+            # Verify if message is a SubmitSm PDU
+            if isinstance(SubmitSmPDU, SubmitSM) is False:
+                self.log.error("Received an object[%s] which is not an instance of SubmitSm: discarding this unkown object from the queue" % msgid)
+                yield self.rejectMessage(message)
+                defer.returnValue(False)
+            # If the message has expired in the queue
+            if 'headers' in message.content.properties and 'expiration' in message.content.properties['headers']:
+                expiration_datetime = parser.parse(message.content.properties['headers']['expiration'])
+                if expiration_datetime < datetime.now():
+                    self.log.info("Discarding expired message[%s]: expiration is %s" % (msgid, expiration_datetime))
+                    yield self.rejectMessage(message)
+                    defer.returnValue(False)
+            # SMPP Client should be already connected
+            if self.SMPPClientFactory.smpp is None:
+                created_at = parser.parse(message.content.properties['headers']['created_at'])
+                msgAge = datetime.now() - created_at
+                if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
+                    self.log.error("SMPPC [cid:%s] is not connected: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds." % (
+                        self.SMPPClientFactory.config.id, 
+                        self.submit_retrials[msgid],
+                        msgid,
+                        msgAge.seconds,
+                        )
+                    )
+                    yield self.rejectMessage(message)
+                    defer.returnValue(False)
+                else:
+                    if self.config.submit_retrial_delay_smppc_not_ready != False:
+                        delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                    else:
+                        delay_str = ''
+                    self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds." % (
+                        self.SMPPClientFactory.config.id, 
+                        self.submit_retrials[msgid],
+                        msgid,
+                        delay_str,
+                        msgAge.seconds,
+                        )
+                    )
+                    yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
+                    defer.returnValue(False)
+            # SMPP Client should be already bound as transceiver or transmitter
+            if self.SMPPClientFactory.smpp.isBound() is False:
+                created_at = parser.parse(message.content.properties['headers']['created_at'])
+                msgAge = datetime.now() - created_at
+                if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
+                    self.log.error("SMPPC [cid:%s] is not bound: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds." % (
+                        self.SMPPClientFactory.config.id, 
+                        self.submit_retrials[msgid],
+                        msgid,
+                        msgAge.seconds,
+                        )
+                    )
+                    yield self.rejectMessage(message)
+                    defer.returnValue(False)
+                else:
+                    if self.config.submit_retrial_delay_smppc_not_ready != False:
+                        delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
+                    else:
+                        delay_str = ''
+                    self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds."% (
+                        self.SMPPClientFactory.config.id, 
+                        self.submit_retrials[msgid],
+                        msgid,
+                        delay_str,
+                        msgAge,
+                        )
+                    )
+                    yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
+                    defer.returnValue(False)
+
+            # Finally: send the sms !
             self.log.debug("Sending SubmitSmPDU through SMPPClientFactory")
             d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
             d.addCallback(self.submit_sm_resp_event, message)
@@ -275,6 +276,10 @@ class SMPPClientSMListener:
         except SMPPRequestTimoutError:
             self.log.error("SubmitSmPDU request timed out, message requeued.")
             self.rejectAndRequeueMessage(message)
+            defer.returnValue(False)
+        except Exception, e:
+            self.log.critical("Rejecting message for an unknown error (%s): %s" % (type(e), e))
+            self.rejectMessage(message)
             defer.returnValue(False)
 
     @defer.inlineCallbacks
