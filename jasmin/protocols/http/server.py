@@ -274,14 +274,15 @@ class Send(Resource):
 
             # Success return
             if response['status'] == 200 and routedConnector is not None:
-                self.log.info('SMS-MT [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]' 
-                              % (routedConnector.cid,
+                self.log.info('SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]' 
+                              % (user.uid,
+                              routedConnector.cid,
                               response['return'], 
                               priority, 
                               dlr_level_text, 
                               SubmitSmPDU.params['source_addr'], 
                               updated_request.args['to'][0], 
-                              updated_request.args['content'][0]))
+                              re.sub(r'[^\x20-\x7E]+','.', updated_request.args['content'][0])))
                 _return = 'Success "%s"' % response['return']
             
             return _return

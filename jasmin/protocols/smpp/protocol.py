@@ -1,4 +1,5 @@
 #pylint: disable-msg=W0401,W0611
+import re
 import uuid
 import logging
 import struct
@@ -25,7 +26,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.longSubmitSmTxns = {}
 
     def PDUReceived(self, pdu):
-        self.log.debug("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.commandId, pdu.seqNum, pdu.status))
         self.log.debug("Complete PDU dump: %s" % pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
         
@@ -44,7 +45,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         elif isinstance(pdu, PDUResponse):
             self.PDUResponseReceived(pdu)
         else:
-            getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+            getattr(self, "onPDU_%s" % str(pdu.commandId))(pdu)
 
     def connectionMade(self):
         twistedSMPPClientProtocol.connectionMade(self)
@@ -331,7 +332,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
     def PDUReceived(self, pdu):
         self.log.debug("SMPP Server received PDU from system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (
-            self.system_id, pdu.id, pdu.seqNum, pdu.status))
+            self.system_id, pdu.commandId, pdu.seqNum, pdu.status))
         self.log.debug("Complete PDU dump: %s" % pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
         
@@ -350,7 +351,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         elif isinstance(pdu, PDUResponse):
             self.PDUResponseReceived(pdu)
         else:
-            getattr(self, "onPDU_%s" % str(pdu.id))(pdu)
+            getattr(self, "onPDU_%s" % str(pdu.commandId))(pdu)
 
     def connectionMade(self):
         twistedSMPPServerProtocol.connectionMade(self)
@@ -382,9 +383,9 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         twistedSMPPServerProtocol.doPDURequest(self, reqPDU, handler)
 
         # Stats
-        if reqPDU.id == CommandId.enquire_link:
+        if reqPDU.commandId == CommandId.enquire_link:
             self.factory.stats.set('last_received_elink_at', datetime.now())
-        elif reqPDU.id == CommandId.submit_sm:
+        elif reqPDU.commandId == CommandId.submit_sm:
             self.factory.stats.inc('submit_sm_request_count')
 
     def sendPDU(self, pdu):
@@ -392,15 +393,27 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
-        if pdu.id == CommandId.deliver_sm:
+        if pdu.commandId == CommandId.deliver_sm:
             self.factory.stats.inc('deliver_sm_count')
             if self.user is not None:
+                self.log.info('DELIVER_SM [uid:%s] [from:%s] [to:%s] [content:%s]' % (
+                    self.user.uid,
+                    pdu.params['source_addr'],
+                    pdu.params['destination_addr'],
+                    re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
+                    ))
                 self.user.getCnxStatus().smpps['deliver_sm_count']+= 1
-        elif pdu.id == CommandId.data_sm:
+        elif pdu.commandId == CommandId.data_sm:
             self.factory.stats.inc('data_sm_count')
             if self.user is not None:
+                self.log.info('DATA_SM [uid:%s] [from:%s] [to:%s] [content:%s]' % (
+                    self.user.uid,
+                    pdu.params['source_addr'],
+                    pdu.params['destination_addr'],
+                    re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
+                    ))
                 self.user.getCnxStatus().smpps['data_sm_count']+= 1
-        elif pdu.id == CommandId.submit_sm_resp:
+        elif pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
                 self.factory.stats.inc('throttling_error_count')
                 if self.user is not None:
@@ -442,8 +455,8 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
                 CommandId.bind_receiver, CommandId.bind_transceiver, 
                 CommandId.unbind, CommandId.unbind_resp,
                 CommandId.enquire_link, CommandId.data_sm]
-        if reqPDU.id not in acceptedPDUs:
-            errMsg = 'Received unsupported pdu type: %s' % reqPDU.id
+        if reqPDU.commandId not in acceptedPDUs:
+            errMsg = 'Received unsupported pdu type: %s' % reqPDU.commandId
             self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RSYSERR))
             return self.fatalErrorOnRequest(reqPDU, errMsg, CommandStatus.ESME_RSYSERR)
 
