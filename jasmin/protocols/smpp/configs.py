@@ -65,7 +65,7 @@ class SMPPClientConfig(object):
             raise TypeMismatch('inactivityTimerSecs must be an integer or float')
         
         # Timeout for responses to any request PDU
-        self.responseTimerSecs = kwargs.get('responseTimerSecs', 60)
+        self.responseTimerSecs = kwargs.get('responseTimerSecs', 120)
         if not isinstance(self.responseTimerSecs, int) and not isinstance(self.responseTimerSecs, float):
             raise TypeMismatch('responseTimerSecs must be an integer or float')
 

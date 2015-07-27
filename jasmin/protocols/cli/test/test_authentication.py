@@ -1,4 +1,5 @@
 import random
+import jasmin
 from test_jcli import jCliWithAuthTestCases
 from hashlib import md5
     
@@ -18,5 +19,5 @@ class AuthenticationTestCases(jCliWithAuthTestCases):
         self.JCliConfigInstance.admin_password = md5(testPassword).digest()
         
         commands = [{'command': self.JCliConfigInstance.admin_username},
-                    {'command': testPassword, 'expect': 'Welcome to Jasmin console', 'noecho': True}]
+                    {'command': testPassword, 'expect': 'Welcome to Jasmin %s console' % jasmin.get_release(), 'noecho': True}]
         return self._test(r'jcli : ', commands)
