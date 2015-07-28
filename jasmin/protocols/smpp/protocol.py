@@ -165,7 +165,11 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
-            raise LongSubmitSmTransactionError('msg_ref_num [%s] is already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
+            self.log.error('Transaction with msg_ref_num [%s] is already in progress, open longSubmitSmTxns count: %s' % (
+                reqPDU.LongSubmitSm['msg_ref_num'],
+                len(self.longSubmitSmTxns)
+            ))
+            raise LongSubmitSmTransactionError('Transaction with msg_ref_num [%s] is already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
         
         #Create callback deferred
         ackDeferred = defer.Deferred()
@@ -197,7 +201,11 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         
         # Do we have txn with the given ref ?
         if reqPDU.LongSubmitSm['msg_ref_num'] not in self.longSubmitSmTxns:
-            raise LongSubmitSmTransactionError('Transaction with msg_ref_num [%s] was not found.' % reqPDU.LongSubmitSm['msg_ref_num'])
+            self.log.error('Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s], open longSubmitSmTxns count: %s' % (
+                reqPDU.LongSubmitSm['msg_ref_num'],
+                len(self.longSubmitSmTxns)
+            ))
+            raise LongSubmitSmTransactionError('Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s].' % reqPDU.LongSubmitSm['msg_ref_num'])
 
         # Decrement pending ACKs
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] > 0:
