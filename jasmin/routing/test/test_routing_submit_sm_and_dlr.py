@@ -15,6 +15,7 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.vendor.smpp.pdu.pdu_types import MessageState, AddrTon, AddrNpi
+from jasmin.vendor.smpp.pdu.smpp_time import FixedOffset
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -1141,6 +1142,41 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
+
+    @defer.inlineCallbacks
+    def test_validity_period_with_tzinfo(self):
+        """Related to #267
+
+        Having validity_period with timezone set would lead into the following error in messages.log
+        Error in submit_sm_errback: __init__() takes exactly 3 arguments (1 given)
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface with validity period set
+        validity_period = datetime(2015, 7, 29, 15, 21, 54, tzinfo=FixedOffset(24, 'Paris'))
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['validity_period'] = validity_period
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertTrue(type(self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period']) == datetime)
 
 class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
