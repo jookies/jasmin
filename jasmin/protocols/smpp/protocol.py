@@ -165,7 +165,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
-            raise ValueError('msg_ref_num [%s] is already in progess.' % reqPDU.LongSubmitSm['msg_ref_num'])
+            raise ValueError('msg_ref_num [%s] is already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
         
         #Create callback deferred
         ackDeferred = defer.Deferred()
