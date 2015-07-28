@@ -17,7 +17,6 @@ import unittest
 from jasmin.vendor.smpp.pdu import smpp_time
 from datetime import datetime, timedelta
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class SMPPTimeTest(unittest.TestCase):
     
     def test_parse_t(self):

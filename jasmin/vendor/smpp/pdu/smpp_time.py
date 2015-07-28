@@ -20,7 +20,8 @@ from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 class FixedOffset(tzinfo):
     """Fixed offset in minutes east from UTC."""
 
-    def __init__(self, offsetMin, name):
+    # Jasmin update, #267
+    def __init__(self, offsetMin = 0, name = None):
         self.__offset = timedelta(minutes = offsetMin)
         self.__name = name
 

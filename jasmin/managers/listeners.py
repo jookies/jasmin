@@ -563,7 +563,10 @@ class SMPPClientSMListener:
             # For info, this errback is called whenever:
             # - an error has occured inside submit_sm_callback
             # - the qosTimer has been cancelled (self.clearQosTimer())
-            self.log.error("Error in submit_sm_errback: %s" % error.getErrorMessage())
+            try:
+                error.raiseException()
+            except Exception, e:
+                self.log.error("Error in submit_sm_errback (%s): %s" % (type(e), e))
        
     @defer.inlineCallbacks     
     def concatDeliverSMs(self, HSetReturn, splitMethod, total_segments, msg_ref_num, segment_seqnum):
