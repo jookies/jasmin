@@ -9,13 +9,13 @@ from dateutil import parser
 from twisted.internet import defer
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, CommandId
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
-from jasmin.vendor.smpp.pdu.error import *
 from txamqp.queue import Closed
 from twisted.internet import reactor, task
 from jasmin.managers.content import (SubmitSmRespContent, DeliverSmContent, 
                                     DLRContentForHttpapi, DLRContentForSmpps,
                                     SubmitSmRespBillContent)
 from jasmin.managers.configs import SMPPClientPBConfig
+from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 
 LOG_CATEGORY = "jasmin-sm-listener"
@@ -280,6 +280,14 @@ class SMPPClientSMListener:
             self.log.error("SubmitSmPDU[%s] request timed out through [cid:%s], message requeued." % (
                 msgid,
                 self.SMPPClientFactory.config.id
+            ))
+            self.rejectAndRequeueMessage(message)
+            defer.returnValue(False)
+        except LongSubmitSmTransactionError, e:
+            self.log.error("Long SubmitSmPDU[%s] error in [cid:%s], message requeued: %s" % (
+                msgid,
+                self.SMPPClientFactory.config.id,
+                e.message
             ))
             self.rejectAndRequeueMessage(message)
             defer.returnValue(False)

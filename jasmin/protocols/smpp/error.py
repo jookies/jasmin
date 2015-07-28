@@ -1,6 +1,12 @@
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu import pdu_types
 
+class LongSubmitSmTransactionError():
+    """Raised inside a long message transaction
+    """
+    def __init__(self, message):
+        self.message = message
+
 class SubmitSmEventHandlerErrorNoShutdown(SMPPProtocolError):
     """Errors raised from jasmin.protocols.smpp.factory.SMPPServerFactory.submit_sm_event()
     Any error raising this exception will not cause connection shutdown

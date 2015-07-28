@@ -165,7 +165,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
-            raise ValueError('msg_ref_num [%s] is already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
+            raise LongSubmitSmTransactionError('msg_ref_num [%s] is already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
         
         #Create callback deferred
         ackDeferred = defer.Deferred()
@@ -197,7 +197,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         
         # Do we have txn with the given ref ?
         if reqPDU.LongSubmitSm['msg_ref_num'] not in self.longSubmitSmTxns:
-            raise ValueError('Transaction with msg_ref_num [%s] was not found.' % reqPDU.LongSubmitSm['msg_ref_num'])
+            raise LongSubmitSmTransactionError('Transaction with msg_ref_num [%s] was not found.' % reqPDU.LongSubmitSm['msg_ref_num'])
 
         # Decrement pending ACKs
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] > 0:
@@ -291,7 +291,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
 
                     self.preSubmitSm(partedSmPdu)
                     self.sendPDU(partedSmPdu)
-                    # Not like parent protocol's sendPDU, we don't return per pdu
+                    # Unlike parent protocol's sendPDU, we don't return per pdu
                     # deferred, we'll return per transaction deferred instead
                     self.startOutboundTransaction(partedSmPdu, timeout).addCallbacks(
                                                                                      self.endLongSubmitSmTransaction, 
