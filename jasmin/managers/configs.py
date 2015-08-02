@@ -67,10 +67,10 @@ class SMPPClientSMListenerConfig(ConfigFile):
 
         self.submit_error_retrial = ast.literal_eval(
                 self._get('sm-listener', 'submit_error_retrial', """{
-                            'ESME_RSYSERR':         {'count': 2, 'delay': 30},
-                            'ESME_RTHROTTLED':      {'count': 6, 'delay': 5},
-                            'ESME_RMSGQFUL':        {'count': 2, 'delay': 180},
-                            'ESME_RINVSCHED':       {'count': 2, 'delay': 300},
+                            'ESME_RSYSERR':         {'count': 2,  'delay': 30},
+                            'ESME_RTHROTTLED':      {'count': 20, 'delay': 30},
+                            'ESME_RMSGQFUL':        {'count': 2,  'delay': 180},
+                            'ESME_RINVSCHED':       {'count': 2,  'delay': 300},
                        }""")
             )
 
