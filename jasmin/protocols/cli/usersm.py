@@ -163,8 +163,8 @@ def UserBuild(fCallback):
                 if not _r:
                     return self.protocol.sendData('Error: expected syntax: %s section key value' % cmd)
 
-                section = _r.group(1)
-                key = _r.group(2)
+                section = _r.group(1).lower()
+                key = _r.group(2).lower()
                 value = _r.group(3)
 
                 # Validate section
@@ -270,8 +270,8 @@ def UserUpdate(fCallback):
                 if not _r:
                     return self.protocol.sendData('Error: expected syntax: %s section key value' % cmd)
 
-                section = _r.group(1)
-                key = _r.group(2)
+                section = _r.group(1).lower()
+                key = _r.group(2).lower()
                 value = _r.group(3)
 
                 # Validate section
