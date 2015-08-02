@@ -6,7 +6,7 @@
 MAJOR = 0
 MINOR = 6
 PATCH = 40
-META = 'b'
+META = 'rc'
 
 def get_version():
     return '%s.%s' % (MAJOR, MINOR)
