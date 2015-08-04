@@ -555,7 +555,7 @@ class ParameterValuesTestCases(SmppccmTestCases):
 
             # Update and assert
             commands = [{'command': 'smppccm -u operator_%s' % cid},
-                        {'command': 'password anypassword'},
+                        {'command': 'password apassword'},
                         {'command': '%s %s' % (value['key'], value['set_value']), 'expect': add_expect},
                         {'command': 'ok', 'wait': 0.8}]
             yield self._test(r'jcli : ', commands)
