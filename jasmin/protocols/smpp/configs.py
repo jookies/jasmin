@@ -88,7 +88,11 @@ class SMPPClientConfig(object):
         if not isinstance(self.host, str):
             raise TypeMismatch('host must be a string')
         self.username = kwargs.get('username', 'smppclient')
+        if len(self.username) > 16:
+            raise TypeMismatch('username is longer than allowed size (16)')
         self.password = kwargs.get('password', 'password')
+        if len(self.password) > 9:
+            raise TypeMismatch('password is longer than allowed size (9)')
         self.systemType = kwargs.get('systemType', '')
                 
         # Reconnection
