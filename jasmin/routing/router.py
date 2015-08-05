@@ -209,9 +209,6 @@ class RouterPB(pb.Avatar):
     @defer.inlineCallbacks
     def bill_request_submit_sm_resp_callback(self, message):
         """This callback is a queue listener
-        It will only decide where to send the input message and republish it to the routedConnector
-        The consumer will execute the remaining job of final delivery 
-        c.f. test_router.DeliverSmDeliveryTestCases for use cases
         """
         bid = message.content.properties['message-id']
         amount = float(message.content.properties['headers']['amount'])
