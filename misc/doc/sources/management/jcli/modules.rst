@@ -448,9 +448,9 @@ Once the above MO Routes are added to **MORoutingTable**, it is possible to list
 
    jcli : morouter -l
    #Order Type                    Connector ID(s)                  Filter(s)
-   #20    RandomRoundrobinMORoute http(http_2), http(http_3)       <TransparentFilter>, <TransparentFilter>
-   #15    StaticMORoute           smpps(user_1)                    <TransparentFilter>
-   #10    StaticMORoute           http(http_1)                     <TransparentFilter>
+   #20    RandomRoundrobinMORoute http(http_2), http(http_3)       <T>, <T>
+   #15    StaticMORoute           smpps(user_1)                    <T>
+   #10    StaticMORoute           http(http_1)                     <T>
    #0     DefaultRoute            http(http_default)
    Total MO Routes: 3
 
@@ -581,8 +581,8 @@ Once the above MT Routes are added to **MTRoutingTable**, it is possible to list
 
    jcli : mtrouter -l
    #Order Type                    Rate    Connector ID(s)                     Filter(s)
-   #20    RandomRoundrobinMTRoute 0.00    smppc(smppcc_2), smppc(smppcc_3)    <TransparentFilter>
-   #10    StaticMTRoute           0.00    smppc(smppcc_1)                     <TransparentFilter>, <TransparentFilter>
+   #20    RandomRoundrobinMTRoute 0.00    smppc(smppcc_2), smppc(smppcc_3)    <T>
+   #10    StaticMTRoute           0.00    smppc(smppcc_1)                     <T>, <T>
    #0     DefaultRoute            0.00    smppc(smppcc_default)
    Total MT Routes: 3
 
