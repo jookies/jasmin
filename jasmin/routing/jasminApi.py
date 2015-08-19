@@ -166,7 +166,7 @@ class Group(jasminApiGenerick):
     def __init__(self, gid):
         # Validate gid
         regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
-        if regex.match(gid) == None:
+        if regex.match(str(gid)) == None:
             raise jasminApiInvalidParamError('Group gid syntax is invalid')
         self.gid = gid
 
@@ -224,7 +224,7 @@ class User(jasminApiGenerick):
     def __init__(self, uid, group, username, password, mt_credential = None, smpps_credential = None):
         # Validate uid
         regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
-        if regex.match(uid) == None:
+        if regex.match(str(uid)) == None:
             raise jasminApiInvalidParamError('User uid syntax is invalid')
 
         self.uid = uid
@@ -291,7 +291,7 @@ class HttpConnector(Connector):
     def __init__(self, cid, baseurl, method = 'GET'):
         # Validate cid
         regex = re.compile(r'^[A-Za-z0-9_-]{3,25}$')
-        if regex.match(cid) == None:
+        if regex.match(str(cid)) == None:
             raise jasminApiInvalidParamError('HttpConnector cid syntax is invalid')
         # Validate method
         if method.lower() not in ['get', 'post']:
