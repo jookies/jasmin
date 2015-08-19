@@ -79,15 +79,15 @@ class BasicTestCases(HappySMSCTestCase):
     @defer.inlineCallbacks
     def test_add_long_username(self):
         extraCommands = [{'command': 'cid operator_3'}, 
-                         {'command': 'username 12345678901234567'}, 
-                         {'command': 'ok', 'expect': r'Error\: username is longer than allowed size \(16\)', 'wait': self.wait}]
+                         {'command': 'username 1234567890123456'}, 
+                         {'command': 'ok', 'expect': r'Error\: username is longer than allowed size \(15\)', 'wait': self.wait}]
         yield self.add_connector(r'> ', extraCommands)
     
     @defer.inlineCallbacks
     def test_add_long_password(self):
         extraCommands = [{'command': 'cid operator_3'}, 
-                         {'command': 'password 1234567890'}, 
-                         {'command': 'ok', 'expect': r'Error\: password is longer than allowed size \(9\)', 'wait': self.wait}]
+                         {'command': 'password 123456789'}, 
+                         {'command': 'ok', 'expect': r'Error\: password is longer than allowed size \(8\)', 'wait': self.wait}]
         yield self.add_connector(r'> ', extraCommands)
     
     @defer.inlineCallbacks
