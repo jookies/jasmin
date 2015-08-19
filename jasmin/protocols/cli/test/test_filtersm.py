@@ -27,16 +27,16 @@ class BasicTestCases(FiltersTestCases):
         return self.add_filter(r'jcli : ', extraCommands)
     
     def test_add_with_empty_fid(self):
-        extraCommands = [{'command': 'fid  '},
+        extraCommands = [{'command': 'fid  ', 'expect': 'Invalid Filter fid syntax: '},
                          {'command': 'type TransparentFilter'},
-                         {'command': 'ok', 'expect': r'Error: Filter fid syntax is invalid'},]
-        return self.add_filter(r'jcli : ', extraCommands)
+                         {'command': 'ok', 'expect': r'You must set these options before saving: type, fid'}]
+        return self.add_filter(r'> ', extraCommands)
 
     def test_add_with_invalid_fid(self):
-        extraCommands = [{'command': 'fid With Space'},
+        extraCommands = [{'command': 'fid With Space', 'expect': 'Invalid Filter fid syntax: With Space'},
                          {'command': 'type TransparentFilter'},
-                         {'command': 'ok', 'expect': r'Error: Filter fid syntax is invalid'},]
-        return self.add_filter(r'jcli : ', extraCommands)
+                         {'command': 'ok', 'expect': r'You must set these options before saving: type, fid'}]
+        return self.add_filter(r'> ', extraCommands)
 
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: type, fid'}]
