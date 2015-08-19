@@ -26,6 +26,16 @@ class BasicTestCases(GroupTestCases):
         extraCommands = [{'command': 'gid group_1'}]
         return self.add_group(r'jcli : ', extraCommands)
     
+    def test_add_with_empty_gid(self):
+        extraCommands = [{'command': 'gid '},
+                         {'command': 'ok', 'expect': r'Error: Group gid syntax is invalid'},]
+        return self.add_group(r'jcli : ', extraCommands)
+    
+    def test_add_with_invalid_gid(self):
+        extraCommands = [{'command': 'gid With Space'},
+                         {'command': 'ok', 'expect': r'Error: Group gid syntax is invalid'},]
+        return self.add_group(r'jcli : ', extraCommands)
+
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set Group id \(gid\) before saving !'}]
         return self.add_group(r'> ', extraCommands)
