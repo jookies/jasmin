@@ -77,6 +77,20 @@ class BasicTestCases(HappySMSCTestCase):
         yield self.add_connector(r'> ', extraCommands)
     
     @defer.inlineCallbacks
+    def test_add_long_username(self):
+        extraCommands = [{'command': 'cid operator_3'}, 
+                         {'command': 'username 1234567890123456'}, 
+                         {'command': 'ok', 'expect': r'Error\: username is longer than allowed size \(15\)', 'wait': self.wait}]
+        yield self.add_connector(r'> ', extraCommands)
+    
+    @defer.inlineCallbacks
+    def test_add_long_password(self):
+        extraCommands = [{'command': 'cid operator_3'}, 
+                         {'command': 'password 123456789'}, 
+                         {'command': 'ok', 'expect': r'Error\: password is longer than allowed size \(8\)', 'wait': self.wait}]
+        yield self.add_connector(r'> ', extraCommands)
+    
+    @defer.inlineCallbacks
     def test_cancel_add(self):
         extraCommands = [{'command': 'cid operator_3'},
                          {'command': 'ko'}, ]
@@ -541,7 +555,7 @@ class ParameterValuesTestCases(SmppccmTestCases):
 
             # Update and assert
             commands = [{'command': 'smppccm -u operator_%s' % cid},
-                        {'command': 'password anypassword'},
+                        {'command': 'password password'},
                         {'command': '%s %s' % (value['key'], value['set_value']), 'expect': add_expect},
                         {'command': 'ok', 'wait': 0.8}]
             yield self._test(r'jcli : ', commands)

@@ -164,6 +164,10 @@ class Group(jasminApiGenerick):
     """Every user must have a group"""
     
     def __init__(self, gid):
+        # Validate gid
+        regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
+        if regex.match(str(gid)) == None:
+            raise jasminApiInvalidParamError('Group gid syntax is invalid')
         self.gid = gid
 
     def __str__(self):
@@ -218,9 +222,21 @@ class User(jasminApiGenerick):
     """Jasmin user"""
     
     def __init__(self, uid, group, username, password, mt_credential = None, smpps_credential = None):
+        # Validate uid
+        regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
+        if regex.match(str(uid)) == None:
+            raise jasminApiInvalidParamError('User uid syntax is invalid')
+
         self.uid = uid
         self.group = group
+
+        # Validate username, if needed because User object
+        # can be called with a None username for some purposes
+        regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
+        if username is not None and regex.match(username) == None:
+            raise jasminApiInvalidParamError('User username syntax is invalid')
         self.username = username
+        
         if type(password) == str:
             if len(password) == 0 or len(password) > 8:
                 raise jasminApiInvalidParamError('Invalid password length !')
@@ -275,7 +291,7 @@ class HttpConnector(Connector):
     def __init__(self, cid, baseurl, method = 'GET'):
         # Validate cid
         regex = re.compile(r'^[A-Za-z0-9_-]{3,25}$')
-        if regex.match(cid) == None:
+        if regex.match(str(cid)) == None:
             raise jasminApiInvalidParamError('HttpConnector cid syntax is invalid')
         # Validate method
         if method.lower() not in ['get', 'post']:

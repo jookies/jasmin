@@ -1,4 +1,5 @@
 #pylint: disable-msg=W0401,W0611
+import re
 import inspect
 import pickle
 import time
@@ -78,6 +79,12 @@ def FilterBuild(fCallback):
                 fa = self.sessBuffer['filter_args']
             if cmd not in FilterKeyMap and cmd not in fa:
                 return self.protocol.sendData('Unknown Filter key: %s' % cmd)
+
+            # Validate fid syntax
+            if cmd == 'fid':
+                regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
+                if regex.match(arg) == None:
+                    return self.protocol.sendData('Invalid Filter fid syntax: %s' % arg)
             
             # IF we got the type, check if it's a correct one
             if cmd == 'type':

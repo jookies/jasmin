@@ -1,7 +1,3 @@
-"""
-This is the http server module serving the /send API
-"""
-
 import logging
 import re
 import json
@@ -24,6 +20,8 @@ from .stats import HttpAPIStatsCollector
 LOG_CATEGORY = "jasmin-http-api"
 
 class Send(Resource):
+    isleaf = True
+
     def __init__(self, HTTPApiConfig, RouterPB, SMPPClientManagerPB, stats, log):
         Resource.__init__(self)
         
@@ -288,6 +286,8 @@ class Send(Resource):
             return _return
     
 class Rate(Resource):
+    isleaf = True
+
     def __init__(self, HTTPApiConfig, RouterPB, stats, log):
         Resource.__init__(self)
         
@@ -416,6 +416,8 @@ class Rate(Resource):
             return json.dumps(response['return'])
 
 class Balance(Resource):
+    isleaf = True
+
     def __init__(self, RouterPB, stats, log):
         Resource.__init__(self)
         
@@ -496,6 +498,8 @@ class Balance(Resource):
             return json.dumps(response['return'])
 
 class Ping(Resource):
+    isleaf = True
+
     def __init__(self, log):
         Resource.__init__(self)
         self.log = log
@@ -541,6 +545,9 @@ class HTTPApi(Resource):
         # Set http url routings
         self.log.debug("Setting http url routing for /send")
         self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.stats, self.log))
+        self.log.debug("Setting http url routing for /rate")
         self.putChild('rate', Rate(self.config, self.RouterPB, self.stats, self.log))
+        self.log.debug("Setting http url routing for /balance")
         self.putChild('balance', Balance(self.RouterPB, self.stats, self.log))
+        self.log.debug("Setting http url routing for /ping")
         self.putChild('ping', Ping(self.log))
