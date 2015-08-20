@@ -141,7 +141,7 @@ class BasicTestCases(MxRouterTestCases):
 
         # List
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#20    StaticMORoute           smpps\(smpp_user\)                                 \<TransparentFilter\>', 
+                        '#20    StaticMORoute           smpps\(smpp_user\)                                 \<T\>', 
                         '#0     DefaultRoute            http\(http1\)', 
                         'Total MO Routes: 2']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
@@ -270,7 +270,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = ['%s' % _str_]
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#%s %s %s   <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
+                        '#%s %s %s   <T>' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -294,7 +294,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = ['%s' % _str_]
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#%s %s %s   <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
+                        '#%s %s %s   <T>' % (rorder.ljust(5), rtype.ljust(23), re.escape(typed_cid).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -320,7 +320,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#%s %s %s     <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
+                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -346,7 +346,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#%s %s %s     <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
+                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -372,7 +372,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#%s %s %s     <TransparentFilter>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
+                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)), 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -443,7 +443,7 @@ class MoRouteArgsTestCases(MxRouterTestCases):
         self.add_moroute(r'jcli : ', extraCommands)
         
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)', 
-                        '#20    StaticMORoute           http\(http1\)                                      <ConnectorFilter \(cid=Any\)>', 
+                        '#20    StaticMORoute           http\(http1\)                                      <C \(cid=Any\)>', 
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)

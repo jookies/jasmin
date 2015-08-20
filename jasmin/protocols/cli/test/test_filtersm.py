@@ -26,6 +26,18 @@ class BasicTestCases(FiltersTestCases):
                          {'command': 'type TransparentFilter'}]
         return self.add_filter(r'jcli : ', extraCommands)
     
+    def test_add_with_empty_fid(self):
+        extraCommands = [{'command': 'fid  ', 'expect': 'Invalid Filter fid syntax: '},
+                         {'command': 'type TransparentFilter'},
+                         {'command': 'ok', 'expect': r'You must set these options before saving: type, fid'}]
+        return self.add_filter(r'> ', extraCommands)
+
+    def test_add_with_invalid_fid(self):
+        extraCommands = [{'command': 'fid With Space', 'expect': 'Invalid Filter fid syntax: With Space'},
+                         {'command': 'type TransparentFilter'},
+                         {'command': 'ok', 'expect': r'You must set these options before saving: type, fid'}]
+        return self.add_filter(r'> ', extraCommands)
+
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: type, fid'}]
         return self.add_filter(r'> ', extraCommands)
@@ -51,7 +63,7 @@ class BasicTestCases(FiltersTestCases):
         self.add_filter('jcli : ', extraCommands)
 
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#filter_4         TransparentFilter      MO MT  <TransparentFilter>', 
+                        '#filter_4         TransparentFilter      MO MT  <T>', 
                         'Total Filters: 1']
         commands = [{'command': 'filter -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -105,7 +117,7 @@ class BasicTestCases(FiltersTestCases):
     
         # List
         expectedList = ['#Filter id        Type                   Routes Description', 
-                        '#%s TransparentFilter      MO MT  <TransparentFilter>' % fid.ljust(16), 
+                        '#%s TransparentFilter      MO MT  <T>' % fid.ljust(16), 
                         'Total Filters: 1']
         commands = [{'command': 'filter -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -148,7 +160,7 @@ class FilterTypingTestCases(FiltersTestCases):
     def test_add_TransparentFilter(self):
         ftype = 'TransparentFilter'
         _str_ = '%s' % ftype
-        _repr_ = '<%s>' % ftype
+        _repr_ = '<T>'
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -167,7 +179,7 @@ class FilterTypingTestCases(FiltersTestCases):
         uid = '1'
         ftype = 'UserFilter'
         _str_ = ['%s:' % ftype, 'uid = %s' % uid]
-        _repr_ = '<%s \(uid=%s\)>' % (ftype, uid)
+        _repr_ = '<U \(uid=%s\)>' % (uid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -187,7 +199,7 @@ class FilterTypingTestCases(FiltersTestCases):
         gid = '1'
         ftype = 'GroupFilter'
         _str_ = ['%s:' % ftype, 'gid = %s' % gid]
-        _repr_ = '<%s \(gid=%s\)>' % (ftype, gid)
+        _repr_ = '<G \(gid=%s\)>' % (gid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -207,7 +219,7 @@ class FilterTypingTestCases(FiltersTestCases):
         cid = '1'
         ftype = 'ConnectorFilter'
         _str_ = ['%s:' % ftype, 'cid = %s' % cid]
-        _repr_ = '<%s \(cid=%s\)>' % (ftype, cid)
+        _repr_ = '<C \(cid=%s\)>' % (cid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -227,7 +239,7 @@ class FilterTypingTestCases(FiltersTestCases):
         source_addr = '16'
         ftype = 'SourceAddrFilter'
         _str_ = ['%s:' % ftype, 'source_addr = %s' % source_addr]
-        _repr_ = '<%s \(src_addr=%s\)>' % (ftype, source_addr)
+        _repr_ = '<SA \(src_addr=%s\)>' % (source_addr)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -247,7 +259,7 @@ class FilterTypingTestCases(FiltersTestCases):
         destination_addr = '16'
         ftype = 'DestinationAddrFilter'
         _str_ = ['%s:' % ftype, 'destination_addr = %s' % destination_addr]
-        _repr_ = '<%s \(dst_addr=%s\)>' % (ftype, destination_addr)
+        _repr_ = '<DA \(dst_addr=%s\)>' % (destination_addr)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -267,7 +279,7 @@ class FilterTypingTestCases(FiltersTestCases):
         short_message = 'Hello'
         ftype = 'ShortMessageFilter'
         _str_ = ['%s:' % ftype, 'short_message = %s' % short_message]
-        _repr_ = '<%s \(msg=%s\)>' % (ftype, short_message)
+        _repr_ = '<SM \(msg=%s\)>' % (short_message)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -289,7 +301,7 @@ class FilterTypingTestCases(FiltersTestCases):
         dateInterval = '%s;%s' % (leftBorder, rightBorder)
         ftype = 'DateIntervalFilter'
         _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
-        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
+        _repr_ = '<DI \(%s,%s\)>' % (leftBorder, rightBorder)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -311,7 +323,7 @@ class FilterTypingTestCases(FiltersTestCases):
         timeInterval = '%s;%s' % (leftBorder, rightBorder)
         ftype = 'TimeIntervalFilter'
         _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
-        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
+        _repr_ = '<TI \(%s,%s\)>' % (leftBorder, rightBorder)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -334,7 +346,7 @@ class FilterTypingTestCases(FiltersTestCases):
         
         ftype = 'EvalPyFilter'
         _str_ = ['%s:' % ftype, '']
-        _repr_ = '<%s \(pyCode= ..\)>' % ftype
+        _repr_ = '<Ev \(pyCode= ..\)>'
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -369,7 +381,7 @@ else:
         ftype = 'EvalPyFilter'
         _str_ = ['%s:' % ftype]
         _str_.extend([y for y in (re.escape(x.strip()) for x in pyCode.splitlines()) if y])
-        _repr_ = '<%s \(pyCode=%s ..\)>' % (ftype, pyCode[:10].replace('\n', ''))
+        _repr_ = '<Ev \(pyCode=%s ..\)>' % (pyCode[:10].replace('\n', ''))
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -406,7 +418,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
     def test_TransparentFilter(self):
         ftype = 'TransparentFilter'
         _str_ = '%s' % ftype
-        _repr_ = '<%s>' % ftype
+        _repr_ = '<T>'
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -430,7 +442,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         uid = '1'
         ftype = 'UserFilter'
         _str_ = ['%s:' % ftype, 'uid = %s' % uid]
-        _repr_ = '<%s \(uid=%s\)>' % (ftype, uid)
+        _repr_ = '<U \(uid=%s\)>' % (uid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -455,7 +467,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         gid = '1'
         ftype = 'GroupFilter'
         _str_ = ['%s:' % ftype, 'gid = %s' % gid]
-        _repr_ = '<%s \(gid=%s\)>' % (ftype, gid)
+        _repr_ = '<G \(gid=%s\)>' % (gid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -480,7 +492,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         cid = '1'
         ftype = 'ConnectorFilter'
         _str_ = ['%s:' % ftype, 'cid = %s' % cid]
-        _repr_ = '<%s \(cid=%s\)>' % (ftype, cid)
+        _repr_ = '<C \(cid=%s\)>' % (cid)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -505,7 +517,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         source_addr = '16'
         ftype = 'SourceAddrFilter'
         _str_ = ['%s:' % ftype, 'source_addr = %s' % source_addr]
-        _repr_ = '<%s \(src_addr=%s\)>' % (ftype, source_addr)
+        _repr_ = '<SA \(src_addr=%s\)>' % (source_addr)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -530,7 +542,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         destination_addr = '16'
         ftype = 'DestinationAddrFilter'
         _str_ = ['%s:' % ftype, 'destination_addr = %s' % destination_addr]
-        _repr_ = '<%s \(dst_addr=%s\)>' % (ftype, destination_addr)
+        _repr_ = '<DA \(dst_addr=%s\)>' % (destination_addr)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -555,7 +567,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         short_message = 'Hello'
         ftype = 'ShortMessageFilter'
         _str_ = ['%s:' % ftype, 'short_message = %s' % short_message]
-        _repr_ = '<%s \(msg=%s\)>' % (ftype, short_message)
+        _repr_ = '<SM \(msg=%s\)>' % (short_message)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -582,7 +594,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         dateInterval = '%s;%s' % (leftBorder, rightBorder)
         ftype = 'DateIntervalFilter'
         _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
-        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
+        _repr_ = '<DI \(%s,%s\)>' % (leftBorder, rightBorder)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -609,7 +621,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         timeInterval = '%s;%s' % (leftBorder, rightBorder)
         ftype = 'TimeIntervalFilter'
         _str_ = ['%s:' % ftype, 'Left border = %s' % leftBorder, 'Right border = %s' % rightBorder]
-        _repr_ = '<%s \(%s,%s\)>' % (ftype, leftBorder, rightBorder)
+        _repr_ = '<TI \(%s,%s\)>' % (leftBorder, rightBorder)
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -637,7 +649,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         
         ftype = 'EvalPyFilter'
         _str_ = ['%s:' % ftype, '']
-        _repr_ = '<%s \(pyCode= ..\)>' % ftype
+        _repr_ = '<Ev \(pyCode= ..\)>'
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
@@ -677,7 +689,7 @@ else:
         ftype = 'EvalPyFilter'
         _str_ = ['%s:' % ftype]
         _str_.extend([y for y in (re.escape(x.strip()) for x in pyCode.splitlines()) if y])
-        _repr_ = '<%s \(pyCode=%s ..\)>' % (ftype, pyCode[:10].replace('\n', ''))
+        _repr_ = '<Ev \(pyCode=%s ..\)>' % (pyCode[:10].replace('\n', ''))
         
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},

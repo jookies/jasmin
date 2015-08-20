@@ -254,8 +254,14 @@ class MtRouterManager(PersistableManager):
                         filters += ', '
                     filters += repr(f)
 
-                # Prepare display for rate
-                rate = str('%.5f' % mtroute.getRate())
+                # Prepare display for rate:
+                # #295
+                # jcli: when route is not rated, 
+                # add some differentiation markup to get the user's attention on it
+                if mtroute.getRate() == 0:
+                    rate = '0 (!)'
+                else:
+                    rate = str('%.5f' % mtroute.getRate())
                 
                 self.protocol.sendData("#%s %s %s %s %s" % (str(order).ljust(5),
                                                                   str(mtroute.__class__.__name__).ljust(23),
