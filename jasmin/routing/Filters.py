@@ -90,7 +90,7 @@ class TransparentFilter(Filter):
     """This filter will match any routable
     """
     def __init__(self):
-        self._repr = '<%s>' % (self.__class__.__name__)
+        self._repr = '<T>'
         self._str = '%s' % (self.__class__.__name__)
         
     def match(self, routable):
@@ -104,7 +104,7 @@ class ConnectorFilter(Filter):
     def __init__(self, connector):
         Filter.__init__(self, connector = connector)
         
-        self._repr = '<%s (cid=%s)>' % (self.__class__.__name__, connector.cid)
+        self._repr = '<C (cid=%s)>' % (connector.cid)
         self._str = '%s:\ncid = %s' % (self.__class__.__name__, connector.cid)
 
     def match(self, routable):
@@ -121,7 +121,7 @@ class UserFilter(Filter):
     def __init__(self, user):
         Filter.__init__(self, user = user)
         
-        self._repr = '<%s (uid=%s)>' % (self.__class__.__name__, user.uid)
+        self._repr = '<U (uid=%s)>' % (user.uid)
         self._str = '%s:\nuid = %s' % (self.__class__.__name__, user.uid)
 
     def match(self, routable):
@@ -138,7 +138,7 @@ class GroupFilter(Filter):
     def __init__(self, group):
         Filter.__init__(self, group = group)
         
-        self._repr = '<%s (gid=%s)>' % (self.__class__.__name__, group.gid)
+        self._repr = '<G (gid=%s)>' % (group.gid)
         self._str = '%s:\ngid = %s' % (self.__class__.__name__, group.gid)
 
     def match(self, routable):
@@ -155,7 +155,7 @@ class SourceAddrFilter(Filter):
     def __init__(self, source_addr):
         Filter.__init__(self, source_addr = source_addr)
         
-        self._repr = '<%s (src_addr=%s)>' % (self.__class__.__name__, source_addr)
+        self._repr = '<SA (src_addr=%s)>' % (source_addr)
         self._str = '%s:\nsource_addr = %s' % (self.__class__.__name__, source_addr)
 
     def match(self, routable):
@@ -167,7 +167,7 @@ class DestinationAddrFilter(Filter):
     def __init__(self, destination_addr):
         Filter.__init__(self, destination_addr = destination_addr)
         
-        self._repr = '<%s (dst_addr=%s)>' % (self.__class__.__name__, destination_addr)
+        self._repr = '<DA (dst_addr=%s)>' % (destination_addr)
         self._str = '%s:\ndestination_addr = %s' % (self.__class__.__name__, destination_addr)
 
     def match(self, routable):
@@ -179,7 +179,7 @@ class ShortMessageFilter(Filter):
     def __init__(self, short_message):
         Filter.__init__(self, short_message = short_message)
         
-        self._repr = '<%s (msg=%s)>' % (self.__class__.__name__, short_message)
+        self._repr = '<SM (msg=%s)>' % (short_message)
         self._str = '%s:\nshort_message = %s' % (self.__class__.__name__, short_message)
 
     def match(self, routable):
@@ -191,7 +191,7 @@ class DateIntervalFilter(Filter):
     def __init__(self, dateInterval):
         Filter.__init__(self, dateInterval = dateInterval)
         
-        self._repr = '<%s (%s,%s)>' % (self.__class__.__name__, dateInterval[0], dateInterval[1])
+        self._repr = '<DI (%s,%s)>' % (dateInterval[0], dateInterval[1])
         self._str = '%s:\nLeft border = %s\nRight border = %s' % (self.__class__.__name__, dateInterval[0], dateInterval[1])
 
     def match(self, routable):
@@ -203,7 +203,7 @@ class TimeIntervalFilter(Filter):
     def __init__(self, timeInterval):
         Filter.__init__(self, timeInterval = timeInterval)
         
-        self._repr = '<%s (%s,%s)>' % (self.__class__.__name__, timeInterval[0], timeInterval[1])
+        self._repr = '<TI (%s,%s)>' % (timeInterval[0], timeInterval[1])
         self._str = '%s:\nLeft border = %s\nRight border = %s' % (self.__class__.__name__, timeInterval[0], timeInterval[1])
 
     def match(self, routable):
@@ -228,7 +228,7 @@ class EvalPyFilter(Filter):
     def __init__(self, pyCode):
         self.pyCode = pyCode
         
-        self._repr = '<%s (pyCode=%s ..)>' % (self.__class__.__name__, pyCode[:10].replace('\n', ''))
+        self._repr = '<Ev (pyCode=%s ..)>' % (pyCode[:10].replace('\n', ''))
         self._str = '%s:\n%s' % (self.__class__.__name__, pyCode)
 
     def match(self, routable):

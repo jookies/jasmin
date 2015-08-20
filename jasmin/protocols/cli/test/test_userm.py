@@ -57,6 +57,23 @@ class BasicTestCases(UserTestCases):
         extraCommands = [{'command': 'uid user_1'}]
         return self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
     
+    def test_add_with_empty_uid(self):
+        extraCommands = [{'command': 'uid  '},
+                         {'command': 'ok', 'expect': r'Error: User uid syntax is invalid'},]
+        return self.add_user(r'> ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+    def test_add_with_invalid_uid(self):
+        extraCommands = [{'command': 'uid With Space'},
+                         {'command': 'ok', 'expect': r'Error: User uid syntax is invalid'},]
+        return self.add_user(r'> ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+
+    def test_add_with_invalid_username(self):
+        extraCommands = [{'command': 'uid AnyUid'},
+                         {'command': 'username With Space'},
+                         {'command': 'password anything'},
+                         {'command': 'ok', 'expect': r'Error: User username syntax is invalid'},]
+        return self.add_user(r'> ', extraCommands, GID = 'AnyGroup')
+
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set User id \(uid\), group \(gid\), username and password before saving !'}]
         return self.add_user(r'> ', extraCommands)
