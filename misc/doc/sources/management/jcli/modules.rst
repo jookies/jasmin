@@ -581,9 +581,9 @@ Once the above MT Routes are added to **MTRoutingTable**, it is possible to list
 
    jcli : mtrouter -l
    #Order Type                    Rate    Connector ID(s)                     Filter(s)
-   #20    RandomRoundrobinMTRoute 0.00    smppc(smppcc_2), smppc(smppcc_3)    <T>
-   #10    StaticMTRoute           0.00    smppc(smppcc_1)                     <T>, <T>
-   #0     DefaultRoute            0.00    smppc(smppcc_default)
+   #20    RandomRoundrobinMTRoute 0 (!)   smppc(smppcc_2), smppc(smppcc_3)    <T>
+   #10    StaticMTRoute           0 (!)   smppc(smppcc_1)                     <T>, <T>
+   #0     DefaultRoute            0 (!)   smppc(smppcc_default)
    Total MT Routes: 3
 
 .. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and 
