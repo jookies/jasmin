@@ -637,6 +637,10 @@ class SMPPClientSMListener:
 
         self.log.debug('code_dlr_msgid: %s coded to %s' % (pdu.dlr['id'], ret))
         return ret
+
+    @defer.inlineCallbacks
+    def deliver_sm_event_interceptor(self, smpp, pdu):
+        yield self.deliver_sm_event(smpp, pdu)
     
     @defer.inlineCallbacks
     def deliver_sm_event(self, smpp, pdu, concatenated = False):

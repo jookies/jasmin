@@ -232,7 +232,7 @@ class SMPPClientManagerPB(pb.Avatar):
                                           self.redisClient)
 
         # Deliver_sm are sent to smListener's deliver_sm callback method
-        serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event
+        serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event_interceptor
 
         self.connectors.append({'id':           c.id,
                                 'config':       c,
