@@ -1,5 +1,5 @@
 """
-Config file handler for 'amqp-broker' section in jasmin.conf
+Config file handler for 'amqp-broker' section in jasmin.cfg
 """
 
 import logging

@@ -1,5 +1,5 @@
 """
-Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower'  section in jasmin.conf
+Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' section in jasmin.cfg
 """
 
 import logging

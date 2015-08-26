@@ -1,5 +1,5 @@
 """
-Config file handler for 'jcli' section in jasmin.conf
+Config file handler for 'jcli' section in jasmin.cfg
 """
 
 from jasmin.config.tools import ConfigFile

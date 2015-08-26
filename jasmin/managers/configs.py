@@ -1,5 +1,5 @@
 """
-Config file handlers for 'client-management' and 'sm-listener' section in jasmin.conf
+Config file handlers for 'client-management' and 'sm-listener' section in jasmin.cfg
 """
 
 import logging

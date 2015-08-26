@@ -1,5 +1,5 @@
 """
-Config file handler for 'redis-client' section in jasmin.conf
+Config file handler for 'redis-client' section in jasmin.cfg
 """
 
 from jasmin.config.tools import ConfigFile

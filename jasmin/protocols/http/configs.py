@@ -1,5 +1,5 @@
 """
-Config file handler for 'http-api' section in jasmin.conf
+Config file handler for 'http-api' section in jasmin.cfg
 """
 
 import logging
