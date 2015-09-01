@@ -95,3 +95,27 @@ class FilterError(SubmitSmEventHandlerErrorNoShutdown):
             self.status = pdu_types.CommandStatus.ESME_RSYSERR
 
         SubmitSmEventHandlerErrorNoShutdown.__init__(self, message)
+
+class InterceptorError(SMPPProtocolError):
+    """Errors raised when intercepting a submit_sm or deliver_sm pdu
+    Any error raising this exception will not cause connection shutdown
+    """
+    def __init__(self, code, message = None):
+        if type(code) is int and code > 0 and code in constants.command_status_value_map:
+            self.status = getattr(pdu_types.CommandStatus, constants.command_status_value_map[code]['name'])
+        else:
+            # This is a fallback status
+            # Error code must be numeric, not zero and must be a known one (in command_status_value_map)
+            # Otherwise:
+            self.status = pdu_types.CommandStatus.ESME_RSYSERR
+
+        if message is None:
+            SMPPProtocolError.__init__(self, "%s" % self.getStatusDescription(), self.status)
+        else:
+            SMPPProtocolError.__init__(self, message, self.status)
+
+class DeliverSmInterceptionError(InterceptorError):
+    pass
+
+class SubmitSmInterceptionError(InterceptorError):
+    pass
