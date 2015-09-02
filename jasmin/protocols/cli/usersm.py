@@ -371,6 +371,9 @@ class UsersManager(PersistableManager):
                 sms_count = user.mt_credential.getQuota('submit_sm_count')
                 if sms_count is None:
                     sms_count = 'ND'
+                if balance == 'ND' and sms_count == 'ND':
+                    balance = 'ND (!)'
+                    sms_count = 'ND (!)'
                 http_throughput = user.mt_credential.getQuota('http_throughput')
                 if http_throughput is None:
                     http_throughput = 'ND'

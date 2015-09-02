@@ -92,7 +92,7 @@ class BasicTestCases(UserTestCases):
         self.add_user('jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
 
         expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
-                        '#user_4           AnyGroup         AnyUsername      ND      ND     ND/ND', 
+                        '#user_4           AnyGroup         AnyUsername      ND \(\!\)  ND \(\!\) ND/ND', 
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -113,15 +113,15 @@ class BasicTestCases(UserTestCases):
 
         # List all users
         expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
-                        '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)),
-                        '#%s %s %s %s %s %s' % (uid2.ljust(16), gid2.ljust(16), username2.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)),
+                        '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
+                        '#%s %s %s %s %s %s' % (uid2.ljust(16), gid2.ljust(16), username2.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users: 2']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
     
         # List gid1 only users
         expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
-                        '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)),
+                        '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users in group \[%s\]\: 1' % gid1]
         commands = [{'command': 'user -l %s' % gid1, 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -203,7 +203,7 @@ class BasicTestCases(UserTestCases):
         
         # List
         expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), gid.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)), 
+                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), gid.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -222,7 +222,7 @@ class BasicTestCases(UserTestCases):
 
         # List again
         expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), newGID.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)), 
+                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), newGID.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -299,7 +299,7 @@ class BasicTestCases(UserTestCases):
     
         # List
         expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
-                        '#%s AnyGroup         AnyUsername      %s %s %s' % (uid.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6), 'ND/ND'.ljust(8)), 
+                        '#%s AnyGroup         AnyUsername      %s %s %s' % (uid.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)), 
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -327,8 +327,8 @@ class BasicTestCases(UserTestCases):
 
         # List
         expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s %s %s %s' % (uid1.ljust(16), gid.ljust(16), username1.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)), 
-                        '#%s %s %s %s %s' % (uid2.ljust(16), gid.ljust(16), username2.ljust(16), 'ND'.ljust(7), 'ND'.ljust(6)), 
+                        '#%s %s %s %s %s' % (uid1.ljust(16), gid.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
+                        '#%s %s %s %s %s' % (uid2.ljust(16), gid.ljust(16), username2.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
                         'Total Users: 2']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -424,6 +424,9 @@ class MtMessagingCredentialTestCases(UserTestCases):
         self._test(r'jcli : ', commands)
 
         # List and assert
+        if assertBalance == 'ND' and assertSmsCount == 'ND':
+            assertBalance = 'ND \(\!\) '
+            assertSmsCount = 'ND \(\!\)'
         expectedList = ['#.*', 
                         '#%s %s %s %s %s' % (uid.ljust(16), gid.ljust(16), username.ljust(16), assertBalance.ljust(7), assertSmsCount.ljust(6)),
                         ]
