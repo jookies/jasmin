@@ -21,6 +21,8 @@ from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.cli.configs import JCliConfig
+from jasmin.interceptor.proxies import InterceptorPBProxy
+from jasmin.interceptor.configs import InterceptorPBClientConfig
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from jasmin.tools.cred.portal import JasminPBRealm
@@ -38,17 +40,16 @@ class Options(usage.Options):
          'jCli username used to load configuration profile on startup'],
         ['password',                'p', None, 
          'jCli password used to load configuration profile on startup'],
-        ['enable-smpp-server',      None, True, 
-         'Start SMPP Server service'],
-        ['enable-dlr-thrower',      None, True, 
-         'Start DLR Thrower service'],
-        ['enable-deliver-thrower',  None, True, 
-         'Start DeliverSm Thrower service'],
-        ['enable-http-api',         None, True, 
-         'Start HTTP API'],
-        ['enable-jcli',             None, True, 
-         'Start jCli console'],
         ]
+
+    optFlags = [
+        ['enable-smpp-server',        None, 'Start SMPP Server service'],
+        ['enable-dlr-thrower',        None, 'Start DLR Thrower service'],
+        ['enable-deliver-thrower',    None, 'Start DeliverSm Thrower service'],
+        ['enable-http-api',           None, 'Start HTTP API'],
+        ['enable-jcli',               None, 'Start jCli console'],
+        ['enable-interceptor-client', None, 'Start Interceptor client'],
+    ]
 
 class JasminDaemon:
     
@@ -237,30 +238,62 @@ class JasminDaemon:
         "Stop jCli console server"
         return self.components['jcli-server'].stopListening()
 
+    def startInterceptorPBClient(self):
+        "Start Interceptor client"
+
+        InterceptorPBClientConfigInstance = InterceptorPBClientConfig(self.options['config'])
+        self.components['interceptor-pb-client'] = InterceptorPBProxy()
+
+        return self.components['interceptor-pb-client'].connect(
+            InterceptorPBClientConfigInstance.host, 
+            InterceptorPBClientConfigInstance.port, 
+            InterceptorPBClientConfigInstance.username, 
+            InterceptorPBClientConfigInstance.password
+        )
+
+    def stopInterceptorPBClient(self):
+        "Stop Interceptor client"
+
+        if self.components['interceptor-pb-client'].isConnected:
+            return self.components['interceptor-pb-client'].disconnect()
+
     @defer.inlineCallbacks
     def start(self):
-        syslog.syslog(syslog.LOG_LOCAL0, "Starting Jasmin Daemon ...")
-        
+        syslog.syslog(syslog.LOG_INFO, "Starting Jasmin Daemon ...")
+
+        # Requirements check begin:
+        try:
+            ########################################################
+            # [optional] Start Interceptor client
+            if (self.options['enable-interceptor-client'] == True or 
+                (type(self.options['enable-interceptor-client']) == str and 
+                 self.options['enable-interceptor-client'].lower() == 'true')):
+                yield self.startInterceptorPBClient()
+                syslog.syslog(syslog.LOG_INFO, "  Interceptor client Started.")
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot connect to interceptor: %s" % e)
+        # Requirements check end.
+
         ########################################################
         # Connect to redis server
         self.startRedisClient()
-        syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient started.")
+        syslog.syslog(syslog.LOG_INFO, "  RedisClient started.")
 
         ########################################################
         # Start AMQP Broker
         self.startAMQPBrokerService()
         yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
-        syslog.syslog(syslog.LOG_LOCAL0, "  AMQP Broker connected.")
+        syslog.syslog(syslog.LOG_INFO, "  AMQP Broker connected.")
 
         ########################################################
         # Start SMPP Client connector manager and add rc
         self.startSMPPClientManagerPBService()
-        syslog.syslog(syslog.LOG_LOCAL0, "  SMPPClientManagerPB Started.")
+        syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
 
         ########################################################
         # Start Router PB server
         yield self.startRouterPBService()
-        syslog.syslog(syslog.LOG_LOCAL0, "  RouterPB Started.")
+        syslog.syslog(syslog.LOG_INFO, "  RouterPB Started.")
 
         ########################################################
         # [optional] Start SMPP Server
@@ -268,7 +301,7 @@ class JasminDaemon:
             (type(self.options['enable-smpp-server']) == str and 
              self.options['enable-smpp-server'].lower() == 'true')):
             self.startSMPPServerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  SMPPServer Started.")
+            syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
         
         ########################################################
         # [optional] Start deliverSmThrower
@@ -276,7 +309,7 @@ class JasminDaemon:
             (type(self.options['enable-deliver-thrower']) == str and 
              self.options['enable-deliver-thrower'].lower() == 'true')):
             yield self.startdeliverSmThrowerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  deliverSmThrower Started.")
+            syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower Started.")
         
         ########################################################
         # [optional] Start DLRThrower
@@ -284,7 +317,7 @@ class JasminDaemon:
             (type(self.options['enable-dlr-thrower']) == str and 
              self.options['enable-dlr-thrower'].lower() == 'true')):
             yield self.startDLRThrowerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  DLRThrower Started.")
+            syslog.syslog(syslog.LOG_INFO, "  DLRThrower Started.")
         
         ########################################################
         # [optional] Start HTTP Api
@@ -292,7 +325,7 @@ class JasminDaemon:
             (type(self.options['enable-http-api']) == str and 
              self.options['enable-http-api'].lower() == 'true')):
             self.startHTTPApiService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  HTTPApi Started.")
+            syslog.syslog(syslog.LOG_INFO, "  HTTPApi Started.")
         
         ########################################################
         # [optional] Start JCli server
@@ -300,52 +333,57 @@ class JasminDaemon:
             (type(self.options['enable-jcli']) == str and 
              self.options['enable-jcli'].lower() == 'true')):
             self.startJCliService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  jCli Started.")
+            syslog.syslog(syslog.LOG_INFO, "  jCli Started.")
     
     @defer.inlineCallbacks
     def stop(self):
-        syslog.syslog(syslog.LOG_LOCAL0, "Stopping Jasmin Daemon ...")
+        syslog.syslog(syslog.LOG_INFO, "Stopping Jasmin Daemon ...")
         
         if 'jcli-server' in self.components:
             yield self.stopJCliService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  jCli stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  jCli stopped.")
         
         if 'http-api-server' in self.components:
             yield self.stopHTTPApiService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  HTTPApi stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  HTTPApi stopped.")
 
         if 'dlr-thrower' in self.components:
             yield self.stopDLRThrowerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  DLRThrower stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  DLRThrower stopped.")
 
         if 'deliversm-thrower' in self.components:
             yield self.stopdeliverSmThrowerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  deliverSmThrower stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower stopped.")
         
         if 'smpp-server' in self.components:
             yield self.stopSMPPServerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  SMPPServer stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  SMPPServer stopped.")
 
         if 'router-pb-server' in self.components:
             yield self.stopRouterPBService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  RouterPB stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  RouterPB stopped.")
 
         if 'smppcm-pb-server' in self.components:
             yield self.stopSMPPClientManagerPBService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  SMPPClientManagerPB stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB stopped.")
 
         if 'amqp-broker-client' in self.components:
             yield self.stopAMQPBrokerService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  AMQP Broker disconnected.")
+            syslog.syslog(syslog.LOG_INFO, "  AMQP Broker disconnected.")
 
         if 'rc' in self.components:
             yield self.stopRedisClient()
-            syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  RedisClient stopped.")
+
+        # Shutdown requirements:
+        if 'interceptor-pb-client' in self.components:
+            yield self.stopInterceptorPBClient()
+            syslog.syslog(syslog.LOG_INFO, "  Interceptor client stopped.")
 
         reactor.stop()
     
     def sighandler_stop(self, signum, frame):
-        syslog.syslog(syslog.LOG_LOCAL0, "Received signal to stop Jasmin Daemon")
+        syslog.syslog(syslog.LOG_INFO, "Received signal to stop Jasmin Daemon")
         
         return self.stop()
 

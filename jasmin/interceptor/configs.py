@@ -24,3 +24,15 @@ class InterceptorPBConfig(ConfigFile):
         self.log_file = self._get('interceptor', 'log_file', '/var/log/jasmin/interceptor.log')
         self.log_format = self._get('interceptor', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+class InterceptorPBClientConfig(ConfigFile):
+    "Config handler for 'interceptor' section"
+
+    def __init__(self, config_file = None):
+        ConfigFile.__init__(self, config_file)
+        
+        self.host = self._get('interceptor-client', 'host', '127.0.0.1')
+        self.port = self._getint('interceptor-client', 'port', 8987)
+        
+        self.username = self._get('interceptor-client', 'username', 'iadmin')
+        self.password = self._get('interceptor-client', 'password', 'ipwd')
