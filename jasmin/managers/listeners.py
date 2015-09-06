@@ -642,6 +642,8 @@ class SMPPClientSMListener:
 
     @defer.inlineCallbacks
     def deliver_sm_event_interceptor(self, smpp, pdu):
+        self.log.debug('Intercepting deliver_sm event in smppc %s' % self.SMPPClientFactory.config.id)
+
         print 'client', self.interceptor
         yield self.deliver_sm_event(smpp, pdu)
     

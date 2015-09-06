@@ -379,12 +379,14 @@ class Rate(Resource):
             # Update SubmitSmPDU by default values from user MtMessagingCredential
             SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
 
+            # Prepare for interception than routing
+            routable = RoutableSubmitSm(SubmitSmPDU, user)
+
             # Interception
             print 'http', self.interceptor
 
             # Routing
             routedConnector = None # init
-            routable = RoutableSubmitSm(SubmitSmPDU, user)
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (user, SubmitSmPDU))

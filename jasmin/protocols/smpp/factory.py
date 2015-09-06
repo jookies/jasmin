@@ -229,19 +229,8 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log.info('Added Interceptor to SMPPServerFactory')
 
     def submit_sm_event_interceptor(self, system_id, *args):
-        print 'server', self.interceptor
-
-        return self.submit_sm_event(system_id, *args)
-
-    def submit_sm_event(self, system_id, *args):
-        """This event handler will deliver the submit_sm to the right smppc connector.
-        Note that Jasmin deliver submit_sm messages like this:
-        - from httpapi to smppc (handled in jasmin.protocols.http.server)
-        - from smpps to smppc (this event handler)
-
-        Note: This event handler MUST behave exactly like jasmin.protocols.http.server.Send.render
-        """
-        self.log.debug('Handling submit_sm event for system_id: %s' % system_id)
+        "Intercept submit_sm befor handing it to self.submit_sm_event"
+        self.log.debug('Intercepting submit_sm event for system_id: %s' % system_id)
 
         # Args validation
         if len(args) != 2:
@@ -279,6 +268,21 @@ class SMPPServerFactory(_SMPPServerFactory):
         if self.RouterPB is None:
             self.log.error('(submit_sm_event/%s) RouterPB not set: submit_sm will not be routed' % system_id)
             return
+
+        # Interception
+        print 'server', self.interceptor
+
+        return self.submit_sm_event(system_id, *args)
+
+    def submit_sm_event(self, system_id, *args):
+        """This event handler will deliver the submit_sm to the right smppc connector.
+        Note that Jasmin deliver submit_sm messages like this:
+        - from httpapi to smppc (handled in jasmin.protocols.http.server)
+        - from smpps to smppc (this event handler)
+
+        Note: This event handler MUST behave exactly like jasmin.protocols.http.server.Send.render
+        """
+        self.log.debug('Handling submit_sm event for system_id: %s' % system_id)
 
         # Routing
         routedConnector = None # init
