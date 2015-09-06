@@ -33,7 +33,7 @@ class JasminPBProxy:
     pb = None
     isConnected = False
     pickleProtocol = 2
-    
+
     @defer.inlineCallbacks
     def connect(self, host, port, username = None, password = None):
         # Launch a client
@@ -54,7 +54,10 @@ class JasminPBProxy:
     
     def disconnect(self):
         self.isConnected = False
-        return self.pbClientFactory.disconnect()
+        
+        # .connect has been called ?
+        if hasattr(self, 'pbClientFactory'):
+            return self.pbClientFactory.disconnect()
     
     def _connected(self, rootObj):
         if isinstance(rootObj, RemoteReference):
