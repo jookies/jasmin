@@ -89,7 +89,9 @@ class RouterPBTestCase(unittest.TestCase):
     
     @defer.inlineCallbacks
     def tearDown(self):
-        yield self.disconnect()
+        if self.isConnected:
+            yield self.disconnect()
+        
         yield self.PBServer.stopListening()
         self.pbRoot_f.cancelPersistenceTimer()
 
