@@ -142,6 +142,10 @@ class JasminDaemon:
         # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
         self.components['smppcm-pb-factory'].addAmqpBroker(self.components['amqp-broker-factory'])
         self.components['smppcm-pb-factory'].addRedisClient(self.components['rc'])
+
+        # Add interceptor if enabled:
+        if 'interceptor-pb-client' in self.components:
+            self.components['smppcm-pb-factory'].addInterceptor(self.components['interceptor-pb-client'])
     
     def stopSMPPClientManagerPBService(self):
         "Stop SMPP Client Manager PB server"
@@ -174,6 +178,10 @@ class JasminDaemon:
             self.components['smpp-server-factory'],
             interface = SMPPServerConfigInstance.bind
             )
+
+        # Add interceptor if enabled:
+        if 'interceptor-pb-client' in self.components:
+            self.components['smpp-server-factory'].addInterceptor(self.components['interceptor-pb-client'])
 
     def stopSMPPServerService(self):
         "Stop SMPP Server"

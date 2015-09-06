@@ -63,12 +63,14 @@ class SMPPClientSMListener:
     SubmitSm, DeliverSm and SubmitSm PDUs for a given SMPP connection
     '''
     
-    def __init__(self, SMPPClientSMListenerConfig, SMPPClientFactory, amqpBroker, redisClient):
+    def __init__(self, SMPPClientSMListenerConfig, 
+            SMPPClientFactory, amqpBroker, redisClient, interceptor = None):
         self.config = SMPPClientSMListenerConfig
         self.SMPPClientFactory = SMPPClientFactory
         self.SMPPOperationFactory = SMPPOperationFactory(self.SMPPClientFactory.config)
         self.amqpBroker = amqpBroker
         self.redisClient = redisClient
+        self.interceptor = interceptor
         self.submit_sm_q = None
         self.qos_last_submit_sm_at = None
         self.rejectTimers = {}
@@ -640,6 +642,7 @@ class SMPPClientSMListener:
 
     @defer.inlineCallbacks
     def deliver_sm_event_interceptor(self, smpp, pdu):
+        print 'client', self.interceptor
         yield self.deliver_sm_event(smpp, pdu)
     
     @defer.inlineCallbacks

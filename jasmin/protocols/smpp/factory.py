@@ -204,6 +204,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         self._auth_portal = auth_portal
         self.RouterPB = RouterPB
         self.SMPPClientManagerPB = SMPPClientManagerPB
+        self.interceptor = None
 
         # Setup statistics collector
         self.stats = SMPPServerStatsCollector().get(cid = self.config.id)
@@ -222,7 +223,14 @@ class SMPPServerFactory(_SMPPServerFactory):
 
         self.msgHandler = self.submit_sm_event_interceptor
 
+    def addInterceptor(self, interceptor):
+        self.interceptor = interceptor
+
+        self.log.info('Added Interceptor to SMPPServerFactory')
+
     def submit_sm_event_interceptor(self, system_id, *args):
+        print 'client', self.interceptor
+
         return self.submit_sm_event(system_id, *args)
 
     def submit_sm_event(self, system_id, *args):

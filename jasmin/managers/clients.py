@@ -27,6 +27,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.avatar = None
         self.redisClient = None
         self.amqpBroker = None
+        self.interceptor = None
         self.connectors = []
         self.declared_queues = []
         self.pickleProtocol = 2
@@ -71,6 +72,11 @@ class SMPPClientManagerPB(pb.Avatar):
         self.redisClient = redisClient
 
         self.log.info('Added Redis Client to SMPPClientManagerPB')
+
+    def addInterceptor(self, interceptor):
+        self.interceptor = interceptor
+
+        self.log.info('Added Interceptor to SMPPClientManagerPB')
 
     def getConnector(self, cid):
         for c in self.connectors:
@@ -226,10 +232,14 @@ class SMPPClientManagerPB(pb.Avatar):
         serviceManager = SMPPClientService(c, self.config)        
 
         # Instanciate a SM listener
-        smListener = SMPPClientSMListener(SMPPClientSMListenerConfig(self.config.config_file), 
-                                          serviceManager.SMPPClientFactory, 
-                                          self.amqpBroker, 
-                                          self.redisClient)
+        smListener = SMPPClientSMListener(
+                                          SMPPClientSMListenerConfig = SMPPClientSMListenerConfig(
+                                            self.config.config_file
+                                          ), 
+                                          SMPPClientFactory = serviceManager.SMPPClientFactory, 
+                                          amqpBroker = self.amqpBroker, 
+                                          redisClient = self.redisClient,
+                                          interceptor = self.interceptor)
 
         # Deliver_sm are sent to smListener's deliver_sm callback method
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event_interceptor

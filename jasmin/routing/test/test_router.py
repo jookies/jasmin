@@ -89,7 +89,7 @@ class RouterPBTestCase(unittest.TestCase):
     
     @defer.inlineCallbacks
     def tearDown(self):
-        if self.isConnected:
+        if hasattr(self, 'disconnect'):
             yield self.disconnect()
         
         yield self.PBServer.stopListening()
@@ -199,7 +199,7 @@ class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
-            
+        
         self.assertFalse(self.isConnected)
 
     @defer.inlineCallbacks
