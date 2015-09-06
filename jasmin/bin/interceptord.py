@@ -56,25 +56,25 @@ class InterceptorDaemon:
 
     @defer.inlineCallbacks
     def start(self):
-        syslog.syslog(syslog.LOG_LOCAL0, "Starting InterceptorPB Daemon ...")
+        syslog.syslog(syslog.LOG_INFO, "Starting InterceptorPB Daemon ...")
         
         ########################################################
         # Start Interceptor PB server
         yield self.startInterceptorPBService()
-        syslog.syslog(syslog.LOG_LOCAL0, "  Interceptor Started.")
+        syslog.syslog(syslog.LOG_INFO, "  Interceptor Started.")
     
     @defer.inlineCallbacks
     def stop(self):
-        syslog.syslog(syslog.LOG_LOCAL0, "Stopping Interceptor Daemon ...")
+        syslog.syslog(syslog.LOG_INFO, "Stopping Interceptor Daemon ...")
         
         if 'interceptor-pb-server' in self.components:
             yield self.stopInterceptorPBService()
-            syslog.syslog(syslog.LOG_LOCAL0, "  InterceptorPB stopped.")
+            syslog.syslog(syslog.LOG_INFO, "  InterceptorPB stopped.")
 
         reactor.stop()
     
     def sighandler_stop(self, signum, frame):
-        syslog.syslog(syslog.LOG_LOCAL0, "Received signal to stop Interceptor Daemon")
+        syslog.syslog(syslog.LOG_INFO, "Received signal to stop Interceptor Daemon")
         
         return self.stop()
 

@@ -223,7 +223,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.msgHandler = self.submit_sm_event_interceptor
 
     def submit_sm_event_interceptor(self, system_id, *args):
-        self.submit_sm_event(system_id, *args)
+        return self.submit_sm_event(system_id, *args)
 
     def submit_sm_event(self, system_id, *args):
         """This event handler will deliver the submit_sm to the right smppc connector.
