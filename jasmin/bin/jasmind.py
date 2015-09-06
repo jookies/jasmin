@@ -43,11 +43,11 @@ class Options(usage.Options):
         ]
 
     optFlags = [
-        ['enable-smpp-server',        None, 'Start SMPP Server service'],
-        ['enable-dlr-thrower',        None, 'Start DLR Thrower service'],
-        ['enable-deliver-thrower',    None, 'Start DeliverSm Thrower service'],
-        ['enable-http-api',           None, 'Start HTTP API'],
-        ['enable-jcli',               None, 'Start jCli console'],
+        ['disable-smpp-server',       None, 'Do not start SMPP Server service'],
+        ['disable-dlr-thrower',       None, 'Do not DLR Thrower service'],
+        ['disable-deliver-thrower',   None, 'Do not DeliverSm Thrower service'],
+        ['disable-http-api',          None, 'Do not HTTP API'],
+        ['disable-jcli',              None, 'Do not jCli console'],
         ['enable-interceptor-client', None, 'Start Interceptor client'],
     ]
 
@@ -221,10 +221,22 @@ class JasminDaemon:
         "Start HTTP Api"
         
         httpApiConfigInstance = HTTPApiConfig(self.options['config'])
-        httpApi_f = HTTPApi(self.components['router-pb-factory'], self.components['smppcm-pb-factory'], httpApiConfigInstance)
+
+        # Add interceptor if enabled:
+        if 'interceptor-pb-client' in self.components:
+            interceptor = self.components['interceptor-pb-client']
+        else:
+            interceptor = None
+
+        self.components['http-api-factory'] = HTTPApi(
+            self.components['router-pb-factory'], 
+            self.components['smppcm-pb-factory'], 
+            httpApiConfigInstance,
+            interceptor
+        )
         
         self.components['http-api-server'] = reactor.listenTCP(httpApiConfigInstance.port, 
-                                     server.Site(httpApi_f, 
+                                     server.Site(self.components['http-api-factory'], 
                                                  logPath = httpApiConfigInstance.access_log
                                                  ), 
                                      interface = httpApiConfigInstance.bind
@@ -273,9 +285,7 @@ class JasminDaemon:
         try:
             ########################################################
             # [optional] Start Interceptor client
-            if (self.options['enable-interceptor-client'] == True or 
-                (type(self.options['enable-interceptor-client']) == str and 
-                 self.options['enable-interceptor-client'].lower() == 'true')):
+            if self.options['enable-interceptor-client']:
                 yield self.startInterceptorPBClient()
                 syslog.syslog(syslog.LOG_INFO, "  Interceptor client Started.")
         except Exception, e:
@@ -305,41 +315,31 @@ class JasminDaemon:
 
         ########################################################
         # [optional] Start SMPP Server
-        if (self.options['enable-smpp-server'] == True or 
-            (type(self.options['enable-smpp-server']) == str and 
-             self.options['enable-smpp-server'].lower() == 'true')):
+        if not self.options['disable-smpp-server']:
             self.startSMPPServerService()
             syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
         
         ########################################################
         # [optional] Start deliverSmThrower
-        if (self.options['enable-deliver-thrower'] == True or 
-            (type(self.options['enable-deliver-thrower']) == str and 
-             self.options['enable-deliver-thrower'].lower() == 'true')):
+        if not self.options['disable-deliver-thrower']:
             yield self.startdeliverSmThrowerService()
             syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower Started.")
         
         ########################################################
         # [optional] Start DLRThrower
-        if (self.options['enable-dlr-thrower'] == True or 
-            (type(self.options['enable-dlr-thrower']) == str and 
-             self.options['enable-dlr-thrower'].lower() == 'true')):
+        if not self.options['disable-dlr-thrower']:
             yield self.startDLRThrowerService()
             syslog.syslog(syslog.LOG_INFO, "  DLRThrower Started.")
         
         ########################################################
         # [optional] Start HTTP Api
-        if (self.options['enable-http-api'] == True or 
-            (type(self.options['enable-http-api']) == str and 
-             self.options['enable-http-api'].lower() == 'true')):
+        if not self.options['disable-http-api']:
             self.startHTTPApiService()
             syslog.syslog(syslog.LOG_INFO, "  HTTPApi Started.")
         
         ########################################################
         # [optional] Start JCli server
-        if (self.options['enable-jcli'] == True or 
-            (type(self.options['enable-jcli']) == str and 
-             self.options['enable-jcli'].lower() == 'true')):
+        if not self.options['disable-jcli']:
             self.startJCliService()
             syslog.syslog(syslog.LOG_INFO, "  jCli Started.")
     

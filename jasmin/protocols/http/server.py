@@ -22,13 +22,14 @@ LOG_CATEGORY = "jasmin-http-api"
 class Send(Resource):
     isleaf = True
 
-    def __init__(self, HTTPApiConfig, RouterPB, SMPPClientManagerPB, stats, log):
+    def __init__(self, HTTPApiConfig, RouterPB, SMPPClientManagerPB, stats, log, interceptor):
         Resource.__init__(self)
         
         self.SMPPClientManagerPB = SMPPClientManagerPB
         self.RouterPB = RouterPB
-        self.log = log
         self.stats = stats
+        self.log = log
+        self.interceptor = interceptor
 
         # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
         self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
@@ -133,6 +134,9 @@ class Send(Resource):
             
             # Update SubmitSmPDU by default values from user MtMessagingCredential
             SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
+
+            # Interception
+            print 'http', self.interceptor
 
             # Routing
             routedConnector = None # init
@@ -288,12 +292,13 @@ class Send(Resource):
 class Rate(Resource):
     isleaf = True
 
-    def __init__(self, HTTPApiConfig, RouterPB, stats, log):
+    def __init__(self, HTTPApiConfig, RouterPB, stats, log, interceptor):
         Resource.__init__(self)
         
         self.RouterPB = RouterPB
-        self.log = log
         self.stats = stats
+        self.log = log
+        self.interceptor = interceptor
 
         # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
         self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
@@ -373,6 +378,9 @@ class Rate(Resource):
             
             # Update SubmitSmPDU by default values from user MtMessagingCredential
             SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
+
+            # Interception
+            print 'http', self.interceptor
 
             # Routing
             routedConnector = None # init
@@ -520,34 +528,30 @@ class Ping(Resource):
 
 class HTTPApi(Resource):
     
-    def __init__(self, RouterPB, SMPPClientManagerPB, config):
+    def __init__(self, RouterPB, SMPPClientManagerPB, config, interceptor = None):
         Resource.__init__(self)
-        
-        self.config = config
-        self.SMPPClientManagerPB = SMPPClientManagerPB
-        self.RouterPB = RouterPB
 
         # Setup stats collector
-        self.stats = HttpAPIStatsCollector().get()
-        self.stats.set('created_at', datetime.now())
+        stats = HttpAPIStatsCollector().get()
+        stats.set('created_at', datetime.now())
 
         # Set up a dedicated logger
-        self.log = logging.getLogger(LOG_CATEGORY)
-        if len(self.log.handlers) != 1:
-            self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file, 
-                when = self.config.log_rotate)
+        log = logging.getLogger(LOG_CATEGORY)
+        if len(log.handlers) != 1:
+            log.setLevel(config.log_level)
+            handler = TimedRotatingFileHandler(filename=config.log_file, 
+                when = config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
-            self.log.addHandler(handler)
-            self.log.propagate = False
+            log.addHandler(handler)
+            log.propagate = False
 
         # Set http url routings
-        self.log.debug("Setting http url routing for /send")
-        self.putChild('send', Send(self.config, self.RouterPB, self.SMPPClientManagerPB, self.stats, self.log))
-        self.log.debug("Setting http url routing for /rate")
-        self.putChild('rate', Rate(self.config, self.RouterPB, self.stats, self.log))
-        self.log.debug("Setting http url routing for /balance")
-        self.putChild('balance', Balance(self.RouterPB, self.stats, self.log))
-        self.log.debug("Setting http url routing for /ping")
-        self.putChild('ping', Ping(self.log))
+        log.debug("Setting http url routing for /send")
+        self.putChild('send', Send(config, RouterPB, SMPPClientManagerPB, stats, log, interceptor))
+        log.debug("Setting http url routing for /rate")
+        self.putChild('rate', Rate(config, RouterPB, stats, log, interceptor))
+        log.debug("Setting http url routing for /balance")
+        self.putChild('balance', Balance(RouterPB, stats, log))
+        log.debug("Setting http url routing for /ping")
+        self.putChild('ping', Ping(log))

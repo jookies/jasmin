@@ -229,7 +229,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log.info('Added Interceptor to SMPPServerFactory')
 
     def submit_sm_event_interceptor(self, system_id, *args):
-        print 'client', self.interceptor
+        print 'server', self.interceptor
 
         return self.submit_sm_event(system_id, *args)
 
