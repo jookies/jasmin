@@ -284,6 +284,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         """
         self.log.debug('Handling submit_sm event for system_id: %s' % system_id)
 
+        proto = args[0]
+        user = proto.user
+        SubmitSmPDU = args[1]
+
         # Routing
         routedConnector = None # init
         routable = RoutableSubmitSm(SubmitSmPDU, user)
