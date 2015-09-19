@@ -39,8 +39,8 @@ class RedisTestCase(TestCase):
         self.redisClient = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
         # Authenticate and select db
         if RedisForJasminConfigInstance.password is not None:
-            self.redisClient.auth(RedisForJasminConfigInstance.password)
-            self.redisClient.select(RedisForJasminConfigInstance.dbid)
+            yield self.redisClient.auth(RedisForJasminConfigInstance.password)
+            yield self.redisClient.select(RedisForJasminConfigInstance.dbid)
         yield self.redisClient._connected
         
     @defer.inlineCallbacks
