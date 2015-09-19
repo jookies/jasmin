@@ -60,8 +60,8 @@ class Send(Resource):
             fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
                       'from'        :{'optional': True},
                       'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
@@ -325,8 +325,8 @@ class Rate(Resource):
             fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')}, 
                       'from'        :{'optional': True},
                       'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more through HttpAPICredentialValidator
                       'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more through HttpAPICredentialValidator
@@ -453,8 +453,8 @@ class Balance(Resource):
 
         try:
             # Validation
-            fields = {'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,9}$')},
+            fields = {'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,8}$')},
                       }
                         
             # Make validation

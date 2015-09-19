@@ -122,7 +122,7 @@ Installation
 
 The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pip>`_::
 
-    sudo pip install --pre jasmin
+    sudo pip install jasmin
 
 Once Jasmin installed, execute the following steps to start Jasmin as a system service::
 
