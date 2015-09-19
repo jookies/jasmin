@@ -78,7 +78,7 @@ def ConnectionWithConfiguration(_RedisForJasminConfig):
         dbid = _RedisForJasminConfig.dbid
     
     return makeConnection(_RedisForJasminConfig.host, _RedisForJasminConfig.port, dbid, 
-                          _RedisForJasminConfig.poolsize, True, True, _RedisForJasminConfig)
+                          _RedisForJasminConfig.poolsize, True, False, _RedisForJasminConfig)
 
 @defer.inlineCallbacks
 def main():

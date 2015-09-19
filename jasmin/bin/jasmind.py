@@ -63,8 +63,8 @@ class JasminDaemon:
         self.components['rc'] = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
         # Authenticate and select db
         if RedisForJasminConfigInstance.password is not None:
-            self.components['rc'].auth(RedisForJasminConfigInstance.password)
-            self.components['rc'].select(RedisForJasminConfigInstance.dbid)
+            yield self.components['rc'].auth(RedisForJasminConfigInstance.password)
+            yield self.components['rc'].select(RedisForJasminConfigInstance.dbid)
 
     def stopRedisClient(self):
         "Stop AMQP Broker"
@@ -243,7 +243,7 @@ class JasminDaemon:
         
         ########################################################
         # Connect to redis server
-        self.startRedisClient()
+        yield self.startRedisClient()
         syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient started.")
 
         ########################################################
