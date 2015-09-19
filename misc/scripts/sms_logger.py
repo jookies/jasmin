@@ -52,7 +52,7 @@ def gotConnection(conn, username, password):
     yield chan.queue_bind(queue="sms_logger_queue", exchange="messaging", routing_key='submit.sm.*')
     yield chan.queue_bind(queue="sms_logger_queue", exchange="messaging", routing_key='submit.sm.resp.*')
 
-    yield chan.basic_consume(queue='sms_logger_queue', no_ack=True, consumer_tag="sms_logger")
+    yield chan.basic_consume(queue='sms_logger_queue', no_ack=False, consumer_tag="sms_logger")
     queue = yield conn.queue("sms_logger")
 
     #Connection parameters - Fill this info with your MySQL server connection parameters
@@ -72,21 +72,25 @@ def gotConnection(conn, username, password):
         props = msg.content.properties
         pdu = pickle.loads(msg.content.body)
 
-        if msg.routing_key[:15] == 'submit.sm.resp.' and props['message-id'] in q:
-            msg = q[props['message-id']]
+        if msg.routing_key[:15] == 'submit.sm.resp.':
+            if props['message-id'] not in q:
+                print 'Got resp of an unknown submit_sm: %s' % props['message-id']
+                continue
 
-            if msg['source_addr'] is None:
-                msg['source_addr'] = ''
+            qmsg = q[props['message-id']]
+
+            if qmsg['source_addr'] is None:
+                qmsg['source_addr'] = ''
 
             cursor.execute("""INSERT INTO submit_log (msgid, source_addr, destination_addr, short_message, status, uid, created_at) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s);
                 """, (
                         props['message-id'],
-                        msg['source_addr'],
-                        msg['destination_addr'],
-                        msg['short_message'],
+                        qmsg['source_addr'],
+                        qmsg['destination_addr'],
+                        qmsg['short_message'],
                         pdu.status,
-                        msg['bill'].user.uid,
+                        qmsg['bill'].user.uid,
                         props['headers']['created_at'],
                     )
                 )
@@ -100,6 +104,8 @@ def gotConnection(conn, username, password):
             }
         else:
             print 'unknown route'
+
+        chan.basic_ack(delivery_tag=msg.delivery_tag)
 
     # A clean way to tear down and stop
     yield chan.basic_cancel("sms_logger")
