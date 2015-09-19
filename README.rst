@@ -73,8 +73,13 @@ Credits
 Change Log
 **********
 
-0.6 (*under development*)
+0.7 (*under development*)
 =========================
+
+* http://bit.ly/jasmin-0-7
+
+0.6
+===
 
 * Setting "bind_ton 1" on connector is broken #97
 * Check Tarik's bug (dlr-level and the value of registered_delivery) #87
@@ -109,6 +114,7 @@ Change Log
 * Basic statistics in user-level #77
 * Delivery retrial on specific/configurable errors #60
 * Easier installation procedure through Linux packages #78
+* and more: http://bit.ly/jasmin-0-6
 
 0.5
 ===
