@@ -232,7 +232,7 @@ class User(jasminApiGenerick):
 
         # Validate username, if needed because User object
         # can be called with a None username for some purposes
-        regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
+        regex = re.compile(r'^[A-Za-z0-9_-]{1,15}$')
         if username is not None and regex.match(username) == None:
             raise jasminApiInvalidParamError('User username syntax is invalid')
         self.username = username

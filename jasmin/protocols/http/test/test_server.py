@@ -51,7 +51,7 @@ class SendTestCases(HTTPApiTestCases):
     @defer.inlineCallbacks
     def test_send_with_correct_args(self):
         response = yield self.web.get("send", {'username': self.username, 
-                                               'password': 'incorrect',
+                                               'password': 'incorrec',
                                                'to': '98700177',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
@@ -196,7 +196,7 @@ class RateTestCases(HTTPApiTestCases):
     @defer.inlineCallbacks
     def test_rate_with_correct_args(self):
         response = yield self.web.get("rate", {'username': 'fourat', 
-                                               'password': 'incorrect',
+                                               'password': 'incorrec',
                                                'to': '98700177'})
         self.assertEqual(response.responseCode, 403)
         self.assertEqual(json.loads(response.value()), u'Authentication failure for username:%s' % 'fourat')
@@ -268,7 +268,7 @@ class BalanceTestCases(HTTPApiTestCases):
     @defer.inlineCallbacks
     def test_balance_with_correct_args(self):
         response = yield self.web.get("balance", {'username': 'fourat', 
-                                               'password': 'incorrect'})
+                                               'password': 'incorrec'})
         self.assertEqual(response.responseCode, 403)
         self.assertEqual(json.loads(response.value()), u'Authentication failure for username:%s' % 'fourat')
 
@@ -309,7 +309,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
 
         response = yield self.web.get("send", {'username': 'fourat', 
-                                               'password': 'incorrect',
+                                               'password': 'incorrec',
                                                'to': '98700177',
                                                'content': 'anycontent'})
         self.assertNotEqual(response.responseCode, 200)
@@ -333,7 +333,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
 
         response = yield self.web.get("balance", {'username': 'fourat', 
-                                               'password': 'incorrect'})
+                                               'password': 'incorrec'})
         self.assertNotEqual(response.responseCode, 200)
         self.assertEqual(_balance_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count'])
 
@@ -353,7 +353,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
 
         response = yield self.web.get("rate", {'username': 'fourat', 
-                                               'password': 'incorrect',
+                                               'password': 'incorrec',
                                                'to': '98700177'})
         self.assertNotEqual(response.responseCode, 200)
         self.assertEqual(_rate_request_count+0, self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count'])
@@ -396,7 +396,7 @@ class StatsTestCases(HTTPApiTestCases):
         self.assertEqual(stats.get('last_success_at'), 0)
 
         response = yield self.web.get("send", {'username': self.username, 
-                                               'password': 'incorrect',
+                                               'password': 'incorrec',
                                                'to': '98700177',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
