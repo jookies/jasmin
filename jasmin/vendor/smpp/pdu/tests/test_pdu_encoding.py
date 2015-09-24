@@ -399,6 +399,7 @@ class PDUEncoderTest(EncoderTest):
             replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
             data_coding=DataCoding(schemeData=DataCodingDefault.LATIN_1),
             short_message='there is no spoon',
+            sm_default_msg_id=0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '0000004d00000005000000009f88f12441575342440001013136353035353531323334000101313737333535353430373000000000000000000300117468657265206973206e6f2073706f6f6e')
 
@@ -420,6 +421,7 @@ class PDUEncoderTest(EncoderTest):
             short_message='id:1891273321 sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:DELIVRD err:000 Text:DLVRD TO MOBILE\x00',
             message_state=MessageState.DELIVERED,
             receipted_message_id='70BA8A69',
+            sm_default_msg_id=0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '000000b900000005000000000000000a434d5400010036353135353535363738000100313233000400000000000000007669643a31383931323733333231207375623a30303120646c7672643a303031207375626d697420646174653a3133303530353038323620646f6e6520646174653a3133303530353038323620737461743a44454c49565244206572723a30303020546578743a444c56524420544f204d4f42494c45000427000102001e0009373042413841363900')
 
@@ -439,6 +441,7 @@ class PDUEncoderTest(EncoderTest):
             replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
             data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DEFAULT_ALPHABET, DataCodingGsmMsgClass.CLASS_2)),
             short_message='HELLO\x00',
+            sm_default_msg_id = 0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '0000003f000000050000000000000001434d540001003334313131343935303030303100010031323334353435350000000000000000f2000648454c4c4f00')
 
@@ -460,6 +463,7 @@ class PDUEncoderTest(EncoderTest):
             short_message="Hello I'm a bigg fan of you",
             source_subaddress=Subaddress(SubaddressTypeTag.USER_SPECIFIED, '742'),
             dest_subaddress=Subaddress(SubaddressTypeTag.USER_SPECIFIED, '4131'),
+            sm_default_msg_id=0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '00000066000000050000000000000001424d38000101343631323334353637383900010131343034363635333431300000000000000000f2001b48656c6c6f2049276d206120626967672066616e206f6620796f7502020004a037343202030005a034313331')
 
