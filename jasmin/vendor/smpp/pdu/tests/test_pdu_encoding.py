@@ -88,7 +88,6 @@ class EmptyEncoderTest(EncoderTest):
     def test_conversion(self):
         self.do_conversion_test(EmptyEncoder(), None, '')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class IntegerEncoderTest(EncoderTest):
 
     def test_int4(self):
@@ -116,7 +115,6 @@ class IntegerEncoderTest(EncoderTest):
     def test_int2(self):
         self.do_conversion_test(Int2Encoder(), 0x41AC, '41ac')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class COctetStringEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -141,7 +139,6 @@ class COctetStringEncoderTest(EncoderTest):
         self.assertRaises(ValueError, encoder.encode, 'test')
         self.do_decode_parse_error_test(encoder.decode, CommandStatus.ESME_RUNKNOWNERR, '68656c6c6f00')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class OctetStringEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -153,7 +150,6 @@ class OctetStringEncoderTest(EncoderTest):
         encoder = OctetStringEncoder(1)
         self.assertRaises(ValueError, encoder.encode, binascii.a2b_hex('ffaa'))
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class CommandIdEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -162,19 +158,16 @@ class CommandIdEncoderTest(EncoderTest):
     def test_decode_invalid_command_id(self):
         self.do_decode_corrupt_data_error_test(CommandIdEncoder().decode, CommandStatus.ESME_RINVCMDID, 'f0000009')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class CommandStatusEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(CommandStatusEncoder(), CommandStatus.ESME_RUNKNOWNERR, '000000ff')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class TagEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(TagEncoder(), Tag.language_indicator, '020d')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class EsmClassEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -184,7 +177,6 @@ class EsmClassEncoderTest(EncoderTest):
     def test_decode_invalid_type(self):
         self.do_decode_parse_error_test(EsmClassEncoder().decode, CommandStatus.ESME_RINVESMCLASS, '30')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class RegisteredDeliveryEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -195,13 +187,11 @@ class RegisteredDeliveryEncoderTest(EncoderTest):
     def test_decode_invalid_receipt(self):
         self.do_decode_parse_error_test(RegisteredDeliveryEncoder().decode, CommandStatus.ESME_RINVREGDLVFLG, '03')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class AddrTonEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(AddrTonEncoder(fieldName='source_addr_ton'), AddrTon.ALPHANUMERIC, '05')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class PriorityFlagEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -210,68 +200,57 @@ class PriorityFlagEncoderTest(EncoderTest):
     def test_decode_invalid(self):
         self.do_decode_parse_error_test(PriorityFlagEncoder().decode, CommandStatus.ESME_RINVPRTFLG, '0f')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class AddrNpiEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(AddrNpiEncoder(fieldName='source_addr_npi'), AddrNpi.LAND_MOBILE, '06')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class AddrSubunitEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(AddrSubunitEncoder(), AddrSubunit.MOBILE_EQUIPMENT, '02')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class NetworkTypeEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(NetworkTypeEncoder(), NetworkType.GSM, '01')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class BearerTypeEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(BearerTypeEncoder(), BearerType.USSD, '04')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class PayloadTypeEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(PayloadTypeEncoder(), PayloadType.WCMP, '01')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class PrivacyIndicatorEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(PrivacyIndicatorEncoder(), PrivacyIndicator.CONFIDENTIAL, '02')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class LanguageIndicatorEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(LanguageIndicatorEncoder(), LanguageIndicator.SPANISH, '03')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class DisplayTimeEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(DisplayTimeEncoder(), DisplayTime.INVOKE, '02')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class MsAvailabilityStatusEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(MsAvailabilityStatusEncoder(), MsAvailabilityStatus.DENIED, '01')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class ReplaceIfPresentFlagEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(ReplaceIfPresentFlagEncoder(), ReplaceIfPresentFlag.REPLACE, '01')
         self.do_null_encode_test(ReplaceIfPresentFlagEncoder(), ReplaceIfPresentFlag.DO_NOT_REPLACE, '00')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class DataCodingEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -281,7 +260,6 @@ class DataCodingEncoderTest(EncoderTest):
         self.do_conversion_test(DataCodingEncoder(), DataCoding(DataCodingScheme.RAW, 11), '0b')
         self.do_conversion_test(DataCodingEncoder(), DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DEFAULT_ALPHABET, DataCodingGsmMsgClass.CLASS_1)), 'f1')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class DestFlagEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -289,7 +267,6 @@ class DestFlagEncoderTest(EncoderTest):
         self.assertRaises(ValueError, DestFlagEncoder().encode, None)
         self.do_decode_parse_error_test(DestFlagEncoder().decode, CommandStatus.ESME_RUNKNOWNERR, '00')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class MessageStateEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -297,14 +274,12 @@ class MessageStateEncoderTest(EncoderTest):
         self.assertRaises(ValueError, MessageStateEncoder().encode, None)
         self.do_decode_parse_error_test(MessageStateEncoder().decode, CommandStatus.ESME_RUNKNOWNERR, '00')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class CallbackNumDigitModeIndicatorEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(CallbackNumDigitModeIndicatorEncoder(), CallbackNumDigitModeIndicator.ASCII, '01')
         self.assertRaises(ValueError, CallbackNumDigitModeIndicatorEncoder().encode, None)
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class CallbackNumEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -316,14 +291,12 @@ class CallbackNumEncoderTest(EncoderTest):
     def test_decode_invalid_size(self):
         self.do_decode_parse_error_test(CallbackNumEncoder(2).decode, CommandStatus.ESME_RINVOPTPARAMVAL, '0100')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class SubaddressTypeTagEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(SubaddressTypeTagEncoder(), SubaddressTypeTag.USER_SPECIFIED, 'a0')
         self.assertRaises(ValueError, SubaddressTypeTagEncoder().encode, None)
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class SubaddressEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -335,7 +308,6 @@ class SubaddressEncoderTest(EncoderTest):
     def test_decode_invalid_size(self):
         self.do_decode_parse_error_test(SubaddressEncoder(1).decode, CommandStatus.ESME_RINVOPTPARAMVAL, 'a0373432')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class TimeEncoderEncoderTest(EncoderTest):
 
     def test_conversion(self):
@@ -351,14 +323,12 @@ class TimeEncoderEncoderTest(EncoderTest):
     def test_decode_invalid(self):
         self.do_decode_parse_error_test(TimeEncoder(decodeErrorStatus=CommandStatus.ESME_RINVSRCADR).decode, CommandStatus.ESME_RINVSRCADR, binascii.b2a_hex('070927233429800' + '\0'))
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class ShortMessageEncoderTest(EncoderTest):
 
     def test_conversion(self):
         self.do_conversion_test(ShortMessageEncoder(), 'hello', '0568656c6c6f')
         self.do_null_encode_test(ShortMessageEncoder(), '', '00')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class OptionEncoderTest(EncoderTest):
 
     def test_dest_addr_subunit(self):
@@ -374,7 +344,6 @@ class OptionEncoderTest(EncoderTest):
     def test_alert_on_message_delivery(self):
         self.do_conversion_test(OptionEncoder(), Option(Tag.alert_on_message_delivery, None), '130c0000')
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class PDUEncoderTest(EncoderTest):
 
     def do_bind_conversion_test(self, pduBindKlass, reqCommandIdHex, respCommandIdHex):
@@ -430,6 +399,7 @@ class PDUEncoderTest(EncoderTest):
             replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
             data_coding=DataCoding(schemeData=DataCodingDefault.LATIN_1),
             short_message='there is no spoon',
+            sm_default_msg_id=0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '0000004d00000005000000009f88f12441575342440001013136353035353531323334000101313737333535353430373000000000000000000300117468657265206973206e6f2073706f6f6e')
 
@@ -451,6 +421,7 @@ class PDUEncoderTest(EncoderTest):
             short_message='id:1891273321 sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:DELIVRD err:000 Text:DLVRD TO MOBILE\x00',
             message_state=MessageState.DELIVERED,
             receipted_message_id='70BA8A69',
+            sm_default_msg_id=0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '000000b900000005000000000000000a434d5400010036353135353535363738000100313233000400000000000000007669643a31383931323733333231207375623a30303120646c7672643a303031207375626d697420646174653a3133303530353038323620646f6e6520646174653a3133303530353038323620737461743a44454c49565244206572723a30303020546578743a444c56524420544f204d4f42494c45000427000102001e0009373042413841363900')
 
@@ -470,6 +441,7 @@ class PDUEncoderTest(EncoderTest):
             replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
             data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DEFAULT_ALPHABET, DataCodingGsmMsgClass.CLASS_2)),
             short_message='HELLO\x00',
+            sm_default_msg_id = 0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '0000003f000000050000000000000001434d540001003334313131343935303030303100010031323334353435350000000000000000f2000648454c4c4f00')
 
@@ -491,6 +463,7 @@ class PDUEncoderTest(EncoderTest):
             short_message="Hello I'm a bigg fan of you",
             source_subaddress=Subaddress(SubaddressTypeTag.USER_SPECIFIED, '742'),
             dest_subaddress=Subaddress(SubaddressTypeTag.USER_SPECIFIED, '4131'),
+            sm_default_msg_id=0,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '00000066000000050000000000000001424d38000101343631323334353637383900010131343034363635333431300000000000000000f2001b48656c6c6f2049276d206120626967672066616e206f6620796f7502020004a037343202030005a034313331')
 
@@ -538,6 +511,7 @@ class PDUEncoderTest(EncoderTest):
             registered_delivery=RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED),
             replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
             data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DEFAULT_ALPHABET, DataCodingGsmMsgClass.CLASS_2)),
+            sm_default_msg_id=0,
             short_message='HELLO',
         )
         self.do_conversion_test(PDUEncoder(), pdu, '000000360000000400000000000024440005006d6f62696c65776179000101313230383233300000000000000100f2000548454c4c4f')
@@ -557,6 +531,7 @@ class PDUEncoderTest(EncoderTest):
             registered_delivery=RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED),
             replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
             data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DATA_8BIT, DataCodingGsmMsgClass.CLASS_1)),
+            sm_default_msg_id=0,
             short_message=binascii.a2b_hex('06050415811581024a3a5db5a5cdcda5bdb8040084d8c51381481381481381481381481381381481581681781881881061881061b81081181081881061881061681081781081881061881061b81081181081881061881061681081781081b81881321081b81881221081b818811210824dc1446000')
         )
         self.do_conversion_test(PDUEncoder(), pdu, '000000a900000004000000000006f3910005006d6f62696c65776179000101333336393830393334320040000000000100f5007506050415811581024a3a5db5a5cdcda5bdb8040084d8c51381481381481381481381481381381481581681781881881061881061b81081181081881061881061681081781081881061881061b81081181081881061881061681081781081b81881321081b81881221081b818811210824dc1446000')
@@ -564,6 +539,7 @@ class PDUEncoderTest(EncoderTest):
     def test_decode_command_length_too_short(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '0000000f000000060000000000000000')
 
+    @unittest.skip("Padding changes in #124 obsolete these tests")
     def test_decode_command_length_too_long(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '00000011000000060000000000000000ff')
 
@@ -573,6 +549,7 @@ class PDUEncoderTest(EncoderTest):
     def test_decode_bad_message_length_msg_too_short(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVMSGLEN, '000000fd80000009000000000000000154534937353838000210000134')
 
+    @unittest.skip("Padding changes in #124 obsolete these tests")
     def test_decode_bad_message_length_msg_too_long(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVCMDLEN, '0000001c80000009000000000000000154534937353838000210000134')
 
