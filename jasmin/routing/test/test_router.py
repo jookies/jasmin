@@ -29,6 +29,7 @@ from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
+from jasmin.routing.Interceptors import DefaultInterceptor, StaticMTInterceptor
 from jasmin.routing.Filters import GroupFilter
 from jasmin.routing.jasminApi import *
 from jasmin.queues.factory import AmqpFactory
@@ -222,6 +223,98 @@ class BasicTestCases(RouterPBProxy, RouterPBTestCase):
         version_release = yield self.version_release()
         
         self.assertEqual(version_release, jasmin.get_release())
+
+class InterceptionTestCases(RouterPBProxy, RouterPBTestCase):
+    @defer.inlineCallbacks
+    def test_add_list_and_flush_mt_interceptor(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.mtinterceptor_add(StaticMTInterceptor([GroupFilter(Group(1))], MTInterceptorScript('some code')), 2)
+        yield self.mtinterceptor_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
+        listRet1 = yield self.mtinterceptor_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtinterceptor_flush()
+        listRet2 = yield self.mtinterceptor_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(2, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+        
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_mt_interceptor(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.mtinterceptor_add(StaticMTInterceptor([GroupFilter(Group(1))], MTInterceptorScript('some code')), 2)
+        yield self.mtinterceptor_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
+        listRet1 = yield self.mtinterceptor_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtinterceptor_remove(2)
+        listRet2 = yield self.mtinterceptor_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(2, len(listRet1))
+        self.assertEqual(1, len(listRet2))
+
+    @defer.inlineCallbacks
+    def test_add_list_and_flush_mo_interceptor(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.mointerceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
+        listRet1 = yield self.mointerceptor_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mointerceptor_flush()
+        listRet2 = yield self.mointerceptor_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(1, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+        
+    @defer.inlineCallbacks
+    def test_add_list_and_remove_mo_interceptor(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        yield self.mointerceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
+        listRet1 = yield self.mointerceptor_get_all()
+        listRet1 = pickle.loads(listRet1)
+        
+        yield self.mtinterceptor_remove(0)
+        listRet2 = yield self.mtinterceptor_get_all()
+        listRet2 = pickle.loads(listRet2)
+
+        self.assertEqual(1, len(listRet1))
+        self.assertEqual(0, len(listRet2))
+
+class InterceptionConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
+    """Ensure that mtinterceptor_add and mointerceptor_add methods wont accept invalid scripts,
+    for example:
+        - mointerceptor_add wont accept an interceptor with a MTInterceptorScript
+        - mtinterceptor_add wont accept an interceptor with a MOInterceptorScript
+    """
+
+    @defer.inlineCallbacks
+    def test_add_mt_interceptor(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        r = yield self.mtinterceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
+        self.assertFalse(r)
+        r = yield self.mtinterceptor_add(DefaultInterceptor(InterceptorScript('some code')), 0)
+        self.assertFalse(r)
+        r = yield self.mtinterceptor_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
+        self.assertTrue(r)
+        
+    @defer.inlineCallbacks
+    def test_add_mo_interceptor(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        
+        r = yield self.mointerceptor_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
+        self.assertFalse(r)
+        r = yield self.mointerceptor_add(DefaultInterceptor(InterceptorScript('some code')), 0)
+        self.assertFalse(r)
+        r = yield self.mointerceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
+        self.assertTrue(r)
 
 class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
@@ -642,6 +735,12 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         # Add mt route
         yield self.mtroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         
+        # Add mo interceptor
+        yield self.mointerceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
+        
+        # Add mt interceptor
+        yield self.mtinterceptore_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
+        
         # List users
         c = yield self.user_get_all()
         c = pickle.loads(c)
@@ -658,6 +757,14 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         c = yield self.mtroute_get_all()
         c = pickle.loads(c)
         self.assertEqual(1, len(c))
+        # List mo interceptors
+        c = yield self.mointerceptor_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mt interceptors
+        c = yield self.mtinterceptor_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
         
         # Persist
         yield self.persist()
@@ -670,6 +777,10 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         yield self.moroute_flush()
         # Remove all mt routes
         yield self.mtroute_flush()
+        # Remove all mo interceptors
+        yield self.mointerceptor_flush()
+        # Remove all mt interceptors
+        yield self.mtinterceptor_flush()
 
         # List and assert
         c = yield self.user_get_all()
@@ -685,6 +796,14 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         self.assertEqual(0, len(c))
         # List mt routes
         c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List mo interceptors
+        c = yield self.mointerceptor_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(0, len(c))
+        # List mt interceptors
+        c = yield self.mtinterceptor_get_all()
         c = pickle.loads(c)
         self.assertEqual(0, len(c))
 
@@ -705,6 +824,14 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         self.assertEqual(1, len(c))
         # List mt routes
         c = yield self.mtroute_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mo interceptors
+        c = yield self.mointerceptor_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+        # List mt interceptors
+        c = yield self.mtinterceptor_get_all()
         c = pickle.loads(c)
         self.assertEqual(1, len(c))
 

@@ -23,6 +23,13 @@ class InterceptionTable:
             raise InvalidInterceptionTableParameterError("interceptor is not an instance of Interceptor")
         if not isinstance(order, int):
             raise InvalidInterceptionTableParameterError("order is not an integer")
+        
+        # Ensure script type is correct for given interceptor
+        if self.type == 'mo' and interceptor.script.type != 'moi':
+            raise InvalidRoutingTableParameterError("Script type '%s' is not valid for MO Interceptor" % (interceptor.script.type))
+        elif self.type == 'mt' and interceptor.script.type != 'mti':
+            raise InvalidRoutingTableParameterError("Script type '%s' is not valid for MT Interceptor" % (interceptor.script.type))
+        
         if order < 0:
             raise InvalidInterceptionTableParameterError("order must be 0 (default interceptor) or greater")
         if order != 0 and interceptor.type != self.type:

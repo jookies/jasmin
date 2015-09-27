@@ -9,6 +9,8 @@ from txamqp.queue import Closed
 from jasmin.routing.jasminApi import jasminApiCredentialError
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
+from jasmin.routing.InterceptionTables import (MOInterceptionTable, 
+    MTInterceptionTable, InvalidInterceptionTableParameterError)
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
 from copy import copy
@@ -40,6 +42,10 @@ class RouterPB(pb.Avatar):
         self.mt_routing_table = MTRoutingTable()
         self.users = []
         self.groups = []
+
+        # Init interception-related objects
+        self.mo_interception_table = MOInterceptionTable()
+        self.mt_interception_table = MTInterceptionTable()
         
         if persistenceTimer:
             # Activate persistenceTimer, used for persisting users and groups whenever critical updates
@@ -248,6 +254,10 @@ class RouterPB(pb.Avatar):
             self.log.error("Error in bill_request_submit_sm_resp_errback: %s" % error)
             self.log.critical("User were not charged !")
 
+    def getMOInterceptionTable(self):
+        return self.mo_interception_table
+    def getMTInterceptionTable(self):
+        return self.mt_interception_table
     def getMORoutingTable(self):
         return self.mo_routing_table
     def getMTRoutingTable(self):
@@ -315,6 +325,28 @@ class RouterPB(pb.Avatar):
                 return _group
         
         self.log.debug('getGroup [gid:%s] returned None', gid)
+        return None
+    
+    def getMOInterceptor(self, order):
+        mointerceptors = self.mo_interception_table.getAll()
+        
+        for e in mointerceptors:
+            if order == e.keys()[0]:
+                self.log.debug('getMOInterceptor [order:%s] returned a MOInterceptor', order)
+                return e[order]
+        
+        self.log.debug('getMOInterceptor [order:%s] returned None', order)
+        return None
+    
+    def getMTInterceptor(self, order):
+        mtinterceptors = self.mt_interception_table.getAll()
+        
+        for e in mtinterceptors:
+            if order == e.keys()[0]:
+                self.log.debug('getMTInterceptor [order:%s] returned a MTInterceptor', order)
+                return e[order]
+        
+        self.log.debug('getMTInterceptor [order:%s] returned None', order)
         return None
     
     def getMORoute(self, order):
@@ -402,6 +434,34 @@ class RouterPB(pb.Avatar):
                 # Set persistance state to True
                 self.persistenceState['mtroutes'] = True
 
+            if scope in ['all', 'mointerceptors']:
+                # Persist mointerceptors configuration
+                path = '%s/%s.router-mointerceptors' % (self.config.store_path, profile)
+                self.log.info('Persisting current MOInterceptionTable to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(pickle.dumps(self.mo_interception_table, self.pickleProtocol))
+                fh.close()
+                
+                # Set persistance state to True
+                self.persistenceState['mointerceptors'] = True
+
+            if scope in ['all', 'mtinterceptors']:
+                # Persist mtinterceptors configuration
+                path = '%s/%s.router-mtinterceptors' % (self.config.store_path, profile)
+                self.log.info('Persisting current MTInterceptionTable to [%s] profile in %s' % (profile, path))
+    
+                fh = open(path,'w')
+                # Write configuration with datetime stamp
+                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(pickle.dumps(self.mt_interception_table, self.pickleProtocol))
+                fh.close()
+                
+                # Set persistance state to True
+                self.persistenceState['mtinterceptors'] = True
+
         except IOError:
             self.log.error('Cannot persist to %s' % path)
             return False
@@ -456,6 +516,40 @@ class RouterPB(pb.Avatar):
                 self.persistenceState['users'] = True
                 for u in self.users:
                     u.mt_credential.quotas_updated = False
+
+            if scope in ['all', 'mointerceptors']:
+                # Load mointerceptors configuration
+                path = '%s/%s.router-mointerceptors' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile MO Interceptors configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Adding new MO Interceptors
+                self.mo_interception_table = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new MOInterceptionTable with %d routes' % len(self.mo_interception_table.getAll()))
+
+                # Set persistance state to True
+                self.persistenceState['mointerceptors'] = True
+
+            if scope in ['all', 'mtinterceptors']:
+                # Load mtinterceptors configuration
+                path = '%s/%s.router-mtinterceptors' % (self.config.store_path, profile)
+                self.log.info('Loading/Activating [%s] profile MT Interceptors configuration from %s' % (profile, path))
+    
+                # Load configuration from file
+                fh = open(path,'r')
+                lines = fh.readlines()
+                fh.close()
+    
+                # Adding new MT Interceptors
+                self.mt_interception_table = pickle.loads(''.join(lines[1:]))
+                self.log.info('Added new MTInterceptionTable with %d routes' % len(self.mt_interception_table.getAll()))
+
+                # Set persistance state to True
+                self.persistenceState['mtinterceptors'] = True
 
             if scope in ['all', 'moroutes']:
                 # Load moroutes configuration
@@ -687,6 +781,92 @@ class RouterPB(pb.Avatar):
 
         return pickle.dumps(self.groups)
     
+    def perspective_mtinterceptor_add(self, interceptor, order):
+        interceptor = pickle.loads(interceptor)
+        self.log.debug('Adding a MT Interceptor, order = %s, interceptor = %s' % (order, interceptor))
+        self.log.info('Adding a MT Interceptor with order %s', order)
+
+        try:
+            self.mt_interception_table.add(interceptor, order)
+        except InvalidInterceptionTableParameterError, e:
+            self.log.error('Cannot add MT Interceptor: %s' % (str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while adding MT Interceptor: %s' % (str(e)))
+            return False
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistenceState['mtinterceptors'] = False
+
+        return True
+    
+    def perspective_mointerceptor_add(self, interceptor, order):
+        interceptor = pickle.loads(interceptor)
+        self.log.debug('Adding a MO Interceptor, order = %s, interceptor = %s' % (order, interceptor))
+        self.log.info('Adding a MO Interceptor with order %s', order)
+
+        try:
+            self.mo_interception_table.add(interceptor, order)
+        except InvalidInterceptionTableParameterError, e:
+            self.log.error('Cannot add MO Interceptor: %s' % (str(e)))
+            return False
+        except Exception, e:
+            self.log.error('Unknown error occurred while adding MO Interceptor: %s' % (str(e)))
+            return False
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistenceState['mointerceptors'] = False
+
+        return True
+    
+    def perspective_mointerceptor_remove(self, order):
+        self.log.info('Removing MO Interceptor [%s]', order)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistenceState['mointerceptors'] = False
+
+        return self.mo_interception_table.remove(order)
+
+    def perspective_mtinterceptor_remove(self, order):
+        self.log.info('Removing MT Interceptor [%s]', order)
+        
+        # Set persistance state to False (pending for persistance)
+        self.persistenceState['mtinterceptors'] = False
+
+        return self.mt_interception_table.remove(order)
+
+    def perspective_mtinterceptor_flush(self):
+        self.log.info('Flushing MT Interceptor table')
+
+        # Set persistance state to False (pending for persistance)
+        self.persistenceState['mtinterceptors'] = False
+
+        return self.mt_interception_table.flush()
+    
+    def perspective_mointerceptor_flush(self):
+        self.log.info('Flushing MO Interceptor table')
+
+        # Set persistance state to False (pending for persistance)
+        self.persistenceState['mointerceptors'] = False
+
+        return self.mo_interception_table.flush()
+    
+    def perspective_mtinterceptor_get_all(self):
+        self.log.info('Getting MT Interceptor table')
+        
+        interceptors = self.mt_interception_table.getAll()
+        self.log.debug('Getting MT Interceptor table: %s', interceptors)
+
+        return pickle.dumps(interceptors, self.pickleProtocol)
+    
+    def perspective_mointerceptor_get_all(self):
+        self.log.info('Getting MO Interceptor table')
+
+        interceptors = self.mo_interception_table.getAll()
+        self.log.debug('Getting MO Interceptor table: %s', interceptors)
+
+        return pickle.dumps(interceptors, self.pickleProtocol)
+
     def perspective_mtroute_add(self, route, order):
         route = pickle.loads(route)
         self.log.debug('Adding a MT Route, order = %s, route = %s' % (order, route))

@@ -90,4 +90,36 @@ class RouterPBProxy(JasminPBProxy):
     
     @ConnectedPB
     def moroute_get_all(self):
-        return self.pb.callRemote('moroute_get_all')    
+        return self.pb.callRemote('moroute_get_all')
+
+    @ConnectedPB
+    def mtinterceptor_add(self, interceptor, order):
+        return self.pb.callRemote('mtinterceptor_add', self.pickle(interceptor), order)
+    
+    @ConnectedPB
+    def mointerceptor_add(self, interceptor, order):
+        return self.pb.callRemote('mointerceptor_add', self.pickle(interceptor), order)
+    
+    @ConnectedPB
+    def mtinterceptor_remove(self, order):
+        return self.pb.callRemote('mtinterceptor_remove', order)
+
+    @ConnectedPB
+    def mointerceptor_remove(self, order):
+        return self.pb.callRemote('mointerceptor_remove', order)
+
+    @ConnectedPB
+    def mtinterceptor_flush(self):
+        return self.pb.callRemote('mtinterceptor_flush')
+    
+    @ConnectedPB
+    def mointerceptor_flush(self):
+        return self.pb.callRemote('mointerceptor_flush')
+    
+    @ConnectedPB
+    def mtinterceptor_get_all(self):
+        return self.pb.callRemote('mtinterceptor_get_all')
+    
+    @ConnectedPB
+    def mointerceptor_get_all(self):
+        return self.pb.callRemote('mointerceptor_get_all')
