@@ -19,7 +19,7 @@ class Filter:
     
     Filter will .match() a Routable against a filter and return true/false.
     
-    Filters are written for specific Route types, that's why Filter.forRoutes should be set for each
+    Filters are written for specific Route types, that's why Filter.usedFor should be set for each
     implemented Filter, here's a compatibility matrix of Filter vs Route types:
     
     Filter / Route type    | mo | mt | comment
@@ -36,7 +36,7 @@ class Filter:
     EvalPyFilter           | x  | x  |
     """
     
-    forRoutes = ['mt', 'mo']
+    usedFor = ['mt', 'mo']
     _str = 'Generick Filter'
     _repr = '<Generick Filter>'
 
@@ -99,7 +99,7 @@ class TransparentFilter(Filter):
         return True
 
 class ConnectorFilter(Filter):
-    forRoutes = ['mo']
+    usedFor = ['mo']
     
     def __init__(self, connector):
         Filter.__init__(self, connector = connector)
@@ -116,7 +116,7 @@ class ConnectorFilter(Filter):
             return False
         
 class UserFilter(Filter):
-    forRoutes = ['mt']
+    usedFor = ['mt']
 
     def __init__(self, user):
         Filter.__init__(self, user = user)
@@ -133,7 +133,7 @@ class UserFilter(Filter):
             return False
         
 class GroupFilter(Filter):
-    forRoutes = ['mt']
+    usedFor = ['mt']
 
     def __init__(self, group):
         Filter.__init__(self, group = group)
@@ -150,7 +150,7 @@ class GroupFilter(Filter):
             return False
         
 class SourceAddrFilter(Filter):
-    forRoutes = ['mo']
+    usedFor = ['mo']
 
     def __init__(self, source_addr):
         Filter.__init__(self, source_addr = source_addr)

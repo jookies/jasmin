@@ -340,3 +340,35 @@ class SmppServerSystemIdConnector(Connector):
         Connector.__init__(self, system_id)
 
         self.system_id = system_id
+
+class InterceptorScript(jasminApiGenerick):
+    "This is a generick script for message interception"
+
+    type = 'generici'
+
+    def __init__(self, pyCode):
+        self.pyCode = pyCode
+        
+        self._repr = '<IS (pyCode=%s ..)>' % (pyCode[:10].replace('\n', ''))
+        self._str = '%s:\n%s' % (self.__class__.__name__, pyCode)
+
+    def __repr__(self):
+        return self._repr
+    def __str__(self):
+        return self._str
+
+class MOInterceptorScript(InterceptorScript):
+    "This is a script for MO message interception"
+
+    type = 'moi'
+
+    def __init__(self, pyCode):
+        InterceptorScript.__init__(self, pyCode)
+
+class MTInterceptorScript(InterceptorScript):
+    "This is a script for MT message interception"
+
+    type = 'mti'
+
+    def __init__(self, pyCode):
+        InterceptorScript.__init__(self, pyCode)

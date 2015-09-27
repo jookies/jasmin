@@ -362,3 +362,21 @@ class SmppServerSystemIdTestCase(TestCase):
         self.assertEqual(c._repr, '<smpps Connector>')
         self.assertEqual(c.cid, 'fourat')
         self.assertEqual(c.cid, c.system_id)
+
+class MOInterceptorScriptTestCase(TestCase):
+    def test_normal(self):
+        i = MOInterceptorScript('somecode')
+        
+        self.assertEqual(i.type, 'moi')
+        self.assertEqual(i.pyCode, 'somecode')
+        self.assertEqual(i._repr, '<IS (pyCode=%s ..)>' % (i.pyCode[:10].replace('\n', '')))
+        self.assertEqual(i._str, 'MOInterceptorScript:\n%s' % (i.pyCode))
+
+class MTInterceptorScriptTestCase(TestCase):
+    def test_normal(self):
+        i = MTInterceptorScript('somecode')
+        
+        self.assertEqual(i.type, 'mti')
+        self.assertEqual(i.pyCode, 'somecode')
+        self.assertEqual(i._repr, '<IS (pyCode=%s ..)>' % (i.pyCode[:10].replace('\n', '')))
+        self.assertEqual(i._str, 'MTInterceptorScript:\n%s' % (i.pyCode))

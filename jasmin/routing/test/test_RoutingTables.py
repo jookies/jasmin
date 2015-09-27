@@ -10,9 +10,9 @@ class RoutingTableTests():
             
     def test_standard(self):
         routing_t = self._routingTable()
-        routing_t.add(self.mt_route2, 2)
-        routing_t.add(self.mt_route1, 1)
-        routing_t.add(self.mt_route4, 0)
+        routing_t.add(self.route2, 2)
+        routing_t.add(self.route1, 1)
+        routing_t.add(self.route4, 0)
         
         c = routing_t.getRouteFor(self.routable_matching_route1)
         self.assertEqual(c.getConnector(), self.connector1)
@@ -23,10 +23,10 @@ class RoutingTableTests():
         
     def test_routing_table_order(self):
         routing_t = self._routingTable()
-        routing_t.add(self.mt_route4, 0)
-        routing_t.add(self.mt_route2, 2)
-        routing_t.add(self.mt_route1, 1)
-        routing_t.add(self.mt_route3, 3)
+        routing_t.add(self.route4, 0)
+        routing_t.add(self.route2, 2)
+        routing_t.add(self.route1, 1)
+        routing_t.add(self.route3, 3)
         
         self.assertEqual(routing_t.getAll()[0].keys()[0], 3)
         self.assertEqual(routing_t.getAll()[1].keys()[0], 2)
@@ -35,17 +35,17 @@ class RoutingTableTests():
         
     def test_routing_table_replace_route(self):
         routing_t = self._routingTable()
-        routing_t.add(self.mt_route4, 0)
-        routing_t.add(self.mt_route2, 2)
-        routing_t.add(self.mt_route3, 2)
+        routing_t.add(self.route4, 0)
+        routing_t.add(self.route2, 2)
+        routing_t.add(self.route3, 2)
     
-        self.assertEqual(routing_t.getAll()[0].values()[0], self.mt_route3)
+        self.assertEqual(routing_t.getAll()[0].values()[0], self.route3)
         
     def test_remove_route(self):
         routing_t = self._routingTable()
-        routing_t.add(self.mt_route2, 2)
-        routing_t.add(self.mt_route1, 1)
-        routing_t.add(self.mt_route4, 0)
+        routing_t.add(self.route2, 2)
+        routing_t.add(self.route1, 1)
+        routing_t.add(self.route4, 0)
         self.assertEqual(len(routing_t.getAll()), 3)
         
         # Remove non existent route
@@ -58,12 +58,12 @@ class RoutingTableTests():
 
     def test_default_route(self):
         routing_t = self._routingTable()
-        self.assertRaises(InvalidRoutingTableParameterError, routing_t.add, self.mt_route3, 0)
+        self.assertRaises(InvalidRoutingTableParameterError, routing_t.add, self.route3, 0)
         
     def test_flush(self):
         routing_t = self._routingTable()
-        routing_t.add(self.mt_route4, 0)
-        routing_t.add(self.mt_route3, 2)
+        routing_t.add(self.route4, 0)
+        routing_t.add(self.route3, 2)
 
         allRoutes = routing_t.getAll()
         self.assertEqual(len(allRoutes), 2)
@@ -72,7 +72,7 @@ class RoutingTableTests():
         allRoutes = routing_t.getAll()
         self.assertEqual(len(allRoutes), 0)
         
-        routing_t.add(self.mt_route4, 0)
+        routing_t.add(self.route4, 0)
         allRoutes = routing_t.getAll()
         self.assertEqual(len(allRoutes), 1)
 
@@ -91,10 +91,10 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.mt_filter1 = [UserFilter(self.user1)]
         self.mt_filter2 = [DestinationAddrFilter('^10\d+')]
         self.transparent_filter = [TransparentFilter()]
-        self.mt_route1 = StaticMTRoute(self.mt_filter1, self.connector1, 0.0)
-        self.mt_route2 = StaticMTRoute(self.mt_filter2, self.connector2, 0.0)
-        self.mt_route3 = StaticMTRoute(self.transparent_filter, self.connector3, 0.0)
-        self.mt_route4 = DefaultRoute(self.connector4)
+        self.route1 = StaticMTRoute(self.mt_filter1, self.connector1, 0.0)
+        self.route2 = StaticMTRoute(self.mt_filter2, self.connector2, 0.0)
+        self.route3 = StaticMTRoute(self.transparent_filter, self.connector3, 0.0)
+        self.route4 = DefaultRoute(self.connector4)
         
         self.PDU_dst_1 = SubmitSM(
             source_addr='x',
@@ -123,10 +123,10 @@ class MORoutingTableTestCase(RoutingTableTests, TestCase):
         self.mt_filter1 = [SourceAddrFilter('^10\d+')]
         self.mt_filter2 = [DestinationAddrFilter('^90\d+')]
         self.transparent_filter = [TransparentFilter()]
-        self.mt_route1 = StaticMORoute(self.mt_filter1, self.connector1)
-        self.mt_route2 = StaticMORoute(self.mt_filter2, self.connector2)
-        self.mt_route3 = StaticMORoute(self.transparent_filter, self.connector3)
-        self.mt_route4 = DefaultRoute(self.connector4)
+        self.route1 = StaticMORoute(self.mt_filter1, self.connector1)
+        self.route2 = StaticMORoute(self.mt_filter2, self.connector2)
+        self.route3 = StaticMORoute(self.transparent_filter, self.connector3)
+        self.route4 = DefaultRoute(self.connector4)
         
         self.PDU_dst_1 = DeliverSM(
             source_addr='100',

@@ -21,6 +21,8 @@ class Routable:
     pass
 
 class SimpleRoutablePDU(Routable):
+    "Used for Jasmin unit testing"
+
     def __init__(self, connector, PDU, user, date_time = None):
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")

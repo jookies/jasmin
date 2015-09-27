@@ -173,7 +173,7 @@ As explained, filters provide an advanced and customizable method to match for r
 figure below shows the **Filter** implementations provided by Jasmin, you can extend the **Filter** class and build a new filter 
 of your own.
 
-The **forRoutes** attribute indicates the filter-route compatibility, as some filters are not suitable for both MO and MT routes like 
+The **usedFor** attribute indicates the filter-route compatibility, as some filters are not suitable for both MO and MT routes like 
 the examples below:
 
 * **UserFilter** and **GroupFilter**: MO Messages are not identified by a user or a group, they are received through a connector
