@@ -1218,7 +1218,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         self.assertEqual(c[:7], 'Success')
         # @todo: Should be a real uuid pattern testing 
         self.assertApproximates(len(c), 40, 10)
-        
+
 class LastClientFactory(Factory):
     lastClient = None
     def buildProtocol(self, addr):

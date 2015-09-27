@@ -55,3 +55,11 @@ class ThroughputExceededError(HttpApiError):
     """
     def __init__(self, message = None):
         HttpApiError.__init__(self, 403, message)
+
+class InterceptorNotSetError(HttpApiError):
+    """
+    Raised when message is about to be intercepted and no
+    interceptor were set
+    """
+    def __init__(self, message = None):
+        HttpApiError.__init__(self, 500, message)

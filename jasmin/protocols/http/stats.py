@@ -16,6 +16,7 @@ class HttpAPIStatistics(Stats):
 			'last_request_at': 0,
 			'auth_error_count': 0,
 			'route_error_count': 0,
+			'interceptor_error_count': 0,
 			'throughput_error_count': 0,
 			'charging_error_count': 0,
 			'server_error_count': 0,

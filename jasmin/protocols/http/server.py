@@ -13,6 +13,7 @@ from .errors import (AuthenticationError,
                      RouteNotFoundError, 
                      ChargingError,
                      ThroughputExceededError,
+                     InterceptorNotSetError,
                     )
 from .validation import UrlArgsValidator, HttpAPICredentialValidator
 from .stats import HttpAPIStatsCollector
@@ -135,12 +136,20 @@ class Send(Resource):
             # Update SubmitSmPDU by default values from user MtMessagingCredential
             SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
 
-            # Interception
-            print 'http', self.interceptor
-
-            # Routing
+            # Prepare for interception then routing
             routedConnector = None # init
             routable = RoutableSubmitSm(SubmitSmPDU, user)
+
+            # Intercept
+            interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
+            if interceptor is not None:
+                self.log.debug("RouterPB selected %s interceptor for this SubmitSmPDU" % interceptor)
+                if self.interceptor is None:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error("InterceptorPB not set !")
+                    raise InterceptorNotSetError
+
+            # Get the route
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
                 self.stats.inc('route_error_count')
@@ -148,7 +157,7 @@ class Send(Resource):
                 raise RouteNotFoundError("No route found")
 
             # Get connector from selected route
-            self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+            self.log.debug("RouterPB selected %s route for this SubmitSmPDU" % route)
             routedConnector = route.getConnector()
             
             # Set priority
