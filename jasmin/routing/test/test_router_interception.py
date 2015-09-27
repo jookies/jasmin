@@ -7,7 +7,7 @@ from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.Interceptors import DefaultInterceptor
 
-class SubmitSmInterceptionTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
+class HttpAPISubmitSmInterceptionTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
 
     @defer.inlineCallbacks
     def setUp(self):
@@ -37,7 +37,7 @@ class SubmitSmInterceptionTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
     @defer.inlineCallbacks
-    def test_httpapi_interceptorpb_not_set(self):
+    def test_httpapi_send_interceptorpb_not_set(self):
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -49,3 +49,34 @@ class SubmitSmInterceptionTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
         except Exception, e:
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '500')
+
+    def test_httpapi_send_interceptorpb_not_connected(self):
+        raise NotImplemented
+
+    def test_httpapi_send_interceptorpb_syntax_error(self):
+        raise NotImplemented
+
+    def test_httpapi_send_interceptorpb_success(self):
+        raise NotImplemented
+
+    def test_httpapi_rate_interceptorpb_not_set(self):
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+        
+        # We should receive an error since no interceptorpb is set
+        lastErrorStatus = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+        self.assertEqual(lastErrorStatus, '500')
+
+    def test_httpapi_rate_interceptorpb_not_connected(self):
+        raise NotImplemented
+
+    def test_httpapi_rate_interceptorpb_syntax_error(self):
+        raise NotImplemented
+
+    def test_httpapi_rate_interceptorpb_success(self):
+        raise NotImplemented
