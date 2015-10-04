@@ -37,3 +37,6 @@ _trial_temp
 
 # Eclipse
 .settings
+
+# Python
+venv
