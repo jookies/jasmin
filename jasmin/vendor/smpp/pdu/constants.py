@@ -383,6 +383,8 @@ tag_name_map = {
     'alert_on_message_delivery': 0x130C,
     'its_reply_type': 0x1380,
     'its_session_info': 0x1383,
+    # Jasmin update: bypass vendor specific tags
+    'vendor_specific_bypass': -1,
 }
 
 tag_value_map = dict([(val, key) for (key, val) in tag_name_map.items()])
