@@ -23,7 +23,7 @@ from random import randint
 from datetime import datetime, timedelta
 from twisted.cred import portal
 from jasmin.tools.cred.portal import JasminPBRealm
-from jasmin.tools.spread.pb import JasminPBPortalRoot 
+from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from jasmin.managers.proxies import ConnectError
 
@@ -44,15 +44,15 @@ class SMPPClientPBTestCase(unittest.TestCase):
         self.SMPPClientPBConfigInstance.authentication = authentication
         AMQPServiceConfigInstance = AmqpConfig()
         AMQPServiceConfigInstance.reconnectOnConnectionLoss = False
-        
+
         # Launch AMQP Broker
         self.amqpBroker = AmqpFactory(AMQPServiceConfigInstance)
         self.amqpBroker.preConnect()
         self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, self.amqpBroker)
-        
+
         # Wait for AMQP Broker connection to get ready
         yield self.amqpBroker.getChannelReadyDeferred()
-        
+
         # Launch the client manager server
         pbRoot = SMPPClientManagerPB()
         pbRoot.setConfig(self.SMPPClientPBConfigInstance)
@@ -67,7 +67,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         jPBPortalRoot = JasminPBPortalRoot(p)
         self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
-        
+
         # Default SMPPClientConfig
         defaultSMPPClientId = '001-testconnector'
 
@@ -81,20 +81,20 @@ class SMPPClientPBTestCase(unittest.TestCase):
     def tearDown(self):
         yield self.PBServer.stopListening()
         yield self.amqpClient.disconnect()
-        
+
 class SMPPClientPBProxyTestCase(SMPPClientManagerPBProxy, SMPPClientPBTestCase):
     @defer.inlineCallbacks
     def tearDown(self):
         yield SMPPClientPBTestCase.tearDown(self)
         yield self.disconnect()
-    
+
 class SMSCSimulator(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def setUp(self):
         yield SMPPClientPBProxyTestCase.setUp(self)
 
         factory = Factory()
-        factory.protocol = HappySMSC        
+        factory.protocol = HappySMSC
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
     @defer.inlineCallbacks
@@ -115,7 +115,7 @@ class SMSCSimulatorRecorder(SMPPClientPBProxyTestCase):
         yield SMPPClientPBProxyTestCase.setUp(self)
 
         factory = LastClientFactory()
-        factory.protocol = HappySMSCRecorder      
+        factory.protocol = HappySMSCRecorder
         self.SMSCPort = reactor.listenTCP(self.defaultConfig.port, factory)
 
     @defer.inlineCallbacks
@@ -136,12 +136,12 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
     def tearDown(self):
         yield SMPPClientPBProxyTestCase.tearDown(self)
         yield self.SMSCPort.stopListening()
-    
+
 class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def setUp(self, authentication=False):
         yield SMPPClientPBProxyTestCase.setUp(self, authentication=True)
-        
+
     @defer.inlineCallbacks
     def test_connect_success(self):
         yield self.connect('127.0.0.1', self.pbPort, 'test_user', 'test_password')
@@ -156,7 +156,7 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
-            
+
         self.assertFalse(self.isConnected)
 
     @defer.inlineCallbacks
@@ -169,7 +169,7 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
-            
+
         self.assertFalse(self.isConnected)
 
 class BasicTestCases(SMPPClientPBProxyTestCase):
@@ -178,7 +178,7 @@ class BasicTestCases(SMPPClientPBProxyTestCase):
         yield self.connect('127.0.0.1', self.pbPort)
 
         version_release = yield self.version_release()
-        
+
         self.assertEqual(version_release, jasmin.get_release())
 
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
@@ -188,29 +188,29 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
         filelist = glob.glob("%s/*" % self.SMPPClientPBConfigInstance.store_path)
         for f in filelist:
             os.remove(f)
-            
+
         yield SMPPClientPBProxyTestCase.tearDown(self)
-    
+
     @defer.inlineCallbacks
     def test_persist_default(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         persistRet = yield self.persist()
-        
+
         self.assertTrue(persistRet)
 
     @defer.inlineCallbacks
     def test_load_undefined_profile(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         loadRet = yield self.load()
-        
+
         self.assertFalse(loadRet)
 
     @defer.inlineCallbacks
     def test_add_start_persist_and_load_default(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         # Add, start and persist
         yield self.add(self.defaultConfig)
         yield self.start(self.defaultConfig.id)
@@ -236,7 +236,7 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_add_persist_and_load_default(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         # Add and persist
         yield self.add(self.defaultConfig)
         yield self.persist()
@@ -258,7 +258,7 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_add_persist_and_load_profile(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         # Add and persist
         yield self.add(self.defaultConfig)
         yield self.persist('profile')
@@ -280,14 +280,14 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_persitance_flag(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         # Initially, all config is already persisted
         isPersisted = yield self.is_persisted()
         self.assertTrue(isPersisted)
 
         # Make modifications and assert
         yield self.add(self.defaultConfig)
-                
+
         # Config is not persisted, waiting for persistance
         isPersisted = yield self.is_persisted()
         self.assertFalse(isPersisted)
@@ -309,10 +309,10 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_add_and_list(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         addRet = yield self.add(self.defaultConfig)
         listRet = yield self.connector_list()
-        
+
         self.assertTrue(addRet)
         self.assertEqual(1, len(listRet))
         self.assertEqual(self.defaultConfig.id, listRet[0]['id'])
@@ -320,18 +320,18 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_remove_and_list(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
         remRet = yield self.remove(self.defaultConfig.id)
         listRet = yield self.connector_list()
-        
+
         self.assertTrue(remRet)
         self.assertEqual(0, len(listRet))
 
     @defer.inlineCallbacks
     def test_add_duplicates(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
         addRet = yield self.add(self.defaultConfig)
         listRet = yield self.connector_list()
@@ -343,61 +343,61 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_empty_list(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         listRet = yield self.connector_list()
-        
+
         self.assertEqual(0, len(listRet))
 
     @defer.inlineCallbacks
     def test_list(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         self.defaultConfig.reconnectOnConnectionFailure = True;
         yield self.add(self.defaultConfig)
-        
+
         listRet = yield self.connector_list()
         self.assertEqual(1, len(listRet))
 
         localConfig = copy.copy(self.defaultConfig)
         localConfig.id = 'secondConnector'
         yield self.add(localConfig)
-        
+
         listRet = yield self.connector_list()
         self.assertEqual(2, len(listRet))
-        
+
         yield self.start(self.defaultConfig.id)
 
         listRet = yield self.connector_list()
         self.assertEqual(1, listRet[0]['service_status'])
         self.assertEqual(0, listRet[1]['service_status'])
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
     def test_start_nonexistentconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         startRet = yield self.start('anything')
-        
+
         self.assertEqual(False, startRet)
 
     @defer.inlineCallbacks
     def test_stop_nonexistentconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         stopRet = yield self.stop('anything')
-        
+
         self.assertEqual(False, stopRet)
 
     @defer.inlineCallbacks
     def test_startconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
         startRet = yield self.start(self.defaultConfig.id)
-        
+
         self.assertEqual(True, startRet)
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
@@ -405,14 +405,14 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         """Resolving issue/bug #1
         """
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
         yield self.start(self.defaultConfig.id)
         yield self.remove(self.defaultConfig.id)
         addRet = yield self.add(self.defaultConfig)
 
         self.assertEqual(True, addRet)
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
@@ -420,15 +420,15 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         """Resolving issue/bug #5
         """
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
-        
+
         i = 0
-        while i < 5000:
+        while i < 150:
             yield self.start(self.defaultConfig.id)
             yield self.stop(self.defaultConfig.id)
             i+= 1
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
@@ -436,14 +436,14 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         """When starting a connector that will fail connecting to a server
         the service shall be stopped since no reconnection is set
         """
-        
+
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         localConfig = copy.copy(self.defaultConfig)
         localConfig.reconnectOnConnectionFailure = False
         yield self.add(localConfig)
         yield self.start(localConfig.id)
-        
+
         # It takes a moment to stop the service after a connection failure
         while True:
             ssRet = yield self.service_status(localConfig.id)
@@ -459,15 +459,15 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_start_sameconnector_twice_with_reconnecting_on_failure(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         localConfig = copy.copy(self.defaultConfig)
         localConfig.reconnectOnConnectionFailure = True
         yield self.add(localConfig)
         yield self.start(localConfig.id)
         startRet = yield self.start(localConfig.id)
-       
+
         self.assertEqual(False, startRet)
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
@@ -478,21 +478,21 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         Related to #234"""
 
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         localConfig = copy.copy(self.defaultConfig)
         localConfig.reconnectOnConnectionFailure = False
         yield self.add(localConfig)
         yield self.start(localConfig.id)
         startRet = yield self.start(localConfig.id)
-        
+
         self.assertEqual(True, startRet)
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
     def test_stopconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
         yield self.start(self.defaultConfig.id)
         stopRet = yield self.stop(self.defaultConfig.id)
@@ -502,7 +502,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_stop_unstartedconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
         stopRet = yield self.stop(self.defaultConfig.id)
 
@@ -511,7 +511,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_service_status(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         yield self.add(self.defaultConfig)
 
         ssRet = yield self.service_status(self.defaultConfig.id)
@@ -530,7 +530,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_connector_details(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         localConfig = copy.copy(self.defaultConfig)
         localConfig.reconnectOnConnectionFailure = False
         yield self.add(localConfig)
@@ -549,7 +549,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_connector_config(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        
+
         localConfig = copy.copy(self.defaultConfig)
         localConfig.reconnectOnConnectionFailure = False
         yield self.add(localConfig)
@@ -557,7 +557,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         pickledCnfRet = yield self.connector_config(self.defaultConfig.id)
         cnfRet = self.unpickle(pickledCnfRet)
         self.assertIsInstance(cnfRet, SMPPClientConfig)
-        
+
         # SMPPClientConfig has no __eq__ method, we do a simple comparaison
         # of id only
         self.assertEqual(cnfRet.id, localConfig.id)
@@ -568,7 +568,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield SMSCSimulatorRecorder.setUp(self)
 
         self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
-        
+
         config = SMPPClientConfig(id='defaultId')
         opFactory = SMPPOperationFactory(config)
         self.SubmitSmPDU = opFactory.SubmitSM(
@@ -576,7 +576,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             destination_addr='98700177',
             short_message='Hello world !',
         )
-        
+
     @defer.inlineCallbacks
     def test_submitSm(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -592,7 +592,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = assertionKey
         msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
-        
+
         # Wait 2 seconds
         yield waitFor(2)
 
@@ -600,7 +600,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
 
         # Wait for unbound state
         yield waitFor(2)
-            
+
         # Assertions
         # There were a connection to the SMSC
         self.assertTrue(self.SMSCPort.factory.buildProtocol.called)
@@ -609,7 +609,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 1)
         ReceivedSubmitSmPDU = self.SMSCPort.factory.lastClient.submitRecords[0]
         self.assertEqual(ReceivedSubmitSmPDU.params['short_message'], assertionKey)
-        # @todo: Should be a real uuid pattern testing 
+        # @todo: Should be a real uuid pattern testing
         self.assertApproximates(len(msgid), 35, 5)
 
     @defer.inlineCallbacks
@@ -633,7 +633,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         while submitCounter < 5:
             yield self.submit_sm(localConfig.id, self.SubmitSmPDU)
             submitCounter += 1
-            
+
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
         counter = 0
         # Wait for delivery (of 5 submits) in 6 seconds max time
@@ -645,7 +645,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
 
             counter += 1
         endAt = datetime.now()
-        
+
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
@@ -656,7 +656,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 5)
         # Delivery mut be delayed for around 5 seconds (+/- 1s) since we throughput is
         # 1 submitsm per second
-        self.assertApproximates(endAt - startAt, timedelta( seconds = 5 ), timedelta( seconds = 1 )) 
+        self.assertApproximates(endAt - startAt, timedelta( seconds = 5 ), timedelta( seconds = 1 ))
 
     @defer.inlineCallbacks
     def test_redelivery_of_rejected_messages(self):
@@ -678,7 +678,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
             yield self.submit_sm(localConfig.id, submit_sm_pdu)
             submitCounter += 1
-            
+
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
         counter = 0
         _receivedSubmitsCount = 0
@@ -694,7 +694,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
 
             counter += 1
         endAt = datetime.now()
-        
+
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
@@ -725,10 +725,10 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
             msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu)
             submitCounter += 1
-            
+
         # Wait for 2 seconds before stopping
         yield waitFor(2)
-        
+
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
@@ -746,7 +746,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Wait for 5 seconds before stopping , all the rest of the queue must be sent
         yield waitFor(5)
 
-        yield self.stop(localConfig.id)    
+        yield self.stop(localConfig.id)
 
         # Wait for unbound state
         yield waitFor(2)
@@ -787,7 +787,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Wait for 15 seconds, all the rest of the queue must be sent
         yield waitFor(15)
 
-        yield self.stop(localConfig.id)    
+        yield self.stop(localConfig.id)
 
         # Wait for unbound state
         yield waitFor(2)
@@ -811,13 +811,13 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             delta = timedelta(seconds=2)
             SubmitSmPDU = copy.copy(self.SubmitSmPDU)
             SubmitSmPDU.params['validity_period'] = datetime.today() + delta
-            
+
             c = yield self.submit_sm(localConfig.id, SubmitSmPDU)
             submitCounter += 1
-        
+
         # Wait 5 seconds
         yield waitFor(5)
-        
+
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
@@ -835,7 +835,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         yield SMSCSimulatorRecorder.setUp(self)
 
         self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
-        
+
         config = SMPPClientConfig(id='defaultId')
         opFactory = SMPPOperationFactory(config)
         self.SubmitSmPDU = opFactory.SubmitSM(
@@ -861,7 +861,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RSYSERR'
         msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
-        
+
         # Wait
         yield waitFor(70)
 
@@ -869,7 +869,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
 
         # Wait for unbound state
         yield waitFor(2)
-            
+
         # Assertions
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
         # By default, ESME_RSYSERR is retried 2 times in 70s
@@ -892,7 +892,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RREPLACEFAIL'
         msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
-        
+
         # Wait
         yield waitFor(70)
 
@@ -900,7 +900,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
 
         # Wait for unbound state
         yield waitFor(2)
-            
+
         # Assertions
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
         # By default, ESME_RREPLACEFAIL is not retried !
@@ -912,7 +912,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         yield SMSCSimulatorRecorder.setUp(self)
 
         self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
-        
+
     @defer.inlineCallbacks
     def send_long_submit_sm(self, long_content_split):
         """Reference to #27:
@@ -939,7 +939,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
 
         # Send submit_sm
         yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU)
-        
+
         # Wait 2 seconds
         yield waitFor(2)
 
@@ -947,8 +947,8 @@ class LoggingTestCases(SMSCSimulatorRecorder):
 
         # Wait for unbound state
         yield waitFor(2)
-        
-        
+
+
         # Assertions
         # Take the lastClient (and unique one) and assert received messages
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 2)
@@ -972,8 +972,8 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         # There were a connection to the SMSC
         self.assertTrue(self.SMSCPort.factory.buildProtocol.called)
         self.assertEqual(self.SMSCPort.factory.buildProtocol.call_count, 1)
-    
-        
+
+
     def test_long_submitSm_sar(self):
         return self.send_long_submit_sm('sar')
 
@@ -982,10 +982,10 @@ class LoggingTestCases(SMSCSimulatorRecorder):
 
 class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
     receivedDeliverSm = None
-    
+
     def deliver_sm_callback(self, message):
         self.receivedDeliverSm = pickle.loads(message.content.body)
-    
+
     @defer.inlineCallbacks
     def test_deliverSm(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -999,7 +999,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
 
         yield self.add(self.defaultConfig)
         yield self.start(self.defaultConfig.id)
-        
+
         # Give the reactor a run
         yield self.session_state(self.defaultConfig.id)
         # Wait for 'BOUND_TRX' state
@@ -1020,9 +1020,9 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         # Assertions
         self.assertTrue(self.receivedDeliverSm is not None)
         self.assertIsInstance(self.receivedDeliverSm, DeliverSM)
-        
+
 class ClientConnectorStatusTestCases(SMSCSimulator):
-    
+
     @defer.inlineCallbacks
     def test_session_state_bound(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -1031,20 +1031,20 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
 
         ssRet = yield self.session_state(self.defaultConfig.id)
         self.assertEqual(None, ssRet)
-        
+
         yield self.start(self.defaultConfig.id)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
         self.assertEqual('BOUND_TRX', ssRet)
-        
+
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
         yield waitFor(2)
-        
+
         cDetails = yield self.connector_details(self.defaultConfig.id)
         self.assertEqual(1, cDetails['stop_count'])
-        
+
         yield self.stopall()
 
     @defer.inlineCallbacks
@@ -1057,10 +1057,10 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
 
         ssRet = yield self.session_state(localConfig.id)
         self.assertEqual(None, ssRet)
-        
+
         yield self.start(localConfig.id)
 
         ssRet = yield self.session_state(localConfig.id)
         self.assertEqual(None, ssRet)
-        
+
         yield self.stop(localConfig.id)
