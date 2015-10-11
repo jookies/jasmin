@@ -17,37 +17,37 @@ from twisted.internet import reactor, defer
 class Options(usage.Options):
 
     optParameters = [
-        ['config',                  'c', '/etc/jasmin/interceptor.cfg', 
+        ['config',                  'c', '/etc/jasmin/interceptor.cfg',
          'Jasmin interceptor configuration file'],
         ]
 
 class InterceptorDaemon:
-    
+
     def __init__(self, options):
         self.options = options
         self.components = {}
-    
+
     def startInterceptorPBService(self):
         "Start Interceptor PB server"
 
         InterceptorPBConfigInstance = InterceptorPBConfig(self.options['config'])
         self.components['interceptor-pb-factory'] = InterceptorPB()
         self.components['interceptor-pb-factory'].setConfig(InterceptorPBConfigInstance)
-        
+
         # Set authentication portal
         p = portal.Portal(JasminPBRealm(self.components['interceptor-pb-factory']))
         if InterceptorPBConfigInstance.authentication:
             c = InMemoryUsernamePasswordDatabaseDontUse()
-            c.addUser(InterceptorPBConfigInstance.admin_username, 
+            c.addUser(InterceptorPBConfigInstance.admin_username,
                       InterceptorPBConfigInstance.admin_password)
             p.registerChecker(c)
         else:
             p.registerChecker(AllowAnonymousAccess())
         jPBPortalRoot = JasminPBPortalRoot(p)
-        
+
         # Add service
-        self.components['interceptor-pb-server'] = reactor.listenTCP(InterceptorPBConfigInstance.port, 
-                                    pb.PBServerFactory(jPBPortalRoot), 
+        self.components['interceptor-pb-server'] = reactor.listenTCP(InterceptorPBConfigInstance.port,
+                                    pb.PBServerFactory(jPBPortalRoot),
                                     interface=InterceptorPBConfigInstance.bind)
 
     def stopInterceptorPBService(self):
@@ -57,25 +57,25 @@ class InterceptorDaemon:
     @defer.inlineCallbacks
     def start(self):
         syslog.syslog(syslog.LOG_INFO, "Starting InterceptorPB Daemon ...")
-        
+
         ########################################################
         # Start Interceptor PB server
         yield self.startInterceptorPBService()
         syslog.syslog(syslog.LOG_INFO, "  Interceptor Started.")
-    
+
     @defer.inlineCallbacks
     def stop(self):
         syslog.syslog(syslog.LOG_INFO, "Stopping Interceptor Daemon ...")
-        
+
         if 'interceptor-pb-server' in self.components:
             yield self.stopInterceptorPBService()
             syslog.syslog(syslog.LOG_INFO, "  InterceptorPB stopped.")
 
         reactor.stop()
-    
+
     def sighandler_stop(self, signum, frame):
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Interceptor Daemon")
-        
+
         return self.stop()
 
 if __name__ == '__main__':
@@ -91,5 +91,5 @@ if __name__ == '__main__':
         signal.signal(signal.SIGINT, id.sighandler_stop)
         # Start InterceptorDaemon
         id.start()
-        
+
         reactor.run()

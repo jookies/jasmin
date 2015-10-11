@@ -3,10 +3,10 @@ class HttpApiError(Exception):
         Exception.__init__(self)
         self.message = message
         self.code = code
-    
+
     def __str__(self):
         return '%s: %s (%s)' % (self.code, self.__class__.__name__, self.message)
-    
+
 class UrlArgsValidationError(HttpApiError):
     """
     Raised when url validation fails  (jasmin.protocols.http.validation.UrlArgsValidator)
@@ -34,7 +34,7 @@ class AuthenticationError(HttpApiError):
     """
     def __init__(self, message = None):
         HttpApiError.__init__(self, 403, message)
-        
+
 class RouteNotFoundError(HttpApiError):
     """
     Raised when no routes found for a given Routable
@@ -59,7 +59,22 @@ class ThroughputExceededError(HttpApiError):
 class InterceptorNotSetError(HttpApiError):
     """
     Raised when message is about to be intercepted and no
-    interceptor were set
+    interceptorpb_client were set
     """
     def __init__(self, message = None):
-        HttpApiError.__init__(self, 500, message)
+        HttpApiError.__init__(self, 503, message)
+
+class InterceptorNotConnectedError(HttpApiError):
+    """
+    Raised when message is about to be intercepted and
+    interceptorpb_client is disconnected
+    """
+    def __init__(self, message = None):
+        HttpApiError.__init__(self, 503, message)
+
+class InterceptorRunError(HttpApiError):
+    """
+    Raised when running script returned an error
+    """
+    def __init__(self, message = None):
+        HttpApiError.__init__(self, 400, message)

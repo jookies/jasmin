@@ -10,10 +10,10 @@ class InterceptorPBConfig(ConfigFile):
 
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
-        
+
         self.bind = self._get('interceptor', 'bind', '0.0.0.0')
         self.port = self._getint('interceptor', 'port', 8987)
-        
+
         self.authentication = self._getbool('interceptor', 'authentication', True)
         self.admin_username = self._get('interceptor', 'admin_username', 'iadmin')
         self.admin_password = self._get('interceptor', 'admin_password', "dd8b84cdb60655fed3b9b2d668c5bd9e").decode('hex')
@@ -25,14 +25,16 @@ class InterceptorPBConfig(ConfigFile):
         self.log_format = self._get('interceptor', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
+        self.log_slow_script = self._getfloat('interceptor', 'log_slow_script', 0.5)
+
 class InterceptorPBClientConfig(ConfigFile):
     "Config handler for 'interceptor' section"
 
     def __init__(self, config_file = None):
         ConfigFile.__init__(self, config_file)
-        
+
         self.host = self._get('interceptor-client', 'host', '127.0.0.1')
         self.port = self._getint('interceptor-client', 'port', 8987)
-        
+
         self.username = self._get('interceptor-client', 'username', 'iadmin')
         self.password = self._get('interceptor-client', 'password', 'ipwd')
