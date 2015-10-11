@@ -19,7 +19,6 @@ from jasmin.vendor.smpp.pdu.pdu_types import *
 from jasmin.vendor.smpp.pdu.gsm_types import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 
-@unittest.skip('''Jasmin update: All vendor tests shall be skipped)''')
 class SMDecoderTest(unittest.TestCase):
 
     def getPDU(self, hexStr):

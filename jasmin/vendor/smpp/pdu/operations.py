@@ -20,7 +20,7 @@ class BindTransmitterResp(PDUResponse):
     commandId = CommandId.bind_transmitter_resp
     mandatoryParams = ['system_id']
     optionalParams = ['sc_interface_version']
-    
+
 class BindTransmitter(PDURequest):
     requireAck = BindTransmitterResp
     commandId = CommandId.bind_transmitter
@@ -39,7 +39,7 @@ class BindReceiverResp(PDUResponse):
     commandId = CommandId.bind_receiver_resp
     mandatoryParams = ['system_id']
     optionalParams = ['sc_interface_version']
-    
+
 class BindReceiver(PDURequest):
     requireAck = BindReceiverResp
     commandId = CommandId.bind_receiver
@@ -58,7 +58,7 @@ class BindTransceiverResp(PDUResponse):
     commandId = CommandId.bind_transceiver_resp
     mandatoryParams = ['system_id']
     optionalParams = ['sc_interface_version']
-        
+
 class BindTransceiver(PDURequest):
     requireAck = BindTransceiverResp
     commandId = CommandId.bind_transceiver
@@ -81,7 +81,7 @@ class Outbind(PDU):
 
 class UnbindResp(PDUResponse):
     commandId = CommandId.unbind_resp
-    
+
 class Unbind(PDURequest):
     requireAck = UnbindResp
     commandId = CommandId.unbind
@@ -93,7 +93,7 @@ class SubmitSMResp(PDUResponse):
     noBodyOnError = True
     commandId = CommandId.submit_sm_resp
     mandatoryParams = ['message_id']
-    
+
 class SubmitSM(PDUDataRequest):
     requireAck = SubmitSMResp
     commandId = CommandId.submit_sm
@@ -238,6 +238,9 @@ class DeliverSM(PDUDataRequest):
         # it is added for compatibility with some providers (c.f. #120)
         'source_network_type',
         'dest_network_type',
+        # Avoid raising exceptions when having vendor specific tags, just
+        # bypass them
+        'vendor_specific_bypass',
 
         'user_message_reference',
         'source_port',
@@ -379,10 +382,10 @@ class ReplaceSM(PDUDataRequest):
         'sm_length',
         'short_message',
     ]
-    
+
 class EnquireLinkResp(PDUResponse):
     commandId = CommandId.enquire_link_resp
-    
+
 class EnquireLink(PDURequest):
     requireAck = EnquireLinkResp
     commandId = CommandId.enquire_link
@@ -400,7 +403,7 @@ class AlertNotification(PDU):
     optionalParams = [
         'ms_availability_status',
     ]
-    
+
 PDUS = {}
 
 def _register():

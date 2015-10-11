@@ -30,16 +30,16 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
     def test_validity_period(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['validity-period'] = 1440 # 1 Day = 24 x 60 minutes = 1440 minutes
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
@@ -54,87 +54,87 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
     def test_dlr_level_default(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
             'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_1(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
             'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_2(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
             'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_3(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
             'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
@@ -142,21 +142,21 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         "Related to #104"
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(source_addr_ton = AddrTon.ABBREVIATED)
-        
+
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
             'ABBREVIATED')
 
     @defer.inlineCallbacks
@@ -164,31 +164,31 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         "Related to #104, will check if all parts of long message will get the same source_addr_ton"
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(source_addr_ton = AddrTon.ABBREVIATED)
-        
+
         self.params['content'] = composeMessage({'_'}, 200)
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
             'ABBREVIATED')
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton']), 
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton']),
             'ABBREVIATED')
 
 class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def setUp(self):
         yield HappySMSCTestCase.setUp(self)
-        
+
         # Start http servers
         self.AckServerResource = AckServer()
         self.AckServer = reactor.listenTCP(0, server.Site(self.AckServerResource))
@@ -196,7 +196,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
     @defer.inlineCallbacks
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
-        
+
         yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
@@ -208,22 +208,22 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 2 seconds for submit_sm_resp
         yield waitFor(2)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
@@ -241,17 +241,17 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 2 seconds for submit_sm_resp
         yield waitFor(2)
 
@@ -264,7 +264,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -280,17 +280,17 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 2 seconds for submit_sm_resp
         yield waitFor(2)
 
@@ -303,7 +303,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 2)
         # Message ID must be transmitted in the DLR
@@ -321,25 +321,25 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -353,22 +353,22 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
@@ -390,17 +390,17 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -411,7 +411,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
@@ -440,17 +440,17 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -461,7 +461,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
@@ -501,18 +501,18 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
         self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -525,7 +525,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -541,18 +541,18 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -565,7 +565,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_GET.call_count, 2)
         # Message ID must be transmitted in the DLR
@@ -578,23 +578,23 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
     def test_receipt_empty_content(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['content'] = ''
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
         # Send a MT
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
-        
+
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
 
 class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def setUp(self):
         yield HappySMSCTestCase.setUp(self)
-        
+
         # Start http servers
         self.AckServerResource = AckServer()
         self.AckServer = reactor.listenTCP(0, server.Site(self.AckServerResource))
@@ -602,7 +602,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
     @defer.inlineCallbacks
     def tearDown(self):
         yield HappySMSCTestCase.tearDown(self)
-        
+
         yield self.AckServer.stopListening()
 
     @defer.inlineCallbacks
@@ -614,25 +614,25 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         self.params['content'] = composeMessage({'_'}, 200)
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -648,17 +648,17 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -671,7 +671,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -687,17 +687,17 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -710,7 +710,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_POST.call_count, 2)
         # Message ID must be transmitted in the DLR
@@ -728,25 +728,25 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
-        
+
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -762,18 +762,18 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
         self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -786,7 +786,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
@@ -802,18 +802,18 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
-        
+
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
 
@@ -826,7 +826,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         yield self.stopSmppClientConnectors()
 
         # Run tests
-        self.assertEqual(msgStatus, 'Success')        
+        self.assertEqual(msgStatus, 'Success')
         # A DLR must be sent to dlr_url
         self.assertEqual(self.AckServerResource.render_GET.call_count, 2)
         # Message ID must be transmitted in the DLR
@@ -837,19 +837,19 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
 class NoResponseOnSubmitSMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = NoResponseOnSubmitSMSCRecorder
-    
+
     @defer.inlineCallbacks
     def setUp(self):
         yield SMPPClientManagerPBTestCase.setUp(self)
-        
+
         self.smsc_f = LastClientFactory()
         self.smsc_f.protocol = self.protocol
         self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-                
+
     @defer.inlineCallbacks
     def tearDown(self):
         yield SMPPClientManagerPBTestCase.tearDown(self)
-        
+
         yield self.SMSCPort.stopListening()
 
 class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMSCTestCase, SubmitSmTestCaseTools):
@@ -864,10 +864,10 @@ class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMS
 
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(reconnectOnConnectionLoss = False)
-        
+
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
-        
+
         # Send a MT
         # We should receive a msg id
         c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
@@ -875,13 +875,13 @@ class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMS
         msgId = c[9:45]
 
         # Wait till the connector unbinds because of no response
-        yield waitFor(2)
+        yield waitFor(4)
         yield self.stopSmppClientConnectors()
 
         yield self.SMPPClientManagerPBProxy.start(self.c1.cid)
 
         # Wait till the connector unbinds because of no response
-        yield waitFor(2)
+        yield waitFor(4)
         yield self.stopSmppClientConnectors()
 
         # Run tests
@@ -916,7 +916,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -927,7 +927,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-        
+
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
@@ -1012,7 +1012,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1023,7 +1023,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-        
+
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
@@ -1106,7 +1106,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1117,7 +1117,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-        
+
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
@@ -1154,7 +1154,7 @@ class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1166,7 +1166,7 @@ class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['validity_period'] = validity_period
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-        
+
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
@@ -1192,7 +1192,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
 
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases = 2)
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1206,7 +1206,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-        
+
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
@@ -1246,7 +1246,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
 
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases = 1)
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1260,7 +1260,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-        
+
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
