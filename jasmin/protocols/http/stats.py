@@ -17,6 +17,7 @@ class HttpAPIStatistics(Stats):
 			'auth_error_count': 0,
 			'route_error_count': 0,
 			'interceptor_error_count': 0,
+			'interceptor_count': 0,
 			'throughput_error_count': 0,
 			'charging_error_count': 0,
 			'server_error_count': 0,
@@ -34,5 +35,5 @@ class HttpAPIStatsCollector:
 		api_id = 'main'
 		if api_id not in self.apis:
 			self.apis[api_id] = HttpAPIStatistics(api_id)
-		
+
 		return self.apis[api_id]

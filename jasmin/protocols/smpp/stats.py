@@ -61,6 +61,8 @@ class ServerConnectorStatistics(ConnectorStatistics):
 			'elink_count': 0,
 			'throttling_error_count': 0,
 			'other_submit_error_count': 0,
+			'interceptor_error_count': 0,
+			'interceptor_count': 0,
 		}
 
 class SMPPClientStatsCollector:
@@ -72,7 +74,7 @@ class SMPPClientStatsCollector:
 		"Return a connector's stats object or instanciate a new one"
 		if cid not in self.connectors:
 			self.connectors[cid] = ClientConnectorStatistics(cid)
-		
+
 		return self.connectors[cid]
 
 class SMPPServerStatsCollector:
@@ -84,5 +86,5 @@ class SMPPServerStatsCollector:
 		"Return a connector's stats object or instanciate a new one"
 		if cid not in self.connectors:
 			self.connectors[cid] = ServerConnectorStatistics(cid)
-		
+
 		return self.connectors[cid]

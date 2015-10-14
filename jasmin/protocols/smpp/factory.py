@@ -1,6 +1,7 @@
 #pylint: disable-msg=W0401,W0611
 import logging
 import re
+import pickle
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from OpenSSL import SSL
@@ -196,7 +197,7 @@ class CtxFactory(ssl.ClientContextFactory):
 class SMPPServerFactory(_SMPPServerFactory):
     protocol = SMPPServerProtocol
 
-    def __init__(self, config, auth_portal, RouterPB = None, SMPPClientManagerPB = None):
+    def __init__(self, config, auth_portal, RouterPB = None, SMPPClientManagerPB = None, interceptorpb_client = None):
         self.config = config
         # A dict of protocol instances for each of the current connections,
         # indexed by system_id
@@ -204,7 +205,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         self._auth_portal = auth_portal
         self.RouterPB = RouterPB
         self.SMPPClientManagerPB = SMPPClientManagerPB
-        self.interceptorpb_client = None
+        self.interceptorpb_client = interceptorpb_client
 
         # Setup statistics collector
         self.stats = SMPPServerStatsCollector().get(cid = self.config.id)
@@ -269,12 +270,35 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.error('(submit_sm_event/%s) RouterPB not set: submit_sm will not be routed' % system_id)
             return
 
-        # Interception
-        print 'server', self.interceptorpb_client
+        # Prepare for interception then routing
+        routable = RoutableSubmitSm(SubmitSmPDU, user)
 
-        return self.submit_sm_event(system_id, *args)
+        # Interception inline
+        # @TODO: make Interception in a thread, just like httpapi interception
+        interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
+        if interceptor is not None:
+            self.log.debug("RouterPB selected %s interceptor for this SubmitSmPDU" % interceptor)
+            if self.interceptorpb_client is None:
+                self.stats.inc('interceptor_error_count')
+                self.log.error("InterceptorPB not set !")
+                raise InterceptorNotSetError('InterceptorPB not set !')
+            if not self.interceptorpb_client.isConnected:
+                self.stats.inc('interceptor_error_count')
+                self.log.error("InterceptorPB not connected !")
+                raise InterceptorNotConnectedError('InterceptorPB not connected !')
 
-    def submit_sm_event(self, system_id, *args):
+            script = interceptor.getScript()
+            self.log.debug("Interceptor script loaded: %s" % script)
+
+            # Run !
+            d = self.interceptorpb_client.run(script, routable)
+            d.addCallback(self.submit_sm_post_interception, system_id = system_id, proto = proto)
+            d.addErrback(self.submit_sm_post_interception)
+            return d
+        else:
+            return self.submit_sm_post_interception(routable = routable, system_id = system_id, proto = proto)
+
+    def submit_sm_post_interception(self, *args, **kw):
         """This event handler will deliver the submit_sm to the right smppc connector.
         Note that Jasmin deliver submit_sm messages like this:
         - from httpapi to smppc (handled in jasmin.protocols.http.server)
@@ -282,99 +306,136 @@ class SMPPServerFactory(_SMPPServerFactory):
 
         Note: This event handler MUST behave exactly like jasmin.protocols.http.server.Send.render
         """
-        self.log.debug('Handling submit_sm event for system_id: %s' % system_id)
 
-        proto = args[0]
-        user = proto.user
-        SubmitSmPDU = args[1]
+        try:
+            # Init message id
+            message_id = None
 
-        # Routing
-        routedConnector = None # init
-        routable = RoutableSubmitSm(SubmitSmPDU, user)
-        route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
-        if route is None:
-            self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (user, SubmitSmPDU))
-            raise SubmitSmRouteNotFoundError()
+            # Post interception:
+            if len(args) == 1:
+                if isinstance(args[0], bool) and args[0] == False:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error('Failed running interception script, got a False return.')
+                    raise InterceptorRunError('Failed running interception script, check log for details')
+                elif isinstance(args[0], int) and args[0] > 0:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error('Interceptor script returned %s smpp_status error.' % args[0])
+                    raise SubmitSmInterceptionError(code = args[0])
+                elif isinstance(args[0], str):
+                    self.stats.inc('interceptor_count')
+                    routable = pickle.loads(args[0])
+                else:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error('Failed running interception script, got the following return: %s' % args[0])
+                    raise InterceptorRunError('Failed running interception script, got the following return: %s' % args[0])
+            else:
+                routable = kw['routable']
 
-        # Get connector from selected route
-        self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
-        routedConnector = route.getConnector()
+            system_id = kw['system_id']
+            proto = kw['proto']
 
-        # QoS throttling
-        if user.mt_credential.getQuota('smpps_throughput') >= 0 and user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0:
-            qos_throughput_second = 1 / float(user.mt_credential.getQuota('smpps_throughput'))
-            qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
-            qos_delay = datetime.now() - user.getCnxStatus().smpps['qos_last_submit_sm_at']
-            if qos_delay < qos_throughput_ysecond_td:
-                self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
-                                qos_delay,
-                                qos_throughput_ysecond_td,
-                                user
-                                ))
+            self.log.debug('Handling submit_sm_post_interception event for system_id: %s' % system_id)
 
-                raise SubmitSmThroughputExceededError()
-        user.getCnxStatus().smpps['qos_last_submit_sm_at'] = datetime.now()
+            # Routing
+            routedConnector = None # init
+            route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
+            if route is None:
+                self.log.error("No route matched from user %s for SubmitSmPDU: %s" % (routable.user, routable.pdu))
+                raise SubmitSmRouteNotFoundError()
 
-        # Pre-sending submit_sm: Billing processing
-        bill = route.getBillFor(user)
-        self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU" %
-                                                (bill.bid, bill.getTotalAmounts()))
-        charging_requirements = []
-        u_balance = user.mt_credential.getQuota('balance')
-        u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
-        if u_balance is not None and bill.getTotalAmounts() > 0:
-            # Ensure user have enough balance to pay submit_sm and submit_sm_resp
-            charging_requirements.append({'condition': bill.getTotalAmounts() <= u_balance,
-                                          'error_message': 'Not enough balance (%s) for charging: %s' %
-                                          (u_balance, bill.getTotalAmounts())})
-        if u_subsm_count is not None:
-            # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
-            charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
-                                          'error_message': 'Not enough submit_sm_count (%s) for charging: %s' %
-                                          (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
+            # Get connector from selected route
+            self.log.debug("RouterPB selected %s for this SubmitSmPDU" % route)
+            routedConnector = route.getConnector()
 
-        if self.RouterPB.chargeUserForSubmitSms(user, bill, requirements = charging_requirements) is None:
-            self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)' %
-                                                (user, bill.bid, bill.getTotalAmounts()))
-            raise SubmitSmChargingError()
+            # QoS throttling
+            if routable.user.mt_credential.getQuota('smpps_throughput') >= 0 and routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0:
+                qos_throughput_second = 1 / float(routable.user.mt_credential.getQuota('smpps_throughput'))
+                qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+                qos_delay = datetime.now() - routable.user.getCnxStatus().smpps['qos_last_submit_sm_at']
+                if qos_delay < qos_throughput_ysecond_td:
+                    self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
+                                    qos_delay,
+                                    qos_throughput_ysecond_td,
+                                    routable.user
+                                    ))
 
-        # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
-        priority = 0
-        if SubmitSmPDU.params['priority_flag'] is not None:
-            priority = SubmitSmPDU.params['priority_flag'].index
+                    raise SubmitSmThroughputExceededError()
+            routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] = datetime.now()
 
-        if self.SMPPClientManagerPB is None:
-            self.log.error('(submit_sm_event/%s) SMPPClientManagerPB not set: submit_sm will not be submitted' % system_id)
-            return
+            # Pre-sending submit_sm: Billing processing
+            bill = route.getBillFor(routable.user)
+            self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU" %
+                                                    (bill.bid, bill.getTotalAmounts()))
+            charging_requirements = []
+            u_balance = routable.user.mt_credential.getQuota('balance')
+            u_subsm_count = routable.user.mt_credential.getQuota('submit_sm_count')
+            if u_balance is not None and bill.getTotalAmounts() > 0:
+                # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+                charging_requirements.append({'condition': bill.getTotalAmounts() <= u_balance,
+                                              'error_message': 'Not enough balance (%s) for charging: %s' %
+                                              (u_balance, bill.getTotalAmounts())})
+            if u_subsm_count is not None:
+                # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
+                charging_requirements.append({'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
+                                              'error_message': 'Not enough submit_sm_count (%s) for charging: %s' %
+                                              (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
-        ########################################################
-        # Send SubmitSmPDU through smpp client manager PB server
-        self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
-        c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid,
-                                                        SubmitSmPDU,
-                                                        priority,
-                                                        pickled = False,
-                                                        submit_sm_resp_bill = bill.getSubmitSmRespBill(),
-                                                        source_connector = proto)
+            if self.RouterPB.chargeUserForSubmitSms(routable.user, bill, requirements = charging_requirements) is None:
+                self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)' %
+                                                    (routable.user, bill.bid, bill.getTotalAmounts()))
+                raise SubmitSmChargingError()
 
-        # Build final response
-        if not c.result:
-            self.log.error('Failed to send SubmitSmPDU to [cid:%s]' % routedConnector.cid)
-            raise SubmitSmRoutingError()
+            # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
+            priority = 0
+            if routable.pdu.params['priority_flag'] is not None:
+                priority = routable.pdu.params['priority_flag'].index
+
+            if self.SMPPClientManagerPB is None:
+                self.log.error('(submit_sm_event/%s) SMPPClientManagerPB not set: submit_sm will not be submitted' % system_id)
+                return
+
+            ########################################################
+            # Send SubmitSmPDU through smpp client manager PB server
+            self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU" % routedConnector.cid)
+            c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid,
+                                                            routable.pdu,
+                                                            priority,
+                                                            pickled = False,
+                                                            submit_sm_resp_bill = bill.getSubmitSmRespBill(),
+                                                            source_connector = proto)
+
+            # Build final response
+            if not c.result:
+                self.log.error('Failed to send SubmitSmPDU to [cid:%s]' % routedConnector.cid)
+                raise SubmitSmRoutingError()
+
+            # Otherwise, message_id is defined on ESME_ROK
+            message_id = c.result
+        except (SubmitSmInterceptionError, InterceptorRunError, SubmitSmRouteNotFoundError,
+                SubmitSmThroughputExceededError, SubmitSmChargingError, SubmitSmRoutingError) as e:
+            # Known exception handling
+            status = e.status
+        except Exception, e:
+            # Unknown exception handling
+            self.log.critical('Got an unknown exception: %s' % e)
+            status = pdu_types.CommandStatus.ESME_RUNKNOWNERR
         else:
             self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s' % (routedConnector.cid, c.result))
-
             self.log.info('SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]'
-                          % (user.uid,
+                          % (routable.user.uid,
                           routedConnector.cid,
                           c.result,
                           priority,
-                          SubmitSmPDU.params['source_addr'],
-                          SubmitSmPDU.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+','.', SubmitSmPDU.params['short_message'])))
-
-            return DataHandlerResponse(status=pdu_types.CommandStatus.ESME_ROK,
-                                       message_id=c.result)
+                          routable.pdu.params['source_addr'],
+                          routable.pdu.params['destination_addr'],
+                          re.sub(r'[^\x20-\x7E]+','.', routable.pdu.params['short_message'])))
+            status = pdu_types.CommandStatus.ESME_ROK
+        finally:
+            if message_id is not None:
+                return DataHandlerResponse(status=status,
+                                            message_id=c.result)
+            else:
+                return DataHandlerResponse(status=status)
 
     def buildProtocol(self, addr):
         """Provision protocol with the dedicated logger

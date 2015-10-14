@@ -28,10 +28,11 @@ class ProvisionWithoutInterceptorPB:
     @defer.inlineCallbacks
     def setUp(self):
         if hasattr(self, 'ipb_client'):
-            yield HappySMSCTestCase.setUp(self, self.ipb_client)
+            yield HappySMSCTestCase.setUp(self, interceptorpb_client = self.ipb_client)
         else:
             yield HappySMSCTestCase.setUp(self)
 
+        # Connect to RouterPB
         yield self.connect('127.0.0.1', self.pbPort)
 
         # Provision user, group, default mt route and
@@ -136,7 +137,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
 class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, RouterPBProxy, HappySMSCTestCase):
 
     @defer.inlineCallbacks
-    def test_httpapi_send_interceptorpb_not_set(self):
+    def test_send_interceptorpb_not_set(self):
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -155,7 +156,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         self.assertEqual(lastResponse, 'Error "InterceptorPB not set !"')
 
     @defer.inlineCallbacks
-    def test_httpapi_rate_interceptorpb_not_set(self):
+    def test_rate_interceptorpb_not_set(self):
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -175,9 +176,10 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
 
 class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, HappySMSCTestCase):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
+    raise_any_exception = "raise Exception('Exception from interceptor script')"
 
     @defer.inlineCallbacks
-    def test_httpapi_send_interceptorpb_not_connected(self):
+    def test_send_interceptorpb_not_connected(self):
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -196,7 +198,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastResponse, 'Error "InterceptorPB not connected !"')
 
     @defer.inlineCallbacks
-    def test_httpapi_send_interceptorpb_syntax_error(self):
+    def test_send_syntax_error(self):
         # Connect to InterceptorPB
         yield self.ipb_connect()
 
@@ -218,7 +220,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
 
     @defer.inlineCallbacks
-    def test_httpapi_send_interceptorpb_success(self):
+    def test_send_success(self):
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.update_message_sript)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -248,7 +250,36 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual('Intercepted message', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
 
     @defer.inlineCallbacks
-    def test_httpapi_rate_interceptorpb_not_connected(self):
+    def test_send_any_exception_from_script(self):
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.raise_any_exception)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, '400')
+        self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
+
+    @defer.inlineCallbacks
+    def test_rate_interceptorpb_not_connected(self):
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -267,7 +298,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastResponse, '"InterceptorPB not connected !"')
 
     @defer.inlineCallbacks
-    def test_httpapi_rate_interceptorpb_syntax_error(self):
+    def test_rate_syntax_error(self):
         # Connect to InterceptorPB
         yield self.ipb_connect()
 
@@ -289,7 +320,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
 
     @defer.inlineCallbacks
-    def test_httpapi_rate_interceptorpb_success(self):
+    def test_rate_success(self):
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.update_message_sript)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -312,3 +343,32 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
 
         # Asserts
         self.assertEqual(lastErrorStatus, None)
+
+    @defer.inlineCallbacks
+    def test_rate_any_exception_from_script(self):
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.raise_any_exception)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, '400')
+        self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')

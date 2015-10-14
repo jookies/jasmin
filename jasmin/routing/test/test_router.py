@@ -96,7 +96,7 @@ class RouterPBTestCase(unittest.TestCase):
         self.pbRoot_f.cancelPersistenceTimer()
 
 class HttpServerTestCase(RouterPBTestCase):
-    def setUp(self, interceptor = None):
+    def setUp(self, interceptorpb_client = None):
         RouterPBTestCase.setUp(self)
 
         # Initiating config objects without any filename
@@ -111,7 +111,7 @@ class HttpServerTestCase(RouterPBTestCase):
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
 
         # Launch the http server
-        httpApi = HTTPApi(self.pbRoot_f, self.clientManager_f, httpApiConfigInstance, interceptor)
+        httpApi = HTTPApi(self.pbRoot_f, self.clientManager_f, httpApiConfigInstance, interceptorpb_client)
         self.httpServer = reactor.listenTCP(httpApiConfigInstance.port, server.Site(httpApi))
         self.httpPort  = httpApiConfigInstance.port
 
@@ -123,8 +123,8 @@ class HttpServerTestCase(RouterPBTestCase):
 
 class SMPPClientManagerPBTestCase(HttpServerTestCase):
     @defer.inlineCallbacks
-    def setUp(self, interceptor = None):
-        HttpServerTestCase.setUp(self, interceptor)
+    def setUp(self, interceptorpb_client = None):
+        HttpServerTestCase.setUp(self, interceptorpb_client)
 
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
@@ -739,7 +739,7 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         yield self.mointerceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
 
         # Add mt interceptor
-        yield self.mtinterceptore_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
+        yield self.mtinterceptor_add(DefaultInterceptor(MTInterceptorScript('some code')), 0)
 
         # List users
         c = yield self.user_get_all()
@@ -1229,8 +1229,8 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = ManualDeliveryReceiptHappySMSC
 
     @defer.inlineCallbacks
-    def setUp(self, interceptor = None):
-        yield SMPPClientManagerPBTestCase.setUp(self, interceptor)
+    def setUp(self, interceptorpb_client = None):
+        yield SMPPClientManagerPBTestCase.setUp(self, interceptorpb_client)
 
         self.smsc_f = LastClientFactory()
         self.smsc_f.protocol = self.protocol

@@ -1,3 +1,4 @@
+from jasmin.vendor.smpp.pdu import constants
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu import pdu_types
 
@@ -119,3 +120,15 @@ class DeliverSmInterceptionError(InterceptorError):
 
 class SubmitSmInterceptionError(InterceptorError):
     pass
+
+class InterceptorNotSetError(InterceptorError):
+    def __init__(self, message = None):
+        InterceptorError.__init__(self, code = 8, message = message)
+
+class InterceptorNotConnectedError(InterceptorError):
+    def __init__(self, message = None):
+        InterceptorError.__init__(self, code = 8, message = message)
+
+class InterceptorRunError(InterceptorError):
+    def __init__(self, message = None):
+        InterceptorError.__init__(self, code = 8, message = message)

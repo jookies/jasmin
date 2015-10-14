@@ -35,12 +35,13 @@ class InterceptorPB(pb.Avatar):
     def perspective_run(self, pyCode, routable):
         "Will execute pyCode with the routable argument"
         routable = pickle.loads(routable)
+        smpp_status = 0
 
         try:
             self.log.debug('Running [%s]' % pyCode)
             self.log.debug('... with routable with pdu: %s' % routable.pdu)
             node = CompiledNode().get(pyCode)
-            glo = {'routable': routable}
+            glo = {'routable': routable, 'smpp_status': smpp_status}
 
             # Run script and measure execution time
             start = time.clock()
@@ -58,4 +59,7 @@ class InterceptorPB(pb.Avatar):
             if self.config.log_slow_script >= 0 and delay >= self.config.log_slow_script:
                 self.log.warn('Execution delay [%ss] for script [%s].' % (delay, pyCode))
 
-            return pickle.dumps(routable)
+            if glo['smpp_status'] == 0:
+                return pickle.dumps(glo['routable'])
+            else:
+                return glo['smpp_status']

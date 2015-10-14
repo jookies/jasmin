@@ -101,7 +101,9 @@ class Send(Resource):
                 # Run !
                 r = yield self.interceptorpb_client.run(script, routable)
                 if not r:
+                    self.stats.inc('interceptor_error_count')
                     raise InterceptorRunError('Failed running interception script, check log for details')
+                self.stats.inc('interceptor_count')
                 routable = pickle.loads(r)
 
             # Get the route
