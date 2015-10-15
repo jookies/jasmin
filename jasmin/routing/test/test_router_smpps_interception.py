@@ -144,6 +144,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
     raise_any_exception = "raise Exception('Exception from interceptor script')"
     return_ESME_RINVESMCLASS = "smpp_status = 67"
+    return_HTTP_300 = "http_status = 300"
 
     @defer.inlineCallbacks
     def test_interceptorpb_not_connected(self):
@@ -341,4 +342,49 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RINVESMCLASS)
+        self.assertTrue('message_id' not in response_pdu.params)
+
+    @defer.inlineCallbacks
+    def test_HTTP_300_from_script(self):
+        "Will ensure if script defines only http error it will implicitly cause a smpp ESME_RUNKNOWNERR error"
+
+        # Re-provision interceptor with script returning a HTTP 300
+        # Connect to RouterPB
+        yield self.connect('127.0.0.1', self.pbPort)
+        mt_interceptor = MTInterceptorScript(self.return_HTTP_300)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+        # Disconnect from RouterPB
+        self.disconnect()
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests on final destination smpp server (third party mocker)
+        self.assertEqual(0, len(self.SMSCPort.factory.lastClient.submitRecords))
+        # Run tests on Jasmin's SMPPs
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+        # smpps response was a submit_sm_resp with ESME_ROK
+        response_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu.seqNum, 2)
+        self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RUNKNOWNERR)
         self.assertTrue('message_id' not in response_pdu.params)

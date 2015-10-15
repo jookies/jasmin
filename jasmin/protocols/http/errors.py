@@ -76,5 +76,5 @@ class InterceptorRunError(HttpApiError):
     """
     Raised when running script returned an error
     """
-    def __init__(self, message = None):
-        HttpApiError.__init__(self, 400, message)
+    def __init__(self, code = 400, message = None):
+        HttpApiError.__init__(self, code, message)

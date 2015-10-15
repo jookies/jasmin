@@ -308,8 +308,9 @@ class SMPPServerFactory(_SMPPServerFactory):
         """
 
         try:
-            # Init message id
+            # Init message id & status
             message_id = None
+            status = None
 
             # Post interception:
             if len(args) == 1:
@@ -317,10 +318,10 @@ class SMPPServerFactory(_SMPPServerFactory):
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Failed running interception script, got a False return.')
                     raise InterceptorRunError('Failed running interception script, check log for details')
-                elif isinstance(args[0], int) and args[0] > 0:
+                elif isinstance(args[0], dict) and args[0]['smpp_status'] > 0:
                     self.stats.inc('interceptor_error_count')
-                    self.log.error('Interceptor script returned %s smpp_status error.' % args[0])
-                    raise SubmitSmInterceptionError(code = args[0])
+                    self.log.error('Interceptor script returned %s smpp_status error.' % args[0]['smpp_status'])
+                    raise SubmitSmInterceptionError(code = args[0]['smpp_status'])
                 elif isinstance(args[0], str):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
@@ -434,7 +435,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             if message_id is not None:
                 return DataHandlerResponse(status=status,
                                             message_id=c.result)
-            else:
+            elif status is not None:
                 return DataHandlerResponse(status=status)
 
     def buildProtocol(self, addr):

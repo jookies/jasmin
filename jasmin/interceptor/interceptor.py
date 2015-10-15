@@ -1,6 +1,7 @@
 import logging
 import pickle
 import time
+from twisted.internet import reactor
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
 from jasmin.tools.eval import CompiledNode
@@ -36,17 +37,21 @@ class InterceptorPB(pb.Avatar):
         "Will execute pyCode with the routable argument"
         routable = pickle.loads(routable)
         smpp_status = 0
+        http_status = 0
 
         try:
-            self.log.debug('Running [%s]' % pyCode)
-            self.log.debug('... with routable with pdu: %s' % routable.pdu)
+            self.log.info('Running [%s]' % pyCode)
+            self.log.info('... with routable with pdu: %s' % routable.pdu)
             node = CompiledNode().get(pyCode)
-            glo = {'routable': routable, 'smpp_status': smpp_status}
+            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status}
 
             # Run script and measure execution time
             start = time.clock()
             eval(node, {}, glo)
             end = time.clock()
+
+            # Cancel timeout watcher
+            timeout.cancel()
         except Exception, e:
             self.log.error('Executing script on routable (from:%s, to:%s) returned: %s' % (
                 routable.pdu.params['source_addr'],
@@ -59,7 +64,28 @@ class InterceptorPB(pb.Avatar):
             if self.config.log_slow_script >= 0 and delay >= self.config.log_slow_script:
                 self.log.warn('Execution delay [%ss] for script [%s].' % (delay, pyCode))
 
-            if glo['smpp_status'] == 0:
+            if glo['smpp_status'] == 0 and glo['http_status'] == 0:
                 return pickle.dumps(glo['routable'])
             else:
-                return glo['smpp_status']
+                # If we have one of the statuses set to non-zero value
+                #  then both of them must be non-zero to avoid misbehaviour
+                #  of differents apis: if we return an error in smpp, we must
+                #  do the same in http as well.
+                if glo['smpp_status'] == 0 or not isinstance(glo['smpp_status'], int):
+                    # ESME_RUNKNOWNERR
+                    self.log.info('Setting smpp_status to 255 when having http_status = %s and smpp_status = %s.' % (
+                        glo['http_status'],
+                        glo['smpp_status'],
+                    ))
+                    glo['smpp_status'] = 255
+                elif glo['http_status'] == 0 or not isinstance(glo['http_status'], int):
+                    # Unknown Error
+                    self.log.info('Setting http_status to 520 when having smpp_status = %s and http_status = %s.' % (
+                        glo['smpp_status'],
+                        glo['http_status'],
+                    ))
+                    glo['http_status'] = 520
+
+                r = {'http_status': glo['http_status'], 'smpp_status': glo['smpp_status']}
+                self.log.info('Returning statuses: %s' % (r))
+                return r

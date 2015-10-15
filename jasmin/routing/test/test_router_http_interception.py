@@ -177,6 +177,8 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
 class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, HappySMSCTestCase):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
     raise_any_exception = "raise Exception('Exception from interceptor script')"
+    return_ESME_RINVESMCLASS = "smpp_status = 67"
+    return_HTTP_300 = "http_status = 300"
 
     @defer.inlineCallbacks
     def test_send_interceptorpb_not_connected(self):
@@ -279,6 +281,66 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
 
     @defer.inlineCallbacks
+    def test_send_HTTP_300_from_script(self):
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.return_HTTP_300)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, '300')
+        self.assertEqual(lastResponse, 'Error "Interception specific error code 300"')
+
+    @defer.inlineCallbacks
+    def test_send_ESME_RINVESMCLASS_from_script(self):
+        "Will ensure if script defines only smpp error it will implicitly cause a http 520 error"
+
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.return_ESME_RINVESMCLASS)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, '520')
+        self.assertEqual(lastResponse, 'Error "Interception specific error code 520"')
+
+    @defer.inlineCallbacks
     def test_rate_interceptorpb_not_connected(self):
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
@@ -372,3 +434,63 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
+
+    @defer.inlineCallbacks
+    def test_rate_HTTP_300_from_script(self):
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.return_HTTP_300)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, '300')
+        self.assertEqual(lastResponse, '"Interception specific error code 300"')
+
+    @defer.inlineCallbacks
+    def test_rate_ESME_RINVESMCLASS_from_script(self):
+        "Will ensure if script defines only smpp error it will implicitly cause a http 520 error"
+
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.return_ESME_RINVESMCLASS)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, '520')
+        self.assertEqual(lastResponse, '"Interception specific error code 520"')

@@ -3,7 +3,7 @@ import re
 import json
 import pickle
 from twisted.spread.pb import RemoteError
-from twisted.internet import reactor, defer, reactor
+from twisted.internet import reactor, defer
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from twisted.web.resource import Resource
@@ -100,11 +100,20 @@ class Send(Resource):
 
                 # Run !
                 r = yield self.interceptorpb_client.run(script, routable)
-                if not r:
+                if isinstance(r, dict) and r['http_status'] != 200:
                     self.stats.inc('interceptor_error_count')
-                    raise InterceptorRunError('Failed running interception script, check log for details')
-                self.stats.inc('interceptor_count')
-                routable = pickle.loads(r)
+                    self.log.error('Interceptor script returned %s http_status error.' % r['http_status'])
+                    raise InterceptorRunError(
+                        code = r['http_status'],
+                        message = 'Interception specific error code %s' % r['http_status']
+                    )
+                elif isinstance(r, str):
+                    self.stats.inc('interceptor_count')
+                    routable = pickle.loads(r)
+                else:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error('Failed running interception script, got the following return: %s' % r)
+                    raise InterceptorRunError(message = 'Failed running interception script, check log for details')
 
             # Get the route
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
@@ -412,9 +421,20 @@ class Rate(Resource):
 
                 # Run !
                 r = yield self.interceptorpb_client.run(script, routable)
-                if not r:
-                    raise InterceptorRunError('Failed running interception script, check log for details')
-                routable = pickle.loads(r)
+                if isinstance(r, dict) and r['http_status'] != 200:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error('Interceptor script returned %s http_status error.' % r['http_status'])
+                    raise InterceptorRunError(
+                        code = r['http_status'],
+                        message = 'Interception specific error code %s' % r['http_status']
+                    )
+                elif isinstance(r, str):
+                    self.stats.inc('interceptor_count')
+                    routable = pickle.loads(r)
+                else:
+                    self.stats.inc('interceptor_error_count')
+                    self.log.error('Failed running interception script, got the following return: %s' % r)
+                    raise InterceptorRunError(message = 'Failed running interception script, check log for details')
 
             # Routing
             routedConnector = None # init
