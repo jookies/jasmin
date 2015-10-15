@@ -1,7 +1,6 @@
 import logging
 import pickle
 import time
-from twisted.internet import reactor
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
 from jasmin.tools.eval import CompiledNode
@@ -49,9 +48,6 @@ class InterceptorPB(pb.Avatar):
             start = time.clock()
             eval(node, {}, glo)
             end = time.clock()
-
-            # Cancel timeout watcher
-            timeout.cancel()
         except Exception, e:
             self.log.error('Executing script on routable (from:%s, to:%s) returned: %s' % (
                 routable.pdu.params['source_addr'],
