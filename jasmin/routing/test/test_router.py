@@ -110,6 +110,9 @@ class HttpServerTestCase(RouterPBTestCase):
         self.clientManager_f = SMPPClientManagerPB()
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
 
+        # Add RouterPB to Smpp client manager
+        self.clientManager_f.addRouterPB(self.pbRoot_f)
+
         # Launch the http server
         httpApi = HTTPApi(self.pbRoot_f, self.clientManager_f, httpApiConfigInstance, interceptorpb_client)
         self.httpServer = reactor.listenTCP(httpApiConfigInstance.port, server.Site(httpApi))

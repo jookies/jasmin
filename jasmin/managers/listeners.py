@@ -14,9 +14,12 @@ from twisted.internet import reactor, task
 from jasmin.managers.content import (SubmitSmRespContent, DeliverSmContent,
                                     DLRContentForHttpapi, DLRContentForSmpps,
                                     SubmitSmRespBillContent)
+from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.routing.Routables import RoutableDeliverSm
+from jasmin.routing.jasminApi import Connector
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
@@ -64,12 +67,13 @@ class SMPPClientSMListener:
     '''
 
     def __init__(self, SMPPClientSMListenerConfig,
-            SMPPClientFactory, amqpBroker, redisClient, interceptorpb_client = None):
+            SMPPClientFactory, amqpBroker, redisClient, RouterPB = None, interceptorpb_client = None):
         self.config = SMPPClientSMListenerConfig
         self.SMPPClientFactory = SMPPClientFactory
         self.SMPPOperationFactory = SMPPOperationFactory(self.SMPPClientFactory.config)
         self.amqpBroker = amqpBroker
         self.redisClient = redisClient
+        self.RouterPB = RouterPB
         self.interceptorpb_client = interceptorpb_client
         self.submit_sm_q = None
         self.qos_last_submit_sm_at = None
@@ -613,7 +617,7 @@ class SMPPClientSMListener:
                 pdu.params['esm_class'] = None
             # 2. Set the new short_message
             pdu.params['short_message'] = short_message
-            yield self.deliver_sm_event(smpp = None, pdu = pdu, concatenated = True)
+            yield self.deliver_sm_event_post_interception(smpp = None, pdu = pdu, concatenated = True)
 
     def code_dlr_msgid(self, pdu):
         "Code the dlr msg id accordingly to SMPPc's dlr_msg_id_bases value"
@@ -640,211 +644,284 @@ class SMPPClientSMListener:
         self.log.debug('code_dlr_msgid: %s coded to %s' % (pdu.dlr['id'], ret))
         return ret
 
-    @defer.inlineCallbacks
     def deliver_sm_event_interceptor(self, smpp, pdu):
         self.log.debug('Intercepting deliver_sm event in smppc %s' % self.SMPPClientFactory.config.id)
 
-        print 'client', self.interceptorpb_client
-        yield self.deliver_sm_event(smpp, pdu)
+        if self.RouterPB is None:
+            self.log.error('(deliver_sm_event_interceptor/%s) RouterPB not set: submit_sm will not be routed' %
+                self.SMPPClientFactory.config.id
+            )
+            return
+
+        # Prepare for interception
+        # this is a temporary routable instance to be used in interception
+        temp_routable = RoutableDeliverSm(pdu, Connector(self.SMPPClientFactory.config.id))
+
+        # Interception inline
+        # @TODO: make Interception in a thread, just like httpapi interception
+        interceptor = self.RouterPB.getMOInterceptionTable().getInterceptorFor(temp_routable)
+        if interceptor is not None:
+            self.log.debug("RouterPB selected %s interceptor for this DeliverSmPDU" % interceptor)
+            if self.interceptorpb_client is None:
+                smpp.factory.stats.inc('interceptor_error_count')
+                self.log.error("InterceptorPB not set !")
+                raise InterceptorNotSetError('InterceptorPB not set !')
+            if not self.interceptorpb_client.isConnected:
+                smpp.factory.stats.inc('interceptor_error_count')
+                self.log.error("InterceptorPB not connected !")
+                raise InterceptorNotConnectedError('InterceptorPB not connected !')
+
+            script = interceptor.getScript()
+            self.log.debug("Interceptor script loaded: %s" % script)
+
+            # Run !
+            d = self.interceptorpb_client.run(script, temp_routable)
+            d.addCallback(self.deliver_sm_event_post_interception, smpp = smpp, pdu = pdu)
+            d.addErrback(self.deliver_sm_event_post_interception)
+            return d
+        else:
+            return self.deliver_sm_event_post_interception(smpp = smpp, pdu = pdu)
 
     @defer.inlineCallbacks
-    def deliver_sm_event(self, smpp, pdu, concatenated = False):
+    def deliver_sm_event_post_interception(self, *args, **kw):
         """This event is called whenever a deliver_sm pdu is received through a SMPPc
         It will hand the pdu to the router or a dlr thrower (depending if its a DLR or not).
 
         Note: this event will catch data_sm pdus as well
         """
 
-        pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
-        content = DeliverSmContent(pdu,
-                                   self.SMPPClientFactory.config.id,
-                                   pickleProtocol = self.pickleProtocol,
-                                   concatenated = concatenated)
-        msgid = content.properties['message-id']
+        try:
+            # Control args
+            if 'smpp' not in kw or 'pdu' not in kw:
+                self.log.error('deliver_sm_event_post_interception missing arguments after interception: %s' % kw)
+                raise InterceptorRunError('deliver_sm_event_post_interception missing arguments after interception')
 
-        if pdu.dlr is None:
-            # We have a SMS-MO
+            # Set defaults
+            smpp = kw['smpp']
+            pdu = kw['pdu']
+            if 'concatenated' in kw:
+                concatenated = kw['concatenated']
+            else:
+                concatenated = False
 
-            # UDH is set ?
-            UDHI_INDICATOR_SET = False
-            if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
-                for gsmFeature in pdu.params['esm_class'].gsmFeatures:
-                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
-                        UDHI_INDICATOR_SET = True
-                        break
+            # Post interception:
+            if len(args) == 1:
+                if isinstance(args[0], bool) and args[0] == False:
+                    smpp.factory.stats.inc('interceptor_error_count')
+                    self.log.error('Failed running interception script, got a False return.')
+                    raise InterceptorRunError('Failed running interception script, check log for details')
+                elif isinstance(args[0], dict) and args[0]['smpp_status'] > 0:
+                    smpp.factory.stats.inc('interceptor_error_count')
+                    self.log.error('Interceptor script returned %s smpp_status error.' % args[0]['smpp_status'])
+                    raise DeliverSmInterceptionError(code = args[0]['smpp_status'])
+                elif isinstance(args[0], str):
+                    smpp.factory.stats.inc('interceptor_count')
+                    temp_routable = pickle.loads(args[0])
+                    pdu = temp_routable.pdu
+                else:
+                    smpp.factory.stats.inc('interceptor_error_count')
+                    self.log.error('Failed running interception script, got the following return: %s' % args[0])
+                    raise InterceptorRunError('Failed running interception script, got the following return: %s' % args[0])
 
-            splitMethod = None
-            # Is it a part of a long message ?
-            if 'sar_msg_ref_num' in pdu.params:
-                splitMethod = 'sar'
-                total_segments = pdu.params['sar_total_segments']
-                segment_seqnum = pdu.params['sar_segment_seqnum']
-                msg_ref_num = pdu.params['sar_msg_ref_num']
-                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (
-                    msgid, total_segments, segment_seqnum, msg_ref_num))
-            elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
-                splitMethod = 'udh'
-                total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
-                segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
-                msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
-                self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (
-                    msgid, total_segments, segment_seqnum, msg_ref_num))
+            self.log.debug('Handling deliver_sm_event_post_interception event for smppc: %s' % self.SMPPClientFactory.config.id)
 
-            if splitMethod is None:
-                # It's a simple short message or a part of a concatenated message
-                routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
-                self.log.debug("Publishing DeliverSmContent[%s] with routing_key[%s]" % (msgid, routing_key))
-                yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
+            pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
+            content = DeliverSmContent(pdu,
+                                       self.SMPPClientFactory.config.id,
+                                       pickleProtocol = self.pickleProtocol,
+                                       concatenated = concatenated)
+            msgid = content.properties['message-id']
 
-                self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" %
+            if pdu.dlr is None:
+                # We have a SMS-MO
+
+                # UDH is set ?
+                UDHI_INDICATOR_SET = False
+                if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
+                    for gsmFeature in pdu.params['esm_class'].gsmFeatures:
+                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                            UDHI_INDICATOR_SET = True
+                            break
+
+                splitMethod = None
+                # Is it a part of a long message ?
+                if 'sar_msg_ref_num' in pdu.params:
+                    splitMethod = 'sar'
+                    total_segments = pdu.params['sar_total_segments']
+                    segment_seqnum = pdu.params['sar_segment_seqnum']
+                    msg_ref_num = pdu.params['sar_msg_ref_num']
+                    self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (
+                        msgid, total_segments, segment_seqnum, msg_ref_num))
+                elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
+                    splitMethod = 'udh'
+                    total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
+                    segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
+                    msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
+                    self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s' % (
+                        msgid, total_segments, segment_seqnum, msg_ref_num))
+
+                if splitMethod is None:
+                    # It's a simple short message or a part of a concatenated message
+                    routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                    self.log.debug("Publishing DeliverSmContent[%s] with routing_key[%s]" % (msgid, routing_key))
+                    yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
+
+                    self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]" %
+                              (
+                               self.SMPPClientFactory.config.id,
+                               msgid,
+                               pdu.status,
+                               pdu.params['priority_flag'],
+                               pdu.params['validity_period'],
+                               pdu.params['source_addr'],
+                               pdu.params['destination_addr'],
+                               re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
+                               ))
+                else:
+                    # Long message part received
+                    if self.redisClient is None:
+                        self.warn('No valid RC were found while receiving a part of a long DeliverSm [queue-msgid:%s], MESSAGE IS LOST !' % msgid)
+
+                    # Save it to redis
+                    hashKey = "longDeliverSm:%s" % (msg_ref_num)
+                    hashValues = {'pdu': pdu,
+                                  'total_segments':total_segments,
+                                  'msg_ref_num':msg_ref_num,
+                                  'segment_seqnum':segment_seqnum}
+                    self.redisClient.hset(hashKey, segment_seqnum, pickle.dumps(hashValues,
+                                                                               self.pickleProtocol
+                                                                               )
+                                          ).addCallback(self.concatDeliverSMs,
+                                                        splitMethod,
+                                                        total_segments,
+                                                        msg_ref_num,
+                                                        segment_seqnum)
+
+                    self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (
+                        msgid, total_segments))
+
+                    # Flag it as "will_be_concatenated" and publish it to router
+                    routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                    self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]" % (msgid, routing_key))
+                    content.properties['headers']['will_be_concatenated'] = True
+                    yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
+            else:
+                # This is a DLR !
+                # Check for DLR request
+                if self.redisClient is not None:
+                    _coded_dlr_id = self.code_dlr_msgid(pdu)
+
+                    q = yield self.redisClient.get("queue-msgid:%s" % _coded_dlr_id)
+                    submit_sm_queue_id = None
+                    connector_type = None
+                    if q is not None:
+                        q = pickle.loads(q)
+                        submit_sm_queue_id = q['msgid']
+                        connector_type = q['connector_type']
+
+
+                    if submit_sm_queue_id is not None and connector_type == 'httpapi':
+                        pickledDlr = yield self.redisClient.get("dlr:%s" % submit_sm_queue_id)
+
+                        if pickledDlr is not None:
+                            dlr = pickle.loads(pickledDlr)
+                            dlr_url = dlr['url']
+                            dlr_level = dlr['level']
+                            dlr_method = dlr['method']
+
+                            if dlr_level in [2, 3]:
+                                self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s' %
+                                               (submit_sm_queue_id, dlr_url, dlr_level))
+                                content = DLRContentForHttpapi(pdu.dlr['stat'],
+                                                     submit_sm_queue_id,
+                                                     dlr_url,
+                                                     # The dlr_url in DLRContentForHttpapi indicates the level
+                                                     # of the actual delivery receipt (2) and not the
+                                                     # requested one (maybe 2 or 3)
+                                                     dlr_level = 2,
+                                                     id_smsc = _coded_dlr_id,
+                                                     sub = pdu.dlr['sub'],
+                                                     dlvrd = pdu.dlr['dlvrd'],
+                                                     subdate = pdu.dlr['sdate'],
+                                                     donedate = pdu.dlr['ddate'],
+                                                     err = pdu.dlr['err'],
+                                                     text = pdu.dlr['text'],
+                                                     method = dlr_method)
+                                routing_key = 'dlr_thrower.http'
+                                self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]" %
+                                               (submit_sm_queue_id, routing_key))
+                                yield self.amqpBroker.publish(exchange='messaging',
+                                                              routing_key=routing_key,
+                                                              content=content)
+
+                                self.log.debug('Removing DLR request for msgid[%s]' % submit_sm_queue_id)
+                                yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
+                            else:
+                                self.log.debug('SMS-C receipt is requested, will not send any DLR receipt at this level.')
+                        else:
+                            self.log.warn('DLR for msgid[%s] not found !' %
+                                          (submit_sm_queue_id))
+                    elif submit_sm_queue_id is not None and connector_type == 'smpps':
+                        pickledSmppsMap = yield self.redisClient.get("smppsmap:%s" % submit_sm_queue_id)
+
+                        if pickledSmppsMap is not None:
+                            smpps_map = pickle.loads(pickledSmppsMap)
+                            system_id = smpps_map['system_id']
+                            source_addr = smpps_map['source_addr']
+                            destination_addr = smpps_map['destination_addr']
+                            sub_date = smpps_map['sub_date']
+                            registered_delivery = smpps_map['registered_delivery']
+                            smpps_map_expiry = smpps_map['expiry']
+
+                            success_states = ['ACCEPTD', 'DELIVRD']
+                            final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
+                            # Do we need to forward the receipt to the original sender ?
+                            if ((pdu.dlr['stat'] in success_states and
+                                    str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED')
+                                or (pdu.dlr['stat'] not in success_states and
+                                    str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
+                                                                         'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
+
+                                self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s' % (submit_sm_queue_id,
+                                                                                                                          registered_delivery,
+                                                                                                                          system_id))
+                                content = DLRContentForSmpps(pdu.dlr['stat'],
+                                                             submit_sm_queue_id,
+                                                             system_id,
+                                                             source_addr,
+                                                             destination_addr,
+                                                             sub_date)
+
+                                routing_key = 'dlr_thrower.smpps'
+                                self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (submit_sm_queue_id, routing_key))
+                                yield self.amqpBroker.publish(exchange='messaging',
+                                                              routing_key=routing_key,
+                                                              content=content)
+
+                                if pdu.dlr['stat'] in final_states:
+                                    self.log.debug('Removing SMPPs map for msgid[%s]' % submit_sm_queue_id)
+                                    yield self.redisClient.delete('smppsmap:%s' % submit_sm_queue_id)
+                    else:
+                        self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu.dlr['id'], _coded_dlr_id))
+                else:
+                    self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
+
+                self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%s]" %
                           (
                            self.SMPPClientFactory.config.id,
-                           msgid,
-                           pdu.status,
-                           pdu.params['priority_flag'],
-                           pdu.params['validity_period'],
-                           pdu.params['source_addr'],
-                           pdu.params['destination_addr'],
-                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
+                           _coded_dlr_id,
+                           pdu.dlr['stat'],
+                           pdu.dlr['sdate'],
+                           pdu.dlr['ddate'],
+                           pdu.dlr['sub'],
+                           pdu.dlr['dlvrd'],
+                           pdu.dlr['err'],
+                           pdu.dlr['text'],
                            ))
-            else:
-                # Long message part received
-                if self.redisClient is None:
-                    self.warn('No valid RC were found while receiving a part of a long DeliverSm [queue-msgid:%s], MESSAGE IS LOST !' % msgid)
-
-                # Save it to redis
-                hashKey = "longDeliverSm:%s" % (msg_ref_num)
-                hashValues = {'pdu': pdu,
-                              'total_segments':total_segments,
-                              'msg_ref_num':msg_ref_num,
-                              'segment_seqnum':segment_seqnum}
-                self.redisClient.hset(hashKey, segment_seqnum, pickle.dumps(hashValues,
-                                                                           self.pickleProtocol
-                                                                           )
-                                      ).addCallback(self.concatDeliverSMs,
-                                                    splitMethod,
-                                                    total_segments,
-                                                    msg_ref_num,
-                                                    segment_seqnum)
-
-                self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation." % (
-                    msgid, total_segments))
-
-                # Flag it as "will_be_concatenated" and publish it to router
-                routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
-                self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]" % (msgid, routing_key))
-                content.properties['headers']['will_be_concatenated'] = True
-                yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
-        else:
-            # This is a DLR !
-            # Check for DLR request
-            if self.redisClient is not None:
-                _coded_dlr_id = self.code_dlr_msgid(pdu)
-
-                q = yield self.redisClient.get("queue-msgid:%s" % _coded_dlr_id)
-                submit_sm_queue_id = None
-                connector_type = None
-                if q is not None:
-                    q = pickle.loads(q)
-                    submit_sm_queue_id = q['msgid']
-                    connector_type = q['connector_type']
-
-
-                if submit_sm_queue_id is not None and connector_type == 'httpapi':
-                    pickledDlr = yield self.redisClient.get("dlr:%s" % submit_sm_queue_id)
-
-                    if pickledDlr is not None:
-                        dlr = pickle.loads(pickledDlr)
-                        dlr_url = dlr['url']
-                        dlr_level = dlr['level']
-                        dlr_method = dlr['method']
-
-                        if dlr_level in [2, 3]:
-                            self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s' %
-                                           (submit_sm_queue_id, dlr_url, dlr_level))
-                            content = DLRContentForHttpapi(pdu.dlr['stat'],
-                                                 submit_sm_queue_id,
-                                                 dlr_url,
-                                                 # The dlr_url in DLRContentForHttpapi indicates the level
-                                                 # of the actual delivery receipt (2) and not the
-                                                 # requested one (maybe 2 or 3)
-                                                 dlr_level = 2,
-                                                 id_smsc = _coded_dlr_id,
-                                                 sub = pdu.dlr['sub'],
-                                                 dlvrd = pdu.dlr['dlvrd'],
-                                                 subdate = pdu.dlr['sdate'],
-                                                 donedate = pdu.dlr['ddate'],
-                                                 err = pdu.dlr['err'],
-                                                 text = pdu.dlr['text'],
-                                                 method = dlr_method)
-                            routing_key = 'dlr_thrower.http'
-                            self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]" %
-                                           (submit_sm_queue_id, routing_key))
-                            yield self.amqpBroker.publish(exchange='messaging',
-                                                          routing_key=routing_key,
-                                                          content=content)
-
-                            self.log.debug('Removing DLR request for msgid[%s]' % submit_sm_queue_id)
-                            yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
-                        else:
-                            self.log.debug('SMS-C receipt is requested, will not send any DLR receipt at this level.')
-                    else:
-                        self.log.warn('DLR for msgid[%s] not found !' %
-                                      (submit_sm_queue_id))
-                elif submit_sm_queue_id is not None and connector_type == 'smpps':
-                    pickledSmppsMap = yield self.redisClient.get("smppsmap:%s" % submit_sm_queue_id)
-
-                    if pickledSmppsMap is not None:
-                        smpps_map = pickle.loads(pickledSmppsMap)
-                        system_id = smpps_map['system_id']
-                        source_addr = smpps_map['source_addr']
-                        destination_addr = smpps_map['destination_addr']
-                        sub_date = smpps_map['sub_date']
-                        registered_delivery = smpps_map['registered_delivery']
-                        smpps_map_expiry = smpps_map['expiry']
-
-                        success_states = ['ACCEPTD', 'DELIVRD']
-                        final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
-                        # Do we need to forward the receipt to the original sender ?
-                        if ((pdu.dlr['stat'] in success_states and
-                                str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED')
-                            or (pdu.dlr['stat'] not in success_states and
-                                str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
-                                                                     'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
-
-                            self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s' % (submit_sm_queue_id,
-                                                                                                                      registered_delivery,
-                                                                                                                      system_id))
-                            content = DLRContentForSmpps(pdu.dlr['stat'],
-                                                         submit_sm_queue_id,
-                                                         system_id,
-                                                         source_addr,
-                                                         destination_addr,
-                                                         sub_date)
-
-                            routing_key = 'dlr_thrower.smpps'
-                            self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]" % (submit_sm_queue_id, routing_key))
-                            yield self.amqpBroker.publish(exchange='messaging',
-                                                          routing_key=routing_key,
-                                                          content=content)
-
-                            if pdu.dlr['stat'] in final_states:
-                                self.log.debug('Removing SMPPs map for msgid[%s]' % submit_sm_queue_id)
-                                yield self.redisClient.delete('smppsmap:%s' % submit_sm_queue_id)
-                else:
-                    self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu.dlr['id'], _coded_dlr_id))
-            else:
-                self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found' % msgid)
-
-            self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%s]" %
-                      (
-                       self.SMPPClientFactory.config.id,
-                       _coded_dlr_id,
-                       pdu.dlr['stat'],
-                       pdu.dlr['sdate'],
-                       pdu.dlr['ddate'],
-                       pdu.dlr['sub'],
-                       pdu.dlr['dlvrd'],
-                       pdu.dlr['err'],
-                       pdu.dlr['text'],
-                       ))
+        except (InterceptorRunError, DeliverSmInterceptionError) as e:
+            # Known exception handling
+            defer.returnValue(DataHandlerResponse(status=e.status))
+        except Exception, e:
+            # Unknown exception handling
+            self.log.critical('Got an unknown exception: %s' % e)
+            defer.returnValue(DataHandlerResponse(status=CommandStatus.ESME_RUNKNOWNERR))

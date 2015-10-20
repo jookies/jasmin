@@ -28,6 +28,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.redisClient = None
         self.amqpBroker = None
         self.interceptorpb_client = None
+        self.RouterPB = None
         self.connectors = []
         self.declared_queues = []
         self.pickleProtocol = 2
@@ -77,6 +78,11 @@ class SMPPClientManagerPB(pb.Avatar):
         self.interceptorpb_client = interceptorpb_client
 
         self.log.info('Added interceptorpb_client to SMPPClientManagerPB')
+
+    def addRouterPB(self, RouterPB):
+        self.RouterPB = RouterPB
+
+        self.log.info('Added RouterPB to SMPPClientManagerPB')
 
     def getConnector(self, cid):
         for c in self.connectors:
@@ -239,6 +245,7 @@ class SMPPClientManagerPB(pb.Avatar):
                                           SMPPClientFactory = serviceManager.SMPPClientFactory,
                                           amqpBroker = self.amqpBroker,
                                           redisClient = self.redisClient,
+                                          RouterPB = self.RouterPB,
                                           interceptorpb_client = self.interceptorpb_client)
 
         # Deliver_sm are sent to smListener's deliver_sm callback method

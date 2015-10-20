@@ -47,6 +47,8 @@ class SMPPClientStatsCollectorBasicTestCases(TestCase):
 			'disconnected_at': 0,
 			'disconnected_count': 0,
 			'elink_count': 0,
+			'interceptor_count': 0,
+			'interceptor_error_count': 0,
 			'last_received_elink_at': 0,
 			'last_received_pdu_at': 0,
 			'last_sent_elink_at': 0,

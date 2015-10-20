@@ -33,6 +33,8 @@ class ClientConnectorStatistics(ConnectorStatistics):
 			'elink_count': 0,
 			'throttling_error_count': 0,
 			'other_submit_error_count': 0,
+			'interceptor_error_count': 0,
+			'interceptor_count': 0,
 		}
 
 class ServerConnectorStatistics(ConnectorStatistics):
