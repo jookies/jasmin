@@ -7,22 +7,24 @@ from jasmin.protocols.cli.protocol import CmdProtocol
 from jasmin.protocols.cli.smppccm import SmppCCManager
 from jasmin.protocols.cli.usersm import UsersManager
 from jasmin.protocols.cli.groupsm import GroupsManager
+from jasmin.protocols.cli.mointerceptorm import MoInterceptorManager
+from jasmin.protocols.cli.mtinterceptorm import MtInterceptorManager
 from jasmin.protocols.cli.morouterm import MoRouterManager
 from jasmin.protocols.cli.mtrouterm import MtRouterManager
 from jasmin.protocols.cli.filtersm import FiltersManager
 from jasmin.protocols.cli.httpccm import HttpccManager
 from jasmin.protocols.cli.statsm import StatsManager
-        
+
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin %s console\nType help or ? to list commands.\n' % jasmin.get_release()
     prompt = 'jcli : '
-    
+
     def __init__(self, log_category = 'jcli'):
         CmdProtocol.__init__(self, log_category)
 
         # Init authentication
         self.authentication = {'username': None, 'password': None, 'printedPassword': None, 'auth': False}
-                    
+
         # Provision commands
         if 'persist' not in self.commands:
             self.commands.append('persist')
@@ -34,6 +36,10 @@ class JCliProtocol(CmdProtocol):
             self.commands.append('group')
         if 'filter' not in self.commands:
             self.commands.append('filter')
+        if 'mointerceptor' not in self.commands:
+            self.commands.append('mointerceptor')
+        if 'mtinterceptor' not in self.commands:
+            self.commands.append('mtinterceptor')
         if 'morouter' not in self.commands:
             self.commands.append('morouter')
         if 'mtrouter' not in self.commands:
@@ -61,45 +67,47 @@ class JCliProtocol(CmdProtocol):
             self.terminal.write('Authentication required.\n\n')
 
         # Provision managers
-        self.managers = {'user': UsersManager(self, self.factory.pb), 
-                         'group': GroupsManager(self, self.factory.pb), 
-                         'morouter': MoRouterManager(self, self.factory.pb), 
-                         'mtrouter': MtRouterManager(self, self.factory.pb), 
-                         'smppccm': SmppCCManager(self, self.factory.pb), 
+        self.managers = {'user': UsersManager(self, self.factory.pb),
+                         'group': GroupsManager(self, self.factory.pb),
+                         'mointerceptor': MoInterceptorManager(self, self.factory.pb),
+                         'mtinterceptor': MtInterceptorManager(self, self.factory.pb),
+                         'morouter': MoRouterManager(self, self.factory.pb),
+                         'mtrouter': MtRouterManager(self, self.factory.pb),
+                         'smppccm': SmppCCManager(self, self.factory.pb),
                          'filter': FiltersManager(self),
                          'httpccm': HttpccManager(self),
-                         'stats': StatsManager(self, self.factory.pb), 
+                         'stats': StatsManager(self, self.factory.pb),
                          }
-        
+
     def lineReceived(self, line):
         "Go to CmdProtocol.lineReceived when authenticated only"
-        
+
         if self.authentication['auth']:
             return CmdProtocol.lineReceived(self, line)
         elif self.authentication['username'] is None:
             return self.AUTH_username(line)
         elif self.authentication['password'] is None:
             return self.AUTH_password(line)
-        
+
     def characterReceived(self, ch, moreCharactersComing):
         if self.mode == 'insert':
             self.lineBuffer.insert(self.lineBufferIndex, ch)
         else:
             self.lineBuffer[self.lineBufferIndex:self.lineBufferIndex+1] = [ch]
         self.lineBufferIndex += 1
-        
+
         # Dont print back chars if password is being entered
         if not self.authentication['auth'] and self.authentication['username'] is not None and self.authentication['password'] is None:
             return
         else:
             self.terminal.write(ch)
-        
+
     def handle_TAB(self):
         "TABulation is only enabled when authenticated"
-        
+
         if self.authentication['auth']:
             return CmdProtocol.handle_TAB(self)
-        
+
     def AUTH_username(self, username):
         "Save typed username and prompt for password"
 
@@ -108,7 +116,7 @@ class JCliProtocol(CmdProtocol):
             self.authentication['username'] = username
             self.prompt = 'Password: '
             self.log.debug('[sref:%s] Received AUTH Username: %s' % (self.sessionRef, self.authentication['username']))
-        
+
         return self.sendData()
 
     def AUTH_password(self, password):
@@ -120,9 +128,9 @@ class JCliProtocol(CmdProtocol):
         for _ in password:
             self.authentication['printedPassword'] += '*'
         self.log.debug('[sref:%s] Received AUTH Password: %s' % (self.sessionRef, self.authentication['printedPassword']))
-        
+
         # Authentication check against configured admin
-        if (self.authentication['username'] == self.factory.config.admin_username and 
+        if (self.authentication['username'] == self.factory.config.admin_username and
           md5(self.authentication['password']).digest() == self.factory.config.admin_password):
             # Authenticated user
             self.authentication['auth'] = True
@@ -132,18 +140,18 @@ class JCliProtocol(CmdProtocol):
             self.prompt = 'Username: '
             self.authentication = {'username': None, 'password': None, 'printedPassword': None, 'auth': False}
             return self.sendData('Incorrect Username/Password.\n')
-        
+
         return self.sendData()
 
     @options([make_option('-l', '--list', action="store_true",
                           help = "List all users or a group users when provided with GID"),
               make_option('-a', '--add', action="store_true",
                           help = "Add user"),
-              make_option('-u', '--update', type="string", metavar="UID", 
+              make_option('-u', '--update', type="string", metavar="UID",
                           help = "Update user using it's UID"),
-              make_option('-r', '--remove', type="string", metavar="UID", 
+              make_option('-r', '--remove', type="string", metavar="UID",
                           help = "Remove user using it's UID"),
-              make_option('-s', '--show', type="string", metavar="UID", 
+              make_option('-s', '--show', type="string", metavar="UID",
                           help = "Show user using it's UID"),
               ], '')
     def do_user(self, arg, opts):
@@ -161,16 +169,16 @@ class JCliProtocol(CmdProtocol):
             self.managers['user'].show(arg, opts)
         else:
             return self.sendData('Missing required option')
-        
+
     @options([make_option('-l', '--list', action="store_true",
                           help = "List groups"),
               make_option('-a', '--add', action="store_true",
                           help = "Add group"),
-              #make_option('-u', '--update', type="string", metavar="GID", 
+              #make_option('-u', '--update', type="string", metavar="GID",
               #            help = "Update group using it's GID"),
-              make_option('-r', '--remove', type="string", metavar="GID", 
+              make_option('-r', '--remove', type="string", metavar="GID",
                           help = "Remove group using it's GID"),
-              #make_option('-s', '--show', type="string", metavar="GID", 
+              #make_option('-s', '--show', type="string", metavar="GID",
               #            help = "Show group using it's GID"),
               ], '')
     def do_group(self, arg, opts):
@@ -188,14 +196,14 @@ class JCliProtocol(CmdProtocol):
         #    self.managers['group'].show(arg, opts)
         else:
             return self.sendData('Missing required option')
-        
+
     @options([make_option('-l', '--list', action="store_true",
                           help = "List filters"),
               make_option('-a', '--add', action="store_true",
                           help = "Add filter"),
-              make_option('-r', '--remove', type="string", metavar="FID", 
+              make_option('-r', '--remove', type="string", metavar="FID",
                           help = "Remove filter using it's FID"),
-              make_option('-s', '--show', type="string", metavar="FID", 
+              make_option('-s', '--show', type="string", metavar="FID",
                           help = "Show filter using it's FID"),
               ], '')
     def do_filter(self, arg, opts):
@@ -216,9 +224,9 @@ class JCliProtocol(CmdProtocol):
                           help = "List HTTP client connectors"),
               make_option('-a', '--add', action="store_true",
                           help = "Add a new HTTP client connector"),
-              make_option('-r', '--remove', type="string", metavar="CID", 
+              make_option('-r', '--remove', type="string", metavar="CID",
                           help = "Remove HTTP client connector using it's CID"),
-              make_option('-s', '--show', type="string", metavar="CID", 
+              make_option('-s', '--show', type="string", metavar="CID",
                           help = "Show HTTP client connector using it's CID"),
               ], '')
     def do_httpccm(self, arg, opts = None):
@@ -236,12 +244,66 @@ class JCliProtocol(CmdProtocol):
             return self.sendData('Missing required option')
 
     @options([make_option('-l', '--list', action="store_true",
+                          help = "List MO interceptors"),
+              make_option('-a', '--add', action="store_true",
+                          help = "Add a new MO interceptor"),
+              make_option('-r', '--remove', type="string", metavar="ORDER",
+                          help = "Remove MO interceptor using it's ORDER"),
+              make_option('-s', '--show', type="string", metavar="ORDER",
+                          help = "Show MO interceptor using it's ORDER"),
+              make_option('-f', '--flush', action="store_true",
+                          help = "Flush MO interception table"),
+              ], '')
+    def do_mointerceptor(self, arg, opts = None):
+        'MO Router management'
+
+        if opts.list:
+            self.managers['mointerceptor'].list(arg, opts)
+        elif opts.add:
+            self.managers['mointerceptor'].add(arg, opts)
+        elif opts.remove:
+            self.managers['mointerceptor'].remove(arg, opts)
+        elif opts.show:
+            self.managers['mointerceptor'].show(arg, opts)
+        elif opts.flush:
+            self.managers['mointerceptor'].flush(arg, opts)
+        else:
+            return self.sendData('Missing required option')
+
+    @options([make_option('-l', '--list', action="store_true",
+                          help = "List MT interceptors"),
+              make_option('-a', '--add', action="store_true",
+                          help = "Add a new MT interceptor"),
+              make_option('-r', '--remove', type="string", metavar="ORDER",
+                          help = "Remove MT interceptor using it's ORDER"),
+              make_option('-s', '--show', type="string", metavar="ORDER",
+                          help = "Show MT interceptor using it's ORDER"),
+              make_option('-f', '--flush', action="store_true",
+                          help = "Flush MT interception table"),
+              ], '')
+    def do_mtinterceptor(self, arg, opts = None):
+        'MT Router management'
+
+        if opts.list:
+            self.managers['mtinterceptor'].list(arg, opts)
+        elif opts.add:
+            self.managers['mtinterceptor'].add(arg, opts)
+        elif opts.remove:
+            self.managers['mtinterceptor'].remove(arg, opts)
+        elif opts.show:
+            self.managers['mtinterceptor'].show(arg, opts)
+        elif opts.flush:
+            self.managers['mtinterceptor'].flush(arg, opts)
+        else:
+            return self.sendData('Missing required option')
+
+    @options([make_option('-l', '--list', action="store_true",
                           help = "List MO routes"),
               make_option('-a', '--add', action="store_true",
                           help = "Add a new MO route"),
-              make_option('-r', '--remove', type="string", metavar="ORDER", 
+              make_option('-r', '--remove', type="string", metavar="ORDER",
                           help = "Remove MO route using it's ORDER"),
-              make_option('-s', '--show', type="string", metavar="ORDER", 
+              make_option('-s', '--show', type="string", metavar="ORDER",
                           help = "Show MO route using it's ORDER"),
               make_option('-f', '--flush', action="store_true",
                           help = "Flush MO routing table"),
@@ -261,14 +323,14 @@ class JCliProtocol(CmdProtocol):
             self.managers['morouter'].flush(arg, opts)
         else:
             return self.sendData('Missing required option')
-        
+
     @options([make_option('-l', '--list', action="store_true",
                           help = "List MT routes"),
               make_option('-a', '--add', action="store_true",
                           help = "Add a new MT route"),
-              make_option('-r', '--remove', type="string", metavar="ORDER", 
+              make_option('-r', '--remove', type="string", metavar="ORDER",
                           help = "Remove MT route using it's ORDER"),
-              make_option('-s', '--show', type="string", metavar="ORDER", 
+              make_option('-s', '--show', type="string", metavar="ORDER",
                           help = "Show MT route using it's ORDER"),
               make_option('-f', '--flush', action="store_true",
                           help = "Flush MT routing table"),
@@ -288,20 +350,20 @@ class JCliProtocol(CmdProtocol):
             self.managers['mtrouter'].flush(arg, opts)
         else:
             return self.sendData('Missing required option')
-    
+
     @options([make_option('-l', '--list', action="store_true",
                           help = "List SMPP connectors"),
               make_option('-a', '--add', action="store_true",
                           help = "Add SMPP connector"),
-              make_option('-u', '--update', type="string", metavar="CID", 
+              make_option('-u', '--update', type="string", metavar="CID",
                           help = "Update SMPP connector configuration using it's CID"),
-              make_option('-r', '--remove', type="string", metavar="CID", 
+              make_option('-r', '--remove', type="string", metavar="CID",
                           help = "Remove SMPP connector using it's CID"),
-              make_option('-s', '--show', type="string", metavar="CID", 
+              make_option('-s', '--show', type="string", metavar="CID",
                           help = "Show SMPP connector using it's CID"),
-              make_option('-1', '--start', type="string", metavar="CID", 
+              make_option('-1', '--start', type="string", metavar="CID",
                           help = "Start SMPP connector using it's CID"),
-              make_option('-0', '--stop', type="string", metavar="CID", 
+              make_option('-0', '--stop', type="string", metavar="CID",
                           help = "Start SMPP connector using it's CID"),
               ], '')
     def do_smppccm(self, arg, opts):
@@ -323,34 +385,34 @@ class JCliProtocol(CmdProtocol):
             self.managers['smppccm'].stop(arg, opts)
         else:
             return self.sendData('Missing required option')
-        
-    @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
+
+    @options([make_option('-p', '--profile', type="string", default="jcli-prod",
                           help = "Configuration profile, default: jcli-prod"),
               ], '')
     def do_persist(self, arg, opts):
         'Persist current configuration profile to disk in PROFILE'
-        
+
         for _, manager in self.managers.iteritems():
             if manager is not None and isinstance(manager, PersistableManager):
                 manager.persist(arg, opts)
         self.sendData()
 
-    @options([make_option('-p', '--profile', type="string", default="jcli-prod", 
+    @options([make_option('-p', '--profile', type="string", default="jcli-prod",
                           help = "Configuration profile, default: jcli-prod"),
               ], '')
     def do_load(self, arg, opts):
         'Load configuration PROFILE profile from disk'
-        
+
         for _, manager in self.managers.iteritems():
             if manager is not None and isinstance(manager, PersistableManager):
                 manager.load(arg, opts)
         self.sendData()
 
-    @options([make_option(None, '--user', type="string", metavar="UID", 
+    @options([make_option(None, '--user', type="string", metavar="UID",
                           help = "Show user stats using it's UID"),
               make_option(None, '--users', action="store_true",
                           help = "Show all users stats"),
-              make_option(None, '--smppc', type="string", metavar="CID", 
+              make_option(None, '--smppc', type="string", metavar="CID",
                           help = "Show smpp connector stats using it's CID"),
               make_option(None, '--smppcs', action="store_true",
                           help = "Show all smpp connectors stats"),

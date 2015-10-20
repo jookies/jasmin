@@ -1,5 +1,5 @@
 from test_jcli import jCliWithoutAuthTestCases
-    
+
 class HttpccTestCases(jCliWithoutAuthTestCases):
     def add_httpcc(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
@@ -7,34 +7,34 @@ class HttpccTestCases(jCliWithoutAuthTestCases):
         commands.append({'command': 'httpccm -a', 'expect': r'Adding a new Httpcc\: \(ok\: save, ko\: exit\)'})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
-            
+
             if extraCommand['command'] in ['ok', 'ko']:
                 sessionTerminated = True
-        
+
         if not sessionTerminated:
             commands.append({'command': 'ok', 'expect': r'Successfully added Httpcc \['})
 
         return self._test(finalPrompt, commands)
-    
+
 class BasicTestCases(HttpccTestCases):
-    
+
     def test_add_with_minimum_args(self):
-        extraCommands = [{'command': 'cid httpcc_1'}, 
+        extraCommands = [{'command': 'cid httpcc_1'},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         return self.add_httpcc(r'jcli : ', extraCommands)
-    
+
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: url, method, cid'}]
         return self.add_httpcc(r'> ', extraCommands)
-    
+
     def test_add_invalid_key(self):
         extraCommands = [{'command': 'cid httpcc_2'},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'},
                          {'command': 'anykey anyvalue', 'expect': r'Unknown Httpcc key: anykey'}]
         return self.add_httpcc(r'jcli : ', extraCommands)
-    
+
     def test_cancel_add(self):
         extraCommands = [{'command': 'cid httpcc_3'},
                          {'command': 'ko'}, ]
@@ -43,19 +43,19 @@ class BasicTestCases(HttpccTestCases):
     def test_list(self):
         commands = [{'command': 'httpccm -l', 'expect': r'Total Httpccs: 0'}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_add_and_list(self):
-        extraCommands = [{'command': 'cid httpcc_4'}, 
+        extraCommands = [{'command': 'cid httpcc_4'},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         self.add_httpcc('jcli : ', extraCommands)
 
-        expectedList = ['#Httpcc id        Type                   Method URL', 
-                        '#httpcc_4         HttpConnector          GET    http://127.0.0.1/bobo', 
+        expectedList = ['#Httpcc id        Type                   Method URL',
+                        '#httpcc_4         HttpConnector          GET    http://127.0.0.1/bobo',
                         'Total Httpccs: 1']
         commands = [{'command': 'httpccm -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_add_cancel_and_list(self):
         extraCommands = [{'command': 'cid httpcc_5'},
                          {'command': 'ko'}, ]
@@ -66,7 +66,7 @@ class BasicTestCases(HttpccTestCases):
 
     def test_show(self):
         cid = 'httpcc_6'
-        extraCommands = [{'command': 'cid %s' % cid}, 
+        extraCommands = [{'command': 'cid %s' % cid},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         self.add_httpcc('jcli : ', extraCommands)
@@ -77,10 +77,10 @@ class BasicTestCases(HttpccTestCases):
                         'method = GET']
         commands = [{'command': 'httpccm -s %s' % cid, 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_update_not_available(self):
         cid = 'httpcc_7'
-        extraCommands = [{'command': 'cid %s' % cid}, 
+        extraCommands = [{'command': 'cid %s' % cid},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         self.add_httpcc(r'jcli : ', extraCommands)
@@ -91,32 +91,32 @@ class BasicTestCases(HttpccTestCases):
     def test_remove_invalid_cid(self):
         commands = [{'command': 'httpccm -r invalid_cid', 'expect': r'Unknown Httpcc\: invalid_cid'}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_remove(self):
         cid = 'httpcc_8'
-        extraCommands = [{'command': 'cid %s' % cid}, 
+        extraCommands = [{'command': 'cid %s' % cid},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         self.add_httpcc(r'jcli : ', extraCommands)
-    
+
         commands = [{'command': 'httpccm -r %s' % cid, 'expect': r'Successfully removed Httpcc id\:%s' % cid}]
         return self._test(r'jcli : ', commands)
 
     def test_remove_and_list(self):
         # Add
         cid = 'httpcc_9'
-        extraCommands = [{'command': 'cid %s' % cid}, 
+        extraCommands = [{'command': 'cid %s' % cid},
                          {'command': 'method POST'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         self.add_httpcc(r'jcli : ', extraCommands)
-    
+
         # List
-        expectedList = ['#Httpcc id        Type                   Method URL', 
-                        '#httpcc_9         HttpConnector          POST   http://127.0.0.1/bobo', 
+        expectedList = ['#Httpcc id        Type                   Method URL',
+                        '#httpcc_9         HttpConnector          POST   http://127.0.0.1/bobo',
                         'Total Httpccs: 1']
         commands = [{'command': 'httpccm -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
-    
+
         # Remove
         commands = [{'command': 'httpccm -r %s' % cid, 'expect': r'Successfully removed Httpcc id\:%s' % cid}]
         self._test(r'jcli : ', commands)
@@ -124,9 +124,9 @@ class BasicTestCases(HttpccTestCases):
         # List again
         commands = [{'command': 'httpccm -l', 'expect': r'Total Httpccs: 0'}]
         return self._test(r'jcli : ', commands)
-    
+
 class HttpccArgsTestCases(HttpccTestCases):
-    
+
     def test_url(self):
         # URL validation test
         commands = [{'command': 'httpccm -a'},
@@ -150,7 +150,7 @@ class HttpccArgsTestCases(HttpccTestCases):
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
         self._test(r'jcli : ', commands)
-    
+
     def test_method(self):
         # POST method validation test
         commands = [{'command': 'httpccm -a'},
@@ -168,7 +168,7 @@ class HttpccArgsTestCases(HttpccTestCases):
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
         self._test(r'jcli : ', commands)
-    
+
         # GET method validation test
         commands = [{'command': 'httpccm -a'},
                     {'command': 'cid httpcc_id_get'},
@@ -194,17 +194,17 @@ class HttpccArgsTestCases(HttpccTestCases):
                     {'command': 'ok', 'expect': r'Successfully added'},
                     ]
         self._test(r'jcli : ', commands)
-    
+
 class HttpccStrTestCases(HttpccTestCases):
-    
+
     def test_str(self):
-        extraCommands = [{'command': 'cid httpcc_id'}, 
+        extraCommands = [{'command': 'cid httpcc_id'},
                          {'command': 'method GET'},
                          {'command': 'url http://127.0.0.1/bobo'}]
         self.add_httpcc(r'jcli : ', extraCommands)
-    
-        expectedList = ['HttpConnector:', 
-                        'cid = httpcc_id', 
+
+        expectedList = ['HttpConnector:',
+                        'cid = httpcc_id',
                         'baseurl = http://127.0.0.1/bobo',
                         'method = GET']
         commands = [{'command': 'httpccm -s httpcc_id', 'expect': expectedList}]

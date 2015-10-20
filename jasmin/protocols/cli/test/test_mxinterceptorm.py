@@ -2,45 +2,14 @@ import re
 from twisted.internet import defer
 from test_jcli import jCliWithoutAuthTestCases
 
-class MxRouterTestCases(jCliWithoutAuthTestCases):
+class MxInterceptorTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def setUp(self):
-        """Will add http and smpp connectors as well as some filters in
-        order to run tests for morouterm and mtrouterm
+        """Will add filters in
+        order to run tests for mointerceptorm and mtinterceptorm as well as
+        some dummy script files
         """
         yield jCliWithoutAuthTestCases.setUp(self)
-
-        # Add an httpcc (cid = http1)
-        commands = [{'command': 'httpccm -a'},
-                    {'command': 'url http://127.0.0.1/Correct/Url'},
-                    {'command': 'method post'},
-                    {'command': 'cid http1'},
-                    {'command': 'ok', 'expect': r'Successfully added'},
-                    ]
-        yield self._test(r'jcli : ', commands)
-
-        # Add an httpcc (cid = http2)
-        commands = [{'command': 'httpccm -a'},
-                    {'command': 'url http://127.0.0.1/Correct/Url'},
-                    {'command': 'method post'},
-                    {'command': 'cid http2'},
-                    {'command': 'ok', 'expect': r'Successfully added'},
-                    ]
-        yield self._test(r'jcli : ', commands)
-
-        # Add an smppcc (cid = smpp1)
-        commands = [{'command': 'smppccm -a'},
-                    {'command': 'cid smpp1'},
-                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.4},
-                    ]
-        yield self._test(r'jcli : ', commands)
-
-        # Add an smppcc (cid = smpp2)
-        commands = [{'command': 'smppccm -a'},
-                    {'command': 'cid smpp2'},
-                    {'command': 'ok', 'expect': r'Successfully added', 'wait': 0.4},
-                    ]
-        yield self._test(r'jcli : ', commands)
 
         # Add a TransparentFilter (fid = f1)
         commands = [{'command': 'filter -a'},
@@ -68,11 +37,21 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                     ]
         yield self._test(r'jcli : ', commands)
 
+        # Create script files
+        self.invalid_syntax = '/tmp/invalid_syntax.py'
+        self.file_not_found = '/file/not/found'
+        self.valid_script = '/tmp/valid_script.py'
+
+        with open(self.invalid_syntax, 'w') as fh:
+            fh.write('Something to throw a syntax error')
+        with open(self.valid_script, 'w') as fh:
+            fh.write('print "hello  world"')
+
     @defer.inlineCallbacks
-    def add_moroute(self, finalPrompt, extraCommands = []):
+    def add_mointerceptor(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
-        commands.append({'command': 'morouter -a', 'expect': r'Adding a new MO Route\: \(ok\: save, ko\: exit\)'})
+        commands.append({'command': 'mointerceptor -a', 'expect': r'Adding a new MO Interceptor\: \(ok\: save, ko\: exit\)'})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
 
@@ -80,15 +59,15 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
                 sessionTerminated = True
 
         if not sessionTerminated:
-            commands.append({'command': 'ok', 'expect': r'Successfully added MORoute \['})
+            commands.append({'command': 'ok', 'expect': r'Successfully added MOInterceptor \['})
 
         yield self._test(finalPrompt, commands)
 
     @defer.inlineCallbacks
-    def add_mtroute(self, finalPrompt, extraCommands = []):
+    def add_mtinterceptor(self, finalPrompt, extraCommands = []):
         sessionTerminated = False
         commands = []
-        commands.append({'command': 'mtrouter -a', 'expect': r'Adding a new MT Route\: \(ok\: save, ko\: exit\)'})
+        commands.append({'command': 'mtinterceptor -a', 'expect': r'Adding a new MT Interceptor\: \(ok\: save, ko\: exit\)'})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
 
@@ -97,7 +76,7 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
 
         if not sessionTerminated:
             commands.append({'command': 'ok',
-                             'expect': r'Successfully added MTRoute \[',
+                             'expect': r'Successfully added MTInterceptor \[',
                              'wait': 0.4})
 
         yield self._test(finalPrompt, commands)

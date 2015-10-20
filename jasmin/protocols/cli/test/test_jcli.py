@@ -20,7 +20,7 @@ class jCliTestCases(ProtocolTestCases):
         self.amqpBroker = AmqpFactory(AMQPServiceConfigInstance)
         self.amqpBroker.preConnect()
         self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, self.amqpBroker)
-        
+
         # Wait for AMQP Broker connection to get ready
         yield self.amqpBroker.getChannelReadyDeferred()
 
@@ -36,16 +36,16 @@ class jCliTestCases(ProtocolTestCases):
         self.clientManager_f = SMPPClientManagerPB()
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
         yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
-        
+
     def tearDown(self):
         self.amqpClient.disconnect()
         self.RouterPB_f.cancelPersistenceTimer()
-      
+
 class jCliWithAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks
     def setUp(self):
         yield jCliTestCases.setUp(self)
-        
+
         # Connect to jCli server through a fake network transport
         self.JCliConfigInstance = JCliConfig()
         self.JCli_f = JCliFactory(self.JCliConfigInstance, self.clientManager_f, self.RouterPB_f)
@@ -60,7 +60,7 @@ class jCliWithoutAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks
     def setUp(self):
         yield jCliTestCases.setUp(self)
-        
+
         # Connect to jCli server through a fake network transport
         self.JCliConfigInstance = JCliConfig()
         self.JCliConfigInstance.authentication = False
@@ -73,33 +73,33 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.assertRegexpMatches(receivedLines[0], r'Welcome to Jasmin %s console' % jasmin.get_release())
         self.assertRegexpMatches(receivedLines[3], r'Type help or \? to list commands\.')
         self.assertRegexpMatches(receivedLines[9], r'Session ref: ')
-        
+
 class BasicTestCases(jCliWithoutAuthTestCases):
     def test_quit(self):
         commands = [{'command': 'quit'}]
         return self._test(None, commands)
-    
+
     def test_help(self):
-        expectedList = ['Available commands:', 
-                        '===================', 
-                        'persist             Persist current configuration profile to disk in PROFILE', 
-                        'load                Load configuration PROFILE profile from disk', 
-                        'user                User management', 
-                        'group               Group management', 
-                        'filter              Filter management', 
-                        'morouter            MO Router management', 
-                        'mtrouter            MT Router management', 
-                        'smppccm             SMPP connector management', 
-                        'httpccm             HTTP client connector management', 
+        expectedList = ['Available commands:',
+                        '===================',
+                        'persist             Persist current configuration profile to disk in PROFILE',
+                        'load                Load configuration PROFILE profile from disk',
+                        'user                User management',
+                        'group               Group management',
+                        'filter              Filter management',
+                        'morouter            MO Router management',
+                        'mtrouter            MT Router management',
+                        'smppccm             SMPP connector management',
+                        'httpccm             HTTP client connector management',
                         'stats               Stats management',
-                        '', 
-                        'Control commands:', 
-                        '=================', 
-                        'quit                Disconnect from console', 
+                        '',
+                        'Control commands:',
+                        '=================',
+                        'quit                Disconnect from console',
                         'help                List available commands with "help" or detailed help with "help cmd".']
         commands = [{'command': 'help', 'expect': expectedList}]
         return self._test('jcli : ', commands)
-    
+
 class PersistanceTestCases(jCliWithoutAuthTestCases):
 
     @defer.inlineCallbacks
@@ -161,7 +161,7 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         ]
         commands = [{'command': 'load -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
-        
+
     @defer.inlineCallbacks
     def test_load_unknown_profile(self):
         expectedList = [r'Failed to load mtrouter configuration \(profile\:any_profile\)',
@@ -174,16 +174,16 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         ]
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
-        
+
 class LoadingTestCases(jCliWithoutAuthTestCases):
     """The 2 test cases below will ensure that persisted configurations to the default profile
     will be automatically loaded if jCli restarts
     """
-    
+
     @defer.inlineCallbacks
     def setUp(self):
         yield jCliWithoutAuthTestCases.setUp(self)
-    
+
     @defer.inlineCallbacks
     def test_01_persist_all_configurations(self):
         # Add Group
@@ -265,11 +265,11 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
                     {'command': 'rate 0.0'},
                     {'command': 'ok', 'expect': 'Successfully added MTRoute'}]
         yield self._test(r'jcli : ', commands)
-        
+
         # Finally persist to disk
         commands = [{'command': 'persist'}]
         yield self._test(r'jcli : ', commands)
-        
+
     @defer.inlineCallbacks
     def test_02_check_automatic_load_after_jcli_reboot(self):
         # The conf loading on startup is made through JCliFactory.doStart() method

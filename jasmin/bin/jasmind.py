@@ -295,7 +295,7 @@ class JasminDaemon:
         ########################################################
         # Connect to redis server
         yield self.startRedisClient()
-        syslog.syslog(syslog.LOG_LOCAL0, "  RedisClient started.")
+        syslog.syslog(syslog.LOG_INFO, "  RedisClient started.")
 
         ########################################################
         # Start AMQP Broker
