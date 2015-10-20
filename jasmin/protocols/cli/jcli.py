@@ -255,7 +255,7 @@ class JCliProtocol(CmdProtocol):
                           help = "Flush MO interception table"),
               ], '')
     def do_mointerceptor(self, arg, opts = None):
-        'MO Router management'
+        'MO Interceptor management'
 
         if opts.list:
             self.managers['mointerceptor'].list(arg, opts)
@@ -282,7 +282,7 @@ class JCliProtocol(CmdProtocol):
                           help = "Flush MT interception table"),
               ], '')
     def do_mtinterceptor(self, arg, opts = None):
-        'MT Router management'
+        'MT Interceptor management'
 
         if opts.list:
             self.managers['mtinterceptor'].list(arg, opts)

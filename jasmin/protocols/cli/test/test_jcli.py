@@ -87,6 +87,8 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         'user                User management',
                         'group               Group management',
                         'filter              Filter management',
+                        'mointerceptor       MO Interceptor management',
+                        'mtinterceptor       MT Interceptor management',
                         'morouter            MO Router management',
                         'mtrouter            MT Router management',
                         'smppccm             SMPP connector management',
@@ -109,7 +111,9 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         r'group configuration persisted \(profile\:jcli-prod\)',
                         r'user configuration persisted \(profile\:jcli-prod\)',
                         r'httpcc configuration persisted \(profile\:jcli-prod\)',
+                        r'mointerceptor configuration persisted \(profile\:jcli-prod\)',
                         r'filter configuration persisted \(profile\:jcli-prod\)',
+                        r'mtinterceptor configuration persisted \(profile\:jcli-prod\)',
                         r'morouter configuration persisted \(profile\:jcli-prod\)',
                         ]
         commands = [{'command': 'persist', 'expect': expectedList}]
@@ -122,7 +126,9 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         r'group configuration persisted \(profile\:testprofile\)',
                         r'user configuration persisted \(profile\:testprofile\)',
                         r'httpcc configuration persisted \(profile\:testprofile\)',
+                        r'mointerceptor configuration persisted \(profile\:testprofile\)',
                         r'filter configuration persisted \(profile\:testprofile\)',
+                        r'mtinterceptor configuration persisted \(profile\:testprofile\)',
                         r'morouter configuration persisted \(profile\:testprofile\)',
                         ]
         commands = [{'command': 'persist -p testprofile', 'expect': expectedList}]
@@ -139,7 +145,9 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         r'group configuration loaded \(profile\:jcli-prod\)',
                         r'user configuration loaded \(profile\:jcli-prod\)',
                         r'httpcc configuration loaded \(profile\:jcli-prod\)',
+                        r'mointerceptor configuration loaded \(profile\:jcli-prod\)',
                         r'filter configuration loaded \(profile\:jcli-prod\)',
+                        r'mtinterceptor configuration loaded \(profile\:jcli-prod\)',
                         r'morouter configuration loaded \(profile\:jcli-prod\)',
                         ]
         commands = [{'command': 'load', 'expect': expectedList}]
@@ -156,7 +164,9 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         r'group configuration loaded \(profile\:testprofile\)',
                         r'user configuration loaded \(profile\:testprofile\)',
                         r'httpcc configuration loaded \(profile\:testprofile\)',
+                        r'mointerceptor configuration loaded \(profile\:testprofile\)',
                         r'filter configuration loaded \(profile\:testprofile\)',
+                        r'mtinterceptor configuration loaded \(profile\:testprofile\)',
                         r'morouter configuration loaded \(profile\:testprofile\)',
                         ]
         commands = [{'command': 'load -p testprofile', 'expect': expectedList}]
@@ -169,7 +179,9 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         r'Failed to load group configuration \(profile\:any_profile\)',
                         r'Failed to load user configuration \(profile\:any_profile\)',
                         r'Failed to load httpcc configuration \(profile\:any_profile\)',
+                        r'Failed to load mointerceptor configuration \(profile\:any_profile\)',
                         r'Failed to load filter configuration \(profile\:any_profile\)',
+                        r'Failed to load mtinterceptor configuration \(profile\:any_profile\)',
                         r'Failed to load morouter configuration \(profile\:any_profile\)',
                         ]
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
