@@ -2,21 +2,23 @@ sudo: false
 language: python
 python:
     - '2.7'
+env:
+    - ROOT_PATH=~/jasmin
 # Command to install dependencies
 install:
     - python setup.py sdist
     - pip install dist/jasmin-0.7b0.tar.gz
-    - cp misc/config/init-script/jasmind-ubuntu ~/jasmin/etc/init.d/jasmind
+    - cp misc/config/init-script/jasmind-ubuntu $ROOT_PATH/etc/init.d/jasmind
 # Commands to run tests:
 script:
     # Service startup test:
-    - ~/jasmin/etc/init.d/jasmind start
+    - $ROOT_PATH/etc/init.d/jasmind start
     - sleep 2
-    - ~/jasmin/etc/init.d/jasmind status
+    - $ROOT_PATH/etc/init.d/jasmind status
     # Stop service:
-    - ~/jasmin/etc/init.d/jasmind stop
+    - $ROOT_PATH/etc/init.d/jasmind stop
     # Cleaning before going for further tests:
-    - rm -f ~/jasmin/var/log/jasmin/*;rm -f ~/jasmin/etc/jasmin/store/*
+    - rm -f $ROOT_PATH/var/log/jasmin/*;rm -f $ROOT_PATH/etc/jasmin/store/*
     # Trial tests and coverage:
     - coverage run `which trial` jasmin
     # Docs building test:
@@ -36,13 +38,13 @@ before_script:
 before_install:
     - virtualenv venv
     - source venv/bin/activate
-    - mkdir -p ~/jasmin/var/log/jasmin
-    - mkdir -p ~/jasmin/var/run/jasmin
-    - mkdir -p ~/jasmin/etc/jasmin/resource
-    - mkdir -p ~/jasmin/etc/jasmin/init-script
-    - mkdir -p ~/jasmin/etc/jasmin/store
-    - mkdir -p ~/jasmin/etc/init.d
-    - chmod -R 777 ~/jasmin/var/log/jasmin ~/jasmin/etc/jasmin/store
+    - mkdir -p $ROOT_PATH/var/log/jasmin
+    - mkdir -p $ROOT_PATH/var/run/jasmin
+    - mkdir -p $ROOT_PATH/etc/jasmin/resource
+    - mkdir -p $ROOT_PATH/etc/jasmin/init-script
+    - mkdir -p $ROOT_PATH/etc/jasmin/store
+    - mkdir -p $ROOT_PATH/etc/init.d
+    - chmod -R 777 $ROOT_PATH/var/log/jasmin $ROOT_PATH/etc/jasmin/store
 addons:
   apt:
     packages:

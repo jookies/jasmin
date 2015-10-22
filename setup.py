@@ -7,6 +7,11 @@ import os
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
 
+# After passing on travis docker-based ci, sudo is no more
+# used, ROOT_PATH is a env variable set in .travis.yml to avoid
+# installing things system wide.
+root_path = os.getenv('ROOT_PATH', '/')
+
 # Pre-installation checklist
 if "install" in sys.argv:
     # 1. Check if jasmin user and group were created
@@ -17,18 +22,18 @@ if "install" in sys.argv:
         print 'WARNING: jasmin user or group not found !'
 
     # 2. Check if system folders are created
-    sysdirs = ['/etc/jasmin', 
-                '/etc/jasmin/resource', 
-                '/etc/jasmin/store', 
-                '/var/log/jasmin', 
-                '/var/run/jasmin',]
+    sysdirs = ['%s/etc/jasmin' % root_path,
+                '%s/etc/jasmin/resource' % root_path,
+                '%s/etc/jasmin/store' % root_path,
+                '%s/var/log/jasmin' % root_path,
+                '%s/var/run/jasmin' % root_path,]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
             print 'WARNING: %s does not exist !' % sysdir
 
     # 3. Check for permission to write jasmin.cfg in /etc/jasmin
-    if not os.access('/etc/jasmin', os.W_OK):
-        print 'WARNING: /etc/jasmin must be writeable by the current user (%s)' % getpass.getuser()
+    if not os.access('%s/etc/jasmin' % root_path, os.W_OK):
+        print 'WARNING: %s/etc/jasmin must be writeable by the current user (%s)' % (root_path, getpass.getuser())
 
     # 4. Check if sysdirs are owned by jasmin user
     for sysdir in sysdirs[3:]:
@@ -73,11 +78,11 @@ setup(
     ],
     platforms='POSIX',
     data_files=[
-                    ('/etc/jasmin', ['misc/config/jasmin.cfg']),
-                    ('/etc/jasmin/resource', [
-                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
+                    ('%s/etc/jasmin' % root_path, ['misc/config/jasmin.cfg']),
+                    ('%s/etc/jasmin/resource' % root_path, [
+                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml',
                         'misc/config/resource/amqp0-9-1.xml'
                     ],),
-                    ('/etc/jasmin/store', []),
+                    ('%s/etc/jasmin/store' % root_path, []),
                 ],
 )
