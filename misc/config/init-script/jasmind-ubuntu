@@ -8,7 +8,7 @@
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Jasmin SMS Gateway
-# Description:       Jasmin is a very complete open source SMS Gateway with 
+# Description:       Jasmin is a very complete open source SMS Gateway with
 #		     many enterprise-class features.
 ### END INIT INFO
 
