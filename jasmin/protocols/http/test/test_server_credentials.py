@@ -921,7 +921,7 @@ class QuotasTestCases(CredentialsTestCases):
         start_time = datetime.now()
         throughput_exceeded_errors = 0
         request_counter = 0
-        for x in range(35):
+        for x in range(50):
             try:
                 response_text = yield getPage(baseurl, method = self.method, postdata = self.postdata)
                 response_code = 'Success'
@@ -934,8 +934,8 @@ class QuotasTestCases(CredentialsTestCases):
                 throughput_exceeded_errors+= 1
         end_time = datetime.now()
 
-        # Wait 5 seconds before stopping SmppClientConnectors
-        yield waitFor(5)
+        # Wait 2 seconds before stopping SmppClientConnectors
+        yield waitFor(2)
         yield self.stopSmppClientConnectors()
 
         # Asserts

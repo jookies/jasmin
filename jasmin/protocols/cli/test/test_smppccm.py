@@ -757,7 +757,7 @@ class SMSCTestCases(HappySMSCTestCase):
                                     expect= 'Failed starting connector, check log for details')
 
         # Wait
-        yield waitFor(6)
+        yield waitFor(4)
 
         # List and assert it is stopped (start command errored)
         expectedList = ['#Connector id                        Service Session          Starts Stops',
