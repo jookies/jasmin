@@ -43,12 +43,10 @@ class CnxStatusCases(HTTPApiTestCases):
 	def test_submit_sm_request_count(self):
 		before_test = self.u1.getCnxStatus().httpapi['submit_sm_request_count']
 
-		for i in range(10):
+		for i in range(100):
 			yield self.web.get("send", {'username': self.u1.username,
                                     	'password': 'correct',
                                     	'to': '98700177',
                                     	'content': 'anycontent'})
-
-		yield waitFor(4)
 
 		self.assertEqual(self.u1.getCnxStatus().httpapi['submit_sm_request_count'], before_test+100)
