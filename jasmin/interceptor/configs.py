@@ -2,8 +2,12 @@
 Config file handlers for 'interceptor' section in interceptor.cfg
 """
 
+import os
 import logging
 from jasmin.config.tools import ConfigFile
+
+# Related to travis-ci builds
+root_path = os.getenv('ROOT_PATH', '/')
 
 class InterceptorPBConfig(ConfigFile):
     "Config handler for 'interceptor' section"
@@ -21,7 +25,7 @@ class InterceptorPBConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('interceptor', 'log_level', 'INFO'))
         self.log_rotate = self._get('interceptor', 'log_rotate', 'W6')
-        self.log_file = self._get('interceptor', 'log_file', '/var/log/jasmin/interceptor.log')
+        self.log_file = self._get('interceptor', 'log_file', '%s/var/log/jasmin/interceptor.log' % root_path)
         self.log_format = self._get('interceptor', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
