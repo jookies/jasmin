@@ -39,8 +39,8 @@ class InterceptorPB(pb.Avatar):
         http_status = 0
 
         try:
-            self.log.info('Running [%s]' % pyCode)
-            self.log.info('... with routable with pdu: %s' % routable.pdu)
+            self.log.debug('Running [%s]' % pyCode)
+            self.log.debug('... with routable with pdu: %s' % routable.pdu)
             node = CompiledNode().get(pyCode)
             glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status}
 
