@@ -921,7 +921,7 @@ class QuotasTestCases(CredentialsTestCases):
         start_time = datetime.now()
         throughput_exceeded_errors = 0
         request_counter = 0
-        for x in range(50):
+        for x in range(5000):
             try:
                 response_text = yield getPage(baseurl, method = self.method, postdata = self.postdata)
                 response_code = 'Success'
@@ -938,8 +938,11 @@ class QuotasTestCases(CredentialsTestCases):
         yield waitFor(2)
         yield self.stopSmppClientConnectors()
 
-        # Asserts
+        # Asserts (tolerance of -/+ 3 messages)
+        throughput = 1 / float(user.mt_credential.getQuota('http_throughput'))
         dt = end_time - start_time
-        max_successful_request = dt.seconds * user.mt_credential.getQuota('http_throughput')
-        successful_requests = request_counter - throughput_exceeded_errors
-        self.assertLessEqual(successful_requests, max_successful_request)
+        max_unsuccessfull_requests = request_counter - (dt.seconds / throughput)
+        unsuccessfull_requests = throughput_exceeded_errors
+
+        self.assertGreaterEqual(unsuccessfull_requests, max_unsuccessfull_requests - 3)
+        self.assertLessEqual(unsuccessfull_requests, max_unsuccessfull_requests + 3)
