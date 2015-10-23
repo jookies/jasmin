@@ -648,7 +648,7 @@ class SMPPClientSMListener:
         self.log.debug('Intercepting deliver_sm event in smppc %s' % self.SMPPClientFactory.config.id)
 
         if self.RouterPB is None:
-            self.log.error('(deliver_sm_event_interceptor/%s) RouterPB not set: submit_sm will not be routed' %
+            self.log.error('(deliver_sm_event_interceptor/%s) RouterPB not set: deliver_sm will not be routed' %
                 self.SMPPClientFactory.config.id
             )
             return

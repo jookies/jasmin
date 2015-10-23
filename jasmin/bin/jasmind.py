@@ -146,6 +146,7 @@ class JasminDaemon:
         # AMQP Broker is used to listen to submit_sm queues and publish to deliver_sm/dlr queues
         self.components['smppcm-pb-factory'].addAmqpBroker(self.components['amqp-broker-factory'])
         self.components['smppcm-pb-factory'].addRedisClient(self.components['rc'])
+        self.components['smppcm-pb-factory'].addRouterPB(self.components['router-pb-factory'])
 
         # Add interceptor if enabled:
         if 'interceptor-pb-client' in self.components:
@@ -308,14 +309,14 @@ class JasminDaemon:
         syslog.syslog(syslog.LOG_INFO, "  AMQP Broker connected.")
 
         ########################################################
-        # Start SMPP Client connector manager and add rc
-        self.startSMPPClientManagerPBService()
-        syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
-
-        ########################################################
         # Start Router PB server
         yield self.startRouterPBService()
         syslog.syslog(syslog.LOG_INFO, "  RouterPB Started.")
+
+        ########################################################
+        # Start SMPP Client connector manager and add rc
+        self.startSMPPClientManagerPBService()
+        syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
 
         ########################################################
         # [optional] Start SMPP Server
@@ -371,13 +372,13 @@ class JasminDaemon:
             yield self.stopSMPPServerService()
             syslog.syslog(syslog.LOG_INFO, "  SMPPServer stopped.")
 
-        if 'router-pb-server' in self.components:
-            yield self.stopRouterPBService()
-            syslog.syslog(syslog.LOG_INFO, "  RouterPB stopped.")
-
         if 'smppcm-pb-server' in self.components:
             yield self.stopSMPPClientManagerPBService()
             syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB stopped.")
+
+        if 'router-pb-server' in self.components:
+            yield self.stopRouterPBService()
+            syslog.syslog(syslog.LOG_INFO, "  RouterPB stopped.")
 
         if 'amqp-broker-client' in self.components:
             yield self.stopAMQPBrokerService()
