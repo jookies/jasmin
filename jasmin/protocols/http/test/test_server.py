@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from twisted.trial.unittest import TestCase
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted_web_test_utils import DummySite
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
@@ -13,13 +13,6 @@ from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.Filters import UserFilter, GroupFilter
 from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
-
-@defer.inlineCallbacks
-def waitFor(seconds):
-    # Wait seconds
-    waitDeferred = defer.Deferred()
-    reactor.callLater(seconds, waitDeferred.callback, None)
-    yield waitDeferred
 
 class HTTPApiTestCases(TestCase):
     def setUp(self):
@@ -97,7 +90,6 @@ class SendTestCases(HTTPApiTestCases):
             response = yield self.web.get("send", params)
             self.assertEqual(response.responseCode, 500)
 
-            yield waitFor(2)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
@@ -107,7 +99,6 @@ class SendTestCases(HTTPApiTestCases):
         for params['priority'] in invalid_priorities:
             response = yield self.web.get("send", params)
 
-            yield waitFor(2)
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(), 'Error "Argument [priority] has an invalid value: [%s]."' % params['priority'])
@@ -125,7 +116,6 @@ class SendTestCases(HTTPApiTestCases):
         for params['validity-period'] in valid_vps:
             response = yield self.web.get("send", params)
 
-            yield waitFor(2)
             self.assertEqual(response.responseCode, 500)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
@@ -136,7 +126,6 @@ class SendTestCases(HTTPApiTestCases):
         for params['validity-period'] in invalid_vps:
             response = yield self.web.get("send", params)
 
-            yield waitFor(2)
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(), 'Error "Argument [validity-period] has an invalid value: [%s]."' % params['validity-period'])
@@ -164,10 +153,10 @@ class SendTestCases(HTTPApiTestCases):
                       'http://www.google.com',
                       'http://www.google.com:99'}
 
+        import time
         for params['dlr-url'] in valid_urls:
             response = yield self.web.get("send", params)
 
-            yield waitFor(2)
             self.assertEqual(response.responseCode, 500)
             self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
@@ -182,7 +171,6 @@ class SendTestCases(HTTPApiTestCases):
         for params['dlr-url'] in invalid_urls:
             response = yield self.web.get("send", params)
 
-            yield waitFor(2)
             self.assertEqual(response.responseCode, 400)
             self.assertEqual(response.value(), "Error \"Argument [dlr-url] has an invalid value: [%s].\"" % params['dlr-url'])
 

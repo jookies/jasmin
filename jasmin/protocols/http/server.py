@@ -26,6 +26,9 @@ from .stats import HttpAPIStatsCollector
 
 LOG_CATEGORY = "jasmin-http-api"
 
+# make it configurable
+reactor.suggestThreadPoolSize(30)
+
 class Send(Resource):
     isleaf = True
 
@@ -333,7 +336,7 @@ class Send(Resource):
             v.validate()
 
             # Continue routing in a separate thread
-            reactor.callInThread(self.route_routable, updated_request = updated_request)
+            reactor.callFromThread(self.route_routable, updated_request = updated_request)
         except Exception, e:
             self.log.error("Error: %s" % e)
 
@@ -521,7 +524,7 @@ class Rate(Resource):
             v.validate()
 
             # Continue routing in a separate thread
-            reactor.callInThread(self.route_routable, request = request)
+            reactor.callFromThread(self.route_routable, request = request)
         except Exception, e:
             self.log.error("Error: %s" % e)
 
