@@ -3,6 +3,7 @@
 import sys
 import signal
 import syslog
+import os
 from twisted.python import usage
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
@@ -31,10 +32,13 @@ from twisted.web import server
 from twisted.spread import pb
 from twisted.internet import reactor, defer
 
+# Related to travis-ci builds
+root_path = os.getenv('ROOT_PATH', '/')
+
 class Options(usage.Options):
 
     optParameters = [
-        ['config',                  'c', '/etc/jasmin/jasmin.cfg',
+        ['config',                  'c', '%s/etc/jasmin/jasmin.cfg' % root_path,
          'Jasmin configuration file'],
         ['username',                'u', None,
          'jCli username used to load configuration profile on startup'],

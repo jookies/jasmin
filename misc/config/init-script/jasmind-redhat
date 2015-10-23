@@ -8,7 +8,7 @@
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Jasmin SMS Gateway
-# Description:       Jasmin is a very complete open source SMS Gateway with 
+# Description:       Jasmin is a very complete open source SMS Gateway with
 #		     many enterprise-class features.
 ### END INIT INFO
 
@@ -33,7 +33,7 @@ getent group "$GROUP" >/dev/null || exit 12
 
 # Exit if the jasmind.py is not found
 COMMAND="/usr/bin/jasmind"
-[ -x $COMMAND ] || COMMAND="/usr/bin/jasmind.py"
+[ -x $COMMAND ] || COMMAND="/usr/local/bin/jasmind.py"
 [ -x $COMMAND ] || exit 21
 
 # Exit if the package is not installed
@@ -129,7 +129,7 @@ case "$1" in
 		pidofproc -p "$PIDFILE" "$DAEMON"
 		RETVAL="$?"
 		[ "$RETVAL" = 0 ] && log_success_msg $MSG || log_failure_msg $MSG
-		
+
 		exit $RETVAL
 	;;
 	#reload|force-reload)
