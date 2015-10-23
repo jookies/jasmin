@@ -180,8 +180,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             response_text = error.response
             response_code = str(error)
 
-        # Wait 2 seconds before stopping SmppClientConnectors
-        yield waitFor(2)
+        # Wait 5 seconds before stopping SmppClientConnectors
+        yield waitFor(5)
         yield self.stopSmppClientConnectors()
 
         defer.returnValue((response_text, response_code))
