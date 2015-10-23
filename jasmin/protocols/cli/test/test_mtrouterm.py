@@ -172,7 +172,7 @@ class MtRouteTypingTestCases(MxRouterTestCases):
 
         # Send 'type' command without any arg in order to get
         # the available mtroutes from the error string
-        self.sendCommand('type')
+        yield self.sendCommand('type')
         receivedLines = self.getBuffer(True)
 
         filters = []
@@ -205,7 +205,7 @@ class MtRouteTypingTestCases(MxRouterTestCases):
 
         # Make asserts
         expectedList = ['%s' % _str_]
-        self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
+        yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
                         '#%s %s %s %s ' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), re.escape(typed_cid).ljust(48)),
                         'Total MT Routes: 1']
@@ -232,7 +232,7 @@ class MtRouteTypingTestCases(MxRouterTestCases):
 
         # Make asserts
         expectedList = ['%s' % _str_]
-        self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
+        yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
                         '#%s %s %s %s   <T>' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), re.escape(typed_cid).ljust(48)),
                         'Total MT Routes: 1']
@@ -261,7 +261,7 @@ class MtRouteTypingTestCases(MxRouterTestCases):
 
         # Make asserts
         expectedList = _str_
-        self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
+        yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
                         '#%s %s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)),
                         'Total MT Routes: 1']
