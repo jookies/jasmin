@@ -4,10 +4,11 @@ python:
     - '2.7'
 env:
     - ROOT_PATH=~/jasmin
+    - JASMIN_RELEASE=0.7a0
 # Command to install dependencies
 install:
     - python setup.py sdist
-    - pip install dist/jasmin-0.7a0.tar.gz
+    - pip install "dist/jasmin-$JASMIN_RELEASE.tar.gz"
     - cp misc/config/init-script/jasmind-ubuntu $ROOT_PATH/etc/init.d/jasmind
 # Commands to run tests:
 script:
