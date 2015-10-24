@@ -42,8 +42,8 @@ class BasicTestCases(MxInterceptorTestCases):
                          {'command': 'script python2(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#0     DefaultInterceptor      <MOIS \(pyCode=print "hello  world" ..\)>',
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#0     DefaultInterceptor   <MOIS \(pyCode=print "hello  world" ..\)>',
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -115,9 +115,9 @@ class BasicTestCases(MxInterceptorTestCases):
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         # List
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#20    StaticMOInterceptor     <MOIS \(pyCode=print "hello  world" ..\)>          <T>',
-                        '#0     DefaultInterceptor      <MOIS \(pyCode=print "hello  world" ..\)>',
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#20    StaticMOInterceptor  <MOIS \(pyCode=print "hello  world" ..\)>         <T>',
+                        '#0     DefaultInterceptor   <MOIS \(pyCode=print "hello  world" ..\)>',
                         'Total MO Interceptors: 2']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -139,8 +139,8 @@ class BasicTestCases(MxInterceptorTestCases):
                          {'command': 'script python2(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#0     DefaultInterceptor      <MOIS \(pyCode=print "hello  world" ..\)>',
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#0     DefaultInterceptor   <MOIS \(pyCode=print "hello  world" ..\)>',
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -197,8 +197,8 @@ class MoInterceptorTypingTestCases(MxInterceptorTestCases):
         # Make asserts
         expectedList = ['%s' % _str_]
         yield self._test('jcli : ', [{'command': 'mointerceptor -s %s' % iorder, 'expect': expectedList}])
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#%s %s %s ' % (iorder.ljust(5), itype.ljust(23), '<MOIS \(pyCode=print "hello  world" ..\)>'.ljust(48)),
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#%s %s %s ' % (iorder.ljust(5), itype.ljust(20), '<MOIS \(pyCode=print "hello  world" ..\)>'.ljust(47)),
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -221,8 +221,8 @@ class MoInterceptorTypingTestCases(MxInterceptorTestCases):
         # Make asserts
         expectedList = ['%s' % _str_]
         yield self._test('jcli : ', [{'command': 'mointerceptor -s %s' % iorder, 'expect': expectedList}])
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#%s %s %s ' % (iorder.ljust(5), itype.ljust(23), '<MOIS \(pyCode=print "hello  world" ..\)>'.ljust(48)),
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#%s %s %s ' % (iorder.ljust(5), itype.ljust(20), '<MOIS \(pyCode=print "hello  world" ..\)>'.ljust(47)),
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -239,8 +239,8 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
                          {'command': 'script python2(%s)' % self.valid_script}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#0     DefaultInterceptor      <MOIS \(pyCode=print "hello  world" ..\)>',
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#0     DefaultInterceptor   <MOIS \(pyCode=print "hello  world" ..\)>',
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -254,8 +254,8 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
                          {'command': 'script python2(%s)' % self.valid_script}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#0     DefaultInterceptor      <MOIS \(pyCode=print "hello  world" ..\)>',
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#0     DefaultInterceptor   <MOIS \(pyCode=print "hello  world" ..\)>',
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -314,8 +314,8 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
                          {'command': 'filters cf1'}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Script                                           Filter\(s\)',
-                        '#20    StaticMOInterceptor     <MOIS \(pyCode=print "hello  world" ..\)>          <C \(cid=Any\)>',
+        expectedList = ['#Order Type                 Script                                          Filter\(s\)',
+                        '#20    StaticMOInterceptor  <MOIS \(pyCode=print "hello  world" ..\)>         <C \(cid=Any\)>',
                         'Total MO Interceptors: 1']
         commands = [{'command': 'mointerceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)

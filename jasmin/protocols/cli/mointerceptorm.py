@@ -218,8 +218,8 @@ class MoInterceptorManager(PersistableManager):
 
         if (len(mointerceptors)) > 0:
             self.protocol.sendData("#%s %s %s %s" % ('Order'.ljust(5),
-                                                                        'Type'.ljust(23),
-                                                                        'Script'.ljust(48),
+                                                                        'Type'.ljust(20),
+                                                                        'Script'.ljust(47),
                                                                         'Filter(s)'.ljust(64),
                                                                         ), prompt=False)
             for e in mointerceptors:
@@ -235,8 +235,8 @@ class MoInterceptorManager(PersistableManager):
                     filters += repr(f)
 
                 self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(5),
-                                                                  str(mointerceptor.__class__.__name__).ljust(23),
-                                                                  repr(mointerceptor.script).ljust(48),
+                                                                  str(mointerceptor.__class__.__name__).ljust(20),
+                                                                  repr(mointerceptor.script).ljust(47),
                                                                   filters.ljust(64),
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)

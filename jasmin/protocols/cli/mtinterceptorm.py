@@ -218,8 +218,8 @@ class MtInterceptorManager(PersistableManager):
 
         if (len(mtinterceptors)) > 0:
             self.protocol.sendData("#%s %s %s %s" % ('Order'.ljust(5),
-                                                                        'Type'.ljust(23),
-                                                                        'Script'.ljust(48),
+                                                                        'Type'.ljust(20),
+                                                                        'Script'.ljust(47),
                                                                         'Filter(s)'.ljust(64),
                                                                         ), prompt=False)
             for e in mtinterceptors:
@@ -235,8 +235,8 @@ class MtInterceptorManager(PersistableManager):
                     filters += repr(f)
 
                 self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(5),
-                                                                  str(mtinterceptor.__class__.__name__).ljust(23),
-                                                                  repr(mtinterceptor.script).ljust(48),
+                                                                  str(mtinterceptor.__class__.__name__).ljust(20),
+                                                                  repr(mtinterceptor.script).ljust(47),
                                                                   filters.ljust(64),
                                                                   ), prompt=False)
                 self.protocol.sendData(prompt=False)
