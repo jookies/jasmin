@@ -255,7 +255,12 @@ class JasminDaemon:
         "Start jCli console server"
         loadConfigProfileWithCreds = {'username': self.options['username'], 'password': self.options['password']}
         JCliConfigInstance = JCliConfig(self.options['config'])
-        JCli_f = JCliFactory(JCliConfigInstance, self.components['smppcm-pb-factory'], self.components['router-pb-factory'], loadConfigProfileWithCreds)
+        JCli_f = JCliFactory(
+            JCliConfigInstance,
+            self.components['smppcm-pb-factory'],
+            self.components['router-pb-factory'],
+            loadConfigProfileWithCreds
+        )
 
         self.components['jcli-server'] = reactor.listenTCP(JCliConfigInstance.port, JCli_f, interface=JCliConfigInstance.bind)
 
@@ -273,7 +278,8 @@ class JasminDaemon:
             InterceptorPBClientConfigInstance.host,
             InterceptorPBClientConfigInstance.port,
             InterceptorPBClientConfigInstance.username,
-            InterceptorPBClientConfigInstance.password
+            InterceptorPBClientConfigInstance.password,
+            retry = True
         )
 
     def stopInterceptorPBClient(self):

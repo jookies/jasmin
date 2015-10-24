@@ -1,4 +1,4 @@
-from jasmin.tools.proxies import ConnectError, InvalidConnectResponseError, ConnectedPB
+from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy
 from jasmin.routing.Routables import Routable
 from twisted.internet import defer

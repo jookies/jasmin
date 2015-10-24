@@ -1,8 +1,10 @@
 import pickle
-from twisted.spread import pb
+import logging
 from twisted.internet import defer, reactor
 from twisted.spread.pb import RemoteReference
 from twisted.cred.credentials import UsernamePassword, Anonymous
+from pb import ReconnectingPBClientFactory
+from twisted.spread import pb
 
 class ConnectError(Exception):
     'Raised when PB connection can not be established'
@@ -20,7 +22,7 @@ def ConnectedPB(fCallback):
     def check_cnx_and_call(self, *args, **kwargs):
         if self.isConnected is False:
             raise Exception("PB proxy is not connected !")
-        
+
         return fCallback(self, *args, **kwargs)
     return check_cnx_and_call
 
@@ -35,42 +37,64 @@ class JasminPBProxy:
     pickleProtocol = 2
 
     @defer.inlineCallbacks
-    def connect(self, host, port, username = None, password = None):
-        # Launch a client
-        self.pbClientFactory = pb.PBClientFactory()
-        reactor.connectTCP(host, port, self.pbClientFactory)
-        yield self.pbClientFactory.getRootObject()
-        
-        if username is None and password is None:
-            yield self.pbClientFactory.login(
-                Anonymous()
-            ).addCallback(self._connected)
+    def connect(self, host, port, username = None, password = None, retry = False):
+        if retry:
+            # Launch a client
+            self.pbClientFactory = ReconnectingPBClientFactory()
+            self.pbClientFactory.gotPerspective = self._connected
+            self.pbClientFactory.disconnected = self._disconnected
+
+            # Start login
+            if username is None and password is None:
+                self.pbClientFactory.startLogin(
+                    Anonymous()
+                )
+            else:
+                self.pbClientFactory.startLogin(
+                    UsernamePassword(
+                        username,
+                        password)
+                    )
+
+            reactor.connectTCP(host, port, self.pbClientFactory)
         else:
-            yield self.pbClientFactory.login(
-                UsernamePassword(
-                    username, 
-                    password)
+            # Launch a client
+            self.pbClientFactory = pb.PBClientFactory()
+            reactor.connectTCP(host, port, self.pbClientFactory)
+
+            yield self.pbClientFactory.getRootObject()
+
+            if username is None and password is None:
+                yield self.pbClientFactory.login(
+                    Anonymous()
                 ).addCallback(self._connected)
-    
+            else:
+                yield self.pbClientFactory.login(
+                    UsernamePassword(
+                        username,
+                        password)
+                    ).addCallback(self._connected)
+
     def disconnect(self):
-        self.isConnected = False
-        
         # .connect has been called ?
         if hasattr(self, 'pbClientFactory'):
             return self.pbClientFactory.disconnect()
-    
-    def _connected(self, rootObj):
-        if isinstance(rootObj, RemoteReference):
+
+    def _disconnected(self, connector, reason):
+        self.isConnected = False
+
+    def _connected(self, perspective):
+        if isinstance(perspective, RemoteReference):
             self.isConnected = True
-            self.pb = rootObj
-        elif (type(rootObj) == tuple and type(rootObj[0]) == bool and
-              rootObj[0] is False and type(rootObj[1]) == str):
-            raise ConnectError(rootObj[1])
+            self.pb = perspective
+        elif (type(perspective) == tuple and type(perspective[0]) == bool and
+              perspective[0] is False and type(perspective[1]) == str):
+            raise ConnectError(perspective[1])
         else:
-            raise InvalidConnectResponseError(rootObj)
-        
+            raise InvalidConnectResponseError(perspective)
+
     def pickle(self, obj):
         return pickle.dumps(obj, self.pickleProtocol)
-    
+
     def unpickle(self, obj):
         return pickle.loads(obj)
