@@ -28,7 +28,9 @@ script:
     - ls -l /home/travis
     - coverage report --omit=/usr/*,/home/travis/virtualenv/*
     # Pylint code analysis and rating:
-    - cd ./misc/pylint; ./run.sh
+    - ./misc/pylint/run.sh
+    # Testing (must be removed)
+    - pylint --rcfile=./msic/pylint/pylintrc jasmin
 services:
     - rabbitmq
     - redis-server
