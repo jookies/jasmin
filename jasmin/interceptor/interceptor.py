@@ -39,6 +39,10 @@ class InterceptorPB(pb.Avatar):
         http_status = 0
 
         try:
+            self.log.info('Running with a %s (from:%s, to:%s).' % (routable.pdu.id,
+                routable.pdu.params['source_addr'],
+                routable.pdu.params['destination_addr']
+            ))
             self.log.debug('Running [%s]' % pyCode)
             self.log.debug('... with routable with pdu: %s' % routable.pdu)
             node = CompiledNode().get(pyCode)
