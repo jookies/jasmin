@@ -18,6 +18,7 @@ from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePassword
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.spread import pb
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -72,6 +73,9 @@ class ProvisionWithoutInterceptorPB:
         c2_destination = SmppServerSystemIdConnector(system_id = self.smppc_factory.config.username)
         # Set the route
         yield self.moroute_add(DefaultRoute(c2_destination), 0)
+
+        # Get stats singletons
+        self.stats_smppc = SMPPClientStatsCollector().get(self.c1.cid)
 
     @defer.inlineCallbacks
     def triggerDeliverSmFromSMSC(self, pdus):
@@ -149,6 +153,9 @@ class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rout
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -165,6 +172,8 @@ class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rout
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -181,6 +190,9 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -197,6 +209,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -210,6 +224,9 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -226,6 +243,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -247,6 +266,9 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -266,6 +288,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_ROK)
+        self.assertEqual(_ic+1, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -287,6 +311,9 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -303,6 +330,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
+        self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -324,6 +353,9 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -340,6 +372,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RINVESMCLASS)
+        self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -363,6 +397,9 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        _ic = self.stats_smppc.get('interceptor_count')
+        _iec = self.stats_smppc.get('interceptor_error_count')
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -379,6 +416,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RUNKNOWNERR)
+        self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

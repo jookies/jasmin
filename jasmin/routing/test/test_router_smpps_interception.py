@@ -15,6 +15,7 @@ from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePassword
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.spread import pb
+from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -40,6 +41,9 @@ class ProvisionWithoutInterceptorPB:
         yield self.mtinterceptor_add(DefaultInterceptor(self.mt_interceptor), 0)
         # Disconnect from RouterPB
         self.disconnect()
+
+        # Get stats singletons
+        self.stats_smpps = SMPPServerStatsCollector().get(cid = self.smpps_config.id)
 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -110,6 +114,9 @@ class SmppsSubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Route
 
     @defer.inlineCallbacks
     def test_interceptorpb_not_set(self):
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
+
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
@@ -139,6 +146,8 @@ class SmppsSubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Route
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertTrue('message_id' not in response_pdu.params)
+        self.assertEqual(_ic, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smpps.get('interceptor_error_count'))
 
 class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
@@ -148,6 +157,9 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
 
     @defer.inlineCallbacks
     def test_interceptorpb_not_connected(self):
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
+
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
@@ -177,9 +189,14 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertTrue('message_id' not in response_pdu.params)
+        self.assertEqual(_ic, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smpps.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_syntax_error(self):
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
+
         # Connect to InterceptorPB
         yield self.ipb_connect()
 
@@ -212,9 +229,14 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertTrue('message_id' not in response_pdu.params)
+        self.assertEqual(_ic, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smpps.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_success(self):
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         # Connect to RouterPB
         yield self.connect('127.0.0.1', self.pbPort)
@@ -257,9 +279,14 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertNotEqual(None, response_pdu.params['message_id'])
         # Message content has been updated
         self.assertEqual('Intercepted message', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
+        self.assertEqual(_ic+1, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec, self.stats_smpps.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_any_exception_from_script(self):
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
+
         # Re-provision interceptor with script raising an exception
         # Connect to RouterPB
         yield self.connect('127.0.0.1', self.pbPort)
@@ -300,9 +327,14 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertTrue('message_id' not in response_pdu.params)
+        self.assertEqual(_ic, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smpps.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_ESME_RINVESMCLASS_from_script(self):
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
+
         # Re-provision interceptor with script returning a ESME_RINVESMCLASS
         # Connect to RouterPB
         yield self.connect('127.0.0.1', self.pbPort)
@@ -343,10 +375,15 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RINVESMCLASS)
         self.assertTrue('message_id' not in response_pdu.params)
+        self.assertEqual(_ic, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smpps.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_HTTP_300_from_script(self):
         "Will ensure if script defines only http error it will implicitly cause a smpp ESME_RUNKNOWNERR error"
+
+        _ic = self.stats_smpps.get('interceptor_count')
+        _iec = self.stats_smpps.get('interceptor_error_count')
 
         # Re-provision interceptor with script returning a HTTP 300
         # Connect to RouterPB
@@ -388,3 +425,5 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.seqNum, 2)
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_RUNKNOWNERR)
         self.assertTrue('message_id' not in response_pdu.params)
+        self.assertEqual(_ic, self.stats_smpps.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_smpps.get('interceptor_error_count'))

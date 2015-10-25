@@ -14,6 +14,7 @@ from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePassword
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.spread import pb
+from jasmin.protocols.http.stats import HttpAPIStatsCollector
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -58,6 +59,9 @@ class ProvisionWithoutInterceptorPB:
 
         # And start it !
         yield self.SMPPClientManagerPBProxy.start(self.c1.cid)
+
+        # Get stats singletons
+        self.stats_http = HttpAPIStatsCollector().get()
 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -138,6 +142,9 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
 
     @defer.inlineCallbacks
     def test_send_interceptorpb_not_set(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -154,9 +161,14 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         # Asserts
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, 'Error "InterceptorPB not set !"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_interceptorpb_not_set(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -173,6 +185,8 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         # Asserts
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, '"InterceptorPB not set !"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
 class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, HappySMSCTestCase):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
@@ -182,6 +196,9 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
 
     @defer.inlineCallbacks
     def test_send_interceptorpb_not_connected(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -198,9 +215,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, 'Error "InterceptorPB not connected !"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_syntax_error(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Connect to InterceptorPB
         yield self.ipb_connect()
 
@@ -220,9 +242,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_success(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.update_message_sript)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -250,9 +277,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, None)
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual('Intercepted message', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
+        self.assertEqual(_ic+1, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_any_exception_from_script(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.raise_any_exception)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -279,9 +311,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_HTTP_300_from_script(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.return_HTTP_300)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -308,10 +345,15 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '300')
         self.assertEqual(lastResponse, 'Error "Interception specific error code 300"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_ESME_RINVESMCLASS_from_script(self):
         "Will ensure if script defines only smpp error it will implicitly cause a http 520 error"
+
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
 
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.return_ESME_RINVESMCLASS)
@@ -339,9 +381,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '520')
         self.assertEqual(lastResponse, 'Error "Interception specific error code 520"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_interceptorpb_not_connected(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Send a SMS MT through http interface
         url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
@@ -358,9 +405,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, '"InterceptorPB not connected !"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_syntax_error(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Connect to InterceptorPB
         yield self.ipb_connect()
 
@@ -380,9 +432,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_success(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.update_message_sript)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -405,9 +462,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
 
         # Asserts
         self.assertEqual(lastErrorStatus, None)
+        self.assertEqual(_ic+1, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_any_exception_from_script(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.raise_any_exception)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -434,9 +496,14 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_HTTP_300_from_script(self):
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
+
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.return_HTTP_300)
         yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
@@ -463,10 +530,15 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '300')
         self.assertEqual(lastResponse, '"Interception specific error code 300"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_ESME_RINVESMCLASS_from_script(self):
         "Will ensure if script defines only smpp error it will implicitly cause a http 520 error"
+
+        _ic = self.stats_http.get('interceptor_count')
+        _iec = self.stats_http.get('interceptor_error_count')
 
         # Re-provision interceptor with correct script
         mt_interceptor = MTInterceptorScript(self.return_ESME_RINVESMCLASS)
@@ -494,3 +566,5 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, '520')
         self.assertEqual(lastResponse, '"Interception specific error code 520"')
+        self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))

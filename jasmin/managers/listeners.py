@@ -712,7 +712,7 @@ class SMPPClientSMListener:
                     raise InterceptorRunError('Failed running interception script, check log for details')
                 elif isinstance(args[0], dict) and args[0]['smpp_status'] > 0:
                     smpp.factory.stats.inc('interceptor_error_count')
-                    self.log.error('Interceptor script returned %s smpp_status error.' % args[0]['smpp_status'])
+                    self.log.info('Interceptor script returned %s smpp_status error.' % args[0]['smpp_status'])
                     raise DeliverSmInterceptionError(code = args[0]['smpp_status'])
                 elif isinstance(args[0], str):
                     smpp.factory.stats.inc('interceptor_count')
@@ -919,6 +919,15 @@ class SMPPClientSMListener:
                            pdu.dlr['text'],
                            ))
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
+            self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%s]" %
+                      (
+                       self.SMPPClientFactory.config.id,
+                       e.status,
+                       pdu.params['source_addr'],
+                       pdu.params['destination_addr'],
+                       re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
+                       ))
+
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
         except Exception, e:
