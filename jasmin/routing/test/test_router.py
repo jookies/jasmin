@@ -40,7 +40,7 @@ from twisted.cred import portal
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from jasmin.routing.proxies import ConnectError
+from jasmin.tools.proxies import ConnectError
 
 @defer.inlineCallbacks
 def waitFor(seconds):
