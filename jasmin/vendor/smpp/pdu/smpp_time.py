@@ -21,8 +21,8 @@ class FixedOffset(tzinfo):
     """Fixed offset in minutes east from UTC."""
 
     # Jasmin update, #267
-    def __init__(self, offsetMin = 0, name = None):
-        self.__offset = timedelta(minutes = offsetMin)
+    def __init__(self, offsetMin=0, name=None):
+        self.__offset = timedelta(minutes=offsetMin)
         self.__name = name
 
     def utcoffset(self, dt):
@@ -55,7 +55,7 @@ def parse_nn(nn_str):
     if nn < 0 or nn > 48:
         raise ValueError("time difference must be 0-48")
     return nn
-    
+
 def unparse_nn(nn):
     if nn < 0 or nn > 48:
         raise ValueError("time difference must be 0-48")
@@ -63,25 +63,25 @@ def unparse_nn(nn):
 
 def parse_absolute_time(str):
     (YYMMDDhhmmss, t, nn, p) = (str[:12], str[12:13], str[13:15], str[15])
-    
+
     if p not in ['+', '-']:
         raise ValueError("Invalid offset indicator %s" % p)
-    
+
     tenthsOfSeconds = parse_t(t)
     quarterHrOffset = parse_nn(nn)
-    
+
     microseconds = tenthsOfSeconds * 100 * 1000
-    
+
     tzinfo = None
     if quarterHrOffset > 0:
         minOffset = quarterHrOffset * 15
         if p == '-':
             minOffset *= -1
-        tzinfo = FixedOffset(minOffset, None)    
-    
+        tzinfo = FixedOffset(minOffset, None)
+
     timeVal = parse_YYMMDDhhmmss(YYMMDDhhmmss)
     return timeVal.replace(microsecond=microseconds,tzinfo=tzinfo)
-    
+
 def parse_relative_time(dtstr):
     # example 600 seconds is: '000000001000000R'
 
@@ -101,13 +101,13 @@ def parse_relative_time(dtstr):
         raise ValueError("Error %s : Unable to parse relative Validity Period %s" % e,dtstr)
 
     return SMPPRelativeTime(year,month,day,hour,minute,second)
-    
+
 def parse_YYMMDDhhmmss(YYMMDDhhmmss):
     return datetime.strptime(YYMMDDhhmmss, YYMMDDHHMMSS_FORMAT)
-    
+
 def unparse_YYMMDDhhmmss(dt):
     return dt.strftime(YYMMDDHHMMSS_FORMAT)
-    
+
 def unparse_absolute_time(dt):
     if not isinstance(dt, datetime):
         raise ValueError("input must be a datetime but got %s" % type(dt))
@@ -135,14 +135,14 @@ def parse(str):
     """Takes an SMPP time string in.
     Returns datetime.datetime for absolute time format
     Returns SMPPRelativeTime for relative time format (note: datetime.timedelta cannot
-    because the SMPP relative time interval depends on the SMSC current date/time) 
+    because the SMPP relative time interval depends on the SMSC current date/time)
     """
     if len(str) != 16:
         raise ValueError("Invalid time length %d" % len(str))
     if (str[-1]) == 'R':
         return parse_relative_time(str)
     return parse_absolute_time(str)
-    
+
 def unparse(dt_or_rel):
     """Takes in either a datetime or an SMPPRelativeTime
     Returns an SMPP time string
@@ -150,6 +150,3 @@ def unparse(dt_or_rel):
     if isinstance(dt_or_rel, SMPPRelativeTime):
         return unparse_relative_time(dt_or_rel)
     return unparse_absolute_time(dt_or_rel)
-    
-    
-

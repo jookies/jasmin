@@ -67,7 +67,7 @@ class SMPPClientSMListener:
     '''
 
     def __init__(self, SMPPClientSMListenerConfig,
-            SMPPClientFactory, amqpBroker, redisClient, RouterPB = None, interceptorpb_client = None):
+        SMPPClientFactory, amqpBroker, redisClient, RouterPB=None, interceptorpb_client=None):
         self.config = SMPPClientSMListenerConfig
         self.SMPPClientFactory = SMPPClientFactory
         self.SMPPOperationFactory = SMPPOperationFactory(self.SMPPClientFactory.config)
@@ -90,7 +90,7 @@ class SMPPClientSMListener:
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                when = self.config.log_rotate)
+                when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -123,7 +123,7 @@ class SMPPClientSMListener:
         self.clearRejectTimers()
 
     @defer.inlineCallbacks
-    def rejectAndRequeueMessage(self, message, delay = True):
+    def rejectAndRequeueMessage(self, message, delay=True):
         msgid = message.content.properties['message-id']
 
         if delay != False:
@@ -139,8 +139,8 @@ class SMPPClientSMListener:
             # Requeue the message with a delay
             t = reactor.callLater(requeue_delay,
                                   self.rejectMessage,
-                                  message = message,
-                                  requeue = 1)
+                                  message=message,
+                                  requeue=1)
 
             # If any, clear timer before setting a new one
             self.clearRejectTimer(msgid)
@@ -149,10 +149,10 @@ class SMPPClientSMListener:
             defer.returnValue(t)
         else:
             self.log.debug("Requeuing SubmitSmPDU[%s] without delay" % msgid)
-            yield self.rejectMessage(message, requeue = 1)
+            yield self.rejectMessage(message, requeue=1)
     @defer.inlineCallbacks
-    def rejectMessage(self, message, requeue = 0):
-        yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue = requeue)
+    def rejectMessage(self, message, requeue=0):
+        yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
     @defer.inlineCallbacks
     def ackMessage(self, message):
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
@@ -198,10 +198,10 @@ class SMPPClientSMListener:
                     #self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
                     #self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
                     # Requeue the message
-                    yield self.rejectAndRequeueMessage(message, delay = qos_slow_down)
+                    yield self.rejectAndRequeueMessage(message, delay=qos_slow_down)
                     defer.returnValue(False)
 
-                self.qos_last_submit_sm_at = datetime.now()
+                self.qos_last_submit_sm_at=datetime.now()
 
             # Verify if message is a SubmitSm PDU
             if isinstance(SubmitSmPDU, SubmitSM) is False:
@@ -242,7 +242,7 @@ class SMPPClientSMListener:
                         msgAge.seconds,
                         )
                     )
-                    yield self.rejectAndRequeueMessage(message, delay = self.config.submit_retrial_delay_smppc_not_ready)
+                    yield self.rejectAndRequeueMessage(message, delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
             # SMPP Client should be already bound as transceiver or transmitter
             if self.SMPPClientFactory.smpp.isBound() is False:
@@ -387,7 +387,7 @@ class SMPPClientSMListener:
                 # Still have some retrys to go ?
                 if self.submit_retrials[msgid] < retrial['count']:
                     # Requeue the message for later redelivery
-                    yield self.rejectAndRequeueMessage(amqpMessage, delay = retrial['delay'])
+                    yield self.rejectAndRequeueMessage(amqpMessage, delay=retrial['delay'])
                     will_be_retried = True
 
             # Log the message
@@ -446,8 +446,8 @@ class SMPPClientSMListener:
                                          # The dlr_url in DLRContentForHttpapi indicates the level
                                          # of the actual delivery receipt (1) and not the requested
                                          # one (maybe 1 or 3)
-                                         dlr_level = 1,
-                                         method = dlr_method)
+                                         dlr_level=1,
+                                         method=dlr_method)
                     routing_key = 'dlr_thrower.http'
                     self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]" % (msgid, routing_key))
                     yield self.amqpBroker.publish(exchange='messaging',
@@ -548,7 +548,7 @@ class SMPPClientSMListener:
             # Send back submit_sm_resp to submit.sm.resp.CID queue
             # There's no actual listeners on this queue, it can be used to
             # track submit_sm_resp messages from a 3rd party app
-            content = SubmitSmRespContent(r.response, msgid, pickleProtocol = self.pickleProtocol)
+            content = SubmitSmRespContent(r.response, msgid, pickleProtocol=self.pickleProtocol)
             self.log.debug("Sending back SubmitSmRespContent[%s] with routing_key[%s]" %
                            (msgid, amqpMessage.content.properties['reply-to']))
             yield self.amqpBroker.publish(exchange='messaging',
@@ -617,7 +617,7 @@ class SMPPClientSMListener:
                 pdu.params['esm_class'] = None
             # 2. Set the new short_message
             pdu.params['short_message'] = short_message
-            yield self.deliver_sm_event_post_interception(smpp = None, pdu = pdu, concatenated = True)
+            yield self.deliver_sm_event_post_interception(smpp=None, pdu=pdu, concatenated=True)
 
     def code_dlr_msgid(self, pdu):
         "Code the dlr msg id accordingly to SMPPc's dlr_msg_id_bases value"
@@ -676,11 +676,11 @@ class SMPPClientSMListener:
 
             # Run !
             d = self.interceptorpb_client.run_script(script, temp_routable)
-            d.addCallback(self.deliver_sm_event_post_interception, smpp = smpp, pdu = pdu)
+            d.addCallback(self.deliver_sm_event_post_interception, smpp=smpp, pdu=pdu)
             d.addErrback(self.deliver_sm_event_post_interception)
             return d
         else:
-            return self.deliver_sm_event_post_interception(smpp = smpp, pdu = pdu)
+            return self.deliver_sm_event_post_interception(smpp=smpp, pdu=pdu)
 
     @defer.inlineCallbacks
     def deliver_sm_event_post_interception(self, *args, **kw):
@@ -713,7 +713,7 @@ class SMPPClientSMListener:
                 elif isinstance(args[0], dict) and args[0]['smpp_status'] > 0:
                     smpp.factory.stats.inc('interceptor_error_count')
                     self.log.info('Interceptor script returned %s smpp_status error.' % args[0]['smpp_status'])
-                    raise DeliverSmInterceptionError(code = args[0]['smpp_status'])
+                    raise DeliverSmInterceptionError(code=args[0]['smpp_status'])
                 elif isinstance(args[0], str):
                     smpp.factory.stats.inc('interceptor_count')
                     temp_routable = pickle.loads(args[0])
@@ -728,8 +728,8 @@ class SMPPClientSMListener:
             pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
             content = DeliverSmContent(pdu,
                                        self.SMPPClientFactory.config.id,
-                                       pickleProtocol = self.pickleProtocol,
-                                       concatenated = concatenated)
+                                       pickleProtocol=self.pickleProtocol,
+                                       concatenated=concatenated)
             msgid = content.properties['message-id']
 
             if pdu.dlr is None:
@@ -838,15 +838,15 @@ class SMPPClientSMListener:
                                                      # The dlr_url in DLRContentForHttpapi indicates the level
                                                      # of the actual delivery receipt (2) and not the
                                                      # requested one (maybe 2 or 3)
-                                                     dlr_level = 2,
-                                                     id_smsc = _coded_dlr_id,
-                                                     sub = pdu.dlr['sub'],
-                                                     dlvrd = pdu.dlr['dlvrd'],
-                                                     subdate = pdu.dlr['sdate'],
-                                                     donedate = pdu.dlr['ddate'],
-                                                     err = pdu.dlr['err'],
-                                                     text = pdu.dlr['text'],
-                                                     method = dlr_method)
+                                                     dlr_level=2,
+                                                     id_smsc=_coded_dlr_id,
+                                                     sub=pdu.dlr['sub'],
+                                                     dlvrd=pdu.dlr['dlvrd'],
+                                                     subdate=pdu.dlr['sdate'],
+                                                     donedate=pdu.dlr['ddate'],
+                                                     err=pdu.dlr['err'],
+                                                     text=pdu.dlr['text'],
+                                                     method=dlr_method)
                                 routing_key = 'dlr_thrower.http'
                                 self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]" %
                                                (submit_sm_queue_id, routing_key))
@@ -871,7 +871,6 @@ class SMPPClientSMListener:
                             destination_addr = smpps_map['destination_addr']
                             sub_date = smpps_map['sub_date']
                             registered_delivery = smpps_map['registered_delivery']
-                            smpps_map_expiry = smpps_map['expiry']
 
                             success_states = ['ACCEPTD', 'DELIVRD']
                             final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']

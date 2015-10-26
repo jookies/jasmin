@@ -51,8 +51,10 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                when = self.config.log_rotate)
+            handler = TimedRotatingFileHandler(
+                filename=self.config.log_file,
+                when=self.config.log_rotate
+            )
             formatter = logging.Formatter(self.config.log_format,
                                           self.config.log_date_format)
             handler.setFormatter(formatter)
@@ -122,7 +124,7 @@ class SMPPClientManagerPB(pb.Avatar):
     def perspective_version_release(self):
         return jasmin.get_release()
 
-    def perspective_persist(self, profile = 'jcli-prod'):
+    def perspective_persist(self, profile='jcli-prod'):
         path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Persisting current configuration to [%s] profile in %s' % (profile, path))
 
@@ -136,7 +138,7 @@ class SMPPClientManagerPB(pb.Avatar):
                                     'service_status':c['service'].running})
 
             # Write configuration with datetime stamp
-            fh = open(path,'w')
+            fh = open(path, 'w')
             fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
             fh.write(pickle.dumps(connectors, self.pickleProtocol))
             fh.close()
@@ -153,13 +155,13 @@ class SMPPClientManagerPB(pb.Avatar):
         return True
 
     @defer.inlineCallbacks
-    def perspective_load(self, profile = 'jcli-prod'):
+    def perspective_load(self, profile='jcli-prod'):
         path = '%s/%s.smppccs' % (self.config.store_path, profile)
         self.log.info('Loading/Activating [%s] profile configuration from %s' % (profile, path))
 
         try:
             # Load configuration from file
-            fh = open(path,'r')
+            fh = open(path, 'r')
             lines = fh.readlines()
             fh.close()
 
@@ -239,14 +241,14 @@ class SMPPClientManagerPB(pb.Avatar):
 
         # Instanciate a SM listener
         smListener = SMPPClientSMListener(
-                                          SMPPClientSMListenerConfig = SMPPClientSMListenerConfig(
+                                          SMPPClientSMListenerConfig=SMPPClientSMListenerConfig(
                                             self.config.config_file
                                           ),
-                                          SMPPClientFactory = serviceManager.SMPPClientFactory,
-                                          amqpBroker = self.amqpBroker,
-                                          redisClient = self.redisClient,
-                                          RouterPB = self.RouterPB,
-                                          interceptorpb_client = self.interceptorpb_client)
+                                          SMPPClientFactory=serviceManager.SMPPClientFactory,
+                                          amqpBroker=self.amqpBroker,
+                                          redisClient=self.redisClient,
+                                          RouterPB=self.RouterPB,
+                                          interceptorpb_client=self.interceptorpb_client)
 
         # Deliver_sm are sent to smListener's deliver_sm callback method
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event_interceptor
@@ -355,12 +357,12 @@ class SMPPClientManagerPB(pb.Avatar):
             # Stop the queue consumer if any
             if connector['consumer_tag'] is not None:
                 self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-                yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+                yield self.amqpBroker.chan.basic_cancel(consumer_tag=connector['consumer_tag'])
 
             # Start a new consumer
-            yield self.amqpBroker.chan.basic_consume(queue = submit_sm_queue,
-                                                     no_ack = False,
-                                                     consumer_tag = consumerTag)
+            yield self.amqpBroker.chan.basic_consume(queue=submit_sm_queue,
+                                                     no_ack=False,
+                                                     consumer_tag=consumerTag)
         except Exception, e:
             self.log.error('Error consuming from queue %s: %s' % (submit_sm_queue, e))
             defer.returnValue(False)
@@ -389,7 +391,7 @@ class SMPPClientManagerPB(pb.Avatar):
         defer.returnValue(True)
 
     @defer.inlineCallbacks
-    def perspective_connector_stop(self, cid, delQueues = False):
+    def perspective_connector_stop(self, cid, delQueues=False):
         """This will stop a service by detaching IService to IServiceCollection
         """
 
@@ -403,7 +405,7 @@ class SMPPClientManagerPB(pb.Avatar):
         # Stop the queue consumer
         if connector['consumer_tag'] is not None:
             self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-            yield self.amqpBroker.chan.basic_cancel(consumer_tag = connector['consumer_tag'])
+            yield self.amqpBroker.chan.basic_cancel(consumer_tag=connector['consumer_tag'])
 
             # Cleaning
             self.log.debug('Cleaning objects in connector [%s]', cid)
@@ -448,7 +450,7 @@ class SMPPClientManagerPB(pb.Avatar):
         defer.returnValue(True)
 
     @defer.inlineCallbacks
-    def perspective_connector_stopall(self, delQueues = False):
+    def perspective_connector_stopall(self, delQueues=False):
         """This will stop all services by detaching IService to IServiceCollection
         """
 
@@ -527,9 +529,9 @@ class SMPPClientManagerPB(pb.Avatar):
         return pickle.dumps(connector['config'], self.pickleProtocol)
 
     @defer.inlineCallbacks
-    def perspective_submit_sm(self, cid, SubmitSmPDU, priority = 1, validity_period = None, pickled = True,
-                         dlr_url = None, dlr_level = 1, dlr_method = 'POST', submit_sm_resp_bill = None,
-                         source_connector = 'httpapi'):
+    def perspective_submit_sm(self, cid, SubmitSmPDU, priority=1, validity_period=None, pickled=True,
+                         dlr_url=None, dlr_level=1, dlr_method='POST', submit_sm_resp_bill=None,
+                         source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
         """
 
@@ -578,8 +580,8 @@ class SMPPClientManagerPB(pb.Avatar):
             responseQueueName,
             priority,
             validity_period,
-            submit_sm_resp_bill = submit_sm_resp_bill,
-            source_connector = 'httpapi' if source_connector == 'httpapi' else 'smppsapi')
+            submit_sm_resp_bill=submit_sm_resp_bill,
+            source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi')
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
         if source_connector == 'httpapi' and dlr_url is not None:

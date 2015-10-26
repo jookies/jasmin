@@ -23,7 +23,7 @@ class PDU(Content):
 
     pickleProtocol = 2
 
-    def __init__(self, body = "", children = None, properties = None, pickleProtocol = 2, prePickle = False):
+    def __init__(self, body="", children=None, properties=None, pickleProtocol=2, prePickle=False):
         self.pickleProtocol = pickleProtocol
 
         if prePickle is True:
@@ -40,8 +40,8 @@ class DLRContentForHttpapi(Content):
     """A DLR Content holding information about the origin SubmitSm sent from httpapi and
     receipt acknowledgment details"""
 
-    def __init__(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '',
-                 dlvrd = '', subdate = '', donedate = '', err = '', text = '', method = 'POST', trycount = 0):
+    def __init__(self, message_status, msgid, dlr_url, dlr_level, id_smsc='', sub='',
+                 dlvrd='', subdate='', donedate='', err='', text='', method='POST', trycount=0):
         properties = {}
 
         # ESME_* statuses are returned from SubmitSmResp
@@ -68,7 +68,7 @@ class DLRContentForHttpapi(Content):
                                  'err': err,
                                  'text': text}
 
-        Content.__init__(self, msgid, properties = properties)
+        Content.__init__(self, msgid, properties=properties)
 
 class DLRContentForSmpps(Content):
     """A DLR Content holding information about the origin SubmitSm sent from smpps and
@@ -91,12 +91,13 @@ class DLRContentForSmpps(Content):
                                  'destination_addr': destination_addr,
                                  'sub_date': str(sub_date)}
 
-        Content.__init__(self, msgid, properties = properties)
+        Content.__init__(self, msgid, properties=properties)
 
 class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
-    def __init__(self, body, replyto, priority = 1, expiration = None, msgid = None, submit_sm_resp_bill = None, source_connector = 'httpapi'):
+    def __init__(self, body, replyto, priority=1, expiration=None, msgid=None,
+        submit_sm_resp_bill=None, source_connector='httpapi'):
         props = {}
 
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -125,21 +126,21 @@ class SubmitSmContent(PDU):
 class SubmitSmRespContent(PDU):
     "A SMPP SubmitSmResp Content"
 
-    def __init__(self, body, msgid, pickleProtocol = 2, prePickle = True):
+    def __init__(self, body, msgid, pickleProtocol=2, prePickle=True):
         props = {}
 
         props['message-id'] = msgid
         PDU.__init__(self,
             body,
-            properties = props,
-            pickleProtocol = pickleProtocol,
-            prePickle = prePickle)
+            properties=props,
+            pickleProtocol=pickleProtocol,
+            prePickle=prePickle)
 
 class DeliverSmContent(PDU):
     "A SMPP DeliverSm Content"
 
-    def __init__(self, body, sourceCid, pickleProtocol = 2, prePickle = True,
-        concatenated = False, will_be_concatenated = False):
+    def __init__(self, body, sourceCid, pickleProtocol=2, prePickle=True,
+        concatenated=False, will_be_concatenated=False):
         props = {}
 
         props['message-id'] = randomUniqueId()
@@ -154,9 +155,9 @@ class DeliverSmContent(PDU):
 
         PDU.__init__(self,
             body,
-            properties = props,
-            pickleProtocol = pickleProtocol,
-            prePickle = prePickle)
+            properties=props,
+            pickleProtocol=pickleProtocol,
+            prePickle=prePickle)
 
 class SubmitSmRespBillContent(Content):
     "A Bill Content holding amount to be charged to user (uid)"
@@ -172,4 +173,4 @@ class SubmitSmRespBillContent(Content):
         properties['message-id'] = bid
         properties['headers'] = {'user-id': uid, 'amount': str(amount)}
 
-        Content.__init__(self, bid, properties = properties)
+        Content.__init__(self, bid, properties=properties)

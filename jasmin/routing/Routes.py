@@ -20,7 +20,7 @@ class InvalidRouteFilterError(Exception):
 
 class Route:
     """Generick Route:
-    
+
     Route contain a triplet of [Filter(s), Connector, Rate]
     When more than one Filter is given, matching these filters will use the AND operator
     """
@@ -49,38 +49,38 @@ class Route:
                     "filter types (%s) is not compatible with this route type (%s)" % (
                         _filter.usedFor, self.type
                     ))
-        
+
         self.filters = filters
         self.connector = connector
         self.rate = rate
-        
+
         if self.rate > 0:
             rate_str = 'rated %.2f' % self.rate
         else:
             rate_str = 'NOT RATED'
         self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector.type, connector.cid, rate_str)
-        
+
     def __str__(self):
         return self._str
-        
+
     def getConnector(self):
         return self.connector
-    
+
     def getRate(self):
         return self.rate
-    
+
     def getBillFor(self, user):
         """This will return the exact bill for user depending on his defined quotas
         """
-        
+
         if not isinstance(user, User):
             raise InvalidRouteParameterError("user is not an instance of User")
-        
+
         # Init
         bill = SubmitSmBill(user)
 
         # Route billing processing
-        # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then 
+        # [RULE 1] If route is rated and user's balance is not unlimited (balance != None) then
         # user will be billed for the selected route rate.
         if self.getRate() > 0 and user.mt_credential.getQuota('balance') is not None:
             early_decrement_balance_percent = user.mt_credential.getQuota('early_decrement_balance_percent')
@@ -96,32 +96,32 @@ class Route:
             else:
                 bill.setAmount('submit_sm', route_rate)
                 bill.setAmount('submit_sm_resp', 0)
-        
+
         # [RULE 2] if user's submit_sm_count is not unlimited (!=None) then decrement it when sending
         # submit_sm
         if user.mt_credential.getQuota('submit_sm_count') is not None:
             bill.setAction('decrement_submit_sm_count', 1)
-        
+
         return bill
-    
+
     def matchFilters(self, routable):
         """If filters match routable, the connector will be returned, if not, None will be returned
         """
-        
+
         if not isinstance(routable, Routable):
             raise InvalidRouteParameterError("routable is not an instance of Routable")
-        
+
         for _filter in self.filters:
             if not _filter.match(routable):
                 return None
         return self.getConnector()
-    
+
 class DefaultRoute(Route):
     """This is a default route which can contain one connector
     """
     type = 'default'
-    
-    def __init__(self, connector, rate = 0.0):
+
+    def __init__(self, connector, rate=0.0):
         """
         Default rate is set to 0.0 since DefaultRoute can be for MO or MT routes, rate must be set only for
         MT routes, otherwise it will be ignored
@@ -155,19 +155,19 @@ class MORoute(Route):
     """
     type = 'mo'
 
-    def __init__(self, filters, connector, rate = 0.0):
+    def __init__(self, filters, connector, rate=0.0):
         "Overriding Route's __init__ to remove rate parameter, MORoutes are not rated"
-        
+
         Route.__init__(self, filters, connector, 0.0)
 
 class StaticMORoute(MORoute):
     """Return one unique route
     """
-        
+
 class StaticMTRoute(MTRoute):
     """Return one unique route
     """
-        
+
 class RoundrobinRoute():
     """Generick RoundrobinRoute
     """
@@ -184,19 +184,19 @@ class RoundrobinRoute():
                 raise InvalidRouteParameterError("filter must be an instance of Filter, %s found" % type(_filter))
             if self.type not in _filter.usedFor:
                 raise InvalidRouteFilterError("filter types (%s) is not compatible with this route type (%s)" % (_filter.usedFor, self.type))
-         
+
         self.filters = filters
         self.connector = connectors
-        
+
         connectorList_str = ''
         for c in connectors:
             if connectorList_str != '':
                 connectorList_str += '\n'
             connectorList_str += '\t- %s(%s)' % (c.type, c.cid)
-        self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__, 
-                                                  len(connectors), 
+        self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__,
+                                                  len(connectors),
                                                   connectorList_str)
-        
+
     def __str__(self):
         return self._str
 
@@ -207,12 +207,12 @@ class RandomRoundrobinMORoute(RoundrobinRoute, MORoute):
     """Return one route taken randomly from a pool of
     routes
     """
-    
+
 class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
     """Return one route taken randomly from a pool of
     routes
     """
-    
+
     def __init__(self, filters, connectors, rate):
         "Overriding RoundrobinRoute's __init__ to add rate parameter as it is only used for MT Routes"
 
@@ -220,11 +220,11 @@ class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
             raise InvalidRouteParameterError("rate is not float")
         if rate < 0:
             raise InvalidRouteParameterError("rate can not be a negative value")
-        
+
         self.rate = rate
 
         RoundrobinRoute.__init__(self, filters, connectors)
-        
+
         if self.rate > 0:
             rate_str = '\nrated %.2f' % self.rate
         else:
@@ -239,7 +239,7 @@ class FailoverMORoute(MORoute):
     def __init__(self, filters, connector):
         MORoute.__init__(self, filters, connector)
         raise NotImplementedError
-    
+
 class FailoverMTRoute(MTRoute):
     # @todo: Work in progress
     """Return a principal route with multiple failover
@@ -248,7 +248,7 @@ class FailoverMTRoute(MTRoute):
     def __init__(self, filters, connector, rate):
         MTRoute.__init__(self, filters, connector, rate)
         raise NotImplementedError
-    
+
 class BestQualityMTRoute(MTRoute):
     # @todo: Work in progress
     """Take the best route based on:

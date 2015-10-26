@@ -12,7 +12,7 @@ root_path = os.getenv('ROOT_PATH', '/')
 class JCliConfig(ConfigFile):
     "Config handler for 'jcli' section"
 
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.bind = self._get('jcli', 'bind', '127.0.0.1')

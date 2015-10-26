@@ -34,8 +34,8 @@ class _JellyableAvatarMixin:
         self.broker.notifyOnDisconnect(maybeLogout)
 
         return avatar
-    
-    def _loginError(self, err, username = 'Anonymous'):
+
+    def _loginError(self, err, username='Anonymous'):
         if err.type == UnhandledCredentials:
             if str(err.value) == 'No checker for twisted.cred.credentials.IAnonymous':
                 self.log.info('Anonymous connection is not authorized !')
@@ -55,19 +55,19 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
     """
     Called with response to verify received password (self.response) with
     the saved md5 digested password.
-    
+
     This is slightly different from twisted.spread.pb._PortalAuthChallenger in a way
     where the checker is holding md5 digest passwords (no plaintext passwords on server
-    side).    
+    side).
     """
     implements(IUsernameHashedPassword)
-    
+
     def __init__(self, portal, broker, username, _challenge):
         self.portal = portal
         self.broker = broker
         self.username = username
         self.challenge = _challenge
-        
+
         # Will use the PBFactory's logger
         self.log = self.portal.realm.PBFactory.log
 
@@ -84,7 +84,7 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
         md.update(self.challenge)
         correct = md.digest()
         return self.response == correct
-    
+
 class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
     """
     Root Referenceable object, used to login to portal.
@@ -93,7 +93,7 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
     def __init__(self, portal, broker):
         self.portal = portal
         self.broker = broker
-        
+
         # Will use the PBFactory's logger
         self.log = self.portal.realm.PBFactory.log
 
@@ -120,7 +120,7 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
         d.addCallback(self._cbLogin)
         d.addErrback(self._loginError)
         return d
-    
+
 class JasminPBPortalRoot:
     implements(IPBRoot)
 

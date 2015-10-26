@@ -21,7 +21,7 @@ class Stats:
 
         return self._stats[key]
 
-    def inc(self, key, inc = 1):
+    def inc(self, key, inc=1):
         if key not in self._stats:
             raise KeyNotFound(key)
         if type(self._stats[key]) != int:
@@ -29,7 +29,7 @@ class Stats:
 
         self._stats[key]+= inc
 
-    def dec(self, key, inc = 1):
+    def dec(self, key, inc=1):
         if key not in self._stats:
             raise KeyNotFound(key)
         if type(self._stats[key]) != int:

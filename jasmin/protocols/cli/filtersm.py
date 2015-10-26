@@ -246,7 +246,7 @@ class FiltersManager(PersistableManager):
 
         try:
             # Write configuration with datetime stamp
-            fh = open(path,'w')
+            fh = open(path, 'w')
             fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
             fh.write(pickle.dumps(self.filters, 2))
             fh.close()
@@ -265,12 +265,12 @@ class FiltersManager(PersistableManager):
         except:
             self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
 
-    def _load(self, profile = 'jcli-prod'):
+    def _load(self, profile='jcli-prod'):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
 
         try:
             # Load configuration from file
-            fh = open(path,'r')
+            fh = open(path, 'r')
             lines = fh.readlines()
             fh.close()
 

@@ -42,14 +42,17 @@ class Send(Resource):
         self.interceptorpb_client = interceptorpb_client
 
         # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
-        self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
-                                              long_content_split = HTTPApiConfig.long_content_split)
+        self.opFactory = SMPPOperationFactory(long_content_max_parts=HTTPApiConfig.long_content_max_parts,
+                                              long_content_split=HTTPApiConfig.long_content_split)
 
     @defer.inlineCallbacks
     def route_routable(self, updated_request):
         try:
             # Authentication
-            user = self.RouterPB.authenticateUser(username = updated_request.args['username'][0], password = updated_request.args['password'][0])
+            user = self.RouterPB.authenticateUser(
+                username=updated_request.args['username'][0],
+                password=updated_request.args['password'][0]
+            )
             if user is None:
                 self.stats.inc('auth_error_count')
 
@@ -67,10 +70,10 @@ class Send(Resource):
 
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
-                source_addr = None if 'from' not in updated_request.args else updated_request.args['from'][0],
-                destination_addr = updated_request.args['to'][0],
-                short_message = updated_request.args['content'][0],
-                data_coding = int(updated_request.args['coding'][0]),
+                source_addr=None if 'from' not in updated_request.args else updated_request.args['from'][0],
+                destination_addr=updated_request.args['to'][0],
+                short_message=updated_request.args['content'][0],
+                data_coding=int(updated_request.args['coding'][0]),
             )
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
 
@@ -107,8 +110,8 @@ class Send(Resource):
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Interceptor script returned %s http_status error.' % r['http_status'])
                     raise InterceptorRunError(
-                        code = r['http_status'],
-                        message = 'Interception specific error code %s' % r['http_status']
+                        code=r['http_status'],
+                        message='Interception specific error code %s' % r['http_status']
                     )
                 elif isinstance(r, str):
                     self.stats.inc('interceptor_count')
@@ -116,7 +119,7 @@ class Send(Resource):
                 else:
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Failed running interception script, got the following return: %s' % r)
-                    raise InterceptorRunError(message = 'Failed running interception script, check log for details')
+                    raise InterceptorRunError(message='Failed running interception script, check log for details')
 
             # Get the route
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
@@ -222,11 +225,11 @@ class Send(Resource):
             c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid,
                                                                routable.pdu,
                                                                priority,
-                                                               pickled = False,
-                                                               dlr_url = dlr_url,
-                                                               dlr_level = dlr_level,
-                                                               dlr_method = dlr_method,
-                                                               submit_sm_resp_bill = bill.getSubmitSmRespBill())
+                                                               pickled=False,
+                                                               dlr_url=dlr_url,
+                                                               dlr_level=dlr_level,
+                                                               dlr_method=dlr_method,
+                                                               submit_sm_resp_bill=bill.getSubmitSmRespBill())
 
             # Build final response
             if not c.result:
@@ -336,7 +339,7 @@ class Send(Resource):
             v.validate()
 
             # Continue routing in a separate thread
-            reactor.callFromThread(self.route_routable, updated_request = updated_request)
+            reactor.callFromThread(self.route_routable, updated_request=updated_request)
         except Exception, e:
             self.log.error("Error: %s" % e)
 
@@ -364,14 +367,17 @@ class Rate(Resource):
         self.interceptorpb_client = interceptorpb_client
 
         # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
-        self.opFactory = SMPPOperationFactory(long_content_max_parts = HTTPApiConfig.long_content_max_parts,
-                                              long_content_split = HTTPApiConfig.long_content_split)
+        self.opFactory = SMPPOperationFactory(long_content_max_parts=HTTPApiConfig.long_content_max_parts,
+                                              long_content_split=HTTPApiConfig.long_content_split)
 
     @defer.inlineCallbacks
     def route_routable(self, request):
         try:
             # Authentication
-            user = self.RouterPB.authenticateUser(username = request.args['username'][0], password = request.args['password'][0])
+            user = self.RouterPB.authenticateUser(
+                username=request.args['username'][0],
+                password=request.args['password'][0]
+            )
             if user is None:
                 self.stats.inc('auth_error_count')
 
@@ -389,15 +395,15 @@ class Rate(Resource):
 
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
-                source_addr = None if 'from' not in request.args else request.args['from'][0],
-                destination_addr = request.args['to'][0],
-                short_message = request.args['content'][0],
-                data_coding = int(request.args['coding'][0]),
+                source_add=None if 'from' not in request.args else request.args['from'][0],
+                destination_addr=request.args['to'][0],
+                short_message=request.args['content'][0],
+                data_coding=int(request.args['coding'][0]),
             )
             self.log.debug("Built base SubmitSmPDU: %s" % SubmitSmPDU)
 
             # Make Credential validation
-            v = HttpAPICredentialValidator('Rate', user, request, submit_sm = SubmitSmPDU)
+            v = HttpAPICredentialValidator('Rate', user, request, submit_sm=SubmitSmPDU)
             v.validate()
 
             # Update SubmitSmPDU by default values from user MtMessagingCredential
@@ -428,8 +434,8 @@ class Rate(Resource):
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Interceptor script returned %s http_status error.' % r['http_status'])
                     raise InterceptorRunError(
-                        code = r['http_status'],
-                        message = 'Interception specific error code %s' % r['http_status']
+                        code=r['http_status'],
+                        message='Interception specific error code %s' % r['http_status']
                     )
                 elif isinstance(r, str):
                     self.stats.inc('interceptor_count')
@@ -437,7 +443,7 @@ class Rate(Resource):
                 else:
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Failed running interception script, got the following return: %s' % r)
-                    raise InterceptorRunError(message = 'Failed running interception script, check log for details')
+                    raise InterceptorRunError(message='Failed running interception script, check log for details')
 
             # Routing
             routedConnector = None # init
@@ -524,7 +530,7 @@ class Rate(Resource):
             v.validate()
 
             # Continue routing in a separate thread
-            reactor.callFromThread(self.route_routable, request = request)
+            reactor.callFromThread(self.route_routable, request=request)
         except Exception, e:
             self.log.error("Error: %s" % e)
 
@@ -582,7 +588,10 @@ class Balance(Resource):
             v.validate()
 
             # Authentication
-            user = self.RouterPB.authenticateUser(username = request.args['username'][0], password = request.args['password'][0])
+            user = self.RouterPB.authenticateUser(
+                username=request.args['username'][0],
+                password=request.args['password'][0]
+            )
             if user is None:
                 self.stats.inc('auth_error_count')
 
@@ -650,7 +659,7 @@ class Ping(Resource):
 
 class HTTPApi(Resource):
 
-    def __init__(self, RouterPB, SMPPClientManagerPB, config, interceptor = None):
+    def __init__(self, RouterPB, SMPPClientManagerPB, config, interceptor=None):
         Resource.__init__(self)
 
         # Setup stats collector
@@ -662,7 +671,7 @@ class HTTPApi(Resource):
         if len(log.handlers) != 1:
             log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=config.log_file,
-                when = config.log_rotate)
+                when=config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             log.addHandler(handler)

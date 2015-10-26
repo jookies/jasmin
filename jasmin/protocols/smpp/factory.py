@@ -29,14 +29,14 @@ class SmppClientIsNotConnected(Exception):
 class SMPPClientFactory(ClientFactory):
     protocol = SMPPClientProtocol
 
-    def __init__(self, config, msgHandler = None):
+    def __init__(self, config, msgHandler=None):
         self.reconnectTimer = None
         self.smpp = None
         self.connectionRetry = True
         self.config = config
 
         # Setup statistics collector
-        self.stats = SMPPClientStatsCollector().get(cid = self.config.id)
+        self.stats = SMPPClientStatsCollector().get(cid=self.config.id)
         self.stats.set('created_at', datetime.now())
 
         # Set up a dedicated logger
@@ -45,7 +45,7 @@ class SMPPClientFactory(ClientFactory):
             self.log.setLevel(config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                when = _when)
+                when=_when)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -107,7 +107,7 @@ class SMPPClientFactory(ClientFactory):
             self.exitDeferred.callback(None)
             self.log.info("Exiting.")
 
-    def reConnect(self, connector = None):
+    def reConnect(self, connector=None):
         if connector is None:
             self.log.error("No connector to retry !")
         else:
@@ -197,7 +197,7 @@ class CtxFactory(ssl.ClientContextFactory):
 class SMPPServerFactory(_SMPPServerFactory):
     protocol = SMPPServerProtocol
 
-    def __init__(self, config, auth_portal, RouterPB = None, SMPPClientManagerPB = None, interceptorpb_client = None):
+    def __init__(self, config, auth_portal, RouterPB=None, SMPPClientManagerPB=None, interceptorpb_client=None):
         self.config = config
         # A dict of protocol instances for each of the current connections,
         # indexed by system_id
@@ -208,7 +208,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.interceptorpb_client = interceptorpb_client
 
         # Setup statistics collector
-        self.stats = SMPPServerStatsCollector().get(cid = self.config.id)
+        self.stats = SMPPServerStatsCollector().get(cid=self.config.id)
         self.stats.set('created_at', datetime.now())
 
         # Set up a dedicated logger
@@ -216,7 +216,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                when = self.config.log_rotate)
+                when=self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -292,11 +292,11 @@ class SMPPServerFactory(_SMPPServerFactory):
 
             # Run !
             d = self.interceptorpb_client.run_script(script, routable)
-            d.addCallback(self.submit_sm_post_interception, system_id = system_id, proto = proto)
+            d.addCallback(self.submit_sm_post_interception, system_id=system_id, proto=proto)
             d.addErrback(self.submit_sm_post_interception)
             return d
         else:
-            return self.submit_sm_post_interception(routable = routable, system_id = system_id, proto = proto)
+            return self.submit_sm_post_interception(routable=routable, system_id=system_id, proto=proto)
 
     def submit_sm_post_interception(self, *args, **kw):
         """This event handler will deliver the submit_sm to the right smppc connector.
@@ -351,7 +351,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             # QoS throttling
             if routable.user.mt_credential.getQuota('smpps_throughput') >= 0 and routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0:
                 qos_throughput_second = 1 / float(routable.user.mt_credential.getQuota('smpps_throughput'))
-                qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+                qos_throughput_ysecond_td = timedelta(microseconds=qos_throughput_second * 1000000)
                 qos_delay = datetime.now() - routable.user.getCnxStatus().smpps['qos_last_submit_sm_at']
                 if qos_delay < qos_throughput_ysecond_td:
                     self.log.error("QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message." % (
@@ -381,7 +381,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                                               'error_message': 'Not enough submit_sm_count (%s) for charging: %s' %
                                               (u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
-            if self.RouterPB.chargeUserForSubmitSms(routable.user, bill, requirements = charging_requirements) is None:
+            if self.RouterPB.chargeUserForSubmitSms(routable.user, bill, requirements=charging_requirements) is None:
                 self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)' %
                                                     (routable.user, bill.bid, bill.getTotalAmounts()))
                 raise SubmitSmChargingError()
@@ -401,9 +401,9 @@ class SMPPServerFactory(_SMPPServerFactory):
             c = self.SMPPClientManagerPB.perspective_submit_sm(routedConnector.cid,
                                                             routable.pdu,
                                                             priority,
-                                                            pickled = False,
-                                                            submit_sm_resp_bill = bill.getSubmitSmRespBill(),
-                                                            source_connector = proto)
+                                                            pickled=False,
+                                                            submit_sm_resp_bill=bill.getSubmitSmRespBill(),
+                                                            source_connector=proto)
 
             # Build final response
             if not c.result:
@@ -521,7 +521,7 @@ class SMPPBindManager(_SMPPBindManager):
     "Overloads _SMPPBindManager to add user tracking"
 
     def __init__(self, user):
-        _SMPPBindManager.__init__(self, system_id = user.username)
+        _SMPPBindManager.__init__(self, system_id=user.username)
 
         self.user = user
 

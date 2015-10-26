@@ -18,7 +18,7 @@ from hashlib import md5
 LOG_CATEGORY = "jasmin-router"
 
 class RouterPB(pb.Avatar):
-    def setConfig(self, RouterPBConfig, persistenceTimer = True):
+    def setConfig(self, RouterPBConfig, persistenceTimer=True):
         self.config = RouterPBConfig
         self.persistenceTimer = None
 
@@ -27,7 +27,7 @@ class RouterPB(pb.Avatar):
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                when = self.config.log_rotate)
+                when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -96,10 +96,10 @@ class RouterPB(pb.Avatar):
         yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
         self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
         self.bill_request_submit_sm_resp_q.get().addCallback(
-                                                             self.bill_request_submit_sm_resp_callback
-                                                             ).addErrback(
-                                                                          self.bill_request_submit_sm_resp_errback
-                                                                          )
+                                                    self.bill_request_submit_sm_resp_callback
+                                               ).addErrback(
+                                                    self.bill_request_submit_sm_resp_errback
+                                               )
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
 
     @defer.inlineCallbacks
@@ -132,8 +132,8 @@ class RouterPB(pb.Avatar):
         for u in self.users:
             if u.mt_credential.quotas_updated:
                 self.log.info('Detected a user quota update, users and groups will be persisted.')
-                self.perspective_persist(scope = 'groups')
-                self.perspective_persist(scope = 'users')
+                self.perspective_persist(scope='groups')
+                self.perspective_persist(scope='users')
                 u.mt_credential.quotas_updated = False
                 self.log.debug('Persisted successfully')
                 break
@@ -221,10 +221,10 @@ class RouterPB(pb.Avatar):
         self.log.debug("Callbacked a bill_request_submit_sm_resp [uid:%s] [amount:%s] [related-bid:%s]" % (uid, amount, bid))
 
         self.bill_request_submit_sm_resp_q.get().addCallback(
-                                                             self.bill_request_submit_sm_resp_callback
+                                                                self.bill_request_submit_sm_resp_callback
                                                              ).addErrback(
                                                                           self.bill_request_submit_sm_resp_errback
-                                                                          )
+                                                                        )
 
         _user = self.getUser(uid)
         if _user is None:
@@ -261,7 +261,7 @@ class RouterPB(pb.Avatar):
         return self.mo_routing_table
     def getMTRoutingTable(self):
         return self.mt_routing_table
-    def authenticateUser(self, username, password, return_pickled = False):
+    def authenticateUser(self, username, password, return_pickled=False):
         """Authenticate a user agains username and password and return user object or None
         """
         for _user in self.users:
@@ -274,7 +274,7 @@ class RouterPB(pb.Avatar):
 
         self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
-    def chargeUserForSubmitSms(self, user, bill, submit_sm_count = 1, requirements = []):
+    def chargeUserForSubmitSms(self, user, bill, submit_sm_count=1, requirements=[]):
         """Will charge the user using the bill object after checking requirements
         """
         # Check if User is already existent in Router ?
@@ -373,14 +373,14 @@ class RouterPB(pb.Avatar):
     def perspective_version_release(self):
         return jasmin.get_release()
 
-    def perspective_persist(self, profile = 'jcli-prod', scope = 'all'):
+    def perspective_persist(self, profile='jcli-prod', scope='all'):
         try:
             if scope in ['all', 'groups']:
                 # Persist groups configuration
                 path = '%s/%s.router-groups' % (self.config.store_path, profile)
                 self.log.info('Persisting current Groups configuration to [%s] profile in %s' % (profile, path))
 
-                fh = open(path,'w')
+                fh = open(path, 'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.groups, self.pickleProtocol))
@@ -394,7 +394,7 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-users' % (self.config.store_path, profile)
                 self.log.info('Persisting current Users configuration to [%s] profile in %s' % (profile, path))
 
-                fh = open(path,'w')
+                fh = open(path, 'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
@@ -410,7 +410,7 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MORoutingTable to [%s] profile in %s' % (profile, path))
 
-                fh = open(path,'w')
+                fh = open(path, 'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
@@ -424,7 +424,7 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MTRoutingTable to [%s] profile in %s' % (profile, path))
 
-                fh = open(path,'w')
+                fh = open(path, 'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
@@ -438,7 +438,7 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-mointerceptors' % (self.config.store_path, profile)
                 self.log.info('Persisting current MOInterceptionTable to [%s] profile in %s' % (profile, path))
 
-                fh = open(path,'w')
+                fh = open(path, 'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mo_interception_table, self.pickleProtocol))
@@ -452,7 +452,7 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-mtinterceptors' % (self.config.store_path, profile)
                 self.log.info('Persisting current MTInterceptionTable to [%s] profile in %s' % (profile, path))
 
-                fh = open(path,'w')
+                fh = open(path, 'w')
                 # Write configuration with datetime stamp
                 fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
                 fh.write(pickle.dumps(self.mt_interception_table, self.pickleProtocol))
@@ -470,7 +470,7 @@ class RouterPB(pb.Avatar):
 
         return True
 
-    def perspective_load(self, profile = 'jcli-prod', scope = 'all'):
+    def perspective_load(self, profile='jcli-prod', scope='all'):
         try:
             if scope in ['all', 'groups']:
                 # Load groups configuration
@@ -478,7 +478,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Loading/Activating [%s] profile Groups configuration from %s' % (profile, path))
 
                 # Load configuration from file
-                fh = open(path,'r')
+                fh = open(path, 'r')
                 lines = fh.readlines()
                 fh.close()
 
@@ -499,7 +499,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Loading/Activating [%s] profile Users configuration from %s' % (profile, path))
 
                 # Load configuration from file
-                fh = open(path,'r')
+                fh = open(path, 'r')
                 lines = fh.readlines()
                 fh.close()
 
@@ -522,7 +522,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Loading/Activating [%s] profile MO Interceptors configuration from %s' % (profile, path))
 
                 # Load configuration from file
-                fh = open(path,'r')
+                fh = open(path, 'r')
                 lines = fh.readlines()
                 fh.close()
 
@@ -539,7 +539,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Loading/Activating [%s] profile MT Interceptors configuration from %s' % (profile, path))
 
                 # Load configuration from file
-                fh = open(path,'r')
+                fh = open(path, 'r')
                 lines = fh.readlines()
                 fh.close()
 
@@ -556,7 +556,7 @@ class RouterPB(pb.Avatar):
                 self.log.info('Loading/Activating [%s] profile MO Routes configuration from %s' % (profile, path))
 
                 # Load configuration from file
-                fh = open(path,'r')
+                fh = open(path, 'r')
                 lines = fh.readlines()
                 fh.close()
 
@@ -663,7 +663,7 @@ class RouterPB(pb.Avatar):
 
         return True
 
-    def perspective_user_get_all(self, gid = None):
+    def perspective_user_get_all(self, gid=None):
         self.log.info('Getting all users')
         self.log.debug('Getting all users: %s' % self.users)
 

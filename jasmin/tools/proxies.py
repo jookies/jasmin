@@ -37,7 +37,7 @@ class JasminPBProxy:
     pickleProtocol = 2
 
     @defer.inlineCallbacks
-    def connect(self, host, port, username = None, password = None, retry = False):
+    def connect(self, host, port, username=None, password=None, retry=False):
         if retry:
             # Launch a client
             self.pbClientFactory = ReconnectingPBClientFactory()

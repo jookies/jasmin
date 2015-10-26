@@ -38,20 +38,20 @@ root_path = os.getenv('ROOT_PATH', '/')
 class Options(usage.Options):
 
     optParameters = [
-        ['config',                  'c', '%s/etc/jasmin/jasmin.cfg' % root_path,
+        ['config', 'c', '%s/etc/jasmin/jasmin.cfg' % root_path,
          'Jasmin configuration file'],
-        ['username',                'u', None,
+        ['username', 'u', None,
          'jCli username used to load configuration profile on startup'],
-        ['password',                'p', None,
+        ['password', 'p', None,
          'jCli password used to load configuration profile on startup'],
         ]
 
     optFlags = [
-        ['disable-smpp-server',       None, 'Do not start SMPP Server service'],
-        ['disable-dlr-thrower',       None, 'Do not DLR Thrower service'],
-        ['disable-deliver-thrower',   None, 'Do not DeliverSm Thrower service'],
-        ['disable-http-api',          None, 'Do not HTTP API'],
-        ['disable-jcli',              None, 'Do not jCli console'],
+        ['disable-smpp-server', None, 'Do not start SMPP Server service'],
+        ['disable-dlr-thrower', None, 'Do not DLR Thrower service'],
+        ['disable-deliver-thrower', None, 'Do not DeliverSm Thrower service'],
+        ['disable-http-api', None, 'Do not HTTP API'],
+        ['disable-jcli', None, 'Do not jCli console'],
         ['enable-interceptor-client', None, 'Start Interceptor client'],
     ]
 
@@ -172,16 +172,16 @@ class JasminDaemon:
 
         # SMPPServerFactory init
         self.components['smpp-server-factory'] = SMPPServerFactory(
-            SMPPServerConfigInstance,
-            auth_portal = p,
-            RouterPB = self.components['router-pb-factory'],
-            SMPPClientManagerPB = self.components['smppcm-pb-factory'],
+                SMPPServerConfigInstance,
+                auth_portal = p,
+                RouterPB = self.components['router-pb-factory'],
+                SMPPClientManagerPB = self.components['smppcm-pb-factory'],
             )
 
         # Start server
         self.components['smpp-server'] = reactor.listenTCP(SMPPServerConfigInstance.port,
-            self.components['smpp-server-factory'],
-            interface = SMPPServerConfigInstance.bind
+                self.components['smpp-server-factory'],
+                interface = SMPPServerConfigInstance.bind,
             )
 
         # Add interceptor if enabled:
@@ -242,9 +242,9 @@ class JasminDaemon:
 
         self.components['http-api-server'] = reactor.listenTCP(httpApiConfigInstance.port,
                                      server.Site(self.components['http-api-factory'],
-                                                 logPath = httpApiConfigInstance.access_log
+                                                 logPath=httpApiConfigInstance.access_log
                                                  ),
-                                     interface = httpApiConfigInstance.bind
+                                     interface=httpApiConfigInstance.bind
                                      )
 
     def stopHTTPApiService(self):
@@ -279,7 +279,7 @@ class JasminDaemon:
             InterceptorPBClientConfigInstance.port,
             InterceptorPBClientConfigInstance.username,
             InterceptorPBClientConfigInstance.password,
-            retry = True
+            retry=True
         )
 
     def stopInterceptorPBClient(self):

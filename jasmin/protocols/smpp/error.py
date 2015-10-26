@@ -12,7 +12,7 @@ class SubmitSmEventHandlerErrorNoShutdown(SMPPProtocolError):
     """Errors raised from jasmin.protocols.smpp.factory.SMPPServerFactory.submit_sm_event()
     Any error raising this exception will not cause connection shutdown
     """
-    def __init__(self, message = None):
+    def __init__(self, message=None):
         if message is None:
             SMPPProtocolError.__init__(self, "%s" % self.getStatusDescription(), self.status)
         else:
@@ -85,7 +85,7 @@ class FilterError(SubmitSmEventHandlerErrorNoShutdown):
     Raised when user credential validation fails in _checkSendFilters()
     (jasmin.protocols.smpp.validation.SmppsCredentialValidator)
     """
-    def __init__(self, message, filter_key = None):
+    def __init__(self, message, filter_key=None):
         if filter_key == 'destination_address':
             self.status = pdu_types.CommandStatus.ESME_RINVDSTADR
         elif filter_key == 'source_address':
@@ -101,7 +101,7 @@ class InterceptorError(SMPPProtocolError):
     """Errors raised when intercepting a submit_sm or deliver_sm pdu
     Any error raising this exception will not cause connection shutdown
     """
-    def __init__(self, code, message = None):
+    def __init__(self, code, message=None):
         if type(code) is int and code > 0 and code in constants.command_status_value_map:
             self.status = getattr(pdu_types.CommandStatus, constants.command_status_value_map[code]['name'])
         else:
@@ -122,13 +122,13 @@ class SubmitSmInterceptionError(InterceptorError):
     pass
 
 class InterceptorNotSetError(InterceptorError):
-    def __init__(self, message = None):
-        InterceptorError.__init__(self, code = 8, message = message)
+    def __init__(self, message=None):
+        InterceptorError.__init__(self, code=8, message=message)
 
 class InterceptorNotConnectedError(InterceptorError):
-    def __init__(self, message = None):
-        InterceptorError.__init__(self, code = 8, message = message)
+    def __init__(self, message=None):
+        InterceptorError.__init__(self, code=8, message=message)
 
 class InterceptorRunError(InterceptorError):
-    def __init__(self, message = None):
-        InterceptorError.__init__(self, code = 8, message = message)
+    def __init__(self, message=None):
+        InterceptorError.__init__(self, code=8, message=message)

@@ -12,7 +12,7 @@ root_path = os.getenv('ROOT_PATH', '/')
 class InterceptorPBConfig(ConfigFile):
     "Config handler for 'interceptor' section"
 
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.bind = self._get('interceptor', 'bind', '0.0.0.0')
@@ -34,7 +34,7 @@ class InterceptorPBConfig(ConfigFile):
 class InterceptorPBClientConfig(ConfigFile):
     "Config handler for 'interceptor' section"
 
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.host = self._get('interceptor-client', 'host', '127.0.0.1')

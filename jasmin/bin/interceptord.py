@@ -21,7 +21,7 @@ root_path = os.getenv('ROOT_PATH', '/')
 class Options(usage.Options):
 
     optParameters = [
-        ['config',                  'c', '%s/etc/jasmin/interceptor.cfg' % root_path,
+        ['config', 'c', '%s/etc/jasmin/interceptor.cfg' % root_path,
          'Jasmin interceptor configuration file'],
         ]
 

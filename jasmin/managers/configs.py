@@ -15,7 +15,7 @@ root_path = os.getenv('ROOT_PATH', '/')
 class SMPPClientPBConfig(ConfigFile):
     "Config handler for 'client-management' section"
 
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.store_path = self._get('client-management',
@@ -58,7 +58,7 @@ class SMPPClientPBConfig(ConfigFile):
 class SMPPClientSMListenerConfig(ConfigFile):
     "Config handler for 'sm-listener' section"
 
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.publish_submit_sm_resp = self._getbool('sm-listener',

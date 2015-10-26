@@ -11,11 +11,11 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
         return self.pb.callRemote('version_release')
 
     @ConnectedPB
-    def persist(self, profile = "jcli-prod"):
+    def persist(self, profile="jcli-prod"):
         return self.pb.callRemote('persist', profile)
 
     @ConnectedPB
-    def load(self, profile = "jcli-prod"):
+    def load(self, profile="jcli-prod"):
         return self.pb.callRemote('load', profile)
 
     @ConnectedPB
@@ -42,11 +42,11 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
         return self.pb.callRemote('connector_start', cid)
 
     @ConnectedPB
-    def stop(self, cid, delQueues = False):
+    def stop(self, cid, delQueues=False):
         return self.pb.callRemote('connector_stop', cid, delQueues)
 
     @ConnectedPB
-    def stopall(self, delQueues = False):
+    def stopall(self, delQueues=False):
         return self.pb.callRemote('connector_stopall', delQueues)
 
     @ConnectedPB
@@ -93,7 +93,7 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
             validity_period = None
 
         return self.pb.callRemote('submit_sm', cid,
-                                  SubmitSmPDU       = self.pickle(SubmitSmPDU),
-                                  priority          = priority_flag,
-                                  validity_period   = validity_period
+                                  SubmitSmPDU=self.pickle(SubmitSmPDU),
+                                  priority=priority_flag,
+                                  validity_period=validity_period
                                 )
