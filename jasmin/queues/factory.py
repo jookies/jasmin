@@ -115,7 +115,7 @@ class AmqpFactory(ClientFactory):
             connector.connect()
 
     def _connect(self):
-        self.log.info('Establishing TCP connection to %s:%d', (self.config.host, self.config.port))
+        self.log.info('Establishing TCP connection to %s:%d', self.config.host, self.config.port)
         reactor.connectTCP(self.config.host, self.config.port, self)
 
         self.preConnect()
