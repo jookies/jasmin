@@ -26,7 +26,7 @@ script:
     - cd misc/doc;make html;cd ../../
     # Report coverage:
     - ls -l /home/travis
-    - coverage report --omit=/usr/*,/home/travis/virtualenv/*
+    - coverage report --omit=/usr/*,/home/travis/virtualenv/*,venv/*
     # Pylint code analysis and rating:
     - ./misc/pylint/run.sh
 services:

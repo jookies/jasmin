@@ -9,6 +9,7 @@ PATCH = 0
 META = 'a'
 
 def get_version():
+    "Will return Jasmin's version"
     return '%s.%s' % (MAJOR, MINOR)
 
 def get_release():
