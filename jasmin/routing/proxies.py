@@ -9,11 +9,11 @@ class RouterPBProxy(JasminPBProxy):
         return self.pb.callRemote('version_release')
 
     @ConnectedPB
-    def persist(self, profile = "jcli-prod", scope = 'all'):
+    def persist(self, profile="jcli-prod", scope='all'):
         return self.pb.callRemote('persist', profile, scope)
 
     @ConnectedPB
-    def load(self, profile = "jcli-prod", scope = 'all'):
+    def load(self, profile="jcli-prod", scope='all'):
         return self.pb.callRemote('load', profile, scope)
 
     @ConnectedPB
@@ -37,7 +37,7 @@ class RouterPBProxy(JasminPBProxy):
         return self.pb.callRemote('user_remove_all')
 
     @ConnectedPB
-    def user_get_all(self, gid = None):
+    def user_get_all(self, gid=None):
         return self.pb.callRemote('user_get_all', gid)
 
     @ConnectedPB

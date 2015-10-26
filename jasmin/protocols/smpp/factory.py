@@ -45,7 +45,7 @@ class SMPPClientFactory(ClientFactory):
             self.log.setLevel(config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                when=_when)
+                                               when=_when)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

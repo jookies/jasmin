@@ -27,8 +27,8 @@ class Filter:
     ConnectorFilter        | x  |    | MT messages are identified by user instead of source connector
     UserFilter             |    | x  | MO messages are not authenticated
     GroupFilter            |    | x  | MO messages are not authenticated
-    SourceAddrFilter       | x  |    | Only MO messages can have 'network-reliable' src addresses, MT messages
-                                       can have user-defined source address
+    SourceAddrFilter       | x  |    | Only MO messages can have 'network-reliable' src addresses,
+                                       MT messages can have user-defined source address
     DestinationAddrFilter  | x  | x  |
     ShortMessageFilter     | x  | x  |
     DateIntervalFilter     | x  | x  |
@@ -40,9 +40,9 @@ class Filter:
     _str = 'Generick Filter'
     _repr = '<Generick Filter>'
 
-    def __init__(self, connector = None, user = None, group = None, source_addr = None,
-                 destination_addr = None, short_message = None,
-                 dateInterval = None, timeInterval = None):
+    def __init__(self, connector=None, user=None, group=None, source_addr=None,
+                 destination_addr=None, short_message=None,
+                 dateInterval=None, timeInterval=None):
         if connector is not None and not isinstance(connector, Connector):
             raise InvalidFilterParameterError("connector is not an instance of Connector")
         if user is not None and not isinstance(user, User):
@@ -72,7 +72,8 @@ class Filter:
         self.user = user
         self.group = group
         self.source_addr = re.compile(source_addr) if source_addr is not None else source_addr
-        self.destination_addr = re.compile(destination_addr) if destination_addr is not None else destination_addr
+        if destination_addr is not None:
+            self.destination_addr = re.compile(destination_addr)
         self.short_message = re.compile(short_message) if short_message is not None else short_message
         self.dateInterval = dateInterval
         self.timeInterval = timeInterval
@@ -102,7 +103,7 @@ class ConnectorFilter(Filter):
     usedFor = ['mo']
 
     def __init__(self, connector):
-        Filter.__init__(self, connector = connector)
+        Filter.__init__(self, connector=connector)
 
         self._repr = '<C (cid=%s)>' % (connector.cid)
         self._str = '%s:\ncid = %s' % (self.__class__.__name__, connector.cid)
@@ -119,7 +120,7 @@ class UserFilter(Filter):
     usedFor = ['mt']
 
     def __init__(self, user):
-        Filter.__init__(self, user = user)
+        Filter.__init__(self, user=user)
 
         self._repr = '<U (uid=%s)>' % (user.uid)
         self._str = '%s:\nuid = %s' % (self.__class__.__name__, user.uid)
@@ -136,7 +137,7 @@ class GroupFilter(Filter):
     usedFor = ['mt']
 
     def __init__(self, group):
-        Filter.__init__(self, group = group)
+        Filter.__init__(self, group=group)
 
         self._repr = '<G (gid=%s)>' % (group.gid)
         self._str = '%s:\ngid = %s' % (self.__class__.__name__, group.gid)
@@ -153,7 +154,7 @@ class SourceAddrFilter(Filter):
     usedFor = ['mo']
 
     def __init__(self, source_addr):
-        Filter.__init__(self, source_addr = source_addr)
+        Filter.__init__(self, source_addr=source_addr)
 
         self._repr = '<SA (src_addr=%s)>' % (source_addr)
         self._str = '%s:\nsource_addr = %s' % (self.__class__.__name__, source_addr)
@@ -165,7 +166,7 @@ class SourceAddrFilter(Filter):
 
 class DestinationAddrFilter(Filter):
     def __init__(self, destination_addr):
-        Filter.__init__(self, destination_addr = destination_addr)
+        Filter.__init__(self, destination_addr=destination_addr)
 
         self._repr = '<DA (dst_addr=%s)>' % (destination_addr)
         self._str = '%s:\ndestination_addr = %s' % (self.__class__.__name__, destination_addr)
@@ -173,11 +174,14 @@ class DestinationAddrFilter(Filter):
     def match(self, routable):
         Filter.match(self, routable)
 
-        return False if self.destination_addr.match(routable.pdu.params['destination_addr']) is None else True
+        if self.destination_addr.match(routable.pdu.params['destination_addr']) is None:
+            return False
+        else:
+            return True
 
 class ShortMessageFilter(Filter):
     def __init__(self, short_message):
-        Filter.__init__(self, short_message = short_message)
+        Filter.__init__(self, short_message=short_message)
 
         self._repr = '<SM (msg=%s)>' % (short_message)
         self._str = '%s:\nshort_message = %s' % (self.__class__.__name__, short_message)
@@ -189,10 +193,14 @@ class ShortMessageFilter(Filter):
 
 class DateIntervalFilter(Filter):
     def __init__(self, dateInterval):
-        Filter.__init__(self, dateInterval = dateInterval)
+        Filter.__init__(self, dateInterval=dateInterval)
 
         self._repr = '<DI (%s,%s)>' % (dateInterval[0], dateInterval[1])
-        self._str = '%s:\nLeft border = %s\nRight border = %s' % (self.__class__.__name__, dateInterval[0], dateInterval[1])
+        self._str = '%s:\nLeft border = %s\nRight border = %s' % (
+            self.__class__.__name__,
+            dateInterval[0],
+            dateInterval[1]
+        )
 
     def match(self, routable):
         Filter.match(self, routable)
@@ -201,10 +209,14 @@ class DateIntervalFilter(Filter):
 
 class TimeIntervalFilter(Filter):
     def __init__(self, timeInterval):
-        Filter.__init__(self, timeInterval = timeInterval)
+        Filter.__init__(self, timeInterval=timeInterval)
 
         self._repr = '<TI (%s,%s)>' % (timeInterval[0], timeInterval[1])
-        self._str = '%s:\nLeft border = %s\nRight border = %s' % (self.__class__.__name__, timeInterval[0], timeInterval[1])
+        self._str = '%s:\nLeft border = %s\nRight border = %s' % (
+            self.__class__.__name__,
+            timeInterval[0],
+            timeInterval[1]
+        )
 
     def match(self, routable):
         Filter.match(self, routable)

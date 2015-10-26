@@ -14,7 +14,7 @@ class InvalidBillValueError(Exception):
 def randomUniqueId():
     "Returns a UUID4 unique message id"
     msgid = str(uuid.uuid4())
-    
+
     return msgid
 
 class Bill:
@@ -27,25 +27,25 @@ class Bill:
     actions = None
     user = None
     bid = None
-    
+
     def __init__(self, user):
         self.bid = randomUniqueId()
         self.user = user
         self.amounts = {}
         self.actions = {}
-    
+
     def getAmount(self, key):
         "Will return a billable amount"
         if key not in self.amounts:
             raise InvalidBillKeyError('%s is not a valid amount key.' % key)
         return self.amounts[key]
-    
+
     def getTotalAmounts(self):
         "Will return a Sum of all amounts"
         t = 0.0
         for key in self.amounts:
-            t+= self.amounts[key]
-        
+            t += self.amounts[key]
+
         return t
 
     def setAmount(self, key, amount):
@@ -55,13 +55,13 @@ class Bill:
         if type(amount) != int and type(amount) != float:
             raise InvalidBillValueError('%s is not a valid amount value for key %s.' % (amount, key))
         self.amounts[key] = amount
-    
+
     def getAction(self, key):
         "Will return a billable action"
         if key not in self.actions:
             raise InvalidBillKeyError('%s is not a valid action key.' % key)
         return self.actions[key]
-    
+
     def setAction(self, key, value):
         "Will set a billable action"
         if key not in self.actions:
@@ -72,7 +72,7 @@ class Bill:
 
 class SubmitSmBill(Bill):
     "This is the bill for user to pay when sending a MT SMS"
-    
+
     def __init__(self, user):
         "Defining billables"
         Bill.__init__(self, user)
@@ -80,20 +80,20 @@ class SubmitSmBill(Bill):
         self.amounts['submit_sm'] = 0.0
         self.amounts['submit_sm_resp'] = 0.0
         self.actions['decrement_submit_sm_count'] = 0
-    
+
     def getSubmitSmRespBill(self):
         """
         Will return a separate Bill for submit_sm_resp
         """
-        
+
         bill = SubmitSmRespBill(self.user)
         bill.setAmount('submit_sm_resp', self.getAmount('submit_sm_resp'))
-        
+
         return bill
 
 class SubmitSmRespBill(Bill):
     "This is the bill for user to pay when sending a MT SMS"
-    
+
     def __init__(self, user):
         "Defining billables"
         Bill.__init__(self, user)
