@@ -876,7 +876,7 @@ class SMPPClientSMListener:
                            e.status,
                            pdu.params['source_addr'],
                            pdu.params['destination_addr'],
-                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
+                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
