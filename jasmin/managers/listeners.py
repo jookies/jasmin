@@ -675,7 +675,7 @@ class SMPPClientSMListener:
             self.log.debug("Interceptor script loaded: %s" % script)
 
             # Run !
-            d = self.interceptorpb_client.run(script, temp_routable)
+            d = self.interceptorpb_client.run_script(script, temp_routable)
             d.addCallback(self.deliver_sm_event_post_interception, smpp = smpp, pdu = pdu)
             d.addErrback(self.deliver_sm_event_post_interception)
             return d

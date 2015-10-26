@@ -1,6 +1,6 @@
 import logging
 import pickle
-import time
+import datetime as dt
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
 from jasmin.tools.eval import CompiledNode
@@ -32,7 +32,7 @@ class InterceptorPB(pb.Avatar):
 
         self.avatar = avatar
 
-    def perspective_run(self, pyCode, routable):
+    def perspective_run_script(self, pyCode, routable):
         "Will execute pyCode with the routable argument"
         routable = pickle.loads(routable)
         smpp_status = 0
@@ -49,9 +49,9 @@ class InterceptorPB(pb.Avatar):
             glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status}
 
             # Run script and measure execution time
-            start = time.clock()
+            start = dt.datetime.now()
             eval(node, {}, glo)
-            end = time.clock()
+            end = dt.datetime.now()
         except Exception, e:
             self.log.error('Executing script on routable (from:%s, to:%s) returned: %s' % (
                 routable.pdu.params['source_addr'],
@@ -60,7 +60,7 @@ class InterceptorPB(pb.Avatar):
             ))
             return False
         else:
-            delay = end - start
+            delay = (end - start).seconds
             if self.config.log_slow_script >= 0 and delay >= self.config.log_slow_script:
                 self.log.warn('Execution delay [%ss] for script [%s].' % (delay, pyCode))
 

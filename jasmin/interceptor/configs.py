@@ -29,7 +29,7 @@ class InterceptorPBConfig(ConfigFile):
         self.log_format = self._get('interceptor', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
-        self.log_slow_script = self._getfloat('interceptor', 'log_slow_script', 0.5)
+        self.log_slow_script = self._getint('interceptor', 'log_slow_script', 1)
 
 class InterceptorPBClientConfig(ConfigFile):
     "Config handler for 'interceptor' section"

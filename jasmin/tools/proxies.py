@@ -76,6 +76,8 @@ class JasminPBProxy:
                     ).addCallback(self._connected)
 
     def disconnect(self):
+        self.isConnected = False
+
         # .connect has been called ?
         if hasattr(self, 'pbClientFactory'):
             return self.pbClientFactory.disconnect()

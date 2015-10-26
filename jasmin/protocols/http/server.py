@@ -102,7 +102,7 @@ class Send(Resource):
                 self.log.debug("Interceptor script loaded: %s" % script)
 
                 # Run !
-                r = yield self.interceptorpb_client.run(script, routable)
+                r = yield self.interceptorpb_client.run_script(script, routable)
                 if isinstance(r, dict) and r['http_status'] != 200:
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Interceptor script returned %s http_status error.' % r['http_status'])
@@ -423,7 +423,7 @@ class Rate(Resource):
                 self.log.debug("Interceptor script loaded: %s" % script)
 
                 # Run !
-                r = yield self.interceptorpb_client.run(script, routable)
+                r = yield self.interceptorpb_client.run_script(script, routable)
                 if isinstance(r, dict) and r['http_status'] != 200:
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Interceptor script returned %s http_status error.' % r['http_status'])

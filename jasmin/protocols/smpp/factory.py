@@ -291,7 +291,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.debug("Interceptor script loaded: %s" % script)
 
             # Run !
-            d = self.interceptorpb_client.run(script, routable)
+            d = self.interceptorpb_client.run_script(script, routable)
             d.addCallback(self.submit_sm_post_interception, system_id = system_id, proto = proto)
             d.addErrback(self.submit_sm_post_interception)
             return d
