@@ -655,7 +655,7 @@ class RouterPB(pb.Avatar):
 
     def perspective_user_authenticate(self, username, password):
         self.log.debug('Authenticating with username:%s and password:%s', username, password)
-        self.log.info('Authentication request with username:%s', username
+        self.log.info('Authentication request with username:%s', username)
 
         return self.authenticateUser(username, password, True)
 
