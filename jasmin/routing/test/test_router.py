@@ -1245,7 +1245,7 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
 
         yield self.SMSCPort.stopListening()
 
-class SubmitSmTestCaseTools():
+class SubmitSmTestCaseTools(object):
     """
     Factorized methods for child classes testing SubmitSm and DeliverSm routing scenarios
     """

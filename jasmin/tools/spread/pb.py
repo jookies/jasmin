@@ -5,7 +5,7 @@ from twisted.spread.flavors import IPBRoot, Referenceable
 from twisted.cred.error import UnhandledCredentials, UnauthorizedLogin
 from hashlib import md5
 
-class _JellyableAvatarMixin:
+class _JellyableAvatarMixin(object):
     """
     Helper class for code which deals with avatars which PB must be capable of
     sending to a peer.
@@ -41,14 +41,14 @@ class _JellyableAvatarMixin:
                 self.log.info('Anonymous connection is not authorized !')
                 return False, 'Anonymous connection is not authorized !'
             else:
-                self.log.info('Authentication error: %s' % username)
+                self.log.info('Authentication error: %s', username)
                 return False, 'Authentication error: %s' % username
         elif err.type == UnauthorizedLogin:
-            self.log.info('Authentication error %s' % username)
+            self.log.info('Authentication error %s', username)
             return False, 'Authentication error %s' % username
         else:
             # Fallback solution when err is not known
-            self.log.error('Unknown authentication error: %s' % err)
+            self.log.error('Unknown authentication error: %s', err)
             return False, 'Unknown authentication error: %s' % err
 
 class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
@@ -121,7 +121,7 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
         d.addErrback(self._loginError)
         return d
 
-class JasminPBPortalRoot:
+class JasminPBPortalRoot(object):
     implements(IPBRoot)
 
     def __init__(self, portal):

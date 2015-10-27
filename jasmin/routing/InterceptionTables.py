@@ -10,7 +10,7 @@ class InvalidInterceptionTableParameterError(Exception):
     validating inputs
     """
 
-class InterceptionTable:
+class InterceptionTable(object):
     """Generick Interception table
     """
     type = 'generick'

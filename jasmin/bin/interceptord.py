@@ -25,10 +25,10 @@ class Options(usage.Options):
          'Jasmin interceptor configuration file'],
         ]
 
-class InterceptorDaemon:
+class InterceptorDaemon(object):
 
-    def __init__(self, options):
-        self.options = options
+    def __init__(self, opt):
+        self.options = opt
         self.components = {}
 
     def startInterceptorPBService(self):
@@ -61,6 +61,7 @@ class InterceptorDaemon:
 
     @defer.inlineCallbacks
     def start(self):
+        "Start Interceptord daemon"
         syslog.syslog(syslog.LOG_INFO, "Starting InterceptorPB Daemon ...")
 
         ########################################################
@@ -70,6 +71,7 @@ class InterceptorDaemon:
 
     @defer.inlineCallbacks
     def stop(self):
+        "Stop Interceptord daemon"
         syslog.syslog(syslog.LOG_INFO, "Stopping Interceptor Daemon ...")
 
         if 'interceptor-pb-server' in self.components:
@@ -79,6 +81,7 @@ class InterceptorDaemon:
         reactor.stop()
 
     def sighandler_stop(self, signum, frame):
+        "Handle stop signal cleanly"
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Interceptor Daemon")
 
         return self.stop()

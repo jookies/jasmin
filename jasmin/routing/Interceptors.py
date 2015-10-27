@@ -15,9 +15,9 @@ class InvalidInterceptorParameterError(Exception):
 class InvalidInterceptorFilterError(Exception):
     "Raised when an interceptor is instanciated with a non-compatible type"
 
-class Interceptor:
+class Interceptor(object):
     """Generick Interceptor:
-    
+
     Interceptor contain a couple of [Filter(s), InterceptorScript]
     When more than one Filter is given, matching these filters will use the AND operator
     """
@@ -41,34 +41,34 @@ class Interceptor:
                     "filter types (%s) is not compatible with this interceptor type (%s)" % (
                         _filter.usedFor, self.type
                     ))
-        
+
         self.filters = filters
         self.script = script
         self._str = '%s/%s' % (self.__class__.__name__, repr(script))
-        
+
     def __str__(self):
         return self._str
-        
+
     def getScript(self):
         return self.script
-        
+
     def matchFilters(self, routable):
         """If filters match routable, the script will be returned, if not, None will be returned
         """
-        
+
         if not isinstance(routable, Routable):
             raise InvalidInterceptorParameterError("routable is not an instance of Routable")
-        
+
         for _filter in self.filters:
             if not _filter.match(routable):
                 return None
         return self.getScript()
-    
+
 class DefaultInterceptor(Interceptor):
     """This is a default interceptor which can contain one script
     """
     type = 'default'
-    
+
     def __init__(self, script):
         "DefaultInterceptor can be for MO or MT messages"
 
@@ -94,7 +94,7 @@ class MOInterceptor(Interceptor):
 class StaticMOInterceptor(MOInterceptor):
     """Return one unique interceptor
     """
-        
+
 class StaticMTInterceptor(MTInterceptor):
     """Return one unique interceptor
     """

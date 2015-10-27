@@ -14,7 +14,7 @@ class jasminApiCredentialError(Exception):
     """Raised for ant Credential-related error
     """
 
-class jasminApiGenerick():
+class jasminApiGenerick(object):
     pass
 
 class CredentialGenerick(jasminApiGenerick):
@@ -78,7 +78,8 @@ class CredentialGenerick(jasminApiGenerick):
         if self.quotas[key] is None:
             raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
         if type(difference) not in [float, int]:
-            raise jasminApiCredentialError('Incorrect type for value (%s), must be int or float' % difference)
+            raise jasminApiCredentialError(
+                'Incorrect type for value (%s), must be int or float' % difference)
         if type(self.quotas[key]) == int and type(difference) == float:
             raise jasminApiCredentialError('Type mismatch, cannot update an int with a float value')
 
@@ -163,7 +164,8 @@ class SmppsCredential(CredentialGenerick):
     def setQuota(self, key, value):
         "Additional validation steps"
         if key == 'max_bindings' and value is not None and ( value < 0 or type(value) != int ):
-            raise jasminApiCredentialError('%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+            raise jasminApiCredentialError(
+                '%s is not a valid value (%s), it must be a positive int' % ( key, value ))
 
         CredentialGenerick.setQuota(self, key, value)
 
@@ -212,7 +214,7 @@ class CnxStatus(jasminApiGenerick):
             'qos_last_submit_sm_at': 0,
         }
 
-class UserStats:
+class UserStats(object):
     "User statistics singleton holder"
     __metaclass__ = Singleton
     users = {}

@@ -55,9 +55,9 @@ class Options(usage.Options):
         ['enable-interceptor-client', None, 'Start Interceptor client'],
     ]
 
-class JasminDaemon:
+class JasminDaemon(object):
 
-    def __init__(self, options):
+    def __init__(self, opt):
         self.options = options
         self.components = {}
 
@@ -293,6 +293,7 @@ class JasminDaemon:
 
     @defer.inlineCallbacks
     def start(self):
+        "Start Jasmind daemon"
         syslog.syslog(syslog.LOG_INFO, "Starting Jasmin Daemon ...")
 
         # Requirements check begin:
@@ -359,6 +360,7 @@ class JasminDaemon:
 
     @defer.inlineCallbacks
     def stop(self):
+        "Stop Jasmind daemon"
         syslog.syslog(syslog.LOG_INFO, "Stopping Jasmin Daemon ...")
 
         if 'jcli-server' in self.components:
@@ -405,6 +407,7 @@ class JasminDaemon:
         reactor.stop()
 
     def sighandler_stop(self, signum, frame):
+        "Handle stop signal cleanly"
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Jasmin Daemon")
 
         return self.stop()
@@ -417,7 +420,7 @@ if __name__ == '__main__':
         print '%s: %s' % (sys.argv[0], errortext)
         print '%s: Try --help for usage details.' % (sys.argv[0])
     else:
-        jd = JasminDaemon(options)
+        jd = JasminDaemon(opt)
         # Setup signal handlers
         signal.signal(signal.SIGINT, jd.sighandler_stop)
         # Start JasminDaemon

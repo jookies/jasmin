@@ -67,7 +67,7 @@ class ServerConnectorStatistics(ConnectorStatistics):
 			'interceptor_count': 0,
 		}
 
-class SMPPClientStatsCollector:
+class SMPPClientStatsCollector(object):
 	"SMPP Clients statistics collection holder"
 	__metaclass__ = Singleton
 	connectors = {}
@@ -79,7 +79,7 @@ class SMPPClientStatsCollector:
 
 		return self.connectors[cid]
 
-class SMPPServerStatsCollector:
+class SMPPServerStatsCollector(object):
 	"SMPP Servers statistics collection holder"
 	__metaclass__ = Singleton
 	connectors = {}

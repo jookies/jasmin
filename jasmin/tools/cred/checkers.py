@@ -2,7 +2,7 @@ from zope.interface import implements
 from twisted.cred import checkers, credentials, error as credError
 from twisted.internet import defer
 
-class RouterAuthChecker:
+class RouterAuthChecker(object):
     "Will authenticate users with router_factory.authenticateUser()"
 
     implements(checkers.ICredentialsChecker)
@@ -13,9 +13,10 @@ class RouterAuthChecker:
 
     def requestAvatarId(self, credentials):
         username = credentials.username
-        user = self.router_factory.authenticateUser(credentials.username,
-                                             credentials.password)
-        
+        user = self.router_factory.authenticateUser(
+            credentials.username,
+            credentials.password)
+
         # Username / Password correct ?
         if user is not None:
             return defer.succeed(credentials.username)

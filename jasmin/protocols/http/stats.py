@@ -25,7 +25,7 @@ class HttpAPIStatistics(Stats):
 			'last_success_at': 0,
 		}
 
-class HttpAPIStatsCollector:
+class HttpAPIStatsCollector(object):
 	"HTTP API statistics collection holder"
 	__metaclass__ = Singleton
 	apis = {}

@@ -2,7 +2,7 @@ from jasmin.vendor.smpp.pdu import constants
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu import pdu_types
 
-class LongSubmitSmTransactionError():
+class LongSubmitSmTransactionError(object):
     """Raised inside a long message transaction
     """
     def __init__(self, message):

@@ -26,7 +26,7 @@ def ConnectedPB(fCallback):
         return fCallback(self, *args, **kwargs)
     return check_cnx_and_call
 
-class JasminPBProxy:
+class JasminPBProxy(object):
     '''This is a factorised PBProxy to be used by all proxies in Jasmin
 
     It's holding connection related methods as well as picklings

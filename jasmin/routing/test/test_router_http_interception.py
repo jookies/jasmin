@@ -23,7 +23,7 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
-class ProvisionWithoutInterceptorPB:
+class ProvisionWithoutInterceptorPB(object):
     script = 'Default script that generates a syntax error !'
 
     @defer.inlineCallbacks

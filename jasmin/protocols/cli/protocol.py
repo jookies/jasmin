@@ -79,7 +79,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
         if motd:
             self.drawMotd()
 
-        self.log.info('[sref:%s] New session started for %s:%s' % (self.sessionRef, self.peer.host, self.peer.port))
+        self.log.info(
+            '[sref:%s] New session started for %s:%s', self.sessionRef, self.peer.host, self.peer.port)
 
     def connectionLost(self, reason):
         recvline.HistoricRecvLine.connectionLost(self, reason)
@@ -87,12 +88,12 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.factory.sessionsOnline -= 1
         del self.factory.sessions[self.sessionRef]
         if reason is not None:
-            self.log.info('[sref:%s] Session stopped (%s).' % (self.sessionRef, reason.value))
+            self.log.info('[sref:%s] Session stopped (%s).', self.sessionRef, reason.value)
         else:
-            self.log.info('[sref:%s] Session stopped.' % (self.sessionRef))
+            self.log.info('[sref:%s] Session stopped.', self.sessionRef)
 
     def sendData(self, data=None, prompt=None, append=''):
-        self.log.debug('[sref:%s] Send data: %s' % (self.sessionRef, data))
+        self.log.debug('[sref:%s] Send data: %s', self.sessionRef, data)
 
         # Do we have to write some date ?
         if data is not None:
@@ -116,7 +117,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
         Similar to cmd.Cmd.parseline()
         """
         if not line:
-            self.log.debug('[sref:%s] Parsed line returns: cmd=None, agr=None, line=%s' % (self.sessionRef, line))
+            self.log.debug(
+                '[sref:%s] Parsed line returns: cmd=None, agr=None, line=%s', self.sessionRef, line)
             return None, None, line
         elif line[0] == '?':
             line = 'help ' + line[1:]
@@ -126,12 +128,13 @@ class CmdProtocol(recvline.HistoricRecvLine):
             i = i+1
         cmd, arg = line[:i], line[i:].strip()
 
-        self.log.debug('[sref:%s] Parsed line returns: cmd=%s, agr=%s, line=%s' % (self.sessionRef, cmd, arg, line))
+        self.log.debug(
+            '[sref:%s] Parsed line returns: cmd=%s, agr=%s, line=%s', self.sessionRef, cmd, arg, line)
         return cmd, arg, line
 
     def lineReceived(self, line):
         line = line.strip()
-        self.log.debug('[sref:%s] Received line: %s' % (self.sessionRef, line))
+        self.log.debug('[sref:%s] Received line: %s', self.sessionRef, line)
 
         cmd, arg, line = self.parseline(line)
 
@@ -150,7 +153,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         except AttributeError:
             return self.default(line)
 
-        self.log.debug('[sref:%s] Running %s with arg:%s' % (self.sessionRef, funcName, arg))
+        self.log.debug('[sref:%s] Running %s with arg:%s', self.sessionRef, funcName, arg)
         return func(arg)
 
     def findCommands(self, prefix=None):
@@ -174,7 +177,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
 
     def handle_TAB(self):
         line = ''.join(self.lineBuffer)
-        self.log.debug('[sref:%s] Tabulation: %s' % (self.sessionRef, line))
+        self.log.debug('[sref:%s] Tabulation: %s', self.sessionRef, line)
 
         cmd, arg, line = self.parseline(line)
 
@@ -231,7 +234,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
             return self.sendData("%s"%str(DOC))
         else:
             # Get commands first
-            helpText = self.helpHeaders['commands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['commands'])
+            helpText = self.helpHeaders['commands']+'\n'+self.helpHeaders['ruler']*len(
+                self.helpHeaders['commands'])
             for cmd in self.commands:
                 helpText += "\n"
                 helpText += '%s' % cmd.ljust(20)
@@ -242,7 +246,8 @@ class CmdProtocol(recvline.HistoricRecvLine):
                     helpText += "%s" % str(self.nohelp % (cmd,))
 
             # Then get baseCommands
-            helpText += '\n\n'+self.helpHeaders['baseCommands']+'\n'+self.helpHeaders['ruler']*len(self.helpHeaders['baseCommands'])
+            helpText += '\n\n'+self.helpHeaders['baseCommands']+'\n'+self.helpHeaders['ruler']*len(
+                self.helpHeaders['baseCommands'])
             for cmd in self.baseCommands:
                 helpText += "\n"
                 helpText += '%s' % cmd.ljust(20)

@@ -28,7 +28,9 @@ def HttpccBuild(fCallback):
         # Initiate jasmin.routing.jasminApi.Group with sessBuffer content
         if cmd == 'ok':
             if len(self.sessBuffer) < len(self.protocol.sessionCompletitions):
-                return self.protocol.sendData('You must set these options before saving: %s' % ', '.join(self.protocol.sessionCompletitions))
+                return self.protocol.sendData(
+                    'You must set these options before saving: %s' % ', '.join(
+                        self.protocol.sessionCompletitions))
 
             httpcc = {}
             for key, value in self.sessBuffer.iteritems():
@@ -51,7 +53,7 @@ def HttpccBuild(fCallback):
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
-class HttpccExist:
+class HttpccExist(object):
     'Check if httpcc cid exist before passing it to fCallback'
     def __init__(self, cid_key):
         self.cid_key = cid_key
@@ -102,15 +104,19 @@ class HttpccManager(PersistableManager):
         except Exception, e:
             return self.protocol.sendData('Unknown error occurred while persisting configuration: %s' % e)
 
-        self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        self.protocol.sendData(
+            '%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt=False)
 
     def load(self, arg, opts):
         try:
             self._load(opts.profile)
 
-            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                '%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt=False)
         except:
-            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                'Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile),
+                prompt=False)
 
     def _load(self, profile='jcli-prod'):
         path = '%s/%s.httpccs' % (CONFIG_STORE_PATH, profile)
@@ -132,18 +138,20 @@ class HttpccManager(PersistableManager):
         counter = 0
 
         if (len(self.httpccs)) > 0:
-            self.protocol.sendData("#%s %s %s %s" % ('Httpcc id'.ljust(16),
-                                                                        'Type'.ljust(22),
-                                                                        'Method'.ljust(6),
-                                                                        'URL'.ljust(64),
-                                                                        ), prompt=False)
+            self.protocol.sendData("#%s %s %s %s" % (
+                'Httpcc id'.ljust(16),
+                'Type'.ljust(22),
+                'Method'.ljust(6),
+                'URL'.ljust(64),
+                ), prompt=False)
             for cid, _httpcc in self.httpccs.iteritems():
                 counter += 1
-                self.protocol.sendData("#%s %s %s %s" % (str(cid).ljust(16),
-                                                                  str(_httpcc.__class__.__name__).ljust(22),
-                                                                  _httpcc.method.upper().ljust(6),
-                                                                  _httpcc.baseurl.ljust(64),
-                                                                  ), prompt=False)
+                self.protocol.sendData("#%s %s %s %s" % (
+                    str(cid).ljust(16),
+                    str(_httpcc.__class__.__name__).ljust(22),
+                    _httpcc.method.upper().ljust(6),
+                    _httpcc.baseurl.ljust(64),
+                    ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Httpccs: %s' % counter)
@@ -152,7 +160,9 @@ class HttpccManager(PersistableManager):
     @HttpccBuild
     def add_session(self, cid, HttpccInstance):
         self.httpccs[cid] = HttpccInstance
-        self.protocol.sendData('Successfully added Httpcc [%s] with cid:%s' % (HttpccInstance.__class__.__name__, cid), prompt=False)
+        self.protocol.sendData(
+            'Successfully added Httpcc [%s] with cid:%s' % (HttpccInstance.__class__.__name__, cid),
+            prompt=False)
         self.stopSession()
     def add(self, arg, opts):
         return self.startSession(self.add_session,

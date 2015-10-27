@@ -54,16 +54,18 @@ class SMPPClientConfig(object):
 
         # Timeout for response to bind request
         self.sessionInitTimerSecs = kwargs.get('sessionInitTimerSecs', 30)
-        if not isinstance(self.sessionInitTimerSecs, int) and not isinstance(self.sessionInitTimerSecs, float):
+        if (not isinstance(self.sessionInitTimerSecs, int)
+                and not isinstance(self.sessionInitTimerSecs, float)):
             raise TypeMismatch('sessionInitTimerSecs must be an integer or float')
 
         # Enquire link interval
         self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 30)
-        if not isinstance(self.enquireLinkTimerSecs, int) and not isinstance(self.enquireLinkTimerSecs, float):
+        if (not isinstance(self.enquireLinkTimerSecs, int)
+                and not isinstance(self.enquireLinkTimerSecs, float)):
             raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
 
-        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive
-        # and will reconnect
+        # Maximum time lapse allowed between transactions, after which,
+        # the connection is considered as inactive and will reconnect
         self.inactivityTimerSecs = kwargs.get('inactivityTimerSecs', 300)
         if not isinstance(self.inactivityTimerSecs, int) and not isinstance(self.inactivityTimerSecs, float):
             raise TypeMismatch('inactivityTimerSecs must be an integer or float')
@@ -107,10 +109,12 @@ class SMPPClientConfig(object):
         if not isinstance(self.reconnectOnConnectionFailure, bool):
             raise TypeMismatch('reconnectOnConnectionFailure must be a boolean')
         self.reconnectOnConnectionLossDelay = kwargs.get('reconnectOnConnectionLossDelay', 10)
-        if not isinstance(self.reconnectOnConnectionLossDelay, int) and not isinstance(self.reconnectOnConnectionLossDelay, float):
+        if (not isinstance(self.reconnectOnConnectionLossDelay, int)
+                and not isinstance(self.reconnectOnConnectionLossDelay, float)):
             raise TypeMismatch('reconnectOnConnectionLossDelay must be an integer or float')
         self.reconnectOnConnectionFailureDelay = kwargs.get('reconnectOnConnectionFailureDelay', 10)
-        if not isinstance(self.reconnectOnConnectionFailureDelay, int) and not isinstance(self.reconnectOnConnectionFailureDelay, float):
+        if (not isinstance(self.reconnectOnConnectionFailureDelay, int)
+                and not isinstance(self.reconnectOnConnectionFailureDelay, float)):
             raise TypeMismatch('reconnectOnConnectionFailureDelay must be an integer or float')
 
         self.useSSL = kwargs.get('useSSL', False)
@@ -139,8 +143,11 @@ class SMPPClientConfig(object):
         self.priority_flag = kwargs.get('priority_flag', PriorityFlag.LEVEL_0)
         self.schedule_delivery_time = kwargs.get('schedule_delivery_time', None)
         self.validity_period = kwargs.get('validity_period', None)
-        self.registered_delivery = kwargs.get('registered_delivery', RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED))
-        self.replace_if_present_flag = kwargs.get('replace_if_present_flag', ReplaceIfPresentFlag.DO_NOT_REPLACE)
+        self.registered_delivery = kwargs.get(
+            'registered_delivery',
+            RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED))
+        self.replace_if_present_flag = kwargs.get(
+            'replace_if_present_flag', ReplaceIfPresentFlag.DO_NOT_REPLACE)
         self.sm_default_msg_id = kwargs.get('sm_default_msg_id', 0)
 
         # 5.2.19 data_coding / c. There is no default setting for the data_coding parameter.
@@ -168,7 +175,8 @@ class SMPPClientConfig(object):
         if not isinstance(self.requeue_delay, int) and not isinstance(self.requeue_delay, float):
             raise TypeMismatch('requeue_delay must be an integer or float')
         self.submit_sm_throughput = kwargs.get('submit_sm_throughput', 1)
-        if not isinstance(self.submit_sm_throughput, int) and not isinstance(self.submit_sm_throughput, float):
+        if (not isinstance(self.submit_sm_throughput, int)
+                and not isinstance(self.submit_sm_throughput, float)):
             raise TypeMismatch('submit_sm_throughput must be an integer or float')
 
         # DLR Message id bases from submit_sm_resp to deliver_sm, possible values:
@@ -186,9 +194,11 @@ class SMPPClientServiceConfig(ConfigFile):
         ConfigFile.__init__(self, config_file)
 
         self.log_level = logging.getLevelName(self._get('service-smppclient', 'log_level', 'INFO'))
-        self.log_file = self._get('service-smppclient', 'log_file', '%s/var/log/jasmin/service-smppclient.log' % root_path)
+        self.log_file = self._get(
+            'service-smppclient', 'log_file', '%s/var/log/jasmin/service-smppclient.log' % root_path)
         self.log_rotate = self._get('service-smppclient', 'log_rotate', 'W6')
-        self.log_format = self._get('service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_format = self._get(
+            'service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('service-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
 class SMPPServerConfig(ConfigFile):
@@ -202,9 +212,11 @@ class SMPPServerConfig(ConfigFile):
 
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
-        self.log_file = self._get('smpp-server', 'log_file', '%s/var/log/jasmin/default-%s.log' % (root_path, self.id))
+        self.log_file = self._get(
+            'smpp-server', 'log_file', '%s/var/log/jasmin/default-%s.log' % (root_path, self.id))
         self.log_rotate = self._get('smpp-server', 'log_rotate', 'midnight')
-        self.log_format = self._get('smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_format = self._get(
+            'smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('smpp-server', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
         # Timeout for response to bind request
@@ -213,7 +225,8 @@ class SMPPServerConfig(ConfigFile):
         # Enquire link interval
         self.enquireLinkTimerSecs = self._getint('smpp-server', 'enquireLinkTimerSecs', 30)
 
-        # Maximum time lapse allowed between transactions, after which, the connection is considered as inactive
+        # Maximum time lapse allowed between transactions, after which,
+        # the connection is considered as inactive
         self.inactivityTimerSecs = self._getint('smpp-server', 'inactivityTimerSecs', 300)
 
         # Timeout for responses to any request PDU

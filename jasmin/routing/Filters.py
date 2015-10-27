@@ -13,7 +13,7 @@ class InvalidFilterParameterError(Exception):
     validating inputs
     """
 
-class Filter:
+class Filter(object):
     """
     Generick Filter:
 

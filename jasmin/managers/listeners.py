@@ -59,7 +59,7 @@ def SubmitSmPDUUpdate(fCallback):
         return fCallback(self, message, SubmitSmPDU)
     return update_submit_sm_pdu
 
-class SMPPClientSMListener:
+class SMPPClientSMListener(object):
     debug_it = {'rejectCount': 0}
     '''
     This is a listener object instanciated for every new SMPP connection, it is responsible of handling

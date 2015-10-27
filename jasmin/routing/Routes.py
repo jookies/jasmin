@@ -18,7 +18,7 @@ class InvalidRouteFilterError(Exception):
     can not have UserFilter (MO messages are not authentified).
     """
 
-class Route:
+class Route(object):
     """Generick Route:
 
     Route contain a triplet of [Filter(s), Connector, Rate]
@@ -168,7 +168,7 @@ class StaticMTRoute(MTRoute):
     """Return one unique route
     """
 
-class RoundrobinRoute():
+class RoundrobinRoute(object):
     """Generick RoundrobinRoute
     """
     def __init__(self, filters, connectors):
@@ -181,9 +181,12 @@ class RoundrobinRoute():
             raise InvalidRouteParameterError("filters must be a list")
         for _filter in filters:
             if not isinstance(_filter, Filter):
-                raise InvalidRouteParameterError("filter must be an instance of Filter, %s found" % type(_filter))
+                raise InvalidRouteParameterError(
+                    "filter must be an instance of Filter, %s found" % type(_filter))
             if self.type not in _filter.usedFor:
-                raise InvalidRouteFilterError("filter types (%s) is not compatible with this route type (%s)" % (_filter.usedFor, self.type))
+                raise InvalidRouteFilterError(
+                    "filter types (%s) is not compatible with this route type (%s)" % (
+                        _filter.usedFor, self.type))
 
         self.filters = filters
         self.connector = connectors

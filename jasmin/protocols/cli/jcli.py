@@ -55,7 +55,8 @@ class JCliProtocol(CmdProtocol):
         # Provision security
         if not self.factory.config.authentication:
             # Will not require an authentication from client
-            self.authentication = {'username': 'Anonymous', 'password': None, 'printedPassword': None, 'auth': True}
+            self.authentication = {'username': 'Anonymous', 'password': None,
+                                   'printedPassword': None, 'auth': True}
 
         # Call CmdProtocol.connectionMade() depending on the security policy
         if self.authentication['auth']:
@@ -97,7 +98,9 @@ class JCliProtocol(CmdProtocol):
         self.lineBufferIndex += 1
 
         # Dont print back chars if password is being entered
-        if not self.authentication['auth'] and self.authentication['username'] is not None and self.authentication['password'] is None:
+        if (not self.authentication['auth']
+                and self.authentication['username'] is not None
+                and self.authentication['password'] is None):
             return
         else:
             self.terminal.write(ch)
@@ -115,7 +118,8 @@ class JCliProtocol(CmdProtocol):
         if username:
             self.authentication['username'] = username
             self.prompt = 'Password: '
-            self.log.debug('[sref:%s] Received AUTH Username: %s' % (self.sessionRef, self.authentication['username']))
+            self.log.debug(
+                '[sref:%s] Received AUTH Username: %s', self.sessionRef, self.authentication['username'])
 
         return self.sendData()
 
@@ -127,7 +131,8 @@ class JCliProtocol(CmdProtocol):
         self.authentication['printedPassword'] = ''
         for _ in password:
             self.authentication['printedPassword'] += '*'
-        self.log.debug('[sref:%s] Received AUTH Password: %s' % (self.sessionRef, self.authentication['printedPassword']))
+        self.log.debug(
+            '[sref:%s] Received AUTH Password: %s', self.sessionRef, self.authentication['printedPassword'])
 
         # Authentication check against configured admin
         if (self.authentication['username'] == self.factory.config.admin_username and
@@ -138,7 +143,8 @@ class JCliProtocol(CmdProtocol):
             self.drawMotd()
         else:
             self.prompt = 'Username: '
-            self.authentication = {'username': None, 'password': None, 'printedPassword': None, 'auth': False}
+            self.authentication = {'username': None, 'password': None,
+                                   'printedPassword': None, 'auth': False}
             return self.sendData('Incorrect Username/Password.\n')
 
         return self.sendData()

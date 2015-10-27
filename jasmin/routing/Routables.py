@@ -12,9 +12,9 @@ class InvalidRoutableParameterError(Exception):
     validating inputs
     """
 
-class Routable:
+class Routable(object):
     """Generick Routable:
-    
+
     Routable represents a PDU and optionnaly its owner and source Connector, it can be
     a submit_sm or deliver_sm for example
     """
@@ -23,48 +23,50 @@ class Routable:
 class SimpleRoutablePDU(Routable):
     "Used for Jasmin unit testing"
 
-    def __init__(self, connector, PDU, user, date_time = None):
+    def __init__(self, connector, PDU, user, date_time=None):
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")
         if not isinstance(connector, Connector):
-            raise InvalidRoutableParameterError("connector is not an instance of jasmin.routing.jasminApi.Connector")
+            raise InvalidRoutableParameterError(
+                "connector is not an instance of jasmin.routing.jasminApi.Connector")
         if not isinstance(user, User):
             raise InvalidRoutableParameterError("user is not an instance of jasmin.routing.jasminApi.User")
-        
+
         self.pdu = PDU
         self.connector = connector
         self.user = user
-        
+
         # Assume now() if datetime is not provided
         self.datetime = date_time
         if self.datetime is None:
             self.datetime = datetime.now()
-            
+
 class RoutableSubmitSm(Routable):
-    def __init__(self, PDU, user, date_time = None):
+    def __init__(self, PDU, user, date_time=None):
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")
         if not isinstance(user, User):
             raise InvalidRoutableParameterError("user is not an instance of jasmin.routing.jasminApi.User")
-        
+
         self.pdu = PDU
         self.user = user
-        
+
         # Assume now() if datetime is not provided
         self.datetime = date_time
         if self.datetime is None:
             self.datetime = datetime.now()
-            
+
 class RoutableDeliverSm(Routable):
-    def __init__(self, PDU, connector, date_time = None):
+    def __init__(self, PDU, connector, date_time=None):
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")
         if not isinstance(connector, Connector):
-            raise InvalidRoutableParameterError("connector is not an instance of jasmin.routing.jasminApi.Connector")
-        
+            raise InvalidRoutableParameterError(
+                "connector is not an instance of jasmin.routing.jasminApi.Connector")
+
         self.pdu = PDU
         self.connector = connector
-        
+
         # Assume now() if datetime is not provided
         self.datetime = date_time
         if self.datetime is None:

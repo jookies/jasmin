@@ -6,13 +6,8 @@ import datetime
 import dateutil.parser as parser
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, 
-                                            EsmClassMode, 
-                                            EsmClassType, 
-                                            EsmClassGsmFeatures, 
-                                            MoreMessagesToSend, 
-                                            MessageState
-                                            )
+from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
+                                              MoreMessagesToSend, MessageState)
 
 message_state_map = {
     MessageState.ACCEPTED:      'ACCEPTD',
@@ -29,10 +24,10 @@ class UnknownMessageStatusError(Exception):
     """Raised when message_status is not recognized
     """
 
-class SMPPOperationFactory():
+class SMPPOperationFactory(object):
     lastLongMsgRefNum = 0
-    
-    def __init__(self, config = None, long_content_max_parts = 5, long_content_split = 'sar'):
+
+    def __init__(self, config=None, long_content_max_parts=5, long_content_split='sar'):
         if config is not None:
             self.config = config
         else:
@@ -40,13 +35,13 @@ class SMPPOperationFactory():
 
         self.long_content_max_parts = long_content_max_parts
         self.long_content_split = long_content_split
-        
+
     def _setConfigParamsInPDU(self, pdu, kwargs):
         """Check for PDU's mandatory parameters and try to set
         remaining unset params (in kwargs) from the config default
         values
         """
-    
+
         for param in pdu.mandatoryParams:
             if param not in kwargs:
                 try:
@@ -55,7 +50,7 @@ class SMPPOperationFactory():
                     pdu.params[param] = None
 
         return pdu
-    
+
     def isDeliveryReceipt(self, pdu):
         """Check whether pdu is a DLR or not, will return None if not
         or a dict with the DLR elements.
@@ -72,7 +67,7 @@ class SMPPOperationFactory():
         # These values are not mandatory, this means the pdu will
         # be considered as a DLR even when they are not set !
         ret = {'dlvrd': 'ND', 'sub': 'ND', 'sdate': 'ND', 'ddate': 'ND', 'err': 'ND', 'text': ''}
-        
+
         # 1.Looking for optional parameters
         ###################################
         if 'receipted_message_id' in pdu.params and 'message_state' in pdu.params:
@@ -89,7 +84,8 @@ class SMPPOperationFactory():
         # id:IIIIIIIIII sub:SSS dlvrd:DDD submit date:YYMMDDhhmm done
         # date:YYMMDDhhmm stat:DDDDDDD err:E text: . . . . . . . . .
         if 'short_message' in pdu.params:
-            patterns = [r"id:(?P<id>[\dA-Za-z-_]+)",
+            patterns = [
+                r"id:(?P<id>[\dA-Za-z-_]+)",
                 r"sub:(?P<sub>\d{3})",
                 r"dlvrd:(?P<dlvrd>\d{3})",
                 r"submit date:(?P<sdate>\d+)",
@@ -106,21 +102,21 @@ class SMPPOperationFactory():
                     ret.update(m.groupdict())
 
         # Should we consider this as a DLR ?
-        if ('id' in ret and 'stat' in ret):
+        if 'id' in ret and 'stat' in ret:
             return ret
         else:
             return None
-    
+
     def claimLongMsgRefNum(self):
         if self.lastLongMsgRefNum >= 255:
             self.lastLongMsgRefNum = 0
 
         self.lastLongMsgRefNum += 1
-        
+
         return self.lastLongMsgRefNum
 
-    def SubmitSM(self, short_message, data_coding = 0, **kwargs):
-        """Depending on the short_message length, this method will return a classical SubmitSM or 
+    def SubmitSM(self, short_message, data_coding=0, **kwargs):
+        """Depending on the short_message length, this method will return a classical SubmitSM or
         a serie of linked SubmitSMs (parted message)
         """
 
@@ -141,7 +137,7 @@ class SMPPOperationFactory():
             maxSmLength = 70
             slicedMaxSmLength = maxSmLength - 3
         else:
-            # 7 bit coding is the default 
+            # 7 bit coding is the default
             # for data_coding in [0, 1] or any other invalid value
             bits = 7
             maxSmLength = 160
@@ -152,7 +148,7 @@ class SMPPOperationFactory():
             smLength = len(kwargs['short_message']) / 2
         else:
             smLength = len(kwargs['short_message'])
-        
+
         # if SM is longer than maxSmLength, build multiple SubmitSMs
         # and link them
         if smLength > maxSmLength:
@@ -160,12 +156,12 @@ class SMPPOperationFactory():
             # Obey to configured longContentMaxParts
             if total_segments > self.long_content_max_parts:
                 total_segments = self.long_content_max_parts
-            
+
             msg_ref_num = self.claimLongMsgRefNum()
 
             for i in range(total_segments):
                 segment_seqnum = i+1
-                
+
                 # Keep in memory previous PDU in order to set nextPdu in it later
                 try:
                     tmpPdu
@@ -185,32 +181,37 @@ class SMPPOperationFactory():
                     tmpPdu.params['sar_msg_ref_num'] = msg_ref_num
                 elif self.long_content_split == 'udh':
                     # Slice short_message and create the PDU using UDH options
-                    tmpPdu.params['esm_class'] = EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT, [EsmClassGsmFeatures.UDHI_INDICATOR_SET])
+                    tmpPdu.params['esm_class'] = EsmClass(
+                        EsmClassMode.DEFAULT, EsmClassType.DEFAULT, [EsmClassGsmFeatures.UDHI_INDICATOR_SET])
                     if segment_seqnum < total_segments:
                         tmpPdu.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
                     else:
                         tmpPdu.params['more_messages_to_send'] = MoreMessagesToSend.NO_MORE_MESSAGES
                     # UDH composition:
                     udh = []
-                    udh.append(struct.pack('!B', 5)) # Length of User Data Header
-                    udh.append(struct.pack('!B', 0)) # Information Element Identifier, equal to 00 (Concatenated short messages, 8-bit reference number)
-                    udh.append(struct.pack('!B', 3)) # Length of the header, excluding the first two fields; equal to 03
+                    # Length of User Data Header
+                    udh.append(struct.pack('!B', 5))
+                    # Information Element Identifier, equal to 00
+                    # (Concatenated short messages, 8-bit reference number)
+                    udh.append(struct.pack('!B', 0))
+                    # Length of the header, excluding the first two fields; equal to 03
+                    udh.append(struct.pack('!B', 3))
                     udh.append(struct.pack('!B', msg_ref_num))
                     udh.append(struct.pack('!B', total_segments))
                     udh.append(struct.pack('!B', segment_seqnum))
                     tmpPdu.params['short_message'] = ''.join(udh) + kwargs['short_message']
-                
+
                 # - The first PDU is the one we return back
                 # - sar_msg_ref_num takes the seqnum of the initial submit_sm
                 if i == 0:
                     pdu = tmpPdu
-                    
+
                 # PDU chaining
                 if previousPdu is not None:
                     previousPdu.nextPdu = tmpPdu
         else:
             pdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
-        
+
         return pdu
 
     def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
@@ -263,21 +264,21 @@ class SMPPOperationFactory():
 
             # Build DeliverSM pdu
             pdu = DeliverSM(
-                source_addr = destination_addr,
-                destination_addr = source_addr,
-                esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
-                receipted_message_id = msgid,
-                short_message = short_message,
-                message_state = message_state,
+                source_addr=destination_addr,
+                destination_addr=source_addr,
+                esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+                receipted_message_id=msgid,
+                short_message=short_message,
+                message_state=message_state,
             )
         else:
             # Build DataSM pdu
             pdu = DataSM(
-                source_addr = destination_addr,
-                destination_addr = source_addr,
-                esm_class = EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
-                receipted_message_id = msgid,
-                message_state = message_state,
+                source_addr=destination_addr,
+                destination_addr=source_addr,
+                esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
+                receipted_message_id=msgid,
+                message_state=message_state,
             )
 
         return pdu

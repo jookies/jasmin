@@ -4,7 +4,7 @@ A Config file reader
 
 import ConfigParser
 
-class ConfigFile:
+class ConfigFile(object):
     """
     Config file reader, will expose typed "ex: _getint()" and untyped "ex: _get()" with
     default fallback values to be returned if a configuration directive is not found or

@@ -24,8 +24,9 @@ CONFIG_STORE_PATH = '%s/etc/jasmin/store' % root_path
 FilterKeyMap = {'fid': 'fid', 'type': 'type'}
 
 # Used to validate filter type while adding a new one
-FILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
-             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
+FILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'ConnectorFilter',
+           'SourceAddrFilter', 'DestinationAddrFilter', 'ShortMessageFilter',
+           'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
 
 MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
@@ -47,7 +48,9 @@ def FilterBuild(fCallback):
             # Remove filter_class and filter_args from self.sessBuffer before checking options
             # as these 2 options are not user-typed
             if len(self.sessBuffer) - 2 < len(self.protocol.sessionCompletitions):
-                return self.protocol.sendData('You must set these options before saving: %s' % ', '.join(self.protocol.sessionCompletitions))
+                return self.protocol.sendData(
+                    'You must set these options before saving: %s' % ', '.join(
+                        self.protocol.sessionCompletitions))
 
             _filter = {}
             for key, value in self.sessBuffer.iteritems():
@@ -99,7 +102,8 @@ def FilterBuild(fCallback):
                         break
 
                 if _type is None:
-                    return self.protocol.sendData('Unknown Filter type: "%s", available types: %s' % (arg, ', '.join(FILTERS)))
+                    return self.protocol.sendData(
+                        'Unknown Filter type: "%s", available types: %s' % (arg, ', '.join(FILTERS)))
 
                 # Before setting a new filter class, remove any previous filter
                 # sessBuffer keys
@@ -134,7 +138,8 @@ def FilterBuild(fCallback):
                     # Update completitions
                     self.protocol.sessionCompletitions = FilterKeyMap.keys()+FilterClassArgs
 
-                    return self.protocol.sendData('%s arguments:\n%s' % (self.sessBuffer['filter_class'], ', '.join(FilterClassArgs)))
+                    return self.protocol.sendData(
+                        '%s arguments:\n%s' % (self.sessBuffer['filter_class'], ', '.join(FilterClassArgs)))
             else:
                 # Validate regex options
                 if cmd in ['destination_addr', 'source_addr', 'short_message']:
@@ -147,7 +152,8 @@ def FilterBuild(fCallback):
                 if cmd in ['timeInterval', 'dateInterval']:
                     limits = arg.split(';')
                     if len(limits) != 2:
-                        return self.protocol.sendData('%s option value must be composed of 2 values with a ";" separator.' % (cmd))
+                        return self.protocol.sendData(
+                            '%s option value must be composed of 2 values with a ";" separator.' % (cmd))
 
                     # Regex validation
                     re_time = re.compile(r'^\d{2}:\d{2}:\d{2}$')
@@ -157,7 +163,8 @@ def FilterBuild(fCallback):
                     for l in limits:
                         try:
                             # Validate format with regex
-                            if (cmd == 'dateInterval' and re_date.match(l) is None) or (cmd == 'timeInterval' and re_time.match(l) is None):
+                            if ((cmd == 'dateInterval' and re_date.match(l) is None)
+                                    or (cmd == 'timeInterval' and re_time.match(l) is None)):
                                 raise ValueError('Format error: %s' % l)
 
                             # Validate type
@@ -204,7 +211,7 @@ def FilterBuild(fCallback):
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
-class FilterExist:
+class FilterExist(object):
     'Check if filter fid exist before passing it to fCallback'
     def __init__(self, fid_key):
         self.fid_key = fid_key
@@ -255,15 +262,19 @@ class FiltersManager(PersistableManager):
         except Exception, e:
             return self.protocol.sendData('Unknown error occurred while persisting configuration: %s' % e)
 
-        self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+        self.protocol.sendData(
+            '%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt=False)
 
     def load(self, arg, opts):
         try:
             self._load(opts.profile)
 
-            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                '%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt=False)
         except:
-            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                'Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile),
+                prompt=False)
 
     def _load(self, profile='jcli-prod'):
         path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
@@ -285,11 +296,13 @@ class FiltersManager(PersistableManager):
         counter = 0
 
         if (len(self.filters)) > 0:
-            self.protocol.sendData("#%s %s %s %s" % ('Filter id'.ljust(16),
-                                                                        'Type'.ljust(22),
-                                                                        'Routes'.ljust(6),
-                                                                        'Description'.ljust(32),
-                                                                        ), prompt=False)
+            self.protocol.sendData("#%s %s %s %s" % (
+                'Filter id'.ljust(16),
+                'Type'.ljust(22),
+                'Routes'.ljust(6),
+                'Description'.ljust(32),
+                ), prompt=False)
+
             for fid, _filter in self.filters.iteritems():
                 counter += 1
                 routes = ''
@@ -297,11 +310,12 @@ class FiltersManager(PersistableManager):
                     routes += 'MO '
                 if _filter.__class__.__name__ in MTFILTERS:
                     routes += 'MT'
-                self.protocol.sendData("#%s %s %s %s" % (str(fid).ljust(16),
-                                                                  str(_filter.__class__.__name__).ljust(22),
-                                                                  routes.ljust(6),
-                                                                  repr(_filter).ljust(32),
-                                                                  ), prompt=False)
+                self.protocol.sendData("#%s %s %s %s" % (
+                    str(fid).ljust(16),
+                    str(_filter.__class__.__name__).ljust(22),
+                    routes.ljust(6),
+                    repr(_filter).ljust(32),
+                    ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Filters: %s' % counter)
@@ -310,7 +324,9 @@ class FiltersManager(PersistableManager):
     @FilterBuild
     def add_session(self, fid, FilterInstance):
         self.filters[fid] = FilterInstance
-        self.protocol.sendData('Successfully added Filter [%s] with fid:%s' % (FilterInstance.__class__.__name__, fid), prompt=False)
+        self.protocol.sendData(
+            'Successfully added Filter [%s] with fid:%s' % (FilterInstance.__class__.__name__, fid),
+            prompt=False)
         self.stopSession()
     def add(self, arg, opts):
         return self.startSession(self.add_session,

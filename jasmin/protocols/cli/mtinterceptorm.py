@@ -113,11 +113,15 @@ def MTInterceptorBuild(fCallback):
             else:
                 # DefaultInterceptor's order is always zero
                 if cmd == 'order':
-                    if arg != '0' and 'type' in self.sessBuffer and self.sessBuffer['type'] == 'DefaultInterceptor':
+                    if (arg != '0' and 'type' in self.sessBuffer
+                            and self.sessBuffer['type'] == 'DefaultInterceptor'):
                         self.sessBuffer['order'] = 0
-                        return self.protocol.sendData('Interceptor order forced to 0 since it is a DefaultInterceptor')
-                    elif arg == '0' and 'type' in self.sessBuffer and self.sessBuffer['type'] != 'DefaultInterceptor':
-                        return self.protocol.sendData('This interceptor order (0) is reserved for DefaultInterceptor only')
+                        return self.protocol.sendData(
+                            'Interceptor order forced to 0 since it is a DefaultInterceptor')
+                    elif (arg == '0' and 'type' in self.sessBuffer
+                            and self.sessBuffer['type'] != 'DefaultInterceptor'):
+                        return self.protocol.sendData(
+                            'This interceptor order (0) is reserved for DefaultInterceptor only')
                     elif not arg.isdigit() or int(arg) < 0:
                         return self.protocol.sendData('Interceptor order must be a positive integer')
                     else:
@@ -200,28 +204,36 @@ class MtInterceptorManager(PersistableManager):
 
     def persist(self, arg, opts):
         if self.pb['router'].perspective_persist(opts.profile, 'mtinterceptors'):
-            self.protocol.sendData('%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                '%s configuration persisted (profile:%s)' % (self.managerName, opts.profile), prompt=False)
         else:
-            self.protocol.sendData('Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                'Failed to persist %s configuration (profile:%s)' % (self.managerName, opts.profile),
+                prompt=False)
 
     def load(self, arg, opts):
         r = self.pb['router'].perspective_load(opts.profile, 'mtinterceptors')
 
         if r:
-            self.protocol.sendData('%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                '%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt=False)
         else:
-            self.protocol.sendData('Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile), prompt = False)
+            self.protocol.sendData(
+                'Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile),
+                prompt=False)
 
     def list(self, arg, opts):
         mtinterceptors = pickle.loads(self.pb['router'].perspective_mtinterceptor_get_all())
         counter = 0
 
         if (len(mtinterceptors)) > 0:
-            self.protocol.sendData("#%s %s %s %s" % ('Order'.ljust(5),
-                                                                        'Type'.ljust(20),
-                                                                        'Script'.ljust(47),
-                                                                        'Filter(s)'.ljust(64),
-                                                                        ), prompt=False)
+            self.protocol.sendData("#%s %s %s %s" % (
+                'Order'.ljust(5),
+                'Type'.ljust(20),
+                'Script'.ljust(47),
+                'Filter(s)'.ljust(64),
+                ), prompt=False)
+
             for e in mtinterceptors:
                 order = e.keys()[0]
                 mtinterceptor = e[order]
@@ -234,11 +246,12 @@ class MtInterceptorManager(PersistableManager):
                         filters += ', '
                     filters += repr(f)
 
-                self.protocol.sendData("#%s %s %s %s" % (str(order).ljust(5),
-                                                                  str(mtinterceptor.__class__.__name__).ljust(20),
-                                                                  repr(mtinterceptor.script).ljust(47),
-                                                                  filters.ljust(64),
-                                                                  ), prompt=False)
+                self.protocol.sendData("#%s %s %s %s" % (
+                    str(order).ljust(5),
+                    str(mtinterceptor.__class__.__name__).ljust(20),
+                    repr(mtinterceptor.script).ljust(47),
+                    filters.ljust(64),
+                    ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total MT Interceptors: %s' % counter)

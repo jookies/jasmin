@@ -8,7 +8,7 @@ class KeyNotIncrementable(Exception):
     Raised when trying to increment a non integer key
     """
 
-class Stats:
+class Stats(object):
     def set(self, key, value):
         if key not in self._stats:
             raise KeyNotFound(key)

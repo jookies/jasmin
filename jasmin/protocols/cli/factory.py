@@ -34,7 +34,8 @@ class CmdFactory(ServerFactory):
                                                     CmdProtocol)
 
 class JCliFactory(ServerFactory):
-    def __init__(self, config, SMPPClientManagerPB, RouterPB, loadConfigProfileWithCreds={'username', 'password'}):
+    def __init__(self, config, SMPPClientManagerPB, RouterPB,
+                 loadConfigProfileWithCreds={'username', 'password'}):
         self.config = config
         self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB}
         # Protocol sessions are kept here:
@@ -75,11 +76,14 @@ class JCliFactory(ServerFactory):
 
         if (self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None
             and self.loadConfigProfileWithCreds['password'] is not None):
-            self.log.info("OnStart loading configuration default profile with username: '%s'" % (self.loadConfigProfileWithCreds['username']))
+            self.log.info(
+                "OnStart loading configuration default profile with username: '%s'",
+                self.loadConfigProfileWithCreds['username'])
 
             if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
                 md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
-                self.log.error("Authentication error, cannot load configuration profile with provided username: '%s'" %
+                self.log.error(
+                    "Authentication error, cannot load configuration profile with provided username: '%s'",
                     self.loadConfigProfileWithCreds['username'])
                 proto.connectionLost(None)
                 defer.returnValue(False)
@@ -87,11 +91,13 @@ class JCliFactory(ServerFactory):
             proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['username'])
             proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['password'])
         elif self.config.authentication:
-            self.log.error('Authentication is required and no credentials were given, config. profile will not be loaded')
+            self.log.error(
+                'Authentication is required and no credentials given, config. profile will not be loaded')
             proto.connectionLost(None)
             defer.returnValue(False)
         else:
-            self.log.info("OnStart loading configuration default profile without credentials (auth. is not required)")
+            self.log.info(
+                "OnStart loading configuration default profile without credentials (auth. is not required)")
 
         proto.dataReceived('load\r\n')
 
@@ -100,7 +106,7 @@ class JCliFactory(ServerFactory):
         while True:
             for pl in pending_load:
                 if re.match(r'.*%s configuration loaded.*' % pl, tr.value(), re.DOTALL):
-                    self.log.info("%s configuration loaded." % pl)
+                    self.log.info("%s configuration loaded.", pl)
                     pending_load.remove(pl)
 
             if len(pending_load) > 0:
