@@ -6,7 +6,6 @@ import uuid
 import pickle
 import datetime
 from txamqp.content import Content
-from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 
 class InvalidParameterError(Exception):
     """Raised when a parameter is invalid
@@ -46,8 +45,9 @@ class DLRContentForHttpapi(Content):
 
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
-        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
-                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+        if message_status[:5] != 'ESME_' and message_status not in [
+                'DELIVRD', 'EXPIRED', 'DELETED',
+                'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s", message_status)
         if dlr_level not in [1, 2, 3]:
             raise InvalidParameterError("Invalid dlr_level: %s", dlr_level)
@@ -79,8 +79,9 @@ class DLRContentForSmpps(Content):
 
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
-        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
-                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+        if message_status[:5] != 'ESME_' and message_status not in [
+                'DELIVRD', 'EXPIRED', 'DELETED',
+                'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s", message_status)
 
         properties['message-id'] = msgid
@@ -97,7 +98,7 @@ class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
     def __init__(self, body, replyto, priority=1, expiration=None, msgid=None,
-        submit_sm_resp_bill=None, source_connector='httpapi'):
+                 submit_sm_resp_bill=None, source_connector='httpapi'):
         props = {}
 
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -121,7 +122,7 @@ class SubmitSmContent(PDU):
         if expiration is not None:
             props['headers']['expiration'] = expiration
 
-        PDU.__init__(self, body, properties = props)
+        PDU.__init__(self, body, properties=props)
 
 class SubmitSmRespContent(PDU):
     "A SMPP SubmitSmResp Content"
@@ -130,17 +131,13 @@ class SubmitSmRespContent(PDU):
         props = {}
 
         props['message-id'] = msgid
-        PDU.__init__(self,
-            body,
-            properties=props,
-            pickleProtocol=pickleProtocol,
-            prePickle=prePickle)
+        PDU.__init__(self, body, properties=props, pickleProtocol=pickleProtocol, prePickle=prePickle)
 
 class DeliverSmContent(PDU):
     "A SMPP DeliverSm Content"
 
     def __init__(self, body, sourceCid, pickleProtocol=2, prePickle=True,
-        concatenated=False, will_be_concatenated=False):
+                 concatenated=False, will_be_concatenated=False):
         props = {}
 
         props['message-id'] = randomUniqueId()
@@ -153,17 +150,13 @@ class DeliverSmContent(PDU):
                             'concatenated': concatenated,
                             'will_be_concatenated': will_be_concatenated}
 
-        PDU.__init__(self,
-            body,
-            properties=props,
-            pickleProtocol=pickleProtocol,
-            prePickle=prePickle)
+        PDU.__init__(self, body, properties=props, pickleProtocol=pickleProtocol, prePickle=prePickle)
 
 class SubmitSmRespBillContent(Content):
     "A Bill Content holding amount to be charged to user (uid)"
 
     def __init__(self, bid, uid, amount):
-        if type(amount) != float and type(amount) != int:
+        if not isinstance(amount, float) and not isinstance(amount, int):
             raise InvalidParameterError('Amount is not float or int: %s' % amount)
         if amount < 0:
             raise InvalidParameterError('Amount cannot be a negative value: %s' % amount)

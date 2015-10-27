@@ -5,7 +5,6 @@ import sys
 import signal
 import syslog
 from twisted.python import usage
-from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.interceptor.configs import InterceptorPBConfig
 from twisted.cred import portal
@@ -16,12 +15,12 @@ from twisted.spread import pb
 from twisted.internet import reactor, defer
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class Options(usage.Options):
 
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/interceptor.cfg' % root_path,
+        ['config', 'c', '%s/etc/jasmin/interceptor.cfg' % ROOT_PATH,
          'Jasmin interceptor configuration file'],
         ]
 

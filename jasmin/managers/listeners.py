@@ -12,8 +12,8 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from txamqp.queue import Closed
 from twisted.internet import reactor, task
 from jasmin.managers.content import (SubmitSmRespContent, DeliverSmContent,
-                                    DLRContentForHttpapi, DLRContentForSmpps,
-                                    SubmitSmRespBillContent)
+                                     DLRContentForHttpapi, DLRContentForSmpps,
+                                     SubmitSmRespBillContent)
 from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.error import *
@@ -67,7 +67,7 @@ class SMPPClientSMListener(object):
     '''
 
     def __init__(self, SMPPClientSMListenerConfig,
-        SMPPClientFactory, amqpBroker, redisClient, RouterPB=None, interceptorpb_client=None):
+                 SMPPClientFactory, amqpBroker, redisClient, RouterPB=None, interceptorpb_client=None):
         self.config = SMPPClientSMListenerConfig
         self.SMPPClientFactory = SMPPClientFactory
         self.SMPPOperationFactory = SMPPOperationFactory(self.SMPPClientFactory.config)
@@ -173,7 +173,7 @@ class SMPPClientSMListener(object):
 
             # Update submit_sm retrial tracker
             if msgid in self.submit_retrials:
-                self.submit_retrials[msgid]+= 1
+                self.submit_retrials[msgid] += 1
             else:
                 self.submit_retrials[msgid] = 1
 
@@ -183,7 +183,7 @@ class SMPPClientSMListener(object):
             if self.SMPPClientFactory.config.submit_sm_throughput > 0:
                 # QoS throttling
                 qos_throughput_second = 1 / float(self.SMPPClientFactory.config.submit_sm_throughput)
-                qos_throughput_ysecond_td = timedelta( microseconds = qos_throughput_second * 1000000)
+                qos_throughput_ysecond_td = timedelta(microseconds=qos_throughput_second * 1000000)
                 qos_delay = datetime.now() - self.qos_last_submit_sm_at
                 if qos_delay < qos_throughput_ysecond_td:
                     qos_slow_down = float((qos_throughput_ysecond_td - qos_delay).microseconds) / 1000000
@@ -209,8 +209,8 @@ class SMPPClientSMListener(object):
             if 'headers' in message.content.properties and 'expiration' in message.content.properties['headers']:
                 expiration_datetime = parser.parse(message.content.properties['headers']['expiration'])
                 if expiration_datetime < datetime.now():
-                    self.log.info("Discarding expired message[%s]: expiration is %s",
-                        msgid, expiration_datetime)
+                    self.log.info(
+                        "Discarding expired message[%s]: expiration is %s", msgid, expiration_datetime)
                     yield self.rejectMessage(message)
                     defer.returnValue(False)
             # SMPP Client should be already connected
@@ -219,8 +219,8 @@ class SMPPClientSMListener(object):
                 msgAge = datetime.now() - created_at
                 if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
                     self.log.error("SMPPC [cid:%s] is not connected: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds.",
-                                    self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
-                                    msgid, msgAge.seconds)
+                                   self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
+                                   msgid, msgAge.seconds)
                     yield self.rejectMessage(message)
                     defer.returnValue(False)
                 else:
@@ -229,8 +229,8 @@ class SMPPClientSMListener(object):
                     else:
                         delay_str = ''
                     self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds.",
-                        self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
-                        msgid, delay_str, msgAge.seconds)
+                                   self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
+                                   msgid, delay_str, msgAge.seconds)
                     yield self.rejectAndRequeueMessage(message, delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
             # SMPP Client should be already bound as transceiver or transmitter
@@ -239,8 +239,8 @@ class SMPPClientSMListener(object):
                 msgAge = datetime.now() - created_at
                 if msgAge.seconds > self.config.submit_max_age_smppc_not_ready:
                     self.log.error("SMPPC [cid:%s] is not bound: Discarding (#%s) SubmitSmPDU[%s], over-aged %s seconds.",
-                        self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
-                        msgid, msgAge.seconds)
+                                   self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
+                                   msgid, msgAge.seconds)
                     yield self.rejectMessage(message)
                     defer.returnValue(False)
                 else:
@@ -249,31 +249,31 @@ class SMPPClientSMListener(object):
                     else:
                         delay_str = ''
                     self.log.error("SMPPC [cid:%s] is not bound: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds.",
-                        self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
-                        msgid, delay_str, msgAge)
+                                   self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
+                                   msgid, delay_str, msgAge)
                     yield self.rejectAndRequeueMessage(
                         message, delay = self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
 
             # Finally: send the sms !
             self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s]",
-                            msgid, self.SMPPClientFactory.config.id)
+                           msgid, self.SMPPClientFactory.config.id)
             d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
             d.addCallback(self.submit_sm_resp_event, message)
             yield d
         except SMPPRequestTimoutError:
             self.log.error("SubmitSmPDU[%s] request timed out through [cid:%s], message requeued.",
-                            msgid, self.SMPPClientFactory.config.id)
+                           msgid, self.SMPPClientFactory.config.id)
             self.rejectAndRequeueMessage(message)
             defer.returnValue(False)
         except LongSubmitSmTransactionError, e:
             self.log.error("Long SubmitSmPDU[%s] error in [cid:%s], message requeued: %s",
-                            msgid, self.SMPPClientFactory.config.id, e.message)
+                           msgid, self.SMPPClientFactory.config.id, e.message)
             self.rejectAndRequeueMessage(message)
             defer.returnValue(False)
         except Exception, e:
             self.log.critical("Rejecting SubmitSmPDU[%s] through [cid:%s] for an unknown error (%s): %s",
-                msgid, self.SMPPClientFactory.config.id, type(e), e)
+                              msgid, self.SMPPClientFactory.config.id, type(e), e)
             self.rejectMessage(message)
             defer.returnValue(False)
 
@@ -284,7 +284,7 @@ class SMPPClientSMListener(object):
         will_be_retried = False
 
         if ('headers' not in amqpMessage.content.properties or
-            'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
+                'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
             submit_sm_resp_bill = None
         else:
             submit_sm_resp_bill = pickle.loads(
@@ -331,23 +331,23 @@ class SMPPClientSMListener(object):
 
                     # Increase bill amount for each submit_sm_resp
                     if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
-                        total_bill_amount+= submit_sm_resp_bill.getTotalAmounts()
+                        total_bill_amount += submit_sm_resp_bill.getTotalAmounts()
             else:
                 short_message = r.request.params['short_message']
 
             self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
-                           self.SMPPClientFactory.config.id,
-                           msgid,
-                           r.response.params['message_id'],
-                           r.response.status,
-                           amqpMessage.content.properties['priority'],
-                           r.request.params['registered_delivery'].receipt,
-                           'none' if ('headers' not in amqpMessage.content.properties or
-                                      'expiration' not in amqpMessage.content.properties['headers'])
-                                  else amqpMessage.content.properties['headers']['expiration'],
-                           r.request.params['source_addr'],
-                           r.request.params['destination_addr'],
-                           re.sub(r'[^\x20-\x7E]+','.', short_message))
+                          self.SMPPClientFactory.config.id,
+                          msgid,
+                          r.response.params['message_id'],
+                          r.response.status,
+                          amqpMessage.content.properties['priority'],
+                          r.request.params['registered_delivery'].receipt,
+                          'none' if ('headers' not in amqpMessage.content.properties or
+                                'expiration' not in amqpMessage.content.properties['headers'])
+                            else amqpMessage.content.properties['headers']['expiration'],
+                          r.request.params['source_addr'],
+                          r.request.params['destination_addr'],
+                          re.sub(r'[^\x20-\x7E]+','.', short_message))
         else:
             # Message must be retried ?
             if str(r.response.status) in self.config.submit_error_retrial:
@@ -361,19 +361,18 @@ class SMPPClientSMListener(object):
 
             # Log the message
             self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
-                           self.SMPPClientFactory.config.id,
-                           msgid,
-                           r.response.status,
-                           will_be_retried,
-                           amqpMessage.content.properties['priority'],
-                           r.request.params['registered_delivery'].receipt,
-                           'none' if ('headers' not in amqpMessage.content.properties or
-                                      'expiration' not in amqpMessage.content.properties['headers'])
-                                  else amqpMessage.content.properties['headers']['expiration'],
-                           r.request.params['source_addr'],
-                           r.request.params['destination_addr'],
-                           re.sub(r'[^\x20-\x7E]+','.', r.request.params['short_message'])
-                           )
+                          self.SMPPClientFactory.config.id,
+                          msgid,
+                          r.response.status,
+                          will_be_retried,
+                          amqpMessage.content.properties['priority'],
+                          r.request.params['registered_delivery'].receipt,
+                          'none' if ('headers' not in amqpMessage.content.properties or
+                                'expiration' not in amqpMessage.content.properties['headers'])
+                            else amqpMessage.content.properties['headers']['expiration'],
+                          r.request.params['source_addr'],
+                          r.request.params['destination_addr'],
+                          re.sub(r'[^\x20-\x7E]+','.', r.request.params['short_message']))
 
         # It is a final submit_sm_resp !
         if not will_be_retried:
@@ -406,7 +405,7 @@ class SMPPClientSMListener(object):
 
                 if dlr_level in [1, 3]:
                     self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
-                                    msgid, dlr_url, dlr_level)
+                                   msgid, dlr_url, dlr_level)
 
                     # The dlr_url in DLRContentForHttpapi indicates the level
                     # of the actual delivery receipt (1) and not the requested
@@ -416,7 +415,7 @@ class SMPPClientSMListener(object):
                                                    dlr_level=1, method=dlr_method)
                     routing_key = 'dlr_thrower.http'
                     self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
-                                    msgid, routing_key)
+                                   msgid, routing_key)
                     yield self.amqpBroker.publish(exchange='messaging',
                                                   routing_key=routing_key,
                                                   content=content)
@@ -431,12 +430,13 @@ class SMPPClientSMListener(object):
                         self.log.debug('Removing DLR request for msgid[%s]', msgid)
                         yield self.redisClient.delete("dlr:%s" % msgid)
                 else:
-                    self.log.debug('Terminal level receipt is requested, will not send any DLR receipt at this level.')
+                    self.log.debug(
+                        'Terminal level receipt is requested, will not send any DLR receipt at this level.')
 
                 if dlr_level in [2, 3] and r.response.status == CommandStatus.ESME_ROK:
                     # Map received submit_sm_resp's message_id to the msg for later receipt handling
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
-                                    r.response.params['message_id'], msgid, dlr_expiry)
+                                   r.response.params['message_id'], msgid, dlr_expiry)
                     hashKey = "queue-msgid:%s" % r.response.params['message_id']
                     hashValues = {'msgid': msgid, 'connector_type': 'httpapi',}
                     self.redisClient.setex(hashKey,
@@ -483,7 +483,7 @@ class SMPPClientSMListener(object):
                     if r.response.status == CommandStatus.ESME_ROK:
                         # Map received submit_sm_resp's message_id to the msg for later rceipt handling
                         self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
-                                        r.response.params['message_id'], msgid, smpps_map_expiry)
+                                       r.response.params['message_id'], msgid, smpps_map_expiry)
                         hashKey = "queue-msgid:%s" % r.response.params['message_id']
                         hashValues = {'msgid': msgid, 'connector_type': 'smpps',}
                         self.redisClient.setex(hashKey,
@@ -497,8 +497,9 @@ class SMPPClientSMListener(object):
             pubQueueName = 'bill_request.submit_sm_resp.%s' % submit_sm_resp_bill.user.uid
             content = SubmitSmRespBillContent(submit_sm_resp_bill.bid,
                                               submit_sm_resp_bill.user.uid, total_bill_amount)
-            self.log.debug("Requesting a SubmitSmRespBillContent from a bill [bid:%s] with routing_key[%s]: %s",
-                           submit_sm_resp_bill.bid, pubQueueName, total_bill_amount)
+            self.log.debug(
+                "Requesting a SubmitSmRespBillContent from a bill [bid:%s] with routing_key[%s]: %s",
+                submit_sm_resp_bill.bid, pubQueueName, total_bill_amount)
             yield self.amqpBroker.publish(exchange='billing',
                                           routing_key=pubQueueName,
                                           content=content)
@@ -569,9 +570,9 @@ class SMPPClientSMListener(object):
             pdu = pdus[1] # Take the first part as a base of work
             # 1. Remove message splitting information from pdu
             if splitMethod == 'sar':
-                del(pdu.params['sar_segment_seqnum'])
-                del(pdu.params['sar_total_segments'])
-                del(pdu.params['sar_msg_ref_num'])
+                del pdu.params['sar_segment_seqnum']
+                del pdu.params['sar_total_segments']
+                del pdu.params['sar_msg_ref_num']
             else:
                 pdu.params['esm_class'] = None
             # 2. Set the new short_message
@@ -594,7 +595,7 @@ class SMPPClientSMListener(object):
                 ret = pdu.dlr['id']
         except Exception, e:
             self.log.error('code_dlr_msgid, cannot code msgid [%s] with dlr_msg_id_bases:%s',
-                pdu.dlr['id'], self.SMPPClientFactory.config.dlr_msg_id_bases)
+                           pdu.dlr['id'], self.SMPPClientFactory.config.dlr_msg_id_bases)
             self.log.error('code_dlr_msgid, error details: %s', e)
             ret = pdu.dlr['id']
 
@@ -686,9 +687,9 @@ class SMPPClientSMListener(object):
                         'Failed running interception script, got the following return: %s', args[0])
 
             self.log.debug('Handling deliver_sm_event_post_interception event for smppc: %s',
-                self.SMPPClientFactory.config.id)
+                           self.SMPPClientFactory.config.id)
 
-            pdu.dlr =  self.SMPPOperationFactory.isDeliveryReceipt(pdu)
+            pdu.dlr = self.SMPPOperationFactory.isDeliveryReceipt(pdu)
             content = DeliverSmContent(pdu,
                                        self.SMPPClientFactory.config.id,
                                        pickleProtocol=self.pickleProtocol,
@@ -714,14 +715,14 @@ class SMPPClientSMListener(object):
                     segment_seqnum = pdu.params['sar_segment_seqnum']
                     msg_ref_num = pdu.params['sar_msg_ref_num']
                     self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
-                                    msgid, total_segments, segment_seqnum, msg_ref_num)
+                                   msgid, total_segments, segment_seqnum, msg_ref_num)
                 elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
                     splitMethod = 'udh'
                     total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
                     segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
                     msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
                     self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
-                                    msgid, total_segments, segment_seqnum, msg_ref_num)
+                                   msgid, total_segments, segment_seqnum, msg_ref_num)
 
                 if splitMethod is None:
                     # It's a simple short message or a part of a concatenated message
@@ -730,14 +731,14 @@ class SMPPClientSMListener(object):
                     yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
 
                     self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
-                                   self.SMPPClientFactory.config.id,
-                                   msgid,
-                                   pdu.status,
-                                   pdu.params['priority_flag'],
-                                   pdu.params['validity_period'],
-                                   pdu.params['source_addr'],
-                                   pdu.params['destination_addr'],
-                                   re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
+                                  self.SMPPClientFactory.config.id,
+                                  msgid,
+                                  pdu.status,
+                                  pdu.params['priority_flag'],
+                                  pdu.params['validity_period'],
+                                  pdu.params['source_addr'],
+                                  pdu.params['destination_addr'],
+                                  re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -752,11 +753,11 @@ class SMPPClientSMListener(object):
                                   'segment_seqnum':segment_seqnum}
                     self.redisClient.hset(
                         hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                                self.concatDeliverSMs,
-                                splitMethod,
-                                total_segments,
-                                msg_ref_num,
-                                segment_seqnum)
+                            self.concatDeliverSMs,
+                            splitMethod,
+                            total_segments,
+                            msg_ref_num,
+                            segment_seqnum)
 
                     self.log.info("DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation.",
                                   msgid, total_segments)
@@ -764,7 +765,7 @@ class SMPPClientSMListener(object):
                     # Flag it as "will_be_concatenated" and publish it to router
                     routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
                     self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]",
-                                    msgid, routing_key)
+                                   msgid, routing_key)
                     content.properties['headers']['will_be_concatenated'] = True
                     yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
             else:
@@ -846,7 +847,7 @@ class SMPPClientSMListener(object):
 
                                 routing_key = 'dlr_thrower.smpps'
                                 self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",
-                                                submit_sm_queue_id, routing_key)
+                                               submit_sm_queue_id, routing_key)
                                 yield self.amqpBroker.publish(exchange='messaging',
                                                               routing_key=routing_key,
                                                               content=content)
@@ -872,11 +873,11 @@ class SMPPClientSMListener(object):
                               pdu.dlr['text'])
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
             self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%s]",
-                           self.SMPPClientFactory.config.id,
-                           e.status,
-                           pdu.params['source_addr'],
-                           pdu.params['destination_addr'],
-                           re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
+                          self.SMPPClientFactory.config.id,
+                          e.status,
+                          pdu.params['source_addr'],
+                          pdu.params['destination_addr'],
+                          re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))

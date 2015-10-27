@@ -9,11 +9,11 @@ from jasmin.routing.jasminApi import HttpConnector
 HttpccKeyMap = {'cid': 'cid', 'url': 'baseurl', 'method': 'method'}
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 # Since HttpccManager does not have any PB, there's no configuration for it
 # Persist and Load are using CONFIG_STORE_PATH for persisting/loading httpc connectors
-CONFIG_STORE_PATH = '%s/etc/jasmin/store' % root_path
+CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
 
 def HttpccBuild(fCallback):
     '''Parse args and try to build a filter from  one of the filters in

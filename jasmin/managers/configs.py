@@ -10,7 +10,7 @@ from jasmin.config.tools import ConfigFile
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class SMPPClientPBConfig(ConfigFile):
     "Config handler for 'client-management' section"
@@ -18,7 +18,7 @@ class SMPPClientPBConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.store_path = self._get('client-management', 'store_path', '%s/etc/jasmin/store' % root_path)
+        self.store_path = self._get('client-management', 'store_path', '%s/etc/jasmin/store' % ROOT_PATH)
 
         self.bind = self._get('client-management', 'bind', '0.0.0.0')
         self.port = self._getint('client-management', 'port', 8989)
@@ -30,7 +30,7 @@ class SMPPClientPBConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(self._get('client-management', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'client-management', 'log_file', '%s/var/log/jasmin/smppclient-manager.log' % root_path)
+            'client-management', 'log_file', '%s/var/log/jasmin/smppclient-manager.log' % ROOT_PATH)
         self.log_rotate = self._get('client-management', 'log_rotate', 'W6')
         self.log_format = self._get('client-management', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('client-management', 'log_date_format', '%Y-%m-%d %H:%M:%S')
@@ -65,7 +65,7 @@ class SMPPClientSMListenerConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(
             self._get('sm-listener', 'log_level', 'INFO'))
-        self.log_file = self._get('sm-listener', 'log_file', '%s/var/log/jasmin/messages.log' % root_path)
+        self.log_file = self._get('sm-listener', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
         self.log_rotate = self._get('sm-listener', 'log_rotate', 'midnight')
         self.log_format = self._get('sm-listener', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('sm-listener', 'log_date_format', '%Y-%m-%d %H:%M:%S')

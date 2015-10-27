@@ -8,7 +8,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassTy
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class ConfigUndefinedIdError(Exception):
     """Raised when a *Config class is initialized without ID
@@ -46,7 +46,7 @@ class SMPPClientConfig(object):
             raise TypeMismatch('port must be an integer')
 
         # Logging configuration
-        self.log_file = kwargs.get('log_file', '%s/var/log/jasmin/default-%s.log' % (root_path, self.id))
+        self.log_file = kwargs.get('log_file', '%s/var/log/jasmin/default-%s.log' % (ROOT_PATH, self.id))
         self.log_rotate = kwargs.get('log_rotate', 'midnight')
         self.log_level = kwargs.get('log_level', logging.INFO)
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -195,7 +195,7 @@ class SMPPClientServiceConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(self._get('service-smppclient', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'service-smppclient', 'log_file', '%s/var/log/jasmin/service-smppclient.log' % root_path)
+            'service-smppclient', 'log_file', '%s/var/log/jasmin/service-smppclient.log' % ROOT_PATH)
         self.log_rotate = self._get('service-smppclient', 'log_rotate', 'W6')
         self.log_format = self._get(
             'service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -213,7 +213,7 @@ class SMPPServerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'smpp-server', 'log_file', '%s/var/log/jasmin/default-%s.log' % (root_path, self.id))
+            'smpp-server', 'log_file', '%s/var/log/jasmin/default-%s.log' % (ROOT_PATH, self.id))
         self.log_rotate = self._get('smpp-server', 'log_rotate', 'midnight')
         self.log_format = self._get(
             'smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')

@@ -14,11 +14,11 @@ from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     EvalPyFilter)
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 # Since FiltersManager does not have any PB, there's no configuration for it
 # Persist and Load are using CONFIG_STORE_PATH for persisting/loading filters
-CONFIG_STORE_PATH = '%s/etc/jasmin/store' % root_path
+CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
 
 # A config map between console-configuration keys and Filter keys.
 FilterKeyMap = {'fid': 'fid', 'type': 'type'}

@@ -33,12 +33,12 @@ from twisted.spread import pb
 from twisted.internet import reactor, defer
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class Options(usage.Options):
 
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/jasmin.cfg' % root_path,
+        ['config', 'c', '%s/etc/jasmin/jasmin.cfg' % ROOT_PATH,
          'Jasmin configuration file'],
         ['username', 'u', None,
          'jCli username used to load configuration profile on startup'],

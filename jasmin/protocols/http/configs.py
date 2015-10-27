@@ -7,7 +7,7 @@ import os
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
-root_path = os.getenv('ROOT_PATH', '/')
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class HTTPApiConfig(ConfigFile):
     "Config handler for 'http-api' section"
@@ -20,9 +20,9 @@ class HTTPApiConfig(ConfigFile):
 
         # Logging
         self.access_log = self._get(
-            'http-api', 'access_log', '%s/var/log/jasmin/http-accesslog.log' % root_path)
+            'http-api', 'access_log', '%s/var/log/jasmin/http-accesslog.log' % ROOT_PATH)
         self.log_level = logging.getLevelName(self._get('http-api', 'log_level', 'INFO'))
-        self.log_file = self._get('http-api', 'log_file', '%s/var/log/jasmin/http-api.log' % root_path)
+        self.log_file = self._get('http-api', 'log_file', '%s/var/log/jasmin/http-api.log' % ROOT_PATH)
         self.log_rotate = self._get('http-api', 'log_rotate', 'W6')
         self.log_format = self._get(
             'http-api', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
