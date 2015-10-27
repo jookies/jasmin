@@ -1,25 +1,25 @@
-#pylint: disable-msg=W0401,W0611
+#pylint: disable=W0401,W0611
 
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Bills import SubmitSmBill, SubmitSmRespBill, InvalidBillKeyError, InvalidBillValueError
 from jasmin.routing.jasminApi import User, Group
 
 class BillsTestCase(TestCase):
-    
+
     def setUp(self):
         self.group = Group(1)
         self.user = User(1, self.group, 'foo', 'bar')
-        
+
 class SubmitSmBillTestCase(BillsTestCase):
     def test_default(self):
         b = SubmitSmBill(self.user)
-        
+
         self.assertEqual(b.getAmount('submit_sm'), 0.0)
         self.assertEqual(b.getAmount('submit_sm_resp'), 0.0)
         self.assertEqual(b.getAction('decrement_submit_sm_count'), 0)
         self.assertNotEquals(b.bid, None)
         self.assertEqual(b.user, self.user)
-    
+
     def test_typing(self):
         b = SubmitSmBill(self.user)
 
@@ -39,14 +39,14 @@ class SubmitSmBillTestCase(BillsTestCase):
         self.assertEqual(b.getAmount('submit_sm'), 1.1)
         self.assertEqual(b.getAmount('submit_sm_resp'), 2)
         self.assertEqual(b.getTotalAmounts(), 3.1)
-    
+
     def test_getSubmitSmRespBill(self):
         b = SubmitSmBill(self.user)
 
         b.setAmount('submit_sm', 1.1)
         b.setAmount('submit_sm_resp', 2)
         c = b.getSubmitSmRespBill()
-        
+
         self.assertRaises(InvalidBillKeyError, c.getAmount, 'submit_sm')
         self.assertEqual(c.getAmount('submit_sm_resp'), 2.0)
         self.assertRaises(InvalidBillKeyError, c.getAction, 'decrement_submit_sm_count')
@@ -57,11 +57,11 @@ class SubmitSmBillTestCase(BillsTestCase):
 class SubmitSmRespBillTestCase(BillsTestCase):
     def test_default(self):
         b = SubmitSmRespBill(self.user)
-        
+
         self.assertEqual(b.getAmount('submit_sm_resp'), 0.0)
         self.assertNotEquals(b.bid, None)
         self.assertEqual(b.user, self.user)
-    
+
     def test_typing(self):
         b = SubmitSmRespBill(self.user)
 

@@ -1,8 +1,8 @@
+#pylint: disable=W0401,W0611
 """
 More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
 
-#pylint: disable-msg=W0401,W0611
 import datetime
 from jasmin.routing.Routables import Routable
 from jasmin.routing.jasminApi import *

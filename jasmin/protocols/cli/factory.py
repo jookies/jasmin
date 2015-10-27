@@ -35,7 +35,7 @@ class CmdFactory(ServerFactory):
 
 class JCliFactory(ServerFactory):
     def __init__(self, config, SMPPClientManagerPB, RouterPB,
-                 loadConfigProfileWithCreds={'username', 'password'}):
+                 loadConfigProfileWithCreds=None):
         self.config = config
         self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB}
         # Protocol sessions are kept here:
@@ -43,6 +43,9 @@ class JCliFactory(ServerFactory):
         self.sessionRef = 0
         self.sessionsOnline = 0
         # When defined, configuration profile will be loaded on startup
+        if loadConfigProfileWithCreds is None:
+            # Defaults:
+            loadConfigProfileWithCreds = {'username', 'password'}
         self.loadConfigProfileWithCreds = loadConfigProfileWithCreds
 
         # Set up and configure a dedicated logger
@@ -75,13 +78,13 @@ class JCliFactory(ServerFactory):
         proto.makeConnection(tr)
 
         if (self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None
-            and self.loadConfigProfileWithCreds['password'] is not None):
+                and self.loadConfigProfileWithCreds['password'] is not None):
             self.log.info(
                 "OnStart loading configuration default profile with username: '%s'",
                 self.loadConfigProfileWithCreds['username'])
 
             if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
-                md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
+                    md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
                 self.log.error(
                     "Authentication error, cannot load configuration profile with provided username: '%s'",
                     self.loadConfigProfileWithCreds['username'])
@@ -104,10 +107,10 @@ class JCliFactory(ServerFactory):
         # Wait some more time till all configurations are loaded
         pending_load = ['mtrouter', 'morouter', 'filter', 'group', 'smppcc', 'httpcc', 'user']
         while True:
-            for pl in pending_load:
-                if re.match(r'.*%s configuration loaded.*' % pl, tr.value(), re.DOTALL):
-                    self.log.info("%s configuration loaded.", pl)
-                    pending_load.remove(pl)
+            for _pl in pending_load:
+                if re.match(r'.*%s configuration loaded.*' % _pl, tr.value(), re.DOTALL):
+                    self.log.info("%s configuration loaded.", _pl)
+                    pending_load.remove(_pl)
 
             if len(pending_load) > 0:
                 waitDeferred = defer.Deferred()

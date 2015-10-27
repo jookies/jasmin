@@ -1,8 +1,8 @@
+#pylint: disable=W0401,W0611
 """
 More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
 
-#pylint: disable-msg=W0401,W0611
 import random
 from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.jasminApi import *

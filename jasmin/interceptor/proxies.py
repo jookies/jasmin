@@ -2,7 +2,6 @@ from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy
 from jasmin.routing.Routables import Routable
 from jasmin.routing.jasminApi import InterceptorScript
-from twisted.internet import defer
 
 class InvalidRoutableObject(Exception):
     'Raised when routable arg is not an instance of Routable'

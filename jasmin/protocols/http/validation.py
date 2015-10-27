@@ -2,7 +2,6 @@
 HTTP request validators
 """
 
-import re
 from jasmin.protocols.http.errors import UrlArgsValidationError, CredentialValidationError
 from jasmin.protocols.validation import AbstractCredentialValidator
 

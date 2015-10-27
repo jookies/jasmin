@@ -1,4 +1,4 @@
-#pylint: disable-msg=W0401,W0611
+#pylint: disable=W0401,W0611
 import re
 import inspect
 import pickle
@@ -120,7 +120,7 @@ def FilterBuild(fCallback):
                 # Show Filter help and save Filter args
                 fargs = inspect.getargspec(self.sessBuffer['filter_class'].__init__).args
                 # Remove 'self' from args
-                del(fargs[0])
+                del fargs[0]
                 FilterClassArgs = []
                 # Format args
                 for arg in fargs:
@@ -331,12 +331,11 @@ class FiltersManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Filter: (ok: save, ko: exit)',
-                                 completitions=FilterKeyMap.keys(),
-                                 )
+                                 completitions=FilterKeyMap.keys())
 
     @FilterExist(fid_key='remove')
     def remove(self, arg, opts):
-        del(self.filters[opts.remove])
+        del self.filters[opts.remove]
         self.protocol.sendData('Successfully removed Filter id:%s' % opts.remove)
 
     @FilterExist(fid_key='show')

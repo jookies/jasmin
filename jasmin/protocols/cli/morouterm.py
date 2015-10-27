@@ -1,3 +1,4 @@
+#pylint: disable=W0611
 import re
 import inspect
 import pickle

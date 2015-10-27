@@ -427,7 +427,7 @@ class SMPPClientManagerPB(pb.Avatar):
                     del connector['sm_listener'].rejectTimers[msgid]
 
                     self.log.debug('Rejecting/requeuing msgid [%s] before stopping connector', msgid)
-                    c = yield func(**kw)
+                    yield func(**kw)
 
         # Stop timers in message listeners
         self.log.debug('Clearing sm_listener timers in connector [%s]', cid)

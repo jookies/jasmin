@@ -1,4 +1,5 @@
-#pylint: disable-msg=W0401,W0611
+#pylint: disable=W0401,W0611
+
 from twisted.trial.unittest import TestCase
 from jasmin.routing.InterceptionTables import *
 from jasmin.routing.Interceptors import *

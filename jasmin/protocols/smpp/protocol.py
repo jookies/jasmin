@@ -1,4 +1,4 @@
-#pylint: disable-msg=W0401,W0611
+#pylint: disable=W0401,W0611
 import re
 import uuid
 import logging

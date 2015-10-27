@@ -172,7 +172,7 @@ class HttpccManager(PersistableManager):
 
     @HttpccExist(cid_key='remove')
     def remove(self, arg, opts):
-        del(self.httpccs[opts.remove])
+        del self.httpccs[opts.remove]
         self.protocol.sendData('Successfully removed Httpcc id:%s' % opts.remove)
 
     @HttpccExist(cid_key='show')
