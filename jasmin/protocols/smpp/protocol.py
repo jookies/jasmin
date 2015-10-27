@@ -347,7 +347,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
     def PDUReceived(self, pdu):
         self.log.debug(
             "SMPP Server received PDU from system '%s' [command: %s, seq_number: %s, command_status: %s]",
-            self.system_id, pdu.commandId, pdu.seqNum, pdu.status))
+            self.system_id, pdu.commandId, pdu.seqNum, pdu.status)
         self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
 
