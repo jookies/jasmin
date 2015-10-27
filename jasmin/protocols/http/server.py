@@ -292,23 +292,23 @@ class Send(Resource):
 
         try:
             # Validation (must have almost the same params as /rate service)
-            fields = {'to'          : {'optional': False    , 'pattern': re.compile(r'^\+{0,1}\d+$')},
+            fields = {'to'          : {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
                       'from'        : {'optional': True},
-                      'coding'      : {'optional': True     , 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    : {'optional': False    , 'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    : {'optional': False    , 'pattern': re.compile(r'^.{1,8}$')},
+                      'coding'      : {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username'    : {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    : {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority'    : {'optional': True     , 'pattern': re.compile(r'^[0-3]$')},
+                      'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' : {'optional': True , 'pattern': re.compile(r'^\d+$')},
-                      'dlr'         : {'optional': False    , 'pattern': re.compile(r'^(yes|no)$')},
-                      'dlr-url'     : {'optional': True     , 'pattern': re.compile(r'^(http|https)\://.*$')},
+                      'dlr'         : {'optional': False, 'pattern': re.compile(r'^(yes|no)$')},
+                      'dlr-url'     : {'optional': True, 'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'dlr-level'   : {'optional': True     , 'pattern': re.compile(r'^[1-3]$')},
-                      'dlr-method'  : {'optional': True     , 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
+                      'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
+                      'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -509,17 +509,17 @@ class Rate(Resource):
 
         try:
             # Validation (must be almost the same params as /send service)
-            fields = {'to'          : {'optional': False    , 'pattern': re.compile(r'^\+{0,1}\d+$')},
+            fields = {'to'          : {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
                       'from'        : {'optional': True},
-                      'coding'      : {'optional': True     , 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    : {'optional': False    , 'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    : {'optional': False    , 'pattern': re.compile(r'^.{1,8}$')},
+                      'coding'      : {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username'    : {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    : {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority'    : {'optional': True     , 'pattern': re.compile(r'^[0-3]$')},
+                      'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period' :{'optional': True , 'pattern': re.compile(r'^\d+$')},
+                      'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
                       'content'     : {'optional': True},
                       }
 
@@ -584,8 +584,8 @@ class Balance(Resource):
 
         try:
             # Validation
-            fields = {'username'    : {'optional': False    , 'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    : {'optional': False    , 'pattern': re.compile(r'^.{1,8}$')}}
+            fields = {'username'    : {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    : {'optional': False, 'pattern': re.compile(r'^.{1,8}$')}}
 
             # Make validation
             v = UrlArgsValidator(request, fields)

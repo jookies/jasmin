@@ -102,10 +102,12 @@ class StatsManager(Manager):
             row.append(formatDateTime(sc.get(connector['id']).get('connected_at')))
             row.append(formatDateTime(sc.get(connector['id']).get('bound_at')))
             row.append(formatDateTime(sc.get(connector['id']).get('disconnected_at')))
-            row.append('%s/%s' % (sc.get(connector['id']).get('submit_sm_request_count'),
-                       sc.get(connector['id']).get('submit_sm_count')))
-            row.append('%s/%s' % (sc.get(connector['id']).get('deliver_sm_count'),
-                       sc.get(connector['id']).get('data_sm_count')))
+            row.append('%s/%s' % (sc.get(connector['id']).get(
+                'submit_sm_request_count'),
+                sc.get(connector['id']).get('submit_sm_count')))
+            row.append('%s/%s' % (sc.get(connector['id']).get(
+                'deliver_sm_count'),
+                sc.get(connector['id']).get('data_sm_count')))
             row.append(sc.get(connector['id']).get('throttling_error_count'))
             row.append(sc.get(connector['id']).get('other_submit_error_count'))
 

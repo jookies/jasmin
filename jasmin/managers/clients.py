@@ -177,7 +177,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 # Add connector
                 addRet = yield self.perspective_connector_add(
                     pickle.dumps(loadedConnector['config'],
-                    self.pickleProtocol))
+                        self.pickleProtocol))
                 if not addRet:
                     raise ConfigProfileLoadingError('Error adding connector %s' % loadedConnector['id'])
 

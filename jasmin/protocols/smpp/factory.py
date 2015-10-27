@@ -333,7 +333,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Interceptor script returned %s smpp_status error.',
                                    args[0]['smpp_status'])
-                    raise SubmitSmInterceptionError(code = args[0]['smpp_status'])
+                    raise SubmitSmInterceptionError(code=args[0]['smpp_status'])
                 elif isinstance(args[0], str):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
@@ -447,7 +447,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 priority,
                 routable.pdu.params['source_addr'],
                 routable.pdu.params['destination_addr'],
-                re.sub(r'[^\x20-\x7E]+','.', routable.pdu.params['short_message']))
+                re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message']))
             status = pdu_types.CommandStatus.ESME_ROK
         finally:
             if message_id is not None:

@@ -76,7 +76,7 @@ def MTInterceptorBuild(fCallback):
                 if _type is None:
                     return self.protocol.sendData(
                         'Unknown MT Interceptor type:%s, available types: %s' % (
-                        arg, ', '.join(MTINTERCEPTORS)))
+                            arg, ', '.join(MTINTERCEPTORS)))
                 elif _type == 'DefaultInterceptor':
                     self.sessBuffer['order'] = 0
 

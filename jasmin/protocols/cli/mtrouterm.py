@@ -110,11 +110,14 @@ def MTRouteBuild(fCallback):
             else:
                 # DefaultRoute's order is always zero
                 if cmd == 'order':
-                    if arg != '0' and 'type' in self.sessBuffer and self.sessBuffer['type'] == 'DefaultRoute':
+                    if (arg != '0' and 'type' in self.sessBuffer and
+                            self.sessBuffer['type'] == 'DefaultRoute'):
                         self.sessBuffer['order'] = 0
                         return self.protocol.sendData('Route order forced to 0 since it is a DefaultRoute')
-                    elif arg == '0' and 'type' in self.sessBuffer and self.sessBuffer['type'] != 'DefaultRoute':
-                        return self.protocol.sendData('This route order (0) is reserved for DefaultRoute only')
+                    elif (arg == '0' and 'type' in self.sessBuffer and
+                        self.sessBuffer['type'] != 'DefaultRoute'):
+                        return self.protocol.sendData(
+                            'This route order (0) is reserved for DefaultRoute only')
                     elif not arg.isdigit() or int(arg) < 0:
                         return self.protocol.sendData('Route order must be a positive integer')
                     else:

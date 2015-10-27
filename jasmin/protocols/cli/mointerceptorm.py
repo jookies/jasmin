@@ -76,7 +76,7 @@ def MOInterceptorBuild(fCallback):
                 if _type is None:
                     return self.protocol.sendData(
                         'Unknown MO Interceptor type:%s, available types: %s' % (
-                        arg, ', '.join(MOINTERCEPTORS)))
+                            arg, ', '.join(MOINTERCEPTORS)))
                 elif _type == 'DefaultInterceptor':
                     self.sessBuffer['order'] = 0
 

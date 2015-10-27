@@ -136,12 +136,12 @@ class MtMessagingCredential(CredentialGenerick):
         if key == 'balance' and value is not None and (value < 0):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a positive number' % (key, value))
-        elif (key == 'early_decrement_balance_percent' and value is not None
-                and (value < 1 or value > 100)):
+        elif (key == 'early_decrement_balance_percent' and value is not None and
+                (value < 1 or value > 100)):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a number in 1..100' % (key, value))
-        elif (key == 'submit_sm_count' and value is not None
-            and (value < 0 or not isinstance(value, int))):
+        elif (key == 'submit_sm_count' and value is not None and
+                (value < 0 or not isinstance(value, int))):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be a positive int' % (key, value))
         elif key in ['http_throughput', 'smpps_throughput'] and value is not None and (value < 0):
