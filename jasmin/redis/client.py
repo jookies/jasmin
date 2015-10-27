@@ -36,7 +36,7 @@ class RedisForJasminFactory(redis.RedisFactory):
         self.log.info('Connection failed. Reason: %s', reason)
 
     def __init__(self, uuid, dbid, poolsize, isLazy=True,
-                 handler=redis.ConnectionHandler, config = None):
+                 handler=redis.ConnectionHandler, config=None):
         redis.RedisFactory.__init__(self, uuid, dbid, poolsize, isLazy, handler)
 
         # Set up a dedicated logger

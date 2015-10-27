@@ -18,7 +18,7 @@ class InvalidScriptSyntax(Exception):
 def validate_typed_script(script):
     'Will ensure the script exists and compilable'
 
-    m = re.match( r'(python2)\((.*)\)', script, re.I)
+    m = re.match(r'(python2)\((.*)\)', script, re.I)
     if not m:
         raise InvalidScriptSyntax('Invalid syntax for script, must be python2(/path/to/script).')
     else:
@@ -42,9 +42,8 @@ def MTInterceptorBuild(fCallback):
             # Remove interceptor_class and interceptor_args from self.sessBuffer before checking options
             # as these 2 options are not user-typed
             if len(self.sessBuffer) - 2 < len(self.protocol.sessionCompletitions):
-                return self.protocol.sendData('You must set these options before saving: %s' %
-                    ', '.join(self.protocol.sessionCompletitions)
-                )
+                return self.protocol.sendData('You must set these options before saving: %s' % ', '.join(
+                    self.protocol.sessionCompletitions))
 
             interceptor = {}
             for key, value in self.sessBuffer.iteritems():
@@ -75,10 +74,9 @@ def MTInterceptorBuild(fCallback):
                         break
 
                 if _type is None:
-                    return self.protocol.sendData('Unknown MT Interceptor type:%s, available types: %s' % (
-                            arg, ', '.join(MTINTERCEPTORS)
-                        )
-                    )
+                    return self.protocol.sendData(
+                        'Unknown MT Interceptor type:%s, available types: %s' % (
+                        arg, ', '.join(MTINTERCEPTORS)))
                 elif _type == 'DefaultInterceptor':
                     self.sessBuffer['order'] = 0
 
@@ -105,11 +103,9 @@ def MTInterceptorBuild(fCallback):
                     # Update completitions
                     self.protocol.sessionCompletitions = MTInterceptorKeyMap.keys()+InterceptorClassArgs
 
-                    return self.protocol.sendData('%s arguments:\n%s' % (
-                            self.sessBuffer['interceptor_class'],
-                            ', '.join(InterceptorClassArgs)
-                        )
-                    )
+                    return self.protocol.sendData(
+                        '%s arguments:\n%s' % (
+                            self.sessBuffer['interceptor_class'], ', '.join(InterceptorClassArgs)))
             else:
                 # DefaultInterceptor's order is always zero
                 if cmd == 'order':
@@ -118,8 +114,8 @@ def MTInterceptorBuild(fCallback):
                         self.sessBuffer['order'] = 0
                         return self.protocol.sendData(
                             'Interceptor order forced to 0 since it is a DefaultInterceptor')
-                    elif (arg == '0' and 'type' in self.sessBuffer
-                            and self.sessBuffer['type'] != 'DefaultInterceptor'):
+                    elif (arg == '0' and 'type' in self.sessBuffer and
+                            self.sessBuffer['type'] != 'DefaultInterceptor'):
                         return self.protocol.sendData(
                             'This interceptor order (0) is reserved for DefaultInterceptor only')
                     elif not arg.isdigit() or int(arg) < 0:
@@ -180,7 +176,7 @@ def MTInterceptorBuild(fCallback):
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
-class MTInterceptorExist:
+class MTInterceptorExist(object):
     'Check if a mt interceptor exist with a given order before passing it to fCallback'
     def __init__(self, order_key):
         self.order_key = order_key
@@ -241,10 +237,10 @@ class MtInterceptorManager(PersistableManager):
 
                 filters = ''
                 # Prepare display for filters
-                for f in mtinterceptor.filters:
+                for _filter in mtinterceptor.filters:
                     if filters != '':
                         filters += ', '
-                    filters += repr(f)
+                    filters += repr(_filter)
 
                 self.protocol.sendData("#%s %s %s %s" % (
                     str(order).ljust(5),

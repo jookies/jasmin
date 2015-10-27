@@ -42,17 +42,17 @@ class Bill(object):
 
     def getTotalAmounts(self):
         "Will return a Sum of all amounts"
-        t = 0.0
+        total_amount = 0.0
         for key in self.amounts:
-            t += self.amounts[key]
+            total_amount += self.amounts[key]
 
-        return t
+        return total_amount
 
     def setAmount(self, key, amount):
         "Will set a billable amount"
         if key not in self.amounts:
             raise InvalidBillKeyError('%s is not a valid amount key.' % key)
-        if type(amount) != int and type(amount) != float:
+        if not isinstance(amount, int) and not isinstance(amount, float):
             raise InvalidBillValueError('%s is not a valid amount value for key %s.' % (amount, key))
         self.amounts[key] = amount
 
@@ -66,7 +66,7 @@ class Bill(object):
         "Will set a billable action"
         if key not in self.actions:
             raise InvalidBillKeyError('%s is not a valid action key.' % key)
-        if type(value) != int:
+        if not isinstance(value, int):
             raise InvalidBillValueError('%s is not a valid value for key %s.' % (value, key))
         self.actions[key] = value
 

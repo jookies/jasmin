@@ -24,15 +24,15 @@ class Stats(object):
     def inc(self, key, inc=1):
         if key not in self._stats:
             raise KeyNotFound(key)
-        if type(self._stats[key]) != int:
+        if not isinstance(self._stats[key], int):
             raise KeyNotIncrementable(key)
 
-        self._stats[key]+= inc
+        self._stats[key] += inc
 
     def dec(self, key, inc=1):
         if key not in self._stats:
             raise KeyNotFound(key)
-        if type(self._stats[key]) != int:
+        if not isinstance(self._stats[key], int):
             raise KeyNotIncrementable(key)
 
-        self._stats[key]-= inc
+        self._stats[key] -= inc

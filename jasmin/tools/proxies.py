@@ -3,7 +3,7 @@ import logging
 from twisted.internet import defer, reactor
 from twisted.spread.pb import RemoteReference
 from twisted.cred.credentials import UsernamePassword, Anonymous
-from pb import ReconnectingPBClientFactory
+from jasmin.tools.pb import ReconnectingPBClientFactory
 from twisted.spread import pb
 
 class ConnectError(Exception):
@@ -47,14 +47,12 @@ class JasminPBProxy(object):
             # Start login
             if username is None and password is None:
                 self.pbClientFactory.startLogin(
-                    Anonymous()
-                )
+                    Anonymous())
             else:
                 self.pbClientFactory.startLogin(
                     UsernamePassword(
                         username,
-                        password)
-                    )
+                        password))
 
             reactor.connectTCP(host, port, self.pbClientFactory)
         else:
@@ -66,14 +64,12 @@ class JasminPBProxy(object):
 
             if username is None and password is None:
                 yield self.pbClientFactory.login(
-                    Anonymous()
-                ).addCallback(self._connected)
+                    Anonymous()).addCallback(self._connected)
             else:
                 yield self.pbClientFactory.login(
                     UsernamePassword(
                         username,
-                        password)
-                    ).addCallback(self._connected)
+                        password)).addCallback(self._connected)
 
     def disconnect(self):
         self.isConnected = False
@@ -89,8 +85,8 @@ class JasminPBProxy(object):
         if isinstance(perspective, RemoteReference):
             self.isConnected = True
             self.pb = perspective
-        elif (type(perspective) == tuple and type(perspective[0]) == bool and
-              perspective[0] is False and type(perspective[1]) == str):
+        elif (isinstance(perspective, tuple) and isinstance(perspective[0], bool) and
+                perspective[0] is False and isinstance(perspective[1], str):
             raise ConnectError(perspective[1])
         else:
             raise InvalidConnectResponseError(perspective)

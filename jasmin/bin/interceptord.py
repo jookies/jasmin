@@ -86,17 +86,17 @@ class InterceptorDaemon(object):
         return self.stop()
 
 if __name__ == '__main__':
-    options = Options()
     try:
+        options = Options()
         options.parseOptions()
     except usage.UsageError, errortext:
         print '%s: %s' % (sys.argv[0], errortext)
         print '%s: Try --help for usage details.' % (sys.argv[0])
     else:
-        id = InterceptorDaemon(options)
+        in_d = InterceptorDaemon(options)
         # Setup signal handlers
-        signal.signal(signal.SIGINT, id.sighandler_stop)
+        signal.signal(signal.SIGINT, in_d.sighandler_stop)
         # Start InterceptorDaemon
-        id.start()
+        in_d.start()
 
         reactor.run()

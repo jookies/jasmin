@@ -28,7 +28,7 @@ class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClien
 
     def clientConnectionLost(self, connector, reason):
         pb.PBClientFactory.clientConnectionLost(self, connector, reason,
-                                             reconnecting=True)
+                                                reconnecting=True)
 
         self.disconnected(connector, reason)
 

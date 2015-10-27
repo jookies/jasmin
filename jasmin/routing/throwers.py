@@ -415,7 +415,7 @@ class DLRThrower(Thrower):
                                message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
-                self.log.warn('Message is no more processed after receiving "%s" error', str(e)))
+                self.log.warn('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',

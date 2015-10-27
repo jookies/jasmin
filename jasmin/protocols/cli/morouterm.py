@@ -25,7 +25,7 @@ def validate_typed_connector_id(cid):
     exception will be throwed.
     '''
 
-    m = re.match( r'(smpps|http)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
+    m = re.match(r'(smpps|http)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
     if not m:
         raise InvalidCidSyntax('Invalid syntax for connector id, must be smpps(some_id) or http(some_id).')
 
@@ -46,9 +46,8 @@ def MORouteBuild(fCallback):
             # Remove route_class and route_args from self.sessBuffer before checking options
             # as these 2 options are not user-typed
             if len(self.sessBuffer) - 2 < len(self.protocol.sessionCompletitions):
-                return self.protocol.sendData(
-                    'You must set these options before saving: %s' % ', '.join(
-                        self.protocol.sessionCompletitions))
+                return self.protocol.sendData('You must set these options before saving: %s' % ', '.join(
+                    self.protocol.sessionCompletitions))
 
             route = {}
             for key, value in self.sessBuffer.iteritems():
@@ -259,7 +258,7 @@ class MoRouterManager(PersistableManager):
 
                 connectors = ''
                 # Prepare display for connectors
-                if type(moroute.connector) is list:
+                if isinstance(moroute.connector, list):
                     for c in moroute.connector:
                         if connectors != '':
                             connectors += ', '
@@ -269,10 +268,10 @@ class MoRouterManager(PersistableManager):
 
                 filters = ''
                 # Prepare display for filters
-                for f in moroute.filters:
+                for _filter in moroute.filters:
                     if filters != '':
                         filters += ', '
-                    filters += repr(f)
+                    filters += repr(_filter)
 
                 self.protocol.sendData("#%s %s %s %s" % (
                     str(order).ljust(5),

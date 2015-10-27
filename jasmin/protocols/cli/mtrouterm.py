@@ -24,7 +24,7 @@ def validate_typed_connector_id(cid):
     exception will be throwed.
     '''
 
-    m = re.match( r'(smppc)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
+    m = re.match(r'(smppc)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
     if not m:
         raise InvalidCidSyntax('Invalid syntax for connector id, must be smppc(some_id).')
 
@@ -45,9 +45,8 @@ def MTRouteBuild(fCallback):
             # Remove route_class and route_args from self.sessBuffer before checking options
             # as these 2 options are not user-typed
             if len(self.sessBuffer) - 2 < len(self.protocol.sessionCompletitions):
-                return self.protocol.sendData(
-                    'You must set these options before saving: %s' % ', '.join(
-                        self.protocol.sessionCompletitions))
+                return self.protocol.sendData('You must set these options before saving: %s' % ', '.join(
+                    self.protocol.sessionCompletitions))
 
             route = {}
             for key, value in self.sessBuffer.iteritems():
@@ -254,7 +253,7 @@ class MtRouterManager(PersistableManager):
 
                 connectors = ''
                 # Prepare display for connectors
-                if type(mtroute.connector) is list:
+                if isinstance(mtroute.connector, list):
                     for c in mtroute.connector:
                         if connectors != '':
                             connectors += ', '
@@ -264,10 +263,10 @@ class MtRouterManager(PersistableManager):
 
                 filters = ''
                 # Prepare display for filters
-                for f in mtroute.filters:
+                for _filter in mtroute.filters:
                     if filters != '':
                         filters += ', '
-                    filters += repr(f)
+                    filters += repr(_filter)
 
                 # Prepare display for rate:
                 # #295

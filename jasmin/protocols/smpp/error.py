@@ -2,7 +2,7 @@ from jasmin.vendor.smpp.pdu import constants
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu import pdu_types
 
-class LongSubmitSmTransactionError(object):
+class LongSubmitSmTransactionError(SMPPError):
     """Raised inside a long message transaction
     """
     def __init__(self, message):
@@ -102,7 +102,7 @@ class InterceptorError(SMPPProtocolError):
     Any error raising this exception will not cause connection shutdown
     """
     def __init__(self, code, message=None):
-        if type(code) is int and code > 0 and code in constants.command_status_value_map:
+        if isinstance(code, int) and code > 0 and code in constants.command_status_value_map:
             self.status = getattr(pdu_types.CommandStatus, constants.command_status_value_map[code]['name'])
         else:
             # This is a fallback status

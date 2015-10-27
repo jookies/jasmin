@@ -176,15 +176,15 @@ class JasminDaemon(object):
         # SMPPServerFactory init
         self.components['smpp-server-factory'] = SMPPServerFactory(
             SMPPServerConfigInstance,
-            auth_portal = p,
-            RouterPB = self.components['router-pb-factory'],
-            SMPPClientManagerPB = self.components['smppcm-pb-factory'])
+            auth_portal=p,
+            RouterPB=self.components['router-pb-factory'],
+            SMPPClientManagerPB=self.components['smppcm-pb-factory'])
 
         # Start server
         self.components['smpp-server'] = reactor.listenTCP(
             SMPPServerConfigInstance.port,
             self.components['smpp-server-factory'],
-            interface = SMPPServerConfigInstance.bind)
+            interface=SMPPServerConfigInstance.bind)
 
         # Add interceptor if enabled:
         if 'interceptor-pb-client' in self.components:
@@ -413,17 +413,17 @@ class JasminDaemon(object):
         return self.stop()
 
 if __name__ == '__main__':
-    options = Options()
     try:
+        options = Options()
         options.parseOptions()
     except usage.UsageError, errortext:
         print '%s: %s' % (sys.argv[0], errortext)
         print '%s: Try --help for usage details.' % (sys.argv[0])
     else:
-        jd = JasminDaemon(opt)
+        ja_d = JasminDaemon(options)
         # Setup signal handlers
-        signal.signal(signal.SIGINT, jd.sighandler_stop)
+        signal.signal(signal.SIGINT, ja_d.sighandler_stop)
         # Start JasminDaemon
-        jd.start()
+        ja_d.start()
 
         reactor.run()

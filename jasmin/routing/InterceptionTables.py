@@ -27,16 +27,16 @@ class InterceptionTable(object):
         # Ensure script type is correct for given interceptor
         if self.type == 'mo' and interceptor.script.type != 'moi':
             raise InvalidInterceptionTableParameterError("Script type '%s' is not valid for MO Interceptor",
-                interceptor.script.type)
+                                                         interceptor.script.type)
         elif self.type == 'mt' and interceptor.script.type != 'mti':
             raise InvalidInterceptionTableParameterError("Script type '%s' is not valid for MT Interceptor",
-                interceptor.script.type)
+                                                         interceptor.script.type)
 
         if order < 0:
             raise InvalidInterceptionTableParameterError("order must be 0 (default interceptor) or greater")
         if order != 0 and interceptor.type != self.type:
             raise InvalidInterceptionTableParameterError("interceptor must be of type '%s', '%s' was given",
-                self.type, interceptor.type)
+                                                         self.type, interceptor.type)
         if order == 0 and interceptor.type != 'default':
             raise InvalidInterceptionTableParameterError(
                 "interceptor with order=0 must be a DefaultInterceptor")

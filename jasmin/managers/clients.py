@@ -173,17 +173,19 @@ class SMPPClientManagerPB(pb.Avatar):
 
             # Apply configuration
             loadedConnectors = pickle.loads(''.join(lines[1:]))
-            for lc in loadedConnectors:
+            for loadedConnector in loadedConnectors:
                 # Add connector
-                addRet = yield self.perspective_connector_add(pickle.dumps(lc['config'], self.pickleProtocol))
+                addRet = yield self.perspective_connector_add(
+                    pickle.dumps(loadedConnector['config'],
+                    self.pickleProtocol))
                 if not addRet:
-                    raise ConfigProfileLoadingError('Error adding connector %s' % lc['id'])
+                    raise ConfigProfileLoadingError('Error adding connector %s' % loadedConnector['id'])
 
                 # Start it if it's service where started when persisted
-                if lc['service_status'] == 1:
-                    startRet = yield self.perspective_connector_start(lc['id'])
+                if loadedConnector['service_status'] == 1:
+                    startRet = yield self.perspective_connector_start(loadedConnector['id'])
                     if not startRet:
-                        self.log.error('Error starting connector %s', lc['id'])
+                        self.log.error('Error starting connector %s', loadedConnector['id'])
 
             # Set persistance state to True
             self.persisted = True
@@ -587,17 +589,18 @@ class SMPPClientManagerPB(pb.Avatar):
                               c.properties['message-id'])
             else:
                 self.log.debug('Setting DLR url (%s) and level (%s) for message id:%s, expiring in %s',
-                                dlr_url,
-                                dlr_level,
-                                c.properties['message-id'],
-                                connector['config'].dlr_expiry)
+                               dlr_url,
+                               dlr_level,
+                               c.properties['message-id'],
+                               connector['config'].dlr_expiry)
                 # Set values and callback expiration setting
                 hashKey = "dlr:%s" % (c.properties['message-id'])
                 hashValues = {'url': dlr_url,
                               'level':dlr_level,
                               'method':dlr_method,
                               'expiry':connector['config'].dlr_expiry}
-                self.redisClient.setex(hashKey,
+                self.redisClient.setex(
+                    hashKey,
                     connector['config'].dlr_expiry,
                     pickle.dumps(hashValues, self.pickleProtocol))
         elif (isinstance(source_connector, SMPPServerProtocol) and
@@ -609,11 +612,12 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.log.warn("SMPPs mapping is not done for SubmitSmPDU [msgid:%s], RC is not connected.",
                               c.properties['message-id'])
             else:
-                self.log.debug('Setting SMPPs connector (%s) mapping for message id:%s, registered_dlr: %s, expiring in %s',
-                                source_connector.system_id,
-                                c.properties['message-id'],
-                                SubmitSmPDU.params['registered_delivery'],
-                                source_connector.factory.config.dlr_expiry)
+                self.log.debug(
+                    'Setting SMPPs connector (%s) mapping for msgid:%s, registered_dlr: %s, expiring in %s',
+                    source_connector.system_id,
+                    c.properties['message-id'],
+                    SubmitSmPDU.params['registered_delivery'],
+                    source_connector.factory.config.dlr_expiry)
                 # Set values and callback expiration setting
                 hashKey = "smppsmap:%s" % (c.properties['message-id'])
                 hashValues = {'system_id': source_connector.system_id,
@@ -622,7 +626,8 @@ class SMPPClientManagerPB(pb.Avatar):
                               'sub_date': datetime.datetime.now(),
                               'registered_delivery': SubmitSmPDU.params['registered_delivery'],
                               'expiry': source_connector.factory.config.dlr_expiry}
-                self.redisClient.setex(hashKey,
+                self.redisClient.setex(
+                    hashKey,
                     source_connector.factory.config.dlr_expiry,
                     pickle.dumps(hashValues, self.pickleProtocol))
 

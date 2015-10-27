@@ -102,9 +102,9 @@ class SMPPClientSMListener(object):
 
     def clearRejectTimer(self, msgid):
         if msgid in self.rejectTimers:
-            t = self.rejectTimers[msgid]
-            if t.active():
-                t.cancel()
+            timer = self.rejectTimers[msgid]
+            if timer.active():
+                timer.cancel()
             del self.rejectTimers[msgid]
 
     def clearRejectTimers(self):
@@ -137,16 +137,16 @@ class SMPPClientSMListener(object):
                            msgid, requeue_delay)
 
             # Requeue the message with a delay
-            t = reactor.callLater(requeue_delay,
-                                  self.rejectMessage,
-                                  message=message,
-                                  requeue=1)
+            timer = reactor.callLater(requeue_delay,
+                                      self.rejectMessage,
+                                      message=message,
+                                      requeue=1)
 
             # If any, clear timer before setting a new one
             self.clearRejectTimer(msgid)
 
-            self.rejectTimers[msgid] = t
-            defer.returnValue(t)
+            self.rejectTimers[msgid] = timer
+            defer.returnValue(timer)
         else:
             self.log.debug("Requeuing SubmitSmPDU[%s] without delay", msgid)
             yield self.rejectMessage(message, requeue=1)
@@ -189,7 +189,7 @@ class SMPPClientSMListener(object):
                     qos_slow_down = float((qos_throughput_ysecond_td - qos_delay).microseconds) / 1000000
                     # We're faster than submit_sm_throughput, slow down before taking a new message from the queue
                     self.log.debug("QoS: submit_sm_callback is faster (%s) than fixed throughput (%s), slowing down by %s seconds (message will be requeued).",
-                                    qos_delay, qos_throughput_ysecond_td, qos_slow_down)
+                                   qos_delay, qos_throughput_ysecond_td, qos_slow_down)
 
                     # Relaunch queue callbacking after qos_slow_down seconds
                     #self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
@@ -198,7 +198,7 @@ class SMPPClientSMListener(object):
                     yield self.rejectAndRequeueMessage(message, delay=qos_slow_down)
                     defer.returnValue(False)
 
-                self.qos_last_submit_sm_at=datetime.now()
+                self.qos_last_submit_sm_at = datetime.now()
 
             # Verify if message is a SubmitSm PDU
             if isinstance(SubmitSmPDU, SubmitSM) is False:
@@ -252,7 +252,7 @@ class SMPPClientSMListener(object):
                                    self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
                                    msgid, delay_str, msgAge)
                     yield self.rejectAndRequeueMessage(
-                        message, delay = self.config.submit_retrial_delay_smppc_not_ready)
+                        message, delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
 
             # Finally: send the sms !
@@ -343,11 +343,11 @@ class SMPPClientSMListener(object):
                           amqpMessage.content.properties['priority'],
                           r.request.params['registered_delivery'].receipt,
                           'none' if ('headers' not in amqpMessage.content.properties or
-                                'expiration' not in amqpMessage.content.properties['headers'])
+                            'expiration' not in amqpMessage.content.properties['headers'])
                             else amqpMessage.content.properties['headers']['expiration'],
                           r.request.params['source_addr'],
                           r.request.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+','.', short_message))
+                          re.sub(r'[^\x20-\x7E]+', '.', short_message))
         else:
             # Message must be retried ?
             if str(r.response.status) in self.config.submit_error_retrial:
@@ -368,11 +368,11 @@ class SMPPClientSMListener(object):
                           amqpMessage.content.properties['priority'],
                           r.request.params['registered_delivery'].receipt,
                           'none' if ('headers' not in amqpMessage.content.properties or
-                                'expiration' not in amqpMessage.content.properties['headers'])
+                            'expiration' not in amqpMessage.content.properties['headers'])
                             else amqpMessage.content.properties['headers']['expiration'],
                           r.request.params['source_addr'],
                           r.request.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+','.', r.request.params['short_message']))
+                          re.sub(r'[^\x20-\x7E]+', '.', r.request.params['short_message']))
 
         # It is a final submit_sm_resp !
         if not will_be_retried:
@@ -455,12 +455,12 @@ class SMPPClientSMListener(object):
 
                 # Do we need to forward the receipt to the original sender ?
                 if ((r.response.status == CommandStatus.ESME_ROK and
-                        str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
-                                                             'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])
-                    or (r.response.status != CommandStatus.ESME_ROK and
+                        str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE',
+                                                             'SMSC_DELIVERY_RECEIPT_REQUESTED']) or
+                        (r.response.status != CommandStatus.ESME_ROK and
                         str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
                     self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
-                                    msgid, registered_delivery, system_id)
+                                   msgid, registered_delivery, system_id)
 
                     if (r.response.status != CommandStatus.ESME_ROK
                             or (r.response.status == CommandStatus.ESME_ROK
@@ -738,7 +738,7 @@ class SMPPClientSMListener(object):
                                   pdu.params['validity_period'],
                                   pdu.params['source_addr'],
                                   pdu.params['destination_addr'],
-                                  re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
+                                  re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -833,11 +833,10 @@ class SMPPClientSMListener(object):
                             final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                             # Do we need to forward the receipt to the original sender ?
                             if ((pdu.dlr['stat'] in success_states and
-                                    str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED')
-                                or (pdu.dlr['stat'] not in success_states and
+                                    str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
+                                    (pdu.dlr['stat'] not in success_states and
                                     str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
                                                                          'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
-
                                 self.log.debug(
                                     'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
                                     submit_sm_queue_id, registered_delivery, system_id)
@@ -877,7 +876,7 @@ class SMPPClientSMListener(object):
                           e.status,
                           pdu.params['source_addr'],
                           pdu.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
+                          re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))

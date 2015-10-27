@@ -23,7 +23,7 @@ class StatsManager(Manager):
 
         user = self.pb['router'].getUser(opts.user)
         # SMPP Server stats
-        for k,v in user.getCnxStatus().smpps.iteritems():
+        for k, v in user.getCnxStatus().smpps.iteritems():
             row = []
             row.append('#%s' % k)
             row.append('SMPP Server')
@@ -35,7 +35,7 @@ class StatsManager(Manager):
             table.append(row)
 
         # HTTP API stats
-        for k,v in user.getCnxStatus().httpapi.iteritems():
+        for k, v in user.getCnxStatus().httpapi.iteritems():
             row = []
             row.append('#%s' % k)
             row.append('HTTP Api')
@@ -59,8 +59,7 @@ class StatsManager(Manager):
             row.append('#%s' % user.uid)
             row.append(user.getCnxStatus().smpps['bound_connections_count']['bind_receiver'] +
                        user.getCnxStatus().smpps['bound_connections_count']['bind_transmitter'] +
-                       user.getCnxStatus().smpps['bound_connections_count']['bind_transceiver']
-            )
+                       user.getCnxStatus().smpps['bound_connections_count']['bind_transceiver'])
             row.append(formatDateTime(user.getCnxStatus().smpps['last_activity_at']))
             row.append(user.getCnxStatus().httpapi['connects_count'])
             row.append(formatDateTime(user.getCnxStatus().httpapi['last_activity_at']))
@@ -104,9 +103,9 @@ class StatsManager(Manager):
             row.append(formatDateTime(sc.get(connector['id']).get('bound_at')))
             row.append(formatDateTime(sc.get(connector['id']).get('disconnected_at')))
             row.append('%s/%s' % (sc.get(connector['id']).get('submit_sm_request_count'),
-                sc.get(connector['id']).get('submit_sm_count')))
+                       sc.get(connector['id']).get('submit_sm_count')))
             row.append('%s/%s' % (sc.get(connector['id']).get('deliver_sm_count'),
-                sc.get(connector['id']).get('data_sm_count')))
+                       sc.get(connector['id']).get('data_sm_count')))
             row.append(sc.get(connector['id']).get('throttling_error_count'))
             row.append(sc.get(connector['id']).get('other_submit_error_count'))
 

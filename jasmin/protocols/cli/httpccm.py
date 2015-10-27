@@ -167,8 +167,7 @@ class HttpccManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Httpcc: (ok: save, ko: exit)',
-                                 completitions=HttpccKeyMap.keys(),
-                                 )
+                                 completitions=HttpccKeyMap.keys())
 
     @HttpccExist(cid_key='remove')
     def remove(self, arg, opts):

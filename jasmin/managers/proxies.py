@@ -84,16 +84,11 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
 
         # Set the message validity date
         if SubmitSmPDU.params['validity_period'] is not None:
-            validity_period = SubmitSmPDU.params[
-                                                 'validity_period'
-                                                 ].strftime('%Y-%m-%d %H:%M:%S')
+            validity_period = SubmitSmPDU.params['validity_period'].strftime('%Y-%m-%d %H:%M:%S')
         else:
             # Validity period is not set, the SMS-C will set its own default
             # validity_period to this message
             validity_period = None
 
-        return self.pb.callRemote('submit_sm', cid,
-                                  SubmitSmPDU=self.pickle(SubmitSmPDU),
-                                  priority=priority_flag,
-                                  validity_period=validity_period
-                                )
+        return self.pb.callRemote('submit_sm', cid, SubmitSmPDU=self.pickle(SubmitSmPDU),
+                                  priority=priority_flag, validity_period=validity_period)

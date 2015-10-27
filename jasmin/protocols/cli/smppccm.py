@@ -67,7 +67,7 @@ def castInputToBuiltInType(key, value):
             else:
                 raise KeyError('Boolean value must be expressed by yes or no.')
         elif (key == 'loglevel' and
-            value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
+                value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
             raise KeyError('loglevel must be numeric value of 10, 20, 30, 40 or 50.')
         elif type(value) == str and value.lower() == 'none':
             value = None
@@ -156,9 +156,9 @@ def SMPPClientConfigUpdate(fCallback):
             try:
                 # Initiate a volatile SMPPClientConfig instance to run through it's constructor
                 # validation steps, this will raise an exception whenever an error is detected
-                _configArgs = self.sessBuffer
-                _configArgs['id'] = self.sessionContext['cid']
-                SMPPClientConfig(**_configArgs)
+                configArgs = self.sessBuffer
+                configArgs['id'] = self.sessionContext['cid']
+                SMPPClientConfig(**configArgs)
             except Exception, e:
                 return self.protocol.sendData('Error: %s' % str(e))
 

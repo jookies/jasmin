@@ -72,7 +72,7 @@ class SMPPClientFactory(ClientFactory):
         self.log.warn("msgHandlerStub: Received an unhandled message %s ...", pdu)
 
     def startedConnecting(self, connector):
-        self.log.info("Connecting to %s ..." % connector.getDestination())
+        self.log.info("Connecting to %s ...", connector.getDestination())
 
     def getExitDeferred(self):
         """Get a Deferred so you can be notified on disconnect and exited
@@ -88,7 +88,7 @@ class SMPPClientFactory(ClientFactory):
 
         if self.config.reconnectOnConnectionFailure and self.connectionRetry:
             self.log.info("Reconnecting after %d seconds ...",
-                self.config.reconnectOnConnectionFailureDelay)
+                          self.config.reconnectOnConnectionFailureDelay)
             self.reconnectTimer = reactor.callLater(
                 self.config.reconnectOnConnectionFailureDelay, self.reConnect, connector)
         else:
@@ -103,7 +103,7 @@ class SMPPClientFactory(ClientFactory):
 
         if self.config.reconnectOnConnectionLoss and self.connectionRetry:
             self.log.info("Reconnecting after %d seconds ...",
-                self.config.reconnectOnConnectionLossDelay)
+                          self.config.reconnectOnConnectionLossDelay)
             self.reconnectTimer = reactor.callLater(
                 self.config.reconnectOnConnectionLossDelay, self.reConnect, connector)
         else:
@@ -472,7 +472,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         managed through User object
         """
         system_id = connection.system_id
-        self.log.debug('Adding SMPP binding for %s' % system_id)
+        self.log.debug('Adding SMPP binding for %s', system_id)
         if system_id not in self.bound_connections:
             self.bound_connections[system_id] = SMPPBindManager(user)
         self.bound_connections[system_id].addBinding(connection)

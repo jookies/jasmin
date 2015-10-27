@@ -58,7 +58,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Router configured and ready.')
 
     def setAvatar(self, avatar):
-        if type(avatar) is str:
+        if isinstance(avatar, str):
             self.log.info('Authenticated Avatar: %s', avatar)
         else:
             self.log.info('Anonymous connection')
@@ -184,7 +184,7 @@ class RouterPB(pb.Avatar):
             # concatenated messages
             # Only smpps connector needs multipart content
             elif will_be_concatenated and routedConnector.type == 'http':
-                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts: %s",
+                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts",
                                msgid)
                 yield self.rejectMessage(message)
 
@@ -311,7 +311,8 @@ class RouterPB(pb.Avatar):
                               user.uid, _user.mt_credential.getQuota('submit_sm_count'),
                               bill.getAction('decrement_submit_sm_count') * submit_sm_count)
                 return None
-            _user.mt_credential.updateQuota('submit_sm_count',
+            _user.mt_credential.updateQuota(
+                'submit_sm_count',
                 -(bill.getAction('decrement_submit_sm_count') * submit_sm_count))
             self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s',
                           user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count)
@@ -596,7 +597,7 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path,'r')
+                fh = open(path, 'r')
                 lines = fh.readlines()
                 fh.close()
 
@@ -612,7 +613,7 @@ class RouterPB(pb.Avatar):
             self.log.error('Cannot load configuration from %s: %s', path, str(e))
             return False
         except Exception, e:
-            self.log.error('Unknown error occurred while loading configuration: %s',  e)
+            self.log.error('Unknown error occurred while loading configuration: %s', e)
             return False
 
         return True
@@ -789,7 +790,7 @@ class RouterPB(pb.Avatar):
             for _user in _users:
                 if _user.group.gid == _group.gid:
                     self.log.info('Removing a User (id:%s) from the Group (id:%s)',
-                        _user.uid, _group.gid)
+                                  _user.uid, _group.gid)
                     self.users.remove(_user)
 
         self.groups = []

@@ -23,7 +23,7 @@ class _JellyableAvatarMixin(object):
         # only call logout once, whether the connection is dropped (disconnect)
         # or a logout occurs (cleanup), and be careful to drop the reference to
         # it in either case
-        logout = [ logout ]
+        logout = [logout]
         def maybeLogout():
             if not logout:
                 return

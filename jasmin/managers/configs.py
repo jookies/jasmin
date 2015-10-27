@@ -26,7 +26,7 @@ class SMPPClientPBConfig(ConfigFile):
         self.authentication = self._getbool('client-management', 'authentication', True)
         self.admin_username = self._get('client-management', 'admin_username', 'cmadmin')
         self.admin_password = self._get(
-            'client-management', 'admin_password', "e1c5136acafb7016bc965597c992eb82" ).decode('hex')
+            'client-management', 'admin_password', "e1c5136acafb7016bc965597c992eb82").decode('hex')
 
         self.log_level = logging.getLevelName(self._get('client-management', 'log_level', 'INFO'))
         self.log_file = self._get(

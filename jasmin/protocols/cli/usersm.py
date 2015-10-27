@@ -28,15 +28,12 @@ MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                          'early_percent': 'early_decrement_balance_percent',
                                          'sms_count': 'submit_sm_count',
                                          'http_throughput': 'http_throughput',
-                                         'smpps_throughput': 'smpps_throughput',
-                                        },
-                                }
+                                         'smpps_throughput': 'smpps_throughput'}}
 
 SmppsCredentialKeyMap = {'class': 'SmppsCredential',
                          'keyMapValue': 'smpps_credential',
                          'Authorization': {'bind': 'bind'},
-                         'Quota': {'max_bindings': 'max_bindings'},
-                        }
+                         'Quota': {'max_bindings': 'max_bindings'}}
 
 # A config map between console-configuration keys and User keys.
 UserKeyMap = {'uid': 'uid', 'gid': 'gid',
@@ -50,7 +47,7 @@ UserConfigStringKeys = ['username', 'password', 'uid', 'gid']
 TrueBoolCastMap = ['true', '1', 't', 'y', 'yes']
 FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
 
-def castToBuiltCorrectCredType(cred, section, key, value, update = False):
+def castToBuiltCorrectCredType(cred, section, key, value, update=False):
     'Will cast value to the correct type depending on the cred class, section and key'
     keep_original_value = None
 
@@ -131,9 +128,9 @@ def UserBuild(fCallback):
         # Initiate jasmin.routing.jasminApi.User with sessBuffer content
         if cmd == 'ok':
             if ('uid' not in self.sessBuffer or
-                'group' not in self.sessBuffer or
-                'username' not in self.sessBuffer or
-                'password' not in self.sessBuffer):
+                    'group' not in self.sessBuffer or
+                    'username' not in self.sessBuffer or
+                    'password' not in self.sessBuffer):
                 return self.protocol.sendData(
                     'You must set User id (uid), group (gid), username and password before saving !')
 
@@ -159,7 +156,7 @@ def UserBuild(fCallback):
             if cmd not in UserKeyMap:
                 return self.protocol.sendData('Unknown User key: %s' % cmd)
 
-            if type(UserKeyMap[cmd]) == dict:
+            if isinstance(UserKeyMap[cmd], dict):
                 # Provisioning a sub-User instance (MtMessagingCredential ...)
                 subKeyMap = UserKeyMap[cmd]
 
@@ -202,7 +199,7 @@ def UserBuild(fCallback):
                         self.sessBuffer[subKeyMap['keyMapValue']] = globals()[subKeyMap['class']]()
 
                     # Set sub-User object value
-                    getattr(self.sessBuffer[subKeyMap['keyMapValue']],  'set%s' % section)(
+                    getattr(self.sessBuffer[subKeyMap['keyMapValue']], 'set%s' % section)(
                         SectionKey, SectionValue)
                 except (jasminApiCredentialError, ValueError) as e:
                     return self.protocol.sendData('Error: %s' % str(e))
@@ -268,7 +265,7 @@ def UserUpdate(fCallback):
             if cmd == 'username':
                 return self.protocol.sendData('User username can not be modified !')
 
-            if type(UserKeyMap[cmd]) == dict:
+            if isinstance(UserKeyMap[cmd], dict):
                 # Provisioning a sub-User instance (MtMessagingCredential ...)
                 subKeyMap = UserKeyMap[cmd]
 
@@ -305,7 +302,7 @@ def UserUpdate(fCallback):
                     # Input value are received in string type, castToBuiltCorrectCredType will fix the
                     # type depending on class, section and SectionKey
                     SectionValue = castToBuiltCorrectCredType(
-                        subKeyMap['class'], section, SectionKey, value, update = True)
+                        subKeyMap['class'], section, SectionKey, value, update=True)
 
                     # Instanciate a new sub-User dict to receive update-log to be applied
                     # once 'ok' is received
@@ -451,16 +448,16 @@ class UsersManager(PersistableManager):
                             if str(SectionValue)[:1] == '+':
                                 # Decode the value and its type
                                 if str(SectionValue)[1:2] == 'f':
-                                    getattr(subUserObject,  'update%s' % section)(
+                                    getattr(subUserObject, 'update%s' % section)(
                                         SectionKey, float(SectionValue[2:]))
                                 elif str(SectionValue)[1:2] == 'i':
-                                    getattr(subUserObject,  'update%s' % section)(
+                                    getattr(subUserObject, 'update%s' % section)(
                                         SectionKey, int(SectionValue[2:]))
                             else:
-                                getattr(subUserObject,  'update%s' % section)(SectionKey, SectionValue)
+                                getattr(subUserObject, 'update%s' % section)(SectionKey, SectionValue)
                         else:
                             try:
-                                getattr(subUserObject,  'set%s' % section)(SectionKey, SectionValue)
+                                getattr(subUserObject, 'set%s' % section)(SectionKey, SectionValue)
                             except jasminApiCredentialError:
                                 self.protocol.sendData(
                                     '%s not supported in this object, ignoring its value.' % SectionKey,
@@ -499,9 +496,9 @@ class UsersManager(PersistableManager):
                 pass
             elif key == 'gid':
                 self.protocol.sendData('gid %s' % (user.group.gid), prompt=False)
-            elif type(value) == str:
+            elif isinstance(value, str):
                 self.protocol.sendData('%s %s' % (key, getattr(user, value)), prompt=False)
-            elif type(value) == dict and 'class' in value:
+            elif isinstance(value, dict) and 'class' in value:
                 if value['class'] == 'MtMessagingCredential':
                     for section, sectionData in value.iteritems():
                         if section in ['class', 'keyMapValue']:
@@ -516,8 +513,8 @@ class UsersManager(PersistableManager):
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:
                                 sectionValue = 'ND'
-                            self.protocol.sendData('%s %s %s %s' %
-                                (key, section.lower(), SectionShortKey, sectionValue), prompt=False)
+                            self.protocol.sendData('%s %s %s %s' % (
+                                key, section.lower(), SectionShortKey, sectionValue), prompt=False)
                 if value['class'] == 'SmppsCredential':
                     for section, sectionData in value.iteritems():
                         if section in ['class', 'keyMapValue']:
@@ -528,6 +525,6 @@ class UsersManager(PersistableManager):
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:
                                 sectionValue = 'ND'
-                            self.protocol.sendData('%s %s %s %s' %
-                                (key, section.lower(), SectionShortKey, sectionValue), prompt=False)
+                            self.protocol.sendData('%s %s %s %s' % (
+                                key, section.lower(), SectionShortKey, sectionValue), prompt=False)
         self.protocol.sendData()

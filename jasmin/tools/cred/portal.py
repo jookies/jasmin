@@ -13,7 +13,7 @@ class JasminPBRealm(object):
             raise NotImplementedError
 
         self.PBFactory.setAvatar(avatarId)
-        return pb.IPerspective, self.PBFactory, lambda:None
+        return pb.IPerspective, self.PBFactory, lambda: None
 
 class SmppsRealm(object):
     implements(portal.IRealm)

@@ -2,9 +2,9 @@ import logging
 import os
 import re
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
-                                RegisteredDelivery, RegisteredDeliveryReceipt,
-                                AddrTon, AddrNpi,
-                                PriorityFlag, ReplaceIfPresentFlag)
+                                              RegisteredDelivery, RegisteredDeliveryReceipt,
+                                              AddrTon, AddrNpi,
+                                              PriorityFlag, ReplaceIfPresentFlag)
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
@@ -138,7 +138,8 @@ class SMPPClientConfig(object):
         self.dest_addr_npi = kwargs.get('dest_addr_npi', AddrNpi.ISDN)
         self.addressRange = kwargs.get('addressRange', None)
         self.source_addr = kwargs.get('source_addr', None)
-        self.esm_class = kwargs.get('esm_class', EsmClass(EsmClassMode.STORE_AND_FORWARD, EsmClassType.DEFAULT))
+        self.esm_class = kwargs.get('esm_class',
+                                    EsmClass(EsmClassMode.STORE_AND_FORWARD, EsmClassType.DEFAULT))
         self.protocol_id = kwargs.get('protocol_id', None)
         self.priority_flag = kwargs.get('priority_flag', PriorityFlag.LEVEL_0)
         self.schedule_delivery_time = kwargs.get('schedule_delivery_time', None)
@@ -202,7 +203,7 @@ class SMPPClientServiceConfig(ConfigFile):
         self.log_date_format = self._get('service-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
 class SMPPServerConfig(ConfigFile):
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.id = self._get('smpp-server', 'id', 'smpps_01')

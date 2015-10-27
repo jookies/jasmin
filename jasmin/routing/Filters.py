@@ -91,6 +91,7 @@ class TransparentFilter(Filter):
     """This filter will match any routable
     """
     def __init__(self):
+        Filter.__init__(self)
         self._repr = '<T>'
         self._str = '%s' % (self.__class__.__name__)
 
@@ -225,6 +226,7 @@ class TimeIntervalFilter(Filter):
 
 class EvalPyFilter(Filter):
     def __init__(self, pyCode):
+        Filter.__init__(self)
         self.pyCode = pyCode
 
         self._repr = '<Ev (pyCode=%s ..)>' % (pyCode[:10].replace('\n', ''))

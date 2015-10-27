@@ -54,8 +54,8 @@ class Send(Resource):
                 self.log.error(
                     "Authentication failure for username:%s",
                     updated_request.args['username'][0])
-                raise AuthenticationError('Authentication failure for username:%s' %
-                    updated_request.args['username'][0])
+                raise AuthenticationError(
+                    'Authentication failure for username:%s' % updated_request.args['username'][0])
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1
@@ -266,7 +266,7 @@ class Send(Resource):
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
                     updated_request.args['to'][0],
-                    re.sub(r'[^\x20-\x7E]+','.', updated_request.args['content'][0]))
+                    re.sub(r'[^\x20-\x7E]+', '.', updated_request.args['content'][0]))
                 _return = 'Success "%s"' % response['return']
 
             updated_request.write(_return)
@@ -292,25 +292,24 @@ class Send(Resource):
 
         try:
             # Validation (must have almost the same params as /rate service)
-            fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')},
-                      'from'        :{'optional': True},
-                      'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,8}$')},
+            fields = {'to'          : {'optional': False    , 'pattern': re.compile(r'^\+{0,1}\d+$')},
+                      'from'        : {'optional': True},
+                      'coding'      : {'optional': True     , 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username'    : {'optional': False    , 'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    : {'optional': False    , 'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
+                      'priority'    : {'optional': True     , 'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period' :{'optional': True,     'pattern': re.compile(r'^\d+$')},
-                      'dlr'         :{'optional': False,    'pattern': re.compile(r'^(yes|no)$')},
-                      'dlr-url'     :{'optional': True,     'pattern': re.compile(r'^(http|https)\://.*$')},
+                      'validity-period' : {'optional': True , 'pattern': re.compile(r'^\d+$')},
+                      'dlr'         : {'optional': False    , 'pattern': re.compile(r'^(yes|no)$')},
+                      'dlr-url'     : {'optional': True     , 'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'dlr-level'   :{'optional': True,     'pattern': re.compile(r'^[1-3]$')},
-                      'dlr-method'  :{'optional': True,     'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
-                      'content'     :{'optional': False},
-                      }
+                      'dlr-level'   : {'optional': True     , 'pattern': re.compile(r'^[1-3]$')},
+                      'dlr-method'  : {'optional': True     , 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
+                      'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
             if 'coding' not in updated_request.args:
@@ -510,18 +509,18 @@ class Rate(Resource):
 
         try:
             # Validation (must be almost the same params as /send service)
-            fields = {'to'          :{'optional': False,    'pattern': re.compile(r'^\+{0,1}\d+$')},
-                      'from'        :{'optional': True},
-                      'coding'      :{'optional': True,     'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,8}$')},
+            fields = {'to'          : {'optional': False    , 'pattern': re.compile(r'^\+{0,1}\d+$')},
+                      'from'        : {'optional': True},
+                      'coding'      : {'optional': True     , 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username'    : {'optional': False    , 'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    : {'optional': False    , 'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority'    :{'optional': True,     'pattern': re.compile(r'^[0-3]$')},
+                      'priority'    : {'optional': True     , 'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period' :{'optional': True,     'pattern': re.compile(r'^\d+$')},
-                      'content'     :{'optional': True},
+                      'validity-period' :{'optional': True , 'pattern': re.compile(r'^\d+$')},
+                      'content'     : {'optional': True},
                       }
 
             # Default coding is 0 when not provided
@@ -585,8 +584,8 @@ class Balance(Resource):
 
         try:
             # Validation
-            fields = {'username'    :{'optional': False,    'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    :{'optional': False,    'pattern': re.compile(r'^.{1,8}$')}}
+            fields = {'username'    : {'optional': False    , 'pattern': re.compile(r'^.{1,15}$')},
+                      'password'    : {'optional': False    , 'pattern': re.compile(r'^.{1,8}$')}}
 
             # Make validation
             v = UrlArgsValidator(request, fields)
@@ -606,8 +605,8 @@ class Balance(Resource):
                 self.log.error(
                     "Authentication failure for username:%s",
                     request.args['username'][0])
-                raise AuthenticationError('Authentication failure for username:%s' %
-                    request.args['username'][0])
+                raise AuthenticationError(
+                    'Authentication failure for username:%s' % request.args['username'][0])
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1
