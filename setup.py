@@ -50,8 +50,8 @@ release = __import__('jasmin').get_release()
 setup(
     name="jasmin",
     version=release,
-    author="Fourat ZOUARI",
-    author_email="fourat@gmail.com",
+    author="Jookies LTD",
+    author_email="jasmin@jookies.net",
     url="http://www.jasminsms.com",
     license="Apache v2.0",
     description=('Jasmin is a very complete open source SMS Gateway '
