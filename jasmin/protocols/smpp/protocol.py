@@ -531,7 +531,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         self.factory.addBoundConnection(self, self.user)
         bound_cnxns = self.factory.getBoundConnections(self.system_id)
         self.log.debug('Bind request succeeded for %s in session [%s]. %d active binds',
-                       username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+                       username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0)
         self.sendResponse(reqPDU, system_id=self.system_id)
 
         # Update stats

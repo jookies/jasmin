@@ -24,7 +24,7 @@ class InterceptorPB(pb.Avatar):
         self.log.info('Interceptor configured and ready.')
 
     def setAvatar(self, avatar):
-        if isinstance(avatar, str)::
+        if isinstance(avatar, str):
             self.log.info('Authenticated Avatar: %s', avatar)
         else:
             self.log.info('Anonymous connection')
