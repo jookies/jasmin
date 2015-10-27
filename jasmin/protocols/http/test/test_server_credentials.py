@@ -282,7 +282,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User unauthorized
         user.mt_credential.setAuthorization('http_long_content', False)
         response_text, response_code = yield self.run_send_test(content = 'X' * 300)
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Long content is not authorized)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Long content not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -309,7 +309,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_send_test(dlr_level = 3)
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting dlr level is not authorized)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting dlr level not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -336,7 +336,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_send_test(dlr_method = 'post')
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting dlr method is not authorized)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting dlr method not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -363,7 +363,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_send_test(source_address = 'JASMINTEST')
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting source address is not authorized)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting source address not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -390,7 +390,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_send_test(user = user, priority = 2)
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting priority is not authorized)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting priority not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -417,7 +417,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_send_test(user = user, validity_period = 2)
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting validity period is not authorized)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting validity period not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -445,7 +445,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
 
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user = user, destination_address = '1200')
-        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (destination_address filter mismatch)."')
+        self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (destination_address filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -472,7 +472,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
 
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user = user, source_address = 'JasminTest')
-        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (source_address filter mismatch)."')
+        self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (source_address filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -506,7 +506,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
 
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user = user, priority = 3)
-        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (priority filter mismatch)."')
+        self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (priority filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -526,7 +526,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
 
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user = user, validity_period = 21)
-        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (validity_period filter mismatch)."')
+        self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (validity_period filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -553,7 +553,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
 
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user = user, content = 'any content')
-        self.assertEqual(response_text, 'Error "Value filter failed for username [u1] (content filter mismatch)."')
+        self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (content filter mismatch)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
