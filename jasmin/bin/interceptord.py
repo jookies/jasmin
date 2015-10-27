@@ -50,9 +50,10 @@ class InterceptorDaemon:
         jPBPortalRoot = JasminPBPortalRoot(p)
 
         # Add service
-        self.components['interceptor-pb-server'] = reactor.listenTCP(InterceptorPBConfigInstance.port,
-                                    pb.PBServerFactory(jPBPortalRoot),
-                                    interface=InterceptorPBConfigInstance.bind)
+        self.components['interceptor-pb-server'] = reactor.listenTCP(
+            InterceptorPBConfigInstance.port,
+            pb.PBServerFactory(jPBPortalRoot),
+            interface=InterceptorPBConfigInstance.bind)
 
     def stopInterceptorPBService(self):
         "Stop Interceptor PB server"
