@@ -11,15 +11,14 @@ class RouterAuthChecker(object):
     def __init__(self, router_factory):
         self.router_factory = router_factory
 
-    def requestAvatarId(self, credentials):
-        username = credentials.username
+    def requestAvatarId(self, creds):
         user = self.router_factory.authenticateUser(
-            credentials.username,
-            credentials.password)
+            creds.username,
+            creds.password)
 
         # Username / Password correct ?
         if user is not None:
-            return defer.succeed(credentials.username)
+            return defer.succeed(creds.username)
         else:
             return defer.fail(
                 credError.UnauthorizedLogin("Authentication credentials invalid"))

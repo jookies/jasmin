@@ -9,9 +9,10 @@ from txamqp.queue import Closed
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
 from jasmin.routing.InterceptionTables import (MOInterceptionTable,
-    MTInterceptionTable, InvalidInterceptionTableParameterError)
+                                               MTInterceptionTable,
+                                               InvalidInterceptionTableParameterError)
 from jasmin.routing.Routables import RoutableDeliverSm
-from jasmin.routing.jasminApi import Connector, jasminApiCredentialError
+from jasmin.routing.jasminApi import Connector
 from copy import copy
 from hashlib import md5
 
@@ -96,10 +97,8 @@ class RouterPB(pb.Avatar):
         yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
         self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
         self.bill_request_submit_sm_resp_q.get().addCallback(
-                                                    self.bill_request_submit_sm_resp_callback
-                                               ).addErrback(
-                                                    self.bill_request_submit_sm_resp_errback
-                                               )
+            self.bill_request_submit_sm_resp_callback).addErrback(
+                self.bill_request_submit_sm_resp_errback)
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
 
     @defer.inlineCallbacks
@@ -178,7 +177,7 @@ class RouterPB(pb.Avatar):
             # Only http connector needs concatenated content
             if concatenated and routedConnector.type != 'http':
                 self.log.debug("DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s",
-                    msgid, routedConnector.type)
+                               msgid, routedConnector.type)
                 yield self.rejectMessage(message)
 
             # Http will not route any multipart messages, it must instead route
@@ -186,20 +185,20 @@ class RouterPB(pb.Avatar):
             # Only smpps connector needs multipart content
             elif will_be_concatenated and routedConnector.type == 'http':
                 self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts: %s",
-                    msgid)
+                               msgid)
                 yield self.rejectMessage(message)
 
             else:
                 self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU",
-                    routedConnector.cid, routedConnector.type)
+                               routedConnector.cid, routedConnector.type)
                 yield self.ackMessage(message)
 
                 # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
                 content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
                 self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]",
-                    msgid, routedConnector.type, routedConnector.cid)
+                               msgid, routedConnector.type, routedConnector.cid)
                 yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' %
-                    routedConnector.type, content=content)
+                                              routedConnector.type, content=content)
 
     def deliver_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
@@ -221,11 +220,10 @@ class RouterPB(pb.Avatar):
         amount = float(message.content.properties['headers']['amount'])
         uid = message.content.properties['headers']['user-id']
         self.log.debug("Callbacked a bill_request_submit_sm_resp [uid:%s] [amount:%s] [related-bid:%s]",
-            uid, amount, bid)
+                       uid, amount, bid)
 
         self.bill_request_submit_sm_resp_q.get().addCallback(
-                self.bill_request_submit_sm_resp_callback
-            ).addErrback(
+            self.bill_request_submit_sm_resp_callback).addErrback(
                 self.bill_request_submit_sm_resp_errback)
 
         _user = self.getUser(uid)
@@ -235,7 +233,7 @@ class RouterPB(pb.Avatar):
         elif _user.mt_credential.getQuota('balance') is not None:
             if _user.mt_credential.getQuota('balance') < amount:
                 self.log.error('User [uid:%s] have no sufficient balance (%s/%s) for this billing [bid:%s] request: rejected',
-                    uid, _user.mt_credential.getQuota('balance'), amount, bid)
+                               uid, _user.mt_credential.getQuota('balance'), amount, bid)
                 yield self.rejectMessage(message)
             else:
                 _user.mt_credential.updateQuota('balance', -amount)
@@ -276,9 +274,13 @@ class RouterPB(pb.Avatar):
 
         self.log.debug('authenticateUser [username:%s] returned None', username)
         return None
-    def chargeUserForSubmitSms(self, user, bill, submit_sm_count=1, requirements=[]):
+    def chargeUserForSubmitSms(self, user, bill, submit_sm_count=1, requirements=None):
         """Will charge the user using the bill object after checking requirements
         """
+        if requirements is None:
+            # Default:
+            requirements = []
+
         # Check if User is already existent in Router ?
         _user = self.getUser(user.uid)
         if _user is None:
@@ -295,24 +297,24 @@ class RouterPB(pb.Avatar):
                 and _user.mt_credential.getQuota('balance') is not None):
             if _user.mt_credential.getQuota('balance') < bill.getAmount('submit_sm') * submit_sm_count:
                 self.log.info('User [uid:%s] have no sufficient balance (%s) for submit_sm charging: %s',
-                    user.uid, _user.mt_credential.getQuota('balance'),
-                    bill.getAmount('submit_sm') * submit_sm_count)
+                              user.uid, _user.mt_credential.getQuota('balance'),
+                              bill.getAmount('submit_sm') * submit_sm_count)
                 return None
             _user.mt_credential.updateQuota('balance', -(bill.getAmount('submit_sm')*submit_sm_count))
             self.log.info('User [uid:%s] charged for submit_sm amount: %s',
-                user.uid, bill.getAmount('submit_sm') * submit_sm_count)
+                          user.uid, bill.getAmount('submit_sm') * submit_sm_count)
         # Decrement counts
         if (bill.getAction('decrement_submit_sm_count') * submit_sm_count > 0
                 and _user.mt_credential.getQuota('submit_sm_count') is not None):
             if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction('decrement_submit_sm_count') * submit_sm_count:
                 self.log.info('User [uid:%s] have no sufficient submit_sm_count (%s) for submit_sm charging: %s',
-                    user.uid, _user.mt_credential.getQuota('submit_sm_count'),
-                    bill.getAction('decrement_submit_sm_count') * submit_sm_count)
+                              user.uid, _user.mt_credential.getQuota('submit_sm_count'),
+                              bill.getAction('decrement_submit_sm_count') * submit_sm_count)
                 return None
             _user.mt_credential.updateQuota('submit_sm_count',
                 -(bill.getAction('decrement_submit_sm_count') * submit_sm_count))
             self.log.info('User\'s [uid:%s] submit_sm_count decremented for submit_sm: %s',
-                user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count)
+                          user.uid, bill.getAction('decrement_submit_sm_count') * submit_sm_count)
 
         return True
 
@@ -387,7 +389,7 @@ class RouterPB(pb.Avatar):
                 # Persist groups configuration
                 path = '%s/%s.router-groups' % (self.config.store_path, profile)
                 self.log.info('Persisting current Groups configuration to [%s] profile in %s',
-                    profile, path)
+                              profile, path)
 
                 fh = open(path, 'w')
                 # Write configuration with datetime stamp
@@ -402,7 +404,7 @@ class RouterPB(pb.Avatar):
                 # Persist users configuration
                 path = '%s/%s.router-users' % (self.config.store_path, profile)
                 self.log.info('Persisting current Users configuration to [%s] profile in %s',
-                    profile, path)
+                              profile, path)
 
                 fh = open(path, 'w')
                 # Write configuration with datetime stamp
@@ -447,7 +449,7 @@ class RouterPB(pb.Avatar):
                 # Persist mointerceptors configuration
                 path = '%s/%s.router-mointerceptors' % (self.config.store_path, profile)
                 self.log.info('Persisting current MOInterceptionTable to [%s] profile in %s',
-                    profile, path)
+                              profile, path)
 
                 fh = open(path, 'w')
                 # Write configuration with datetime stamp
@@ -462,7 +464,7 @@ class RouterPB(pb.Avatar):
                 # Persist mtinterceptors configuration
                 path = '%s/%s.router-mtinterceptors' % (self.config.store_path, profile)
                 self.log.info('Persisting current MTInterceptionTable to [%s] profile in %s',
-                    profile, path)
+                              profile, path)
 
                 fh = open(path, 'w')
                 # Write configuration with datetime stamp
@@ -488,7 +490,7 @@ class RouterPB(pb.Avatar):
                 # Load groups configuration
                 path = '%s/%s.router-groups' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile Groups configuration from %s',
-                    profile, path)
+                              profile, path)
 
                 # Load configuration from file
                 fh = open(path, 'r')
@@ -510,7 +512,7 @@ class RouterPB(pb.Avatar):
                 # Load users configuration
                 path = '%s/%s.router-users' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile Users configuration from %s',
-                    profile, path)
+                              profile, path)
 
                 # Load configuration from file
                 fh = open(path, 'r')
@@ -534,7 +536,7 @@ class RouterPB(pb.Avatar):
                 # Load mointerceptors configuration
                 path = '%s/%s.router-mointerceptors' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile MO Interceptors configuration from %s',
-                    profile, path)
+                              profile, path)
 
                 # Load configuration from file
                 fh = open(path, 'r')
@@ -544,7 +546,7 @@ class RouterPB(pb.Avatar):
                 # Adding new MO Interceptors
                 self.mo_interception_table = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new MOInterceptionTable with %d routes',
-                    len(self.mo_interception_table.getAll()))
+                              len(self.mo_interception_table.getAll()))
 
                 # Set persistance state to True
                 self.persistenceState['mointerceptors'] = True
@@ -553,7 +555,7 @@ class RouterPB(pb.Avatar):
                 # Load mtinterceptors configuration
                 path = '%s/%s.router-mtinterceptors' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile MT Interceptors configuration from %s',
-                    profile, path)
+                              profile, path)
 
                 # Load configuration from file
                 fh = open(path, 'r')
@@ -563,7 +565,7 @@ class RouterPB(pb.Avatar):
                 # Adding new MT Interceptors
                 self.mt_interception_table = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new MTInterceptionTable with %d routes',
-                    len(self.mt_interception_table.getAll()))
+                              len(self.mt_interception_table.getAll()))
 
                 # Set persistance state to True
                 self.persistenceState['mtinterceptors'] = True
@@ -572,7 +574,7 @@ class RouterPB(pb.Avatar):
                 # Load moroutes configuration
                 path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile MO Routes configuration from %s',
-                    profile, path)
+                              profile, path)
 
                 # Load configuration from file
                 fh = open(path, 'r')
@@ -582,7 +584,7 @@ class RouterPB(pb.Avatar):
                 # Adding new MO Routes
                 self.mo_routing_table = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new MORoutingTable with %d routes',
-                    len(self.mo_routing_table.getAll()))
+                              len(self.mo_routing_table.getAll()))
 
                 # Set persistance state to True
                 self.persistenceState['moroutes'] = True
@@ -591,7 +593,7 @@ class RouterPB(pb.Avatar):
                 # Load mtroutes configuration
                 path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
                 self.log.info('Loading/Activating [%s] profile MT Routes configuration from %s',
-                    profile, path)
+                              profile, path)
 
                 # Load configuration from file
                 fh = open(path,'r')
@@ -601,7 +603,7 @@ class RouterPB(pb.Avatar):
                 # Adding new MT Routes
                 self.mt_routing_table = pickle.loads(''.join(lines[1:]))
                 self.log.info('Added new MTRoutingTable with %d routes',
-                    len(self.mt_routing_table.getAll()))
+                              len(self.mt_routing_table.getAll()))
 
                 # Set persistance state to True
                 self.persistenceState['mtroutes'] = True
@@ -916,7 +918,7 @@ class RouterPB(pb.Avatar):
         try:
             self.mo_routing_table.add(route, order)
         except InvalidRoutingTableParameterError, e:
-            self.log.error('Cannot add MO Route: %s' % (str(e)))
+            self.log.error('Cannot add MO Route: %s', str(e))
             return False
         except Exception, e:
             self.log.error('Unknown error occurred while adding MO Route: %s', str(e))

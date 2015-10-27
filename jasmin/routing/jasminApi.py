@@ -28,7 +28,7 @@ class CredentialGenerick(jasminApiGenerick):
     def setAuthorization(self, key, value):
         if key not in self.authorizations:
             raise jasminApiCredentialError('%s is not a valid Authorization' % key)
-        if type(value) != bool:
+        if not isinstance(value, bool):
             raise jasminApiCredentialError('%s is not a boolean value: %s' % (key, value))
 
         self.authorizations[key] = value
@@ -77,10 +77,10 @@ class CredentialGenerick(jasminApiGenerick):
             raise jasminApiCredentialError('%s is not a valid Quota key' % key)
         if self.quotas[key] is None:
             raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
-        if type(difference) not in [float, int]:
+        if not isinstance(difference, float) and not isinstance(difference, int):
             raise jasminApiCredentialError(
                 'Incorrect type for value (%s), must be int or float' % difference)
-        if type(self.quotas[key]) == int and type(difference) == float:
+        if isinstance(self.quotas[key], int) and isinstance(difference, float):
             raise jasminApiCredentialError('Type mismatch, cannot update an int with a float value')
 
         self.quotas[key] += difference
@@ -96,7 +96,7 @@ class MtMessagingCredential(CredentialGenerick):
     """Credential set for sending MT Messages through"""
 
     def __init__(self, default_authorizations=True):
-        if type(default_authorizations) != bool:
+        if not isinstance(default_authorizations, bool):
             default_authorizations = False
 
         self.authorizations = {
@@ -141,7 +141,7 @@ class MtMessagingCredential(CredentialGenerick):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a number in 1..100' % (key, value))
         elif (key == 'submit_sm_count' and value is not None
-            and (value < 0 or type(value) != int)):
+            and (value < 0 or not isinstance(value, int))):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be a positive int' % (key, value))
         elif key in ['http_throughput', 'smpps_throughput'] and value is not None and (value < 0):
@@ -154,7 +154,7 @@ class SmppsCredential(CredentialGenerick):
     """Credential set for SMPP Server connection"""
 
     def __init__(self, default_authorizations=True):
-        if type(default_authorizations) != bool:
+        if not isinstance(default_authorizations, bool):
             default_authorizations = False
 
         self.authorizations = {'bind': default_authorizations,}
@@ -163,9 +163,9 @@ class SmppsCredential(CredentialGenerick):
 
     def setQuota(self, key, value):
         "Additional validation steps"
-        if key == 'max_bindings' and value is not None and ( value < 0 or type(value) != int ):
+        if key == 'max_bindings' and value is not None and (value < 0 or not isinstance(value, int)):
             raise jasminApiCredentialError(
-                '%s is not a valid value (%s), it must be a positive int' % ( key, value ))
+                '%s is not a valid value (%s), it must be a positive int' % (key, value))
 
         CredentialGenerick.setQuota(self, key, value)
 
@@ -248,7 +248,7 @@ class User(jasminApiGenerick):
             raise jasminApiInvalidParamError('User username syntax is invalid')
         self.username = username
 
-        if type(password) == str:
+        if isinstance(password, str):
             if len(password) == 0 or len(password) > 8:
                 raise jasminApiInvalidParamError('Invalid password length !')
             self.password = md5(password).digest()

@@ -13,7 +13,7 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 class AmqpConfig(ConfigFile):
     "Config handler for 'amqp-broker' section"
 
-    def __init__(self, config_file = None):
+    def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.host = self._get('amqp-broker', 'host', '127.0.0.1')

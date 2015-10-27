@@ -59,13 +59,13 @@ class Thrower(Service):
             # @todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside throwing_callback
-            self.log.error("Error in throwing_errback_errback: %s" % error)
+            self.log.error("Error in throwing_errback_errback: %s", error)
 
     def clearRequeueTimer(self, msgid):
         if msgid in self.requeueTimers:
-            t = self.requeueTimers[msgid]
-            if t.active():
-                t.cancel()
+            timer = self.requeueTimers[msgid]
+            if timer.active():
+                timer.cancel()
             del self.requeueTimers[msgid]
 
     def clearRequeueTimers(self):
@@ -132,8 +132,8 @@ class Thrower(Service):
 
         # Publish it
         if delay:
-            self.log.debug("Requeuing Content[%s] with delay: %s seconds" % (msgid,
-                                                                             self.config.retry_delay))
+            self.log.debug("Requeuing Content[%s] with delay: %s seconds",
+                           msgid, self.config.retry_delay)
             t = reactor.callLater(self.config.retry_delay,
                                   self.amqpBroker.publish,
                                   exchange='messaging',
@@ -146,7 +146,7 @@ class Thrower(Service):
             self.requeueTimers[msgid] = t
             return t
         else:
-            self.log.debug("Requeuing Content[%s] without delay" % msgid)
+            self.log.debug("Requeuing Content[%s] without delay", msgid)
             return self.amqpBroker.publish(exchange='messaging',
                                            routing_key=message.routing_key,
                                            content=message.content)
@@ -174,25 +174,33 @@ class deliverSmThrower(Thrower):
         msgid = message.content.properties['message-id']
         dc = pickle.loads(message.content.properties['headers']['dst-connector'])
         RoutedDeliverSmContent = pickle.loads(message.content.body)
-        self.log.debug('Got one message (msgid:%s) to throw: %s' % (msgid, RoutedDeliverSmContent))
+        self.log.debug('Got one message (msgid:%s) to throw: %s', msgid, RoutedDeliverSmContent)
 
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
 
         if dc.type != 'http':
-            self.log.error('Rejecting message [msgid:%s] because destination connector [dcid:%s] is not http (type were %s)' % (msgid, dc.cid, dc.type))
+            self.log.error(
+                'Rejecting message [msgid:%s] because destination connector [dcid:%s] is not http (type were %s)',
+                msgid,
+                dc.cid,
+                dc.type)
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
         # Build mandatory arguments
-        args = {'id': msgid, 'from': RoutedDeliverSmContent.params['source_addr'],
-                'to': RoutedDeliverSmContent.params['destination_addr'], 'content': RoutedDeliverSmContent.params['short_message'],
-                'origin-connector': message.content.properties['headers']['src-connector-id']}
+        args = {
+            'id': msgid,
+            'from': RoutedDeliverSmContent.params['source_addr'],
+            'to': RoutedDeliverSmContent.params['destination_addr'],
+            'content': RoutedDeliverSmContent.params['short_message'],
+            'origin-connector': message.content.properties['headers']['src-connector-id']}
         # Build optional arguments
         if RoutedDeliverSmContent.params['priority_flag'] is not None:
             args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
         if RoutedDeliverSmContent.params['data_coding'] is not None:
-            args['coding'] = data_coding_default_name_map[str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
+            args['coding'] = data_coding_default_name_map[
+                str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
         if RoutedDeliverSmContent.params['validity_period'] is not None:
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
 
@@ -207,35 +215,46 @@ class deliverSmThrower(Thrower):
             else:
                 postdata = encodedArgs
 
-            self.log.debug('Calling %s with args %s using %s method.' % (dc.baseurl, args, _method))
-            content = yield getPage(baseurl, method=_method, postdata=postdata,
-                          timeout=self.config.timeout, agent='Jasmin gateway/1.0 deliverSmHttpThrower',
-                          headers={'Content-Type'     : 'application/x-www-form-urlencoded',
-                                     'Accept'           : 'text/plain'})
-            self.log.info('Throwed message [msgid:%s] to connector [cid:%s] using http to %s.' % (msgid, dc.cid, dc.baseurl))
+            self.log.debug('Calling %s with args %s using %s method.', dc.baseurl, args, _method)
+            content = yield getPage(
+                baseurl,
+                method=_method,
+                postdata=postdata,
+                timeout=self.config.timeout,
+                agent='Jasmin gateway/1.0 deliverSmHttpThrower',
+                headers={'Content-Type'     : 'application/x-www-form-urlencoded',
+                         'Accept'           : 'text/plain'})
+            self.log.info('Throwed message [msgid:%s] to connector [cid:%s] using http to %s.',
+                          msgid, dc.cid, dc.baseurl)
 
-            self.log.debug('Destination end replied to message [msgid:%s]: %r' % (msgid, content))
+            self.log.debug('Destination end replied to message [msgid:%s]: %r',
+                           msgid, content)
             # Check for acknowledgement
             if content.strip() != 'ACK/Jasmin':
-                raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the message.')
+                raise MessageAcknowledgementError(
+                    'Destination end did not acknowledge receipt of the message.')
 
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %r.' % (msgid, dc.cid, dc.baseurl, e))
+            self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %r.',
+                           msgid, dc.cid, dc.baseurl, e)
 
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
 
             # Requeue message for later retry
-            if str(e) not in noRetryErrors and message.content.properties['headers']['try-count'] <= self.config.max_retries:
-                self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
+            if (str(e) not in noRetryErrors
+                    and message.content.properties['headers']['try-count'] <= self.config.max_retries):
+                self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
+                               message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
-                self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
+                self.log.warn('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
-                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
+                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                              message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectMessage(message)
 
     @defer.inlineCallbacks
@@ -245,13 +264,17 @@ class deliverSmThrower(Thrower):
         system_id = dc.cid
         pdu = pickle.loads(message.content.body)
         RoutedDeliverSmContent = pickle.loads(message.content.body)
-        self.log.debug('Got one message (msgid:%s) to throw: %s' % (msgid, RoutedDeliverSmContent))
+        self.log.debug('Got one message (msgid:%s) to throw: %s', msgid, RoutedDeliverSmContent)
 
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
 
         if dc.type != 'smpps':
-            self.log.error('Rejecting message [msgid:%s] because destination connector [dcid:%s] is not smpps (type were %s)' % (msgid, dc.cid, dc.type))
+            self.log.error(
+                'Rejecting message [msgid:%s] because destination connector [dcid:%s] is not smpps (type were %s)',
+                msgid,
+                dc.cid,
+                dc.type)
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
@@ -273,7 +296,7 @@ class deliverSmThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %r.' % (msgid, system_id, e))
+            self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
             # List of exceptions after which, no further retrying shall be made
             noRetryExceptions = [SmppsNotSetError]
@@ -286,13 +309,15 @@ class deliverSmThrower(Thrower):
 
             # Requeue message for later retry
             if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
-                self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
+                self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
+                               message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
-                self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
+                self.log.warn('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
-                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
+                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                              message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectMessage(message)
 
     @defer.inlineCallbacks
@@ -304,7 +329,7 @@ class deliverSmThrower(Thrower):
         elif message.routing_key == 'deliver_sm_thrower.smpps':
             yield self.smpp_deliver_sm_callback(message)
         else:
-            self.log.error('Unknown routing_key in deliver_sm_throwing_callback: %s' % message.routing_key)
+            self.log.error('Unknown routing_key in deliver_sm_throwing_callback: %s', message.routing_key)
             yield self.rejectMessage(message)
 
 class DLRThrower(Thrower):
@@ -334,17 +359,18 @@ class DLRThrower(Thrower):
         self.clearRequeueTimer(msgid)
 
         # Build mandatory arguments
-        args = {'id': msgid, 'level': level, 'message_status': message.content.properties['headers']['message_status']}
+        args = {'id': msgid, 'level': level,
+                'message_status': message.content.properties['headers']['message_status']}
 
         # Level 2 extra args
         if level in [2, 3]:
-            args['id_smsc'] = message.content.properties['headers']['id_smsc'];
-            args['sub'] = message.content.properties['headers']['sub'];
-            args['dlvrd'] = message.content.properties['headers']['dlvrd'];
-            args['subdate'] = message.content.properties['headers']['subdate'];
-            args['donedate'] = message.content.properties['headers']['donedate'];
-            args['err'] = message.content.properties['headers']['err'];
-            args['text'] = message.content.properties['headers']['text'];
+            args['id_smsc'] = message.content.properties['headers']['id_smsc']
+            args['sub'] = message.content.properties['headers']['sub']
+            args['dlvrd'] = message.content.properties['headers']['dlvrd']
+            args['subdate'] = message.content.properties['headers']['subdate']
+            args['donedate'] = message.content.properties['headers']['donedate']
+            args['err'] = message.content.properties['headers']['err']
+            args['text'] = message.content.properties['headers']['text']
 
         try:
             # Throw the message to http endpoint
@@ -356,36 +382,44 @@ class DLRThrower(Thrower):
             else:
                 postdata = encodedArgs
 
-            self.log.debug('Calling %s with args %s using %s method.' % (baseurl, encodedArgs, method))
-            content = yield getPage(baseurl, method=method, postdata=postdata,
-                          timeout=self.config.timeout, agent='Jasmin gateway/1.0 %s' % self.name,
-                          headers={'Content-Type'     : 'application/x-www-form-urlencoded',
-                                     'Accept'           : 'text/plain'})
-            self.log.info('Throwed DLR [msgid:%s] to %s.' % (msgid, baseurl))
+            self.log.debug('Calling %s with args %s using %s method.', baseurl, encodedArgs, method)
+            content = yield getPage(
+                baseurl,
+                method=method,
+                postdata=postdata,
+                timeout=self.config.timeout,
+                agent='Jasmin gateway/1.0 %s' % self.name,
+                headers={'Content-Type'     : 'application/x-www-form-urlencoded',
+                         'Accept'           : 'text/plain'})
+            self.log.info('Throwed DLR [msgid:%s] to %s.', msgid, baseurl)
 
-            self.log.debug('Destination end replied to message [msgid:%s]: %r' % (msgid, content))
+            self.log.debug('Destination end replied to message [msgid:%s]: %r', msgid, content)
             # Check for acknowledgement
             if content.strip() != 'ACK/Jasmin':
-                raise MessageAcknowledgementError('Destination end did not acknowledge receipt of the DLR message.')
+                raise MessageAcknowledgementError(
+                    'Destination end did not acknowledge receipt of the DLR message.')
 
             # Everything is okay ? then:
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.' % (msgid, baseurl, e))
+            self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.', msgid, baseurl, e)
 
             # List of errors after which, no further retrying shall be made
             noRetryErrors = ['404 Not Found']
 
             # Requeue message for later retry
-            if str(e) not in noRetryErrors and message.content.properties['headers']['try-count'] <= self.config.max_retries:
-                self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
+            if (str(e) not in noRetryErrors
+                    and message.content.properties['headers']['try-count'] <= self.config.max_retries):
+                self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
+                               message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
-                self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
+                self.log.warn('Message is no more processed after receiving "%s" error', str(e)))
                 yield self.rejectMessage(message)
             else:
-                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
+                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                              message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectMessage(message)
 
     @defer.inlineCallbacks
@@ -418,8 +452,7 @@ class DLRThrower(Thrower):
                                             source_addr=source_addr,
                                             destination_addr=destination_addr,
                                             message_status=message_status,
-                                            sub_date=sub_date,
-                                            )
+                                            sub_date=sub_date)
 
             # Deliver (or throw) the receipt through the deliverer
             yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
@@ -428,7 +461,7 @@ class DLRThrower(Thrower):
             yield self.ackMessage(message)
         except Exception, e:
             message.content.properties['headers']['try-count'] += 1
-            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.' % (msgid, system_id, e))
+            self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
             # List of exceptions after which, no further retrying shall be made
             noRetryExceptions = [SmppsNotSetError]
@@ -441,13 +474,15 @@ class DLRThrower(Thrower):
 
             # Requeue message for later retry
             if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
-                self.log.debug('Message try-count is %s [msgid:%s]: requeuing' % (message.content.properties['headers']['try-count'], msgid))
+                self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
+                               message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
-                self.log.warn('Message is no more processed after receiving "%s" error' % (str(e)))
+                self.log.warn('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
-                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue' % (message.content.properties['headers']['try-count'], msgid))
+                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                              message.content.properties['headers']['try-count'], msgid)
                 yield self.rejectMessage(message)
 
     @defer.inlineCallbacks
@@ -459,5 +494,5 @@ class DLRThrower(Thrower):
         elif message.routing_key == 'dlr_thrower.smpps':
             yield self.smpp_dlr_callback(message)
         else:
-            self.log.error('Unknown routing_key in dlr_throwing_callback: %s' % message.routing_key)
+            self.log.error('Unknown routing_key in dlr_throwing_callback: %s', message.routing_key)
             yield self.rejectMessage(message)
