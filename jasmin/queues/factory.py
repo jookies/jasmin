@@ -1,3 +1,4 @@
+#pylint: disable=E0203
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from twisted.internet.protocol import ClientFactory

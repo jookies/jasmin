@@ -69,7 +69,7 @@ def castInputToBuiltInType(key, value):
         elif (key == 'loglevel' and
                 value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
             raise KeyError('loglevel must be numeric value of 10, 20, 30, 40 or 50.')
-        elif type(value) == str and value.lower() == 'none':
+        elif isinstance(value, str) == str and value.lower() == 'none':
             value = None
     except KeyError:
         raise UnknownValue('Unknown value for key %s: %s' % (key, value))

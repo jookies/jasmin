@@ -29,7 +29,7 @@ class Interceptor(object):
     def __init__(self, filters, script):
         if not isinstance(script, InterceptorScript):
             raise InvalidInterceptorParameterError("script is not an instance of InterceptorScript")
-        if type(filters) is not list:
+        if not isinstance(filters, list):
             raise InvalidInterceptorParameterError("filters must be a list")
         for _filter in filters:
             if not isinstance(_filter, Filter):

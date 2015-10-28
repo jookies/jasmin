@@ -128,7 +128,7 @@ class SMPPClientSMListener(object):
 
         if delay != False:
             # Use configured requeue_delay or specific one
-            if type(delay) != bool:
+            if not isinstance(delay, bool):
                 requeue_delay = delay
             else:
                 requeue_delay = self.SMPPClientFactory.config.requeue_delay
@@ -395,7 +395,7 @@ class SMPPClientSMListener(object):
                 pickledSmppsMap = yield self.redisClient.get("smppsmap:%s" % msgid)
 
             if pickledDlr is not None:
-                self.log.debug('There is a HTTP DLR request for msgid[%s] ...' % (msgid))
+                self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
 
                 dlr = pickle.loads(pickledDlr)
                 dlr_url = dlr['url']

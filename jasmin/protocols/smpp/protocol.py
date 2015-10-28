@@ -31,12 +31,11 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
 
-        """A better version than vendor's PDUReceived method:
-        - Dont re-encode pdu !
-        if self.log.isEnabledFor(logging.DEBUG):
-            encoded = self.encoder.encode(pdu)
-            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
-        """
+        #A better version than vendor's PDUReceived method:
+        #- Dont re-encode pdu !
+        #if self.log.isEnabledFor(logging.DEBUG):
+        #    encoded = self.encoder.encode(pdu)
+        #    self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
 
         #Signal SMPP operation
         self.onSMPPOperation()
@@ -135,9 +134,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             if not isinstance(respPDU, txn.request.requireAck):
                 txn.ackDeferred.errback(
                     SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (
-                        type(respPDU), type(txn.request)
-                        )
-                    ))
+                        type(respPDU), type(txn.request))))
                 return
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
@@ -149,20 +146,20 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
         txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
 
-    def cancelOutboundTransactions(self, error):
+    def cancelOutboundTransactions(self, err):
         """Cancels LongSubmitSmTransactions when cancelling OutboundTransactions
         """
-        twistedSMPPClientProtocol.cancelOutboundTransactions(self, error)
-        self.cancelLongSubmitSmTransactions(error)
+        twistedSMPPClientProtocol.cancelOutboundTransactions(self, err)
+        self.cancelLongSubmitSmTransactions(err)
 
-    def cancelLongSubmitSmTransactions(self, error):
+    def cancelLongSubmitSmTransactions(self, err):
         for item in self.longSubmitSmTxns.values():
             reqPDU = item['txn'].request
 
-            self.log.exception(error)
+            self.log.exception(err)
             txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
             #Do errback
-            txn.ackDeferred.errback(error)
+            txn.ackDeferred.errback(err)
 
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
@@ -243,7 +240,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             intVal = pdu.params['data_coding']
             if intVal in data_coding_default_value_map:
                 name = data_coding_default_value_map[intVal]
-                pdu.params['data_coding'] = DataCoding(schemeData = getattr(DataCodingDefault, name))
+                pdu.params['data_coding'] = DataCoding(schemeData=getattr(DataCodingDefault, name))
             else:
                 pdu.params['data_coding'] = None
 
@@ -351,12 +348,11 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
 
-        """A better version than vendor's PDUReceived method:
-        - Dont re-encode pdu !
-        if self.log.isEnabledFor(logging.DEBUG):
-            encoded = self.encoder.encode(pdu)
-            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
-        """
+        #A better version than vendor's PDUReceived method:
+        #- Dont re-encode pdu !
+        #if self.log.isEnabledFor(logging.DEBUG):
+        #    encoded = self.encoder.encode(pdu)
+        #    self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
 
         #Signal SMPP operation
         self.onSMPPOperation()
@@ -394,7 +390,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         self.factory.stats.set('last_received_elink_at', datetime.now())
         self.factory.stats.inc('elink_count')
         if self.user is not None:
-            self.user.getCnxStatus().smpps['elink_count']+= 1
+            self.user.getCnxStatus().smpps['elink_count'] += 1
 
     def doPDURequest(self, reqPDU, handler):
         twistedSMPPServerProtocol.doPDURequest(self, reqPDU, handler)
@@ -418,31 +414,31 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                     self.user.uid,
                     pdu.params['source_addr'],
                     pdu.params['destination_addr'],
-                    re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
-                self.user.getCnxStatus().smpps['deliver_sm_count']+= 1
+                    re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                self.user.getCnxStatus().smpps['deliver_sm_count'] += 1
         elif pdu.commandId == CommandId.data_sm:
             self.factory.stats.inc('data_sm_count')
             if self.user is not None:
                 self.log.info('DATA_SM [uid:%s] [from:%s] [to:%s] [content:%s]',
-                    self.user.uid,
-                    pdu.params['source_addr'],
-                    pdu.params['destination_addr'],
-                    re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
+                              self.user.uid,
+                              pdu.params['source_addr'],
+                              pdu.params['destination_addr'],
+                              re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
                 self.user.getCnxStatus().smpps['data_sm_count']+= 1
         elif pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
                 self.factory.stats.inc('throttling_error_count')
                 if self.user is not None:
-                    self.user.getCnxStatus().smpps['throttling_error_count']+= 1
+                    self.user.getCnxStatus().smpps['throttling_error_count'] += 1
             elif pdu.status != CommandStatus.ESME_ROK:
                 self.factory.stats.inc('other_submit_error_count')
                 if self.user is not None:
-                    self.user.getCnxStatus().smpps['other_submit_error_count']+= 1
+                    self.user.getCnxStatus().smpps['other_submit_error_count'] += 1
             else:
                 # We got a ESME_ROK
                 self.factory.stats.inc('submit_sm_count')
                 if self.user is not None:
-                    self.user.getCnxStatus().smpps['submit_sm_count']+= 1
+                    self.user.getCnxStatus().smpps['submit_sm_count'] += 1
 
 
     def onPDURequest_unbind(self, reqPDU):
@@ -468,9 +464,9 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
     def PDURequestReceived(self, reqPDU):
         # Handle only accepted command ids
         acceptedPDUs = [CommandId.submit_sm, CommandId.bind_transmitter,
-                CommandId.bind_receiver, CommandId.bind_transceiver,
-                CommandId.unbind, CommandId.unbind_resp,
-                CommandId.enquire_link, CommandId.data_sm]
+                        CommandId.bind_receiver, CommandId.bind_transceiver,
+                        CommandId.unbind, CommandId.unbind_resp,
+                        CommandId.enquire_link, CommandId.data_sm]
         if reqPDU.commandId not in acceptedPDUs:
             errMsg = 'Received unsupported pdu type: %s' % reqPDU.commandId
             self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RSYSERR))

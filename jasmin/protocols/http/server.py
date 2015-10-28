@@ -302,7 +302,7 @@ class Send(Resource):
                       'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period' : {'optional': True , 'pattern': re.compile(r'^\d+$')},
+                      'validity-period' : {'optional': True, 'pattern': re.compile(r'^\d+$')},
                       'dlr'         : {'optional': False, 'pattern': re.compile(r'^(yes|no)$')},
                       'dlr-url'     : {'optional': True, 'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more
@@ -388,8 +388,8 @@ class Rate(Resource):
                 self.log.error(
                     "Authentication failure for username:%s",
                     request.args['username'][0])
-                raise AuthenticationError('Authentication failure for username:%s' %
-                    request.args['username'][0])
+                raise AuthenticationError(
+                    'Authentication failure for username:%s' % request.args['username'][0])
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1

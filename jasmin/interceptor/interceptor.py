@@ -39,9 +39,9 @@ class InterceptorPB(pb.Avatar):
 
         try:
             self.log.info('Running with a %s (from:%s, to:%s).',
-                routable.pdu.id,
-                routable.pdu.params['source_addr'],
-                routable.pdu.params['destination_addr'])
+                          routable.pdu.id,
+                          routable.pdu.params['source_addr'],
+                          routable.pdu.params['destination_addr'])
             self.log.debug('Running [%s]', pyCode)
             self.log.debug('... with routable with pdu: %s', routable.pdu)
             node = CompiledNode().get(pyCode)
@@ -53,9 +53,9 @@ class InterceptorPB(pb.Avatar):
             end = dt.datetime.now()
         except Exception, e:
             self.log.error('Executing script on routable (from:%s, to:%s) returned: %s',
-                routable.pdu.params['source_addr'],
-                routable.pdu.params['destination_addr'],
-                '%s: %s' % (type(e), e))
+                           routable.pdu.params['source_addr'],
+                           routable.pdu.params['destination_addr'],
+                           '%s: %s' % (type(e), e))
             return False
         else:
             delay = (end - start).seconds

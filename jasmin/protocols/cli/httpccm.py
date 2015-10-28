@@ -63,8 +63,8 @@ class HttpccExist(object):
             opts = args[1]
             cid = getattr(opts, cid_key)
 
-            for _httpccId in self.httpccs.iterkeys():
-                if cid == _httpccId:
+            for httpcc_id in self.httpccs.iterkeys():
+                if cid == httpcc_id:
                     return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown Httpcc: %s' % cid)

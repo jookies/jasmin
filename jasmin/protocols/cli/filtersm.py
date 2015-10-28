@@ -221,8 +221,8 @@ class FilterExist(object):
             opts = args[1]
             fid = getattr(opts, fid_key)
 
-            for _filterId in self.filters.iterkeys():
-                if fid == _filterId:
+            for filter_id in self.filters.iterkeys():
+                if fid == filter_id:
                     return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown Filter: %s' % fid)

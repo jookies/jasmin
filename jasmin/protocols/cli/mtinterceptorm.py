@@ -115,7 +115,7 @@ def MTInterceptorBuild(fCallback):
                         return self.protocol.sendData(
                             'Interceptor order forced to 0 since it is a DefaultInterceptor')
                     elif (arg == '0' and 'type' in self.sessBuffer and
-                            self.sessBuffer['type'] != 'DefaultInterceptor'):
+                        self.sessBuffer['type'] != 'DefaultInterceptor'):
                         return self.protocol.sendData(
                             'This interceptor order (0) is reserved for DefaultInterceptor only')
                     elif not arg.isdigit() or int(arg) < 0:

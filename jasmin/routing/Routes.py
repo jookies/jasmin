@@ -33,11 +33,11 @@ class Route(object):
     def __init__(self, filters, connector, rate):
         if not isinstance(connector, Connector):
             raise InvalidRouteParameterError("connector is not an instance of Connector")
-        if type(rate) is not float:
+        if not isinstance(rate, float):
             raise InvalidRouteParameterError("rate is not float")
         if rate < 0:
             raise InvalidRouteParameterError("rate can not be a negative value")
-        if type(filters) is not list:
+        if not isinstance(filters, list):
             raise InvalidRouteParameterError("filters must be a list")
         for _filter in filters:
             if not isinstance(_filter, Filter):
@@ -128,7 +128,7 @@ class DefaultRoute(Route):
         """
         if not isinstance(connector, Connector):
             raise InvalidRouteParameterError("connector is not an instance of Connector")
-        if type(rate) is not float:
+        if not isinstance(rate, float):
             raise InvalidRouteParameterError("rate is not float")
         if rate < 0:
             raise InvalidRouteParameterError("rate can not be a negative value")
@@ -172,12 +172,12 @@ class RoundrobinRoute(object):
     """Generick RoundrobinRoute
     """
     def __init__(self, filters, connectors):
-        if type(connectors) is not list:
+        if not isinstance(connectors, list):
             raise InvalidRouteParameterError("connectors must be a list")
         for _connector in connectors:
             if not isinstance(_connector, Connector):
                 raise InvalidRouteParameterError("connector is not an instance of Connector")
-        if type(filters) is not list:
+        if not isinstance(filters, list):
             raise InvalidRouteParameterError("filters must be a list")
         for _filter in filters:
             if not isinstance(_filter, Filter):
@@ -219,7 +219,7 @@ class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
     def __init__(self, filters, connectors, rate):
         "Overriding RoundrobinRoute's __init__ to add rate parameter as it is only used for MT Routes"
 
-        if type(rate) is not float:
+        if not isinstance(rate, float):
             raise InvalidRouteParameterError("rate is not float")
         if rate < 0:
             raise InvalidRouteParameterError("rate can not be a negative value")
