@@ -91,14 +91,14 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
 
         if not self.user.mt_credential.getAuthorization('http_balance'):
             raise CredentialValidationError(
-                'Authorization failed for user [%s] (Can not check balance).' % self.user)
+                'Authorization failed for user [%s] (Cannot check balance).' % self.user)
 
     def _checkRateAuthorizations(self):
         "Rate Authorizations check"
 
         if not self.user.mt_credential.getAuthorization('http_rate'):
             raise CredentialValidationError(
-                'Authorization failed for user [%s] (Can not check rate).' % self.user)
+                'Authorization failed for user [%s] (Cannot check rate).' % self.user)
 
     def _checkSendFilters(self):
         "MT Filters check"

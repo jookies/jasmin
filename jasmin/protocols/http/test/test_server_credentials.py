@@ -201,7 +201,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_send_test()
-        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Can not send MT messages)."')
+        self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Cannot send MT messages)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -228,7 +228,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_balance_test()
-        self.assertEqual(response_text, '"Authorization failed for user [u1] (Can not check balance)."')
+        self.assertEqual(response_text, '"Authorization failed for user [u1] (Cannot check balance)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
@@ -255,7 +255,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User unauthorized
         response_text, response_code = yield self.run_rate_test()
-        self.assertEqual(response_text, '"Authorization failed for user [u1] (Can not check rate)."')
+        self.assertEqual(response_text, '"Authorization failed for user [u1] (Cannot check rate)."')
         self.assertEqual(response_code, '400 Bad Request')
 
     @defer.inlineCallbacks
