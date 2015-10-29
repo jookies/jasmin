@@ -12,18 +12,62 @@ class InvalidRoutableParameterError(Exception):
     validating inputs
     """
 
+class InvalidTagError(Exception):
+    """Raised when a tag type is not correct
+    """
+
+class TagNotFoundError(Exception):
+    """Raised when trying to access a non existent tag
+    """
+
 class Routable(object):
     """Generick Routable:
 
     Routable represents a PDU and optionnaly its owner and source Connector, it can be
     a submit_sm or deliver_sm for example
     """
-    pass
+
+    def __init__(self):
+        "Init routable"
+        self.flushTags()
+
+    def addTag(self, tag):
+        "Add tag to this routable"
+        if not isinstance(tag, int):
+            raise InvalidTagError('Non int tag given: (%s):%s' % (type(tag), tag))
+
+        self._tags.append(tag)
+
+    def hasTag(self, tag):
+        "Check if this routable has 'tag'"
+        if not isinstance(tag, int):
+            raise InvalidTagError('Non int tag given: (%s):%s' % (type(tag), tag))
+
+        return tag in self._tags
+
+    def getTags(self):
+        "Return all routable tags"
+        return self._tags
+
+    def removeTag(self, tag):
+        "Remove tag from routable"
+        if not isinstance(tag, int):
+            raise InvalidTagError('Non int tag given: (%s):%s' % (type(tag), tag))
+        if tag not in self._tags:
+            raise TagNotFoundError('Trying to remove non existent tag: %s' % tag)
+
+        return self._tags.remove(tag)
+
+    def flushTags(self):
+        "Remove all tags from routable"
+        self._tags = []
 
 class SimpleRoutablePDU(Routable):
     "Used for Jasmin unit testing"
 
     def __init__(self, connector, PDU, user, date_time=None):
+        Routable.__init__(self)
+
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")
         if not isinstance(connector, Connector):
@@ -43,6 +87,8 @@ class SimpleRoutablePDU(Routable):
 
 class RoutableSubmitSm(Routable):
     def __init__(self, PDU, user, date_time=None):
+        Routable.__init__(self)
+
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")
         if not isinstance(user, User):
@@ -58,6 +104,8 @@ class RoutableSubmitSm(Routable):
 
 class RoutableDeliverSm(Routable):
     def __init__(self, PDU, connector, date_time=None):
+        Routable.__init__(self)
+
         if not isinstance(PDU, PDURequest):
             raise InvalidRoutableParameterError("PDU is not an instance of PDURequest")
         if not isinstance(connector, Connector):
