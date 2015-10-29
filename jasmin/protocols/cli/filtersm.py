@@ -11,7 +11,7 @@ from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     ConnectorFilter, SourceAddrFilter, DestinationAddrFilter,
                                     ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter,
-                                    EvalPyFilter)
+                                    EvalPyFilter, TagFilter)
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
@@ -26,12 +26,15 @@ FilterKeyMap = {'fid': 'fid', 'type': 'type'}
 # Used to validate filter type while adding a new one
 FILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'ConnectorFilter',
            'SourceAddrFilter', 'DestinationAddrFilter', 'ShortMessageFilter',
-           'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
+           'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
+           'TagFilter']
 
 MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
-             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
+             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
+             'TagFilter']
 MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'DestinationAddrFilter',
-             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter']
+             'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
+             'TagFilter']
 
 def FilterBuild(fCallback):
     '''Parse args and try to build a filter from  one of the filters in
@@ -200,6 +203,14 @@ def FilterBuild(fCallback):
                         return self.protocol.sendData('[Unknown]: %s' % str(e))
 
                     arg = pyCode
+
+                # Cast tag to int if possible, otherwise keep it as is
+                if cmd == 'tag':
+                    try:
+                        # Tag type must be int
+                        arg = int(arg)
+                    except ValueError:
+                        pass
 
                 # Buffer key for later Filter initiating
                 if cmd not in fa:

@@ -151,7 +151,8 @@ class FilterTypingTestCases(FiltersTestCases):
                                    'GroupFilter', 'ConnectorFilter',
                                    'SourceAddrFilter', 'DestinationAddrFilter',
                                    'ShortMessageFilter', 'DateIntervalFilter',
-                                   'TimeIntervalFilter', 'EvalPyFilter'])
+                                   'TimeIntervalFilter', 'EvalPyFilter',
+                                   'TagFilter'])
 
         # Check if FilterTypingTestCases is covering all the filters
         for f in filters:
@@ -399,6 +400,26 @@ else:
 
         # Delete pyCode file
         unlink(pyCodeFile)
+
+    def test_add_TagFilter(self):
+        tag = 11
+        ftype = 'TagFilter'
+        _str_ = ['%s:' % ftype, 'has tag = %s' % tag]
+        _repr_ = '<TG \(tag=%s\)>' % (tag)
+
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'tag %s' % tag},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description',
+                        '#filter_id        %s              MO MT  %s' % (ftype, _repr_),
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
 class FilterPersistenceTestCases(FiltersTestCases):
 
@@ -712,3 +733,28 @@ else:
 
         # Delete pyCode file
         unlink(pyCodeFile)
+
+    def test_TagFilter(self):
+        tag = 22
+        ftype = 'TagFilter'
+        _str_ = ['%s:' % ftype, 'has tag = %s' % tag]
+        _repr_ = '<TG \(tag=%s\)>' % (tag)
+
+        # Add filter
+        extraCommands = [{'command': 'fid filter_id'},
+                         {'command': 'type %s' % ftype},
+                         {'command': 'tag %s' % tag},]
+        self.add_filter(r'jcli : ', extraCommands)
+
+        # Persist & load
+        self._test('jcli : ', [{'command': 'persist'},
+                               {'command': 'filter -r filter_id'},
+                               {'command': 'load'}])
+
+        # Make asserts
+        expectedList = _str_
+        self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
+        expectedList = ['#Filter id        Type                   Routes Description',
+                        '#filter_id        %s              MO MT  %s' % (ftype, _repr_),
+                        'Total Filters: 1']
+        self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])

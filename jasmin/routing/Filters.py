@@ -34,6 +34,7 @@ class Filter(object):
     DateIntervalFilter     | x  | x  |
     TimeIntervalFilter     | x  | x  |
     EvalPyFilter           | x  | x  |
+    TagFilter              | x  | x  |
     """
 
     usedFor = ['mt', 'mo']
@@ -244,3 +245,18 @@ class EvalPyFilter(Filter):
             return False
         else:
             return glo['result']
+
+class TagFilter(Filter):
+    def __init__(self, tag):
+        Filter.__init__(self)
+        if not isinstance(tag, int):
+            raise InvalidFilterParameterError("tag must be integer, %s given" % type(tag))
+        self.tag = tag
+
+        self._repr = '<TG (tag=%s)>' % tag
+        self._str = '%s:\nhas tag = %s' % (self.__class__.__name__, tag)
+
+    def match(self, routable):
+        Filter.match(self, routable)
+
+        return routable.hasTag(self.tag)
