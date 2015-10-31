@@ -1142,6 +1142,9 @@ Jasmin provides many Filters offering advanced flexibilities to message routing:
    * - **TimeIntervalFilter**
      - All
      - Will match the time of a message
+   * - **TagFilter**
+     - All
+     - Will check if message has a defined tag
    * - **EvalPyFilter**
      - All
      - Will pass the message to a third party python script for user-defined filtering
@@ -1151,7 +1154,7 @@ Check :doc:`/routing/index` for more details about Jasmin's routing.
 When adding a Filter, the following parameters are required:
 
  * **type**: One of the supported Filters: TransparentFilter, ConnectorFilter, UserFilter, GroupFilter, SourceAddrFilter,
-   DestinationAddrFilter, ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter, EvalPyFilter
+   DestinationAddrFilter, ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter, TagFilter, EvalPyFilter
  * **fid**: Filter id (must be unique)
 
 When choosing the Filter **type**, additional parameters may be added to the above required parameters:
@@ -1190,6 +1193,9 @@ When choosing the Filter **type**, additional parameters may be added to the abo
    * - **TimeIntervalFilter**
      - 08:00:00;18:00:00
      - **timeInterval**: Two timestamps separated by ; (timestamp format is HH:MM:SS)
+   * - **TagFilter**
+     - 32401
+     - **tag**: *numeric* tag to match in message
    * - **EvalPyFilter**
      - /root/thirdparty.py
      - **pyCode**: Path to a python script, (:ref:`external_buslogig_filters` for more details)
@@ -1240,6 +1246,7 @@ It is possible to list filters with::
    #September2014    DateIntervalFilter     MO MT  <DateIntervalFilter (2014-09-01,2014-09-30)>
    #WorkingHours     TimeIntervalFilter     MO MT  <TimeIntervalFilter (08:00:00,18:00:00)>
    #TF               TransparentFilter      MO MT  <TransparentFilter>
+   #TG-Spain-Vodacom TagFilter              MO MT  <TG (tag=21401)>
    #From20*          SourceAddrFilter       MO     <SourceAddrFilter (src_addr=^20\d+)>
    Total Filters: 7
 
