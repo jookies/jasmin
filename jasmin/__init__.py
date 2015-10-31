@@ -6,7 +6,7 @@
 MAJOR = 0
 MINOR = 7
 PATCH = 0
-META = 'a'
+META = 'b'
 
 def get_version():
     "Will return Jasmin's version"

@@ -11,7 +11,9 @@ Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is i
  * Group management
  * etc ..
 
-.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitating the reuse of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector may be created once and used many times in MO Routes.
+.. note:: **filter** and **httpccm** modules are not interfacing any Perspective broker, they are facilitating
+  the reuse of created filters and HTTP Client connectors in MO and MT routers, e.g. a HTTP Client connector
+  may be created once and used many times in MO Routes.
 
 .. _user_manager:
 
