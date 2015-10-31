@@ -4,7 +4,7 @@
 Management CLI Modules
 ######################
 
-As shown in the architecture figure :ref:`architecture`, jCli is mainly composed of management modules interfacing two 
+As shown in the architecture figure :ref:`architecture`, jCli is mainly composed of management modules interfacing two
 Perspective brokers (**SMPPClientManagerPB** and **RouterPB**), each module is identified as a manager of a defined scope:
 
  * User management
@@ -43,7 +43,7 @@ A User object is required for:
  * :doc:`/apis/ja-http/index` authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
  * Creating a **UserFilter** using the **filter** manager (c.f. :ref:`filter_manager`)
 
-Every User **must** be a member of a Group, so before adding a new User, there must be at least one Group 
+Every User **must** be a member of a Group, so before adding a new User, there must be at least one Group
 available, Groups are identified by *GID* (Group ID).
 
 When adding a User, the following parameters are required:
@@ -326,8 +326,8 @@ Here's an example of adding a new Group::
 Listing Groups will show currently added Groups with their GID::
 
    jcli : group  -l
-   #Group id        
-   #marketing       
+   #Group id
+   #marketing
    Total Groups: 1
 
 .. _morouter_manager:
@@ -356,8 +356,8 @@ The MO Router manager module is accessible through the **morouter** command and 
 
 .. note:: MO Route is used to route inbound messages (SMS MO) through two possible channels: http and smpps (SMPP Server).
 
-MO Router helps managing Jasmin's MORoutingTable, which is responsible of providing routes to received 
-SMS MO, here the basics of Jasmin MO routing mechanism:
+MO Router helps managing Jasmin's MORoutingTable, which is responsible of providing routes to received
+SMS MO, here are the basics of Jasmin MO routing mechanism:
 
  #. **MORoutingTable** holds ordered **MORoute** objects (each MORoute has a unique order)
  #. A **MORoute** is composed of:
@@ -367,16 +367,16 @@ SMS MO, here the basics of Jasmin MO routing mechanism:
 
  #. There's many objects inheriting **MORoute** to provide flexible ways to route messages:
 
-     * **DefaultRoute**: A route without a filter, this one can only set with the lowest order to be a 
+     * **DefaultRoute**: A route without a filter, this one can only set with the lowest order to be a
        default/fallback route
      * **StaticMORoute**: A basic route with **Filters** and one **Connector**
-     * **RandomRoundrobinMORoute**: A route with **Filters** and many **Connectors**, will return a random 
-       **Connector** if its **Filters** are validated, can be used as a load balancer route
+     * **RandomRoundrobinMORoute**: A route with **Filters** and many **Connectors**, will return a random
+       **Connector** if its **Filters** are matched, can be used as a load balancer route
 
  #. When a SMS MO is received, Jasmin will ask for the right **MORoute** to consider, all routes are checked
-    in descendant order for their respective **Filters** (when a **MORoute** have many filters, they are checked 
+    in descendant order for their respective **Filters** (when a **MORoute** have many filters, they are checked
     with an **AND** boolean operator)
- #. When a **MORoute** is considered (its **Filters** are validated against a received SMS MO), Jasmin will use 
+ #. When a **MORoute** is considered (its **Filters** are matching a received SMS MO), Jasmin will use
     its **Connector** to send the SMS MO.
 
 Check :doc:`/routing/index` for more details about Jasmin's routing.
@@ -386,7 +386,7 @@ When adding a MO Route, the following parameters are required:
  * **type**: One of the supported MO Routes: DefaultRoute, StaticMORoute, RandomRoundrobinMORoute
  * **order**: MO Route order
 
-When choosing the MO Route **type**, additionnal parameters may be added to the above required parameters.
+When choosing the MO Route **type**, additional parameters may be added to the above required parameters.
 
 Here's an example of adding a **DefaultRoute** to a HTTP Client Connector (http_default)::
 
@@ -462,10 +462,10 @@ It is possible to obtain more information of a defined route by typing **moroute
    RandomRoundrobinMORoute to 2 connectors:
       - http(http_2)
       - http(http_3)
-   
+
    jcli : morouter -s 10
    StaticMORoute to http(http_1)
-   
+
    jcli : morouter -s 0
    DefaultRoute to http(http_default)
 
@@ -500,7 +500,8 @@ The MT Router manager module is accessible through the **mtrouter** command and 
 
 .. note:: MT Route is used to route outbound messages (SMS MT) through one channel: smppc (SMPP Client).
 
-MT Router helps managing Jasmin's MTRoutingTable, which is responsible of providing routes to outgoing SMS MT, here the basics of Jasmin MT routing mechanism:
+MT Router helps managing Jasmin's MTRoutingTable, which is responsible of providing routes to outgoing SMS MT,
+here are the basics of Jasmin MT routing mechanism:
 
  #. **MTRoutingTable** holds ordered **MTRoute** objects (each MTRoute has a unique order)
  #. A **MTRoute** is composed of:
@@ -512,16 +513,16 @@ MT Router helps managing Jasmin's MTRoutingTable, which is responsible of provid
 
  #. There's many objects inheriting **MTRoute** to provide flexible ways to route messages:
 
-     * **DefaultRoute**: A route without a filter, this one can only set with the lowest order to be a 
+     * **DefaultRoute**: A route without a filter, this one can only set with the lowest order to be a
        default/fallback route
      * **StaticMTRoute**: A basic route with **Filters** and one **Connector**
-     * **RandomRoundrobinMTRoute**: A route with **Filters** and many **Connectors**, will return a random 
-       **Connector** if its **Filters** are validated, can be used as a load balancer route
+     * **RandomRoundrobinMTRoute**: A route with **Filters** and many **Connectors**, will return a random
+       **Connector** if its **Filters** are matching, can be used as a load balancer route
 
  #. When a SMS MT is to be sent, Jasmin will ask for the right **MTRoute** to consider, all routes are checked
-    in descendant order for their respective **Filters** (when a **MTRoute** have many filters, they are checked 
+    in descendant order for their respective **Filters** (when a **MTRoute** have many filters, they are checked
     with an **AND** boolean operator)
- #. When a **MTRoute** is considered (its **Filters** are validated against an outgoing SMS MT), Jasmin will use 
+ #. When a **MTRoute** is considered (its **Filters** are matching an outgoing SMS MT), Jasmin will use
     its **Connector** to send the SMS MT.
 
 Check :doc:`/routing/index` for more details about Jasmin's routing.
@@ -532,7 +533,7 @@ When adding a MT Route, the following parameters are required:
  * **order**: MO Route order
  * **rate**: The route rate, can be zero
 
-When choosing the MT Route **type**, additionnal parameters may be added to the above required parameters.
+When choosing the MT Route **type**, additional parameters may be added to the above required parameters.
 
 Here's an example of adding a **DefaultRoute** to a SMPP Client Connector (smppcc_default)::
 
@@ -586,7 +587,7 @@ Once the above MT Routes are added to **MTRoutingTable**, it is possible to list
    #0     DefaultRoute            0 (!)   smppc(smppcc_default)
    Total MT Routes: 3
 
-.. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and 
+.. note:: Filters and Connectors were created before creating these routes, please check :ref:`filter_manager` and
          :ref:`httpccm_manager` for further details
 
 It is possible to obtain more information of a defined route by typing **mtroute -s <order>**::
@@ -596,10 +597,10 @@ It is possible to obtain more information of a defined route by typing **mtroute
       - smppc(smppcc_2)
       - smppc(smppcc_3)
    NOT RATED
-   
+
    jcli : mtrouter -s 10
    StaticMTRoute to smppc(smppcc_1) NOT RATED
-   
+
    jcli : mtrouter -s 0
    DefaultRoute to smppc(smppcc_default) NOT RATED
 
@@ -607,6 +608,230 @@ More control commands:
 
 * **mtrouter -r <order>**: Remove route at defined *order*
 * **mtrouter -f**: Flush MTRoutingTable (unrecoverable)
+
+.. _mointerceptor_manager:
+
+MO interceptor manager
+**********************
+
+The MO Interceptor manager module is accessible through the **mointerceptor** command and is providing the following features:
+
+.. list-table:: **mointerceptor** command line options
+   :widths: 10 90
+   :header-rows: 1
+
+   * - Command
+     - Description
+   * - -l, --list
+     - List MO interceptors
+   * - -a, --add
+     - Add a new MO interceptors
+   * - -r ORDER, --remove=ORDER
+     - Remove MO interceptor using it's ORDER
+   * - -s ORDER, --show=ORDER
+     - Show MO interceptor using it's ORDER
+   * - -f, --flush
+     - Flush MO interception table
+
+.. note:: MO Interceptor is used to hand inbound messages (SMS MO) to a user defined script, check
+  :doc:`/interception/index` for more details.
+
+MO Interceptor helps managing Jasmin's MOInterceptionTable, which is responsible of intercepting SMS MO before
+routing is made, here are the basics of Jasmin MO interception mechanism:
+
+ #. **MOInterceptionTable** holds ordered **MOInterceptor** objects (each MOInterceptor has a unique order)
+ #. A **MOInterceptor** is composed of:
+
+     * **Filters**: One or many filters (c.f. :ref:`filter_manager`)
+     * **Script**: Path to python script
+
+ #. There's many objects inheriting **MOInterceptor** to provide flexible ways to route messages:
+
+     * **DefaultInterceptor**: An interceptor without a filter, this one can only set with the lowest order to be a
+       default/fallback interceptor
+     * **StaticMOInterceptor**: A basic interceptor with **Filters** and one **Script**
+
+ #. When a SMS MO is received, Jasmin will ask for the right **MOInterceptor** to consider, all interceptors are checked
+    in descendant order for their respective **Filters** (when a **MOInterceptor** have many filters, they are checked
+    with an **AND** boolean operator)
+ #. When a **MOInterceptor** is considered (its **Filters** are matching a received SMS MO), Jasmin will call
+    its **Script** with the **Routable** argument.
+
+Check :doc:`/interception/index` for more details about Jasmin's interceptor.
+
+When adding a MO Interceptor, the following parameters are required:
+
+ * **type**: One of the supported MO Interceptors: DefaultInterceptor, StaticMOInterceptor
+ * **order**: MO Interceptor order
+
+When choosing the MO Interceptor **type**, additional parameters may be added to the above required parameters.
+
+Here's an example of adding a **DefaultInterceptor** to a python script::
+
+  jcli : mointerceptor -a
+  Adding a new MO Interceptor: (ok: save, ko: exit)
+  > type DefaultInterceptor
+  <class 'jasmin.routing.Interceptors.DefaultInterceptor'> arguments:
+  script
+  > script python2(/opt/jasmin-scripts/interception/mo-interceptor.py)
+  > ok
+  Successfully added MOInterceptor [DefaultInterceptor] with order:0
+
+.. note:: As of now, only **python2** script is permitted.
+
+.. note:: Pay attention that the given script is copied to Jasmin core, do not expect Jasmin to refresh the script
+  code when you update it, you'll need to redefine the *mointerceptor* rule again so Jasmin will refresh the script.
+
+.. note:: You don't have to set **order** parameter when the MO Interceptor type is **DefaultInterceptor**,
+  it will be automatically set to 0
+
+Here's an example of adding a **StaticMOInterceptor** to a python script::
+
+  jcli : mointerceptor -a
+  Adding a new MO Interceptor: (ok: save, ko: exit)
+  > type StaticMOInterceptor
+  <class 'jasmin.routing.Interceptors.StaticMOInterceptor'> arguments:
+  filters, script
+  > order 10
+  > filters filter_1
+  > script python2(/opt/jasmin-scripts/interception/mo-interceptor.py)
+  > ok
+  Successfully added MOInterceptor [StaticMOInterceptor] with order:10
+
+Once the above MO Interceptors are added to **MOInterceptionTable**, it is possible to list these interceptors::
+
+  jcli : mointerceptor -l
+  #Order    Type                    Script                    Filter(s)
+  #10       StaticMOInterceptor     <MOIS (pyCode= ..)>       <T>
+  #0        DefaultInterceptor      <MOIS (pyCode= ..)>
+  Total MO Interceptors: 2
+
+.. note:: Filters were created before creating these interceptors, please check :ref:`filter_manager` for further details
+
+It is possible to obtain more information of a defined interceptor by typing **mointerceptor -s <order>**::
+
+  jcli : mointerceptor -s 10
+  StaticMOInterceptor/<MOIS (pyCode= ..)>
+
+  jcli : mointerceptor -s 0
+  DefaultInterceptor/<MOIS (pyCode= ..)>
+
+More control commands:
+
+* **mointerceptor -r <order>**: Remove interceptor at defined *order*
+* **mointerceptor -f**: Flush MOInterceptionTable (unrecoverable)
+
+.. _mtinterceptor_manager:
+
+MT interceptor manager
+**********************
+
+The MT Interceptor manager module is accessible through the **mtinterceptor** command and is providing the following features:
+
+.. list-table:: **mtinterceptor** command line options
+   :widths: 10 90
+   :header-rows: 1
+
+   * - Command
+     - Description
+   * - -l, --list
+     - List MT interceptors
+   * - -a, --add
+     - Add a new MT interceptors
+   * - -r ORDER, --remove=ORDER
+     - Remove MT interceptor using it's ORDER
+   * - -s ORDER, --show=ORDER
+     - Show MT interceptor using it's ORDER
+   * - -f, --flush
+     - Flush MT interception table
+
+.. note:: MT Interceptor is used to hand outbound messages (SMS MT) to a user defined script, check
+  :doc:`/interception/index` for more details.
+
+MT Interceptor helps managing Jasmin's MTInterceptionTable, which is responsible of intercepting SMS MT before
+routing is made, here are the basics of Jasmin MT interception mechanism:
+
+ #. **MTInterceptionTable** holds ordered **MTInterceptor** objects (each MTInterceptor has a unique order)
+ #. A **MTInterceptor** is composed of:
+
+     * **Filters**: One or many filters (c.f. :ref:`filter_manager`)
+     * **Script**: Path to python script
+
+ #. There's many objects inheriting **MTInterceptor** to provide flexible ways to route messages:
+
+     * **DefaultInterceptor**: An interceptor without a filter, this one can only set with the lowest order to be a
+       default/fallback interceptor
+     * **StaticMTInterceptor**: A basic interceptor with **Filters** and one **Script**
+
+ #. When a SMS MT is received, Jasmin will ask for the right **MTInterceptor** to consider, all interceptors are checked
+    in descendant order for their respective **Filters** (when a **MTInterceptor** have many filters, they are checked
+    with an **AND** boolean operator)
+ #. When a **MTInterceptor** is considered (its **Filters** are matching a received SMS MT), Jasmin will call
+    its **Script** with the **Routable** argument.
+
+Check :doc:`/interception/index` for more details about Jasmin's interceptor.
+
+When adding a MT Interceptor, the following parameters are required:
+
+ * **type**: One of the supported MT Interceptors: DefaultInterceptor, StaticMTInterceptor
+ * **order**: MT Interceptor order
+
+When choosing the MT Interceptor **type**, additional parameters may be added to the above required parameters.
+
+Here's an example of adding a **DefaultInterceptor** to a python script::
+
+  jcli : mtinterceptor -a
+  Adding a new MT Interceptor: (ok: save, ko: exit)
+  > type DefaultInterceptor
+  <class 'jasmin.routing.Interceptors.DefaultInterceptor'> arguments:
+  script
+  > script python2(/opt/jasmin-scripts/interception/mt-interceptor.py)
+  > ok
+  Successfully added MTInterceptor [DefaultInterceptor] with order:0
+
+.. note:: As of now, only **python2** script is permitted.
+
+.. note:: Pay attention that the given script is copied to Jasmin core, do not expect Jasmin to refresh the script
+  code when you update it, you'll need to redefine the *mtinterceptor* rule again so Jasmin will refresh the script.
+
+.. note:: You don't have to set **order** parameter when the MT Interceptor type is **DefaultInterceptor**,
+  it will be automatically set to 0
+
+Here's an example of adding a **StaticMTInterceptor** to a python script::
+
+  jcli : mtinterceptor -a
+  Adding a new MT Interceptor: (ok: save, ko: exit)
+  > type StaticMTInterceptor
+  <class 'jasmin.routing.Interceptors.StaticMTInterceptor'> arguments:
+  filters, script
+  > order 10
+  > filters filter_1
+  > script python2(/opt/jasmin-scripts/interception/mt-interceptor.py)
+  > ok
+  Successfully added MTInterceptor [StaticMTInterceptor] with order:10
+
+Once the above MT Interceptors are added to **MTInterceptionTable**, it is possible to list these interceptors::
+
+  jcli : mtinterceptor -l
+  #Order    Type                    Script                    Filter(s)
+  #10       StaticMTInterceptor     <MTIS (pyCode= ..)>       <T>
+  #0        DefaultInterceptor      <MTIS (pyCode= ..)>
+  Total MT Interceptors: 2
+
+.. note:: Filters were created before creating these interceptors, please check :ref:`filter_manager` for further details
+
+It is possible to obtain more information of a defined interceptor by typing **mtinterceptor -s <order>**::
+
+  jcli : mtinterceptor -s 10
+  StaticMTInterceptor/<MTIS (pyCode= ..)>
+
+  jcli : mtinterceptor -s 0
+  DefaultInterceptor/<MTIS (pyCode= ..)>
+
+More control commands:
+
+* **mtinterceptor -r <order>**: Remove interceptor at defined *order*
+* **mtinterceptor -f**: Flush MTInterceptionTable (unrecoverable)
 
 .. _smppccm_manager:
 
@@ -636,7 +861,7 @@ The SMPP Client connector manager module is accessible through the **smppccm** c
    * - -0 CID, --stop=CID
      - Start SMPP connector using it's CID
 
-A SMPP Client connector is used to send/receive SMS through SMPP v3.4 protocol, it is directly connected to MO and MT routers to 
+A SMPP Client connector is used to send/receive SMS through SMPP v3.4 protocol, it is directly connected to MO and MT routers to
 provide end-to-end message delivery.
 
 Adding a new SMPP Client connector requires knowledge of the parameters detailed in the listing below:
@@ -652,15 +877,15 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
      - Default
    * - **cid**
      - Connector ID (must be unique)
-     - 
+     -
    * - **logfile**
-     - 
+     -
      - /var/log/jasmin/default-**<cid>**.log
    * - **logrotate**
      - When to rotate the log file, possible values: S=Seconds, M=Minutes, H=Hours, D=Days, W0-W6=Weekday (0=Monday) and midnight=Roll over at midnight
      - midnight
    * - **loglevel**
-     - Logging numeric level: 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICCAL 
+     - Logging numeric level: 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICCAL
      - 20
    * - **host**
      - Server that runs SMSC
@@ -669,10 +894,10 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
      - The port number for the connection to the SMSC.
      - 2775
    * - **username**
-     - 
+     -
      - smppclient
    * - **password**
-     - 
+     -
      - password
    * - **bind**
      - Bind type: transceiver, receiver or transmitter
@@ -762,11 +987,11 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
      - Indicates how to read msg id when receiving a receipt: 0=msg id is identical in submit_sm_resp and deliver_sm, 1=submit_sm_resp msg-id is in hexadecimal base, deliver_sm msg-id is in decimal base, 2=submit_sm_resp msg-id is in decimal base, deliver_sm msg-id is in hexadecimal base.
      - 0
 
-.. note:: When adding a SMPP Client connector, only it's **cid** is required, all the other parameters will 
+.. note:: When adding a SMPP Client connector, only it's **cid** is required, all the other parameters will
          be set to their respective defaults.
 
-.. note:: Connector restart is required only when changing the following parameters: **host**, **port**, **username**, 
-         **password**, **systemType**, **logfile**, **loglevel**; any other change is applied without requiring connector 
+.. note:: Connector restart is required only when changing the following parameters: **host**, **port**, **username**,
+         **password**, **systemType**, **logfile**, **loglevel**; any other change is applied without requiring connector
          to be restarted.
 
 Here’s an example of adding a new **transmitter** SMPP Client connector with **cid=Demo**::
@@ -807,7 +1032,7 @@ All the above parameters can be displayed after connector creation::
    src_npi 1
    trx_to 300
    logfile /var/log/jasmin/default-Demo.log
-   systype 
+   systype
    cid Demo
    loglevel 20
    bind transmitter
@@ -815,23 +1040,23 @@ All the above parameters can be displayed after connector creation::
    con_loss_delay 10
    bind_ton 0
    pdu_red_to 10
-   src_ton 2   
+   src_ton 2
 
-.. note:: From the example above, you can see that showing a connector details will return all it's parameters 
-          even those you did not enter while creating/updating the connector, they will take their respective 
+.. note:: From the example above, you can see that showing a connector details will return all it's parameters
+          even those you did not enter while creating/updating the connector, they will take their respective
           default values as explained in :ref:`smppcc_params`
 
-Listing connectors will show currently added SMPP Client connectors with their CID, Service/Session state and 
+Listing connectors will show currently added SMPP Client connectors with their CID, Service/Session state and
 start/stop counters::
 
    jcli : smppccm -l
    #Connector id                        Service Session          Starts Stops
-   #888                                 stopped None             0      0    
-   #Demo                                stopped None             0      0    
+   #888                                 stopped None             0      0
+   #Demo                                stopped None             0      0
    Total connectors: 2
 
-Updating an existent connector is the same as creating a new one, simply type **smppccm -u <cid>** where **cid** 
-is the connector id you want to update, you'll run into a new interactive session to enter the parameters you 
+Updating an existent connector is the same as creating a new one, simply type **smppccm -u <cid>** where **cid**
+is the connector id you want to update, you'll run into a new interactive session to enter the parameters you
 want to update (c.f. :ref:`smppcc_params`).
 
 Here’s an example of updating SMPP Client connector's host::
@@ -870,17 +1095,17 @@ The Filter manager module is accessible through the **filter** command and is pr
    * - -s FID, --show=FID
      - Show filter using it's FID
 
-Filters are used by MO/MT routers to help decide on which route a message must be delivered, the following 
+Filters are used by MO/MT routers to help decide on which route a message must be delivered, the following
 flowchart provides details of the routing process:
 
 .. figure:: /resources/routing/routing-process.png
    :alt: MO and MT routing process flow
    :align: Center
-   
+
    Routing process flow
 
 Jasmin provides many Filters offering advanced flexibilities to message routing:
- 
+
 .. list-table:: Jasmin Filters
    :widths: 10 10 80
    :header-rows: 1
@@ -923,11 +1148,11 @@ Check :doc:`/routing/index` for more details about Jasmin's routing.
 
 When adding a Filter, the following parameters are required:
 
- * **type**: One of the supported Filters: TransparentFilter, ConnectorFilter, UserFilter, GroupFilter, SourceAddrFilter, 
+ * **type**: One of the supported Filters: TransparentFilter, ConnectorFilter, UserFilter, GroupFilter, SourceAddrFilter,
    DestinationAddrFilter, ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter, EvalPyFilter
  * **fid**: Filter id (must be unique)
 
-When choosing the Filter **type**, additionnal parameters may be added to the above required parameters:
+When choosing the Filter **type**, additional parameters may be added to the above required parameters:
 
 .. list-table:: Filters parameters
    :widths: 10 10 80
@@ -937,7 +1162,7 @@ When choosing the Filter **type**, additionnal parameters may be added to the ab
      - Example
      - Parameters
    * - **TransparentFilter**
-     - 
+     -
      - No parameters are required
    * - **ConnectorFilter**
      - smpp-01
@@ -1006,13 +1231,13 @@ Here's an example of adding a **TimeIntervalFilter** ::
 It is possible to list filters with::
 
    jcli : filter -l
-   #Filter id        Type                   Routes Description                     
+   #Filter id        Type                   Routes Description
    #StartWithHello   ShortMessageFilter     MO MT  <ShortMessageFilter (msg=^hello.*$)>
-   #ExternalPy       EvalPyFilter           MO MT  <EvalPyFilter (pyCode= ..)>     
+   #ExternalPy       EvalPyFilter           MO MT  <EvalPyFilter (pyCode= ..)>
    #To85111          DestinationAddrFilter  MO MT  <DestinationAddrFilter (dst_addr=^85111$)>
    #September2014    DateIntervalFilter     MO MT  <DateIntervalFilter (2014-09-01,2014-09-30)>
    #WorkingHours     TimeIntervalFilter     MO MT  <TimeIntervalFilter (08:00:00,18:00:00)>
-   #TF               TransparentFilter      MO MT  <TransparentFilter>             
+   #TF               TransparentFilter      MO MT  <TransparentFilter>
    #From20*          SourceAddrFilter       MO     <SourceAddrFilter (src_addr=^20\d+)>
    Total Filters: 7
 
@@ -1032,7 +1257,7 @@ More control commands:
 External business logic
 =======================
 
-In addition to predefined filters listed above (:ref:`filter_manager`), it is possible to extend 
+In addition to predefined filters listed above (:ref:`filter_manager`), it is possible to extend
 filtering with external scripts written in Python using the **EvalPyFilter**.
 
 Here's a very simple example where an **EvalPyFilter** is matching the connector **cid** of a message:
@@ -1059,19 +1284,19 @@ Here's a very simple example where an **EvalPyFilter** is matching the connector
    > ok
    Successfully added Filter [EvalPyFilter] with fid:SimpleThirdParty
 
-This example will provide an **EvalPyFilter** (SimpleThirdParty) that will match any message coming from 
+This example will provide an **EvalPyFilter** (SimpleThirdParty) that will match any message coming from
 the connector with **cid** = abc.
 
-Using **EvalPyFilter** is as simple as the shown example, when the python script is called it will get the 
+Using **EvalPyFilter** is as simple as the shown example, when the python script is called it will get the
 following global variables set:
 
 * **routable**: one of the *jasmin.routing.Routables.Routable* inheriters (:ref:`Route_Routable` for more details)
 * **result**: (default to *False*) It will be read by Jasmin router at the end of the script execution to check
   if the filter is matching the message passed through the routable variable, matched=True / unmatched=False
 
-.. note:: It is possible to check for any parameter of the SMPP PDU: TON, NPI, PROTOCOL_ID ... since it is provided through 
+.. note:: It is possible to check for any parameter of the SMPP PDU: TON, NPI, PROTOCOL_ID ... since it is provided through
           the **routable** object.
-.. note:: Using **EvalPyFilter** offers the possibility to call external webservices, databases ... for powerfull 
+.. note:: Using **EvalPyFilter** offers the possibility to call external webservices, databases ... for powerfull
           routing or even for logging, rating & billing through external third party systems.
 .. hint:: More examples in the this FAQ's question: :ref:`faq_2_CypaeohtuE`
 
@@ -1080,7 +1305,7 @@ following global variables set:
 HTTP Client connector manager
 *****************************
 
-The HTTP Client connector manager module is accessible through the **httpccm** command and is providing the 
+The HTTP Client connector manager module is accessible through the **httpccm** command and is providing the
 following features:
 
 .. list-table:: **httpccm** command line options
@@ -1098,7 +1323,7 @@ following features:
    * - -s FID, --show=FID
      - Show HTTP client connector using it's CID
 
-A HTTP Client connector is used in SMS-MO routing, it is called with the message parameters when it is returned 
+A HTTP Client connector is used in SMS-MO routing, it is called with the message parameters when it is returned
 by a matched MO Route (:ref:`receiving_sms-mo` for more details).
 
 When adding a HTTP Client connector, the following parameters are required:
