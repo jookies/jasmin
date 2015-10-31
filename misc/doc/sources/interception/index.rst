@@ -343,6 +343,8 @@ Scripting examples
 
 You'll find below some helping examples of scripts used to intercept MO and/or MT messages.
 
+.. _sc_hlr_lookup:
+
 HLR Lookup routing
 ==================
 
