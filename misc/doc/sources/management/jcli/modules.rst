@@ -1574,10 +1574,12 @@ Here's an example of showing **MTN**'s detailed statistics::
    #last_sent_pdu_at          2019-06-02 15:35:59
    #disconnected_at           2019-06-01 10:18:21
    #last_received_pdu_at      2019-06-02 15:36:01
+   #interceptor_count         0
+   #interceptor_error_count   0
 
 This is clearly a more detailed view for connector **MTN**, the following table explains the items shown for **MTN**:
 
-.. list-table:: Details smppc statistics view items
+.. list-table:: Details of smppc statistics view items
    :widths: 10 80
    :header-rows: 1
 
@@ -1623,7 +1625,10 @@ This is clearly a more detailed view for connector **MTN**, the following table 
      - Number of DeliverSM (MO messages or receipts) received
    * - data_sm_count
      - Number of DataSM (MO messages or receipts) received
-
+   * - interceptor_count
+     - Number of successfully intercepted messages (MO)
+   * - interceptor_error_count
+     - Number of failures when intercepting messages (MO)
 
 SMPP Server API statistics
 ==========================
@@ -1657,10 +1662,12 @@ Here's an example of showing the statistics::
    #unbind_count              6
    #last_received_pdu_at      2019-06-05 12:16:21
    #bind_tx_count             6
+   #interceptor_count         0
+   #interceptor_error_count   0
 
 The following table explains the items shown in the above example:
 
-.. list-table:: Details smppsapi statistics view items
+.. list-table:: Details of smppsapi statistics view items
    :widths: 10 80
    :header-rows: 1
 
@@ -1706,6 +1713,10 @@ The following table explains the items shown in the above example:
      - Throttling errors returned
    * - other_submit_error_count
      - Any other error returned in response of SubmitSM requests
+   * - interceptor_count
+     - Number of successfully intercepted messages (MT)
+   * - interceptor_error_count
+     - Number of failures when intercepting messages (MT)
 
 HTTP API statistics
 ===================
@@ -1728,10 +1739,12 @@ Here's an example of showing the statistics::
    #created_at              2019-06-04 02:22:17
    #last_success_at         2019-06-05 18:20:29
    #charging_error_count    178
+   #interceptor_count         0
+   #interceptor_error_count   0
 
 The following table explains the items shown in the above example:
 
-.. list-table:: Details httpapi statistics view items
+.. list-table:: Details of httpapi statistics view items
    :widths: 10 80
    :header-rows: 1
 
@@ -1757,3 +1770,7 @@ The following table explains the items shown in the above example:
      - Charging/Billing errors count
    * - server_error_count
      - Unknown server errors count
+   * - interceptor_count
+     - Number of successfully intercepted messages (MT)
+   * - interceptor_error_count
+     - Number of failures when intercepting messages (MT)
