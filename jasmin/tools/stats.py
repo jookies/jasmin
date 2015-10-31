@@ -8,7 +8,7 @@ class KeyNotIncrementable(Exception):
     Raised when trying to increment a non integer key
     """
 
-class Stats:
+class Stats(object):
     def set(self, key, value):
         if key not in self._stats:
             raise KeyNotFound(key)
@@ -21,18 +21,18 @@ class Stats:
 
         return self._stats[key]
 
-    def inc(self, key, inc = 1):
+    def inc(self, key, inc=1):
         if key not in self._stats:
             raise KeyNotFound(key)
-        if type(self._stats[key]) != int:
+        if not isinstance(self._stats[key], int):
             raise KeyNotIncrementable(key)
 
-        self._stats[key]+= inc
+        self._stats[key] += inc
 
-    def dec(self, key, inc = 1):
+    def dec(self, key, inc=1):
         if key not in self._stats:
             raise KeyNotFound(key)
-        if type(self._stats[key]) != int:
+        if not isinstance(self._stats[key], int):
             raise KeyNotIncrementable(key)
 
-        self._stats[key]-= inc
+        self._stats[key] -= inc

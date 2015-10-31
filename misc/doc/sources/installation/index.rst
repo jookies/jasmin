@@ -127,9 +127,9 @@ The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pi
 Once Jasmin installed, execute the following steps to start Jasmin as a system service::
 
   # On ubuntu:
-  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
+  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.7/misc/config/init-script/jasmind-ubuntu -O /etc/init.d/jasmind
   # On redhat, centos:
-  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.6-beta/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
+  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.7/misc/config/init-script/jasmind-redhat -O /etc/init.d/jasmind
 
   # Then:
   sudo chmod +x /etc/init.d/jasmind
@@ -178,10 +178,10 @@ Connect to jCli console through telnet (**telnet 127.0.0.1 8990**) using **jclia
     Authentication required.
 
     Username: jcliadmin
-    Password: 
+    Password:
     Welcome to Jasmin console
     Type help or ? to list commands.
-    
+
     Session ref: 2
     jcli : smppccm -a
     > cid DEMO_CONNECTOR
@@ -205,7 +205,7 @@ You can check if the connector is bound to your provider by checking its log fil
 
 	jcli : smppccm --list
 	#Connector id                        Service Session          Starts Stops
-	#DEMO_CONNECTOR                      started BOUND_TRX        1      0    
+	#DEMO_CONNECTOR                      started BOUND_TRX        1      0
 	Total connectors: 1
 
 3. Configure simple route

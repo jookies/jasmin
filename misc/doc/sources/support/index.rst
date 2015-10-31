@@ -7,9 +7,10 @@ Getting Help
 
 The easiest way to get help with the project is to open an issue on Github_.
 
-The mailing list at https://groups.google.com/forum/#!forum/jasmin-sms-gateway is also available for support.
+The forum_ is also available for support.
 
 .. _Github: http://github.com/jookies/jasmin/issues
+.. _forum: https://groups.google.com/forum/#!forum/jasmin-sms-gateway
 
 Commercial Support
 ******************

@@ -17,13 +17,13 @@ message_state_map = {
 }
 
 class NoSubmitSmWhenReceiverIsBoundSMSC(HappySMSC):
-    
+
     def handleSubmit(self, reqPDU):
         self.sendResponse(reqPDU, CommandStatus.ESME_RINVBNDSTS)
 
 class NoResponseOnSubmitSMSCRecorder(HappySMSC):
     submitRecords = []
-    
+
     def handleSubmit(self, reqPDU):
         self.submitRecords.append(reqPDU)
         pass
@@ -43,7 +43,7 @@ class HappySMSCRecorder(HappySMSC):
         self.submitRecords.append(reqPDU)
 
         self.sendSubmitSmResponse(reqPDU)
-        
+
     def sendSubmitSmResponse(self, reqPDU):
         if reqPDU.params['short_message'] == 'test_error: ESME_RTHROTTLED':
             status = CommandStatus.ESME_RTHROTTLED
@@ -60,23 +60,23 @@ class HappySMSCRecorder(HappySMSC):
 
     def handleData(self, reqPDU):
         self.sendSuccessResponse(reqPDU)
-                
+
 class DeliverSmSMSC(HappySMSC):
     def trigger_deliver_sm(self, pdu):
         self.sendPDU(pdu)
-        
+
 class DeliveryReceiptSMSC(HappySMSC):
     """Will send a deliver_sm on bind request
     """
-    
+
     def __init__( self ):
         HappySMSC.__init__(self)
         self.responseMap[BindReceiver] = self.sendDeliverSM
         self.responseMap[BindTransceiver] = self.sendDeliverSM
-        
+
     def sendDeliverSM(self, reqPDU):
         self.sendSuccessResponse(reqPDU)
-        
+
         message_id = '1891273321'
         pdu = DeliverSM(
             source_addr='1234',
@@ -99,7 +99,12 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         HappySMSC.__init__(self)
 
         self.nextResponseMsgId = None
-        
+        self.pduRecords = []
+
+    def PDUReceived( self, pdu ):
+        HappySMSC.PDUReceived(self, pdu)
+        self.pduRecords.append(pdu)
+
     def sendSuccessResponse(self, reqPDU):
         if str(reqPDU.commandId)[:5] == 'bind_':
             self.submitRecords = []
@@ -113,8 +118,8 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
             msgid = str(self.nextResponseMsgId)
             self.nextResponseMsgId = None
 
-        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, 
-            status=CommandStatus.ESME_ROK, 
+        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum,
+            status=CommandStatus.ESME_ROK,
             message_id = msgid,
             )
         self.sendPDU(self.lastSubmitSmRestPDU)
@@ -122,7 +127,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
     def handleSubmit(self, reqPDU):
         # Send back a submit_sm_resp
         self.sendSubmitSmResponse(reqPDU)
-        
+
         self.lastSubmitSmPDU = reqPDU
         self.submitRecords.append(reqPDU)
 
@@ -135,10 +140,10 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
     def trigger_DLR(self, _id = None, pdu_type = 'deliver_sm', stat = 'DELIVRD'):
         if self.lastSubmitSmRestPDU is None:
             raise Exception('A submit_sm must be sent to this SMSC before requesting sendDeliverSM !')
-        
+
         if _id is None:
             _id = self.lastSubmitSmRestPDU.params['message_id']
-        
+
         if pdu_type == 'deliver_sm':
             # Send back a deliver_sm with containing a DLR
             pdu = DeliverSM(
@@ -168,14 +173,14 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
 class QoSSMSC_2MPS(HappySMSC):
     "A throttled SMSC that only accept 2 Messages per second"
     last_submit_at = None
-    
+
     def handleSubmit(self, reqPDU):
         # Calculate MPS
         permitted_throughput = 1 / 2.0
         permitted_delay = timedelta( microseconds = permitted_throughput * 1000000)
         if self.last_submit_at is not None:
             delay = datetime.now() - self.last_submit_at
-        
+
         if self.last_submit_at is not None and delay < permitted_delay:
             self.sendResponse(reqPDU, CommandStatus.ESME_RTHROTTLED)
         else:
@@ -186,5 +191,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     factory          = Factory()
     factory.protocol = BlackHoleSMSC
-    reactor.listenTCP(8007, factory) 
+    reactor.listenTCP(8007, factory)
     reactor.run()

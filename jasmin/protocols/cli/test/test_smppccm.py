@@ -154,7 +154,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'host 127.0.0.1',
                         'src_npi 1',
                         'trx_to 300',
-                        'logfile /var/log/jasmin/default-%s.log' % cid,
+                        'logfile .*var/log/jasmin/default-%s.log' % cid,
                         'systype ',
                         'cid %s' % cid,
                         'loglevel 20',
@@ -230,7 +230,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'host 127.0.0.1',
                         'src_npi 1',
                         'trx_to 300',
-                        'logfile /var/log/jasmin/default-%s.log' % cid,
+                        'logfile .*var/log/jasmin/default-%s.log' % cid,
                         'systype ',
                         'cid %s' % cid,
                         'loglevel 20',
@@ -757,7 +757,7 @@ class SMSCTestCases(HappySMSCTestCase):
                                     expect= 'Failed starting connector, check log for details')
 
         # Wait
-        yield waitFor(4)
+        yield waitFor(20)
 
         # List and assert it is stopped (start command errored)
         expectedList = ['#Connector id                        Service Session          Starts Stops',

@@ -1,4 +1,4 @@
-#pylint: disable-msg=W0401,W0611
+#pylint: disable=W0401,W0611
 import re
 import uuid
 import logging
@@ -6,8 +6,8 @@ import struct
 from datetime import datetime
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
-from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn, 
-                                                SMPPOutboundTxnResult, _safelylogOutPdu)
+from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
+                                                 SMPPOutboundTxnResult, _safelylogOutPdu)
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault, CommandId
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
 from jasmin.vendor.smpp.pdu.operations import *
@@ -19,27 +19,27 @@ from twisted.cred import error
 #@todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
 
-class SMPPClientProtocol( twistedSMPPClientProtocol ):
-    def __init__( self ):
+class SMPPClientProtocol(twistedSMPPClientProtocol):
+    def __init__(self):
         twistedSMPPClientProtocol.__init__(self)
-        
+
         self.longSubmitSmTxns = {}
 
     def PDUReceived(self, pdu):
-        self.log.debug("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.commandId, pdu.seqNum, pdu.status))
-        self.log.debug("Complete PDU dump: %s" % pdu)
+        self.log.debug("SMPP Client received PDU [command: %s, seq_number: %s, command_status: %s]",
+                       pdu.commandId, pdu.seqNum, pdu.status)
+        self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
-        
-        """A better version than vendor's PDUReceived method:
-        - Dont re-encode pdu !
-        if self.log.isEnabledFor(logging.DEBUG):
-            encoded = self.encoder.encode(pdu)
-            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
-        """
-        
+
+        #A better version than vendor's PDUReceived method:
+        #- Dont re-encode pdu !
+        #if self.log.isEnabledFor(logging.DEBUG):
+        #    encoded = self.encoder.encode(pdu)
+        #    self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+
         #Signal SMPP operation
         self.onSMPPOperation()
-        
+
         if isinstance(pdu, PDURequest):
             self.PDURequestReceived(pdu)
         elif isinstance(pdu, PDUResponse):
@@ -52,11 +52,11 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.factory.stats.set('connected_at', datetime.now())
         self.factory.stats.inc('connected_count')
 
-        self.log.info("Connection made to %s:%s" % (self.config().host, self.config().port))
+        self.log.info("Connection made to %s:%s", self.config().host, self.config().port)
 
         self.factory.connectDeferred.callback(self)
 
-    def connectionLost( self, reason ):
+    def connectionLost(self, reason):
         twistedSMPPClientProtocol.connectionLost(self, reason)
 
         self.factory.stats.set('disconnected_at', datetime.now())
@@ -109,114 +109,117 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
         self.factory.stats.inc('bound_count')
 
         return twistedSMPPClientProtocol.bindSucceeded(self, result, nextState)
-        
+
     def bindAsReceiver(self):
         """This is a different signature where msgHandler is taken from factory
         """
         return twistedSMPPClientProtocol.bindAsReceiver(self, self.factory.msgHandler)
-    
+
     def bindAsTransceiver(self):
         """This is a different signature where msgHandler is taken from factory
         """
-        return twistedSMPPClientProtocol.bindAsTransceiver(self, self.factory.msgHandler)    
+        return twistedSMPPClientProtocol.bindAsTransceiver(self, self.factory.msgHandler)
 
     def bindFailed(self, reason):
-        self.log.error("Bind failed [%s]. Disconnecting..." % reason)
+        self.log.error("Bind failed [%s]. Disconnecting...", reason)
         self.disconnect()
         if reason.check(SMPPRequestTimoutError):
             raise SMPPSessionInitTimoutError(str(reason))
-        
+
     def endOutboundTransaction(self, respPDU):
         txn = self.closeOutboundTransaction(respPDU.seqNum)
-        
+
         # Any status of a SubmitSMResp must be handled as a normal status
         if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
             if not isinstance(respPDU, txn.request.requireAck):
                 txn.ackDeferred.errback(
                     SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (
-                        type(respPDU), type(txn.request)
-                        )
-                    ))
+                        type(respPDU), type(txn.request))))
                 return
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
             return
-        
+
         if isinstance(respPDU, GenericNack):
             txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
             return
-        
+
         txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
 
-    def cancelOutboundTransactions(self, error):
+    def cancelOutboundTransactions(self, err):
         """Cancels LongSubmitSmTransactions when cancelling OutboundTransactions
         """
-        twistedSMPPClientProtocol.cancelOutboundTransactions(self, error)
-        self.cancelLongSubmitSmTransactions(error)
+        twistedSMPPClientProtocol.cancelOutboundTransactions(self, err)
+        self.cancelLongSubmitSmTransactions(err)
 
-    def cancelLongSubmitSmTransactions(self, error):
+    def cancelLongSubmitSmTransactions(self, err):
         for item in self.longSubmitSmTxns.values():
             reqPDU = item['txn'].request
-            
-            self.log.exception(error)
+
+            self.log.exception(err)
             txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
             #Do errback
-            txn.ackDeferred.errback(error)
-            
+            txn.ackDeferred.errback(err)
+
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
-            self.log.error('Transaction with msg_ref_num [%s] is already in progress, open longSubmitSmTxns count: %s' % (
+            self.log.error(
+                'Transaction with msg_ref_num [%s] is already in progress, open longSubmitSmTxns count: %s',
                 reqPDU.LongSubmitSm['msg_ref_num'],
-                len(self.longSubmitSmTxns)
-            ))
-            raise LongSubmitSmTransactionError('Transaction with msg_ref_num [%s] is already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
-        
+                len(self.longSubmitSmTxns))
+            raise LongSubmitSmTransactionError(
+                'Transaction with msg_ref_num [%s] already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
+
         #Create callback deferred
         ackDeferred = defer.Deferred()
         #Create response timer
         timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
         #Save transaction
         self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
-                                                                   'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
-                                                                   'nack_count' : reqPDU.LongSubmitSm['total_segments']
-                                                                   }
-        self.log.debug("Long submit_sm transaction started with msg_ref_num %s" % reqPDU.LongSubmitSm['msg_ref_num'])
+            'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
+            'nack_count' : reqPDU.LongSubmitSm['total_segments']}
+        self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
+                       reqPDU.LongSubmitSm['msg_ref_num'])
         return ackDeferred
-    
+
     def closeLongSubmitSmTransaction(self, msg_ref_num):
-        self.log.debug("Long submit_sm transaction finished with msg_ref_num %s" % msg_ref_num)        
-            
+        self.log.debug("Long submit_sm transaction finished with msg_ref_num %s", msg_ref_num)
+
         txn = self.longSubmitSmTxns[msg_ref_num]['txn']
         # Remove txn
         del self.longSubmitSmTxns[msg_ref_num]
         # Cancel response timer
         if txn.timer.active():
             txn.timer.cancel()
-            
+
         return txn
-    
+
     def endLongSubmitSmTransaction(self, _SMPPOutboundTxnResult):
         reqPDU = _SMPPOutboundTxnResult.request
         respPDU = _SMPPOutboundTxnResult.response
-        
+
         # Do we have txn with the given ref ?
         if reqPDU.LongSubmitSm['msg_ref_num'] not in self.longSubmitSmTxns:
-            self.log.error('Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s], open longSubmitSmTxns count: %s' % (
+            self.log.error(
+                'Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s], open longSubmitSmTxns count: %s',
                 reqPDU.LongSubmitSm['msg_ref_num'],
                 len(self.longSubmitSmTxns)
-            ))
-            raise LongSubmitSmTransactionError('Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s].' % reqPDU.LongSubmitSm['msg_ref_num'])
+            )
+            raise LongSubmitSmTransactionError(
+                'Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s].' % reqPDU.LongSubmitSm['msg_ref_num'])
 
         # Decrement pending ACKs
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] > 0:
             self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] -= 1
-            self.log.debug("Long submit_sm transaction with msg_ref_num %s has been updated, nack_count: %s" 
-                            % (reqPDU.LongSubmitSm['msg_ref_num'], self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count']))
+            self.log.debug(
+                "Long submit_sm transaction with msg_ref_num %s has been updated, nack_count: %s",
+                reqPDU.LongSubmitSm['msg_ref_num'],
+                self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'])
 
         # End the transaction if no more pending ACKs
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] == 0:
             txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
-                    
+
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
 
@@ -226,7 +229,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             failure.raiseException()
         except SMPPClientConnectionCorruptedError as _:
             return
-        
+
     def preSubmitSm(self, pdu):
         """Will:
         - Make validation steps
@@ -237,14 +240,14 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             intVal = pdu.params['data_coding']
             if intVal in data_coding_default_value_map:
                 name = data_coding_default_value_map[intVal]
-                pdu.params['data_coding'] = DataCoding(schemeData = getattr(DataCodingDefault, name))
+                pdu.params['data_coding'] = DataCoding(schemeData=getattr(DataCodingDefault, name))
             else:
                 pdu.params['data_coding'] = None
-            
+
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
             raise SMPPClientConnectionCorruptedError()
-        if not isinstance( pdu, PDURequest ) or pdu.requireAck is None:
+        if not isinstance(pdu, PDURequest) or pdu.requireAck is None:
             raise SMPPClientError("Invalid PDU to send: %s" % pdu)
 
         if pdu.commandId == CommandId.submit_sm:
@@ -255,11 +258,11 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
             #
             # Update 20150709 #234:
             # If the pdu has no nextPdu attribute then it may be a part of a long message not managed
-            # by Jasmin: it may come from SMPPs already parted, in this case Jasmin must pass the 
+            # by Jasmin: it may come from SMPPs already parted, in this case Jasmin must pass the
             # message as is without starting LongSubmitSmTransaction.
-            # The downside of this behaviour is that each part of the message will be logged in a single 
+            # The downside of this behaviour is that each part of the message will be logged in a single
             # line in messages.log
-            
+
             # UDH is set ?
             UDHI_INDICATOR_SET = False
             if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
@@ -267,7 +270,7 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                     if str(gsmFeature) == 'UDHI_INDICATOR_SET':
                         UDHI_INDICATOR_SET = True
                         break
-            
+
             # Discover any splitting method, otherwise, it is a single SubmitSm
             if 'sar_msg_ref_num' in pdu.params:
                 splitMethod = 'sar'
@@ -275,17 +278,18 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                 splitMethod = 'udh'
             else:
                 splitMethod = None
-            
+
             if splitMethod is not None and hasattr(pdu, 'nextPdu'):
                 partedSmPdu = pdu
                 first = True
-                
+
                 # Iterate through parted PDUs
                 while True:
                     partedSmPdu.seqNum = self.claimSeqNum()
 
                     # Set LongSubmitSm tracking flags in pdu:
-                    partedSmPdu.LongSubmitSm = {'msg_ref_num': None, 'total_segments': None, 'segment_seqnum': None}
+                    partedSmPdu.LongSubmitSm = {'msg_ref_num': None, 'total_segments': None,
+                                                'segment_seqnum': None}
                     if splitMethod == 'sar':
                         # Using SAR options:
                         partedSmPdu.LongSubmitSm['msg_ref_num'] = partedSmPdu.params['sar_msg_ref_num']
@@ -301,30 +305,29 @@ class SMPPClientProtocol( twistedSMPPClientProtocol ):
                     self.sendPDU(partedSmPdu)
                     # Unlike parent protocol's sendPDU, we don't return per pdu
                     # deferred, we'll return per transaction deferred instead
-                    self.startOutboundTransaction(partedSmPdu, timeout).addCallbacks(
-                                                                                     self.endLongSubmitSmTransaction, 
-                                                                                     self.endLongSubmitSmTransactionErr
-                                                                                     )
-                    
+                    self.startOutboundTransaction(
+                        partedSmPdu, timeout).addCallbacks(self.endLongSubmitSmTransaction,
+                                                           self.endLongSubmitSmTransactionErr)
+
                     # Start a transaction using the first parted PDU
                     if first:
                         first = False
                         txn = self.startLongSubmitSmTransaction(partedSmPdu, timeout)
-    
+
                     try:
                         # There still another PDU to go for
                         partedSmPdu = partedSmPdu.nextPdu
                     except AttributeError:
                         break
-    
+
                 return txn
             else:
                 self.preSubmitSm(pdu)
-        
+
         return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)
 
-class SMPPServerProtocol( twistedSMPPServerProtocol ):
-    def __init__( self ):
+class SMPPServerProtocol(twistedSMPPServerProtocol):
+    def __init__(self):
         twistedSMPPServerProtocol.__init__(self)
 
         # Divert received messages to the handler defined in the config
@@ -339,21 +342,21 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.log = logging.getLogger(LOG_CATEGORY)
 
     def PDUReceived(self, pdu):
-        self.log.debug("SMPP Server received PDU from system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (
-            self.system_id, pdu.commandId, pdu.seqNum, pdu.status))
-        self.log.debug("Complete PDU dump: %s" % pdu)
+        self.log.debug(
+            "SMPP Server received PDU from system '%s' [command: %s, seq_number: %s, command_status: %s]",
+            self.system_id, pdu.commandId, pdu.seqNum, pdu.status)
+        self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
-        
-        """A better version than vendor's PDUReceived method:
-        - Dont re-encode pdu !
-        if self.log.isEnabledFor(logging.DEBUG):
-            encoded = self.encoder.encode(pdu)
-            self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
-        """
-        
+
+        #A better version than vendor's PDUReceived method:
+        #- Dont re-encode pdu !
+        #if self.log.isEnabledFor(logging.DEBUG):
+        #    encoded = self.encoder.encode(pdu)
+        #    self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
+
         #Signal SMPP operation
         self.onSMPPOperation()
-        
+
         if isinstance(pdu, PDURequest):
             self.PDURequestReceived(pdu)
         elif isinstance(pdu, PDUResponse):
@@ -371,7 +374,9 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         self.factory.stats.inc('disconnect_count')
         self.factory.stats.dec('connected_count')
-        if self.sessionState in [SMPPSessionStates.BOUND_RX, SMPPSessionStates.BOUND_TX, SMPPSessionStates.BOUND_TRX]:
+        if self.sessionState in [SMPPSessionStates.BOUND_RX,
+                                 SMPPSessionStates.BOUND_TX,
+                                 SMPPSessionStates.BOUND_TRX]:
             if str(self.bind_type) == 'bind_transceiver':
                 self.factory.stats.dec('bound_trx_count')
             elif str(self.bind_type) == 'bind_receiver':
@@ -385,7 +390,7 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         self.factory.stats.set('last_received_elink_at', datetime.now())
         self.factory.stats.inc('elink_count')
         if self.user is not None:
-            self.user.getCnxStatus().smpps['elink_count']+= 1
+            self.user.getCnxStatus().smpps['elink_count'] += 1
 
     def doPDURequest(self, reqPDU, handler):
         twistedSMPPServerProtocol.doPDURequest(self, reqPDU, handler)
@@ -404,37 +409,36 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         if pdu.commandId == CommandId.deliver_sm:
             self.factory.stats.inc('deliver_sm_count')
             if self.user is not None:
-                self.log.info('DELIVER_SM [uid:%s] [from:%s] [to:%s] [content:%s]' % (
+                self.log.info(
+                    'DELIVER_SM [uid:%s] [from:%s] [to:%s] [content:%s]',
                     self.user.uid,
                     pdu.params['source_addr'],
                     pdu.params['destination_addr'],
-                    re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
-                    ))
-                self.user.getCnxStatus().smpps['deliver_sm_count']+= 1
+                    re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                self.user.getCnxStatus().smpps['deliver_sm_count'] += 1
         elif pdu.commandId == CommandId.data_sm:
             self.factory.stats.inc('data_sm_count')
             if self.user is not None:
-                self.log.info('DATA_SM [uid:%s] [from:%s] [to:%s] [content:%s]' % (
-                    self.user.uid,
-                    pdu.params['source_addr'],
-                    pdu.params['destination_addr'],
-                    re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message'])
-                    ))
+                self.log.info('DATA_SM [uid:%s] [from:%s] [to:%s] [content:%s]',
+                              self.user.uid,
+                              pdu.params['source_addr'],
+                              pdu.params['destination_addr'],
+                              re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
                 self.user.getCnxStatus().smpps['data_sm_count']+= 1
         elif pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
                 self.factory.stats.inc('throttling_error_count')
                 if self.user is not None:
-                    self.user.getCnxStatus().smpps['throttling_error_count']+= 1
+                    self.user.getCnxStatus().smpps['throttling_error_count'] += 1
             elif pdu.status != CommandStatus.ESME_ROK:
                 self.factory.stats.inc('other_submit_error_count')
                 if self.user is not None:
-                    self.user.getCnxStatus().smpps['other_submit_error_count']+= 1
+                    self.user.getCnxStatus().smpps['other_submit_error_count'] += 1
             else:
                 # We got a ESME_ROK
                 self.factory.stats.inc('submit_sm_count')
                 if self.user is not None:
-                    self.user.getCnxStatus().smpps['submit_sm_count']+= 1
+                    self.user.getCnxStatus().smpps['submit_sm_count'] += 1
 
 
     def onPDURequest_unbind(self, reqPDU):
@@ -459,10 +463,10 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
     def PDURequestReceived(self, reqPDU):
         # Handle only accepted command ids
-        acceptedPDUs = [CommandId.submit_sm, CommandId.bind_transmitter, 
-                CommandId.bind_receiver, CommandId.bind_transceiver, 
-                CommandId.unbind, CommandId.unbind_resp,
-                CommandId.enquire_link, CommandId.data_sm]
+        acceptedPDUs = [CommandId.submit_sm, CommandId.bind_transmitter,
+                        CommandId.bind_receiver, CommandId.bind_transceiver,
+                        CommandId.unbind, CommandId.unbind_resp,
+                        CommandId.enquire_link, CommandId.data_sm]
         if reqPDU.commandId not in acceptedPDUs:
             errMsg = 'Received unsupported pdu type: %s' % reqPDU.commandId
             self.cancelOutboundTransactions(SessionStateError(errMsg, CommandStatus.ESME_RSYSERR))
@@ -492,29 +496,28 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
         # Authenticate username and password
         try:
             iface, auth_avatar, logout = yield self.factory.login(
-                username, 
-                password, 
+                username,
+                password,
                 self.transport.getPeer().host)
         except error.UnauthorizedLogin, e:
-            self.log.debug('From host %s and using password: %s' % (self.transport.getPeer().host, password))
-            self.log.warning('SMPP Bind request failed for username: "%s", reason: %s' % (
-                username, str(e)))
+            self.log.debug('From host %s and using password: %s', self.transport.getPeer().host, password)
+            self.log.warning('SMPP Bind request failed for username: "%s", reason: %s', username, str(e))
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, username)
             return
-        
+
         # Check we're not already bound, and are open to being bound
         if self.sessionState != SMPPSessionStates.OPEN:
-            self.log.warning('Duplicate SMPP bind request received from: %s' % username)
+            self.log.warning('Duplicate SMPP bind request received from: %s', username)
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RALYBND, username)
             return
-        
+
         # Check that username hasn't exceeded number of allowed binds
         if not self.factory.canOpenNewConnection(auth_avatar, bind_type):
-            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings' % (
-                username, bind_type))
+            self.log.warning('SMPP System %s has exceeded maximum number of %s bindings',
+                             username, bind_type)
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, username)
             return
-        
+
         # If we get to here, bind successfully
         self.user = auth_avatar
         self.system_id = username
@@ -523,8 +526,8 @@ class SMPPServerProtocol( twistedSMPPServerProtocol ):
 
         self.factory.addBoundConnection(self, self.user)
         bound_cnxns = self.factory.getBoundConnections(self.system_id)
-        self.log.debug('Bind request succeeded for %s in session [%s]. %d active binds' % (
-            username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.log.debug('Bind request succeeded for %s in session [%s]. %d active binds',
+                       username, self.session_id, bound_cnxns.getBindingCount() if bound_cnxns else 0)
         self.sendResponse(reqPDU, system_id=self.system_id)
 
         # Update stats

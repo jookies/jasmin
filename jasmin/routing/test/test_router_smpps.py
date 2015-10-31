@@ -50,7 +50,7 @@ class LastProtoSMPPClientFactory(SMPPClientFactory):
 class SmppServerTestCases(HappySMSCTestCase):
 
     @defer.inlineCallbacks
-    def setUp(self):
+    def setUp(self, interceptorpb_client = None):
         yield HappySMSCTestCase.setUp(self)
 
         self.encoder = pdu_encoding.PDUEncoder()
@@ -69,7 +69,8 @@ class SmppServerTestCases(HappySMSCTestCase):
         self.smpps_factory = LastProtoSMPPServerFactory(self.smpps_config,
                                                         auth_portal = _portal,
                                                         RouterPB = self.pbRoot_f,
-                                                        SMPPClientManagerPB = self.clientManager_f)
+                                                        SMPPClientManagerPB = self.clientManager_f,
+                                                        interceptorpb_client = interceptorpb_client)
         self.smpps_port = reactor.listenTCP(self.smpps_config.port, self.smpps_factory)
 
         # Init protocol for testing
@@ -127,8 +128,12 @@ class SmppServerTestCases(HappySMSCTestCase):
 class SMPPClientTestCases(SmppServerTestCases):
 
     @defer.inlineCallbacks
-    def setUp(self):
-        yield SmppServerTestCases.setUp(self)
+    def setUp(self, interceptorpb_client = None):
+        yield SmppServerTestCases.setUp(self, interceptorpb_client)
+
+        # Add interceptorpb_client to smpp client manager
+        if interceptorpb_client is not None:
+            self.clientManager_f.addInterceptorPBClient(interceptorpb_client)
 
         # SMPPClientConfig init
         args = {'id': 'smppc_01', 'port': self.smpps_config.port,

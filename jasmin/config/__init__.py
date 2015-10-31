@@ -1,4 +1,4 @@
-# Copyright (c) Fourat Zouari <fourat@gmail.com>
+# Copyright (c) Jookies LTD <jasmin@jookies.net>
 # See LICENSE for details.
 
-"""Jasmin SMS Gateway by Fourat ZOUARI <fourat@gmail.com>"""
+"""Jasmin SMS Gateway by Jookies LTD <jasmin@jookies.net>"""

@@ -7,6 +7,11 @@ import os
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
 
+# After passing on travis docker-based ci, sudo is no more
+# used, ROOT_PATH is a env variable set in .travis.yml to avoid
+# installing things system wide.
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
+
 # Pre-installation checklist
 if "install" in sys.argv:
     # 1. Check if jasmin user and group were created
@@ -17,18 +22,18 @@ if "install" in sys.argv:
         print 'WARNING: jasmin user or group not found !'
 
     # 2. Check if system folders are created
-    sysdirs = ['/etc/jasmin', 
-                '/etc/jasmin/resource', 
-                '/etc/jasmin/store', 
-                '/var/log/jasmin', 
-                '/var/run/jasmin',]
+    sysdirs = ['%s/etc/jasmin' % ROOT_PATH,
+                '%s/etc/jasmin/resource' % ROOT_PATH,
+                '%s/etc/jasmin/store' % ROOT_PATH,
+                '%s/var/log/jasmin' % ROOT_PATH,
+                '%s/var/run/jasmin' % ROOT_PATH,]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
             print 'WARNING: %s does not exist !' % sysdir
 
     # 3. Check for permission to write jasmin.cfg in /etc/jasmin
-    if not os.access('/etc/jasmin', os.W_OK):
-        print 'WARNING: /etc/jasmin must be writeable by the current user (%s)' % getpass.getuser()
+    if not os.access('%s/etc/jasmin' % ROOT_PATH, os.W_OK):
+        print 'WARNING: %s/etc/jasmin must be writeable by the current user (%s)' % (ROOT_PATH, getpass.getuser())
 
     # 4. Check if sysdirs are owned by jasmin user
     for sysdir in sysdirs[3:]:
@@ -45,8 +50,8 @@ release = __import__('jasmin').get_release()
 setup(
     name="jasmin",
     version=release,
-    author="Fourat ZOUARI",
-    author_email="fourat@gmail.com",
+    author="Jookies LTD",
+    author_email="jasmin@jookies.net",
     url="http://www.jasminsms.com",
     license="Apache v2.0",
     description=('Jasmin is a very complete open source SMS Gateway '
@@ -54,12 +59,12 @@ setup(
     long_description=open('README.rst', 'r').read(),
     keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
     packages=find_packages(),
-    scripts=['jasmin/bin/jasmind.py'],
+    scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py'],
     include_package_data=True,
     install_requires=[str(ir.req) for ir in install_reqs],
     tests_require=[str(ir.req) for ir in test_reqs],
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 4 - Beta',
         'Framework :: Twisted',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
@@ -73,11 +78,11 @@ setup(
     ],
     platforms='POSIX',
     data_files=[
-                    ('/etc/jasmin', ['misc/config/jasmin.cfg']),
-                    ('/etc/jasmin/resource', [
-                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml', 
+                    ('%s/etc/jasmin' % ROOT_PATH, ['misc/config/jasmin.cfg']),
+                    ('%s/etc/jasmin/resource' % ROOT_PATH, [
+                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml',
                         'misc/config/resource/amqp0-9-1.xml'
                     ],),
-                    ('/etc/jasmin/store', []),
+                    ('%s/etc/jasmin/store' % ROOT_PATH, []),
                 ],
 )

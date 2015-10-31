@@ -6,7 +6,7 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.routing.Filters import *
 
 class FilterTestCase(TestCase):
-    
+
     def setUp(self):
         self.connector = Connector('abc')
         self.PDU = SubmitSM(
@@ -17,116 +17,116 @@ class FilterTestCase(TestCase):
         self.group = Group(100)
         self.user = User(1, self.group, 'username', 'password')
         self.routable = SimpleRoutablePDU(self.connector, self.PDU, self.user)
-    
+
 class TransparentFilterTestCase(FilterTestCase):
     _filter = TransparentFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter()
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
 
 class ConnectorFilterTestCase(FilterTestCase):
     _filter = ConnectorFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter(self.connector)
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
-        
+
 class UserFilterTestCase(FilterTestCase):
     _filter = UserFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter(self.user)
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
-        
+
 class GroupFilterTestCase(FilterTestCase):
     _filter = GroupFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter(self.group)
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
-        
+
 class SourceAddrFilterTestCase(FilterTestCase):
     _filter = SourceAddrFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter('^\d+0$')
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
-        
+
 class DestinationAddrFilterTestCase(FilterTestCase):
     _filter = DestinationAddrFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter('^20\d+')
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
-        
+
 class ShortMessageFilterTestCase(FilterTestCase):
     _filter = ShortMessageFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         self.f = self._filter('^hello.*$')
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
-        
+
 class DateIntervalFilterTestCase(FilterTestCase):
     _filter = DateIntervalFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         threeDaysEarlier = datetime.date.today() - datetime.timedelta(days = 3)
         threeDaysLater = datetime.date.today() + datetime.timedelta(days = 3)
         self.f = self._filter([threeDaysEarlier, threeDaysLater])
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
@@ -141,7 +141,7 @@ class DateIntervalFilterTestCase(FilterTestCase):
 
 class TimeIntervalFilterTestCase(FilterTestCase):
     _filter = TimeIntervalFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
         # Redefine routable with a fixed datetime
@@ -151,10 +151,10 @@ class TimeIntervalFilterTestCase(FilterTestCase):
         threeHoursEarlier = datetime.time(hour=3, minute=0)
         threeHoursLater = datetime.time(hour=9, minute=0)
         self.f = self._filter([threeHoursEarlier, threeHoursLater])
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
@@ -166,12 +166,12 @@ class TimeIntervalFilterTestCase(FilterTestCase):
         threeHoursLater = datetime.time(hour=9, minute=0)
         self.assertRaises(InvalidFilterParameterError, self._filter, [threeHoursEarlier])
         self.assertRaises(InvalidFilterParameterError, self._filter, [threeHoursLater])
-        
+
         # We dont accept complete datetime, we need just a time with no date
         yesterday_time = datetime.datetime.now() - datetime.timedelta(days = 1)
         tomorrow_time = datetime.datetime.now() + datetime.timedelta(days = 1)
         self.assertRaises(InvalidFilterParameterError, self._filter, [yesterday_time, tomorrow_time])
-        
+
 class EvalPyFilterTestCase(FilterTestCase):
     """
     This filter can pass the routable object to a dynamic evaluated python code.
@@ -179,10 +179,10 @@ class EvalPyFilterTestCase(FilterTestCase):
     like any other filter
     """
     _filter = EvalPyFilter
-    
+
     def setUp(self):
         FilterTestCase.setUp(self)
-        
+
         pyCode = """
 if routable.connector.cid == 'abc':
     result = True
@@ -190,14 +190,14 @@ else:
     result = False
 """
         self.f = self._filter(pyCode)
-    
+
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
-        
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
-    
+
     def test_syntax_error(self):
         f = EvalPyFilter("def class anything ...")
         self.assertRaises(SyntaxError, f.match, self.routable)
@@ -218,3 +218,19 @@ else:
         # After match
         unpickledFilter = pickle.loads(pickle.dumps(self.f))
         self.assertTrue(unpickledFilter.pyCode == self.f.pyCode)
+
+class TagFilterTestCase(FilterTestCase):
+    _filter = TagFilter
+
+    def setUp(self):
+        FilterTestCase.setUp(self)
+        self.f = self._filter(300)
+
+    def test_standard(self):
+        self.assertFalse(self.f.match(self.routable))
+        self.routable.addTag(300)
+        self.assertTrue(self.f.match(self.routable))
+
+    def test_invalid_parameter(self):
+        self.assertRaises(InvalidFilterParameterError, self.f.match, object)
+        self.assertRaises(InvalidFilterParameterError, self._filter, object)

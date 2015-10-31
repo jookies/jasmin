@@ -10,6 +10,6 @@ baseParams['content'] = 'Very long message .....................................
 urllib2.urlopen("http://127.0.0.1:1401/send?%s" % urllib.urlencode(baseParams)).read()
 
 # Sending UCS2 (UTF-16) arabic content
-baseParams['content'] = '\x0623\x0631\x0646\x0628'
+baseParams['content'] = '\x06\x23\x06\x31\x06\x46\x06\x28'
 baseParams['coding'] = 8
 urllib2.urlopen("http://127.0.0.1:1401/send?%s" % urllib.urlencode(baseParams)).read()

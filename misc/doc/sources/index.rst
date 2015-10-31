@@ -30,7 +30,7 @@ Getting started
 ***************
 .. hlist::
    :columns: 2
-   
+
    * :doc:`/installation/index` -- Install and run Jasmin SMS Gateway
    * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application via HTTP
    * :doc:`/apis/ja-http/index` -- HTTP API technical specification
@@ -49,6 +49,7 @@ Full contents
    /apis/ja-http/index
    /apis/smpp-server/index
    /routing/index
+   /interception/index
    /programming-examples/index
    /management/jcli/index
    /management/jcli/modules

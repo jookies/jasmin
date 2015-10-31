@@ -25,7 +25,9 @@ from twisted.cred import portal
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from jasmin.managers.proxies import ConnectError
+from jasmin.tools.proxies import ConnectError
+from jasmin.routing.router import RouterPB
+from jasmin.routing.configs import RouterPBConfig
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -56,6 +58,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         # Launch the client manager server
         pbRoot = SMPPClientManagerPB()
         pbRoot.setConfig(self.SMPPClientPBConfigInstance)
+
         yield pbRoot.addAmqpBroker(self.amqpBroker)
         p = portal.Portal(JasminPBRealm(pbRoot))
         if not authentication:
@@ -68,6 +71,11 @@ class SMPPClientPBTestCase(unittest.TestCase):
         self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))
         self.pbPort = self.PBServer.getHost().port
 
+        # Launch the router server
+        self.RouterPBInstance = RouterPB()
+        self.RouterPBInstance.setConfig(RouterPBConfig())
+        pbRoot.addRouterPB(self.RouterPBInstance)
+
         # Default SMPPClientConfig
         defaultSMPPClientId = '001-testconnector'
 
@@ -79,6 +87,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
+        yield self.RouterPBInstance.cancelPersistenceTimer()
         yield self.PBServer.stopListening()
         yield self.amqpClient.disconnect()
 

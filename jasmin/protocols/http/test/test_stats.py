@@ -11,7 +11,7 @@ class BasicTestCases(TestCase):
 	def test_stats(self):
 		stats = HttpAPIStatsCollector().get()
 
-		self.assertEqual(len(stats._stats), 10)
+		self.assertEqual(len(stats._stats), 12)
 		self.assertTrue('created_at' in stats._stats)
 		self.assertTrue('request_count' in stats._stats)
 		self.assertTrue('last_request_at' in stats._stats)
@@ -22,6 +22,8 @@ class BasicTestCases(TestCase):
 		self.assertTrue('server_error_count' in stats._stats)
 		self.assertTrue('success_count' in stats._stats)
 		self.assertTrue('last_success_at' in stats._stats)
+		self.assertTrue('interceptor_count' in stats._stats)
+		self.assertTrue('interceptor_error_count' in stats._stats)
 
 	def test_is_singleton(self):
 		i1 = HttpAPIStatsCollector()

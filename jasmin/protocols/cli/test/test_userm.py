@@ -2,17 +2,17 @@ import re
 from hashlib import md5
 from test_jcli import jCliWithoutAuthTestCases
 from jasmin.routing.jasminApi import MtMessagingCredential, SmppsCredential
-    
+
 class UserTestCases(jCliWithoutAuthTestCases):
     def add_user(self, finalPrompt, extraCommands = [], GID = None, Username = None):
         sessionTerminated = False
         commands = []
-        
+
         if GID:
             commands.append({'command': 'group -a'})
             commands.append({'command': 'gid %s' % GID})
             commands.append({'command': 'ok', 'expect': r'Successfully added Group \['})
-        
+
         commands.append({'command': 'user -a', 'expect': r'Adding a new User\: \(ok\: save, ko\: exit\)'})
         if GID:
             commands.append({'command': 'gid %s' % GID})
@@ -22,10 +22,10 @@ class UserTestCases(jCliWithoutAuthTestCases):
             commands.append({'command': 'password %s' % password})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
-            
+
             if extraCommand['command'] in ['ok', 'ko']:
                 sessionTerminated = True
-        
+
         if not sessionTerminated:
             commands.append({'command': 'ok', 'expect': r'Successfully added User \['})
 
@@ -34,29 +34,29 @@ class UserTestCases(jCliWithoutAuthTestCases):
     def update_user(self, finalPrompt, uid, extraCommands = []):
         sessionTerminated = False
         commands = []
-        
+
         commands.append({'command': 'user -u %s' % uid, 'expect': r'Updating User id \[%s\]\: \(ok\: save, ko\: exit\)' % uid})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
-            
+
             if extraCommand['command'] in ['ok', 'ko']:
                 sessionTerminated = True
-        
+
         if not sessionTerminated:
             commands.append({'command': 'ok', 'expect': r'Successfully updated User \['})
 
         return self._test(finalPrompt, commands)
-    
+
 class BasicTestCases(UserTestCases):
-    
+
     def test_list(self):
         commands = [{'command': 'user -l', 'expect': r'Total Users: 0'}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_add_with_minimum_args(self):
         extraCommands = [{'command': 'uid user_1'}]
         return self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
-    
+
     def test_add_with_empty_uid(self):
         extraCommands = [{'command': 'uid  '},
                          {'command': 'ok', 'expect': r'Error: User uid syntax is invalid'},]
@@ -77,26 +77,26 @@ class BasicTestCases(UserTestCases):
     def test_add_without_minimum_args(self):
         extraCommands = [{'command': 'ok', 'expect': r'You must set User id \(uid\), group \(gid\), username and password before saving !'}]
         return self.add_user(r'> ', extraCommands)
-    
+
     def test_add_invalid_userkey(self):
         extraCommands = [{'command': 'uid user_2'}, {'command': 'anykey anyvalue', 'expect': r'Unknown User key: anykey'}]
         return self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
-    
+
     def test_cancel_add(self):
         extraCommands = [{'command': 'uid user_3'},
                          {'command': 'ko'}, ]
         return self.add_user(r'jcli : ', extraCommands)
-    
+
     def test_add_and_list(self):
         extraCommands = [{'command': 'uid user_4'}]
         self.add_user('jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
 
-        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
-                        '#user_4           AnyGroup         AnyUsername      ND \(\!\)  ND \(\!\) ND/ND', 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput',
+                        '#user_4           AnyGroup         AnyUsername      ND \(\!\)  ND \(\!\) ND/ND',
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_add_and_list_group_users(self):
         # Add 2 users
         gid1 = 'gid1'
@@ -104,7 +104,7 @@ class BasicTestCases(UserTestCases):
         username1 = 'username1'
         extraCommands = [{'command': 'uid %s' % uid1}]
         self.add_user(r'jcli : ', extraCommands, GID = gid1, Username = username1)
-    
+
         gid2 = 'gid2'
         uid2 = 'user_4-2'
         username2 = 'username2'
@@ -112,20 +112,20 @@ class BasicTestCases(UserTestCases):
         self.add_user(r'jcli : ', extraCommands, GID = gid2, Username = username2)
 
         # List all users
-        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput',
                         '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
                         '#%s %s %s %s %s %s' % (uid2.ljust(16), gid2.ljust(16), username2.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users: 2']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
-    
+
         # List gid1 only users
-        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput',
                         '#%s %s %s %s %s %s' % (uid1.ljust(16), gid1.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users in group \[%s\]\: 1' % gid1]
         commands = [{'command': 'user -l %s' % gid1, 'expect': expectedList}]
         self._test(r'jcli : ', commands)
-    
+
     def test_add_cancel_and_list(self):
         extraCommands = [{'command': 'uid user_5'},
                          {'command': 'ko'}, ]
@@ -141,7 +141,7 @@ class BasicTestCases(UserTestCases):
         extraCommands = [{'command': 'uid %s' % uid}]
         self.add_user('jcli : ', extraCommands, GID = gid, Username = username)
 
-        expectedList = ['username %s' % username, 
+        expectedList = ['username %s' % username,
                         'mt_messaging_cred defaultvalue src_addr None',
                         'mt_messaging_cred quota http_throughput ND',
                         'mt_messaging_cred quota balance ND',
@@ -164,18 +164,18 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred authorization http_rate True',
                         'mt_messaging_cred authorization validity_period True',
                         'mt_messaging_cred authorization http_bulk False',
-                        'uid %s' % uid, 
+                        'uid %s' % uid,
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
                         'gid %s' % gid,
                         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
-        
+
     def test_show_invalid_uid(self):
         commands = [{'command': 'user -s invalid_uid', 'expect': r'Unknown User\: invalid_uid'}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_update_uid(self):
         uid = 'user_7-1'
         extraCommands = [{'command': 'uid %s' % uid}]
@@ -184,7 +184,7 @@ class BasicTestCases(UserTestCases):
         commands = [{'command': 'user -u user_7-1', 'expect': r'Updating User id \[%s\]\: \(ok\: save, ko\: exit\)' % uid},
                     {'command': 'uid 2222', 'expect': r'User id can not be modified !'}]
         return self._test(r'> ', commands)
-    
+
     def test_update_username(self):
         uid = 'user_7-2'
         extraCommands = [{'command': 'uid %s' % uid}]
@@ -193,17 +193,17 @@ class BasicTestCases(UserTestCases):
         commands = [{'command': 'user -u user_7-2', 'expect': r'Updating User id \[%s\]\: \(ok\: save, ko\: exit\)' % uid},
                     {'command': 'username AnotherUsername', 'expect': r'User username can not be modified !'}]
         return self._test(r'> ', commands)
-    
+
     def test_update_gid(self):
         uid = 'user_8'
         gid = 'CurrentGID'
         newGID = 'NewGID'
         extraCommands = [{'command': 'uid %s' % uid}]
         self.add_user(r'jcli : ', extraCommands, GID = gid, Username = 'AnyUsername')
-        
+
         # List
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), gid.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS',
+                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), gid.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)),
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -221,8 +221,8 @@ class BasicTestCases(UserTestCases):
         self._test(r'jcli : ', commands)
 
         # List again
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), newGID.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS',
+                        '#%s %s AnyUsername      %s %s' % (uid.ljust(16), newGID.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)),
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -234,7 +234,7 @@ class BasicTestCases(UserTestCases):
         newGID = 'NewGID'
         extraCommands = [{'command': 'uid %s' % uid}]
         self.add_user(r'jcli : ', extraCommands, GID = gid, Username = username)
-        
+
         # Add a new group
         commands = [{'command': 'group -a'},
                     {'command': 'gid %s' % newGID},
@@ -248,7 +248,7 @@ class BasicTestCases(UserTestCases):
         self._test(r'jcli : ', commands)
 
         # Show and assert
-        expectedList = ['username %s' % username, 
+        expectedList = ['username %s' % username,
                         'mt_messaging_cred defaultvalue src_addr None',
                         'mt_messaging_cred quota http_throughput ND',
                         'mt_messaging_cred quota balance ND',
@@ -271,7 +271,7 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred authorization http_rate True',
                         'mt_messaging_cred authorization validity_period True',
                         'mt_messaging_cred authorization http_bulk False',
-                        'uid %s' % uid, 
+                        'uid %s' % uid,
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
                         'gid %s' % newGID,
@@ -282,12 +282,12 @@ class BasicTestCases(UserTestCases):
     def test_remove_invalid_uid(self):
         commands = [{'command': 'user -r invalid_uid', 'expect': r'Unknown User\: invalid_uid'}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_remove(self):
         uid = 'user_10'
         extraCommands = [{'command': 'uid %s' % uid}]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
-    
+
         commands = [{'command': 'user -r %s' % uid, 'expect': r'Successfully removed User id\:%s' % uid}]
         return self._test(r'jcli : ', commands)
 
@@ -296,10 +296,10 @@ class BasicTestCases(UserTestCases):
         uid = 'user_12'
         extraCommands = [{'command': 'uid %s' % uid}]
         self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
-    
+
         # List
-        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput', 
-                        '#%s AnyGroup         AnyUsername      %s %s %s' % (uid.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)), 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS Throughput',
+                        '#%s AnyGroup         AnyUsername      %s %s %s' % (uid.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6), 'ND/ND'.ljust(8)),
                         'Total Users: 1']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -311,7 +311,7 @@ class BasicTestCases(UserTestCases):
         # List again
         commands = [{'command': 'user -l', 'expect': r'Total Users: 0'}]
         return self._test(r'jcli : ', commands)
-    
+
     def test_remove_group_will_remove_its_users(self):
         gid = 'a_group'
         # Add 2 users to gid
@@ -319,16 +319,16 @@ class BasicTestCases(UserTestCases):
         username1 = 'username1'
         extraCommands = [{'command': 'uid %s' % uid1}]
         self.add_user(r'jcli : ', extraCommands, GID = gid, Username = username1)
-    
+
         uid2 = 'user_13-2'
         username2 = 'username2'
         extraCommands = [{'command': 'uid %s' % uid2}]
         self.add_user(r'jcli : ', extraCommands, GID = gid, Username = username2)
 
         # List
-        expectedList = ['#User id          Group id         Username         Balance MT SMS', 
-                        '#%s %s %s %s %s' % (uid1.ljust(16), gid.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
-                        '#%s %s %s %s %s' % (uid2.ljust(16), gid.ljust(16), username2.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)), 
+        expectedList = ['#User id          Group id         Username         Balance MT SMS',
+                        '#%s %s %s %s %s' % (uid1.ljust(16), gid.ljust(16), username1.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)),
+                        '#%s %s %s %s %s' % (uid2.ljust(16), gid.ljust(16), username2.ljust(16), 'ND \(\!\) '.ljust(7), 'ND \(\!\)'.ljust(6)),
                         'Total Users: 2']
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
@@ -362,7 +362,7 @@ class BasicTestCases(UserTestCases):
         # assert password is store in crypted format
         self.assertEqual(1, len(self.RouterPB_f.users))
         self.assertEqual(md5(update_password).digest(), self.RouterPB_f.users[0].password)
-    
+
 class MtMessagingCredentialTestCases(UserTestCases):
 
     def _test_user_with_MtMessagingCredential(self, uid, gid, username, mtcred):
@@ -392,7 +392,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
             assertSmppsThroughput = str(int(mtcred.getQuota('smpps_throughput')))
 
         # Show and assert
-        expectedList = ['username AnyUsername', 
+        expectedList = ['username AnyUsername',
                         'mt_messaging_cred defaultvalue src_addr %s' % mtcred.getDefaultValue('source_address'),
                         'mt_messaging_cred quota http_throughput %s' % assertHttpThroughput,
                         'mt_messaging_cred quota balance %s' % assertBalance,
@@ -415,7 +415,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                         'mt_messaging_cred authorization http_rate %s' % mtcred.getAuthorization('http_rate'),
                         'mt_messaging_cred authorization validity_period %s' % mtcred.getAuthorization('set_validity_period'),
                         'mt_messaging_cred authorization http_bulk %s' % mtcred.getAuthorization('http_bulk'),
-                        'uid user_1', 
+                        'uid user_1',
                         'smpps_cred quota max_bindings ND',
                         'smpps_cred authorization bind True',
                         'gid AnyGroup',
@@ -427,12 +427,12 @@ class MtMessagingCredentialTestCases(UserTestCases):
         if assertBalance == 'ND' and assertSmsCount == 'ND':
             assertBalance = 'ND \(\!\) '
             assertSmsCount = 'ND \(\!\)'
-        expectedList = ['#.*', 
+        expectedList = ['#.*',
                         '#%s %s %s %s %s' % (uid.ljust(16), gid.ljust(16), username.ljust(16), assertBalance.ljust(7), assertSmsCount.ljust(6)),
                         ]
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
-    
+
     def test_default(self):
         "Default user is created with a default MtMessagingCredential() instance"
 
@@ -655,7 +655,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
     def test_invalid_syntax(self):
         # Assert User adding
         extraCommands = [{'command': 'uid user_1'},
-                         {'command': 'mt_messaging_red authorization http_send no', 
+                         {'command': 'mt_messaging_red authorization http_send no',
                          'expect': 'Unknown User key: mt_messaging_red'},
                          {'command': 'mt_messaging_cred quta balance 40.3',
                          'expect': 'Error: invalid section name: quta, possible values: DefaultValue, Quota, ValueFilter, Authorization'},
@@ -672,7 +672,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
 
         # Assert User updating
         extraCommands = [{'command': 'password any_password'},
-                         {'command': 'mt_messaging_red authorization http_send no', 
+                         {'command': 'mt_messaging_red authorization http_send no',
                          'expect': 'Unknown User key: mt_messaging_red'},
                          {'command': 'mt_messaging_cred quta balance 40.3',
                          'expect': 'Error: invalid section name: quta, possible values: DefaultValue, Quota, ValueFilter, Authorization'},
@@ -696,7 +696,7 @@ class SmppsCredentialTestCases(UserTestCases):
             assertMaxBindings = str(int(smppscred.getQuota('max_bindings')))
 
         # Show and assert
-        expectedList = ['username AnyUsername', 
+        expectedList = ['username AnyUsername',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
@@ -719,7 +719,7 @@ class SmppsCredentialTestCases(UserTestCases):
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
-                        'uid user_1', 
+                        'uid user_1',
                         'smpps_cred quota max_bindings %s' % assertMaxBindings,
                         'smpps_cred authorization bind %s' % smppscred.getAuthorization('bind'),
                         'gid AnyGroup',
@@ -728,12 +728,12 @@ class SmppsCredentialTestCases(UserTestCases):
         self._test(r'jcli : ', commands)
 
         # List and assert
-        expectedList = ['#.*', 
+        expectedList = ['#.*',
                         '#%s %s %s' % (uid.ljust(16), gid.ljust(16), username.ljust(16))
                         ]
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
-    
+
     def test_default(self):
         "Default user is created with a default SmppsCredential() instance"
 
@@ -841,7 +841,7 @@ class SmppsCredentialTestCases(UserTestCases):
     def test_invalid_syntax(self):
         # Assert User adding
         extraCommands = [{'command': 'uid user_1'},
-                         {'command': 'smpps_red authorization bind no', 
+                         {'command': 'smpps_red authorization bind no',
                          'expect': 'Unknown User key: smpps_red'},
                          {'command': 'smpps_cred quta max_bindings 22',
                          'expect': 'Error: invalid section name: quta, possible values: Quota, Authorization'},
@@ -856,7 +856,7 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Assert User updating
         extraCommands = [{'command': 'password any_password'},
-                         {'command': 'smpps_red authorization bind no', 
+                         {'command': 'smpps_red authorization bind no',
                          'expect': 'Unknown User key: smpps_red'},
                          {'command': 'smpps_cred quta max_bindings 22',
                          'expect': 'Error: invalid section name: quta, possible values: Quota, Authorization'},
