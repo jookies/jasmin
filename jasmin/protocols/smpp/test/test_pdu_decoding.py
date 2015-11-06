@@ -79,3 +79,14 @@ class PDUDecoderTest(unittest.TestCase):
         self.assertEquals('deliver_sm', str(pdu.id))
         self.assertEquals('50888961', str(pdu.seqNum))
         self.assertEquals('ESME_ROK', str(pdu.status))
+
+    def test_unknown_tag_value_0x60D(self):
+        "Related to #325"
+
+        pduHex = '000000de0000000500000000569d3e3600000033353236393136303034303300000030000400000000000000008569643a3444313943383343207375623a30303120646c7672643a303031207375626d697420646174653a3135313030393031303520646f6e6520646174653a3135313030393031303520737461743a44454c49565244206572723a3030303020746578743a4757323530204d43433d323730204d4e433d312042696c6c696e674d4e433d31001e0009344431394338334300000e000101060d000731323730303100060f000532373030310427000102'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEquals('deliver_sm', str(pdu.id))
+        self.assertEquals('1453145654', str(pdu.seqNum))
+        self.assertEquals('ESME_ROK', str(pdu.status))
