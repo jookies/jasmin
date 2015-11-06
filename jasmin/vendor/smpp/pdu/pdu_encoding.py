@@ -262,9 +262,25 @@ class IntegerWrapperEncoder(PDUNullableFieldEncoder):
         intVal = self.encoder._decode(bytes)
 
         # Jasmin update: bypass vendor specific tags
-        if self.fieldName == 'tag' and intVal >= 5120 and intVal <= 16383:
-            # Vendor specific tag is not supported by Jasmin but must
-            # not raise an error
+        # Vendor specific tag is not supported by Jasmin but must
+        # not raise an error
+        if self.fieldName == 'tag' and intVal == 0:
+            # Tag in range: "Reserved"
+            return self.pduType.vendor_specific_bypass
+        elif self.fieldName == 'tag' and intVal >= 0x0100 and intVal <= 0x01FF:
+            # Tag in range: "Reserved"
+            return self.pduType.vendor_specific_bypass
+        elif self.fieldName == 'tag' and intVal >= 0x0600 and intVal <= 0x10FF:
+            # Tag in range: "Reserved for SMPP Protocol Extension"
+            return self.pduType.vendor_specific_bypass
+        elif self.fieldName == 'tag' and intVal >= 0x1100 and intVal <= 0x11FF:
+            # Tag in range: "Reserved"
+            return self.pduType.vendor_specific_bypass
+        elif self.fieldName == 'tag' and intVal >= 0x1400 and intVal <= 0x3FFF:
+            # Tag in range: "Reserved for SMSC Vendor specific optional parameters"
+            return self.pduType.vendor_specific_bypass
+        elif self.fieldName == 'tag' and intVal >= 0x4000 and intVal <= 0xFFFF:
+            # Tag in range: "Reserved"
             return self.pduType.vendor_specific_bypass
         elif intVal not in self.valueMap:
             errStr = "Unknown %s value %s" % (self.fieldName, hex(intVal))
