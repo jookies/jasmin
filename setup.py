@@ -30,9 +30,10 @@ if "install" in sys.argv:
         if not os.path.exists(sysdir):
             print 'WARNING: %s does not exist !' % sysdir
 
-    # 3. Check for permission to write jasmin.cfg in /etc/jasmin
-    if not os.access('%s/etc/jasmin' % ROOT_PATH, os.W_OK):
-        print 'WARNING: %s/etc/jasmin must be writeable by the current user (%s)' % (ROOT_PATH, getpass.getuser())
+    # 3. Check for permission to write jasmin.cfg in /etc/jasmin/store
+    if not os.access('%s/etc/jasmin/store' % ROOT_PATH, os.W_OK):
+        print 'WARNING: %s/etc/jasmin/store must be writeable by the current user (%s)' % (
+            ROOT_PATH, getpass.getuser())
 
     # 4. Check if sysdirs are owned by jasmin user
     for sysdir in sysdirs[3:]:
