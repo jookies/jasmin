@@ -4,6 +4,7 @@ import sys
 import signal
 import syslog
 import os
+from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.python import usage
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
@@ -413,13 +414,17 @@ class JasminDaemon(object):
         return self.stop()
 
 if __name__ == '__main__':
+    # Must not be executed simultaneously (c.f. #265)
+    lock = FileLock("/tmp/jasmind.lock")
+
     try:
         options = Options()
         options.parseOptions()
-    except usage.UsageError, errortext:
-        print '%s: %s' % (sys.argv[0], errortext)
-        print '%s: Try --help for usage details.' % (sys.argv[0])
-    else:
+
+        # Ensure there are no paralell runs of this script
+        lock.acquire(timeout=2)
+
+        # Prepare to start
         ja_d = JasminDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, ja_d.sighandler_stop)
@@ -427,3 +432,14 @@ if __name__ == '__main__':
         ja_d.start()
 
         reactor.run()
+    except usage.UsageError, errortext:
+        print '%s: %s' % (sys.argv[0], errortext)
+        print '%s: Try --help for usage details.' % (sys.argv[0])
+    except LockTimeout:
+        print "Lock not acquired ! exiting"
+    except AlreadyLocked:
+        print "There's another instance on jasmind running, exiting."
+    finally:
+        # Release the lock
+        if lock.i_am_locking():
+            lock.release()
