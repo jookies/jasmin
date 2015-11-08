@@ -113,7 +113,6 @@ In order to run as a POSIX system service, Jasmin requires the creation of the f
     /etc/jasmin/resource
     /etc/jasmin/store       #> Must be owned by jasmin user
     /var/log/jasmin         #> Must be owned by jasmin user
-    /var/run/jasmin         #> Must be owned by jasmin user
 
 .. _installation_linux_steps:
 

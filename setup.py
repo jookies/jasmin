@@ -25,8 +25,7 @@ if "install" in sys.argv:
     sysdirs = ['%s/etc/jasmin' % ROOT_PATH,
                 '%s/etc/jasmin/resource' % ROOT_PATH,
                 '%s/etc/jasmin/store' % ROOT_PATH,
-                '%s/var/log/jasmin' % ROOT_PATH,
-                '%s/var/run/jasmin' % ROOT_PATH,]
+                '%s/var/log/jasmin' % ROOT_PATH,]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
             print 'WARNING: %s does not exist !' % sysdir
