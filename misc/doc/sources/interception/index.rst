@@ -23,30 +23,21 @@ Enabling interceptor
 ********************
 
 Jasmin's interceptor is a system service that run separately from Jasmin, it can be hosted on remote server as
-well; in order to launch the **interceptord** service you need to execute the following steps::
+well; **interceptord** is a system service just like **jasmind**, so simply start it by typing::
 
-  # On ubuntu:
-  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.7/misc/config/init-script/interceptord-ubuntu -O /etc/init.d/interceptord
-  # On redhat, centos:
-  sudo wget https://raw.githubusercontent.com/jookies/jasmin/v0.7/misc/config/init-script/interceptord-redhat -O /etc/init.d/interceptord
+  sudo systemctl start interceptord
 
-  # Then:
-  sudo chmod +x /etc/init.d/interceptord
-  sudo update-rc.d interceptord defaults
-  sudo invoke-rc.d interceptord start
-
-.. note:: On some Linux distributions, you may use **sudo systemctl enable interceptord**.
 .. note:: After starting the **interceptord** service, you may check */var/log/jasmin/interceptor.log* to
   ensure everything is okay.
 
 Then you need to enable communication between **jasmind** and **interceptord** services by editing **jasmind**
-start script (*/etc/init.d/jasmind*) and replacing the following line::
+start script (locate the **jasmind.service** file in */etc/systemd*) and replacing the following line::
 
-  COMMAND_ARGS='--username jcliadmin --password jclipwd'
+  ExecStart=/usr/bin/jasmind.py --username jcliadmin --password jclipwd
 
 by::
 
-  COMMAND_ARGS='--username jcliadmin --password jclipwd --enable-interceptor-client'
+  ExecStart=/usr/bin/jasmind.py --username jcliadmin --password jclipwd --enable-interceptor-client
 
 The last step is to restart **jasmind** and check */var/log/jasmin/interceptor.log* to ensure connection has
 been successfully established by finding the following line::
