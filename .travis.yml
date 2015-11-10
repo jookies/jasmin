@@ -3,7 +3,7 @@ language: python
 python:
     - '2.7'
 env:
-    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.8b1
+    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.8b2
 # Command to install dependencies
 install:
     - python setup.py sdist
@@ -39,7 +39,6 @@ before_install:
     - virtualenv venv
     - source venv/bin/activate
     - mkdir -p $ROOT_PATH/var/log/jasmin
-    - mkdir -p $ROOT_PATH/var/run/jasmin
     - mkdir -p $ROOT_PATH/etc/jasmin/resource
     - mkdir -p $ROOT_PATH/etc/jasmin/init-script
     - mkdir -p $ROOT_PATH/etc/jasmin/store
