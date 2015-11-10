@@ -36,6 +36,7 @@ Ubuntu
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 
+  sudo systemctl enable jasmind
   sudo systemctl start jasmind
 
 .. note:: redis and rabbitmq must be started with jasmin.
@@ -62,6 +63,7 @@ These requirements are available from the `EPEL repository <https://fedoraprojec
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 
+  sudo systemctl enable jasmind
   sudo systemctl start jasmind
 
 .. note:: redis and rabbitmq must be started with jasmin.
