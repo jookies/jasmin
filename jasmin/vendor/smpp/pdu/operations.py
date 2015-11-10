@@ -118,6 +118,10 @@ class SubmitSM(PDUDataRequest):
         'short_message',
     ]
     optionalParams = [
+        # Avoid raising exceptions when having vendor specific tags, just
+        # bypass them
+        'vendor_specific_bypass',
+
         'user_message_reference',
         'source_port',
         'source_addr_subunit',
