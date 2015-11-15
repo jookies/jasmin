@@ -175,7 +175,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'jasmin.tex', u'Jasmin Documentation',
-   u'Fourat ZOUARI', 'manual'),
+   u'Jookies LTD', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -205,7 +205,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'jasmin', u'Jasmin Documentation',
-     [u'Fourat ZOUARI'], 1)
+     [u'Jookies LTD'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -219,7 +219,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'jasmin', u'Jasmin Documentation',
-   u'Fourat ZOUARI', 'jasmin', 'One line description of project.',
+   u'Jookies LTD', 'jasmin', 'Jasmin SMS gateway documentation.',
    'Miscellaneous'),
 ]
 
@@ -237,8 +237,8 @@ texinfo_documents = [
 
 # Bibliographic Dublin Core info.
 epub_title = u'jasmin sms gateway'
-epub_author = u'Fourat ZOUARI'
-epub_publisher = u'Fourat ZOUARI'
+epub_author = u'Jookies LTD'
+epub_publisher = u'Jookies LTD'
 epub_copyright = u'2014-2016, Jookies LTD'
 
 # The language of the text. It defaults to the language option
@@ -280,4 +280,4 @@ epub_copyright = u'2014-2016, Jookies LTD'
 intersphinx_mapping = {'http://docs.python.org/': None}
 
 # Jasmin vars
-author = u'Fourat ZOUARI'
+author = u'Jookies LTD'
