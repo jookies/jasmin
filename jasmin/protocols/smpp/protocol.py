@@ -326,6 +326,20 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
         return twistedSMPPClientProtocol.doSendRequest(self, pdu, timeout)
 
+    def sendDataRequest(self, pdu):
+        """If pdu has a 'vendor_specific_bypass' tag, it will be deleted before sending it
+
+        This is a workaround to let Jasmin accepts messages with vendor TLVs but not forwarding them
+        to upstream connectors.
+
+        Related to #325
+        """
+
+        if pdu.commandId == CommandId.submit_sm and 'vendor_specific_bypass' in pdu.params:
+            del pdu.params['vendor_specific_bypass']
+
+        return twistedSMPPClientProtocol.sendDataRequest(self, pdu)
+
 class SMPPServerProtocol(twistedSMPPServerProtocol):
     def __init__(self):
         twistedSMPPServerProtocol.__init__(self)
@@ -537,3 +551,17 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
             self.factory.stats.inc('bound_rx_count')
         elif str(bind_type) == 'bind_transmitter':
             self.factory.stats.inc('bound_tx_count')
+
+    def sendDataRequest(self, pdu):
+        """If pdu has a 'vendor_specific_bypass' tag, it will be deleted before sending it
+
+        This is a workaround to let Jasmin accepts messages with vendor TLVs but not forwarding them
+        to downstream users.
+
+        Related to #325
+        """
+
+        if pdu.commandId == CommandId.deliver_sm and 'vendor_specific_bypass' in pdu.params:
+            del pdu.params['vendor_specific_bypass']
+
+        return twistedSMPPServerProtocol.sendDataRequest(self, pdu)

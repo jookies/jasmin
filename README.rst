@@ -14,13 +14,13 @@ Jasmin is a very complete open source SMS Gateway with many enterprise-class fea
 * Console-based configuration, no service restart required
 * Based on AMQP broker for store&forward mechanisms and other queuing systems
 * Using Redis for in-memory DLR tracking and billing
-* Advanced message routing/filtering (Simple, Roundrobin, Failover, Leastcost ...)
+* Advanced message routing/filtering (Simple, Roundrobin, Failover, HLR lookup, Leastcost ...)
 * Web and console ui for management
 * Supports Unicode (UTF-8) for sending out multilingual SMS
 * Supports easy creation and sending of specialized/binary SMS like mono Ringtones, WAP Push, Vcards
 * Supports concatenated SMS strings (long SMS)
 
-Jasmin relies heavily on message queuing through message brokers (Using AMQP), it is designed for performance, 
+Jasmin relies heavily on message queuing through message brokers (Using AMQP), it is designed for performance,
 high traffic loads and full in-memory execution.
 
 Architecture
@@ -31,7 +31,7 @@ Architecture
    :align: Center
    :figwidth: 100%
 
-Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python 
+Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python
 and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, an event-driven networking engine.
 
 Getting started
