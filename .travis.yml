@@ -11,15 +11,6 @@ install:
     - cp misc/config/init-script/jasmind-ubuntu $ROOT_PATH/etc/init.d/jasmind
 # Commands to run tests:
 script:
-    ## TODO: run ci with sudo inside docker-based travis-ci build:
-    # # Service startup test:
-    # - sudo /etc/init.d/jasmind start
-    # - sleep 2
-    # - sudo /etc/init.d/jasmind status
-    # # Stop service:
-    # - sudo /etc/init.d/jasmind stop
-    # # Cleaning before going for further tests:
-    # - rm -f $ROOT_PATH/var/log/jasmin/*;rm -f $ROOT_PATH/etc/jasmin/store/*
     # Trial tests and coverage:
     - coverage run `which trial` jasmin
     # Docs building test:
