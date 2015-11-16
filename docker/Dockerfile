@@ -31,8 +31,8 @@ RUN mkdir -p /etc/jasmin/resource \
 RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
 
 EXPOSE 2775 8990 1401
-VOLUME ["/var/log/jasmin", "/etc/jasmin"]
+VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["jasmind.py", "--enable-interceptor-client", "-u jcliadmin", "-p jclipwd"]
+CMD ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]

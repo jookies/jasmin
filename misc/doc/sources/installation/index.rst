@@ -4,6 +4,8 @@ Installation
 
 The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/ja-http/index` or :doc:`/apis/smpp-server/index`.
 
+Jasmin installation is provided as rpm & deb Linux packages, docker image and pypi package.
+
 .. important:: Jasmin needs a working **RabbitMQ** and **Redis** servers, more info in :ref:`installation_prerequisites` below.
 
 .. _installation_prerequisites:
@@ -114,6 +116,67 @@ Once Jasmin installed, execute the following steps to start Jasmin as a system s
 .. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind**.
 
 .. note:: redis and rabbitmq must be started with jasmin.
+
+Docker
+******
+
+You probably have heard of `Docker <https://www.docker.com/>`_, it is a container technology with a ton of momentum. But if you
+haven't, you can think of containers as easily-configured, lightweight VMs that start up fast, often in under
+one second. Containers are ideal for `microservice architectures <https://en.wikipedia.org/wiki/Microservices>`_
+and for environments that scale rapidly or release often, Here's more from `Docker's website <https://www.docker.com/what-docker>`_.
+
+Installing Docker
+=================
+
+Before we get into containers, we'll need to get Docker running locally. You can do this by installing the
+package for your system (tip: you can find `yours here <https://docs.docker.com/installation/#installation>`_).
+Running a Mac? You'll need to install the `boot2docker application <http://boot2docker.io/>`_ before using Docker.
+Once that's set up, you're ready to start using Jasmin container !
+
+Pulling Jasmin image
+====================
+
+This command will pull latest jasmin docker image to your computer::
+
+    docker pull jookies/jasmin
+
+You should have Jasmin image listed in your local docker images::
+
+    # docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    jasmin              latest              0e4cf8879899        36 minutes ago      478.6 MB
+
+Starting Jasmin in a container
+==============================
+
+This command will create a new docker container with name *jasmin_01* which run as a demon::
+
+    docker run -d -p 1401:1401 -p 2775:2775 -p 8990:8990 --name jasmin_01 jasmin:latest
+
+Note that we used the parameter **-p** three times, it defines port forwarding from host computer to the container,
+typing **-p 2775:2775** will map the container's 2775 port to your host 2775 port; this can
+be useful in case you'll be running multiple containers of Jasmin where you keep a port offset of 10 between
+each, example::
+
+    docker run -d -p 1411:1401 -p 2785:2775 -p 8990:8990 --name jasmin_02 jasmin:latest
+    docker run -d -p 1421:1401 -p 2795:2775 -p 9000:8990 --name jasmin_03 jasmin:latest
+    docker run -d -p 1431:1401 -p 2805:2775 -p 9010:8990 --name jasmin_04 jasmin:latest
+
+You should have the container running by typing the following::
+
+    # docker ps
+    CONTAINER ID  IMAGE           COMMAND                CREATED         STATUS         PORTS                                                                    NAMES
+    0a2fafbe60d0  jasmin:latest   "/docker-entrypoint.   43 minutes ago  Up 41 minutes  0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp   jasmin_01
+
+And in order to control the container **jasmin_01**, use::
+
+    docker stop jasmin_01
+    docker start jasmin_01
+
+It's possible to access log files located in **/var/log/jasmin** inside the container by mounting it as a shared
+folder::
+
+    docker run -d -v /home/user/jasmin_logs:/var/log/jasmin --name jasmin_100 jasmin:latest
 
 Sending your first SMS
 **********************
