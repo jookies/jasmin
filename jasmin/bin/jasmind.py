@@ -298,66 +298,103 @@ class JasminDaemon(object):
         syslog.syslog(syslog.LOG_INFO, "Starting Jasmin Daemon ...")
 
         # Requirements check begin:
-        try:
-            ########################################################
-            # [optional] Start Interceptor client
-            if self.options['enable-interceptor-client']:
+        ########################################################
+        if self.options['enable-interceptor-client']:
+            try:
+                # [optional] Start Interceptor client
                 yield self.startInterceptorPBClient()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot connect to interceptor: %s" % e)
+            else:
                 syslog.syslog(syslog.LOG_INFO, "  Interceptor client Started.")
-        except Exception, e:
-            syslog.syslog(syslog.LOG_ERR, "  Cannot connect to interceptor: %s" % e)
         # Requirements check end.
 
         ########################################################
         # Connect to redis server
-        yield self.startRedisClient()
-        syslog.syslog(syslog.LOG_INFO, "  RedisClient started.")
+        try:
+            yield self.startRedisClient()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start RedisClient: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  RedisClient Started.")
 
         ########################################################
         # Start AMQP Broker
-        self.startAMQPBrokerService()
-        yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
-        syslog.syslog(syslog.LOG_INFO, "  AMQP Broker connected.")
+        try:
+            self.startAMQPBrokerService()
+            yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start AMQP Broker: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  AMQP Broker Started.")
 
         ########################################################
         # Start Router PB server
-        yield self.startRouterPBService()
-        syslog.syslog(syslog.LOG_INFO, "  RouterPB Started.")
+        try:
+            yield self.startRouterPBService()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start RouterPB: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  RouterPB Started.")
 
         ########################################################
         # Start SMPP Client connector manager and add rc
-        self.startSMPPClientManagerPBService()
-        syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
+        try:
+            self.startSMPPClientManagerPBService()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPClientManagerPB: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
 
         ########################################################
-        # [optional] Start SMPP Server
         if not self.options['disable-smpp-server']:
-            self.startSMPPServerService()
-            syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
+            try:
+                # [optional] Start SMPP Server
+                self.startSMPPServerService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPServer: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
 
         ########################################################
-        # [optional] Start deliverSmThrower
         if not self.options['disable-deliver-thrower']:
-            yield self.startdeliverSmThrowerService()
-            syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower Started.")
+            try:
+                # [optional] Start deliverSmThrower
+                yield self.startdeliverSmThrowerService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start deliverSmThrower: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower Started.")
 
         ########################################################
-        # [optional] Start DLRThrower
         if not self.options['disable-dlr-thrower']:
-            yield self.startDLRThrowerService()
-            syslog.syslog(syslog.LOG_INFO, "  DLRThrower Started.")
+            try:
+                # [optional] Start DLRThrower
+                yield self.startDLRThrowerService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRThrower: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  DLRThrower Started.")
 
         ########################################################
-        # [optional] Start HTTP Api
         if not self.options['disable-http-api']:
-            self.startHTTPApiService()
-            syslog.syslog(syslog.LOG_INFO, "  HTTPApi Started.")
+            try:
+                # [optional] Start HTTP Api
+                self.startHTTPApiService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start HTTPApi: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  HTTPApi Started.")
 
         ########################################################
-        # [optional] Start JCli server
         if not self.options['disable-jcli']:
-            self.startJCliService()
-            syslog.syslog(syslog.LOG_INFO, "  jCli Started.")
+            try:
+                # [optional] Start JCli server
+                self.startJCliService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start jCli: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  jCli Started.")
 
     @defer.inlineCallbacks
     def stop(self):

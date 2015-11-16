@@ -66,8 +66,12 @@ class InterceptorDaemon(object):
 
         ########################################################
         # Start Interceptor PB server
-        yield self.startInterceptorPBService()
-        syslog.syslog(syslog.LOG_INFO, "  Interceptor Started.")
+        try:
+            yield self.startInterceptorPBService()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start Interceptor: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  Interceptor Started.")
 
     @defer.inlineCallbacks
     def stop(self):
