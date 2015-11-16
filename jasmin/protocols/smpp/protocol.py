@@ -334,7 +334,6 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
         Related to #325
         """
-
         if pdu.commandId == CommandId.submit_sm and 'vendor_specific_bypass' in pdu.params:
             del pdu.params['vendor_specific_bypass']
 
@@ -560,7 +559,6 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
 
         Related to #325
         """
-
         if pdu.commandId == CommandId.deliver_sm and 'vendor_specific_bypass' in pdu.params:
             del pdu.params['vendor_specific_bypass']
 
