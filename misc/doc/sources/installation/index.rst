@@ -146,6 +146,8 @@ You should have Jasmin image listed in your local docker images::
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     jasmin              latest              0e4cf8879899        36 minutes ago      478.6 MB
 
+.. note:: The Jasmin docker image is a self-contained/standalone box including Jasmin+Redis+RabbitMQ.
+
 Starting Jasmin in a container
 ==============================
 
