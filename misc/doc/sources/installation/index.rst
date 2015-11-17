@@ -153,22 +153,22 @@ Starting Jasmin in a container
 
 This command will create a new docker container with name *jasmin_01* which run as a demon::
 
-    docker run -d -p 1401:1401 -p 2775:2775 -p 8990:8990 --name jasmin_01 jasmin:latest
+    docker run -d -p 1401:1401 -p 2775:2775 -p 8990:8990 --name jasmin_01 jookies/jasmin:latest
 
 Note that we used the parameter **-p** three times, it defines port forwarding from host computer to the container,
 typing **-p 2775:2775** will map the container's 2775 port to your host 2775 port; this can
 be useful in case you'll be running multiple containers of Jasmin where you keep a port offset of 10 between
 each, example::
 
-    docker run -d -p 1411:1401 -p 2785:2775 -p 8990:8990 --name jasmin_02 jasmin:latest
-    docker run -d -p 1421:1401 -p 2795:2775 -p 9000:8990 --name jasmin_03 jasmin:latest
-    docker run -d -p 1431:1401 -p 2805:2775 -p 9010:8990 --name jasmin_04 jasmin:latest
+    docker run -d -p 1411:1401 -p 2785:2775 -p 8990:8990 --name jasmin_02 jookies/jasmin:latest
+    docker run -d -p 1421:1401 -p 2795:2775 -p 9000:8990 --name jasmin_03 jookies/jasmin:latest
+    docker run -d -p 1431:1401 -p 2805:2775 -p 9010:8990 --name jasmin_04 jookies/jasmin:latest
 
 You should have the container running by typing the following::
 
     # docker ps
-    CONTAINER ID  IMAGE           COMMAND                CREATED         STATUS         PORTS                                                                    NAMES
-    0a2fafbe60d0  jasmin:latest   "/docker-entrypoint.   43 minutes ago  Up 41 minutes  0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp   jasmin_01
+    CONTAINER ID  IMAGE                   COMMAND                CREATED         STATUS         PORTS                                                                    NAMES
+    0a2fafbe60d0  jookies/jasmin:latest   "/docker-entrypoint.   43 minutes ago  Up 41 minutes  0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp   jasmin_01
 
 And in order to control the container **jasmin_01**, use::
 
@@ -178,7 +178,7 @@ And in order to control the container **jasmin_01**, use::
 It's possible to access log files located in **/var/log/jasmin** inside the container by mounting it as a shared
 folder::
 
-    docker run -d -v /home/user/jasmin_logs:/var/log/jasmin --name jasmin_100 jasmin:latest
+    docker run -d -v /home/user/jasmin_logs:/var/log/jasmin --name jasmin_100 jookies/jasmin:latest
 
 Sending your first SMS
 **********************
