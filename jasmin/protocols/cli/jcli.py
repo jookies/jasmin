@@ -180,7 +180,6 @@ class JCliProtocol(CmdProtocol):
                           help="Add group"),
               make_option('-r', '--remove', type="string", metavar="GID",
                           help="Remove group using it's GID")], '')
-
     def do_group(self, arg, opts):
         'Group management'
 

@@ -264,15 +264,30 @@ class RouterPB(pb.Avatar):
     def authenticateUser(self, username, password, return_pickled=False):
         """Authenticate a user agains username and password and return user object or None
         """
+        # Find user having correct username/password
         for _user in self.users:
             if _user.username == username and _user.password == md5(password).digest():
                 self.log.debug('authenticateUser [username:%s] returned a User', username)
+
+                # Check if user's group is enabled
+                if not _user.group.enabled:
+                    self.log.info('authenticateUser [username:%s] returned None (group %s is disabled)' % (
+                                  username, _user.group))
+                    return None
+
+                # Check if user is enabled
+                if not _user.enabled:
+                    self.log.info('authenticateUser [username:%s] returned None (user is disabled)' % (
+                                  username))
+                    return None
+
+                # If user/group are enabled:
                 if return_pickled:
                     return pickle.dumps(_user, self.pickleProtocol)
                 else:
                     return _user
 
-        self.log.debug('authenticateUser [username:%s] returned None', username)
+        self.log.info('authenticateUser [username:%s] returned None', username)
         return None
     def chargeUserForSubmitSms(self, user, bill, submit_sm_count=1, requirements=None):
         """Will charge the user using the bill object after checking requirements

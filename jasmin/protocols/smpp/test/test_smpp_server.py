@@ -238,6 +238,26 @@ class BindTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
     @defer.inlineCallbacks
+    def test_bind_disabled_user(self):
+        "Related to #306"
+        user = self.routerpb_factory.getUser('u1')
+        user.enabled = False
+
+        # Connect and bind
+        yield self.smppc_factory.connectAndBind()
+        self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+    @defer.inlineCallbacks
+    def test_bind_disabled_group(self):
+        "Related to #306"
+        user = self.routerpb_factory.getUser('u1')
+        user.group.enabled = False
+
+        # Connect and bind
+        yield self.smppc_factory.connectAndBind()
+        self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
+
+    @defer.inlineCallbacks
     def test_unbind_user_session(self):
         "Related to #294"
         user = self.routerpb_factory.getUser('u1')

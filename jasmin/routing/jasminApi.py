@@ -177,7 +177,17 @@ class Group(jasminApiGenerick):
         regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
         if regex.match(str(gid)) == None:
             raise jasminApiInvalidParamError('Group gid syntax is invalid')
+
         self.gid = gid
+        self.enabled = True
+
+    def disable(self):
+        "Related to #306: disable/enable user, a disabled group will indicate all sub-users are disabled"
+        self.enabled = False
+
+    def enable(self):
+        "Related to #306: disable/enable user, a disabled group will indicate all sub-users are disabled"
+        self.enabled = True
 
     def __str__(self):
         return str(self.gid)
@@ -240,6 +250,7 @@ class User(jasminApiGenerick):
 
         self.uid = uid
         self.group = group
+        self.enabled = True
 
         # Validate username, if needed because User object
         # can be called with a None username for some purposes
@@ -271,6 +282,14 @@ class User(jasminApiGenerick):
 
     def setCnxStatus(self, status):
         UserStats().set(self.uid, {'cnx': status})
+
+    def disable(self):
+        "Related to #306: disable/enable user"
+        self.enabled = False
+
+    def enable(self):
+        "Related to #306: disable/enable user"
+        self.enabled = True
 
     def __str__(self):
         return self.username
