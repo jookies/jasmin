@@ -363,6 +363,50 @@ class BasicTestCases(UserTestCases):
         self.assertEqual(1, len(self.RouterPB_f.users))
         self.assertEqual(md5(update_password).digest(), self.RouterPB_f.users[0].password)
 
+    def test_enabled_disable(self):
+        "Related to #306"
+        uid = 'user_15-1'
+        gid = 'AnyGroup'
+        username = 'AnyUsername'
+        extraCommands = [{'command': 'uid %s' % uid}]
+        self.add_user(r'jcli : ', extraCommands, GID = gid, Username = username)
+
+        # Disable user
+        commands = [{'command': 'user -d %s' % uid,
+                     'expect': r'Successfully disabled User id\:%s' % uid}]
+        self._test(r'jcli : ', commands)
+
+        # List
+        expectedList = ['#User id          Group id         Username         Balance MT SMS',
+                        '#!%s%s' % (uid.ljust(16), gid.ljust(16)),
+                        'Total Users: 1']
+        commands = [{'command': 'user -l', 'expect': expectedList}]
+        self._test(r'jcli : ', commands)
+
+        # Enable user
+        commands = [{'command': 'user -e %s' % uid,
+                     'expect': r'Successfully enabled User id\:%s' % uid}]
+        self._test(r'jcli : ', commands)
+
+        # List
+        expectedList = ['#User id          Group id         Username         Balance MT SMS',
+                        '#%s %s' % (uid.ljust(16), gid.ljust(16)),
+                        'Total Users: 1']
+        commands = [{'command': 'user -l', 'expect': expectedList}]
+        self._test(r'jcli : ', commands)
+
+        # Disable group
+        commands = [{'command': 'group -d %s' % gid,
+                     'expect': r'Successfully disabled Group id\:%s' % gid}]
+        self._test(r'jcli : ', commands)
+
+        # List
+        expectedList = ['#User id          Group id         Username         Balance MT SMS',
+                        '#%s !%s' % (uid.ljust(16), gid.ljust(16)),
+                        'Total Users: 1']
+        commands = [{'command': 'user -l', 'expect': expectedList}]
+        self._test(r'jcli : ', commands)
+
 class MtMessagingCredentialTestCases(UserTestCases):
 
     def _test_user_with_MtMessagingCredential(self, uid, gid, username, mtcred):
