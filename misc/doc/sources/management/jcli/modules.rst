@@ -32,6 +32,10 @@ The User manager module is accessible through the **user** command and is provid
      - List all users or a group users when provided with GID
    * - -a, --add
      - Add user
+   * - -e, --enable
+     - Enable user
+   * - -d, --disable
+     - Disable user
    * - -u UID, --update=UID
      - Update user using it's UID
    * - -r UID, --remove=UID
@@ -104,6 +108,8 @@ Listing Users will show currently added Users with their UID, GID and Username::
    #User id          Group id         Username         Balance MT SMS Throughput
    #foo              1                foo              ND      ND     ND/ND
    Total Users: 1
+
+.. note:: When listing a *disabled* user, his User id will be prefixed by **!**, same thing apply to group.
 
 .. _user_credentials:
 
@@ -305,6 +311,10 @@ The Group manager module is accessible through the **group** command and is prov
      - List groups
    * - -a, --add
      - Add group
+   * - -e, --enable
+     - Enable group
+   * - -d, --disable
+     - Disable group
    * - -r GID, --remove=GID
      - Remove group using it's GID
 
@@ -331,6 +341,8 @@ Listing Groups will show currently added Groups with their GID::
    #Group id
    #marketing
    Total Groups: 1
+
+.. note:: When listing a *disabled* group, its group id will be prefixed by **!**.
 
 .. _morouter_manager:
 
