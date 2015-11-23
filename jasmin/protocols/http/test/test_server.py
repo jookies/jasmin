@@ -22,7 +22,9 @@ class HTTPApiTestCases(TestCase):
         self.RouterPB_f.setConfig(RouterPBConfigInstance)
 
         # Provision Router with User and Route
-        self.u1 = User(1, Group(1), 'fourat', 'correct')
+        self.g1 = Group(1)
+        self.u1 = User(1, self.g1, 'fourat', 'correct')
+        self.RouterPB_f.groups.append(self.g1)
         self.RouterPB_f.users.append(self.u1)
         self.RouterPB_f.mt_routing_table.add(DefaultRoute(SmppClientConnector('abc')), 0)
 
@@ -102,7 +104,7 @@ class AuthenticationTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_send_disabled_group(self):
-        self.u1.group.disable()
+        self.g1.disable()
 
         response = yield self.web.get("send", {'username': self.u1.username,
                                                'password': 'correct',
@@ -113,7 +115,7 @@ class AuthenticationTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_disabled_group(self):
-        self.u1.group.disable()
+        self.g1.disable()
 
         response = yield self.web.get("rate", {'username': self.u1.username,
                                                'password': 'correct',
@@ -123,7 +125,7 @@ class AuthenticationTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_balance_disabled_group(self):
-        self.u1.group.disable()
+        self.g1.disable()
 
         response = yield self.web.get("balance", {'username': self.u1.username,
                                                   'password': 'correct'})
