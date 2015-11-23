@@ -251,7 +251,8 @@ class BindTestCases(SMPPClientTestCases):
     def test_bind_disabled_group(self):
         "Related to #306"
         user = self.routerpb_factory.getUser('u1')
-        user.group.enabled = False
+        group = self.routerpb_factory.getGroup(user.group.gid)
+        group.enabled = False
 
         # Connect and bind
         yield self.smppc_factory.connectAndBind()
