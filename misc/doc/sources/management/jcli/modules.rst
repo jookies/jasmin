@@ -1144,7 +1144,7 @@ Jasmin provides many Filters offering advanced flexibilities to message routing:
      - MT
      - Will match the owner's group of a MT message
    * - **SourceAddrFilter**
-     - MO
+     - All
      - Will match the source address of a MO message
    * - **DestinationAddrFilter**
      - All

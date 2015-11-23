@@ -32,7 +32,7 @@ FILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'ConnectorFilter',
 MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
              'TagFilter']
-MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'DestinationAddrFilter',
+MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
              'TagFilter']
 
