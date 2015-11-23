@@ -553,3 +553,23 @@ class UsersManager(PersistableManager):
                             self.protocol.sendData('%s %s %s %s' % (
                                 key, section.lower(), SectionShortKey, sectionValue), prompt=False)
         self.protocol.sendData()
+
+    @UserExist(uid_key='smpp_unbind')
+    def unbind(self, arg, opts):
+        user = self.pb['router'].getUser(opts.smpp_unbind)
+        st = self.pb['smpps'].unbindAndRemoveGateway(user, ban = False)
+
+        if st:
+            self.protocol.sendData('Successfully unbound User id:%s' % opts.smpp_unbind)
+        else:
+            self.protocol.sendData('Failed unbinding User, check log for details')
+
+    @UserExist(uid_key='smpp_ban')
+    def ban(self, arg, opts):
+        user = self.pb['router'].getUser(opts.smpp_ban)
+        st = self.pb['smpps'].unbindAndRemoveGateway(user)
+
+        if st:
+            self.protocol.sendData('Successfully unbound and banned User id:%s' % opts.smpp_ban)
+        else:
+            self.protocol.sendData('Failed banning User, check log for details')

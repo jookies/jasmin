@@ -407,6 +407,32 @@ class BasicTestCases(UserTestCases):
         commands = [{'command': 'user -l', 'expect': expectedList}]
         self._test(r'jcli : ', commands)
 
+    def test_smpp_unbind(self):
+        "Related to #294"
+        uid = 'user_16-1'
+        gid = 'AnyGroup'
+        username = 'AnyUsername'
+        extraCommands = [{'command': 'uid %s' % uid}]
+        self.add_user(r'jcli : ', extraCommands, GID = gid, Username = username)
+
+        # Unbind user
+        commands = [{'command': 'user --smpp-unbind %s' % uid,
+                     'expect': r'Successfully unbound User id\:%s' % uid}]
+        self._test(r'jcli : ', commands)
+
+    def test_smpp_ban(self):
+        "Related to #305"
+        uid = 'user_17-1'
+        gid = 'AnyGroup'
+        username = 'AnyUsername'
+        extraCommands = [{'command': 'uid %s' % uid}]
+        self.add_user(r'jcli : ', extraCommands, GID = gid, Username = username)
+
+        # Unbind user
+        commands = [{'command': 'user --smpp-ban %s' % uid,
+                     'expect': r'Successfully unbound and banned User id\:%s' % uid}]
+        self._test(r'jcli : ', commands)
+
 class MtMessagingCredentialTestCases(UserTestCases):
 
     def _test_user_with_MtMessagingCredential(self, uid, gid, username, mtcred):

@@ -161,7 +161,11 @@ class JCliProtocol(CmdProtocol):
               make_option('-r', '--remove', type="string", metavar="UID",
                           help="Remove user using it's UID"),
               make_option('-s', '--show', type="string", metavar="UID",
-                          help="Show user using it's UID")], '')
+                          help="Show user using it's UID"),
+              make_option('--smpp-unbind', type="string", metavar="UID",
+                          help="Unbind user from smpp server using it's UID"),
+              make_option('--smpp-ban', type="string", metavar="UID",
+                          help="Unbind and ban user from smpp server using it's UID")], '')
     def do_user(self, arg, opts):
         'User management'
 
@@ -179,6 +183,10 @@ class JCliProtocol(CmdProtocol):
             self.managers['user'].remove(arg, opts)
         elif opts.show:
             self.managers['user'].show(arg, opts)
+        elif opts.smpp_unbind:
+            self.managers['user'].unbind(arg, opts)
+        elif opts.smpp_ban:
+            self.managers['user'].ban(arg, opts)
         else:
             return self.sendData('Missing required option')
 

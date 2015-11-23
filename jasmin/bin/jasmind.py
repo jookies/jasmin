@@ -262,6 +262,7 @@ class JasminDaemon(object):
             JCliConfigInstance,
             self.components['smppcm-pb-factory'],
             self.components['router-pb-factory'],
+            self.components['smpp-server-factory'],
             loadConfigProfileWithCreds)
 
         self.components['jcli-server'] = reactor.listenTCP(

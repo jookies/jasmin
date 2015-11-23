@@ -68,7 +68,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         '#deliver_sm_count          0',
                         '#bound_rx_count            0',
                         '#bind_trx_count            0',
-                        '#created_at                ND',
+                        '#created_at                ',
                         '#connect_count             0',
                         '#interceptor_count         0',
                         '#interceptor_error_count   0',

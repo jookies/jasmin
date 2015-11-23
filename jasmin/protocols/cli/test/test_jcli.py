@@ -9,7 +9,12 @@ from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.queues.configs import AmqpConfig
+from jasmin.protocols.smpp.configs import SMPPServerConfig
+from jasmin.protocols.smpp.factory import SMPPServerFactory
 from twisted.test import proto_helpers
+from twisted.cred import portal
+from jasmin.tools.cred.portal import SmppsRealm
+from jasmin.tools.cred.checkers import RouterAuthChecker
 
 class jCliTestCases(ProtocolTestCases):
     @defer.inlineCallbacks
@@ -37,6 +42,19 @@ class jCliTestCases(ProtocolTestCases):
         self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
         yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
 
+        # Instanciate a SMPPServerFactory (a requirement for JCliFactory)
+        SMPPServerConfigInstance = SMPPServerConfig()
+
+        # Portal init
+        _portal = portal.Portal(SmppsRealm(SMPPServerConfigInstance.id, self.RouterPB_f))
+        _portal.registerChecker(RouterAuthChecker(self.RouterPB_f))
+
+        self.SMPPSFactory = SMPPServerFactory(
+            config = SMPPServerConfigInstance,
+            auth_portal = _portal,
+            RouterPB = self.RouterPB_f,
+            SMPPClientManagerPB = self.clientManager_f)
+
     def tearDown(self):
         self.amqpClient.disconnect()
         self.RouterPB_f.cancelPersistenceTimer()
@@ -48,7 +66,11 @@ class jCliWithAuthTestCases(jCliTestCases):
 
         # Connect to jCli server through a fake network transport
         self.JCliConfigInstance = JCliConfig()
-        self.JCli_f = JCliFactory(self.JCliConfigInstance, self.clientManager_f, self.RouterPB_f)
+        self.JCli_f = JCliFactory(
+            self.JCliConfigInstance,
+            self.clientManager_f,
+            self.RouterPB_f,
+            self.SMPPSFactory)
         self.proto = self.JCli_f.buildProtocol(('127.0.0.1', 0))
         self.tr = proto_helpers.StringTransport()
         self.proto.makeConnection(self.tr)
@@ -64,7 +86,11 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         # Connect to jCli server through a fake network transport
         self.JCliConfigInstance = JCliConfig()
         self.JCliConfigInstance.authentication = False
-        self.JCli_f = JCliFactory(self.JCliConfigInstance, self.clientManager_f, self.RouterPB_f)
+        self.JCli_f = JCliFactory(
+            self.JCliConfigInstance,
+            self.clientManager_f,
+            self.RouterPB_f,
+            self.SMPPSFactory)
         self.proto = self.JCli_f.buildProtocol(('127.0.0.1', 0))
         self.tr = proto_helpers.StringTransport()
         self.proto.makeConnection(self.tr)

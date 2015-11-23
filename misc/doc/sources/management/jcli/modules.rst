@@ -42,6 +42,10 @@ The User manager module is accessible through the **user** command and is provid
      - Remove user using it's UID
    * - -s UID, --show=UID
      - Show user using it's UID
+   * - --smpp-unbind=UID
+     - Unbind user from smpp server using it's UID
+   * - --smpp-ban=UID
+     - Unbind and ban user from smpp server using it's UID
 
 A User object is required for:
 
