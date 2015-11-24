@@ -11,6 +11,15 @@ _REGEX_VER = re.compile('^(?P<major>(\d+))'
                         '(?P<patch>(\d+))$')
 _REGEX_HEADER = re.compile('^Persisted on (?P<date>(.*)) \[Jasmin (?P<release_version>(.*))\]')
 
+def version_parse(version):
+    match = _REGEX_VER.match(version)
+    if match is None:
+        raise ValueError('%s is not valid Jasmin version string' % self.str_version)
+
+    return float("%s.%s%s" % (match.groupdict()['major'],
+                              match.groupdict()['minor'], match.groupdict()['patch']))
+
+
 class ConfigurationMigrator(object):
     "Responsible of migrating old saved configuration to recent definition, if any"
 
@@ -29,12 +38,7 @@ class ConfigurationMigrator(object):
         self.str_version = match.groupdict()['release_version']
 
         # Parse version and convert it to float for comparaison
-        match = _REGEX_VER.match(self.str_version)
-        if match is None:
-            raise ValueError('%s is not valid Jasmin version string' % self.str_version)
-
-        self.version = float("%s.%s%s" % (match.groupdict()['major'],
-                                          match.groupdict()['minor'], match.groupdict()['patch']))
+        self.version = version_parse(self.str_version)
         self.log.debug('[%s] @%s/%s:%s' % (self.context, self.date, self.str_version, self.version))
 
     def getMigratedData(self):
