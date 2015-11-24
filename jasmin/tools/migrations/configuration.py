@@ -3,7 +3,7 @@ import re
 import logging
 import jasmin
 from dateutil.parser import parse as date_parse
-from .migration import *
+from .migration import MAP
 
 LOGGING_HANDLER = 'jcli'
 
