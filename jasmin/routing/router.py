@@ -15,7 +15,7 @@ from jasmin.routing.InterceptionTables import (MOInterceptionTable,
                                                InvalidInterceptionTableParameterError)
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
-from jasmin.tools.configuration import ConfigurationMigrator
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-router"
 

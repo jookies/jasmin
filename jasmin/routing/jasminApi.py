@@ -242,7 +242,8 @@ class UserStats(object):
 class User(jasminApiGenerick):
     """Jasmin user"""
 
-    def __init__(self, uid, group, username, password, mt_credential=None, smpps_credential=None):
+    def __init__(self, uid, group, username, password,
+                 mt_credential=None, smpps_credential=None, password_crypted=False):
         # Validate uid
         regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
         if regex.match(str(uid)) == None:
@@ -259,7 +260,7 @@ class User(jasminApiGenerick):
             raise jasminApiInvalidParamError('User username syntax is invalid')
         self.username = username
 
-        if isinstance(password, str):
+        if not password_crypted:
             if len(password) == 0 or len(password) > 8:
                 raise jasminApiInvalidParamError('Invalid password length !')
             self.password = md5(password).digest()

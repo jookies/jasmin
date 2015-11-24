@@ -3,7 +3,7 @@ import time
 import jasmin
 import os
 from jasmin.protocols.cli.managers import PersistableManager, Session
-from jasmin.tools.configuration import ConfigurationMigrator
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 from jasmin.routing.jasminApi import HttpConnector
 
 # A config map between console-configuration keys and Httpcc keys.

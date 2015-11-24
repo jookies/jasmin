@@ -8,7 +8,7 @@ import os
 from dateutil import parser
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import *
-from jasmin.tools.configuration import ConfigurationMigrator
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     ConnectorFilter, SourceAddrFilter, DestinationAddrFilter,
                                     ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter,

@@ -13,7 +13,7 @@ from .content import SubmitSmContent
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
-from jasmin.tools.configuration import ConfigurationMigrator
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
