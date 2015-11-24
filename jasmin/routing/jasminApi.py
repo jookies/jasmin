@@ -260,7 +260,7 @@ class User(jasminApiGenerick):
             raise jasminApiInvalidParamError('User username syntax is invalid')
         self.username = username
 
-        if not password_crypted:
+        if password is not None and not password_crypted:
             if len(password) == 0 or len(password) > 8:
                 raise jasminApiInvalidParamError('Invalid password length !')
             self.password = md5(password).digest()
