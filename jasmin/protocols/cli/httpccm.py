@@ -3,6 +3,7 @@ import time
 import jasmin
 import os
 from jasmin.protocols.cli.managers import PersistableManager, Session
+from jasmin.tools.configuration import ConfigurationMigrator
 from jasmin.routing.jasminApi import HttpConnector
 
 # A config map between console-configuration keys and Httpcc keys.
@@ -127,8 +128,11 @@ class HttpccManager(PersistableManager):
             lines = fh.readlines()
             fh.close()
 
+            # Init migrator
+            cf = ConfigurationMigrator(context = 'httpcs', header = lines[0], data = ''.join(lines[1:]))
+
             # Apply configuration
-            self.httpccs = pickle.loads(''.join(lines[1:]))
+            self.httpccs = cf.getMigratedData()
         except IOError, e:
             raise Exception('Cannot load from %s: %s' % (path, str(e)))
         except Exception, e:

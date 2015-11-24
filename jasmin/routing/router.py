@@ -2,6 +2,8 @@ import time
 import logging
 import pickle
 import jasmin
+from copy import copy
+from hashlib import md5
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
 from twisted.internet import defer, reactor
@@ -13,8 +15,7 @@ from jasmin.routing.InterceptionTables import (MOInterceptionTable,
                                                InvalidInterceptionTableParameterError)
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
-from copy import copy
-from hashlib import md5
+from jasmin.tools.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-router"
 
@@ -514,12 +515,15 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context = 'groups', header = lines[0], data = ''.join(lines[1:]))
+
                 # Remove current configuration
                 self.log.info('Removing current Groups (%d)', len(self.groups))
                 self.perspective_group_remove_all()
 
                 # Adding new groups
-                self.groups = pickle.loads(''.join(lines[1:]))
+                self.groups = cf.getMigratedData()
                 self.log.info('Added new Groups (%d)', len(self.groups))
 
                 # Set persistance state to True
@@ -536,12 +540,15 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context = 'users', header = lines[0], data = ''.join(lines[1:]))
+
                 # Remove current configuration
                 self.log.info('Removing current Users (%d)', len(self.users))
                 self.perspective_user_remove_all()
 
                 # Adding new users
-                self.users = pickle.loads(''.join(lines[1:]))
+                self.users = cf.getMigratedData()
                 self.log.info('Added new Users (%d)', len(self.users))
 
                 # Set persistance state to True
@@ -560,8 +567,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context = 'mointerceptors',
+                                           header = lines[0], data = ''.join(lines[1:]))
+
                 # Adding new MO Interceptors
-                self.mo_interception_table = pickle.loads(''.join(lines[1:]))
+                self.mo_interception_table = cf.getMigratedData()
                 self.log.info('Added new MOInterceptionTable with %d routes',
                               len(self.mo_interception_table.getAll()))
 
@@ -579,8 +590,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context = 'mtinterceptors',
+                                           header = lines[0], data = ''.join(lines[1:]))
+
                 # Adding new MT Interceptors
-                self.mt_interception_table = pickle.loads(''.join(lines[1:]))
+                self.mt_interception_table = cf.getMigratedData()
                 self.log.info('Added new MTInterceptionTable with %d routes',
                               len(self.mt_interception_table.getAll()))
 
@@ -598,8 +613,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context = 'moroutes',
+                                           header = lines[0], data = ''.join(lines[1:]))
+
                 # Adding new MO Routes
-                self.mo_routing_table = pickle.loads(''.join(lines[1:]))
+                self.mo_routing_table = cf.getMigratedData()
                 self.log.info('Added new MORoutingTable with %d routes',
                               len(self.mo_routing_table.getAll()))
 
@@ -617,8 +636,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context = 'mtroutes',
+                                           header = lines[0], data = ''.join(lines[1:]))
+
                 # Adding new MT Routes
-                self.mt_routing_table = pickle.loads(''.join(lines[1:]))
+                self.mt_routing_table = cf.getMigratedData()
                 self.log.info('Added new MTRoutingTable with %d routes',
                               len(self.mt_routing_table.getAll()))
 

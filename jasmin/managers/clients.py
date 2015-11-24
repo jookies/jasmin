@@ -13,6 +13,7 @@ from .content import SubmitSmContent
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
+from jasmin.tools.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -164,6 +165,9 @@ class SMPPClientManagerPB(pb.Avatar):
             lines = fh.readlines()
             fh.close()
 
+            # Init migrator
+            cf = ConfigurationMigrator(context = 'smppccs', header = lines[0], data = ''.join(lines[1:]))
+
             # Remove current configuration
             for c in self.connectors:
                 remRet = yield self.perspective_connector_remove(c['id'])
@@ -172,7 +176,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.log.info('Removed connector [%s]', c['id'])
 
             # Apply configuration
-            loadedConnectors = pickle.loads(''.join(lines[1:]))
+            loadedConnectors = cf.getMigratedData()
             for loadedConnector in loadedConnectors:
                 # Add connector
                 addRet = yield self.perspective_connector_add(
