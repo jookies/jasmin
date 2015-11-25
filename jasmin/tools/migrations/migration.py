@@ -3,8 +3,8 @@ from jasmin.routing.jasminApi import User, Group
 def user_status(data):
     """Changes impacted by #306
 
-    Will migrate users to enable newly applied changes for enable/disable"""
-
+    Will migrate users to enable newly applied changes for enable/disable
+    """
     # Create new users, they will have the enable/disable methods
     new_data = []
     for old_user in data:
@@ -23,8 +23,8 @@ def user_status(data):
 def group_status(data):
     """Changes impacted by #306
 
-    Will migrate groups to enable newly applied changes for enable/disable"""
-
+    Will migrate groups to enable newly applied changes for enable/disable
+    """
     # Create new groups, they will have the enable/disable methods
     new_data = []
     for old_group in data:
