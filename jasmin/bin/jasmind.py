@@ -59,7 +59,7 @@ class Options(usage.Options):
 class JasminDaemon(object):
 
     def __init__(self, opt):
-        self.options = opt
+        self.options = options
         self.components = {}
 
     @defer.inlineCallbacks
