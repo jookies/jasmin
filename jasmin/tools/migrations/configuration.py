@@ -7,10 +7,10 @@ from .migration import MAP
 
 LOGGING_HANDLER = 'jcli'
 
-_REGEX_VER = re.compile('^(?P<major>(\d+))'
-                        '\.(?P<minor>(\d+))'
-                        '([a-z.]*)'
-                        '(?P<patch>(\d+))$')
+_REGEX_VER = re.compile(r'^(?P<major>(\d+))'
+                        r'\.(?P<minor>(\d+))'
+                        r'([a-z.]*)'
+                        r'(?P<patch>(\d+))$')
 _REGEX_HEADER = re.compile('^Persisted on (?P<date>(.*)) \[Jasmin (?P<release_version>(.*))\]')
 
 def version_parse(version):
@@ -56,7 +56,7 @@ class ConfigurationMigrator(object):
         self.log = logging.getLogger(LOGGING_HANDLER)
         self.context = context
         self.data = pickle.loads(data)
-        self.log.debug('Initializing CM with context:%s, header:%s' % (self.context, header))
+        self.log.debug('Initializing CM with context:%s, header:%s', self.context, header)
 
         # Parse header and get version & date
         match = _REGEX_HEADER.match(header)
@@ -64,29 +64,29 @@ class ConfigurationMigrator(object):
             raise ValueError('Invalid Jasmin configuration header format:' % header)
         self.date = date_parse(match.groupdict()['date'])
         self.version = match.groupdict()['release_version']
-        self.log.debug('[%s] @%s/%s' % (self.context, self.date, self.version))
+        self.log.debug('[%s] @%s/%s', self.context, self.date, self.version)
 
     def getMigratedData(self):
         "Return data after executing migration steps"
         for m in MAP:
             # Context verification
             if self.context not in m['contexts']:
-                self.log.debug('%s is not in map conditions: %s' % (self.context, m['contexts']))
+                self.log.debug('%s is not in map conditions: %s', self.context, m['contexts'])
                 continue
 
             # Validate conditions (with AND operator)
             valid = True
             for condition in m['conditions']:
-                self.log.debug('Checking condition: %s with version %s' % (condition, self.version))
+                self.log.debug('Checking condition: %s with version %s', condition, self.version)
                 if not version_is_valid(self.version, condition):
-                    self.log.debug('Condition failed: %s with version %s' % (condition, self.version))
+                    self.log.debug('Condition failed: %s with version %s', condition, self.version)
                     valid = False
                     break
 
             # We have matching context and valid conditions
             if valid:
                 for operation in m['operations']:
-                    self.log.info('Migrating old data [%s] from v%s to v%s by calling %s(data)' % (
-                                  self.context, self.version, jasmin.get_release(), operation.func_name))
+                    self.log.info('Migrating old data [%s] from v%s to v%s by calling %s(data)',
+                                  self.context, self.version, jasmin.get_release(), operation.func_name)
                     self.data = operation(self.data)
         return self.data

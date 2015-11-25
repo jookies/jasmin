@@ -9,13 +9,13 @@ def user_status(data):
     new_data = []
     for old_user in data:
         user = User(
-            uid = old_user.uid,
-            group = Group(old_user.group.gid),
-            username = old_user.username,
-            password = old_user.password,
-            password_crypted = True,
-            mt_credential = old_user.mt_credential,
-            smpps_credential = old_user.smpps_credential)
+            uid=old_user.uid,
+            group=Group(old_user.group.gid),
+            username=old_user.username,
+            password=old_user.password,
+            password_crypted=True,
+            mt_credential=old_user.mt_credential,
+            smpps_credential=old_user.smpps_credential)
         new_data.append(user)
 
     return new_data
@@ -28,7 +28,7 @@ def group_status(data):
     # Create new groups, they will have the enable/disable methods
     new_data = []
     for old_group in data:
-        group = Group(gid = old_group.gid)
+        group = Group(gid=old_group.gid)
         new_data.append(group)
 
     return new_data

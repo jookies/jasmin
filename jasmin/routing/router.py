@@ -273,14 +273,14 @@ class RouterPB(pb.Avatar):
                 # Check if user's group is enabled
                 _group = self.getGroup(_user.group.gid)
                 if _group is not None and not _group.enabled:
-                    self.log.info('authenticateUser [username:%s] returned None (group %s is disabled)' % (
-                                  username, _user.group))
+                    self.log.info('authenticateUser [username:%s] returned None (group %s is disabled)',
+                                  username, _user.group)
                     return None
 
                 # Check if user is enabled
                 if not _user.enabled:
-                    self.log.info('authenticateUser [username:%s] returned None (user is disabled)' % (
-                                  username))
+                    self.log.info('authenticateUser [username:%s] returned None (user is disabled)',
+                                  username)
                     return None
 
                 # If user/group are enabled:
@@ -516,7 +516,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context = 'groups', header = lines[0], data = ''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='groups', header=lines[0], data=''.join(lines[1:]))
 
                 # Remove current configuration
                 self.log.info('Removing current Groups (%d)', len(self.groups))
@@ -541,7 +541,7 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context = 'users', header = lines[0], data = ''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='users', header=lines[0], data=''.join(lines[1:]))
 
                 # Remove current configuration
                 self.log.info('Removing current Users (%d)', len(self.users))
@@ -568,8 +568,8 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context = 'mointerceptors',
-                                           header = lines[0], data = ''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='mointerceptors',
+                                           header=lines[0], data=''.join(lines[1:]))
 
                 # Adding new MO Interceptors
                 self.mo_interception_table = cf.getMigratedData()
@@ -591,8 +591,8 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context = 'mtinterceptors',
-                                           header = lines[0], data = ''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='mtinterceptors',
+                                           header=lines[0], data=''.join(lines[1:]))
 
                 # Adding new MT Interceptors
                 self.mt_interception_table = cf.getMigratedData()
@@ -614,8 +614,8 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context = 'moroutes',
-                                           header = lines[0], data = ''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='moroutes',
+                                           header=lines[0], data=''.join(lines[1:]))
 
                 # Adding new MO Routes
                 self.mo_routing_table = cf.getMigratedData()
@@ -637,8 +637,8 @@ class RouterPB(pb.Avatar):
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context = 'mtroutes',
-                                           header = lines[0], data = ''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='mtroutes',
+                                           header=lines[0], data=''.join(lines[1:]))
 
                 # Adding new MT Routes
                 self.mt_routing_table = cf.getMigratedData()

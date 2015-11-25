@@ -436,8 +436,8 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                               self.user.uid,
                               pdu.params['source_addr'],
                               pdu.params['destination_addr'],
-                              re.sub(r'[^\x20-\x7E]+','.', pdu.params['short_message']))
-                self.user.getCnxStatus().smpps['data_sm_count']+= 1
+                              re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                self.user.getCnxStatus().smpps['data_sm_count'] += 1
         elif pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
                 self.factory.stats.inc('throttling_error_count')

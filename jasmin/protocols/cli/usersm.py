@@ -557,7 +557,7 @@ class UsersManager(PersistableManager):
     @UserExist(uid_key='smpp_unbind')
     def unbind(self, arg, opts):
         user = self.pb['router'].getUser(opts.smpp_unbind)
-        st = self.pb['smpps'].unbindAndRemoveGateway(user, ban = False)
+        st = self.pb['smpps'].unbindAndRemoveGateway(user, ban=False)
 
         if st:
             self.protocol.sendData('Successfully unbound User id:%s' % opts.smpp_unbind)

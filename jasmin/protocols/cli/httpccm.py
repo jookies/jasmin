@@ -129,7 +129,7 @@ class HttpccManager(PersistableManager):
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context = 'httpcs', header = lines[0], data = ''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='httpcs', header=lines[0], data=''.join(lines[1:]))
 
             # Apply configuration
             self.httpccs = cf.getMigratedData()

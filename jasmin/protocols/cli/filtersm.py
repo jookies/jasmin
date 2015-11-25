@@ -298,7 +298,7 @@ class FiltersManager(PersistableManager):
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context = 'filters', header = lines[0], data = ''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='filters', header=lines[0], data=''.join(lines[1:]))
 
             # Apply configuration
             self.filters = cf.getMigratedData()

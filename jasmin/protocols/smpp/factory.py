@@ -523,7 +523,7 @@ class SMPPServerFactory(_SMPPServerFactory):
 
         return True
 
-    def unbindAndRemoveGateway(self, user, ban = True):
+    def unbindAndRemoveGateway(self, user, ban=True):
         """
         Overloading _SMPPServerFactory to remove dependency with config.systems
         Jasmin removed systems from config as everything about credentials is

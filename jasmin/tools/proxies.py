@@ -86,7 +86,7 @@ class JasminPBProxy(object):
             self.isConnected = True
             self.pb = perspective
         elif (isinstance(perspective, tuple) and isinstance(perspective[0], bool) and
-                perspective[0] is False and isinstance(perspective[1], str)):
+            perspective[0] is False and isinstance(perspective[1], str)):
             raise ConnectError(perspective[1])
         else:
             raise InvalidConnectResponseError(perspective)

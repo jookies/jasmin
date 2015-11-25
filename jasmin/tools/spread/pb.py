@@ -10,7 +10,7 @@ class _JellyableAvatarMixin(object):
     Helper class for code which deals with avatars which PB must be capable of
     sending to a peer.
     """
-    def _cbLogin(self, (interface, avatar, logout)):
+    def _cb_login(self, (interface, avatar, logout)):
         """
         Ensure that the avatar to be returned to the client is jellyable and
         set up disconnection notification to call the realm's logout object.
@@ -35,7 +35,7 @@ class _JellyableAvatarMixin(object):
 
         return avatar
 
-    def _loginError(self, err, username='Anonymous'):
+    def _login_error(self, err, username='Anonymous'):
         if err.type == UnhandledCredentials:
             if str(err.value) == 'No checker for twisted.cred.credentials.IAnonymous':
                 self.log.info('Anonymous connection is not authorized !')
@@ -74,8 +74,8 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
     def remote_respond(self, response, mind):
         self.response = response
         d = self.portal.login(self, mind, IPerspective)
-        d.addCallback(self._cbLogin)
-        d.addErrback(self._loginError, self.username)
+        d.addCallback(self._cb_login)
+        d.addErrback(self._login_error, self.username)
         return d
 
     def checkPassword(self, md5password):
@@ -117,8 +117,8 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
             succeeds or which will be errbacked if login fails somehow.
         """
         d = self.portal.login(Anonymous(), mind, IPerspective)
-        d.addCallback(self._cbLogin)
-        d.addErrback(self._loginError)
+        d.addCallback(self._cb_login)
+        d.addErrback(self._login_error)
         return d
 
 class JasminPBPortalRoot(object):
