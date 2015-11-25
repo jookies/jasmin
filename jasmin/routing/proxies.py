@@ -33,6 +33,14 @@ class RouterPBProxy(JasminPBProxy):
         return self.pb.callRemote('user_remove', uid)
 
     @ConnectedPB
+    def user_enable(self, uid):
+        return self.pb.callRemote('user_enable', uid)
+
+    @ConnectedPB
+    def user_disable(self, uid):
+        return self.pb.callRemote('user_disable', uid)
+
+    @ConnectedPB
     def user_remove_all(self):
         return self.pb.callRemote('user_remove_all')
 
@@ -47,6 +55,14 @@ class RouterPBProxy(JasminPBProxy):
     @ConnectedPB
     def group_add(self, group):
         return self.pb.callRemote('group_add', self.pickle(group))
+
+    @ConnectedPB
+    def group_enable(self, gid):
+        return self.pb.callRemote('group_enable', gid)
+
+    @ConnectedPB
+    def group_disable(self, gid):
+        return self.pb.callRemote('group_disable', gid)
 
     @ConnectedPB
     def group_remove(self, gid):

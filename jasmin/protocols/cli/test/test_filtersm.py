@@ -252,7 +252,7 @@ class FilterTypingTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description',
-                        '#filter_id        %s       MO     %s' % (ftype, _repr_),
+                        '#filter_id        %s       MO MT  %s' % (ftype, _repr_),
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
@@ -555,7 +555,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         expectedList = _str_
         self._test('jcli : ', [{'command': 'filter -s filter_id', 'expect': expectedList}])
         expectedList = ['#Filter id        Type                   Routes Description',
-                        '#filter_id        %s       MO     %s' % (ftype, _repr_),
+                        '#filter_id        %s       MO MT  %s' % (ftype, _repr_),
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 

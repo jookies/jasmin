@@ -87,7 +87,10 @@ class GroupsManager(PersistableManager):
             self.protocol.sendData("#%s" % 'Group id'.ljust(16), prompt=False)
             for group in groups:
                 counter += 1
-                self.protocol.sendData("#%s" % str(group.gid).ljust(16), prompt=False)
+                group_prefix = ''
+                if not group.enabled:
+                    group_prefix = '!'
+                self.protocol.sendData("#%s" % (str(group_prefix+group.gid).ljust(16)), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Groups: %s' % counter)
@@ -106,6 +109,24 @@ class GroupsManager(PersistableManager):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Group: (ok: save, ko: exit)',
                                  completitions=GroupKeyMap.keys())
+
+    @GroupExist(gid_key='enable')
+    def enable(self, arg, opts):
+        st = self.pb['router'].perspective_group_enable(opts.enable)
+
+        if st:
+            self.protocol.sendData('Successfully enabled Group id:%s' % opts.enable)
+        else:
+            self.protocol.sendData('Failed enabling Group, check log for details')
+
+    @GroupExist(gid_key='disable')
+    def disable(self, arg, opts):
+        st = self.pb['router'].perspective_group_disable(opts.disable)
+
+        if st:
+            self.protocol.sendData('Successfully disabled Group id:%s' % opts.disable)
+        else:
+            self.protocol.sendData('Failed disabling Group, check log for details')
 
     @GroupExist(gid_key='remove')
     def remove(self, arg, opts):

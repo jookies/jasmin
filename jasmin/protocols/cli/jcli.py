@@ -152,12 +152,20 @@ class JCliProtocol(CmdProtocol):
                           help="List all users or a group users when provided with GID"),
               make_option('-a', '--add', action="store_true",
                           help="Add user"),
+              make_option('-e', '--enable', type="string", metavar="UID",
+                          help="Enable user"),
+              make_option('-d', '--disable', type="string", metavar="UID",
+                          help="Disable user"),
               make_option('-u', '--update', type="string", metavar="UID",
                           help="Update user using it's UID"),
               make_option('-r', '--remove', type="string", metavar="UID",
                           help="Remove user using it's UID"),
               make_option('-s', '--show', type="string", metavar="UID",
-                          help="Show user using it's UID")], '')
+                          help="Show user using it's UID"),
+              make_option('--smpp-unbind', type="string", metavar="UID",
+                          help="Unbind user from smpp server using it's UID"),
+              make_option('--smpp-ban', type="string", metavar="UID",
+                          help="Unbind and ban user from smpp server using it's UID")], '')
     def do_user(self, arg, opts):
         'User management'
 
@@ -165,12 +173,20 @@ class JCliProtocol(CmdProtocol):
             self.managers['user'].list(arg, opts)
         elif opts.add:
             self.managers['user'].add(arg, opts)
+        elif opts.enable:
+            self.managers['user'].enable(arg, opts)
+        elif opts.disable:
+            self.managers['user'].disable(arg, opts)
         elif opts.update:
             self.managers['user'].update(arg, opts)
         elif opts.remove:
             self.managers['user'].remove(arg, opts)
         elif opts.show:
             self.managers['user'].show(arg, opts)
+        elif opts.smpp_unbind:
+            self.managers['user'].unbind(arg, opts)
+        elif opts.smpp_ban:
+            self.managers['user'].ban(arg, opts)
         else:
             return self.sendData('Missing required option')
 
@@ -178,9 +194,12 @@ class JCliProtocol(CmdProtocol):
                           help="List groups"),
               make_option('-a', '--add', action="store_true",
                           help="Add group"),
+              make_option('-e', '--enable', type="string", metavar="GID",
+                          help="Enable group"),
+              make_option('-d', '--disable', type="string", metavar="GID",
+                          help="Disable group"),
               make_option('-r', '--remove', type="string", metavar="GID",
                           help="Remove group using it's GID")], '')
-
     def do_group(self, arg, opts):
         'Group management'
 
@@ -188,6 +207,10 @@ class JCliProtocol(CmdProtocol):
             self.managers['group'].list(arg, opts)
         elif opts.add:
             self.managers['group'].add(arg, opts)
+        elif opts.enable:
+            self.managers['group'].enable(arg, opts)
+        elif opts.disable:
+            self.managers['group'].disable(arg, opts)
         elif opts.remove:
             self.managers['group'].remove(arg, opts)
         else:

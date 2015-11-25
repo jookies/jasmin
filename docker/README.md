@@ -1,4 +1,5 @@
-# What is Jasmin?
+What is Jasmin?
+===============
 
 Jasmin is a very complete open source SMS Gateway with many enterprise-class features such as:
 
@@ -16,19 +17,29 @@ Jasmin is a very complete open source SMS Gateway with many enterprise-class fea
 
 ![logo](https://raw.githubusercontent.com/jookies/jasmin/master/misc/doc/sources/_static/jasmin-logo-small.png)
 
-# How to use this image
+How to use this image
+=====================
 
-## Running the daemon
+Run in daemon mode:
 
 ```console
 $ docker run -d -p 1401:1401 -p 2775:2775 -p 8990:8990 --name jasmin_01 jookies/jasmin:latest
 ```
 
-# License
+Start/stop daemon:
+
+```console
+$ docker stop jasmin_01
+$ docker start jasmin_01
+```
+
+License
+=======
 
 View [license information](https://raw.githubusercontent.com/jookies/jasmin/master/LICENSE) for the software contained in this image.
 
-# Supported Docker versions
+Supported Docker versions
+=========================
 
 This image is officially supported on Docker version 1.9.0.
 
@@ -36,13 +47,13 @@ Support for older versions (down to 1.6) is provided on a best-effort basis.
 
 Please see [the Docker installation documentation](https://docs.docker.com/installation/) for details on how to upgrade your Docker daemon.
 
-# User Feedback
-
-## Documentation
+Documentation
+=============
 
 Documentation for using Jasmin's docker image is located [here](http://docs.jasminsms.com/en/latest/installation/index.html#docker).
 
-## Issues and support
+Issues and support
+------------------
 
 If you have any problems with or questions about this image, please contact us through a [GitHub issue](https://github.com/jookies/jasmin/issues).
 

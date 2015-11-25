@@ -523,13 +523,17 @@ class SMPPServerFactory(_SMPPServerFactory):
 
         return True
 
-    def unbindAndRemoveGateway(self, user):
+    def unbindAndRemoveGateway(self, user, ban=True):
         """
         Overloading _SMPPServerFactory to remove dependency with config.systems
         Jasmin removed systems from config as everything about credentials is
-        managed through User object
+        managed through User object.
+        It's also adding a 'ban' parameter to optionally remove binding authorization
+        for user.
         """
-        user.smpps_credential.setAuthorization('bind', False)
+        if ban:
+            user.smpps_credential.setAuthorization('bind', False)
+
         d = self.unbindGateway(user.username)
         return d
 

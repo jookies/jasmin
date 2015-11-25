@@ -2,6 +2,8 @@ import time
 import logging
 import pickle
 import jasmin
+from copy import copy
+from hashlib import md5
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
 from twisted.internet import defer, reactor
@@ -13,8 +15,7 @@ from jasmin.routing.InterceptionTables import (MOInterceptionTable,
                                                InvalidInterceptionTableParameterError)
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
-from copy import copy
-from hashlib import md5
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-router"
 
@@ -264,15 +265,31 @@ class RouterPB(pb.Avatar):
     def authenticateUser(self, username, password, return_pickled=False):
         """Authenticate a user agains username and password and return user object or None
         """
+        # Find user having correct username/password
         for _user in self.users:
             if _user.username == username and _user.password == md5(password).digest():
                 self.log.debug('authenticateUser [username:%s] returned a User', username)
+
+                # Check if user's group is enabled
+                _group = self.getGroup(_user.group.gid)
+                if _group is not None and not _group.enabled:
+                    self.log.info('authenticateUser [username:%s] returned None (group %s is disabled)',
+                                  username, _user.group)
+                    return None
+
+                # Check if user is enabled
+                if not _user.enabled:
+                    self.log.info('authenticateUser [username:%s] returned None (user is disabled)',
+                                  username)
+                    return None
+
+                # If user/group are enabled:
                 if return_pickled:
                     return pickle.dumps(_user, self.pickleProtocol)
                 else:
                     return _user
 
-        self.log.debug('authenticateUser [username:%s] returned None', username)
+        self.log.info('authenticateUser [username:%s] returned None', username)
         return None
     def chargeUserForSubmitSms(self, user, bill, submit_sm_count=1, requirements=None):
         """Will charge the user using the bill object after checking requirements
@@ -498,12 +515,15 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context='groups', header=lines[0], data=''.join(lines[1:]))
+
                 # Remove current configuration
                 self.log.info('Removing current Groups (%d)', len(self.groups))
                 self.perspective_group_remove_all()
 
                 # Adding new groups
-                self.groups = pickle.loads(''.join(lines[1:]))
+                self.groups = cf.getMigratedData()
                 self.log.info('Added new Groups (%d)', len(self.groups))
 
                 # Set persistance state to True
@@ -520,12 +540,15 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context='users', header=lines[0], data=''.join(lines[1:]))
+
                 # Remove current configuration
                 self.log.info('Removing current Users (%d)', len(self.users))
                 self.perspective_user_remove_all()
 
                 # Adding new users
-                self.users = pickle.loads(''.join(lines[1:]))
+                self.users = cf.getMigratedData()
                 self.log.info('Added new Users (%d)', len(self.users))
 
                 # Set persistance state to True
@@ -544,8 +567,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context='mointerceptors',
+                                           header=lines[0], data=''.join(lines[1:]))
+
                 # Adding new MO Interceptors
-                self.mo_interception_table = pickle.loads(''.join(lines[1:]))
+                self.mo_interception_table = cf.getMigratedData()
                 self.log.info('Added new MOInterceptionTable with %d routes',
                               len(self.mo_interception_table.getAll()))
 
@@ -563,8 +590,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context='mtinterceptors',
+                                           header=lines[0], data=''.join(lines[1:]))
+
                 # Adding new MT Interceptors
-                self.mt_interception_table = pickle.loads(''.join(lines[1:]))
+                self.mt_interception_table = cf.getMigratedData()
                 self.log.info('Added new MTInterceptionTable with %d routes',
                               len(self.mt_interception_table.getAll()))
 
@@ -582,8 +613,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context='moroutes',
+                                           header=lines[0], data=''.join(lines[1:]))
+
                 # Adding new MO Routes
-                self.mo_routing_table = pickle.loads(''.join(lines[1:]))
+                self.mo_routing_table = cf.getMigratedData()
                 self.log.info('Added new MORoutingTable with %d routes',
                               len(self.mo_routing_table.getAll()))
 
@@ -601,8 +636,12 @@ class RouterPB(pb.Avatar):
                 lines = fh.readlines()
                 fh.close()
 
+                # Init migrator
+                cf = ConfigurationMigrator(context='mtroutes',
+                                           header=lines[0], data=''.join(lines[1:]))
+
                 # Adding new MT Routes
-                self.mt_routing_table = pickle.loads(''.join(lines[1:]))
+                self.mt_routing_table = cf.getMigratedData()
                 self.log.info('Added new MTRoutingTable with %d routes',
                               len(self.mt_routing_table.getAll()))
 
@@ -662,6 +701,36 @@ class RouterPB(pb.Avatar):
 
         return self.authenticateUser(username, password, True)
 
+    def perspective_user_enable(self, uid):
+        self.log.info('Enabling a User (id:%s)', uid)
+
+        # Enable user
+        for _user in self.users:
+            if uid == _user.uid:
+                _user.enable()
+
+                # Set persistance state to False (pending for persistance)
+                self.persistenceState['users'] = False
+                return True
+
+        self.log.error("User with id:%s not found, not enabling it.", uid)
+        return False
+
+    def perspective_user_disable(self, uid):
+        self.log.info('Disabling a User (id:%s)', uid)
+
+        # Disable user
+        for _user in self.users:
+            if uid == _user.uid:
+                _user.disable()
+
+                # Set persistance state to False (pending for persistance)
+                self.persistenceState['users'] = False
+                return True
+
+        self.log.error("User with id:%s not found, not disabling it.", uid)
+        return False
+
     def perspective_user_remove(self, uid):
         self.log.info('Removing a User (id:%s)', uid)
 
@@ -675,7 +744,6 @@ class RouterPB(pb.Avatar):
                 return True
 
         self.log.error("User with id:%s not found, not removing it.", uid)
-
         return False
 
     def perspective_user_remove_all(self):
@@ -736,7 +804,6 @@ class RouterPB(pb.Avatar):
 
     def perspective_group_add(self, group):
         group = pickle.loads(group)
-        self.log.debug('Adding a Group: %s', group)
         self.log.info('Adding a Group (id:%s)', group.gid)
 
         # Replace existant groups
@@ -752,8 +819,37 @@ class RouterPB(pb.Avatar):
 
         return True
 
+    def perspective_group_enable(self, gid):
+        self.log.info('Enabling a Group (id:%s)', gid)
+
+        # Enable group
+        for _group in self.groups:
+            if gid == _group.gid:
+                _group.enable()
+
+                # Set persistance state to False (pending for persistance)
+                self.persistenceState['groups'] = False
+                return True
+
+        self.log.error("Group with id:%s not found, not enabling it.", gid)
+        return False
+
+    def perspective_group_disable(self, gid):
+        self.log.info('Disabling a Group (id:%s)', gid)
+
+        # Disable group
+        for _group in self.groups:
+            if gid == _group.gid:
+                _group.disable()
+
+                # Set persistance state to False (pending for persistance)
+                self.persistenceState['groups'] = False
+                return True
+
+        self.log.error("Group with id:%s not found, not disabling it.", gid)
+        return False
+
     def perspective_group_remove(self, gid):
-        self.log.debug('Removing a Group with gid: %s', gid)
         self.log.info('Removing a Group (id:%s)', gid)
 
         # Remove group

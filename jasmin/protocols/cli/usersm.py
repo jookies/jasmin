@@ -379,6 +379,13 @@ class UsersManager(PersistableManager):
                 'Throughput'.ljust(8)), prompt=False)
             for user in users:
                 counter += 1
+                user_prefix = ''
+                if not user.enabled:
+                    user_prefix = '!'
+                group_prefix = ''
+                group = self.pb['router'].getGroup(user.group.gid)
+                if group is not None and not group.enabled:
+                    group_prefix = '!'
                 balance = user.mt_credential.getQuota('balance')
                 if balance is None:
                     balance = 'ND'
@@ -396,8 +403,8 @@ class UsersManager(PersistableManager):
                     smpps_throughput = 'ND'
                 throughput = '%s/%s' % (http_throughput, smpps_throughput)
                 self.protocol.sendData("#%s %s %s %s %s %s" % (
-                    str(user.uid).ljust(16),
-                    str(user.group.gid).ljust(16),
+                    str(user_prefix+user.uid).ljust(16),
+                    str(group_prefix+user.group.gid).ljust(16),
                     str(user.username).ljust(16),
                     str(balance).ljust(7),
                     str(sms_count).ljust(6),
@@ -425,6 +432,24 @@ class UsersManager(PersistableManager):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new User: (ok: save, ko: exit)',
                                  completitions=UserKeyMap.keys())
+
+    @UserExist(uid_key='enable')
+    def enable(self, arg, opts):
+        st = self.pb['router'].perspective_user_enable(opts.enable)
+
+        if st:
+            self.protocol.sendData('Successfully enabled User id:%s' % opts.enable)
+        else:
+            self.protocol.sendData('Failed enabling User, check log for details')
+
+    @UserExist(uid_key='disable')
+    def disable(self, arg, opts):
+        st = self.pb['router'].perspective_user_disable(opts.disable)
+
+        if st:
+            self.protocol.sendData('Successfully disabled User id:%s' % opts.disable)
+        else:
+            self.protocol.sendData('Failed disabling User, check log for details')
 
     @Session
     @UserUpdate
@@ -528,3 +553,23 @@ class UsersManager(PersistableManager):
                             self.protocol.sendData('%s %s %s %s' % (
                                 key, section.lower(), SectionShortKey, sectionValue), prompt=False)
         self.protocol.sendData()
+
+    @UserExist(uid_key='smpp_unbind')
+    def unbind(self, arg, opts):
+        user = self.pb['router'].getUser(opts.smpp_unbind)
+        st = self.pb['smpps'].unbindAndRemoveGateway(user, ban=False)
+
+        if st:
+            self.protocol.sendData('Successfully unbound User id:%s' % opts.smpp_unbind)
+        else:
+            self.protocol.sendData('Failed unbinding User, check log for details')
+
+    @UserExist(uid_key='smpp_ban')
+    def ban(self, arg, opts):
+        user = self.pb['router'].getUser(opts.smpp_ban)
+        st = self.pb['smpps'].unbindAndRemoveGateway(user)
+
+        if st:
+            self.protocol.sendData('Successfully unbound and banned User id:%s' % opts.smpp_ban)
+        else:
+            self.protocol.sendData('Failed banning User, check log for details')

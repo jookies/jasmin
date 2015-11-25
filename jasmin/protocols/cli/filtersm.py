@@ -8,6 +8,7 @@ import os
 from dateutil import parser
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import *
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     ConnectorFilter, SourceAddrFilter, DestinationAddrFilter,
                                     ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter,
@@ -32,7 +33,7 @@ FILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'ConnectorFilter',
 MOFILTERS = ['TransparentFilter', 'ConnectorFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
              'TagFilter']
-MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'DestinationAddrFilter',
+MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'SourceAddrFilter', 'DestinationAddrFilter',
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
              'TagFilter']
 
@@ -296,8 +297,11 @@ class FiltersManager(PersistableManager):
             lines = fh.readlines()
             fh.close()
 
+            # Init migrator
+            cf = ConfigurationMigrator(context='filters', header=lines[0], data=''.join(lines[1:]))
+
             # Apply configuration
-            self.filters = pickle.loads(''.join(lines[1:]))
+            self.filters = cf.getMigratedData()
         except IOError, e:
             raise Exception('Cannot load from %s: %s' % (path, str(e)))
         except Exception, e:

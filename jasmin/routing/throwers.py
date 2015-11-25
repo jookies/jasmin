@@ -353,7 +353,7 @@ class DLRThrower(Thrower):
         url = message.content.properties['headers']['url']
         method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
-        self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
+        self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
@@ -430,7 +430,7 @@ class DLRThrower(Thrower):
         source_addr = message.content.properties['headers']['source_addr']
         destination_addr = message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
-        self.log.debug('Got one message (msgid:%s) to throw' % (msgid))
+        self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)

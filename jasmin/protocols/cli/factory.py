@@ -34,10 +34,10 @@ class CmdFactory(ServerFactory):
                                                     CmdProtocol)
 
 class JCliFactory(ServerFactory):
-    def __init__(self, config, SMPPClientManagerPB, RouterPB,
+    def __init__(self, config, SMPPClientManagerPB, RouterPB, SMPPServerFactory,
                  loadConfigProfileWithCreds=None):
         self.config = config
-        self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB}
+        self.pb = {'smppcm': SMPPClientManagerPB, 'router': RouterPB, 'smpps': SMPPServerFactory}
         # Protocol sessions are kept here:
         self.sessions = {}
         self.sessionRef = 0

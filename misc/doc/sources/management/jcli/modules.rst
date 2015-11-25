@@ -32,12 +32,20 @@ The User manager module is accessible through the **user** command and is provid
      - List all users or a group users when provided with GID
    * - -a, --add
      - Add user
+   * - -e, --enable
+     - Enable user
+   * - -d, --disable
+     - Disable user
    * - -u UID, --update=UID
      - Update user using it's UID
    * - -r UID, --remove=UID
      - Remove user using it's UID
    * - -s UID, --show=UID
      - Show user using it's UID
+   * - --smpp-unbind=UID
+     - Unbind user from smpp server using it's UID
+   * - --smpp-ban=UID
+     - Unbind and ban user from smpp server using it's UID
 
 A User object is required for:
 
@@ -104,6 +112,8 @@ Listing Users will show currently added Users with their UID, GID and Username::
    #User id          Group id         Username         Balance MT SMS Throughput
    #foo              1                foo              ND      ND     ND/ND
    Total Users: 1
+
+.. note:: When listing a *disabled* user, his User id will be prefixed by **!**, same thing apply to group.
 
 .. _user_credentials:
 
@@ -305,6 +315,10 @@ The Group manager module is accessible through the **group** command and is prov
      - List groups
    * - -a, --add
      - Add group
+   * - -e, --enable
+     - Enable group
+   * - -d, --disable
+     - Disable group
    * - -r GID, --remove=GID
      - Remove group using it's GID
 
@@ -331,6 +345,8 @@ Listing Groups will show currently added Groups with their GID::
    #Group id
    #marketing
    Total Groups: 1
+
+.. note:: When listing a *disabled* group, its group id will be prefixed by **!**.
 
 .. _morouter_manager:
 
@@ -1128,7 +1144,7 @@ Jasmin provides many Filters offering advanced flexibilities to message routing:
      - MT
      - Will match the owner's group of a MT message
    * - **SourceAddrFilter**
-     - MO
+     - All
      - Will match the source address of a MO message
    * - **DestinationAddrFilter**
      - All
