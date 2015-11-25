@@ -4,9 +4,9 @@
 """Jasmin SMS Gateway by Jookies LTD <jasmin@jookies.net>"""
 
 MAJOR = 0
-MINOR = 8
-PATCH = 10
-META = 'rc'
+MINOR = 9
+PATCH = 0
+META = 'b'
 
 def get_version():
     "Will return Jasmin's version"
