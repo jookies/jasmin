@@ -22,7 +22,9 @@ class HTTPApiTestCases(TestCase):
         self.RouterPB_f.setConfig(RouterPBConfigInstance)
 
         # Provision Router with User and Route
-        self.u1 = User(1, Group(1), 'fourat', 'correct')
+        self.g1 = Group(1)
+        self.u1 = User(1, self.g1, 'fourat', 'correct')
+        self.RouterPB_f.groups.append(self.g1)
         self.RouterPB_f.users.append(self.u1)
         self.RouterPB_f.mt_routing_table.add(DefaultRoute(SmppClientConnector('abc')), 0)
 
@@ -44,6 +46,91 @@ class PingTestCases(HTTPApiTestCases):
         response = yield self.web.get("ping")
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(response.value(), "Jasmin/PONG")
+
+class AuthenticationTestCases(HTTPApiTestCases):
+    @defer.inlineCallbacks
+    def test_send_normal(self):
+        response = yield self.web.get("send", {'username': self.u1.username,
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 500)
+        self.assertNotEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.u1.username)
+
+    @defer.inlineCallbacks
+    def test_rate_normal(self):
+        response = yield self.web.get("rate", {'username': self.u1.username,
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(response.value(), '{"submit_sm_count": 1, "unit_rate": 0.0}')
+
+    @defer.inlineCallbacks
+    def test_balance_normal(self):
+        response = yield self.web.get("balance", {'username': self.u1.username,
+                                                  'password': 'correct'})
+        self.assertEqual(response.responseCode, 200)
+        self.assertEqual(response.value(), '{"balance": "ND", "sms_count": "ND"}')
+
+    @defer.inlineCallbacks
+    def test_send_disabled_user(self):
+        self.u1.disable()
+
+        response = yield self.web.get("send", {'username': self.u1.username,
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.u1.username)
+
+    @defer.inlineCallbacks
+    def test_rate_disabled_user(self):
+        self.u1.disable()
+
+        response = yield self.web.get("rate", {'username': self.u1.username,
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), '"Authentication failure for username:fourat"')
+
+    @defer.inlineCallbacks
+    def test_balance_disabled_user(self):
+        self.u1.disable()
+
+        response = yield self.web.get("balance", {'username': self.u1.username,
+                                                  'password': 'correct'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), '"Authentication failure for username:fourat"')
+
+    @defer.inlineCallbacks
+    def test_send_disabled_group(self):
+        self.g1.disable()
+
+        response = yield self.web.get("send", {'username': self.u1.username,
+                                               'password': 'correct',
+                                               'to': '98700177',
+                                               'content': 'anycontent'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.u1.username)
+
+    @defer.inlineCallbacks
+    def test_rate_disabled_group(self):
+        self.g1.disable()
+
+        response = yield self.web.get("rate", {'username': self.u1.username,
+                                               'password': 'correct',
+                                               'to': '98700177'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), '"Authentication failure for username:fourat"')
+
+    @defer.inlineCallbacks
+    def test_balance_disabled_group(self):
+        self.g1.disable()
+
+        response = yield self.web.get("balance", {'username': self.u1.username,
+                                                  'password': 'correct'})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), '"Authentication failure for username:fourat"')
 
 class SendTestCases(HTTPApiTestCases):
     username = 'fourat'

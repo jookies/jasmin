@@ -485,6 +485,51 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(r, None)
 
     @defer.inlineCallbacks
+    def test_enable_disable_group(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+        yield self.group_disable(1)
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(False, c[0].enabled)
+
+        yield self.group_enable(1)
+        c = yield self.group_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(True, c[0].enabled)
+
+    @defer.inlineCallbacks
+    def test_enable_disable_user(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        g1 = Group(1)
+        yield self.group_add(g1)
+
+        u1 = User(1, g1, 'username', 'password')
+
+        yield self.user_add(u1)
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(1, len(c))
+
+        yield self.user_disable(u1.uid)
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(False, c[0].enabled)
+
+        yield self.user_enable(u1.uid)
+        c = yield self.user_get_all()
+        c = pickle.loads(c)
+        self.assertEqual(True, c[0].enabled)
+
+    @defer.inlineCallbacks
     def test_add_list_and_remove_group(self):
         yield self.connect('127.0.0.1', self.pbPort)
 

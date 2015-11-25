@@ -24,7 +24,7 @@ class UsernameAndPasswordAndIP(UsernamePassword):
         self.username = username
         self.password = password
         self.client_ip_address = client_ip_address
-    
+
 class SMPPServerFactory(ServerFactory):
 
     protocol = SMPPServerProtocol
@@ -33,13 +33,13 @@ class SMPPServerFactory(ServerFactory):
         self.config = config
         self.log = logging.getLogger(LOG_CATEGORY)
         # A dict of protocol instances for each of the current connections,
-        # indexed by system_id 
+        # indexed by system_id
         self.bound_connections = {}
         self._auth_portal = auth_portal
-    
+
     def getConfig(self):
         return self.config
-     
+
     def getBoundConnectionCount(self, system_id):
         if self.bound_connections.has_key(system_id):
             return self.bound_connections[system_id].getMaxTransmitReceiveBindCount()
@@ -50,7 +50,7 @@ class SMPPServerFactory(ServerFactory):
         if self.bound_connections.has_key(system_id):
             bind_counts = self.bound_connections[system_id].getBindingCountByType()
             bound_connections_count = []
-            for key, value in bind_counts.iteritems(): 
+            for key, value in bind_counts.iteritems():
                 bound_connections_count.append("%s: %d" % (key, value))
             bound_connections_str = ', '.join(bound_connections_count)
             return bound_connections_str
@@ -69,7 +69,7 @@ class SMPPServerFactory(ServerFactory):
         self.bound_connections[system_id].addBinding(connection)
         bind_type = connection.bind_type
         self.log.info("Added %s bind for '%s'. Active binds: %s. Max binds: %s" % (bind_type, system_id, self.getBoundConnectionCountsStr(system_id), self.config.systems[system_id]['max_bindings']))
-        
+
     def removeConnection(self, connection):
         """
         Remove a protocol instance (SMPP binding) from the list of current connections.
@@ -85,10 +85,10 @@ class SMPPServerFactory(ServerFactory):
             # If this is the last binding for this service then remove the BindManager
             if self.bound_connections[system_id].getBindingCount() == 0:
                 self.bound_connections.pop(system_id)
-        
+
     def getBoundConnections(self, system_id):
         return self.bound_connections.get(system_id)
-    
+
     def login(self, system_id, password, client_ip_address):
         if self._auth_portal is not None:
             return self._auth_portal.login(
@@ -97,7 +97,7 @@ class SMPPServerFactory(ServerFactory):
                 IAuthenticatedSMPP
             )
         raise error.UnauthorizedLogin()
-        
+
     def canOpenNewConnection(self, system_id, bind_type):
         """
         Checks if the gateway with the specified system_id can open a new
@@ -111,7 +111,7 @@ class SMPPServerFactory(ServerFactory):
         else:
             # No existing bindings for this system_id
             return self.config.systems[system_id]['max_bindings'] > 0
-        
+
     def unbindGateway(self, system_id):
         """ Unbinds and disconnects all the bindings for the given system_id.  """
         bind_mgr = self.getBoundConnections(system_id)
@@ -123,7 +123,7 @@ class SMPPServerFactory(ServerFactory):
             d = defer.DeferredList(unbinds_list)
         else:
             d = defer.succeed(None)
-        
+
         return d
 
     def unbindAndRemoveGateway(self, system_id):
@@ -141,7 +141,7 @@ class SMPPServerFactory(ServerFactory):
         return deferred_res
 
 class SMPPBindManager(object):
-    
+
     def __init__(self, system_id):
         self.system_id = system_id
         self._binds = {pdu_types.CommandId.bind_transceiver: [],
@@ -149,26 +149,26 @@ class SMPPBindManager(object):
                        pdu_types.CommandId.bind_receiver: []}
         # A queue of the most recent bindings used for delivering messages
         self._delivery_binding_history = collections.deque()
-        
+
     def addBinding(self, connection):
         """ @param connection: An instance of SMPPServerProtocol """
-        
+
         bind_type = connection.bind_type
         self._binds[bind_type].append(connection)
-        
+
     def removeBinding(self, connection):
         """ @param connection: An instance of SMPPServerProtocol """
         bind_type = connection.bind_type
         self._binds[bind_type].remove(connection)
-        
+
     def getMaxTransmitReceiveBindCount(self):
         return len(self._binds[pdu_types.CommandId.bind_transceiver]) + \
                max(len(self._binds[pdu_types.CommandId.bind_transmitter]),
-                   len(self._binds[pdu_types.CommandId.bind_receiver]))        
-        
-    def getBindingCount(self):       
+                   len(self._binds[pdu_types.CommandId.bind_receiver]))
+
+    def getBindingCount(self):
         return sum(len(v) for v in self._binds.values())
-    
+
     def getBindingCountByType(self):
         ret = {}
         for key, value in self._binds.iteritems():
@@ -177,12 +177,12 @@ class SMPPBindManager(object):
 
     def __len__(self):
         return self.getBindingCount()
-    
+
     def __iter__(self):
         vals = []
         [vals.extend(type) for type in self._binds.values()]
         return vals.__iter__()
-    
+
     def getBindingCountForType(self, bind_type):
         """
         Sum transceiver binds plus receiver or transmitter depending on this type
@@ -195,7 +195,7 @@ class SMPPBindManager(object):
             # Sum of transceiver binds plus existing binds of this type
             connections_count = sum([len(self._binds[bt]) for bt in (pdu_types.CommandId.bind_transceiver, bind_type)])
         return connections_count
-    
+
     def getNextBindingForDelivery(self):
         """
         Messages inbound (MO) that are to be forwarded to
@@ -215,7 +215,7 @@ class SMPPBindManager(object):
                     break
             else:
                 binding = None
-        
+
         # Otherwise send on the last trx/rx binding delivered on, as
         # long as it is still bound
         while binding is None and self._delivery_binding_history:
@@ -225,8 +225,7 @@ class SMPPBindManager(object):
             if _binding in self._binds[_binding.bind_type]:
                 # If so then use it
                 binding = _binding
-        
+
         if binding is not None:
             self._delivery_binding_history.append(binding)
         return binding
-        

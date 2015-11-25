@@ -13,6 +13,7 @@ from .content import SubmitSmContent
 from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -164,6 +165,9 @@ class SMPPClientManagerPB(pb.Avatar):
             lines = fh.readlines()
             fh.close()
 
+            # Init migrator
+            cf = ConfigurationMigrator(context='smppccs', header=lines[0], data=''.join(lines[1:]))
+
             # Remove current configuration
             for c in self.connectors:
                 remRet = yield self.perspective_connector_remove(c['id'])
@@ -172,7 +176,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.log.info('Removed connector [%s]', c['id'])
 
             # Apply configuration
-            loadedConnectors = pickle.loads(''.join(lines[1:]))
+            loadedConnectors = cf.getMigratedData()
             for loadedConnector in loadedConnectors:
                 # Add connector
                 addRet = yield self.perspective_connector_add(
@@ -231,7 +235,7 @@ class SMPPClientManagerPB(pb.Avatar):
         # submit.sm queue declaration and binding
         submit_sm_queue = 'submit.sm.%s' % c.id
         routing_key = 'submit.sm.%s' % c.id
-        self.log.info('Binding %s queue to %s route_key' % (submit_sm_queue, routing_key))
+        self.log.info('Binding %s queue to %s route_key', submit_sm_queue, routing_key)
         yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue)
         yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue,
                                               exchange="messaging",

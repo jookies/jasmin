@@ -13,6 +13,21 @@ class GroupTestCase(TestCase):
         self.assertEqual(g.gid, 'GID')
         self.assertEqual(str(g), str(g.gid))
 
+    def test_is_enabled_by_default(self):
+        g = Group('GID')
+
+        self.assertEqual(g.enabled, True)
+
+    def test_enabled_disable(self):
+        g = Group('GID')
+
+        self.assertEqual(g.enabled, True)
+
+        g.disable()
+        self.assertEqual(g.enabled, False)
+        g.enable()
+        self.assertEqual(g.enabled, True)
+
 class UserTestCase(TestCase):
 
     def setUp(self):
@@ -48,6 +63,21 @@ class UserTestCase(TestCase):
             self.group,
             'foo',
             '123456789')
+
+    def test_is_enabled_by_default(self):
+        u = User('UID', self.group, 'foo', 'bar')
+
+        self.assertEqual(u.enabled, True)
+
+    def test_enabled_disable(self):
+        u = User('UID', self.group, 'foo', 'bar')
+
+        self.assertEqual(u.enabled, True)
+
+        u.disable()
+        self.assertEqual(u.enabled, False)
+        u.enable()
+        self.assertEqual(u.enabled, True)
 
 class UserAndCredentialsTestCase(TestCase):
 

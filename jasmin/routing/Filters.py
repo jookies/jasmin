@@ -27,8 +27,7 @@ class Filter(object):
     ConnectorFilter        | x  |    | MT messages are identified by user instead of source connector
     UserFilter             |    | x  | MO messages are not authenticated
     GroupFilter            |    | x  | MO messages are not authenticated
-    SourceAddrFilter       | x  |    | Only MO messages can have 'network-reliable' src addresses,
-                                       MT messages can have user-defined source address
+    SourceAddrFilter       | x  | x  |
     DestinationAddrFilter  | x  | x  |
     ShortMessageFilter     | x  | x  |
     DateIntervalFilter     | x  | x  |
@@ -153,8 +152,6 @@ class GroupFilter(Filter):
             return False
 
 class SourceAddrFilter(Filter):
-    usedFor = ['mo']
-
     def __init__(self, source_addr):
         Filter.__init__(self, source_addr=source_addr)
 
