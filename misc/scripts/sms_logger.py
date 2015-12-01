@@ -88,7 +88,7 @@ def gotConnection(conn, username, password):
             cursor.execute("""INSERT INTO submit_log (msgid, source_addr, pdu_count,
                                                       destination_addr, short_message,
                                                       status, uid, created_at, binary_message)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """, (
                         props['message-id'],
                         qmsg['source_addr'],
@@ -122,15 +122,15 @@ def gotConnection(conn, username, password):
             binary_message = binascii.hexlify(short_message)
 
             # If it's a binary message, assume it's utf_16_be encoded
-            if pdu.params['data_coding'] == 8:
-                short_message = short_message.decode('utf_16_be')
+            if isinstance(pdu.params['data_coding'], int) and pdu.params['data_coding'] == 8:
+                short_message = short_message.decode('utf_16_be', 'ignore').encode('utf_8')
 
             q[props['message-id']] = {
                 'bill': pickle.loads(props['headers']['submit_sm_resp_bill']),
                 'destination_addr': pdu.params['destination_addr'],
                 'source_addr': pdu.params['source_addr'],
                 'pdu_count': pdu_count,
-                'short_message': short_message.encode('utf_8'),
+                'short_message': short_message,
                 'binary_message': binary_message,
             }
         else:
