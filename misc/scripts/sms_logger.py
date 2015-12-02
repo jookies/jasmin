@@ -12,6 +12,7 @@ Requirement:
     `binary_message`   BLOB,
     `status`           VARCHAR(15) NOT NULL CHECK (`status` <> ''),
     `uid`              VARCHAR(15) NOT NULL CHECK (`uid` <> ''),
+    `trials`           TINYINT(4) DEFAULT 1,
     `created_at`       DATETIME NOT NULL,
     INDEX `sms_log_1` (`status`),
     INDEX `sms_log_2` (`uid`),
@@ -78,6 +79,7 @@ def gotConnection(conn, username, password):
         if msg.routing_key[:15] == 'submit.sm.resp.':
             if props['message-id'] not in q:
                 print 'Got resp of an unknown submit_sm: %s' % props['message-id']
+                chan.basic_ack(delivery_tag=msg.delivery_tag)
                 continue
 
             qmsg = q[props['message-id']]
@@ -88,7 +90,8 @@ def gotConnection(conn, username, password):
             cursor.execute("""INSERT INTO submit_log (msgid, source_addr, pdu_count,
                                                       destination_addr, short_message,
                                                       status, uid, created_at, binary_message)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE trials = trials + 1;
                 """, (
                         props['message-id'],
                         qmsg['source_addr'],
