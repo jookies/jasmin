@@ -196,6 +196,7 @@ class MTInterceptorExist(object):
         return exist_mtinterceptor_and_call
 
 class MtInterceptorManager(PersistableManager):
+    "MT Interceptor manager logics"
     managerName = 'mtinterceptor'
 
     def persist(self, arg, opts):

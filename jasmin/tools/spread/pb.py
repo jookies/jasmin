@@ -1,9 +1,9 @@
+from hashlib import md5
 from zope.interface import implements
 from twisted.spread.pb import challenge, IJellyable, AsReferenceable, IPerspective
 from twisted.cred.credentials import IUsernameHashedPassword, Anonymous
 from twisted.spread.flavors import IPBRoot, Referenceable
 from twisted.cred.error import UnhandledCredentials, UnauthorizedLogin
-from hashlib import md5
 
 class _JellyableAvatarMixin(object):
     """

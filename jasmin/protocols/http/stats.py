@@ -25,6 +25,9 @@ class HttpAPIStatistics(Stats):
             'last_success_at': 0,
         }
 
+    def getStats(self):
+        return self._stats
+
 class HttpAPIStatsCollector(object):
     "HTTP API statistics collection holder"
     __metaclass__ = Singleton

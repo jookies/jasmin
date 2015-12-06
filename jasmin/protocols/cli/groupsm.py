@@ -57,6 +57,7 @@ class GroupExist(object):
         return exist_group_and_call
 
 class GroupsManager(PersistableManager):
+    "Groups manager logics"
     managerName = 'group'
 
     def persist(self, arg, opts):

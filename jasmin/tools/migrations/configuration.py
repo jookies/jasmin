@@ -1,8 +1,8 @@
 import pickle
 import re
 import logging
-import jasmin
 from dateutil.parser import parse as date_parse
+import jasmin
 from .migration import MAP
 
 LOGGING_HANDLER = 'jcli'

@@ -6,14 +6,14 @@ import signal
 import syslog
 from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.python import usage
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.configs import InterceptorPBConfig
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from jasmin.tools.cred.portal import JasminPBRealm
-from jasmin.tools.spread.pb import JasminPBPortalRoot
 from twisted.spread import pb
 from twisted.internet import reactor, defer
+from jasmin.interceptor.interceptor import InterceptorPB
+from jasmin.interceptor.configs import InterceptorPBConfig
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.spread.pb import JasminPBPortalRoot
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')

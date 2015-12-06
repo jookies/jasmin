@@ -36,6 +36,9 @@ class ClientConnectorStatistics(ConnectorStatistics):
             "interceptor_error_count": 0,
             "interceptor_count": 0}
 
+    def getStats(self):
+        return self._stats
+
 class ServerConnectorStatistics(ConnectorStatistics):
     "One server connector statistics holder"
 

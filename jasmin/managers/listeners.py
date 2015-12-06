@@ -187,7 +187,8 @@ class SMPPClientSMListener(object):
                 qos_delay = datetime.now() - self.qos_last_submit_sm_at
                 if qos_delay < qos_throughput_ysecond_td:
                     qos_slow_down = float((qos_throughput_ysecond_td - qos_delay).microseconds) / 1000000
-                    # We're faster than submit_sm_throughput, slow down before taking a new message from the queue
+                    # We're faster than submit_sm_throughput,
+                    # slow down before taking a new message from the queue
                     self.log.debug("QoS: submit_sm_callback is faster (%s) than fixed throughput (%s), slowing down by %s seconds (message will be requeued).",
                                    qos_delay, qos_throughput_ysecond_td, qos_slow_down)
 

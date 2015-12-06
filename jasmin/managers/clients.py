@@ -2,11 +2,10 @@ import logging
 import pickle
 import time
 import datetime
-import jasmin
-from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
 from twisted.internet import defer
 from jasmin.protocols.smpp.services import SMPPClientService
+import jasmin
 from .listeners import SMPPClientSMListener
 from .configs import SMPPClientSMListenerConfig
 from .content import SubmitSmContent
