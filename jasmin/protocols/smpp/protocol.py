@@ -133,8 +133,8 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
             if not isinstance(respPDU, txn.request.requireAck):
                 txn.ackDeferred.errback(
-                    SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (
-                        type(respPDU), type(txn.request))))
+                    SMPPProtocolError, "Invalid PDU response type [%s] returned for request type [%s]" % (
+                        type(respPDU), type(txn.request)))
                 return
             #Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))

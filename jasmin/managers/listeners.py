@@ -666,7 +666,7 @@ class SMPPClientSMListener(object):
 
             # Post interception:
             if len(args) == 1:
-                if isinstance(args[0], bool) and args[0] == False:
+                if isinstance(args[0], bool) and not args[0]:
                     smpp.factory.stats.inc('interceptor_error_count')
                     self.log.error('Failed running interception script, got a False return.')
                     raise InterceptorRunError('Failed running interception script, check log for details')
