@@ -6,6 +6,8 @@ class LongSubmitSmTransactionError(SMPPError):
     """Raised inside a long message transaction
     """
     def __init__(self, message):
+        SMPPError.__init__(self, message)
+        
         self.message = message
 
 class SubmitSmEventHandlerErrorNoShutdown(SMPPProtocolError):

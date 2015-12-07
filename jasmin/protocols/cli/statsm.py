@@ -13,6 +13,7 @@ def formatDateTime(dt):
         return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 class StatsManager(Manager):
+    "Statistics manager logics"
     managerName = 'stats'
 
     @UserExist(uid_key='user')
@@ -76,7 +77,7 @@ class StatsManager(Manager):
         headers = ["#Item", "Value"]
 
         table = []
-        for k, v in sc.get(opts.smppc)._stats.iteritems():
+        for k, v in sc.get(opts.smppc).getStats().iteritems():
             row = []
             row.append('#%s' % k)
             if k[-3:] == '_at':
@@ -122,7 +123,7 @@ class StatsManager(Manager):
         headers = ["#Item", "Value"]
 
         table = []
-        for k, v in sc.get()._stats.iteritems():
+        for k, v in sc.get().getStats().iteritems():
             row = []
             row.append('#%s' % k)
             if k[-3:] == '_at':
@@ -143,7 +144,7 @@ class StatsManager(Manager):
         headers = ["#Item", "Value"]
 
         table = []
-        for k, v in sc.get('smpps_01')._stats.iteritems():
+        for k, v in sc.get('smpps_01').getStats().iteritems():
             row = []
             row.append('#%s' % k)
             if k[-3:] == '_at':

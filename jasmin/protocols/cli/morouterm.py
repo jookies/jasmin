@@ -217,6 +217,7 @@ class MORouteExist(object):
         return exist_moroute_and_call
 
 class MoRouterManager(PersistableManager):
+    "MO Router manager logics"
     managerName = 'morouter'
 
     def persist(self, arg, opts):

@@ -337,6 +337,7 @@ def UserUpdate(fCallback):
     return log_update_requests_and_call
 
 class UsersManager(PersistableManager):
+    "Users manager logics"
     managerName = 'user'
 
     def persist(self, arg, opts):

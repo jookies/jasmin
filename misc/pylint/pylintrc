@@ -72,7 +72,7 @@ comment=no
 [FORMAT]
 
 # Maximum number of characters on a single line.
-max-line-length=110
+max-line-length=130
 
 # Regexp for a line that is allowed to be longer than the limit.
 ignore-long-lines='.*log\.(debug|info|warning|critical|error)\(.*\)'

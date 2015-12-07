@@ -200,6 +200,7 @@ class ConnectorExist(object):
         return exist_connector_and_call
 
 class SmppCCManager(PersistableManager):
+    "SMPP Client Connector manager logics"
     managerName = 'smppcc'
 
     def persist(self, arg, opts):
