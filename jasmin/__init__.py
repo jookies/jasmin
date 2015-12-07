@@ -5,8 +5,8 @@
 
 MAJOR = 0
 MINOR = 8
-PATCH = 8
-META = 'b'
+PATCH = 10
+META = ''
 
 def get_version():
     "Will return Jasmin's version"
@@ -14,7 +14,7 @@ def get_version():
 
 def get_release():
     "PEP 440 format"
-    return '%s.%s%s%s' % (MAJOR, MINOR, META, PATCH)
+    return '%s.%s.%s%s' % (MAJOR, MINOR, META, PATCH)
 
 __version__ = get_version()
 __release__ = get_release()
