@@ -68,6 +68,9 @@ class ServerConnectorStatistics(ConnectorStatistics):
             "interceptor_error_count": 0,
             "interceptor_count": 0}
 
+    def getStats(self):
+        return self._stats
+
 class SMPPClientStatsCollector(object):
     "SMPP Clients statistics collection holder"
     __metaclass__ = Singleton
