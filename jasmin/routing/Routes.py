@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611
+#pylint: disable=W0401,W0611,W0231
 """
 More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """

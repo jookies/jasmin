@@ -1,8 +1,8 @@
 import pickle
 import re
 import logging
-import jasmin
 from dateutil.parser import parse as date_parse
+import jasmin
 from .migration import MAP
 
 LOGGING_HANDLER = 'jcli'
@@ -11,13 +11,13 @@ _REGEX_VER = re.compile(r'^(?P<major>(\d+))'
                         r'\.(?P<minor>(\d+))'
                         r'([a-z.]*)'
                         r'(?P<patch>(\d+))$')
-_REGEX_HEADER = re.compile('^Persisted on (?P<date>(.*)) \[Jasmin (?P<release_version>(.*))\]')
+_REGEX_HEADER = re.compile(r'^Persisted on (?P<date>(.*)) \[Jasmin (?P<release_version>(.*))\]')
 
 def version_parse(version):
     "Will parse Jasmin release version and return a float, ex: 0.8rc2 will return 0.82"
     match = _REGEX_VER.match(version)
     if match is None:
-        raise ValueError('%s is not valid Jasmin version string' % self.str_version)
+        raise ValueError('%s is not valid Jasmin version string' % version)
 
     return float("%s.%s%s" % (match.groupdict()['major'],
                               match.groupdict()['minor'], match.groupdict()['patch']))

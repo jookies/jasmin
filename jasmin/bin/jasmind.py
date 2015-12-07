@@ -6,6 +6,11 @@ import syslog
 import os
 from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.python import usage
+from twisted.cred import portal
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.web import server
+from twisted.spread import pb
+from twisted.internet import reactor, defer
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.queues.configs import AmqpConfig
@@ -25,13 +30,8 @@ from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.cli.configs import JCliConfig
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.interceptor.configs import InterceptorPBClientConfig
-from twisted.cred import portal
-from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.web import server
-from twisted.spread import pb
-from twisted.internet import reactor, defer
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')

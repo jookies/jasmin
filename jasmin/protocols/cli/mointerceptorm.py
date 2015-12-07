@@ -196,6 +196,7 @@ class MOInterceptorExist:
         return exist_mointerceptor_and_call
 
 class MoInterceptorManager(PersistableManager):
+    "MO Interceptor manager logics"
     managerName = 'mointerceptor'
 
     def persist(self, arg, opts):

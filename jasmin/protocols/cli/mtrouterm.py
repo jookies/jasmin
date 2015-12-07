@@ -214,6 +214,7 @@ class MTRouteExist(object):
         return exist_mtroute_and_call
 
 class MtRouterManager(PersistableManager):
+    "MT Router manager logics"
     managerName = 'mtrouter'
 
     def persist(self, arg, opts):
