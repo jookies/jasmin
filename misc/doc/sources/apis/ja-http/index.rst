@@ -56,12 +56,12 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - Presence
      - Description / Notes
    * - **to**
-     - Msisdn with or without international prefix
+     - Destination address
      - 20203050
      - Mandatory
      - Destination address, only one address is supported per request
    * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Originating address
      - 20203050, Jasmin
      - Optional
      - Originating address, In case rewriting of the sender's address is supported or permitted by the SMS-C used to transmit the message, this number is transmitted as the originating address
@@ -458,12 +458,12 @@ When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the bel
      - Always
      - Internal Jasmin's gateway message id
    * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Originating address
      - +21620203060, 20203060, Jasmin
      - Always
      - Originating address
    * - **to**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Destination address
      - +21620203060, 20203060, Jasmin
      - Always
      - Destination address, only one address is supported per request
@@ -635,12 +635,12 @@ HTTP request parameters
      - Presence
      - Description / Notes
    * - **to**
-     - Msisdn with or without international prefix
+     - Destination address
      - 20203050
      - Mandatory
      - Destination address, only one address is supported per request
    * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Originating address
      - 20203050, Jasmin
      - Optional
      - Originating address, In case rewriting of the sender's address is supported or permitted by the SMS-C used to transmit the message, this number is transmitted as the originating address
