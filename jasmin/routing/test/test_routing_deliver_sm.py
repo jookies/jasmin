@@ -20,30 +20,30 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 
 class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = DeliverSmSMSC
-    
+
     @defer.inlineCallbacks
     def setUp(self):
         yield SMPPClientManagerPBTestCase.setUp(self)
-        
+
         self.smsc_f = LastClientFactory()
-        self.smsc_f.protocol = self.protocol      
+        self.smsc_f.protocol = self.protocol
         self.SMSCPort = reactor.listenTCP(0, self.smsc_f)
-    
+
     @defer.inlineCallbacks
-    def tearDown(self):        
+    def tearDown(self):
         yield self.SMSCPort.stopListening()
         yield SMPPClientManagerPBTestCase.tearDown(self)
 
 class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
-    
+
     @defer.inlineCallbacks
     def setUp(self):
         yield DeliverSmSMSCTestCase.setUp(self)
-        
+
         # Start http servers
         self.AckServerResource = AckServer()
         self.AckServer = reactor.listenTCP(0, server.Site(self.AckServerResource))
-        
+
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
@@ -52,11 +52,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         deliverSmThrowerConfigInstance.timeout = 2
         deliverSmThrowerConfigInstance.retry_delay = 1
         deliverSmThrowerConfigInstance.max_retries = 2
-        
+
         # Launch the deliverSmThrower
         self.deliverSmThrower = deliverSmThrower()
         self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
-        
+
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
 
@@ -65,7 +65,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         yield self.AckServer.stopListening()
         yield self.deliverSmThrower.stopService()
         yield DeliverSmSMSCTestCase.tearDown(self)
-        
+
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, connector):
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
@@ -75,13 +75,13 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
         # Set the route
         yield self.moroute_add(DefaultRoute(c2_destination), 0)
-        
+
         # Now we'll create the connector 1 from which we'll receive DeliverSm PDUs before
         # throwing to http
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=connector.cid, port=connector.port)        
+        c1Config = SMPPClientConfig(id=connector.cid, port=connector.port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
-        
+
         # Start the connector
         yield self.SMPPClientManagerPBProxy.start(connector.cid)
         # Wait for 'BOUND_TRX' state
@@ -91,7 +91,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
                 break;
             else:
                 time.sleep(0.2)
-        
+
     @defer.inlineCallbacks
     def stopConnector(self, connector):
         # Disconnect the connector
@@ -103,7 +103,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
                 break;
             else:
                 time.sleep(0.2)
-    
+
     @defer.inlineCallbacks
     def triggerDeliverSmFromSMSC(self, pdus):
         for pdu in pdus:
@@ -120,7 +120,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Connect to SMSC
         source_connector = Connector(id_generator())
         yield self.prepareRoutingsAndStartConnector(source_connector)
-        
+
         # Send a deliver_sm from the SMSC
         pdu = DeliverSM(
             source_addr='1234',
@@ -136,10 +136,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [pdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [pdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu.params['short_message']])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -151,7 +152,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Connect to SMSC
         source_connector = Connector(id_generator())
         yield self.prepareRoutingsAndStartConnector(source_connector)
-        
+
         # Send a deliver_sm from the SMSC
         basePdu = DeliverSM(
             source_addr = '1234',
@@ -176,10 +177,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -191,7 +193,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Connect to SMSC
         source_connector = Connector(id_generator())
         yield self.prepareRoutingsAndStartConnector(source_connector)
-        
+
         # Build a UDH
         baseUdh = []
         baseUdh.append(struct.pack('!B', 5)) # Length of User Data Header
@@ -229,10 +231,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params['short_message'][6:]])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params['short_message'][6:])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -244,7 +247,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Connect to SMSC
         source_connector = Connector(id_generator())
         yield self.prepareRoutingsAndStartConnector(source_connector)
-        
+
         # Send a deliver_sm from the SMSC
         basePdu = DeliverSM(
             source_addr = '1234',
@@ -269,10 +272,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -283,16 +287,16 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
     @defer.inlineCallbacks
     def setUp(self):
         yield SMPPClientTestCases.setUp(self)
-        
+
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
         deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
-        
+
         # Launch the deliverSmThrower
         self.deliverSmThrower = deliverSmThrower()
         self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
-        
+
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
 
@@ -327,7 +331,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
     def test_delivery_SmppClientConnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -354,7 +358,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
     def test_delivery_multipart_SmppClientConnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -383,7 +387,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
     def test_long_content_delivery_SAR_SmppsConnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -448,7 +452,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
     def test_long_content_delivery_UDH_SmppsConnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -523,7 +527,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         "Related to #117"
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-        
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
