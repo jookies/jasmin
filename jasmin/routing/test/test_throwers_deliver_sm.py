@@ -1,5 +1,6 @@
 import mock
 import copy
+import binascii
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
 from datetime import datetime, timedelta
@@ -14,6 +15,7 @@ from jasmin.routing.test.http_server import LeafServer, TimeoutLeafServer, AckSe
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.test.test_router import SubmitSmTestCaseTools
 from jasmin.routing.proxies import RouterPBProxy
+from jasmin.vendor.smpp.pdu.pdu_types import *
 from twisted.web import server
 
 @defer.inlineCallbacks
@@ -197,6 +199,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
         content = "\x06\x2A\x06\x33\x06\x2A"
         self.testDeliverSMPdu.params['short_message'] = content
+        self.testDeliverSMPdu.params['data_coding'] = DataCoding(schemeData=DataCodingDefault.UCS2)
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
         yield waitFor(1)
@@ -204,6 +207,8 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # Assert throwed content is equal to original content
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], content)
+        self.assertEqual(callArgs['coding'][0], '8')
+        self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
 
     @defer.inlineCallbacks
     def test_throwing_http_utf8(self):
@@ -215,6 +220,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
         content = "\xd8\xaa\xd8\xb3\xd8\xaa"
         self.testDeliverSMPdu.params['short_message'] = content
+        self.testDeliverSMPdu.params['data_coding'] = DataCoding(schemeData=DataCodingDefault.UCS2)
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
         yield waitFor(1)
@@ -222,6 +228,8 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # Assert throwed content is equal to original content
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], content)
+        self.assertEqual(callArgs['coding'][0], '8')
+        self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
 
 class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     routingKey = 'deliver_sm_thrower.smpps'

@@ -1,6 +1,7 @@
 import pickle
 import logging
 import urllib
+import binascii
 from logging.handlers import TimedRotatingFileHandler
 from twisted.application.service import Service
 from twisted.internet import defer
@@ -194,6 +195,7 @@ class deliverSmThrower(Thrower):
             'from': RoutedDeliverSmContent.params['source_addr'],
             'to': RoutedDeliverSmContent.params['destination_addr'],
             'content': RoutedDeliverSmContent.params['short_message'],
+            'binary': binascii.hexlify(RoutedDeliverSmContent.params['short_message']),
             'origin-connector': message.content.properties['headers']['src-connector-id']}
         # Build optional arguments
         if RoutedDeliverSmContent.params['priority_flag'] is not None:
