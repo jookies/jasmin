@@ -7,6 +7,7 @@ Requirement:
     `msgid`            VARCHAR(45) PRIMARY KEY,
     `source_addr`      VARCHAR(40),
     `destination_addr` VARCHAR(40) NOT NULL CHECK (`destination_addr` <> ''),
+    `rate`             DECIMAL(12, 7),
     `pdu_count`        TINYINT(3) DEFAULT 1,
     `short_message`    BLOB,
     `binary_message`   BLOB,
@@ -31,11 +32,11 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientCreator
 from twisted.python import log
-
 from txamqp.protocol import AMQClient
 from txamqp.client import TwistedDelegate
-
 import txamqp.spec
+
+from jasmin.vendor.smpp.pdu.pdu_types import DataCoding
 
 import MySQLdb as mdb
 
@@ -87,19 +88,20 @@ def gotConnection(conn, username, password):
             if qmsg['source_addr'] is None:
                 qmsg['source_addr'] = ''
 
-            cursor.execute("""INSERT INTO submit_log (msgid, source_addr, pdu_count,
+            cursor.execute("""INSERT INTO submit_log (msgid, source_addr, rate, pdu_count,
                                                       destination_addr, short_message,
                                                       status, uid, created_at, binary_message)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE trials = trials + 1;
                 """, (
                         props['message-id'],
                         qmsg['source_addr'],
+                        qmsg['rate'],
                         qmsg['pdu_count'],
                         qmsg['destination_addr'],
                         qmsg['short_message'],
                         pdu.status,
-                        qmsg['bill'].user.uid,
+                        qmsg['uid'],
                         props['headers']['created_at'],
                         qmsg['binary_message'],
                     )
@@ -108,6 +110,7 @@ def gotConnection(conn, username, password):
         elif msg.routing_key[:10] == 'submit.sm.':
             pdu_count = 1
             short_message = pdu.params['short_message']
+            submit_sm_bill = pickle.loads(props['headers']['submit_sm_bill'])
 
             # Is it a multipart message ?
             while hasattr(pdu, 'nextPdu'):
@@ -125,11 +128,14 @@ def gotConnection(conn, username, password):
             binary_message = binascii.hexlify(short_message)
 
             # If it's a binary message, assume it's utf_16_be encoded
-            if pdu.params['data_coding'] is not None and str(pdu.params['data_coding'].schemeData) == 'UCS2':
-                short_message = short_message.decode('utf_16_be', 'ignore').encode('utf_8')
+            if pdu.params['data_coding'] is not None:
+                dc = pdu.params['data_coding']
+                if (isinstance(dc, int) and dc == 8) or (isinstance(dc, DataCoding) and str(dc.schemeData) == 'UCS2'):
+                    short_message = short_message.decode('utf_16_be', 'ignore').encode('utf_8')
 
             q[props['message-id']] = {
-                'bill': pickle.loads(props['headers']['submit_sm_resp_bill']),
+                'rate': submit_sm_bill.getTotalAmounts() * pdu_count,
+                'uid': submit_sm_bill.user.uid,
                 'destination_addr': pdu.params['destination_addr'],
                 'source_addr': pdu.params['source_addr'],
                 'pdu_count': pdu_count,

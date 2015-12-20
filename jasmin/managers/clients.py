@@ -571,7 +571,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.log.warn('Removing schedule_delivery_time from SubmitSmPDU.')
 
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
-            submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
+            submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
         else:
             PickledSubmitSmPDU = SubmitSmPDU
             SubmitSmPDU = pickle.loads(PickledSubmitSmPDU)
