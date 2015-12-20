@@ -530,11 +530,12 @@ class SMPPClientManagerPB(pb.Avatar):
         return pickle.dumps(connector['config'], self.pickleProtocol)
 
     @defer.inlineCallbacks
-    def perspective_submit_sm(self, cid, SubmitSmPDU, priority=1, validity_period=None, pickled=True,
-                              dlr_url=None, dlr_level=1, dlr_method='POST', submit_sm_resp_bill=None,
+    def perspective_submit_sm(self, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
+                              pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST',
                               source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
         """
+        submit_sm_resp_bill = submit_sm_bill.getSubmitSmRespBill()
 
         self.log.debug('Enqueuing a SUBMIT_SM to connector [%s]', cid)
         if submit_sm_resp_bill is not None:
@@ -578,11 +579,11 @@ class SMPPClientManagerPB(pb.Avatar):
         # Publishing a pickled PDU
         self.log.debug('Publishing SubmitSmPDU with routing_key=%s, priority=%s', pubQueueName, priority)
         c = SubmitSmContent(
-            PickledSubmitSmPDU,
-            responseQueueName,
-            priority,
-            validity_period,
-            submit_sm_resp_bill=submit_sm_resp_bill,
+            body=PickledSubmitSmPDU,
+            replyto=responseQueueName,
+            submit_sm_bill=submit_sm_bill,
+            priority=priority,
+            expiration=validity_period,
             source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi')
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 

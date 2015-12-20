@@ -97,8 +97,8 @@ class DLRContentForSmpps(Content):
 class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
-    def __init__(self, body, replyto, priority=1, expiration=None, msgid=None,
-                 submit_sm_resp_bill=None, source_connector='httpapi'):
+    def __init__(self, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
+                 source_connector='httpapi'):
         props = {}
 
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -116,9 +116,8 @@ class SubmitSmContent(PDU):
         props['message-id'] = msgid
         props['reply-to'] = replyto
 
-        props['headers'] = {'source_connector': source_connector}
-        if submit_sm_resp_bill is not None:
-            props['headers']['submit_sm_resp_bill'] = submit_sm_resp_bill
+        props['headers'] = {'source_connector': source_connector,
+            'submit_sm_bill': submit_sm_bill}
         if expiration is not None:
             props['headers']['expiration'] = expiration
 

@@ -419,8 +419,12 @@ class SMPPServerFactory(_SMPPServerFactory):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU", routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(
-                routedConnector.cid, routable.pdu, priority,
-                pickled=False, submit_sm_resp_bill=bill.getSubmitSmRespBill(), source_connector=proto)
+                cid=routedConnector.cid,
+                SubmitSmPDU=routable.pdu,
+                submit_sm_bill=bill,
+                priority=priority,
+                pickled=False,
+                source_connector=proto)
 
             # Build final response
             if not c.result:
