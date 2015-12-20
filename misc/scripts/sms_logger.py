@@ -125,7 +125,7 @@ def gotConnection(conn, username, password):
             binary_message = binascii.hexlify(short_message)
 
             # If it's a binary message, assume it's utf_16_be encoded
-            if isinstance(pdu.params['data_coding'], int) and pdu.params['data_coding'] == 8:
+            if pdu.params['data_coding'] is not None and str(pdu.params['data_coding'].schemeData) == 'UCS2':
                 short_message = short_message.decode('utf_16_be', 'ignore').encode('utf_8')
 
             q[props['message-id']] = {
