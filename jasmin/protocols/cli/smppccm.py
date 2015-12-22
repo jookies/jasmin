@@ -26,7 +26,8 @@ SMPPClientConfigKeyMap = {
     'trx_to': 'inactivityTimerSecs', 'ssl': 'useSSL'}
 
 # Keys to be kept in string type, as requested in #64 and #105
-SMPPClientConfigStringKeys = ['systemType', 'username', 'password', 'addressRange']
+SMPPClientConfigStringKeys = [
+    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']
