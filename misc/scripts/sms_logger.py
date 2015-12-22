@@ -5,6 +5,8 @@ Requirement:
 - submit_log table:
   CREATE TABLE submit_log (
     `msgid`            VARCHAR(45) PRIMARY KEY,
+    `source_connector` VARCHAR(15),
+    `routed_cid`       VARCHAR(30),
     `source_addr`      VARCHAR(40),
     `destination_addr` VARCHAR(40) NOT NULL CHECK (`destination_addr` <> ''),
     `rate`             DECIMAL(12, 7),
@@ -17,13 +19,14 @@ Requirement:
     `created_at`       DATETIME NOT NULL,
     INDEX `sms_log_1` (`status`),
     INDEX `sms_log_2` (`uid`),
-    INDEX `sms_log_3` (`created_at`),
-    INDEX `sms_log_4` (`created_at`, `uid`),
-    INDEX `sms_log_5` (`created_at`, `uid`, `status`)
+    INDEX `sms_log_3` (`routed_cid`),
+    INDEX `sms_log_4` (`created_at`),
+    INDEX `sms_log_5` (`created_at`, `uid`),
+    INDEX `sms_log_6` (`created_at`, `uid`, `status`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 TODO:
-- Add billing info
+- Add DLR to status
 """
 
 import pickle
@@ -90,8 +93,9 @@ def gotConnection(conn, username, password):
 
             cursor.execute("""INSERT INTO submit_log (msgid, source_addr, rate, pdu_count,
                                                       destination_addr, short_message,
-                                                      status, uid, created_at, binary_message)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                                      status, uid, created_at, binary_message,
+                                                      routed_cid, source_connector)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE trials = trials + 1;
                 """, (
                         props['message-id'],
@@ -104,6 +108,8 @@ def gotConnection(conn, username, password):
                         qmsg['uid'],
                         props['headers']['created_at'],
                         qmsg['binary_message'],
+                        qmsg['routed_cid'],
+                        qmsg['source_connector'],
                     )
                 )
             db.commit()
@@ -111,6 +117,8 @@ def gotConnection(conn, username, password):
             pdu_count = 1
             short_message = pdu.params['short_message']
             submit_sm_bill = pickle.loads(props['headers']['submit_sm_bill'])
+            source_connector = props['headers']['source_connector']
+            routed_cid = msg.routing_key[10:]
 
             # Is it a multipart message ?
             while hasattr(pdu, 'nextPdu'):
@@ -134,6 +142,8 @@ def gotConnection(conn, username, password):
                     short_message = short_message.decode('utf_16_be', 'ignore').encode('utf_8')
 
             q[props['message-id']] = {
+                'source_connector': source_connector,
+                'routed_cid': routed_cid,
                 'rate': submit_sm_bill.getTotalAmounts() * pdu_count,
                 'uid': submit_sm_bill.user.uid,
                 'destination_addr': pdu.params['destination_addr'],
