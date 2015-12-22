@@ -284,12 +284,8 @@ class SMPPClientSMListener(object):
         total_bill_amount = None
         will_be_retried = False
 
-        if ('headers' not in amqpMessage.content.properties or
-                'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
-            submit_sm_resp_bill = None
-        else:
-            submit_sm_resp_bill = pickle.loads(
-                amqpMessage.content.properties['headers']['submit_sm_resp_bill'])
+        submit_sm_resp_bill = pickle.loads(
+            amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
 
         if r.response.status == CommandStatus.ESME_ROK:
             # No more retrials !

@@ -2,6 +2,7 @@ from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.routing.Bills import SubmitSmBill
 
 class SMPPClientManagerPBProxy(JasminPBProxy):
     'This is a proxy to SMPPClientManagerPB perspective broker'
@@ -68,9 +69,11 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
         return self.pb.callRemote('connector_config', cid)
 
     @ConnectedPB
-    def submit_sm(self, cid, SubmitSmPDU):
-        if isinstance(SubmitSmPDU, SubmitSM) is False:
-            raise Exception("Object is not an instance of SubmitSm")
+    def submit_sm(self, cid, SubmitSmPDU, submit_sm_bill):
+        if not isinstance(SubmitSmPDU, SubmitSM):
+            raise Exception("SubmitSmPDU is not an instance of SubmitSm")
+        if not isinstance(submit_sm_bill, SubmitSmBill):
+            raise Exception("submit_sm_bill is not an instance of SubmitSmBill")
 
         # Remove schedule_delivery_time / not supported right now
         if SubmitSmPDU.params['schedule_delivery_time'] is not None:
@@ -90,5 +93,10 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
             # validity_period to this message
             validity_period = None
 
-        return self.pb.callRemote('submit_sm', cid, SubmitSmPDU=self.pickle(SubmitSmPDU),
-                                  priority=priority_flag, validity_period=validity_period)
+        return self.pb.callRemote(
+            'submit_sm',
+            cid=cid,
+            SubmitSmPDU=self.pickle(SubmitSmPDU),
+            submit_sm_bill=self.pickle(submit_sm_bill),
+            priority=priority_flag,
+            validity_period=validity_period)

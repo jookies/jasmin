@@ -240,7 +240,7 @@ class SubmitSmDeliveryTestCases(RouterPBProxy, SmppServerTestCases):
 
         # Assertions
         # submit_sm source_addr has been changed to default one
-        SentSubmitSmPDU = self.clientManager_f.perspective_submit_sm.call_args_list[0][0][1]
+        SentSubmitSmPDU = self.clientManager_f.perspective_submit_sm.call_args_list[0][1]['SubmitSmPDU']
         self.assertEqual(SentSubmitSmPDU.params['source_addr'], default_source_addr)
 
     @defer.inlineCallbacks

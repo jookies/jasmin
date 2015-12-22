@@ -535,13 +535,6 @@ class SMPPClientManagerPB(pb.Avatar):
                               source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
         """
-        submit_sm_resp_bill = submit_sm_bill.getSubmitSmRespBill()
-
-        self.log.debug('Enqueuing a SUBMIT_SM to connector [%s]', cid)
-        if submit_sm_resp_bill is not None:
-            self.log.debug("... with a SubmitSmRespBill [bid:%s] [ttlamounts:%s]",
-                           submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts())
-
         connector = self.getConnector(cid)
         if connector is None:
             self.log.error('Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: %s', cid)

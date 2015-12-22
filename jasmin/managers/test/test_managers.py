@@ -28,6 +28,8 @@ from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePassword
 from jasmin.tools.proxies import ConnectError
 from jasmin.routing.router import RouterPB
 from jasmin.routing.configs import RouterPBConfig
+from jasmin.routing.jasminApi import Group, User
+from jasmin.routing.Bills import SubmitSmBill
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -586,6 +588,8 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             short_message='Hello world !',
         )
 
+        self.SubmitSmBill = SubmitSmBill(User('test_user', Group('test_group'), 'test_username', 'pwd'))
+
     @defer.inlineCallbacks
     def test_submitSm(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -600,7 +604,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         assertionKey = str(randint(10000, 99999999999))
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = assertionKey
-        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
 
         # Wait 2 seconds
         yield waitFor(2)
@@ -640,7 +644,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         startAt = datetime.now()
         submitCounter = 0
         while submitCounter < 5:
-            yield self.submit_sm(localConfig.id, self.SubmitSmPDU)
+            yield self.submit_sm(localConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
             submitCounter += 1
 
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
@@ -685,7 +689,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
         while submitCounter < 60:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
-            yield self.submit_sm(localConfig.id, submit_sm_pdu)
+            yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
             submitCounter += 1
 
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
@@ -732,7 +736,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
         while submitCounter < 4:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
-            msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu)
+            msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
             submitCounter += 1
 
         # Wait for 2 seconds before stopping
@@ -784,7 +788,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
         while submitCounter < 180:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
-            yield self.submit_sm(localConfig.id, submit_sm_pdu)
+            yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
             submitCounter += 1
 
         # Wait for 3 seconds
@@ -821,7 +825,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             SubmitSmPDU = copy.copy(self.SubmitSmPDU)
             SubmitSmPDU.params['validity_period'] = datetime.today() + delta
 
-            c = yield self.submit_sm(localConfig.id, SubmitSmPDU)
+            c = yield self.submit_sm(localConfig.id, SubmitSmPDU, self.SubmitSmBill)
             submitCounter += 1
 
         # Wait 5 seconds
@@ -853,6 +857,8 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
             short_message='Hello world !',
         )
 
+        self.SubmitSmBill = SubmitSmBill(User('test_user', Group('test_group'), 'test_username', 'pwd'))
+
     @defer.inlineCallbacks
     def test_ESME_RSYSERR(self):
         """Ensure that errors specified in jasmin.cfg's submit_error_retrial parameter
@@ -869,7 +875,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         # Send submit_sm
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RSYSERR'
-        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
 
         # Wait
         yield waitFor(70)
@@ -900,7 +906,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         # Send submit_sm
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RREPLACEFAIL'
-        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU)
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
 
         # Wait
         yield waitFor(70)
@@ -921,6 +927,8 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         yield SMSCSimulatorRecorder.setUp(self)
 
         self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
+
+        self.SubmitSmBill = SubmitSmBill(User('test_user', Group('test_group'), 'test_username', 'pwd'))
 
     @defer.inlineCallbacks
     def send_long_submit_sm(self, long_content_split):
@@ -947,7 +955,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         )
 
         # Send submit_sm
-        yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU)
+        yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU, self.SubmitSmBill)
 
         # Wait 2 seconds
         yield waitFor(2)
