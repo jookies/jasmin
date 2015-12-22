@@ -25,9 +25,6 @@ Requirement:
     INDEX `sms_log_5` (`created_at`, `uid`),
     INDEX `sms_log_6` (`created_at`, `uid`, `status`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-
-TODO:
-- Add DLR to status
 """
 
 import pickle
