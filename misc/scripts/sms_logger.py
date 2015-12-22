@@ -17,6 +17,7 @@ Requirement:
     `uid`              VARCHAR(15) NOT NULL CHECK (`uid` <> ''),
     `trials`           TINYINT(4) DEFAULT 1,
     `created_at`       DATETIME NOT NULL,
+    `status_at`        DATETIME NOT NULL,
     INDEX `sms_log_1` (`status`),
     INDEX `sms_log_2` (`uid`),
     INDEX `sms_log_3` (`routed_cid`),
@@ -31,6 +32,7 @@ TODO:
 
 import pickle
 import binascii
+from datetime import datetime
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientCreator
@@ -56,9 +58,11 @@ def gotConnection(conn, username, password):
 
     yield chan.queue_declare(queue="sms_logger_queue")
 
-    # Bind to submit.sm.* and submit.sm.resp.* routes
+    # Bind to submit.sm.* and submit.sm.resp.* routes to track sent messages
     yield chan.queue_bind(queue="sms_logger_queue", exchange="messaging", routing_key='submit.sm.*')
     yield chan.queue_bind(queue="sms_logger_queue", exchange="messaging", routing_key='submit.sm.resp.*')
+    # Bind to dlr_thrower.* to track DLRs
+    yield chan.queue_bind(queue="sms_logger_queue", exchange="messaging", routing_key='dlr_thrower.*')
 
     yield chan.basic_consume(queue='sms_logger_queue', no_ack=False, consumer_tag="sms_logger")
     queue = yield conn.queue("sms_logger")
@@ -78,42 +82,9 @@ def gotConnection(conn, username, password):
     while True:
         msg = yield queue.get()
         props = msg.content.properties
-        pdu = pickle.loads(msg.content.body)
 
-        if msg.routing_key[:15] == 'submit.sm.resp.':
-            if props['message-id'] not in q:
-                print 'Got resp of an unknown submit_sm: %s' % props['message-id']
-                chan.basic_ack(delivery_tag=msg.delivery_tag)
-                continue
-
-            qmsg = q[props['message-id']]
-
-            if qmsg['source_addr'] is None:
-                qmsg['source_addr'] = ''
-
-            cursor.execute("""INSERT INTO submit_log (msgid, source_addr, rate, pdu_count,
-                                                      destination_addr, short_message,
-                                                      status, uid, created_at, binary_message,
-                                                      routed_cid, source_connector)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE trials = trials + 1;
-                """, (
-                        props['message-id'],
-                        qmsg['source_addr'],
-                        qmsg['rate'],
-                        qmsg['pdu_count'],
-                        qmsg['destination_addr'],
-                        qmsg['short_message'],
-                        pdu.status,
-                        qmsg['uid'],
-                        props['headers']['created_at'],
-                        qmsg['binary_message'],
-                        qmsg['routed_cid'],
-                        qmsg['source_connector'],
-                    )
-                )
-            db.commit()
-        elif msg.routing_key[:10] == 'submit.sm.':
+        if msg.routing_key[:10] == 'submit.sm.' and msg.routing_key[:15] != 'submit.sm.resp.':
+            pdu = pickle.loads(msg.content.body)
             pdu_count = 1
             short_message = pdu.params['short_message']
             submit_sm_bill = pickle.loads(props['headers']['submit_sm_bill'])
@@ -152,8 +123,61 @@ def gotConnection(conn, username, password):
                 'short_message': short_message,
                 'binary_message': binary_message,
             }
+        elif msg.routing_key[:15] == 'submit.sm.resp.':
+            # It's a submit_sm_resp
+
+            pdu = pickle.loads(msg.content.body)
+            if props['message-id'] not in q:
+                print 'Got resp of an unknown submit_sm: %s' % props['message-id']
+                chan.basic_ack(delivery_tag=msg.delivery_tag)
+                continue
+
+            qmsg = q[props['message-id']]
+
+            if qmsg['source_addr'] is None:
+                qmsg['source_addr'] = ''
+
+            cursor.execute("""INSERT INTO submit_log (msgid, source_addr, rate, pdu_count,
+                                                      destination_addr, short_message,
+                                                      status, uid, created_at, binary_message,
+                                                      routed_cid, source_connector, status_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE trials = trials + 1;""", (
+                props['message-id'],
+                qmsg['source_addr'],
+                qmsg['rate'],
+                qmsg['pdu_count'],
+                qmsg['destination_addr'],
+                qmsg['short_message'],
+                pdu.status,
+                qmsg['uid'],
+                props['headers']['created_at'],
+                qmsg['binary_message'],
+                qmsg['routed_cid'],
+                qmsg['source_connector'],
+                props['headers']['created_at'],))
+            db.commit()
+        elif msg.routing_key[:12] == 'dlr_thrower.':
+            if props['headers']['message_status'][:5] == 'ESME_':
+                # Ignore dlr from submit_sm_resp
+                chan.basic_ack(delivery_tag=msg.delivery_tag)
+                continue
+
+            # It's a dlr
+            if props['message-id'] not in q:
+                print 'Got dlr of an unknown submit_sm: %s' % props['message-id']
+                chan.basic_ack(delivery_tag=msg.delivery_tag)
+                continue
+
+            # Update message status
+            qmsg = q[props['message-id']]
+            cursor.execute("UPDATE submit_log SET status = %s, status_at = %s WHERE msgid = %s;", (
+                props['headers']['message_status'],
+                datetime.now(),
+                props['message-id'],))
+            db.commit()
         else:
-            print 'unknown route'
+            print 'unknown route: %s' % msg.routing_key
 
         chan.basic_ack(delivery_tag=msg.delivery_tag)
 
