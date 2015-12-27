@@ -1,4 +1,3 @@
-import pickle
 import mock
 from twisted.internet import defer, reactor
 from test_jcli import jCliWithoutAuthTestCases

@@ -1,7 +1,7 @@
 import copy
 import time
 import mock
-import pickle
+import cPickle as pickle
 import glob
 import os
 import jasmin

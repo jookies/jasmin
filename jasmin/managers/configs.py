@@ -2,6 +2,7 @@
 Config file handlers for 'client-management' and 'sm-listener' section in jasmin.cfg
 """
 
+import cPickle as pickle
 import logging
 import ast
 import os
@@ -34,7 +35,7 @@ class SMPPClientPBConfig(ConfigFile):
         self.log_rotate = self._get('client-management', 'log_rotate', 'W6')
         self.log_format = self._get('client-management', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('client-management', 'log_date_format', '%Y-%m-%d %H:%M:%S')
-        self.pickle_protocol = self._getint('client-management', 'pickle_protocol', 2)
+        self.pickle_protocol = self._getint('client-management', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
 
 class SMPPClientSMListenerConfig(ConfigFile):
     "Config handler for 'sm-listener' section"

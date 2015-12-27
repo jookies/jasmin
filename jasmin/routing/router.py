@@ -1,6 +1,6 @@
 import time
 import logging
-import pickle
+import cPickle as pickle
 import jasmin
 from copy import copy
 from hashlib import md5

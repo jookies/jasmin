@@ -1,7 +1,7 @@
 import logging
 import re
 import json
-import pickle
+import cPickle as pickle
 from twisted.internet import reactor, defer
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta

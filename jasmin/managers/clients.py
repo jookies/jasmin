@@ -1,5 +1,5 @@
 import logging
-import pickle
+import cPickle as pickle
 import time
 import datetime
 from twisted.spread import pb
@@ -32,7 +32,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.RouterPB = None
         self.connectors = []
         self.declared_queues = []
-        self.pickleProtocol = 2
+        self.pickleProtocol = pickle.HIGHEST_PROTOCOL
 
         # Persistence flag, accessed through perspective_is_persisted
         self.persisted = True

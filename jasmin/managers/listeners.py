@@ -1,7 +1,7 @@
 #pylint: disable=W0401,W0611
 import re
 import logging
-import pickle
+import cPickle as pickle
 import struct
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta

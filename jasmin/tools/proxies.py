@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 import logging
 from twisted.internet import defer, reactor
 from twisted.spread.pb import RemoteReference

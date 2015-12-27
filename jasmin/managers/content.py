@@ -3,7 +3,7 @@ Multiple classes extending of txamqp.content.Content
 """
 
 import uuid
-import pickle
+import cPickle as pickle
 import datetime
 from txamqp.content import Content
 
@@ -20,7 +20,7 @@ def randomUniqueId():
 class PDU(Content):
     "A generick SMPP PDU Content"
 
-    pickleProtocol = 2
+    pickleProtocol = pickle.HIGHEST_PROTOCOL
 
     def __init__(self, body="", children=None, properties=None, pickleProtocol=2, prePickle=False):
         self.pickleProtocol = pickleProtocol

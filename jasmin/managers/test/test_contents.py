@@ -2,7 +2,7 @@
 Test cases for amqp contents
 """
 
-import pickle
+import cPickle as pickle
 from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Bills import SubmitSmBill
@@ -67,7 +67,7 @@ class SubmitSmRespContentTestCase(ContentTestCase):
         c = SubmitSmRespContent(self.body, 1)
 
         self.assertNotEquals(c.body, self.body)
-        self.assertEquals(c.body, pickle.dumps(self.body, 2))
+        self.assertEquals(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
         self.assertEquals(c['message-id'], 1)
         self.assertTrue('created_at' in c['headers'])
 
@@ -226,7 +226,7 @@ class DeliverSmContentTestCase(ContentTestCase):
         c = DeliverSmContent(self.body, 'connector1')
 
         self.assertNotEquals(c.body, self.body)
-        self.assertEquals(c.body, pickle.dumps(self.body, 2))
+        self.assertEquals(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
         self.assertEquals(c['headers']['connector-id'], 'connector1')
         self.assertEquals(c['headers']['concatenated'], False)
         self.assertFalse(c['message-id'] == None)

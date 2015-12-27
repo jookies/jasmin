@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import pickle
+import cPickle as pickle
 import copy
 import time
 import urllib

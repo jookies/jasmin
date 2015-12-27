@@ -27,7 +27,7 @@ Requirement:
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 """
 
-import pickle
+import cPickle as pickle
 import binascii
 from datetime import datetime
 from twisted.internet.defer import inlineCallbacks

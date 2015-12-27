@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 import re
 from hashlib import md5
 from jasmin.protocols.cli.managers import PersistableManager, Session
@@ -420,7 +420,7 @@ class UsersManager(PersistableManager):
     @Session
     @UserBuild
     def add_session(self, UserInstance):
-        st = self.pb['router'].perspective_user_add(pickle.dumps(UserInstance, 2))
+        st = self.pb['router'].perspective_user_add(pickle.dumps(UserInstance, pickle.HIGHEST_PROTOCOL))
 
         if st:
             self.protocol.sendData(

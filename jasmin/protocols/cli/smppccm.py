@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 import logging
 from twisted.internet import defer, reactor
 from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
@@ -254,7 +254,8 @@ class SmppCCManager(PersistableManager):
     @SMPPClientConfigBuild
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
-        st = yield self.pb['smppcm'].perspective_connector_add(pickle.dumps(SMPPClientConfigInstance, 2))
+        st = yield self.pb['smppcm'].perspective_connector_add(
+            pickle.dumps(SMPPClientConfigInstance, pickle.HIGHEST_PROTOCOL))
 
         if st:
             self.protocol.sendData(

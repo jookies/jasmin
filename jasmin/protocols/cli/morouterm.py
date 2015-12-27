@@ -1,7 +1,7 @@
 #pylint: disable=W0611
 import re
 import inspect
-import pickle
+import cPickle as pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MOFILTERS
 from jasmin.routing.jasminApi import SmppServerSystemIdConnector
@@ -287,7 +287,8 @@ class MoRouterManager(PersistableManager):
     @Session
     @MORouteBuild
     def add_session(self, order, RouteInstance):
-        st = self.pb['router'].perspective_moroute_add(pickle.dumps(RouteInstance, 2), order)
+        st = self.pb['router'].perspective_moroute_add(
+            pickle.dumps(RouteInstance, pickle.HIGHEST_PROTOCOL), order)
 
         if st:
             self.protocol.sendData(

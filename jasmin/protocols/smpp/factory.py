@@ -1,7 +1,7 @@
 #pylint: disable=W0401,W0611,W0231
 import logging
 import re
-import pickle
+import cPickle as pickle
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from OpenSSL import SSL
