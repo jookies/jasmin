@@ -33,10 +33,18 @@ def group_status(data):
 
     return new_data
 
+"""This is the main map for orchestring config migrations.
+
+The map is based on 3 elements:
+  1. conditions: binary conditions on Jasmin version, the patch version is zfilled(3), this means 0.8rc2 (or
+     0.8.2) will be represented as 0.8002.
+  2. contexts: configuration context (users, groups, smppccs ...)
+  3. operations: functions to call to migrate the config
+"""
 MAP = [
-    {'conditions': ['<0.88'],
+    {'conditions': ['<0.8008'],
      'contexts': {'groups'},
      'operations': [group_status]},
-    {'conditions': ['<0.88'],
+    {'conditions': ['<0.8008'],
      'contexts': {'users'},
      'operations': [user_status]},]
