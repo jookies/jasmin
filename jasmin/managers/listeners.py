@@ -483,7 +483,7 @@ class SMPPClientSMListener(object):
                             self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                            r.response.params['message_id'], msgid, smpps_map_expiry)
                             hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
-                            hashValues = {'msgid': msgid, 'connector_type': 'smpps',}
+                            hashValues = {'msgid': msgid, 'connector_type': 'smppsapi',}
                             self.redisClient.setex(hashKey,
                                                    smpps_map_expiry,
                                                    pickle.dumps(hashValues, self.pickleProtocol))
@@ -827,7 +827,7 @@ class SMPPClientSMListener(object):
                         else:
                             self.log.warn('DLR for msgid[%s] not found !',
                                           submit_sm_queue_id)
-                    elif submit_sm_queue_id is not None and connector_type == 'smpps':
+                    elif submit_sm_queue_id is not None and connector_type == 'smppsapi':
                         if dlr is not None:
                             system_id = dlr['system_id']
                             source_addr = dlr['source_addr']
