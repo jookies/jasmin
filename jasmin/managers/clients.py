@@ -593,7 +593,8 @@ class SMPPClientManagerPB(pb.Avatar):
                                connector['config'].dlr_expiry)
                 # Set values and callback expiration setting
                 hashKey = "dlr:%s" % (c.properties['message-id'])
-                hashValues = {'url': dlr_url,
+                hashValues = {'sc': source_connector,
+                              'url': dlr_url,
                               'level':dlr_level,
                               'method':dlr_method,
                               'expiry':connector['config'].dlr_expiry}
@@ -617,8 +618,9 @@ class SMPPClientManagerPB(pb.Avatar):
                     SubmitSmPDU.params['registered_delivery'],
                     source_connector.factory.config.dlr_expiry)
                 # Set values and callback expiration setting
-                hashKey = "smppsmap:%s" % (c.properties['message-id'])
-                hashValues = {'system_id': source_connector.system_id,
+                hashKey = "dlr:%s" % (c.properties['message-id'])
+                hashValues = {'sc': source_connector,
+                              'system_id': source_connector.system_id,
                               'source_addr': SubmitSmPDU.params['source_addr'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'sub_date': datetime.datetime.now(),
