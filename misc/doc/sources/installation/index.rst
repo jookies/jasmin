@@ -31,7 +31,7 @@ Ubuntu
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-  curl -s http://bit.ly/jasmin-deb-repo | sudo bash
+  wget -qO - http://bit.ly/jasmin-deb-repo | sudo bash
   sudo apt-get install python-jasmin
 
 .. note:: Ubuntu 15.04 and higher versions are supported.
@@ -48,7 +48,7 @@ RHEL & CentOS
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-  curl -s http://bit.ly/jasmin-rpm-repo | sudo bash
+  wget -qO - http://bit.ly/jasmin-rpm-repo | sudo bash
   sudo yum install python-jasmin
 
 .. note:: Red Hat Enterprise Linux 7 & CentOS 7 are supported.
