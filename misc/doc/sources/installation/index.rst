@@ -292,9 +292,9 @@ And then create the new user::
 
 Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/ja-http/index` for detailed information about sending and receiving SMS and receipts)::
 
-	http://127.0.0.1:1401/send?username=foo&password=bar&to=98700177&content=hello
+	http://127.0.0.1:1401/send?username=foo&password=bar&to=06222172&content=hello
 
-Calling the above url from any brower will send an SMS to **98700177** with **hello** content, if you receive a response like the below example it means your SMS is accepted for delivery::
+Calling the above url from any brower will send an SMS to **06222172** with **hello** content, if you receive a response like the below example it means your SMS is accepted for delivery::
 
 	Success "9ab2867c-96ce-4405-b890-8d35d52c8e01"
 

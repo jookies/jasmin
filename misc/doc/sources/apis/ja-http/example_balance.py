@@ -5,7 +5,7 @@ import urllib
 import json
 
 # Check user balance
-params = {'username':'fourat', 'password':'secret'}
+params = {'username':'foo', 'password':'bar'}
 response = urllib2.urlopen("http://127.0.0.1:1401/balance?%s" % urllib.urlencode(params)).read()
 response = json.loads(response)
 

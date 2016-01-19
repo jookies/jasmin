@@ -3,7 +3,7 @@
 import urllib2
 import urllib
 
-baseParams = {'username':'fourat', 'password':'secret', 'to':'+21698700177', 'content':'Hello'}
+baseParams = {'username':'foo', 'password':'bar', 'to':'+336222172', 'content':'Hello'}
 
 # Sending long content (more than 160 chars):
 baseParams['content'] = 'Very long message ....................................................................................................................................................................................'

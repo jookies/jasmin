@@ -16,13 +16,13 @@ else
 
 // Send $RESPONSE back to the user ($MO_SMS['from'])
 $baseurl = 'http://127.0.0.1:1401/send'
-$params = '?username=fourat'
-$params.= '&password=secret'
+$params = '?username=foo'
+$params.= '&password=bar'
 $params.= '&to='.urlencode($MO_SMS['from'])
 $params.= '&content='.urlencode($RESPONSE)
 
 $response = file_get_contents($baseurl.$params);
 
 // Note:
-// If you need to check if the message is really delivered (or at least, taken by Jasmin for delivery) 
+// If you need to check if the message is really delivered (or at least, taken by Jasmin for delivery)
 // you must test for $response value, it must begin with "Success", c.f. HTTP API doc for more details
