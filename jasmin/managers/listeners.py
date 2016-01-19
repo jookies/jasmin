@@ -440,9 +440,9 @@ class SMPPClientSMListener(object):
                                    r.response.params['message_id'], msgid, dlr_expiry)
                     hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
                     hashValues = {'msgid': msgid, 'connector_type': 'httpapi',}
-                    self.redisClient.setex(hashKey,
-                                           dlr_expiry,
-                                           pickle.dumps(hashValues, self.pickleProtocol))
+                    yield self.redisClient.setex(hashKey,
+                                                 dlr_expiry,
+                                                 pickle.dumps(hashValues, self.pickleProtocol))
             elif pickledSmppsMap is not None:
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
 
@@ -487,9 +487,9 @@ class SMPPClientSMListener(object):
                                        r.response.params['message_id'], msgid, smpps_map_expiry)
                         hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
                         hashValues = {'msgid': msgid, 'connector_type': 'smpps',}
-                        self.redisClient.setex(hashKey,
-                                               smpps_map_expiry,
-                                               pickle.dumps(hashValues, self.pickleProtocol))
+                        yield self.redisClient.setex(hashKey,
+                                                     smpps_map_expiry,
+                                                     pickle.dumps(hashValues, self.pickleProtocol))
         else:
             self.log.warn('No valid RC were found while checking msg[%s] !', msgid)
 
@@ -752,7 +752,7 @@ class SMPPClientSMListener(object):
                                   'total_segments':total_segments,
                                   'msg_ref_num':msg_ref_num,
                                   'segment_seqnum':segment_seqnum}
-                    self.redisClient.hset(
+                    yield self.redisClient.hset(
                         hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
                             self.concatDeliverSMs,
                             splitMethod,
