@@ -73,7 +73,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Configuration
         self.method = 'GET'
         self.postdata = None
-        self.params = {'to': '98700177',
+        self.params = {'to': '06155423',
                         'username': user.username,
                         'password': 'password',
                         'content': 'test'}
