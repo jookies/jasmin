@@ -584,7 +584,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         opFactory = SMPPOperationFactory(config)
         self.SubmitSmPDU = opFactory.SubmitSM(
             source_addr='1423',
-            destination_addr='98700177',
+            destination_addr='06155423',
             short_message='Hello world !',
         )
 
@@ -853,7 +853,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         opFactory = SMPPOperationFactory(config)
         self.SubmitSmPDU = opFactory.SubmitSM(
             source_addr='1423',
-            destination_addr='98700177',
+            destination_addr='06155423',
             short_message='Hello world !',
         )
 
@@ -950,7 +950,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         opFactory = SMPPOperationFactory(config, long_content_split = long_content_split)
         SubmitSmPDU = opFactory.SubmitSM(
             source_addr='1423',
-            destination_addr='98700177',
+            destination_addr='06155423',
             short_message=assertionKey,
         )
 
