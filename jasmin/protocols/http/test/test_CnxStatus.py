@@ -18,7 +18,7 @@ class CnxStatusCases(HTTPApiTestCases):
 		for i in range(10):
 			yield self.web.get("send", {'username': self.u1.username,
                                     	'password': 'correct',
-                                    	'to': '98700177',
+                                    	'to': '06155423',
                                     	'content': 'anycontent'})
 
 		yield waitFor(4)
@@ -31,7 +31,7 @@ class CnxStatusCases(HTTPApiTestCases):
 
 		yield self.web.get("send", {'username': self.u1.username,
                                    	'password': 'correct',
-                                   	'to': '98700177',
+                                   	'to': '06155423',
                                    	'content': 'anycontent'})
 
 		self.assertApproximates(datetime.now(),
@@ -46,7 +46,7 @@ class CnxStatusCases(HTTPApiTestCases):
 		for i in range(100):
 			yield self.web.get("send", {'username': self.u1.username,
                                     	'password': 'correct',
-                                    	'to': '98700177',
+                                    	'to': '06155423',
                                     	'content': 'anycontent'})
 
 		self.assertEqual(self.u1.getCnxStatus().httpapi['submit_sm_request_count'], before_test+100)

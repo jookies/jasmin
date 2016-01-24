@@ -146,7 +146,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since no interceptorpb is set
@@ -170,7 +170,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since no interceptorpb is set
@@ -200,7 +200,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -227,7 +227,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -258,7 +258,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -293,7 +293,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -327,7 +327,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -363,7 +363,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -390,7 +390,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -417,7 +417,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -448,7 +448,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -478,7 +478,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -512,7 +512,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected
@@ -548,7 +548,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=98700177&username=%s&password=%s' % (
+        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
             self.u1.username, self.u1_password)
 
         # We should receive an error since interceptorpb is not connected

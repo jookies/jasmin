@@ -233,7 +233,7 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'user -a'},
                     {'command': 'gid g1'},
                     {'command': 'uid u1'},
-                    {'command': 'username fourat'},
+                    {'command': 'username nathalie'},
                     {'command': 'password fpwd'},
                     {'command': 'ok', 'expect': 'Successfully added User'}]
         yield self._test(r'jcli : ', commands)
