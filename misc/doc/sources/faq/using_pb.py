@@ -48,7 +48,7 @@ def runScenario():
         
         # Provisiong router with users
         g1 = Group(1)
-        u1 = User(uid = 1, group = g1, username = 'fourat', password = 'anypassword')
+        u1 = User(uid = 1, group = g1, username = 'nathalie', password = 'anypassword')
         yield proxy_router.group_add(g1)
         yield proxy_router.user_add(u1)
         users = yield proxy_router.user_get_all()

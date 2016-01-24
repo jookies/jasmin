@@ -4,6 +4,6 @@ import urllib2
 import urllib
 
 # Send an SMS-MT and request terminal level acknowledgement callback to http://myserver/acknowledgement
-params = {'username':'fourat', 'password':'secret', 'to':'+24206155423', 'content':'Hello', 
+params = {'username':'nathalie', 'password':'secret', 'to':'+24206155423', 'content':'Hello', 
           'dlr-url':'http://myserver/acknowledgement', 'dlr-level':2}
 urllib2.urlopen("http://127.0.0.1:1401/send?%s" % urllib.urlencode(params)).read()

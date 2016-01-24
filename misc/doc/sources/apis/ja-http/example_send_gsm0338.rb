@@ -4,7 +4,7 @@
 require 'net/http'
 
 uri = URI('http://127.0.0.1:1401/send')
-params = { :username => 'fourat', :password => 'secred',
+params = { :username => 'nathalie', :password => 'secred',
            :to => '+24206155423', :content => 'Hello world' }
 uri.query = URI.encode_www_form(params)
 
