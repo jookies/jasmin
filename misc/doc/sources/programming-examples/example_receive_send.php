@@ -16,7 +16,7 @@ else
 
 // Send $RESPONSE back to the user ($MO_SMS['from'])
 $baseurl = 'http://127.0.0.1:1401/send'
-$params = '?username=fourat'
+$params = '?username=nathalie'
 $params.= '&password=secret'
 $params.= '&to='.urlencode($MO_SMS['from'])
 $params.= '&content='.urlencode($RESPONSE)

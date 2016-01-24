@@ -16,7 +16,7 @@ class OperationsTest(TestCase):
 
 class SubmitTest(OperationsTest):
     source_addr         = '20203060'
-    destination_addr    = '98700177'
+    destination_addr    = '06155423'
     latin1_sm           = '6162636465666768696a6b6c6d6e6f707172737475767778797a'
     latin1_long_sm      = '6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e'
 
@@ -197,7 +197,7 @@ class DeliveryParsingTest(OperationsTest):
     def test_is_delivery_mmg_deliver_sm_224(self):
         """Related to #224, this is a Sicap's MMG deliver_sm receipt"""
         pdu = DeliverSM(
-            source_addr='21698700177',
+            source_addr='24206155423',
             destination_addr='JOOKIES',
             short_message='362d9701 2',
             message_state=MessageState.DELIVERED,
@@ -218,7 +218,7 @@ class DeliveryParsingTest(OperationsTest):
     def test_is_delivery_mmg_data_sm_92(self):
         """Related to #92, this is a Sicap's MMG data_sm receipt"""
         pdu = DataSM(
-            source_addr='21698700177',
+            source_addr='24206155423',
             destination_addr='JOOKIES',
             message_state=MessageState.DELIVERED,
             receipted_message_id='362d9701',
@@ -253,7 +253,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 dlr_pdu,
                 'anyid',
                 'JASMIN',
-                '98700177',
+                '06155423',
                 'ANY_STATus',
                 '2017-07-19 17:50:12')
 
@@ -263,7 +263,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'deliver_sm', 
                 'anyid',
                 'JASMIN',
-                '98700177',
+                '06155423',
                 message_state,
                 '2017-07-19 17:50:12')
 
@@ -275,7 +275,7 @@ class ReceiptCreationTestCases(OperationsTest):
             'deliver_sm', 
             'anyid',
             'JASMIN',
-            '98700177',
+            '06155423',
             'ESME_RTHROTTLED',
             '2017-07-19 17:50:12')
 
@@ -288,7 +288,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'data_sm', 
                 'anyid',
                 'JASMIN',
-                '98700177',
+                '06155423',
                 message_state,
                 '2017-07-19 17:50:12')
 
@@ -299,7 +299,7 @@ class ReceiptCreationTestCases(OperationsTest):
             'data_sm', 
             'anyid',
             'JASMIN',
-            '98700177',
+            '06155423',
             'ESME_RTHROTTLED',
             '2017-07-19 17:50:12')
 

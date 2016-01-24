@@ -1235,8 +1235,8 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         yield self.mtroute_add(DefaultRoute(c1), 0)
 
         # Send a SMS MT through http interface
-        url_ko = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u2.username, u1_password)
-        url_ok = 'http://127.0.0.1:1401/send?to=98700177&content=test&username=%s&password=%s' % (u1.username, u2_password)
+        url_ko = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (u2.username, u1_password)
+        url_ok = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (u1.username, u2_password)
 
         # Incorrect username/password will lead to '403 Forbidden' error
         lastErrorStatus = 200
@@ -1344,7 +1344,7 @@ class SubmitSmTestCaseTools(object):
         # Configuration
         self.method = 'GET'
         self.postdata = None
-        self.params = {'to': '98700177',
+        self.params = {'to': '06155423',
                         'username': self.u1.username,
                         'password': user_password,
                         'content': 'test'}

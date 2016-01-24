@@ -5,7 +5,7 @@ import urllib
 import json
 
 # Check message rate price
-params = {'username':'fourat', 'password':'secret', 'to': '21698700177'}
+params = {'username':'nathalie', 'password':'secret', 'to': '24206155423'}
 response = urllib2.urlopen("http://127.0.0.1:1401/rate?%s" % urllib.urlencode(params)).read()
 response = json.loads(response)
 

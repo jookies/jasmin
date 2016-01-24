@@ -31,7 +31,7 @@ Ubuntu
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-  curl -s http://bit.ly/jasmin-deb-repo | sudo bash
+  wget -qO - http://bit.ly/jasmin-deb-repo | sudo bash
   sudo apt-get install python-jasmin
 
 .. note:: Ubuntu 15.04 and higher versions are supported.
@@ -48,7 +48,7 @@ RHEL & CentOS
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-  curl -s http://bit.ly/jasmin-rpm-repo | sudo bash
+  wget -qO - http://bit.ly/jasmin-rpm-repo | sudo bash
   sudo yum install python-jasmin
 
 .. note:: Red Hat Enterprise Linux 7 & CentOS 7 are supported.
@@ -292,9 +292,9 @@ And then create the new user::
 
 Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/ja-http/index` for detailed information about sending and receiving SMS and receipts)::
 
-	http://127.0.0.1:1401/send?username=foo&password=bar&to=98700177&content=hello
+	http://127.0.0.1:1401/send?username=foo&password=bar&to=06155423&content=hello
 
-Calling the above url from any brower will send an SMS to **98700177** with **hello** content, if you receive a response like the below example it means your SMS is accepted for delivery::
+Calling the above url from any brower will send an SMS to **06155423** with **hello** content, if you receive a response like the below example it means your SMS is accepted for delivery::
 
 	Success "9ab2867c-96ce-4405-b890-8d35d52c8e01"
 

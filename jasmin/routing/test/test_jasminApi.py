@@ -386,12 +386,12 @@ class SmppConnectorTestCase(TestCase):
 
 class SmppServerSystemIdTestCase(TestCase):
     def test_normal(self):
-        c = SmppServerSystemIdConnector(system_id = 'fourat')
+        c = SmppServerSystemIdConnector(system_id = 'nathalie')
 
         self.assertEqual(c.type, 'smpps')
         self.assertEqual(c._str, 'smpps Connector')
         self.assertEqual(c._repr, '<smpps Connector>')
-        self.assertEqual(c.cid, 'fourat')
+        self.assertEqual(c.cid, 'nathalie')
         self.assertEqual(c.cid, c.system_id)
 
 class MOInterceptorScriptTestCase(TestCase):
