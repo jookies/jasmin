@@ -194,9 +194,21 @@ class deliverSmThrower(Thrower):
             'id': msgid,
             'from': RoutedDeliverSmContent.params['source_addr'],
             'to': RoutedDeliverSmContent.params['destination_addr'],
-            'content': RoutedDeliverSmContent.params['short_message'],
-            'binary': binascii.hexlify(RoutedDeliverSmContent.params['short_message']),
             'origin-connector': message.content.properties['headers']['src-connector-id']}
+
+        # Content can be short_message or message_payload:
+        if 'short_message' in RoutedDeliverSmContent.params:
+            args['content'] = RoutedDeliverSmContent.params['short_message']
+        elif 'message_payload' in RoutedDeliverSmContent.params:
+            args['content'] = RoutedDeliverSmContent.params['message_payload']
+        else:
+            self.log.error('Cannot find content in pdu (msgid:%s): %s', msgid, RoutedDeliverSmContent)
+            yield self.rejectMessage(message)
+            defer.returnValue(None)
+
+        # Set the binary arg after deciding where to pick the content from
+        args['binary'] = binascii.hexlify(args['content'])
+
         # Build optional arguments
         if RoutedDeliverSmContent.params['priority_flag'] is not None:
             args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]

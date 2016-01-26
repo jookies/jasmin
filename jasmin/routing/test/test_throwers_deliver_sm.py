@@ -192,7 +192,6 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     @defer.inlineCallbacks
     def test_throwing_http_utf16(self):
         """Related to #320
-
         Send utf16-be content and check it was throwed while preserving the content as is"""
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
 
@@ -213,7 +212,6 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     @defer.inlineCallbacks
     def test_throwing_http_utf8(self):
         """Related to #320
-
         Send utf8 content and check it was throwed while preserving the content as is"""
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
 
@@ -230,6 +228,28 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertEqual(callArgs['content'][0], content)
         self.assertEqual(callArgs['coding'][0], '8')
         self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
+
+    def test_throwing_http_with_message_payload(self):
+        """Related to #380
+        Will throw via http a pdu having 'message_payload' instead of 'short_message' parameter
+        """
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        content = 'test_throwing_http_with_message_payload test content'
+        del self.testDeliverSMPdu.params['short_message']
+        self.testDeliverSMPdu.params['message_payload'] = content
+        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
+
+        yield waitFor(1)
+
+        # No message retries must be made since ACK was received
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+
+        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        self.assertEqual(callArgs['content'][0], content)
+        self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
+        self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
 class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     routingKey = 'deliver_sm_thrower.smpps'
