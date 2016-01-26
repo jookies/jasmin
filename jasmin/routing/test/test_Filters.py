@@ -111,6 +111,20 @@ class ShortMessageFilterTestCase(FilterTestCase):
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
 
+    def test_message_payload(self):
+        """Related to #380
+        Consider 'message_payload' when there is no 'short_message' parameter
+        """
+        PDU_message_payload = SubmitSM(
+            source_addr='20203060',
+            destination_addr='20203060',
+            message_payload='hello world',
+        )
+        del PDU_message_payload.params['short_message']
+        _routable = SimpleRoutablePDU(self.connector, PDU_message_payload, self.user)
+
+        self.assertTrue(self.f.match(_routable))
+
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
