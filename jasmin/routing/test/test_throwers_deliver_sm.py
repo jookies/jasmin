@@ -229,6 +229,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertEqual(callArgs['coding'][0], '8')
         self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
 
+    @defer.inlineCallbacks
     def test_throwing_http_with_message_payload(self):
         """Related to #380
         Will throw via http a pdu having 'message_payload' instead of 'short_message' parameter
