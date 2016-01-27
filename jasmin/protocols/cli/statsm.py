@@ -1,4 +1,5 @@
 import cPickle as pickle
+import json
 from jasmin.protocols.cli.managers import Manager
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector
 from jasmin.protocols.http.stats import HttpAPIStatsCollector
@@ -25,6 +26,9 @@ class StatsManager(Manager):
         user = self.pb['router'].getUser(opts.user)
         # SMPP Server stats
         for k, v in user.getCnxStatus().smpps.iteritems():
+            if isinstance(v, dict):
+                v = json.dumps(v)
+
             row = []
             row.append('#%s' % k)
             row.append('SMPP Server')
@@ -37,6 +41,9 @@ class StatsManager(Manager):
 
         # HTTP API stats
         for k, v in user.getCnxStatus().httpapi.iteritems():
+            if isinstance(v, dict):
+                v = json.dumps(v)
+
             row = []
             row.append('#%s' % k)
             row.append('HTTP Api')
@@ -78,6 +85,9 @@ class StatsManager(Manager):
 
         table = []
         for k, v in sc.get(opts.smppc).getStats().iteritems():
+            if isinstance(v, dict):
+                v = json.dumps(v)
+
             row = []
             row.append('#%s' % k)
             if k[-3:] == '_at':
@@ -124,6 +134,9 @@ class StatsManager(Manager):
 
         table = []
         for k, v in sc.get().getStats().iteritems():
+            if isinstance(v, dict):
+                v = json.dumps(v)
+
             row = []
             row.append('#%s' % k)
             if k[-3:] == '_at':
