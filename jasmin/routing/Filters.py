@@ -188,7 +188,13 @@ class ShortMessageFilter(Filter):
     def match(self, routable):
         Filter.match(self, routable)
 
-        return False if self.short_message.match(routable.pdu.params['short_message']) is None else True
+        # Content can be short_message or message_payload:
+        if 'short_message' in routable.pdu.params:
+            return False if self.short_message.match(routable.pdu.params['short_message']) is None else True
+        elif 'message_payload' in routable.pdu.params:
+            return False if self.short_message.match(routable.pdu.params['message_payload']) is None else True
+        else:
+            return False
 
 class DateIntervalFilter(Filter):
     def __init__(self, dateInterval):
