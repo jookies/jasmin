@@ -252,6 +252,60 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
         self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
+    @defer.inlineCallbacks
+    def test_throwing_http_without_priority(self):
+        """Related to #380
+        Will throw via http a pdu having no priority_flag parameter
+        """
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        content = 'test_throwing_http_without_priority test content'
+        del self.testDeliverSMPdu.params['priority_flag']
+        self.testDeliverSMPdu.params['short_message'] = content
+        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
+
+        yield waitFor(1)
+
+        # No message retries must be made since ACK was received
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+
+    @defer.inlineCallbacks
+    def test_throwing_http_without_coding(self):
+        """Related to #380
+        Will throw via http a pdu having no data_coding parameter
+        """
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        content = 'test_throwing_http_without_coding test content'
+        del self.testDeliverSMPdu.params['data_coding']
+        self.testDeliverSMPdu.params['short_message'] = content
+        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
+
+        yield waitFor(1)
+
+        # No message retries must be made since ACK was received
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+
+    @defer.inlineCallbacks
+    def test_throwing_http_without_validity(self):
+        """Related to #380
+        Will throw via http a pdu having no validity_period parameter
+        """
+        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        content = 'test_throwing_http_without_priority test content'
+        del self.testDeliverSMPdu.params['validity_period']
+        self.testDeliverSMPdu.params['short_message'] = content
+        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
+
+        yield waitFor(1)
+
+        # No message retries must be made since ACK was received
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+
 class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     routingKey = 'deliver_sm_thrower.smpps'
 
