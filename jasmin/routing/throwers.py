@@ -206,12 +206,15 @@ class deliverSmThrower(Thrower):
             defer.returnValue(None)
 
         # Build optional arguments
-        if RoutedDeliverSmContent.params['priority_flag'] is not None:
+        if ('priority_flag' in RoutedDeliverSmContent.params and
+                RoutedDeliverSmContent.params['priority_flag'] is not None):
             args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
-        if RoutedDeliverSmContent.params['data_coding'] is not None:
+        if ('data_coding' in RoutedDeliverSmContent.params and
+                RoutedDeliverSmContent.params['data_coding'] is not None):
             args['coding'] = data_coding_default_name_map[
                 str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
-        if RoutedDeliverSmContent.params['validity_period'] is not None:
+        if ('validity_period' in RoutedDeliverSmContent.params and 
+                RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
 
         try:
