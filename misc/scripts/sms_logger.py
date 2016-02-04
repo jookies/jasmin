@@ -46,8 +46,8 @@ q = {}
 
 @inlineCallbacks
 def gotConnection(conn, username, password):
-    print "Connected to broker."
-    yield conn.authenticate(username, password)
+    print "Connected to broker, authenticating: %s" % username
+    yield conn.start({"LOGIN": username, "PASSWORD": password})
 
     print "Authenticated. Ready to receive messages"
     chan = yield conn.channel(1)
