@@ -559,13 +559,22 @@ class SMPPClientSMListener(object):
 
                 pdus[value['segment_seqnum']] = value['pdu']
 
-            # Build short_message
-            short_message = ''
+            # Where is the message content to be found ?
+            if 'short_message' in pdus[1].params:
+                msg_content_key = 'short_message'
+            elif 'message_payload' in pdus[1].params:
+                msg_content_key = 'message_payload'
+            else:
+                self.log.warn('Cannot find message content in first pdu params: %s', pdus[1].params)
+                return
+
+            # Build concat_message_content
+            concat_message_content = ''
             for i in range(total_segments):
                 if splitMethod == 'sar':
-                    short_message += pdus[i+1].params['short_message']
+                    concat_message_content += pdus[i+1].params[msg_content_key]
                 else:
-                    short_message += pdus[i+1].params['short_message'][6:]
+                    concat_message_content += pdus[i+1].params[msg_content_key][6:]
 
             # Build the final pdu and return it back to deliver_sm_event
             pdu = pdus[1] # Take the first part as a base of work
@@ -576,8 +585,8 @@ class SMPPClientSMListener(object):
                 del pdu.params['sar_msg_ref_num']
             else:
                 pdu.params['esm_class'] = None
-            # 2. Set the new short_message
-            pdu.params['short_message'] = short_message
+            # 2. Set the new concat_message_content
+            pdu.params[msg_content_key] = concat_message_content
             yield self.deliver_sm_event_post_interception(smpp=None, pdu=pdu, concatenated=True)
 
     def code_dlr_msgid(self, pdu):
@@ -665,6 +674,14 @@ class SMPPClientSMListener(object):
             else:
                 concatenated = False
 
+            # Get message_content
+            if 'short_message' in pdu.params:
+                message_content = pdu.params['short_message']
+            elif 'message_payload' in pdu.params:
+                message_content = pdu.params['message_payload']
+            else:
+                message_content = None
+
             # Post interception:
             if len(args) == 1:
                 if isinstance(args[0], bool) and not args[0]:
@@ -702,7 +719,7 @@ class SMPPClientSMListener(object):
 
                 # UDH is set ?
                 UDHI_INDICATOR_SET = False
-                if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
+                if 'esm_class' in pdu.params and hasattr(pdu.params['esm_class'], 'gsmFeatures'):
                     for gsmFeature in pdu.params['esm_class'].gsmFeatures:
                         if str(gsmFeature) == 'UDHI_INDICATOR_SET':
                             UDHI_INDICATOR_SET = True
@@ -717,11 +734,11 @@ class SMPPClientSMListener(object):
                     msg_ref_num = pdu.params['sar_msg_ref_num']
                     self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
                                    msgid, total_segments, segment_seqnum, msg_ref_num)
-                elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
+                elif UDHI_INDICATOR_SET and message_content[:3] == '\x05\x00\x03':
                     splitMethod = 'udh'
-                    total_segments = struct.unpack('!B', pdu.params['short_message'][4])[0]
-                    segment_seqnum = struct.unpack('!B', pdu.params['short_message'][5])[0]
-                    msg_ref_num = struct.unpack('!B', pdu.params['short_message'][3])[0]
+                    total_segments = struct.unpack('!B', message_content[4])[0]
+                    segment_seqnum = struct.unpack('!B', message_content[5])[0]
+                    msg_ref_num = struct.unpack('!B', message_content[3])[0]
                     self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
                                    msgid, total_segments, segment_seqnum, msg_ref_num)
 
@@ -733,15 +750,23 @@ class SMPPClientSMListener(object):
                     yield self.amqpBroker.publish(exchange='messaging',
                                                   routing_key=routing_key, content=content)
 
+                    # Get values from data_sm or deliver_sm
+                    priority_flag = None
+                    if 'priority_flag' in pdu.params:
+                        priority_flag = pdu.params['priority_flag']
+                    validity_period = None
+                    if 'validity_period' in pdu.params:
+                        validity_period = pdu.params['validity_period']
+
                     self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
                                   self.SMPPClientFactory.config.id,
                                   msgid,
                                   pdu.status,
-                                  pdu.params['priority_flag'],
-                                  pdu.params['validity_period'],
+                                  priority_flag,
+                                  validity_period,
                                   pdu.params['source_addr'],
                                   pdu.params['destination_addr'],
-                                  re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                                  re.sub(r'[^\x20-\x7E]+', '.', message_content))
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -882,7 +907,7 @@ class SMPPClientSMListener(object):
                           e.status,
                           pdu.params['source_addr'],
                           pdu.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                          re.sub(r'[^\x20-\x7E]+', '.', message_content))
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
