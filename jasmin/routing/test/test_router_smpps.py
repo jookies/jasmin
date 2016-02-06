@@ -17,7 +17,7 @@ from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.routing.jasminApi import *
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from twisted.cred import portal
 from twisted.test import proto_helpers
@@ -95,6 +95,12 @@ class SmppServerTestCases(HappySMSCTestCase):
             source_addr='4567',
             destination_addr='1234',
             short_message='any content',
+            seqNum = 1,
+        )
+        self.DataSmPDU = DataSM(
+            source_addr='4567',
+            destination_addr='1234',
+            message_payload='any content',
             seqNum = 1,
         )
 
