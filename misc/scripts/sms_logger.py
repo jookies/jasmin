@@ -39,8 +39,8 @@ q = {}
 
 @inlineCallbacks
 def gotConnection(conn, username, password):
-    print "Connected to broker."
-    yield conn.authenticate(username, password)
+    print "Connected to broker, authenticating: %s" % username
+    yield conn.start({"LOGIN": username, "PASSWORD": password})
 
     print "Authenticated. Ready to receive messages"
     chan = yield conn.channel(1)
@@ -57,9 +57,9 @@ def gotConnection(conn, username, password):
 
     #Connection parameters - Fill this info with your MySQL server connection parameters
     db = mdb.connect(
-        user='jasmin', 
-        passwd='jadmin', 
-        host='127.0.0.1', 
+        user='jasmin',
+        passwd='jadmin',
+        host='127.0.0.1',
         db='jasmin')
 
     print "Connected to MySQL"
@@ -82,7 +82,7 @@ def gotConnection(conn, username, password):
             if qmsg['source_addr'] is None:
                 qmsg['source_addr'] = ''
 
-            cursor.execute("""INSERT INTO submit_log (msgid, source_addr, destination_addr, short_message, status, uid, created_at) 
+            cursor.execute("""INSERT INTO submit_log (msgid, source_addr, destination_addr, short_message, status, uid, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s);
                 """, (
                         props['message-id'],
@@ -127,9 +127,9 @@ if __name__ == "__main__":
     spec = txamqp.spec.load(spec_file)
 
     # Connect and authenticate
-    d = ClientCreator(reactor, 
-        AMQClient, 
-        delegate=TwistedDelegate(), 
+    d = ClientCreator(reactor,
+        AMQClient,
+        delegate=TwistedDelegate(),
         vhost=vhost,
         spec=spec).connectTCP(host, port)
     d.addCallback(gotConnection, username, password)
