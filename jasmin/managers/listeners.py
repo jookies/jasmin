@@ -1,5 +1,4 @@
 #pylint: disable=W0401,W0611
-import re
 import logging
 import cPickle as pickle
 import struct
@@ -334,7 +333,7 @@ class SMPPClientSMListener(object):
                 else:
                     short_message = r.request.params['short_message']
 
-                self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
+                self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
                               self.SMPPClientFactory.config.id,
                               msgid,
                               r.response.params['message_id'],
@@ -346,7 +345,7 @@ class SMPPClientSMListener(object):
                                 else amqpMessage.content.properties['headers']['expiration'],
                               r.request.params['source_addr'],
                               r.request.params['destination_addr'],
-                              re.sub(r'[^\x20-\x7E]+', '.', short_message))
+                              short_message)
             else:
                 # Message must be retried ?
                 if str(r.response.status) in self.config.submit_error_retrial:
@@ -359,7 +358,7 @@ class SMPPClientSMListener(object):
                         will_be_retried = True
 
                 # Log the message
-                self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
+                self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
                               self.SMPPClientFactory.config.id,
                               msgid,
                               r.response.status,
@@ -371,7 +370,7 @@ class SMPPClientSMListener(object):
                                 else amqpMessage.content.properties['headers']['expiration'],
                               r.request.params['source_addr'],
                               r.request.params['destination_addr'],
-                              re.sub(r'[^\x20-\x7E]+', '.', r.request.params['short_message']))
+                              r.request.params['short_message'])
 
             # It is a final submit_sm_resp !
             if not will_be_retried:
@@ -758,7 +757,7 @@ class SMPPClientSMListener(object):
                     if 'validity_period' in pdu.params:
                         validity_period = pdu.params['validity_period']
 
-                    self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
+                    self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
                                   self.SMPPClientFactory.config.id,
                                   msgid,
                                   pdu.status,
@@ -766,7 +765,7 @@ class SMPPClientSMListener(object):
                                   validity_period,
                                   pdu.params['source_addr'],
                                   pdu.params['destination_addr'],
-                                  re.sub(r'[^\x20-\x7E]+', '.', message_content))
+                                  message_content)
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -902,12 +901,12 @@ class SMPPClientSMListener(object):
                               pdu.dlr['err'],
                               pdu.dlr['text'])
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
-            self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%s]",
+            self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%r]",
                           self.SMPPClientFactory.config.id,
                           e.status,
                           pdu.params['source_addr'],
                           pdu.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+', '.', message_content))
+                          message_content)
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
