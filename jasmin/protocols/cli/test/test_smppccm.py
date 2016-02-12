@@ -751,7 +751,7 @@ class SMSCTestCases(HappySMSCTestCase):
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)
-        yield self.start_connector('operator_1', wait = 4)
+        yield self.start_connector('operator_1', wait = 8)
 
         # List and assert it is BOUND
         expectedList = ['#Connector id                        Service Session          Starts Stops',
@@ -764,11 +764,8 @@ class SMSCTestCases(HappySMSCTestCase):
         # no sufficient time for unbind to complete
         yield self.stop_connector('operator_1', finalPrompt = None, wait = 0)
         yield self.start_connector('operator_1', finalPrompt = None,
-                                    wait = 0,
+                                    wait = 20,
                                     expect= 'Failed starting connector, check log for details')
-
-        # Wait
-        yield waitFor(20)
 
         # List and assert it is stopped (start command errored)
         expectedList = ['#Connector id                        Service Session          Starts Stops',
