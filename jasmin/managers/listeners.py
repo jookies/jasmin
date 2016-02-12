@@ -890,7 +890,7 @@ class SMPPClientSMListener(object):
                 else:
                     self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found', msgid)
 
-                self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%s]",
+                self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%r]",
                               self.SMPPClientFactory.config.id,
                               _coded_dlr_id,
                               pdu.dlr['stat'],

@@ -19,7 +19,7 @@ class RedisForJasminConfig(ConfigFile):
         self.port = self._getint('redis-client', 'port', 6379)
         self.dbid = self._getint('redis-client', 'dbid', '0')
         self.password = self._get('redis-client', 'password', None)
-        self.poolsize = self._getint('redis-client', 'poolsize', 1)
+        self.poolsize = self._getint('redis-client', 'poolsize', 10)
 
         self.log_level = logging.getLevelName(self._get('redis-client', 'log_level', 'INFO'))
         self.log_file = self._get('redis-client',
