@@ -965,7 +965,6 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         # Wait for unbound state
         yield waitFor(2)
 
-
         # Assertions
         # Take the lastClient (and unique one) and assert received messages
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 2)
@@ -982,14 +981,13 @@ class LoggingTestCases(SMSCSimulatorRecorder):
             if record.getMessage()[:6] == 'SMS-MT':
                 loggedSms = True
                 # Will raise ValueError if concatenatedShortMessage is not logged
-                record.getMessage().index('[content:%s]' % concatenatedShortMessage)
+                record.getMessage().index('[content:%r]' % concatenatedShortMessage)
                 break
         # This will assert if we had a SMS-MT logged
         self.assertTrue(loggedSms)
         # There were a connection to the SMSC
         self.assertTrue(self.SMSCPort.factory.buildProtocol.called)
         self.assertEqual(self.SMSCPort.factory.buildProtocol.call_count, 1)
-
 
     def test_long_submitSm_sar(self):
         return self.send_long_submit_sm('sar')
