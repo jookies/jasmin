@@ -388,12 +388,9 @@ class SMPPClientSMListener(object):
                 # Check for DLR request from redis 'dlr' key
                 # If there's a pending delivery receipt request then serve it
                 # back by publishing a DLRContentForHttpapi to the messaging exchange
-                pickledDlr = yield self.redisClient.get("dlr:%s" % msgid)
-                dlr = None
-                if pickledDlr is not None:
-                    dlr = pickle.loads(pickledDlr)
+                dlr = yield self.redisClient.hgetall("dlr:%s" % msgid)
 
-                if dlr is not None and dlr['sc'] == 'httpapi':
+                if len(dlr) > 0 and dlr['sc'] == 'httpapi':
                     self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
 
                     dlr_url = dlr['url']
@@ -437,27 +434,26 @@ class SMPPClientSMListener(object):
                                        r.response.params['message_id'], msgid, dlr_expiry)
                         hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
                         hashValues = {'msgid': msgid, 'connector_type': 'httpapi',}
-                        yield self.redisClient.setex(hashKey,
-                                                     dlr_expiry,
-                                                     pickle.dumps(hashValues, self.pickleProtocol))
-                elif dlr is not None and dlr['sc'] == 'smppsapi':
+                        yield self.redisClient.hmset(hashKey, hashValues)
+                        yield self.redisClient.expire(hashKey, dlr_expiry)
+                elif len(dlr) > 0 and dlr['sc'] == 'smppsapi':
                     self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
 
                     system_id = dlr['system_id']
                     source_addr = dlr['source_addr']
                     destination_addr = dlr['destination_addr']
                     sub_date = dlr['sub_date']
-                    registered_delivery = dlr['registered_delivery']
+                    registered_delivery_receipt = dlr['rd_receipt']
                     smpps_map_expiry = dlr['expiry']
 
                     # Do we need to forward the receipt to the original sender ?
                     if ((r.response.status == CommandStatus.ESME_ROK and
-                            str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE',
+                            registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE',
                                                                  'SMSC_DELIVERY_RECEIPT_REQUESTED']) or
                             (r.response.status != CommandStatus.ESME_ROK and
-                            str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
+                            registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
                         self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
-                                       msgid, registered_delivery, system_id)
+                                       msgid, registered_delivery_receipt, system_id)
 
                         if (r.response.status != CommandStatus.ESME_ROK
                                 or (r.response.status == CommandStatus.ESME_ROK
@@ -483,9 +479,8 @@ class SMPPClientSMListener(object):
                                            r.response.params['message_id'], msgid, smpps_map_expiry)
                             hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
                             hashValues = {'msgid': msgid, 'connector_type': 'smppsapi',}
-                            yield self.redisClient.setex(hashKey,
-                                                         smpps_map_expiry,
-                                                         pickle.dumps(hashValues, self.pickleProtocol))
+                            yield self.redisClient.hmset(hashKey, hashValues)
+                            yield self.redisClient.expire(hashKey, smpps_map_expiry)
             else:
                 self.log.warn('No valid RC were found while checking msg[%s] !', msgid)
 
@@ -802,25 +797,23 @@ class SMPPClientSMListener(object):
                 if self.redisClient is not None:
                     _coded_dlr_id = self.code_dlr_msgid(pdu)
 
-                    q = yield self.redisClient.get("queue-msgid:%s" % _coded_dlr_id)
+                    q = yield self.redisClient.hgetall("queue-msgid:%s" % _coded_dlr_id)
                     submit_sm_queue_id = None
                     connector_type = None
-                    dlr = None
-                    if q is not None:
-                        q = pickle.loads(q)
+                    dlr = {}
+                    if len(q) == 2:
                         submit_sm_queue_id = q['msgid']
                         connector_type = q['connector_type']
 
                         # Get dlr and ensure it's sc (source_connector) is same as q['connector_type']
-                        pickledDlr = yield self.redisClient.get("dlr:%s" % submit_sm_queue_id)
-                        dlr = pickle.loads(pickledDlr)
-                        if dlr['sc'] != connector_type:
+                        dlr = yield self.redisClient.hgetall("dlr:%s" % submit_sm_queue_id)
+                        if len(dlr) > 0 and dlr['sc'] != connector_type:
                             self.log.error('Found a dlr for msgid:%s with diffrent sc: %s',
                                            submit_sm_queue_id, dlr['sc'])
-                            dlr = None
+                            dlr = {}
 
                     if submit_sm_queue_id is not None and connector_type == 'httpapi':
-                        if dlr is not None:
+                        if len(dlr) > 0:
                             dlr_url = dlr['url']
                             dlr_level = dlr['level']
                             dlr_method = dlr['method']
@@ -852,24 +845,24 @@ class SMPPClientSMListener(object):
                             self.log.warn('DLR for msgid[%s] not found !',
                                           submit_sm_queue_id)
                     elif submit_sm_queue_id is not None and connector_type == 'smppsapi':
-                        if dlr is not None:
+                        if len(dlr) > 0:
                             system_id = dlr['system_id']
                             source_addr = dlr['source_addr']
                             destination_addr = dlr['destination_addr']
                             sub_date = dlr['sub_date']
-                            registered_delivery = dlr['registered_delivery']
+                            registered_delivery_receipt = dlr['rd_receipt']
 
                             success_states = ['ACCEPTD', 'DELIVRD']
                             final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                             # Do we need to forward the receipt to the original sender ?
                             if ((pdu.dlr['stat'] in success_states and
-                                    str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
+                                    registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
                                     (pdu.dlr['stat'] not in success_states and
-                                    str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
+                                    registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
                                                                          'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
                                 self.log.debug(
                                     'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
-                                    submit_sm_queue_id, registered_delivery, system_id)
+                                    submit_sm_queue_id, registered_delivery_receipt, system_id)
 
                                 content = DLRContentForSmpps(pdu.dlr['stat'], submit_sm_queue_id, system_id,
                                                              source_addr, destination_addr, sub_date)

@@ -595,13 +595,12 @@ class SMPPClientManagerPB(pb.Avatar):
                 hashKey = "dlr:%s" % (c.properties['message-id'])
                 hashValues = {'sc': 'httpapi',
                               'url': dlr_url,
-                              'level':dlr_level,
-                              'method':dlr_method,
-                              'expiry':connector['config'].dlr_expiry}
-                self.redisClient.setex(
-                    hashKey,
-                    connector['config'].dlr_expiry,
-                    pickle.dumps(hashValues, self.pickleProtocol))
+                              'level': dlr_level,
+                              'method': dlr_method,
+                              'expiry': connector['config'].dlr_expiry}
+                self.redisClient.hmset(hashKey, hashValues).addCallback(
+                    lambda response: self.redisClient.expire(
+                        hashKey, connector['config'].dlr_expiry))
         elif (isinstance(source_connector, SMPPServerProtocol) and
               SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
@@ -624,11 +623,10 @@ class SMPPClientManagerPB(pb.Avatar):
                               'source_addr': SubmitSmPDU.params['source_addr'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'sub_date': datetime.datetime.now(),
-                              'registered_delivery': SubmitSmPDU.params['registered_delivery'],
+                              'rd_receipt': '%s' % SubmitSmPDU.params['registered_delivery'].receipt,
                               'expiry': source_connector.factory.config.dlr_expiry}
-                self.redisClient.setex(
-                    hashKey,
-                    source_connector.factory.config.dlr_expiry,
-                    pickle.dumps(hashValues, self.pickleProtocol))
+                self.redisClient.hmset(hashKey, hashValues).addCallback(
+                    lambda response: self.redisClient.expire(
+                        hashKey, source_connector.factory.config.dlr_expiry))
 
         defer.returnValue(c.properties['message-id'])

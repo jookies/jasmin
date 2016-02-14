@@ -426,6 +426,10 @@ class SMPPServerFactory(_SMPPServerFactory):
                 pickled=False,
                 source_connector=proto)
 
+            if not hasattr(c, 'result'):
+                self.log.error('Failed to send SubmitSmPDU to [cid:%s], got: %s', routedConnector.cid, c)
+                raise SubmitSmRoutingError()
+
             # Build final response
             if not c.result:
                 self.log.error('Failed to send SubmitSmPDU to [cid:%s]', routedConnector.cid)
