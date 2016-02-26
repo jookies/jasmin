@@ -934,7 +934,7 @@ class PDUEncoder(IEncoder):
         },
         pdu_types.CommandId.deliver_sm: {
             'schedule_delivery_time': TimeEncoder(requireNull=True, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVSCHED),
-            'validity_period': TimeEncoder(requireNull=True, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVEXPIRY),
+            'validity_period': TimeEncoder(requireNull=False, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVEXPIRY),
         },
         pdu_types.CommandId.deliver_sm_resp: {
             'message_id': COctetStringEncoder(decodeNull=True, requireNull=True, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVMSGID),
