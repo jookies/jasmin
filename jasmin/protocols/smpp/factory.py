@@ -1,7 +1,7 @@
 #pylint: disable=W0401,W0611,W0231
 import logging
 import re
-import pickle
+import cPickle as pickle
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
 from OpenSSL import SSL
@@ -419,8 +419,16 @@ class SMPPServerFactory(_SMPPServerFactory):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU", routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(
-                routedConnector.cid, routable.pdu, priority,
-                pickled=False, submit_sm_resp_bill=bill.getSubmitSmRespBill(), source_connector=proto)
+                cid=routedConnector.cid,
+                SubmitSmPDU=routable.pdu,
+                submit_sm_bill=bill,
+                priority=priority,
+                pickled=False,
+                source_connector=proto)
+
+            if not hasattr(c, 'result'):
+                self.log.error('Failed to send SubmitSmPDU to [cid:%s], got: %s', routedConnector.cid, c)
+                raise SubmitSmRoutingError()
 
             # Build final response
             if not c.result:

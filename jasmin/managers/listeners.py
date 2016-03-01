@@ -1,7 +1,6 @@
 #pylint: disable=W0401,W0611
-import re
 import logging
-import pickle
+import cPickle as pickle
 import struct
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
@@ -232,7 +231,8 @@ class SMPPClientSMListener(object):
                     self.log.error("SMPPC [cid:%s] is not connected: Requeuing (#%s) SubmitSmPDU[%s]%s, aged %s seconds.",
                                    self.SMPPClientFactory.config.id, self.submit_retrials[msgid],
                                    msgid, delay_str, msgAge.seconds)
-                    yield self.rejectAndRequeueMessage(message, delay=self.config.submit_retrial_delay_smppc_not_ready)
+                    yield self.rejectAndRequeueMessage(message,
+                                                       delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
             # SMPP Client should be already bound as transceiver or transmitter
             if self.SMPPClientFactory.smpp.isBound() is False:
@@ -284,240 +284,234 @@ class SMPPClientSMListener(object):
         total_bill_amount = None
         will_be_retried = False
 
-        if ('headers' not in amqpMessage.content.properties or
-                'submit_sm_resp_bill' not in amqpMessage.content.properties['headers']):
-            submit_sm_resp_bill = None
-        else:
+        try:
             submit_sm_resp_bill = pickle.loads(
-                amqpMessage.content.properties['headers']['submit_sm_resp_bill'])
+                amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
 
-        if r.response.status == CommandStatus.ESME_ROK:
-            # No more retrials !
-            del self.submit_retrials[msgid]
+            if r.response.status == CommandStatus.ESME_ROK:
+                # No more retrials !
+                del self.submit_retrials[msgid]
 
-            # Get bill information
-            total_bill_amount = 0.0
-            if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
-                total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
+                # Get bill information
+                total_bill_amount = 0.0
+                if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
+                    total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
 
-            # UDH is set ?
-            UDHI_INDICATOR_SET = False
-            if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
-                for gsmFeature in r.request.params['esm_class'].gsmFeatures:
-                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
-                        UDHI_INDICATOR_SET = True
-                        break
+                # UDH is set ?
+                UDHI_INDICATOR_SET = False
+                if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
+                    for gsmFeature in r.request.params['esm_class'].gsmFeatures:
+                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                            UDHI_INDICATOR_SET = True
+                            break
 
-            # What type of splitting ?
-            splitMethod = None
-            if 'sar_msg_ref_num' in r.request.params:
-                splitMethod = 'sar'
-            elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == '\x05\x00\x03':
-                splitMethod = 'udh'
+                # What type of splitting ?
+                splitMethod = None
+                if 'sar_msg_ref_num' in r.request.params:
+                    splitMethod = 'sar'
+                elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == '\x05\x00\x03':
+                    splitMethod = 'udh'
 
-            # Concatenate short_message
-            if splitMethod is not None:
-                _pdu = r.request
-                if splitMethod == 'sar':
-                    short_message = _pdu.params['short_message']
-                else:
-                    short_message = _pdu.params['short_message'][6:]
-
-                while hasattr(_pdu, 'nextPdu'):
-                    _pdu = _pdu.nextPdu
+                # Concatenate short_message
+                if splitMethod is not None:
+                    _pdu = r.request
                     if splitMethod == 'sar':
-                        short_message += _pdu.params['short_message']
+                        short_message = _pdu.params['short_message']
                     else:
-                        short_message += _pdu.params['short_message'][6:]
+                        short_message = _pdu.params['short_message'][6:]
 
-                    # Increase bill amount for each submit_sm_resp
-                    if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
-                        total_bill_amount += submit_sm_resp_bill.getTotalAmounts()
-            else:
-                short_message = r.request.params['short_message']
+                    while hasattr(_pdu, 'nextPdu'):
+                        _pdu = _pdu.nextPdu
+                        if splitMethod == 'sar':
+                            short_message += _pdu.params['short_message']
+                        else:
+                            short_message += _pdu.params['short_message'][6:]
 
-            self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
-                          self.SMPPClientFactory.config.id,
-                          msgid,
-                          r.response.params['message_id'],
-                          r.response.status,
-                          amqpMessage.content.properties['priority'],
-                          r.request.params['registered_delivery'].receipt,
-                          'none' if ('headers' not in amqpMessage.content.properties or
-                            'expiration' not in amqpMessage.content.properties['headers'])
-                            else amqpMessage.content.properties['headers']['expiration'],
-                          r.request.params['source_addr'],
-                          r.request.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+', '.', short_message))
-        else:
-            # Message must be retried ?
-            if str(r.response.status) in self.config.submit_error_retrial:
-                retrial = self.config.submit_error_retrial[str(r.response.status)]
-
-                # Still have some retrys to go ?
-                if self.submit_retrials[msgid] < retrial['count']:
-                    # Requeue the message for later redelivery
-                    yield self.rejectAndRequeueMessage(amqpMessage, delay=retrial['delay'])
-                    will_be_retried = True
-
-            # Log the message
-            self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
-                          self.SMPPClientFactory.config.id,
-                          msgid,
-                          r.response.status,
-                          will_be_retried,
-                          amqpMessage.content.properties['priority'],
-                          r.request.params['registered_delivery'].receipt,
-                          'none' if ('headers' not in amqpMessage.content.properties or
-                            'expiration' not in amqpMessage.content.properties['headers'])
-                            else amqpMessage.content.properties['headers']['expiration'],
-                          r.request.params['source_addr'],
-                          r.request.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+', '.', r.request.params['short_message']))
-
-        # It is a final submit_sm_resp !
-        if not will_be_retried:
-            # Cancel any mapped rejectTimer to this message (in case this message was rejected in the past)
-            self.clearRejectTimer(msgid)
-            self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]", msgid, amqpMessage.routing_key)
-            # ACK the message in queue, this will remove it from the queue
-            yield self.ackMessage(amqpMessage)
-
-        # Redis client is connected ?
-        # Check DLR mappings and publish receipt for later throwing
-        if self.redisClient is not None:
-            # Check for HTTP DLR request from redis 'dlr' key
-            # If there's a pending delivery receipt request then serve it
-            # back by publishing a DLRContentForHttpapi to the messaging exchange
-            pickledDlr = None
-            pickledSmppsMap = None
-            pickledDlr = yield self.redisClient.get("dlr:%s" % msgid)
-            if pickledDlr is None:
-                pickledSmppsMap = yield self.redisClient.get("smppsmap:%s" % msgid)
-
-            if pickledDlr is not None:
-                self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
-
-                dlr = pickle.loads(pickledDlr)
-                dlr_url = dlr['url']
-                dlr_level = dlr['level']
-                dlr_method = dlr['method']
-                dlr_expiry = dlr['expiry']
-
-                if dlr_level in [1, 3]:
-                    self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
-                                   msgid, dlr_url, dlr_level)
-
-                    # The dlr_url in DLRContentForHttpapi indicates the level
-                    # of the actual delivery receipt (1) and not the requested
-                    # one (maybe 1 or 3)
-                    content = DLRContentForHttpapi(str(r.response.status),
-                                                   msgid, dlr_url,
-                                                   dlr_level=1, method=dlr_method)
-                    routing_key = 'dlr_thrower.http'
-                    self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
-                                   msgid, routing_key)
-                    yield self.amqpBroker.publish(exchange='messaging',
-                                                  routing_key=routing_key,
-                                                  content=content)
-
-                    # DLR request is removed if:
-                    # - If level 1 is requested (SMSC level only)
-                    # - SubmitSmResp returned an error (no more delivery will be tracked)
-                    #
-                    # When level 3 is requested, the DLR will be removed when
-                    # receiving a deliver_sm (terminal receipt)
-                    if dlr_level == 1 or r.response.status != CommandStatus.ESME_ROK:
-                        self.log.debug('Removing DLR request for msgid[%s]', msgid)
-                        yield self.redisClient.delete("dlr:%s" % msgid)
+                        # Increase bill amount for each submit_sm_resp
+                        if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
+                            total_bill_amount += submit_sm_resp_bill.getTotalAmounts()
                 else:
-                    self.log.debug(
-                        'Terminal level receipt is requested, will not send any DLR receipt at this level.')
+                    short_message = r.request.params['short_message']
 
-                if dlr_level in [2, 3] and r.response.status == CommandStatus.ESME_ROK:
-                    # Map received submit_sm_resp's message_id to the msg for later receipt handling
-                    self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
-                                   r.response.params['message_id'], msgid, dlr_expiry)
-                    hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
-                    hashValues = {'msgid': msgid, 'connector_type': 'httpapi',}
-                    yield self.redisClient.setex(hashKey,
-                                                 dlr_expiry,
-                                                 pickle.dumps(hashValues, self.pickleProtocol))
-            elif pickledSmppsMap is not None:
-                self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
+                self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
+                              self.SMPPClientFactory.config.id,
+                              msgid,
+                              r.response.params['message_id'],
+                              r.response.status,
+                              amqpMessage.content.properties['priority'],
+                              r.request.params['registered_delivery'].receipt,
+                              'none' if ('headers' not in amqpMessage.content.properties or
+                                'expiration' not in amqpMessage.content.properties['headers'])
+                                else amqpMessage.content.properties['headers']['expiration'],
+                              r.request.params['source_addr'],
+                              r.request.params['destination_addr'],
+                              short_message)
+            else:
+                # Message must be retried ?
+                if str(r.response.status) in self.config.submit_error_retrial:
+                    retrial = self.config.submit_error_retrial[str(r.response.status)]
 
-                smpps_map = pickle.loads(pickledSmppsMap)
-                system_id = smpps_map['system_id']
-                source_addr = smpps_map['source_addr']
-                destination_addr = smpps_map['destination_addr']
-                sub_date = smpps_map['sub_date']
-                registered_delivery = smpps_map['registered_delivery']
-                smpps_map_expiry = smpps_map['expiry']
+                    # Still have some retrys to go ?
+                    if self.submit_retrials[msgid] < retrial['count']:
+                        # Requeue the message for later redelivery
+                        yield self.rejectAndRequeueMessage(amqpMessage, delay=retrial['delay'])
+                        will_be_retried = True
 
-                # Do we need to forward the receipt to the original sender ?
-                if ((r.response.status == CommandStatus.ESME_ROK and
-                        str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE',
-                                                             'SMSC_DELIVERY_RECEIPT_REQUESTED']) or
-                        (r.response.status != CommandStatus.ESME_ROK and
-                        str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
-                    self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
-                                   msgid, registered_delivery, system_id)
+                # Log the message
+                self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
+                              self.SMPPClientFactory.config.id,
+                              msgid,
+                              r.response.status,
+                              will_be_retried,
+                              amqpMessage.content.properties['priority'],
+                              r.request.params['registered_delivery'].receipt,
+                              'none' if ('headers' not in amqpMessage.content.properties or
+                                'expiration' not in amqpMessage.content.properties['headers'])
+                                else amqpMessage.content.properties['headers']['expiration'],
+                              r.request.params['source_addr'],
+                              r.request.params['destination_addr'],
+                              r.request.params['short_message'])
 
-                    if (r.response.status != CommandStatus.ESME_ROK
-                            or (r.response.status == CommandStatus.ESME_ROK
-                            and self.config.smpp_receipt_on_success_submit_sm_resp)):
-                        # Send back a receipt (by throwing deliver_sm or data_sm)
-                        content = DLRContentForSmpps(str(r.response.status),
-                                                     msgid,
-                                                     system_id,
-                                                     source_addr,
-                                                     destination_addr,
-                                                     sub_date)
+            # It is a final submit_sm_resp !
+            if not will_be_retried:
+                # Cancel any mapped rejectTimer to this message
+                # (in case this message was rejected in the past)
+                self.clearRejectTimer(msgid)
+                self.log.debug("ACKing amqpMessage [%s] having routing_key [%s]",
+                               msgid, amqpMessage.routing_key)
+                # ACK the message in queue, this will remove it from the queue
+                yield self.ackMessage(amqpMessage)
 
-                        routing_key = 'dlr_thrower.smpps'
-                        self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",
+            # Redis client is connected ?
+            # Check DLR mappings and publish receipt for later throwing
+            if self.redisClient is not None:
+                # Check for DLR request from redis 'dlr' key
+                # If there's a pending delivery receipt request then serve it
+                # back by publishing a DLRContentForHttpapi to the messaging exchange
+                dlr = yield self.redisClient.hgetall("dlr:%s" % msgid)
+
+                if len(dlr) > 0 and dlr['sc'] == 'httpapi':
+                    self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
+
+                    dlr_url = dlr['url']
+                    dlr_level = dlr['level']
+                    dlr_method = dlr['method']
+                    dlr_expiry = dlr['expiry']
+
+                    if dlr_level in [1, 3]:
+                        self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
+                                       msgid, dlr_url, dlr_level)
+
+                        # The dlr_url in DLRContentForHttpapi indicates the level
+                        # of the actual delivery receipt (1) and not the requested
+                        # one (maybe 1 or 3)
+                        content = DLRContentForHttpapi(str(r.response.status),
+                                                       msgid, dlr_url,
+                                                       dlr_level=1, method=dlr_method)
+                        routing_key = 'dlr_thrower.http'
+                        self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
                                        msgid, routing_key)
                         yield self.amqpBroker.publish(exchange='messaging',
                                                       routing_key=routing_key,
                                                       content=content)
 
-                    if r.response.status == CommandStatus.ESME_ROK:
-                        # Map received submit_sm_resp's message_id to the msg for later rceipt handling
+                        # DLR request is removed if:
+                        # - If level 1 is requested (SMSC level only)
+                        # - SubmitSmResp returned an error (no more delivery will be tracked)
+                        #
+                        # When level 3 is requested, the DLR will be removed when
+                        # receiving a deliver_sm (terminal receipt)
+                        if dlr_level == 1 or r.response.status != CommandStatus.ESME_ROK:
+                            self.log.debug('Removing DLR request for msgid[%s]', msgid)
+                            yield self.redisClient.delete("dlr:%s" % msgid)
+                    else:
+                        self.log.debug(
+                            'Terminal level receipt is requested, will not send any DLR receipt at this level.')
+
+                    if dlr_level in [2, 3] and r.response.status == CommandStatus.ESME_ROK:
+                        # Map received submit_sm_resp's message_id to the msg for later receipt handling
                         self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
-                                       r.response.params['message_id'], msgid, smpps_map_expiry)
+                                       r.response.params['message_id'], msgid, dlr_expiry)
                         hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
-                        hashValues = {'msgid': msgid, 'connector_type': 'smpps',}
-                        yield self.redisClient.setex(hashKey,
-                                                     smpps_map_expiry,
-                                                     pickle.dumps(hashValues, self.pickleProtocol))
-        else:
-            self.log.warn('No valid RC were found while checking msg[%s] !', msgid)
+                        hashValues = {'msgid': msgid, 'connector_type': 'httpapi',}
+                        yield self.redisClient.hmset(hashKey, hashValues)
+                        yield self.redisClient.expire(hashKey, dlr_expiry)
+                elif len(dlr) > 0 and dlr['sc'] == 'smppsapi':
+                    self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
 
-        # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer
-        if total_bill_amount > 0:
-            pubQueueName = 'bill_request.submit_sm_resp.%s' % submit_sm_resp_bill.user.uid
-            content = SubmitSmRespBillContent(submit_sm_resp_bill.bid,
-                                              submit_sm_resp_bill.user.uid, total_bill_amount)
-            self.log.debug(
-                "Requesting a SubmitSmRespBillContent from a bill [bid:%s] with routing_key[%s]: %s",
-                submit_sm_resp_bill.bid, pubQueueName, total_bill_amount)
-            yield self.amqpBroker.publish(exchange='billing',
-                                          routing_key=pubQueueName,
-                                          content=content)
+                    system_id = dlr['system_id']
+                    source_addr = dlr['source_addr']
+                    destination_addr = dlr['destination_addr']
+                    sub_date = dlr['sub_date']
+                    registered_delivery_receipt = dlr['rd_receipt']
+                    smpps_map_expiry = dlr['expiry']
 
-        if self.config.publish_submit_sm_resp:
-            # Send back submit_sm_resp to submit.sm.resp.CID queue
-            # There's no actual listeners on this queue, it can be used to
-            # track submit_sm_resp messages from a 3rd party app
-            content = SubmitSmRespContent(r.response, msgid, pickleProtocol=self.pickleProtocol)
-            self.log.debug("Sending back SubmitSmRespContent[%s] with routing_key[%s]",
-                           msgid, amqpMessage.content.properties['reply-to'])
-            yield self.amqpBroker.publish(exchange='messaging',
-                                          routing_key=amqpMessage.content.properties['reply-to'],
-                                          content=content)
+                    # Do we need to forward the receipt to the original sender ?
+                    if ((r.response.status == CommandStatus.ESME_ROK and
+                            registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE',
+                                                                 'SMSC_DELIVERY_RECEIPT_REQUESTED']) or
+                            (r.response.status != CommandStatus.ESME_ROK and
+                            registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
+                        self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
+                                       msgid, registered_delivery_receipt, system_id)
 
-        if will_be_retried:
-            defer.returnValue(False)
+                        if (r.response.status != CommandStatus.ESME_ROK
+                                or (r.response.status == CommandStatus.ESME_ROK
+                                and self.config.smpp_receipt_on_success_submit_sm_resp)):
+                            # Send back a receipt (by throwing deliver_sm or data_sm)
+                            content = DLRContentForSmpps(str(r.response.status),
+                                                         msgid,
+                                                         system_id,
+                                                         source_addr,
+                                                         destination_addr,
+                                                         sub_date)
+
+                            routing_key = 'dlr_thrower.smpps'
+                            self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",
+                                           msgid, routing_key)
+                            yield self.amqpBroker.publish(exchange='messaging',
+                                                          routing_key=routing_key,
+                                                          content=content)
+
+                        if r.response.status == CommandStatus.ESME_ROK:
+                            # Map received submit_sm_resp's message_id to the msg for later rceipt handling
+                            self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
+                                           r.response.params['message_id'], msgid, smpps_map_expiry)
+                            hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
+                            hashValues = {'msgid': msgid, 'connector_type': 'smppsapi',}
+                            yield self.redisClient.hmset(hashKey, hashValues)
+                            yield self.redisClient.expire(hashKey, smpps_map_expiry)
+            else:
+                self.log.warn('No valid RC were found while checking msg[%s] !', msgid)
+
+            # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer
+            if total_bill_amount > 0:
+                pubQueueName = 'bill_request.submit_sm_resp.%s' % submit_sm_resp_bill.user.uid
+                content = SubmitSmRespBillContent(submit_sm_resp_bill.bid,
+                                                  submit_sm_resp_bill.user.uid, total_bill_amount)
+                self.log.debug(
+                    "Requesting a SubmitSmRespBillContent from a bill [bid:%s] with routing_key[%s]: %s",
+                    submit_sm_resp_bill.bid, pubQueueName, total_bill_amount)
+                yield self.amqpBroker.publish(exchange='billing',
+                                              routing_key=pubQueueName,
+                                              content=content)
+
+            if self.config.publish_submit_sm_resp:
+                # Send back submit_sm_resp to submit.sm.resp.CID queue
+                # There's no actual listeners on this queue, it can be used to
+                # track submit_sm_resp messages from a 3rd party app
+                content = SubmitSmRespContent(r.response, msgid, pickleProtocol=self.pickleProtocol)
+                self.log.debug("Sending back SubmitSmRespContent[%s] with routing_key[%s]",
+                               msgid, amqpMessage.content.properties['reply-to'])
+                yield self.amqpBroker.publish(exchange='messaging',
+                                              routing_key=amqpMessage.content.properties['reply-to'],
+                                              content=content)
+
+            if will_be_retried:
+                defer.returnValue(False)
+        except Exception, e:
+            self.log.error('Error while handling submit_sm_resp pdu for msgig:%s: %s',
+                            msgid, e)
 
     def submit_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
@@ -745,8 +739,10 @@ class SMPPClientSMListener(object):
                 if splitMethod is None:
                     # It's a simple short message or a part of a concatenated message
                     routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
-                    self.log.debug("Publishing DeliverSmContent[%s] with routing_key[%s]", msgid, routing_key)
-                    yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
+                    self.log.debug("Publishing DeliverSmContent[%s] with routing_key[%s]",
+                                   msgid, routing_key)
+                    yield self.amqpBroker.publish(exchange='messaging',
+                                                  routing_key=routing_key, content=content)
 
                     # Get values from data_sm or deliver_sm
                     priority_flag = None
@@ -756,7 +752,7 @@ class SMPPClientSMListener(object):
                     if 'validity_period' in pdu.params:
                         validity_period = pdu.params['validity_period']
 
-                    self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%s]",
+                    self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
                                   self.SMPPClientFactory.config.id,
                                   msgid,
                                   pdu.status,
@@ -764,7 +760,7 @@ class SMPPClientSMListener(object):
                                   validity_period,
                                   pdu.params['source_addr'],
                                   pdu.params['destination_addr'],
-                                  re.sub(r'[^\x20-\x7E]+', '.', message_content))
+                                  message_content)
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -793,27 +789,31 @@ class SMPPClientSMListener(object):
                     self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]",
                                    msgid, routing_key)
                     content.properties['headers']['will_be_concatenated'] = True
-                    yield self.amqpBroker.publish(exchange='messaging', routing_key=routing_key, content=content)
+                    yield self.amqpBroker.publish(exchange='messaging',
+                                                  routing_key=routing_key, content=content)
             else:
                 # This is a DLR !
                 # Check for DLR request
                 if self.redisClient is not None:
                     _coded_dlr_id = self.code_dlr_msgid(pdu)
 
-                    q = yield self.redisClient.get("queue-msgid:%s" % _coded_dlr_id)
+                    q = yield self.redisClient.hgetall("queue-msgid:%s" % _coded_dlr_id)
                     submit_sm_queue_id = None
                     connector_type = None
-                    if q is not None:
-                        q = pickle.loads(q)
+                    dlr = {}
+                    if len(q) == 2:
                         submit_sm_queue_id = q['msgid']
                         connector_type = q['connector_type']
 
+                        # Get dlr and ensure it's sc (source_connector) is same as q['connector_type']
+                        dlr = yield self.redisClient.hgetall("dlr:%s" % submit_sm_queue_id)
+                        if len(dlr) > 0 and dlr['sc'] != connector_type:
+                            self.log.error('Found a dlr for msgid:%s with diffrent sc: %s',
+                                           submit_sm_queue_id, dlr['sc'])
+                            dlr = {}
 
                     if submit_sm_queue_id is not None and connector_type == 'httpapi':
-                        pickledDlr = yield self.redisClient.get("dlr:%s" % submit_sm_queue_id)
-
-                        if pickledDlr is not None:
-                            dlr = pickle.loads(pickledDlr)
+                        if len(dlr) > 0:
                             dlr_url = dlr['url']
                             dlr_level = dlr['level']
                             dlr_method = dlr['method']
@@ -837,35 +837,32 @@ class SMPPClientSMListener(object):
                                                               routing_key=routing_key,
                                                               content=content)
 
-                                self.log.debug('Removing DLR request for msgid[%s]', submit_sm_queue_id)
+                                self.log.debug('Removing HTTP dlr map for msgid[%s]', submit_sm_queue_id)
                                 yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
                             else:
                                 self.log.debug('SMS-C receipt is requested, will not send any DLR receipt at this level.')
                         else:
                             self.log.warn('DLR for msgid[%s] not found !',
                                           submit_sm_queue_id)
-                    elif submit_sm_queue_id is not None and connector_type == 'smpps':
-                        pickledSmppsMap = yield self.redisClient.get("smppsmap:%s" % submit_sm_queue_id)
-
-                        if pickledSmppsMap is not None:
-                            smpps_map = pickle.loads(pickledSmppsMap)
-                            system_id = smpps_map['system_id']
-                            source_addr = smpps_map['source_addr']
-                            destination_addr = smpps_map['destination_addr']
-                            sub_date = smpps_map['sub_date']
-                            registered_delivery = smpps_map['registered_delivery']
+                    elif submit_sm_queue_id is not None and connector_type == 'smppsapi':
+                        if len(dlr) > 0:
+                            system_id = dlr['system_id']
+                            source_addr = dlr['source_addr']
+                            destination_addr = dlr['destination_addr']
+                            sub_date = dlr['sub_date']
+                            registered_delivery_receipt = dlr['rd_receipt']
 
                             success_states = ['ACCEPTD', 'DELIVRD']
                             final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                             # Do we need to forward the receipt to the original sender ?
                             if ((pdu.dlr['stat'] in success_states and
-                                    str(registered_delivery.receipt) == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
+                                    registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
                                     (pdu.dlr['stat'] not in success_states and
-                                    str(registered_delivery.receipt) in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
+                                    registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
                                                                          'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
                                 self.log.debug(
                                     'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
-                                    submit_sm_queue_id, registered_delivery, system_id)
+                                    submit_sm_queue_id, registered_delivery_receipt, system_id)
 
                                 content = DLRContentForSmpps(pdu.dlr['stat'], submit_sm_queue_id, system_id,
                                                              source_addr, destination_addr, sub_date)
@@ -878,15 +875,15 @@ class SMPPClientSMListener(object):
                                                               content=content)
 
                                 if pdu.dlr['stat'] in final_states:
-                                    self.log.debug('Removing SMPPs map for msgid[%s]', submit_sm_queue_id)
-                                    yield self.redisClient.delete('smppsmap:%s' % submit_sm_queue_id)
+                                    self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
+                                    yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
                     else:
                         self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)',
                                       pdu.dlr['id'], _coded_dlr_id)
                 else:
                     self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found', msgid)
 
-                self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%s]",
+                self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%r]",
                               self.SMPPClientFactory.config.id,
                               _coded_dlr_id,
                               pdu.dlr['stat'],
@@ -897,12 +894,12 @@ class SMPPClientSMListener(object):
                               pdu.dlr['err'],
                               pdu.dlr['text'])
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
-            self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%s]",
+            self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%r]",
                           self.SMPPClientFactory.config.id,
                           e.status,
                           pdu.params['source_addr'],
                           pdu.params['destination_addr'],
-                          re.sub(r'[^\x20-\x7E]+', '.', message_content))
+                          message_content)
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))

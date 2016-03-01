@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 import logging
 from twisted.internet import defer, reactor
 from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
@@ -23,10 +23,11 @@ SMPPClientConfigKeyMap = {
     'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay',
     'submit_throughput': 'submit_sm_throughput', 'dlr_expiry': 'dlr_expiry', 'dlr_msgid': 'dlr_msg_id_bases',
     'con_fail_retry': 'reconnectOnConnectionFailure', 'dst_npi': 'dest_addr_npi',
-    'trx_to': 'inactivityTimerSecs'}
+    'trx_to': 'inactivityTimerSecs', 'ssl': 'useSSL'}
 
 # Keys to be kept in string type, as requested in #64 and #105
-SMPPClientConfigStringKeys = ['systemType', 'username', 'password', 'addressRange']
+SMPPClientConfigStringKeys = [
+    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']
@@ -59,7 +60,7 @@ def castInputToBuiltInType(key, value):
             return replace_if_present_flap_value_map[value]
         elif key == 'priority':
             return priority_flag_value_map[value]
-        elif key in ['con_fail_retry', 'con_loss_retry']:
+        elif key in ['con_fail_retry', 'con_loss_retry', 'ssl']:
             if value == 'yes':
                 return True
             elif value == 'no':
@@ -253,7 +254,8 @@ class SmppCCManager(PersistableManager):
     @SMPPClientConfigBuild
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
-        st = yield self.pb['smppcm'].perspective_connector_add(pickle.dumps(SMPPClientConfigInstance, 2))
+        st = yield self.pb['smppcm'].perspective_connector_add(
+            pickle.dumps(SMPPClientConfigInstance, pickle.HIGHEST_PROTOCOL))
 
         if st:
             self.protocol.sendData(

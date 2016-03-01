@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 import time
 import jasmin
 import os
@@ -98,7 +98,7 @@ class HttpccManager(PersistableManager):
             # Write configuration with datetime stamp
             fh = open(path, 'w')
             fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
-            fh.write(pickle.dumps(self.httpccs, 2))
+            fh.write(pickle.dumps(self.httpccs, pickle.HIGHEST_PROTOCOL))
             fh.close()
         except IOError:
             return self.protocol.sendData('Cannot persist to %s' % path)

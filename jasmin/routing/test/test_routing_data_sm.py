@@ -136,7 +136,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 6)
+        self.assertEqual(len(receivedHttpReq), 7)
         self.assertEqual(receivedHttpReq['from'], [pdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [pdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu.params['message_payload']])
@@ -176,7 +176,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 6)
+        self.assertEqual(len(receivedHttpReq), 7)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['message_payload'] + pdu_part2.params['message_payload'] + pdu_part3.params['message_payload']])
@@ -229,7 +229,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 6)
+        self.assertEqual(len(receivedHttpReq), 7)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['message_payload'][6:] + pdu_part2.params['message_payload'][6:] + pdu_part3.params['message_payload'][6:]])
@@ -269,7 +269,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 6)
+        self.assertEqual(len(receivedHttpReq), 7)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['message_payload'] + pdu_part2.params['message_payload'] + pdu_part3.params['message_payload']])

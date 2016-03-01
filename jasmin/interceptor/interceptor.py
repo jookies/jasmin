@@ -1,5 +1,5 @@
 import logging
-import pickle
+import cPickle as pickle
 import datetime as dt
 from logging.handlers import TimedRotatingFileHandler
 from twisted.spread import pb
@@ -63,7 +63,7 @@ class InterceptorPB(pb.Avatar):
                 self.log.warn('Execution delay [%ss] for script [%s].', delay, pyCode)
 
             if glo['smpp_status'] == 0 and glo['http_status'] == 0:
-                return pickle.dumps(glo['routable'])
+                return pickle.dumps(glo['routable'], pickle.HIGHEST_PROTOCOL)
             else:
                 # If we have one of the statuses set to non-zero value
                 #  then both of them must be non-zero to avoid misbehaviour

@@ -2,6 +2,7 @@
 Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' section in jasmin.cfg
 """
 
+import cPickle as pickle
 import logging
 import os
 from jasmin.config.tools import ConfigFile
@@ -27,7 +28,7 @@ class RouterPBConfig(ConfigFile):
         self.admin_password = self._get(
             'router', 'admin_password', "82a606ca5a0deea2b5777756788af5c8").decode('hex')
 
-        self.pickle_protocol = self._getint('router', 'pickle_protocol', 2)
+        self.pickle_protocol = self._getint('router', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
 
         # Logging
         self.log_level = logging.getLevelName(self._get('router', 'log_level', 'INFO'))

@@ -1,6 +1,9 @@
 *.py[cod]
 *~
 
+# Jasmin
+misc/config/store
+
 # C extensions
 *.so
 

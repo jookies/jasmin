@@ -1,7 +1,7 @@
 #pylint: disable=W0611
 import re
 import inspect
-import pickle
+import cPickle as pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import MTInterceptorScript
@@ -256,7 +256,8 @@ class MtInterceptorManager(PersistableManager):
     @Session
     @MTInterceptorBuild
     def add_session(self, order, InterceptorInstance):
-        st = self.pb['router'].perspective_mtinterceptor_add(pickle.dumps(InterceptorInstance, 2), order)
+        st = self.pb['router'].perspective_mtinterceptor_add(
+            pickle.dumps(InterceptorInstance, pickle.HIGHEST_PROTOCOL), order)
 
         if st:
             self.protocol.sendData('Successfully added MTInterceptor [%s] with order:%s' % (

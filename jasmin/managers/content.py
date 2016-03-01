@@ -3,7 +3,7 @@ Multiple classes extending of txamqp.content.Content
 """
 
 import uuid
-import pickle
+import cPickle as pickle
 import datetime
 from txamqp.content import Content
 
@@ -20,7 +20,7 @@ def randomUniqueId():
 class PDU(Content):
     "A generick SMPP PDU Content"
 
-    pickleProtocol = 2
+    pickleProtocol = pickle.HIGHEST_PROTOCOL
 
     def __init__(self, body="", children=None, properties=None, pickleProtocol=2, prePickle=False):
         self.pickleProtocol = pickleProtocol
@@ -97,8 +97,8 @@ class DLRContentForSmpps(Content):
 class SubmitSmContent(PDU):
     "A SMPP SubmitSm Content"
 
-    def __init__(self, body, replyto, priority=1, expiration=None, msgid=None,
-                 submit_sm_resp_bill=None, source_connector='httpapi'):
+    def __init__(self, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
+                 source_connector='httpapi'):
         props = {}
 
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -116,9 +116,8 @@ class SubmitSmContent(PDU):
         props['message-id'] = msgid
         props['reply-to'] = replyto
 
-        props['headers'] = {'source_connector': source_connector}
-        if submit_sm_resp_bill is not None:
-            props['headers']['submit_sm_resp_bill'] = submit_sm_resp_bill
+        props['headers'] = {'source_connector': source_connector,
+            'submit_sm_bill': submit_sm_bill}
         if expiration is not None:
             props['headers']['expiration'] = expiration
 

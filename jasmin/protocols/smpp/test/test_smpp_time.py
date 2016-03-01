@@ -1,10 +1,10 @@
-import pickle
+import cPickle as pickle
 from twisted.trial.unittest import TestCase
 from jasmin.vendor.smpp.pdu import smpp_time
 from datetime import datetime
 
 class SMPPTimeTest(TestCase):
-    
+
     def test_pickle_unpickle_datetime_with_tz(self):
         """Related to #267
 
@@ -17,7 +17,7 @@ class SMPPTimeTest(TestCase):
         tz = smpp_time.FixedOffset(72, 'Paris')
 
         # Pickle then unpickle
-        pickled_tz = pickle.dumps(tz)
+        pickled_tz = pickle.dumps(tz, pickle.HIGHEST_PROTOCOL)
         unpickled_tz = pickle.loads(pickled_tz)
 
         # Asserts

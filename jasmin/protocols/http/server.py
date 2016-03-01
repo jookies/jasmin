@@ -1,7 +1,7 @@
 import logging
 import re
 import json
-import pickle
+import cPickle as pickle
 from twisted.internet import reactor, defer
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
@@ -222,14 +222,14 @@ class Send(Resource):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU", routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(
-                routedConnector.cid,
-                routable.pdu,
-                priority,
+                cid=routedConnector.cid,
+                SubmitSmPDU=routable.pdu,
+                submit_sm_bill=bill,
+                priority=priority,
                 pickled=False,
                 dlr_url=dlr_url,
                 dlr_level=dlr_level,
-                dlr_method=dlr_method,
-                submit_sm_resp_bill=bill.getSubmitSmRespBill())
+                dlr_method=dlr_method)
 
             # Build final response
             if not c.result:
