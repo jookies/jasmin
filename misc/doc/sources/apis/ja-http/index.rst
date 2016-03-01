@@ -45,7 +45,7 @@ This guide will help understand how the API works and provide :ref:`examples` fo
 
 HTTP request parameters
 =======================
-When calling Jasmin's URL from an application, the below parameters must be passed (at least mandatory ones), the api will return a message id on success, see :ref:`http_response`. 
+When calling Jasmin's URL from an application, the below parameters must be passed (at least mandatory ones), the api will return a message id on success, see :ref:`http_response`.
 
 .. list-table:: ja-http sending SMS parameters
    :header-rows: 1
@@ -56,12 +56,12 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - Presence
      - Description / Notes
    * - **to**
-     - Msisdn with or without international prefix
+     - Destination address
      - 20203050
      - Mandatory
      - Destination address, only one address is supported per request
    * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Originating address
      - 20203050, Jasmin
      - Optional
      - Originating address, In case rewriting of the sender's address is supported or permitted by the SMS-C used to transmit the message, this number is transmitted as the originating address
@@ -126,13 +126,13 @@ When the request is validated, a SubmitSM PDU is set up with the provided reques
 .. code-block:: text
 
   Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"
-  
+
 Otherwise, an error is returned:
-   
+
 .. code-block:: text
 
   Error "No route found"
-  
+
 .. list-table:: HTTP response code details
    :widths: 10 40 50
    :header-rows: 1
@@ -200,7 +200,7 @@ In PHP:
 .. literalinclude:: example_send_gsm0338.php
    :language: php
 
-In Ruby: 
+In Ruby:
 
 .. literalinclude:: example_send_gsm0338.rb
    :language: ruby
@@ -214,16 +214,16 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 
 .. code-block:: ini
    :linenos:
-   
+
    [http-api]
    bind          = 0.0.0.0
    port          = 1401
-   
+
    long_content_max_parts = 5
    # Splitting long content can be made through SAR options or UDH
    # Possible values are: sar and udh
    long_content_split = udh
-   
+
    access_log         = /var/log/jasmin/http-access.log
    log_level          = INFO
    log_file           = /var/log/jasmin/http-api.log
@@ -253,7 +253,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - /var/log/jasmin/http-access.log
      - Where to log all http requests (and errors).
    * - log_*
-     - 
+     -
      - Python's logging module configuration.
 
 .. _receiving_dlr:
@@ -261,11 +261,11 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 Receiving DLR
 *************
 
-When requested through dlr-* fields when :ref:`sending_sms-mt`, a delivery receipt (**DLR**) will be sent back to the 
-application url (set in **dlr-url**) through **HTTP GET/POST** depending on **dlr-method**. 
+When requested through dlr-* fields when :ref:`sending_sms-mt`, a delivery receipt (**DLR**) will be sent back to the
+application url (set in **dlr-url**) through **HTTP GET/POST** depending on **dlr-method**.
 
-The receiving end point must reply back using a "**200 OK**" status header **and** a body containing an **acknowledgement** of 
-receiving the DLR, if one or both of these conditions are not met, the *DLRThrower service* will consider reshipment of the same 
+The receiving end point must reply back using a "**200 OK**" status header **and** a body containing an **acknowledgement** of
+receiving the DLR, if one or both of these conditions are not met, the *DLRThrower service* will consider reshipment of the same
 message if **config/dlr-thrower/max_retries** is not reached (see :ref:`configuration_dlr-thrower`).
 
 In order to acknowledge DLR receipt, the receiving end point must reply back with **exactly** the following html body content::
@@ -385,7 +385,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 
 .. code-block:: ini
    :linenos:
-   
+
    [dlr-thrower]
    http_timeout       = 30
    retry_delay        = 30
@@ -412,7 +412,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 3
      - Define how many retries should be performed for failing throws of DLR.
    * - log_*
-     - 
+     -
      - Python's logging module configuration.
 
 .. _receiving_sms-mo:
@@ -420,17 +420,17 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 Receiving SMS-MO
 ****************
 
-**SMS-MO** incoming messages (**M**\obile **O**\riginated) are forwarded by Jasmin to defined URLs using simple **HTTP GET/POST**, the forwarding is 
+**SMS-MO** incoming messages (**M**\obile **O**\riginated) are forwarded by Jasmin to defined URLs using simple **HTTP GET/POST**, the forwarding is
 made by *deliverSmHttpThrower* service, and the URL of the receiving endpoint is selected through a route checking process (c.f. :doc:`/routing/index`).
 
-Receiving endpoint is a third party application which acts on the messages received and potentially generates replies, (:ref:`httpccm_manager` for more details about 
+Receiving endpoint is a third party application which acts on the messages received and potentially generates replies, (:ref:`httpccm_manager` for more details about
 HTTP Client connector management).
 
 The parameters below are transmitted for each SMS-MO, the receiving end point must provide an url (set in **jasminApi.HttpConnector.baseurl**) and parse the
 below parameters using GET or POST method (depends on **jasminApi.HttpConnector.method**).
 
 The receiving end point must reply back using a "**200 OK**" status header **and** a body containing an **acknowledgement** of receiving the SMS-MO, if one or both of
-these conditions are not met, the *deliverSmHttpThrower service* will consider reshipment of the same message if **config/deliversm-thrower/max_retries** is not reached, 
+these conditions are not met, the *deliverSmHttpThrower service* will consider reshipment of the same message if **config/deliversm-thrower/max_retries** is not reached,
 (see :ref:`configuration_deliversm-thrower`).
 
 In order to acknowledge SMS-MO receipt, the receiving end point must reply back with **exactly** the following html body content::
@@ -458,12 +458,12 @@ When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the bel
      - Always
      - Internal Jasmin's gateway message id
    * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Originating address
      - +21620203060, 20203060, Jasmin
      - Always
      - Originating address
    * - **to**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Destination address
      - +21620203060, 20203060, Jasmin
      - Always
      - Destination address, only one address is supported per request
@@ -492,9 +492,14 @@ When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the bel
      - Hello world !
      - Always
      - Content of the message
+   * - **binary**
+     - Hexlified binary content
+     - 062A063062A
+     - Always
+     - Content of the message in binary `hexlified <https://docs.python.org/2/library/binascii.html#binascii.hexlify>`_ form
 
-.. note:: When receiving multiple parts of a long SMS-MO, *deliverSmHttpThrower service* will concatenate the content of all the parts and then throw one http call with 
-          concatenated *content*. 
+.. note:: When receiving multiple parts of a long SMS-MO, *deliverSmHttpThrower service* will concatenate the content of all the parts and then throw one http call with
+          concatenated *content*.
 
 .. _deliverSmHttpThrower_process:
 
@@ -505,7 +510,7 @@ The flowchart below describes how message delivery and retrying policy are done 
 .. figure:: /resources/ja-http/sms-mo-flowchart.png
    :alt: MO delivery flowchart as processed by deliverSmHttpThrower service
    :align: Center
-   
+
 .. _configuration_deliversm-thrower:
 
 jasmin.cfg / deliversm-thrower
@@ -515,7 +520,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 
 .. code-block:: ini
    :linenos:
-   
+
    [deliversm-thrower]
    http_timeout       = 30
    retry_delay        = 30
@@ -542,7 +547,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 3
      - Define how many retries should be performed for failing throws of SMS-MO.
    * - log_*
-     - 
+     -
      - Python's logging module configuration.
 
 .. _check_balance:
@@ -590,7 +595,7 @@ Successful response:
 .. code-block:: javascript
 
   {"balance": 100.0, "sms_count": "ND"}
-  
+
 Otherwise, an error is returned.
 
 .. _balance_request_examples:
@@ -630,12 +635,12 @@ HTTP request parameters
      - Presence
      - Description / Notes
    * - **to**
-     - Msisdn with or without international prefix
+     - Destination address
      - 20203050
      - Mandatory
      - Destination address, only one address is supported per request
    * - **from**
-     - Msisdn with or without international prefix, alphanumeric value
+     - Originating address
      - 20203050, Jasmin
      - Optional
      - Originating address, In case rewriting of the sender's address is supported or permitted by the SMS-C used to transmit the message, this number is transmitted as the originating address
@@ -672,11 +677,11 @@ Successful response:
   {"submit_sm_count": 2, "unit_rate": 2.8}
 
 Where **submit_sm_count** is the number of message units if the **content** is longer than 160 characters, **content** parameter is optional for requesting rate price.
-  
+
 Otherwise, an error is returned.
 
 Otherwise, an error is returned:
-   
+
 .. code-block:: text
 
   Error "No route found"

@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 import re
 import logging
 from dateutil.parser import parse as date_parse
@@ -14,13 +14,13 @@ _REGEX_VER = re.compile(r'^(?P<major>(\d+))'
 _REGEX_HEADER = re.compile(r'^Persisted on (?P<date>(.*)) \[Jasmin (?P<release_version>(.*))\]')
 
 def version_parse(version):
-    "Will parse Jasmin release version and return a float, ex: 0.8rc2 will return 0.82"
+    "Will parse Jasmin release version and return a float, ex: 0.8rc2 will return 0.8002"
     match = _REGEX_VER.match(version)
     if match is None:
         raise ValueError('%s is not valid Jasmin version string' % version)
 
     return float("%s.%s%s" % (match.groupdict()['major'],
-                              match.groupdict()['minor'], match.groupdict()['patch']))
+                              match.groupdict()['minor'], match.groupdict()['patch'].zfill(3)))
 
 def version_is_valid(version, condition):
     "Will compare version with condition, example of condition: <=0.52"

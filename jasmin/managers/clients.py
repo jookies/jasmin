@@ -1,5 +1,5 @@
 import logging
-import pickle
+import cPickle as pickle
 import time
 import datetime
 from twisted.spread import pb
@@ -32,7 +32,7 @@ class SMPPClientManagerPB(pb.Avatar):
         self.RouterPB = None
         self.connectors = []
         self.declared_queues = []
-        self.pickleProtocol = 2
+        self.pickleProtocol = pickle.HIGHEST_PROTOCOL
 
         # Persistence flag, accessed through perspective_is_persisted
         self.persisted = True
@@ -530,17 +530,11 @@ class SMPPClientManagerPB(pb.Avatar):
         return pickle.dumps(connector['config'], self.pickleProtocol)
 
     @defer.inlineCallbacks
-    def perspective_submit_sm(self, cid, SubmitSmPDU, priority=1, validity_period=None, pickled=True,
-                              dlr_url=None, dlr_level=1, dlr_method='POST', submit_sm_resp_bill=None,
+    def perspective_submit_sm(self, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
+                              pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST',
                               source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
         """
-
-        self.log.debug('Enqueuing a SUBMIT_SM to connector [%s]', cid)
-        if submit_sm_resp_bill is not None:
-            self.log.debug("... with a SubmitSmRespBill [bid:%s] [ttlamounts:%s]",
-                           submit_sm_resp_bill.bid, submit_sm_resp_bill.getTotalAmounts())
-
         connector = self.getConnector(cid)
         if connector is None:
             self.log.error('Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: %s', cid)
@@ -570,7 +564,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 self.log.warn('Removing schedule_delivery_time from SubmitSmPDU.')
 
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
-            submit_sm_resp_bill = pickle.dumps(submit_sm_resp_bill, self.pickleProtocol)
+            submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
         else:
             PickledSubmitSmPDU = SubmitSmPDU
             SubmitSmPDU = pickle.loads(PickledSubmitSmPDU)
@@ -578,11 +572,11 @@ class SMPPClientManagerPB(pb.Avatar):
         # Publishing a pickled PDU
         self.log.debug('Publishing SubmitSmPDU with routing_key=%s, priority=%s', pubQueueName, priority)
         c = SubmitSmContent(
-            PickledSubmitSmPDU,
-            responseQueueName,
-            priority,
-            validity_period,
-            submit_sm_resp_bill=submit_sm_resp_bill,
+            body=PickledSubmitSmPDU,
+            replyto=responseQueueName,
+            submit_sm_bill=submit_sm_bill,
+            priority=priority,
+            expiration=validity_period,
             source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi')
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
@@ -599,14 +593,14 @@ class SMPPClientManagerPB(pb.Avatar):
                                connector['config'].dlr_expiry)
                 # Set values and callback expiration setting
                 hashKey = "dlr:%s" % (c.properties['message-id'])
-                hashValues = {'url': dlr_url,
-                              'level':dlr_level,
-                              'method':dlr_method,
-                              'expiry':connector['config'].dlr_expiry}
-                self.redisClient.setex(
-                    hashKey,
-                    connector['config'].dlr_expiry,
-                    pickle.dumps(hashValues, self.pickleProtocol))
+                hashValues = {'sc': 'httpapi',
+                              'url': dlr_url,
+                              'level': dlr_level,
+                              'method': dlr_method,
+                              'expiry': connector['config'].dlr_expiry}
+                self.redisClient.hmset(hashKey, hashValues).addCallback(
+                    lambda response: self.redisClient.expire(
+                        hashKey, connector['config'].dlr_expiry))
         elif (isinstance(source_connector, SMPPServerProtocol) and
               SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
@@ -623,16 +617,16 @@ class SMPPClientManagerPB(pb.Avatar):
                     SubmitSmPDU.params['registered_delivery'],
                     source_connector.factory.config.dlr_expiry)
                 # Set values and callback expiration setting
-                hashKey = "smppsmap:%s" % (c.properties['message-id'])
-                hashValues = {'system_id': source_connector.system_id,
+                hashKey = "dlr:%s" % (c.properties['message-id'])
+                hashValues = {'sc': 'smppsapi',
+                              'system_id': source_connector.system_id,
                               'source_addr': SubmitSmPDU.params['source_addr'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'sub_date': datetime.datetime.now(),
-                              'registered_delivery': SubmitSmPDU.params['registered_delivery'],
+                              'rd_receipt': '%s' % SubmitSmPDU.params['registered_delivery'].receipt,
                               'expiry': source_connector.factory.config.dlr_expiry}
-                self.redisClient.setex(
-                    hashKey,
-                    source_connector.factory.config.dlr_expiry,
-                    pickle.dumps(hashValues, self.pickleProtocol))
+                self.redisClient.hmset(hashKey, hashValues).addCallback(
+                    lambda response: self.redisClient.expire(
+                        hashKey, source_connector.factory.config.dlr_expiry))
 
         defer.returnValue(c.properties['message-id'])

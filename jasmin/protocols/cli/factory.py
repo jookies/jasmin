@@ -45,7 +45,7 @@ class JCliFactory(ServerFactory):
         # When defined, configuration profile will be loaded on startup
         if loadConfigProfileWithCreds is None:
             # Defaults:
-            loadConfigProfileWithCreds = {'username', 'password'}
+            loadConfigProfileWithCreds = {'username': 'jcliadmin', 'password': 'jclipwd'}
         self.loadConfigProfileWithCreds = loadConfigProfileWithCreds
 
         # Set up and configure a dedicated logger

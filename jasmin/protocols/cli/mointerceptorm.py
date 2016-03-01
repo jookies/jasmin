@@ -1,7 +1,7 @@
 #pylint: disable=W0611
 import re
 import inspect
-import pickle
+import cPickle as pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MOFILTERS
 from jasmin.routing.jasminApi import MOInterceptorScript
@@ -256,7 +256,8 @@ class MoInterceptorManager(PersistableManager):
     @Session
     @MOInterceptorBuild
     def add_session(self, order, InterceptorInstance):
-        st = self.pb['router'].perspective_mointerceptor_add(pickle.dumps(InterceptorInstance, 2), order)
+        st = self.pb['router'].perspective_mointerceptor_add(
+            pickle.dumps(InterceptorInstance, pickle.HIGHEST_PROTOCOL), order)
 
         if st:
             self.protocol.sendData('Successfully added MOInterceptor [%s] with order:%s' % (

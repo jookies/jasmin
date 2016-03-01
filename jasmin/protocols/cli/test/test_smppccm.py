@@ -1,4 +1,3 @@
-import pickle
 import mock
 from twisted.internet import defer, reactor
 from test_jcli import jCliWithoutAuthTestCases
@@ -156,6 +155,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'trx_to 300',
                         'logfile .*var/log/jasmin/default-%s.log' % cid,
                         'systype ',
+                        'ssl no',
                         'cid %s' % cid,
                         'loglevel 20',
                         'bind transceiver',
@@ -232,6 +232,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'trx_to 300',
                         'logfile .*var/log/jasmin/default-%s.log' % cid,
                         'systype ',
+                        'ssl no',
                         'cid %s' % cid,
                         'loglevel 20',
                         'bind transceiver',
@@ -458,6 +459,11 @@ class ParameterValuesTestCases(SmppccmTestCases):
                   {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'xx',  'isValid': False},
                   {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'NON', 'isValid': False},
                   {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'no',  'isValid': True},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'yes',       'isValid': True},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': '1',         'isValid': False},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'xx',        'isValid': False},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'NON',       'isValid': False},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'no',        'isValid': True},
                   {'key': 'loglevel',  'default_value': '20', 'set_value': '10',        'isValid': True},
                   {'key': 'loglevel',  'default_value': '20', 'set_value': '1',         'isValid': False},
                   {'key': 'loglevel',  'default_value': '20', 'set_value': 'xx',        'isValid': False},
@@ -540,6 +546,11 @@ class ParameterValuesTestCases(SmppccmTestCases):
                   {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'xx',  'isValid': False},
                   {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'NON', 'isValid': False},
                   {'key': 'con_loss_retry', 'default_value': 'yes', 'set_value': 'no',  'isValid': True},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'yes',       'isValid': True},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': '1',         'isValid': False},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'xx',        'isValid': False},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'NON',       'isValid': False},
+                  {'key': 'ssl',       'default_value': 'no', 'set_value': 'no',        'isValid': True},
                   {'key': 'loglevel',  'default_value': '20', 'set_value': '10',        'isValid': True},
                   {'key': 'loglevel',  'default_value': '20', 'set_value': '1',         'isValid': False},
                   {'key': 'loglevel',  'default_value': '20', 'set_value': 'xx',        'isValid': False},
@@ -740,7 +751,7 @@ class SMSCTestCases(HappySMSCTestCase):
         extraCommands = [{'command': 'cid operator_1'},
                          {'command': 'port %s' % self.SMSCPort.getHost().port},]
         yield self.add_connector(r'jcli : ', extraCommands)
-        yield self.start_connector('operator_1', wait = 4)
+        yield self.start_connector('operator_1', wait = 8)
 
         # List and assert it is BOUND
         expectedList = ['#Connector id                        Service Session          Starts Stops',
@@ -753,11 +764,8 @@ class SMSCTestCases(HappySMSCTestCase):
         # no sufficient time for unbind to complete
         yield self.stop_connector('operator_1', finalPrompt = None, wait = 0)
         yield self.start_connector('operator_1', finalPrompt = None,
-                                    wait = 0,
+                                    wait = 20,
                                     expect= 'Failed starting connector, check log for details')
-
-        # Wait
-        yield waitFor(20)
 
         # List and assert it is stopped (start command errored)
         expectedList = ['#Connector id                        Service Session          Starts Stops',

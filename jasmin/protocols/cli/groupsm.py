@@ -1,4 +1,4 @@
-import pickle
+import cPickle as pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import Group
 
@@ -99,7 +99,7 @@ class GroupsManager(PersistableManager):
     @Session
     @GroupBuild
     def add_session(self, GroupInstance):
-        st = self.pb['router'].perspective_group_add(pickle.dumps(GroupInstance, 2))
+        st = self.pb['router'].perspective_group_add(pickle.dumps(GroupInstance, pickle.HIGHEST_PROTOCOL))
 
         if st:
             self.protocol.sendData('Successfully added Group [%s]' % (GroupInstance.gid), prompt=False)

@@ -911,6 +911,9 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
    * - **port**
      - The port number for the connection to the SMSC.
      - 2775
+   * - **ssl**
+     - Activate ssl connection
+     - no
    * - **username**
      -
      - smppclient

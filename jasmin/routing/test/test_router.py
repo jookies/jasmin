@@ -3,7 +3,7 @@ import copy
 import glob
 import os
 import mock
-import pickle
+import cPickle as pickle
 import time
 import string
 import urllib

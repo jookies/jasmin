@@ -136,10 +136,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [pdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [pdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu.params['short_message']])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -176,10 +177,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -229,10 +231,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params['short_message'][6:]])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params['short_message'][6:])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
@@ -269,10 +272,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
-        self.assertEqual(len(receivedHttpReq), 7)
+        self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
         self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
         self.assertEqual(receivedHttpReq['content'], [pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC

@@ -101,7 +101,7 @@ class UserStatsTestCases(UserTestCases):
                         '#last_activity_at          SMPP Server  ND',
                         '#other_submit_error_count  SMPP Server  0',
                         '#throttling_error_count    SMPP Server  0',
-                        "#bound_connections_count   SMPP Server  {'bind_transmitter': 0, 'bind_receiver': 0, 'bind_transceiver': 0}",
+                        '#bound_connections_count   SMPP Server  {"bind_transmitter": 0, "bind_receiver": 0, "bind_transceiver": 0}',
                         '#elink_count               SMPP Server  0',
                         '#qos_last_submit_sm_at     SMPP Server  ND',
                         '#deliver_sm_count          SMPP Server  0',

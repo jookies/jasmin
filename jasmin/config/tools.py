@@ -30,9 +30,9 @@ class ConfigFile(object):
         otherwise
         """
 
-        if self.config.has_section(section) == False:
+        if not self.config.has_section(section):
             return default
-        if self.config.has_option(section, option) == False:
+        if not self.config.has_option(section, option):
             return default
         if self.config.get(section, option) == 'None':
             return None
@@ -45,9 +45,9 @@ class ConfigFile(object):
         default otherwise
         """
 
-        if self.config.has_section(section) == False:
+        if not self.config.has_section(section):
             return default
-        if self.config.has_option(section, option) == False:
+        if not self.config.has_option(section, option):
             return default
         if self.config.get(section, option) == 'None':
             return default
@@ -60,9 +60,9 @@ class ConfigFile(object):
         default otherwise
         """
 
-        if self.config.has_section(section) == False:
+        if not self.config.has_section(section):
             return default
-        if self.config.has_option(section, option) == False:
+        if not self.config.has_option(section, option):
             return default
         if self.config.get(section, option) == 'None':
             return default
@@ -75,9 +75,9 @@ class ConfigFile(object):
         default otherwise
         """
 
-        if self.config.has_section(section) == False:
+        if not self.config.has_section(section):
             return default
-        if self.config.has_option(section, option) == False:
+        if not self.config.has_option(section, option):
             return default
 
         return self.config.getboolean(section, option)

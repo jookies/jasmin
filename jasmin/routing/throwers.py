@@ -1,6 +1,7 @@
-import pickle
+import cPickle as pickle
 import logging
 import urllib
+import binascii
 from logging.handlers import TimedRotatingFileHandler
 from twisted.application.service import Service
 from twisted.internet import defer
@@ -205,6 +206,9 @@ class deliverSmThrower(Thrower):
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
+        # Set the binary arg after deciding where to pick the content from
+        args['binary'] = binascii.hexlify(args['content'])
+
         # Build optional arguments
         if ('priority_flag' in RoutedDeliverSmContent.params and
                 RoutedDeliverSmContent.params['priority_flag'] is not None):
@@ -213,7 +217,7 @@ class deliverSmThrower(Thrower):
                 RoutedDeliverSmContent.params['data_coding'] is not None):
             args['coding'] = data_coding_default_name_map[
                 str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
-        if ('validity_period' in RoutedDeliverSmContent.params and 
+        if ('validity_period' in RoutedDeliverSmContent.params and
                 RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
 
@@ -440,8 +444,8 @@ class DLRThrower(Thrower):
         msgid = message.content.properties['message-id']
         system_id = message.content.properties['headers']['system_id']
         message_status = message.content.properties['headers']['message_status']
-        source_addr = message.content.properties['headers']['source_addr']
-        destination_addr = message.content.properties['headers']['destination_addr']
+        source_addr = '%s' % message.content.properties['headers']['source_addr']
+        destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
