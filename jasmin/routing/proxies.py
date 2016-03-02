@@ -9,6 +9,10 @@ class RouterPBProxy(JasminPBProxy):
         return self.pb.callRemote('version_release')
 
     @ConnectedPB
+    def version(self):
+        return self.pb.callRemote('version')
+
+    @ConnectedPB
     def persist(self, profile="jcli-prod", scope='all'):
         return self.pb.callRemote('persist', profile, scope)
 

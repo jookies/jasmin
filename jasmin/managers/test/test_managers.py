@@ -192,6 +192,14 @@ class BasicTestCases(SMPPClientPBProxyTestCase):
 
         self.assertEqual(version_release, jasmin.get_release())
 
+    @defer.inlineCallbacks
+    def test_version(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        version = yield self.version()
+
+        self.assertEqual(version, jasmin.get_version())
+
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def tearDown(self):
