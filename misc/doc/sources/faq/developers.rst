@@ -14,7 +14,7 @@ Here's an example:
 
 Thanks to Pedro_'s contribution::
 
-  Here is the PySQLPool mod to @zoufou ´s gist
+  Here is the PySQLPool mod to @farirat ´s gist
   https://gist.github.com/pguillem/5750e8db352f001138f2
 
   Here is the code to launch the consumer as a system Daemon in Debian/Ubuntu

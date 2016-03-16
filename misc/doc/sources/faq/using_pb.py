@@ -1,4 +1,4 @@
-# Gist from https://gist.github.com/zoufou/922e1cb2c4782660c257
+# Gist from https://gist.github.com/farirat/922e1cb2c4782660c257
 """
 An example of scenario with the following actions:
  1. Add and start a SMPP Client connector
