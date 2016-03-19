@@ -12,6 +12,10 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
         return self.pb.callRemote('version_release')
 
     @ConnectedPB
+    def version(self):
+        return self.pb.callRemote('version')
+
+    @ConnectedPB
     def persist(self, profile="jcli-prod"):
         return self.pb.callRemote('persist', profile)
 

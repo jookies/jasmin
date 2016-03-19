@@ -440,8 +440,8 @@ class SMPPClientSMListener(object):
                     self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
 
                     system_id = dlr['system_id']
-                    source_addr = dlr['source_addr']
-                    destination_addr = dlr['destination_addr']
+                    source_addr = str(dlr['source_addr'])
+                    destination_addr = str(dlr['destination_addr'])
                     sub_date = dlr['sub_date']
                     registered_delivery_receipt = dlr['rd_receipt']
                     smpps_map_expiry = dlr['expiry']
@@ -847,8 +847,8 @@ class SMPPClientSMListener(object):
                     elif submit_sm_queue_id is not None and connector_type == 'smppsapi':
                         if len(dlr) > 0:
                             system_id = dlr['system_id']
-                            source_addr = dlr['source_addr']
-                            destination_addr = dlr['destination_addr']
+                            source_addr = str(dlr['source_addr'])
+                            destination_addr = str(dlr['destination_addr'])
                             sub_date = dlr['sub_date']
                             registered_delivery_receipt = dlr['rd_receipt']
 

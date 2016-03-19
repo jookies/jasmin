@@ -1,4 +1,4 @@
-# Gist from https://gist.github.com/zoufou/5701d71bf6e404d17cb4
+# Gist from https://gist.github.com/farirat/5701d71bf6e404d17cb4
 import cPickle as pickle
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor

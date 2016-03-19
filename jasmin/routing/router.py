@@ -401,6 +401,9 @@ class RouterPB(pb.Avatar):
     def perspective_version_release(self):
         return jasmin.get_release()
 
+    def perspective_version(self):
+        return jasmin.get_version()
+
     def perspective_persist(self, profile='jcli-prod', scope='all'):
         try:
             if scope in ['all', 'groups']:

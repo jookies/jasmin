@@ -75,13 +75,15 @@ class CredentialGenerick(jasminApiGenerick):
     def updateQuota(self, key, difference):
         if key not in self.quotas:
             raise jasminApiCredentialError('%s is not a valid Quota key' % key)
-        if self.quotas[key] is None:
-            raise jasminApiCredentialError('Cannot update a None Quota value for key %s' % key)
         if not isinstance(difference, float) and not isinstance(difference, int):
             raise jasminApiCredentialError(
                 'Incorrect type for value (%s), must be int or float' % difference)
         if isinstance(self.quotas[key], int) and isinstance(difference, float):
             raise jasminApiCredentialError('Type mismatch, cannot update an int with a float value')
+
+        # If quota is unlimited then initialize it to zero before update
+        if self.quotas[key] is None:
+            self.quotas[key] = 0
 
         self.quotas[key] += difference
         self.quotas_updated = True

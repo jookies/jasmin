@@ -227,6 +227,14 @@ class BasicTestCases(RouterPBProxy, RouterPBTestCase):
 
         self.assertEqual(version_release, jasmin.get_release())
 
+    @defer.inlineCallbacks
+    def test_version(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        version = yield self.version()
+
+        self.assertEqual(version, jasmin.get_version())
+
 class InterceptionTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_add_list_and_flush_mt_interceptor(self):

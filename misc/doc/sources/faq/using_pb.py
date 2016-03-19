@@ -1,4 +1,4 @@
-# Gist from https://gist.github.com/zoufou/922e1cb2c4782660c257
+# Gist from https://gist.github.com/farirat/922e1cb2c4782660c257
 """
 An example of scenario with the following actions:
  1. Add and start a SMPP Client connector
@@ -16,8 +16,9 @@ from twisted.internet import reactor, defer
 from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.Routes import DefaultRoute
-from jasmin.routing.jasminApi import SmppClientConnector, User, Group
+from jasmin.routing.jasminApi import User, Group
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.protocols.cli.smppccm import JCliSMPPClientConfig as SmppClientConnector
 from twisted.web.client import getPage
 
 @defer.inlineCallbacks
