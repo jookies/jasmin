@@ -1143,6 +1143,47 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
+    @defer.inlineCallbacks
+    def test_receipt_for_long_destination_addr(self):
+        """It's been reported that long destination_addr will lead to an error taking Jasmin down.
+        Related to #405
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['destination_addr'] = '905325932042'
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Trigger DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD')
+
+        # Wait some time before testing
+        yield waitFor(0.5)
+
+        # Asserts
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
 class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
 
     @defer.inlineCallbacks
