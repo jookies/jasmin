@@ -5,12 +5,11 @@ from twisted.web import server
 from twisted.web.test.test_web import DummyRequest
 
 class SmartDummyRequest(DummyRequest):
-    def __init__(self, method, url, args=None, headers=None):
+    def __init__(self, method, url, args=None):
         DummyRequest.__init__(self, url.split('/'))
         self.method = method
-        self.headers.update(headers or {})
 
-        # set args                                                                                                                                                                                       
+        # set args
         args = args or {}
         for k, v in args.items():
             self.addArg(k, v)
@@ -21,16 +20,16 @@ class SmartDummyRequest(DummyRequest):
 
 
 class DummySite(server.Site):
-    def get(self, url, args=None, headers=None):
-        return self._request("GET", url, args, headers)
+    def get(self, url, args=None):
+        return self._request("GET", url, args)
 
 
-    def post(self, url, args=None, headers=None):
-        return self._request("POST", url, args, headers)
+    def post(self, url, args=None):
+        return self._request("POST", url, args)
 
 
-    def _request(self, method, url, args, headers):
-        request = SmartDummyRequest(method, url, args, headers)
+    def _request(self, method, url, args):
+        request = SmartDummyRequest(method, url, args)
         resource = self.getResourceFor(request)
         result = resource.render(request)
         return self._resolveResult(request, result)
