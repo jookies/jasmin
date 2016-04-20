@@ -120,7 +120,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
 
         self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum,
             status=CommandStatus.ESME_ROK,
-            message_id = msgid,
+            message_id=msgid,
             )
         self.sendPDU(self.lastSubmitSmRestPDU)
 
