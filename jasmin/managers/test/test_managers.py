@@ -324,6 +324,30 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
         self.assertFalse(isPersisted)
         yield self.persist('profile')
 
+    @defer.inlineCallbacks
+    def test_add_many_persist_and_load_default(self):
+        "Related to #420"
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        # Add many
+        yield self.add(SMPPClientConfig(id='IPBANK'))
+        yield self.add(SMPPClientConfig(id='UPBANK'))
+        yield self.add(SMPPClientConfig(id='ITEL'))
+        yield self.add(SMPPClientConfig(id='MOBILMATIC'))
+        yield self.add(SMPPClientConfig(id='SMSGH'))
+        listRet = yield self.connector_list()
+        self.assertEqual(5, len(listRet))
+
+        # Persist
+        yield self.persist()
+
+        # Load
+        yield self.load()
+
+        # List and assert
+        listRet = yield self.connector_list()
+        self.assertEqual(5, len(listRet))
+
 class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_add_and_list(self):
