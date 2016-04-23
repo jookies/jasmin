@@ -1230,6 +1230,52 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
+    @defer.inlineCallbacks
+    def test_receipt_with_leading_zeros(self):
+        "Related to #408"
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Tell the SMSCPort to response with the defined MsgId
+        self.SMSCPort.factory.lastClient.nextResponseMsgId = '023'
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
+        # smpps response #1 was a submit_sm_resp with ESME_ROK
+        response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
+        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+
+        # Trigger receipt with an unknown id
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id='23')
+
+        # Wait some time before testing
+        yield waitFor(0.5)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
 class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
 
     @defer.inlineCallbacks
