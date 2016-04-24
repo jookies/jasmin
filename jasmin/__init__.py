@@ -5,7 +5,7 @@
 
 MAJOR = 0
 MINOR = 9
-PATCH = 3
+PATCH = 4
 META = 'b'
 
 def get_version():
