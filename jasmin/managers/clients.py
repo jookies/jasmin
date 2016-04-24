@@ -172,11 +172,14 @@ class SMPPClientManagerPB(pb.Avatar):
             cf = ConfigurationMigrator(context='smppccs', header=lines[0], data=''.join(lines[1:]))
 
             # Remove current configuration
+            CIDs = []
             for c in self.connectors:
-                remRet = yield self.perspective_connector_remove(c['id'])
+                CIDs.append(c['id'])
+            for cid in CIDs:
+                remRet = yield self.perspective_connector_remove(cid)
                 if not remRet:
-                    raise ConfigProfileLoadingError('Error removing connector %s' % c['id'])
-                self.log.info('Removed connector [%s]', c['id'])
+                    raise ConfigProfileLoadingError('Error removing connector %s' % cid)
+                self.log.info('Removed connector [%s]', cid)
 
             # Apply configuration
             loadedConnectors = cf.getMigratedData()
