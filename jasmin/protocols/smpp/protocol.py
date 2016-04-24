@@ -244,6 +244,10 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             else:
                 pdu.params['data_coding'] = None
 
+        # Set default source_addr if not defined
+        if pdu.params['source_addr'] is None and self.config().source_addr is not None:
+            pdu.params['source_addr'] = self.config().source_addr
+
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
             raise SMPPClientConnectionCorruptedError()
