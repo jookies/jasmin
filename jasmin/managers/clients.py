@@ -249,7 +249,7 @@ class SMPPClientManagerPB(pb.Avatar):
                                               exchange="messaging",
                                               routing_key=routing_key)
         yield self.amqpBroker.named_queue_declare(queue=delay_submit_sm_queue, durable=True, arguments={
-            'x-message-ttl': 60,
+            'x-message-ttl': 60000,
             'x-dead-letter-exchange': 'messaging',
             'x-dead-letter-routing-key': submit_sm_queue
         })
