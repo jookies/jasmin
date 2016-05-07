@@ -241,7 +241,7 @@ class SMPPClientManagerPB(pb.Avatar):
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         # submit.sm queue declaration and binding
         submit_sm_queue = 'submit.sm.%s' % c.id
-        delay_submit_sm_queue = 'submit.sm.delay.%s' % c.id
+        delay_submit_sm_queue = 'delay.submit.sm.%s' % c.id
         routing_key = 'submit.sm.%s' % c.id
         self.log.info('Binding %s queue to %s route_key', submit_sm_queue, routing_key)
         yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue)
@@ -566,7 +566,7 @@ class SMPPClientManagerPB(pb.Avatar):
             defer.returnValue(False)
 
         # Define the destination and response queue names
-        pubQueueName = "submit.sm.delay.%s" % cid if throttle.is_on() else "submit.sm.%s" % cid
+        pubQueueName = "delay.submit.sm.%s" % cid if throttle.is_on() else "submit.sm.%s" % cid
         responseQueueName = "submit.sm.resp.%s" % cid
 
         # Pickle SubmitSmPDU if it's not pickled
