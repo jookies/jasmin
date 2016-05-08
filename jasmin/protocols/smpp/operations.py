@@ -254,10 +254,10 @@ class SMPPOperationFactory(object):
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+            short_message = r"id:%s sub:001 dlvrd:001 submit date:%s done date:%s stat:%s err:%03d text:Hola " % (
                 msgid,
-                parser.parse(sub_date).strftime("%Y%m%d%H%M"),
-                datetime.datetime.now().strftime("%Y%m%d%H%M"),
+                parser.parse(sub_date).strftime("%y%m%d%H%M%S000+"),
+                datetime.datetime.utcnow().strftime("%y%m%d%H%M%S000+"),
                 sm_message_stat,
                 err,
             )
