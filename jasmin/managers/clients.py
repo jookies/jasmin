@@ -3,9 +3,8 @@ import cPickle as pickle
 import time
 import datetime
 
-from twisted.internet.iocpreactor import reactor
 from twisted.spread import pb
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from logging.handlers import TimedRotatingFileHandler
 import jasmin
 from jasmin.protocols.smpp.services import SMPPClientService
