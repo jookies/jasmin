@@ -14,7 +14,6 @@ from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
-from jasmin.tools.throttle import throttle
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -241,26 +240,12 @@ class SMPPClientManagerPB(pb.Avatar):
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         # submit.sm queue declaration and binding
         submit_sm_queue = 'submit.sm.%s' % c.id
-        delay_submit_sm_queue = 'delay.submit.sm.%s' % c.id
-
         routing_key = 'submit.sm.%s' % c.id
-        delay_routing_key = 'delay.submit.sm.%s' % c.id
-
         self.log.info('Binding %s queue to %s route_key', submit_sm_queue, routing_key)
-
         yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue)
         yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue,
                                               exchange="messaging",
                                               routing_key=routing_key)
-        
-        yield self.amqpBroker.named_queue_declare(queue=delay_submit_sm_queue, arguments={
-            'x-message-ttl': 60000,
-            'x-dead-letter-exchange': 'messaging',
-            'x-dead-letter-routing-key': routing_key
-        })
-        yield self.amqpBroker.chan.queue_bind(queue=delay_submit_sm_queue,
-                                              exchange="messaging",
-                                              routing_key=delay_routing_key)
 
         # Instanciate smpp client service manager
         serviceManager = SMPPClientService(c, self.config)
@@ -574,7 +559,7 @@ class SMPPClientManagerPB(pb.Avatar):
             defer.returnValue(False)
 
         # Define the destination and response queue names
-        pubQueueName = "delay.submit.sm.%s" % cid if throttle.is_on() else "submit.sm.%s" % cid
+        pubQueueName = "submit.sm.%s" % cid
         responseQueueName = "submit.sm.resp.%s" % cid
 
         # Pickle SubmitSmPDU if it's not pickled
