@@ -19,6 +19,7 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
+from jasmin.tools.throttle import throttle
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
@@ -260,7 +261,10 @@ class SMPPClientSMListener(object):
             self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s]",
                            msgid, self.SMPPClientFactory.config.id)
             d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
-            d.addCallback(self.submit_sm_resp_event, message)
+            if throttle.is_on():
+                reactor.callLater(60, d.callback, self.submit_sm_resp_event, message)
+            else:
+                d.addCallback(self.submit_sm_resp_event, message)
             yield d
         except SMPPRequestTimoutError:
             self.log.error("SubmitSmPDU[%s] request timed out through [cid:%s], message requeued.",

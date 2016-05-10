@@ -586,7 +586,7 @@ class SMPPClientManagerPB(pb.Avatar):
             priority=priority,
             expiration=validity_period,
             source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi')
-
+        '''
         if throttle.is_on():
             reactor.callLater(60.0,
                               self.amqpBroker.publish,
@@ -594,7 +594,8 @@ class SMPPClientManagerPB(pb.Avatar):
                               routing_key=pubQueueName,
                               content=c)
         else:
-            yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
+        '''
+        yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
         if source_connector == 'httpapi' and dlr_url is not None:
             # Enqueue DLR request in redis 'dlr' key if it is a httpapi request
