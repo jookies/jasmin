@@ -4,6 +4,7 @@ import uuid
 import logging
 import struct
 from datetime import datetime
+
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
 from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
@@ -87,9 +88,11 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                 # We got a ESME_ROK
                 self.factory.stats.inc('submit_sm_count')
 
-    def sendPDU(self, pdu):
-        twistedSMPPClientProtocol.sendPDU(self, pdu)
-
+    def sendPDU(self, pdu, timeout=None):
+        if timeout:
+            reactor.callLater(timeout, twistedSMPPClientProtocol.sendPDU, self, pdu)
+        else:
+            twistedSMPPClientProtocol.sendPDU(self, pdu)
         # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
         if pdu.commandId == CommandId.enquire_link:
@@ -175,14 +178,13 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         #Create callback deferred
         ackDeferred = defer.Deferred()
         #Create response timer
-        if not throttle.is_on():
-            timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
-            #Save transaction
-            self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
-                'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
-                'nack_count' : reqPDU.LongSubmitSm['total_segments']}
-            self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
-                           reqPDU.LongSubmitSm['msg_ref_num'])
+        timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
+        #Save transaction
+        self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
+            'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
+            'nack_count' : reqPDU.LongSubmitSm['total_segments']}
+        self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
+                       reqPDU.LongSubmitSm['msg_ref_num'])
         return ackDeferred
 
     def closeLongSubmitSmTransaction(self, msg_ref_num):
@@ -251,6 +253,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         if pdu.params['source_addr'] is None and self.config().source_addr is not None:
             pdu.params['source_addr'] = self.config().source_addr
 
+    @defer.inlineCallbacks
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
             raise SMPPClientConnectionCorruptedError()
@@ -309,7 +312,11 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                         partedSmPdu.LongSubmitSm['segment_seqnum'] = struct.unpack('!B', pdu.params['short_message'][5])[0]
 
                     self.preSubmitSm(partedSmPdu)
-                    self.sendPDU(partedSmPdu)
+
+                    if first:
+                        self.sendPDU(partedSmPdu)
+                    else:
+                        self.sendPDU(partedSmPdu, 60)                        
                     # Unlike parent protocol's sendPDU, we don't return per pdu
                     # deferred, we'll return per transaction deferred instead
                     self.startOutboundTransaction(
