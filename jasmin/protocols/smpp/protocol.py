@@ -175,15 +175,14 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         #Create callback deferred
         ackDeferred = defer.Deferred()
         #Create response timer
-        if throttle.is_on():
-            timeout += 60
-        timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
-        #Save transaction
-        self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
-            'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
-            'nack_count' : reqPDU.LongSubmitSm['total_segments']}
-        self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
-                       reqPDU.LongSubmitSm['msg_ref_num'])
+        if not throttle.is_on():
+            timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
+            #Save transaction
+            self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
+                'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
+                'nack_count' : reqPDU.LongSubmitSm['total_segments']}
+            self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
+                           reqPDU.LongSubmitSm['msg_ref_num'])
         return ackDeferred
 
     def closeLongSubmitSmTransaction(self, msg_ref_num):
