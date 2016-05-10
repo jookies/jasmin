@@ -175,6 +175,8 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         #Create callback deferred
         ackDeferred = defer.Deferred()
         #Create response timer
+        if throttle.is_on():
+            timeout += 60
         timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
         #Save transaction
         self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
