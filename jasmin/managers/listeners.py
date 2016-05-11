@@ -257,14 +257,16 @@ class SMPPClientSMListener(object):
                         message, delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
 
+            if throttle.is_on():
+                yield self.rejectAndRequeueMessage(message, delay=True)
+                defer.returnValue(False)
+
             # Finally: send the sms !
             self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s]",
                            msgid, self.SMPPClientFactory.config.id)
             d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
-            if throttle.is_on():
-                reactor.callLater(60, d.callback, self.submit_sm_resp_event, message)
-            else:
-                d.addCallback(self.submit_sm_resp_event, message)
+            # reactor.callLater(60, d.callback, self.submit_sm_resp_event, message)
+            d.addCallback(self.submit_sm_resp_event, message)
             yield d
         except SMPPRequestTimoutError:
             self.log.error("SubmitSmPDU[%s] request timed out through [cid:%s], message requeued.",
