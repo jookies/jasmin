@@ -258,6 +258,8 @@ class SMPPClientSMListener(object):
                     defer.returnValue(False)
 
             if throttle.is_on():
+                self.log.debug("Throttle is on, reject SubmitSmPDU[%s] through SMPPClientFactory [cid:%s]",
+                               msgid, self.SMPPClientFactory.config.id)
                 yield self.rejectAndRequeueMessage(message, delay=True)
                 defer.returnValue(False)
 

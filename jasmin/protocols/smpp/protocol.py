@@ -79,6 +79,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
         if pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
+                self.log.debug("Set throttle")
                 throttle.on()
                 self.factory.stats.inc('throttling_error_count')
             elif pdu.status != CommandStatus.ESME_ROK:
