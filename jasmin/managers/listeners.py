@@ -440,7 +440,7 @@ class SMPPClientSMListener(object):
                         # Map received submit_sm_resp's message_id to the msg for later receipt handling
                         self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                        r.response.params['message_id'], msgid, dlr_expiry)
-                        hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
+                        hashKey = "queue-msgid:%s" % r.response.params['message_id']
                         hashValues = {'msgid': msgid, 'connector_type': 'httpapi',}
                         yield self.redisClient.hmset(hashKey, hashValues)
                         yield self.redisClient.expire(hashKey, dlr_expiry)
@@ -485,7 +485,7 @@ class SMPPClientSMListener(object):
                             # Map received submit_sm_resp's message_id to the msg for later rceipt handling
                             self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                            r.response.params['message_id'], msgid, smpps_map_expiry)
-                            hashKey = "queue-msgid:%s" % r.response.params['message_id'].upper().lstrip('0')
+                            hashKey = "queue-msgid:%s" % r.response.params['message_id']
                             hashValues = {'msgid': msgid, 'connector_type': 'smppsapi',}
                             yield self.redisClient.hmset(hashKey, hashValues)
                             yield self.redisClient.expire(hashKey, smpps_map_expiry)
@@ -597,19 +597,19 @@ class SMPPClientSMListener(object):
         try:
             if pdu.id == CommandId.deliver_sm:
                 if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
-                    ret = ('%x' % int(pdu.dlr['id'])).upper().lstrip('0')
+                    ret = ('%x' % int(pdu.dlr['id']))
                 elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
                     ret = int(str(pdu.dlr['id']), 16)
                 else:
-                    ret = str(pdu.dlr['id']).upper().lstrip('0')
+                    ret = str(pdu.dlr['id'])
             else:
                 # TODO: code dlr for submit_sm_resp maybe ? TBC
-                ret = str(pdu.dlr['id']).upper().lstrip('0')
+                ret = str(pdu.dlr['id'])
         except Exception, e:
             self.log.error('code_dlr_msgid, cannot code msgid [%s] with dlr_msg_id_bases:%s',
                            pdu.dlr['id'], self.SMPPClientFactory.config.dlr_msg_id_bases)
             self.log.error('code_dlr_msgid, error details: %s', e)
-            ret = str(pdu.dlr['id']).upper().lstrip('0')
+            ret = str(pdu.dlr['id'])
 
         self.log.debug('code_dlr_msgid: %s coded to %s', pdu.dlr['id'], ret)
         return ret
