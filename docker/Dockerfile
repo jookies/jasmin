@@ -1,6 +1,6 @@
 FROM debian:jessie
 
-MAINTAINER Jookies LTD <jasmin@jookies.net>
+MAINTAINER neowisard <kutuzovnick@gmail.com>
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
@@ -14,25 +14,22 @@ RUN apt-get update && apt-get install -y \
     python-dev \
     libffi-dev \
     libssl-dev \
-    rabbitmq-server \
-    redis-server \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Jasmin SMS gateway
-RUN mkdir -p /etc/jasmin/resource \
-    /etc/jasmin/store \
-    /var/log/jasmin \
-  && chown jasmin:jasmin /etc/jasmin/store \
-    /var/log/jasmin \
-  && pip install --pre jasmin=="$JASMIN_VERSION"
+RUN mkdir -p /var/log/jasmin \
+  && chown jasmin:jasmin /var/log/jasmin \
+  && pip install xlrd \
+  && pip install redis \
+  && pip install --upgrade pyasn1 \
+  && pip install --upgrade twisted
 
-# Change binding host for jcli
-RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
-
-EXPOSE 2775 8990 1401
-VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
+EXPOSE 2775 8990
+VOLUME ["/var/log/jasmin","/etc/jasmin","/usr/local/lib/python2.7/dist-packages/jasmin"]
+ADD jasmin.tar.gz /usr/
+RUN cd /usr/jasmin && python setup.py install
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]
+CMD ["jasmind.py","-u","neo","-p","neo","--enable-interceptor-client","--disable-http-api","--disable-deliver-thrower"]
