@@ -259,7 +259,7 @@ class SMPPOperationFactory(object):
             short_message = r"id:%s sub:001 dlvrd:001 submit date:%s done date:%s stat:%s err:%03d text:" % (
                 msgid,
                 parser.parse(sub_date).strftime("%y%m%d%H%M"),
-                datetime.datetime.now().strftime("%y%m%d%H%M"),
+                datetime.datetime.utcnow().strftime("%y%m%d%H%M"),
                 #parser.parse(sub_date).strftime("%y%m%d%H%M%S000+"),
                 #datetime.datetime.utcnow().strftime("%y%m%d%H%M%S000+"),
                 sm_message_stat,
