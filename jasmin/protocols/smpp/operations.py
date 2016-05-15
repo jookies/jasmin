@@ -99,7 +99,11 @@ class SMPPOperationFactory(object):
             for pattern in patterns:
                 m = re.search(pattern, pdu.params['short_message'])
                 if m:
-                    ret.update(m.groupdict())
+                    key = m.groupdict().keys()[0]
+                    if (key not in ['id', 'stat']
+                            or (key == 'id' and 'id' not in ret)
+                            or (key == 'stat' and 'stat' not in ret)):
+                        ret.update(m.groupdict())
 
         # Should we consider this as a DLR ?
         if 'id' in ret and 'stat' in ret:
