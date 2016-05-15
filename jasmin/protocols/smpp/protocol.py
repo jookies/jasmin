@@ -15,6 +15,7 @@ from twisted.internet import defer, reactor
 from .error import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 from twisted.cred import error
+from jasmin.tools.throttle import throttle
 
 #@todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
@@ -78,6 +79,8 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
         if pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
+                self.log.debug("Set throttle")
+                throttle.on()
                 self.factory.stats.inc('throttling_error_count')
             elif pdu.status != CommandStatus.ESME_ROK:
                 self.factory.stats.inc('other_submit_error_count')

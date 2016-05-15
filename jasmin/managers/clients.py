@@ -2,8 +2,9 @@ import logging
 import cPickle as pickle
 import time
 import datetime
+
 from twisted.spread import pb
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from logging.handlers import TimedRotatingFileHandler
 import jasmin
 from jasmin.protocols.smpp.services import SMPPClientService
@@ -14,6 +15,7 @@ from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
+from jasmin.tools.throttle import throttle
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -584,6 +586,15 @@ class SMPPClientManagerPB(pb.Avatar):
             priority=priority,
             expiration=validity_period,
             source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi')
+        '''
+        if throttle.is_on():
+            reactor.callLater(60.0,
+                              self.amqpBroker.publish,
+                              exchange='messaging',
+                              routing_key=pubQueueName,
+                              content=c)
+        else:
+        '''
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
         if source_connector == 'httpapi' and dlr_url is not None:

@@ -68,15 +68,7 @@ class SMPPOperationFactory(object):
         # be considered as a DLR even when they are not set !
         ret = {'dlvrd': 'ND', 'sub': 'ND', 'sdate': 'ND', 'ddate': 'ND', 'err': 'ND', 'text': ''}
 
-        # 1.Looking for optional parameters
-        ###################################
-        if 'receipted_message_id' in pdu.params and 'message_state' in pdu.params:
-            ret['id'] = pdu.params['receipted_message_id']
 
-            if pdu.params['message_state'] in message_state_map:
-                ret['stat'] = message_state_map[pdu.params['message_state']]
-            else:
-                ret['stat'] = 'UNKNOWN'
 
         # 2.Message content parsing if short_message exists:
         ####################################################
@@ -100,6 +92,16 @@ class SMPPOperationFactory(object):
                 m = re.search(pattern, pdu.params['short_message'])
                 if m:
                     ret.update(m.groupdict())
+
+        # 1.Looking for optional parameters
+        ###################################
+        if 'receipted_message_id' in pdu.params:
+            ret['id'] = pdu.params['receipted_message_id']
+        if 'message_state' in pdu.params:
+            if pdu.params['message_state'] in message_state_map:
+                ret['stat'] = message_state_map[pdu.params['message_state']]
+            else:
+                ret['stat'] = 'UNKNOWN'
 
         # Should we consider this as a DLR ?
         if 'id' in ret and 'stat' in ret:
@@ -214,7 +216,7 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date, text):
         "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
         sm_message_stat = message_status
@@ -254,12 +256,15 @@ class SMPPOperationFactory(object):
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+            short_message = r"id:%s sub:001 dlvrd:001 submit date:%s done date:%s stat:%s err:%03d text:%s" % (
                 msgid,
-                parser.parse(sub_date).strftime("%Y%m%d%H%M"),
-                datetime.datetime.now().strftime("%Y%m%d%H%M"),
+                parser.parse(sub_date).strftime("%y%m%d%H%M"),
+                datetime.datetime.utcnow().strftime("%y%m%d%H%M"),
+                #parser.parse(sub_date).strftime("%y%m%d%H%M%S000+"),
+                #datetime.datetime.utcnow().strftime("%y%m%d%H%M%S000+"),
                 sm_message_stat,
                 err,
+                text,
             )
 
             # Build DeliverSM pdu
