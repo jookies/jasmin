@@ -216,7 +216,7 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date, text):
         "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
         sm_message_stat = message_status
@@ -256,7 +256,7 @@ class SMPPOperationFactory(object):
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            short_message = r"id:%s sub:001 dlvrd:001 submit date:%s done date:%s stat:%s err:%03d text:" % (
+            short_message = r"id:%s sub:001 dlvrd:001 submit date:%s done date:%s stat:%s err:%03d text:%s" % (
                 msgid,
                 parser.parse(sub_date).strftime("%y%m%d%H%M"),
                 datetime.datetime.utcnow().strftime("%y%m%d%H%M"),
@@ -264,6 +264,7 @@ class SMPPOperationFactory(object):
                 #datetime.datetime.utcnow().strftime("%y%m%d%H%M%S000+"),
                 sm_message_stat,
                 err,
+                text,
             )
 
             # Build DeliverSM pdu
