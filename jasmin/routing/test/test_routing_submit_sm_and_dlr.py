@@ -1232,7 +1232,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
     @defer.inlineCallbacks
     def test_receipt_with_leading_zeros(self):
-        "Related to #408"
+        "Related to #408, #423"
 
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
@@ -1244,7 +1244,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Tell the SMSCPort to response with the defined MsgId
-        self.SMSCPort.factory.lastClient.nextResponseMsgId = '023'
+        self.SMSCPort.factory.lastClient.nextResponseMsgId = '04062581461565934000241'
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1261,7 +1261,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
 
         # Trigger receipt with an unknown id
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id='23')
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id='4062581461565934000241')
 
         # Wait some time before testing
         yield waitFor(0.5)
