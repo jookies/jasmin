@@ -80,7 +80,9 @@ class Send(Resource):
             # Prepare for interception then routing
             routedConnector = None # init
             routable = RoutableSubmitSm(SubmitSmPDU, user)
-
+            if 'tags' in updated_request.args:
+                for tag in updated_request.args['tags']:
+                    routable.addTag(int(tag))
             # Intercept
             interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
             if interceptor is not None:
@@ -113,7 +115,6 @@ class Send(Resource):
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Failed running interception script, got the following return: %s', r)
                     raise InterceptorRunError(message='Failed running interception script, check log for details')
-
             # Get the route
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
@@ -309,6 +310,7 @@ class Send(Resource):
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
+                      'tags': {'optional': True},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -520,7 +522,7 @@ class Rate(Resource):
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'content'     : {'optional': True},
+                      'content'     : {'optional': True}
                       }
 
             # Default coding is 0 when not provided
