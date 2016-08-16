@@ -43,7 +43,7 @@ class InterceptorPB(pb.Avatar):
                           routable.pdu.params['source_addr'],
                           routable.pdu.params['destination_addr'])
             self.log.debug('Running [%s]', pyCode)
-            self.log.debug('... with routable with pdu: %s', routable.pdu)
+            self.log.debug('... having routable with pdu: %s', routable.pdu)
             node = CompiledNode().get(pyCode)
             glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status}
 
