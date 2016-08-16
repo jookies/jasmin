@@ -51,6 +51,8 @@ class InterceptorPB(pb.Avatar):
             start = dt.datetime.now()
             eval(node, {}, glo)
             end = dt.datetime.now()
+            delay = (end - start).seconds
+            self.log.debug('... took %s seconds.', delay)
         except Exception, e:
             self.log.error('Executing script on routable (from:%s, to:%s) returned: %s',
                            routable.pdu.params['source_addr'],
@@ -58,7 +60,6 @@ class InterceptorPB(pb.Avatar):
                            '%s: %s' % (type(e), e))
             return False
         else:
-            delay = (end - start).seconds
             if self.config.log_slow_script >= 0 and delay >= self.config.log_slow_script:
                 self.log.warn('Execution delay [%ss] for script [%s].', delay, pyCode)
 
