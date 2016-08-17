@@ -440,7 +440,11 @@ class SMPPClientSMListener(object):
                     self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
 
                     system_id = dlr['system_id']
+                    source_addr_ton = dlr['source_addr_ton']
+                    source_addr_npi = dlr['source_addr_npi']
                     source_addr = str(dlr['source_addr'])
+                    dest_addr_ton = dlr['dest_addr_ton']
+                    dest_addr_npi = dlr['dest_addr_npi']
                     destination_addr = str(dlr['destination_addr'])
                     sub_date = dlr['sub_date']
                     registered_delivery_receipt = dlr['rd_receipt']
@@ -459,12 +463,10 @@ class SMPPClientSMListener(object):
                                 or (r.response.status == CommandStatus.ESME_ROK
                                 and self.config.smpp_receipt_on_success_submit_sm_resp)):
                             # Send back a receipt (by throwing deliver_sm or data_sm)
-                            content = DLRContentForSmpps(str(r.response.status),
-                                                         msgid,
-                                                         system_id,
-                                                         source_addr,
-                                                         destination_addr,
-                                                         sub_date)
+                            content = DLRContentForSmpps(str(r.response.status), system_id,
+                                                         source_addr, destination_addr, sub_date,
+                                                         source_addr_ton, source_addr_npi,
+                                                         dest_addr_ton, dest_addr_npi)
 
                             routing_key = 'dlr_thrower.smpps'
                             self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",
@@ -847,7 +849,11 @@ class SMPPClientSMListener(object):
                     elif submit_sm_queue_id is not None and connector_type == 'smppsapi':
                         if len(dlr) > 0:
                             system_id = dlr['system_id']
+                            source_addr_ton = dlr['source_addr_ton']
+                            source_addr_npi = dlr['source_addr_npi']
                             source_addr = str(dlr['source_addr'])
+                            dest_addr_ton = dlr['dest_addr_ton']
+                            dest_addr_npi = dlr['dest_addr_npi']
                             destination_addr = str(dlr['destination_addr'])
                             sub_date = dlr['sub_date']
                             registered_delivery_receipt = dlr['rd_receipt']
@@ -865,7 +871,9 @@ class SMPPClientSMListener(object):
                                     submit_sm_queue_id, registered_delivery_receipt, system_id)
 
                                 content = DLRContentForSmpps(pdu.dlr['stat'], submit_sm_queue_id, system_id,
-                                                             source_addr, destination_addr, sub_date)
+                                                             source_addr, destination_addr, sub_date,
+                                                             source_addr_ton, source_addr_npi,
+                                                             dest_addr_ton, dest_addr_npi)
 
                                 routing_key = 'dlr_thrower.smpps'
                                 self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",

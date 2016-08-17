@@ -7,7 +7,7 @@ import dateutil.parser as parser
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
-                                              MoreMessagesToSend, MessageState)
+                                              MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
 message_state_map = {
     MessageState.ACCEPTED:      'ACCEPTD',
@@ -218,7 +218,8 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date,
+                   source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
         sm_message_stat = message_status
@@ -274,6 +275,10 @@ class SMPPOperationFactory(object):
                 receipted_message_id=msgid,
                 short_message=short_message,
                 message_state=message_state,
+                source_addr_ton=getattr(AddrTon, dest_addr_ton),
+                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
+                dest_addr_ton=getattr(AddrTon, source_addr_ton),
+                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
             )
         else:
             # Build DataSM pdu
@@ -283,6 +288,10 @@ class SMPPOperationFactory(object):
                 esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id=msgid,
                 message_state=message_state,
+                source_addr_ton=getattr(AddrTon, dest_addr_ton),
+                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
+                dest_addr_ton=getattr(AddrTon, source_addr_ton),
+                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
             )
 
         return pdu

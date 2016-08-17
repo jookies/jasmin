@@ -447,6 +447,10 @@ class DLRThrower(Thrower):
         source_addr = '%s' % message.content.properties['headers']['source_addr']
         destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
+        source_addr_ton = message.content.properties['headers']['source_addr_ton']
+        source_addr_npi = message.content.properties['headers']['source_addr_npi']
+        dest_addr_ton = message.content.properties['headers']['dest_addr_ton']
+        dest_addr_npi = message.content.properties['headers']['dest_addr_npi']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
         # If any, clear requeuing timer
@@ -469,7 +473,11 @@ class DLRThrower(Thrower):
                                             source_addr=source_addr,
                                             destination_addr=destination_addr,
                                             message_status=message_status,
-                                            sub_date=sub_date)
+                                            sub_date=sub_date,
+                                            source_addr_ton=source_addr_ton,
+                                            source_addr_npi=source_addr_npi,
+                                            dest_addr_ton=dest_addr_ton,
+                                            dest_addr_npi=dest_addr_npi)
 
             # Deliver (or throw) the receipt through the deliverer
             yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)

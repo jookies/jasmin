@@ -626,7 +626,11 @@ class SMPPClientManagerPB(pb.Avatar):
                 hashKey = "dlr:%s" % (c.properties['message-id'])
                 hashValues = {'sc': 'smppsapi',
                               'system_id': source_connector.system_id,
+                              'source_addr_ton': SubmitSmPDU.params['source_addr_ton'],
+                              'source_addr_npi': SubmitSmPDU.params['source_addr_npi'],
                               'source_addr': SubmitSmPDU.params['source_addr'],
+                              'dest_addr_ton': SubmitSmPDU.params['dest_addr_ton'],
+                              'dest_addr_npi': SubmitSmPDU.params['dest_addr_npi'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'sub_date': datetime.datetime.now(),
                               'rd_receipt': '%s' % SubmitSmPDU.params['registered_delivery'].receipt,

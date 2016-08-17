@@ -1185,6 +1185,102 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
+    def test_receipt_with_correct_ton_npi(self):
+        """It's been reported that source and destination ton/npi are not taken from original submit_sm when
+		delivering dlr
+        Related to #448
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['source_addr_ton'] = AddrTon.NATIONAL
+        SubmitSmPDU.params['source_addr_npi'] = AddrNpi.ISDN
+        SubmitSmPDU.params['dest_addr_ton'] = AddrTon.INTERNATIONAL
+        SubmitSmPDU.params['dest_addr_npi'] = AddrNpi.INTERNET
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Trigger DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD')
+
+        # Wait some time before testing
+        yield waitFor(0.5)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        dlr_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        # assert correct ton/npi are transmitted to downstream (reversed from submit_sm)
+        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params['dest_addr_ton'])
+        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params['dest_addr_npi'])
+        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params['source_addr_ton'])
+        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+    @defer.inlineCallbacks
+    def test_receipt_data_sm_with_correct_ton_npi(self):
+        """It's been reported that source and destination ton/npi are not taken from original submit_sm when
+		delivering dlr
+        Related to #448
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['source_addr_ton'] = AddrTon.NATIONAL
+        SubmitSmPDU.params['source_addr_npi'] = AddrNpi.ISDN
+        SubmitSmPDU.params['dest_addr_ton'] = AddrTon.INTERNATIONAL
+        SubmitSmPDU.params['dest_addr_npi'] = AddrNpi.INTERNET
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Trigger DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD', pdu_type = 'data_sm')
+
+        # Wait some time before testing
+        yield waitFor(0.5)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        dlr_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
+        # assert correct ton/npi are transmitted to downstream (reversed from submit_sm)
+        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params['dest_addr_ton'])
+        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params['dest_addr_npi'])
+        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params['source_addr_ton'])
+        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
+        # smpps last response was a unbind_resp
+        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
+        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+    @defer.inlineCallbacks
     def test_receipt_with_SAR_prefix(self):
         "Related to #418"
 
