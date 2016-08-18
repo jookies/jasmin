@@ -651,7 +651,11 @@ class SubaddressEncoder(OctetStringEncoder):
         if len(bytes) < 2:
             raise PDUParseError("Invalid subaddress size %s" % len(bytes), pdu_types.CommandStatus.ESME_RINVOPTPARAMVAL)
 
-        typeTag = self.typeTagEncoder._decode(bytes[0])
+        try:
+            typeTag = self.typeTagEncoder._decode(bytes[0])
+        except PDUParseError as e:
+            typeTag = 'RESERVED'
+
         value = OctetStringEncoder(self.getSize() - 1)._decode(bytes[1:])
         return pdu_types.Subaddress(typeTag, value)
 
