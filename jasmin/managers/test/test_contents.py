@@ -11,6 +11,7 @@ from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent,
                                      DeliverSmContent, SubmitSmRespBillContent,
                                      DLRContentForHttpapi, DLRContentForSmpps,
                                      InvalidParameterError)
+from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
 
 class ContentTestCase(TestCase):
     body = 'TESTBODY'
@@ -183,17 +184,26 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         source_addr = '999'
         destination_addr = '111'
         sub_date = datetime.now()
+        source_addr_ton = AddrTon.NATIONAL
+        source_addr_npi = AddrNpi.ISDN
+        dest_addr_ton = AddrTon.NATIONAL
+        dest_addr_npi = AddrNpi.ISDN
 
-        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date)
+        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date,
+                               source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
 
         self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 6)
+        self.assertEquals(len(c['headers']), 10)
         self.assertEquals(c['headers']['try-count'], 0)
         self.assertEquals(c['headers']['message_status'], message_status)
         self.assertEquals(c['headers']['system_id'], system_id)
         self.assertEquals(c['headers']['source_addr'], source_addr)
         self.assertEquals(c['headers']['destination_addr'], destination_addr)
         self.assertEquals(c['headers']['sub_date'], str(sub_date))
+        self.assertEquals(c['headers']['source_addr_ton'], AddrTon.NATIONAL)
+        self.assertEquals(c['headers']['source_addr_npi'], AddrNpi.ISDN)
+        self.assertEquals(c['headers']['dest_addr_ton'], AddrTon.NATIONAL)
+        self.assertEquals(c['headers']['dest_addr_npi'], AddrNpi.ISDN)
 
     def test_message_status(self):
         msgid = 'msgid'
@@ -201,16 +211,23 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         source_addr = '999'
         destination_addr = '111'
         sub_date = datetime.now()
+        source_addr_ton = AddrTon.NATIONAL
+        source_addr_npi = AddrNpi.ISDN
+        dest_addr_ton = AddrTon.NATIONAL
+        dest_addr_npi = AddrNpi.ISDN
 
         validStatuses = ['ESME_ROK', 'DELIVRD', 'EXPIRED', 'DELETED',
                                   'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
 
         for status in validStatuses:
-            c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr, sub_date)
+            c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr, sub_date,
+                                   source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
 
             self.assertEquals(c['headers']['message_status'], status)
 
-        self.assertRaises(InvalidParameterError, DLRContentForSmpps, 'anystatus', msgid, system_id, source_addr, destination_addr, sub_date)
+        self.assertRaises(InvalidParameterError, DLRContentForSmpps,
+                          'anystatus', msgid, system_id, source_addr, destination_addr, sub_date,
+                          source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
 
 class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
