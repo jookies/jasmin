@@ -463,7 +463,7 @@ class SMPPClientSMListener(object):
                                 or (r.response.status == CommandStatus.ESME_ROK
                                 and self.config.smpp_receipt_on_success_submit_sm_resp)):
                             # Send back a receipt (by throwing deliver_sm or data_sm)
-                            content = DLRContentForSmpps(str(r.response.status), system_id,
+                            content = DLRContentForSmpps(str(r.response.status), msgid, system_id,
                                                          source_addr, destination_addr, sub_date,
                                                          source_addr_ton, source_addr_npi,
                                                          dest_addr_ton, dest_addr_npi)
