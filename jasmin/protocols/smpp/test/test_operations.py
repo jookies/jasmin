@@ -283,7 +283,11 @@ class ReceiptCreationTestCases(OperationsTest):
                 'JASMIN',
                 '06155423',
                 'ANY_STATus',
-                '2017-07-19 17:50:12')
+                '2017-07-19 17:50:12',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN')
 
     def test_deliver_sm(self):
         for message_state, _test in self.message_state_map.iteritems():
@@ -293,7 +297,11 @@ class ReceiptCreationTestCases(OperationsTest):
                 'JASMIN',
                 '06155423',
                 message_state,
-                '2017-07-19 17:50:12')
+                '2017-07-19 17:50:12',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN')
 
             self.assertEquals(pdu.params['message_state'], _test['state'])
             self.assertTrue('stat:%s' % _test['sm'] in pdu.params['short_message'])
@@ -305,7 +313,11 @@ class ReceiptCreationTestCases(OperationsTest):
             'JASMIN',
             '06155423',
             'ESME_RTHROTTLED',
-            '2017-07-19 17:50:12')
+            '2017-07-19 17:50:12',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN')
 
         self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)
         self.assertTrue('stat:UNDELIV' in pdu.params['short_message'])
@@ -318,7 +330,11 @@ class ReceiptCreationTestCases(OperationsTest):
                 'JASMIN',
                 '06155423',
                 message_state,
-                '2017-07-19 17:50:12')
+                '2017-07-19 17:50:12',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN')
 
             self.assertEquals(pdu.params['message_state'], _test['state'])
 
@@ -329,6 +345,10 @@ class ReceiptCreationTestCases(OperationsTest):
             'JASMIN',
             '06155423',
             'ESME_RTHROTTLED',
-            '2017-07-19 17:50:12')
+            '2017-07-19 17:50:12',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN')
 
         self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)
