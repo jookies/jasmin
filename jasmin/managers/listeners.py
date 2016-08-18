@@ -48,12 +48,14 @@ def SubmitSmPDUUpdate(fCallback):
                     _pdu = SubmitSmPDU
 
                     # Set param in main pdu
-                    _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
+                    if _pdu.params[param] is None:
+                        _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
 
                     # Set param in sub-pdus (multipart use case)
                     while hasattr(_pdu, 'nextPdu'):
                         _pdu = _pdu.nextPdu
-                        _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
+                        if _pdu.params[param] is None:
+                            _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
 
         return fCallback(self, message, SubmitSmPDU)
     return update_submit_sm_pdu
