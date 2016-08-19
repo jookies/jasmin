@@ -141,7 +141,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
     def test_connector_source_addr_ton(self):
         "Related to #104"
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(source_addr_ton = AddrTon.ABBREVIATED)
+        yield self.prepareRoutingsAndStartConnector()
 
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
@@ -157,13 +157,13 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
-            'ABBREVIATED')
+            'NATIONAL')
 
     @defer.inlineCallbacks
     def test_connector_source_addr_ton_long_message(self):
         "Related to #104, will check if all parts of long message will get the same source_addr_ton"
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(source_addr_ton = AddrTon.ABBREVIATED)
+        yield self.prepareRoutingsAndStartConnector()
 
         self.params['content'] = composeMessage({'_'}, 200)
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
@@ -180,9 +180,9 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
-            'ABBREVIATED')
+            'NATIONAL')
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton']),
-            'ABBREVIATED')
+            'NATIONAL')
 
 class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
