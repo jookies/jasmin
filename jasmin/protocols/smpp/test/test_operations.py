@@ -12,7 +12,7 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 class OperationsTest(TestCase):
     def setUp(self):
         self.opFactory = SMPPOperationFactory(SMPPClientConfig(id='test-id'))
-        
+
 
 class SubmitTest(OperationsTest):
     source_addr         = '20203060'
@@ -39,7 +39,7 @@ class SubmitTest(OperationsTest):
         self.assertEquals(pdu.status, CommandStatus.ESME_ROK)
         self.assertEquals(pdu.params['destination_addr'], self.destination_addr)
         self.assertEquals(pdu.params['source_addr'], self.source_addr)
-        
+
         return pdu
 
     def test_encode_latin1(self):
@@ -49,7 +49,7 @@ class SubmitTest(OperationsTest):
         """
 
         sm = binascii.a2b_hex(self.latin1_sm)
-        pdu = self.buildSubmitSmTest(sm)        
+        pdu = self.buildSubmitSmTest(sm)
 
         # SM shall not be altered since it is not sliced (not too long)
         self.assertEquals(pdu.params['short_message'], sm)
@@ -62,21 +62,21 @@ class SubmitTest(OperationsTest):
 
         sm = binascii.a2b_hex(self.latin1_long_sm)
         pdu = self.buildSubmitSmTest(sm)
-        
+
         # The first PDU shall have a next one
         self.assertTrue(isinstance(pdu.nextPdu, SubmitSM))
         # These UDH parameters shall be present in all PDUs
         self.assertTrue(pdu.params['sar_msg_ref_num'] > 0)
         self.assertTrue(pdu.params['sar_total_segments'] > 0)
         self.assertTrue(pdu.params['sar_segment_seqnum'] > 0)
-        
+
         # Iterating through sliced PDUs
         partedSmPdu = pdu
         assembledSm= ''
         lastSeqNum = 0
         while True:
             assembledSm += partedSmPdu.params['short_message']
-            
+
             self.assertTrue(partedSmPdu.params['sar_msg_ref_num'] == pdu.params['sar_msg_ref_num'])
             self.assertTrue(partedSmPdu.params['sar_total_segments'] == pdu.params['sar_total_segments'])
             self.assertTrue(partedSmPdu.params['sar_segment_seqnum'] > lastSeqNum)
@@ -86,10 +86,10 @@ class SubmitTest(OperationsTest):
                 partedSmPdu = partedSmPdu.nextPdu
             except AttributeError:
                 break
-            
+
         # Assembled SM shall be equal to the original SM
         self.assertEquals(assembledSm, sm)
-        
+
         # The last seqNum shall be equal to total segments
         self.assertEquals(lastSeqNum, pdu.params['sar_total_segments'])
 
@@ -101,7 +101,7 @@ class DeliveryParsingTest(OperationsTest):
             destination_addr='4567',
             short_message='id:1891273321 sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:DELIVRD err:000 text:DLVRD TO MOBILE',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], '1891273321')
@@ -119,7 +119,7 @@ class DeliveryParsingTest(OperationsTest):
             destination_addr='4567',
             short_message='id:1891273321 sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:DELIVRD err:000 text:',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], '1891273321')
@@ -140,7 +140,7 @@ class DeliveryParsingTest(OperationsTest):
             destination_addr='4567',
             short_message='id:a29f6845555647139e5c8f3b817f2c9a sub:001 dlvrd:001 submit date:141023215253 done date:141023215259 stat:DELIVRD err:000 text:HOLA',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], 'a29f6845555647139e5c8f3b817f2c9a')
@@ -161,7 +161,7 @@ class DeliveryParsingTest(OperationsTest):
             destination_addr='4567',
             short_message='id:4a38dc46-5125-4969-90be-72104c340d5c sub:001 dlvrd:001 submit date:150519232657 done date:150519232657 stat:DELIVRD err:000 text:-',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], '4a38dc46-5125-4969-90be-72104c340d5c')
@@ -182,7 +182,7 @@ class DeliveryParsingTest(OperationsTest):
             destination_addr='4567',
             short_message='id:c87c2273-7edb-4bc7-8d3a-7f57f21b625e submit date:201506201641 done date:201506201641 stat:DELIVRD err:000',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], 'c87c2273-7edb-4bc7-8d3a-7f57f21b625e')
@@ -203,7 +203,7 @@ class DeliveryParsingTest(OperationsTest):
             message_state=MessageState.DELIVERED,
             receipted_message_id='362d9701',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], '362d9701')
@@ -223,7 +223,7 @@ class DeliveryParsingTest(OperationsTest):
             message_state=MessageState.DELIVERED,
             receipted_message_id='362d9701',
         )
-        
+
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
         self.assertEquals(isDlr['id'], '362d9701')
@@ -234,6 +234,34 @@ class DeliveryParsingTest(OperationsTest):
         self.assertEquals(isDlr['stat'], 'DELIVRD')
         self.assertEquals(isDlr['err'], 'ND')
         self.assertEquals(isDlr['text'], '')
+
+    def test_take_msgid_from_tlv_first(self):
+        """Related to #427
+        When reciept_message_id is provided in short_message and in TLV param, consider the latter"""
+        pdu = DataSM(
+            source_addr='24206155423',
+            destination_addr='JOOKIES',
+            message_state=MessageState.DELIVERED,
+            receipted_message_id='6000',
+            short_message='id:5000 submit date:201506201641 done date:201506201641 stat:DELIVRD err:000',
+        )
+
+        isDlr = self.opFactory.isDeliveryReceipt(pdu)
+        self.assertEquals(isDlr['id'], '6000')
+
+    def test_take_message_state_from_tlv_first(self):
+        """Related to #427
+        When message_state is provided in short_message and in TLV param, consider the latter"""
+        pdu = DataSM(
+            source_addr='24206155423',
+            destination_addr='JOOKIES',
+            message_state=MessageState.ACCEPTED,
+            receipted_message_id='5000',
+            short_message='id:5000 submit date:201506201641 done date:201506201641 stat:DELIVRD err:000',
+        )
+
+        isDlr = self.opFactory.isDeliveryReceipt(pdu)
+        self.assertEquals(isDlr['stat'], 'ACCEPTD')
 
 class ReceiptCreationTestCases(OperationsTest):
     message_state_map = {
@@ -249,35 +277,47 @@ class ReceiptCreationTestCases(OperationsTest):
 
     def test_unknown_message_state(self):
         for dlr_pdu in ['deliver_sm', 'data_sm']:
-            self.assertRaises(UnknownMessageStatusError, self.opFactory.getReceipt, 
+            self.assertRaises(UnknownMessageStatusError, self.opFactory.getReceipt,
                 dlr_pdu,
                 'anyid',
                 'JASMIN',
                 '06155423',
                 'ANY_STATus',
-                '2017-07-19 17:50:12')
+                '2017-07-19 17:50:12',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN')
 
     def test_deliver_sm(self):
         for message_state, _test in self.message_state_map.iteritems():
             pdu = self.opFactory.getReceipt(
-                'deliver_sm', 
+                'deliver_sm',
                 'anyid',
                 'JASMIN',
                 '06155423',
                 message_state,
-                '2017-07-19 17:50:12')
+                '2017-07-19 17:50:12',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN')
 
             self.assertEquals(pdu.params['message_state'], _test['state'])
             self.assertTrue('stat:%s' % _test['sm'] in pdu.params['short_message'])
 
         # Test other ESME_* states:
         pdu = self.opFactory.getReceipt(
-            'deliver_sm', 
+            'deliver_sm',
             'anyid',
             'JASMIN',
             '06155423',
             'ESME_RTHROTTLED',
-            '2017-07-19 17:50:12')
+            '2017-07-19 17:50:12',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN')
 
         self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)
         self.assertTrue('stat:UNDELIV' in pdu.params['short_message'])
@@ -285,22 +325,30 @@ class ReceiptCreationTestCases(OperationsTest):
     def test_data_sm(self):
         for message_state, _test in self.message_state_map.iteritems():
             pdu = self.opFactory.getReceipt(
-                'data_sm', 
+                'data_sm',
                 'anyid',
                 'JASMIN',
                 '06155423',
                 message_state,
-                '2017-07-19 17:50:12')
+                '2017-07-19 17:50:12',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN',
+                'UNKNOWN')
 
             self.assertEquals(pdu.params['message_state'], _test['state'])
 
         # Test other ESME_* states:
         pdu = self.opFactory.getReceipt(
-            'data_sm', 
+            'data_sm',
             'anyid',
             'JASMIN',
             '06155423',
             'ESME_RTHROTTLED',
-            '2017-07-19 17:50:12')
+            '2017-07-19 17:50:12',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN',
+            'UNKNOWN')
 
         self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)

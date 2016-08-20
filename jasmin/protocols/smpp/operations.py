@@ -7,7 +7,7 @@ import dateutil.parser as parser
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
-                                              MoreMessagesToSend, MessageState)
+                                              MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
 message_state_map = {
     MessageState.ACCEPTED:      'ACCEPTD',
@@ -99,7 +99,11 @@ class SMPPOperationFactory(object):
             for pattern in patterns:
                 m = re.search(pattern, pdu.params['short_message'])
                 if m:
-                    ret.update(m.groupdict())
+                    key = m.groupdict().keys()[0]
+                    if (key not in ['id', 'stat']
+                            or (key == 'id' and 'id' not in ret)
+                            or (key == 'stat' and 'stat' not in ret)):
+                        ret.update(m.groupdict())
 
         # Should we consider this as a DLR ?
         if 'id' in ret and 'stat' in ret:
@@ -214,7 +218,8 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date):
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date,
+                   source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
 
         sm_message_stat = message_status
@@ -270,6 +275,10 @@ class SMPPOperationFactory(object):
                 receipted_message_id=msgid,
                 short_message=short_message,
                 message_state=message_state,
+                source_addr_ton=getattr(AddrTon, dest_addr_ton),
+                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
+                dest_addr_ton=getattr(AddrTon, source_addr_ton),
+                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
             )
         else:
             # Build DataSM pdu
@@ -279,6 +288,10 @@ class SMPPOperationFactory(object):
                 esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id=msgid,
                 message_state=message_state,
+                source_addr_ton=getattr(AddrTon, dest_addr_ton),
+                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
+                dest_addr_ton=getattr(AddrTon, source_addr_ton),
+                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
             )
 
         return pdu

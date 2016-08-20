@@ -651,7 +651,11 @@ class SubaddressEncoder(OctetStringEncoder):
         if len(bytes) < 2:
             raise PDUParseError("Invalid subaddress size %s" % len(bytes), pdu_types.CommandStatus.ESME_RINVOPTPARAMVAL)
 
-        typeTag = self.typeTagEncoder._decode(bytes[0])
+        try:
+            typeTag = self.typeTagEncoder._decode(bytes[0])
+        except PDUParseError as e:
+            typeTag = 'RESERVED'
+
         value = OctetStringEncoder(self.getSize() - 1)._decode(bytes[1:])
         return pdu_types.Subaddress(typeTag, value)
 
@@ -934,7 +938,7 @@ class PDUEncoder(IEncoder):
         },
         pdu_types.CommandId.deliver_sm: {
             'schedule_delivery_time': TimeEncoder(requireNull=True, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVSCHED),
-            'validity_period': TimeEncoder(requireNull=True, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVEXPIRY),
+            'validity_period': TimeEncoder(requireNull=False, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVEXPIRY),
         },
         pdu_types.CommandId.deliver_sm_resp: {
             'message_id': COctetStringEncoder(decodeNull=True, requireNull=True, decodeErrorStatus=pdu_types.CommandStatus.ESME_RINVMSGID),
