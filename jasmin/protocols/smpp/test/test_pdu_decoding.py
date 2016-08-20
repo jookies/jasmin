@@ -91,6 +91,18 @@ class PDUDecoderTest(unittest.TestCase):
         self.assertEquals('1453145654', str(pdu.seqNum))
         self.assertEquals('ESME_ROK', str(pdu.status))
 
+    def test_unknown_tag_value_0x2B(self):
+        """Related to #325 (deliver_sm) and discussed in
+        https://groups.google.com/forum/#!topic/jasmin-sms-gateway/o9iLEfqu8Rs"""
+
+        pduHex = '0000004600000005000000001f368007000101393839333437363930383738000201363937300080000000000000010004546573740202000d2b393839333437363930303030'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEquals('deliver_sm', str(pdu.id))
+        self.assertEquals('523665415', str(pdu.seqNum))
+        self.assertEquals('ESME_ROK', str(pdu.status))
+
     def test_unknown_tag_value_38636(self):
         "Related to #325 (submit_sm)"
 

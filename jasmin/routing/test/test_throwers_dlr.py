@@ -34,7 +34,7 @@ class DLRThrowerTestCases(unittest.TestCase):
         self.amqpBroker = AmqpFactory(AMQPServiceConfigInstance)
         yield self.amqpBroker.connect()
         yield self.amqpBroker.getChannelReadyDeferred()
-        
+
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
@@ -43,11 +43,11 @@ class DLRThrowerTestCases(unittest.TestCase):
         DLRThrowerConfigInstance.timeout = 2
         DLRThrowerConfigInstance.retry_delay = 1
         DLRThrowerConfigInstance.max_retries = 2
-        
+
         # Launch the DLRThrower
         self.DLRThrower = DLRThrower()
         self.DLRThrower.setConfig(DLRThrowerConfigInstance)
-        
+
         # Add the broker to the DLRThrower
         yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
 
@@ -76,21 +76,21 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.TimeoutLeafServer = reactor.listenTCP(0, server.Site(self.TimeoutLeafServerResource))
 
     @defer.inlineCallbacks
-    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '', 
+    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '',
                  dlvrd = '', subdate = '', donedate = '', err = '', text = '', method = 'POST', trycount = 0):
-        content = DLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc, sub, dlvrd, subdate, 
+        content = DLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc, sub, dlvrd, subdate,
                              donedate, err, text, method, trycount)
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.http', content=content)
 
     @defer.inlineCallbacks
     def tearDown(self):
         yield DLRThrowerTestCases.tearDown(self)
-        
+
         yield self.Error404Server.stopListening()
         yield self.AckServer.stopListening()
         yield self.NoAckServer.stopListening()
         yield self.TimeoutLeafServer.stopListening()
-        
+
     @defer.inlineCallbacks
     def test_throwing_http_connector_with_ack(self):
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
@@ -102,7 +102,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         yield waitFor(1)
-        
+
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
@@ -117,7 +117,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         yield waitFor(2)
-        
+
         # Retries must be made when ACK is not received
         self.assertTrue(self.NoAckServerResource.render_POST.call_count > 1)
 
@@ -132,9 +132,9 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         yield waitFor(9)
-        
+
         self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 3)
-        
+
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):
         """When receiving a 404 error, no further retries shall be made
@@ -148,9 +148,9 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
         yield waitFor(1)
-        
+
         self.assertEqual(self.Error404ServerResource.render_POST.call_count, 1)
-        
+
     @defer.inlineCallbacks
     def test_throwing_http_connector_dlr_level1(self):
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
@@ -162,7 +162,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, method = 'GET')
 
         yield waitFor(1)
-        
+
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
@@ -178,11 +178,11 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         dlr_level = 2
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3', 
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3',
                  dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text', method = 'GET')
 
         yield waitFor(1)
-        
+
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
@@ -208,11 +208,14 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.DLRThrower.config.max_retries = 2
 
     @defer.inlineCallbacks
-    def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date = None):
+    def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date=None,
+                                    source_addr_ton='UNKNOWN', source_addr_npi='UNKNOWN',
+                                    dest_addr_ton='UNKNOWN', dest_addr_npi='UNKNOWN'):
         if sub_date is None:
             sub_date = datetime.datetime.now()
 
-        content = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date)
+        content = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date,
+                                     source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.smpps', content=content)
 
     @defer.inlineCallbacks

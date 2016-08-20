@@ -164,6 +164,24 @@ class RunScriptTestCases(IntercentorPBProxyTestCase):
         self.assertEqual(64, r['smpp_status'])
 
     @defer.inlineCallbacks
+    def test_changing_service_type(self):
+        "Related to #445"
+        yield self.connect('127.0.0.1', self.ipbPort)
+
+        # This script will change pdu's service_type
+        script = InterceptorScript("routable.pdu.params['service_type'] = 'CMT'")
+
+        # Assert service_type is None before interception
+        self.assertIsNone(self.routable_simple.pdu.params['service_type'])
+
+        # Run script on routable_simple
+        r = yield self.run_script(script, self.routable_simple)
+        r = self.unpickle(r)
+
+        # Assert service_type is updated after interception
+        self.assertEqual('CMT', r.pdu.params['service_type'])
+
+    @defer.inlineCallbacks
     def test_slow_script_logging(self):
         lc = LogCapture("jasmin-interceptor")
 
@@ -171,12 +189,13 @@ class RunScriptTestCases(IntercentorPBProxyTestCase):
 
         # Log script with ~3s execution time
         yield self.run_script(self.script_3_second, self.routable_simple)
+
         # Assert last logged line:
-        lc.records[len(lc.records) - 1].getMessage().index('Execution delay [3s] for script [import time;time.sleep(3)].')
+        self.assertEqual('Execution delay [3s] for script [import time;time.sleep(3)].', lc.records[len(lc.records) - 1].getMessage())
 
         # Set threshold to 5s
         self.InterceptorPBConfigInstance.log_slow_script = 5
         # Dont log script with ~3s execution time
         yield self.run_script(self.script_3_second, self.routable_simple)
         # Assert last logged line:
-        lc.records[len(lc.records) - 1].getMessage().index('with routable with pdu: PDU')
+        self.assertEqual('... took 3 seconds.', lc.records[len(lc.records) - 1].getMessage())

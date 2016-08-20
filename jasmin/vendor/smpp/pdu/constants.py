@@ -544,6 +544,8 @@ subaddress_type_tag_name_map = {
     'NSAP_EVEN': 0x80,
     'NSAP_ODD': 0x88,
     'USER_SPECIFIED': 0xa0,
+    # Jasmin update: (#325)
+    'RESERVED': 0x00,
 }
 subaddress_type_tag_value_map = dict([(val, key) for (key, val) in subaddress_type_tag_name_map.items()])
 

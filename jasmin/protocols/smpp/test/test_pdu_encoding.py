@@ -223,7 +223,8 @@ class SubaddressEncoderTest(EncoderTest):
         self.do_conversion_test(SubaddressEncoder(4), Subaddress(SubaddressTypeTag.USER_SPECIFIED, value='742'), 'a0373432')
 
     def test_decode_invalid_type(self):
-        self.do_decode_parse_error_test(SubaddressEncoder(4).decode, CommandStatus.ESME_RINVOPTPARAMVAL, 'a1373432')
+        "#325: any invalid type will be marked as RESERVED"
+        self.do_conversion_test(SubaddressEncoder(4), Subaddress(SubaddressTypeTag.RESERVED, value='742'), '00373432')
 
     def test_decode_invalid_size(self):
         self.do_decode_parse_error_test(SubaddressEncoder(1).decode, CommandStatus.ESME_RINVOPTPARAMVAL, 'a0373432')
@@ -429,7 +430,7 @@ class PDUEncoderTest(EncoderTest):
             ms_availability_status=MsAvailabilityStatus.DENIED,
         )
         self.do_conversion_test(PDUEncoder(), pdu, '0000008900000102000000000000000002015858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858585858580001065959595959595959595959595959595959595959595959595959595959595959595959595959595959595959595959595959595959595959000422000101')
-    
+
     def test_QuerySMResp_conversion(self):
         pdu = QuerySMResp(
             message_id = 'Smsc2003',
@@ -485,9 +486,9 @@ class PDUEncoderTest(EncoderTest):
             destination_addr = '385953926992',
             short_message = 'jsmtest2 dc f1',
             data_coding = DataCoding(
-                DataCodingScheme.GSM_MESSAGE_CLASS, 
+                DataCodingScheme.GSM_MESSAGE_CLASS,
                 DataCodingGsmMsg(
-                    DataCodingGsmMsgCoding.DEFAULT_ALPHABET, 
+                    DataCodingGsmMsgCoding.DEFAULT_ALPHABET,
                     DataCodingGsmMsgClass.CLASS_1
                     )
                 ),
@@ -524,7 +525,7 @@ class PDUEncoderTest(EncoderTest):
 
     def test_decode_bad_message_ends_in_middle_of_option(self):
         self.do_decode_corrupt_data_error_test(PDUEncoder().decode, CommandStatus.ESME_RINVMSGLEN, '0000001b8000000900000000000000015453493735383800021000')
-        
+
     def test_SubmitSMResp_error_has_no_body(self):
         pdu = SubmitSMResp(1234, status=CommandStatus.ESME_RMSGQFUL)
         self.assertTrue(len(SubmitSMResp.mandatoryParams) > 0)
