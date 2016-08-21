@@ -1037,6 +1037,11 @@ class PDUEncoder(IEncoder):
         return header
 
     def encodeOptionalParams(self, optionalParams, params):
+        # Jasmin update:
+        # Do not encode vendor_specific_bypass parameter:
+        if 'vendor_specific_bypass' in params:
+            del params['vendor_specific_bypass']
+
         result = ''
         for paramName in optionalParams:
             if paramName in params:
