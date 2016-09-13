@@ -161,9 +161,10 @@ class Send(Resource):
                 raise RouteNotFoundError("No route found")
 
             # Re-update SubmitSmPDU with parameters from the route's connector
-            connector_config = pickle.loads(
-                self.SMPPClientManagerPB.perspective_connector_config(route.getConnector().cid))
-            routable = update_submit_sm_pdu(routable=routable, config=connector_config)
+            connector_config = self.SMPPClientManagerPB.perspective_connector_config(route.getConnector().cid)
+            if connector_config != False:
+                connector_config = pickle.loads(connector_config)
+                routable = update_submit_sm_pdu(routable=routable, config=connector_config)
 
             # Get connector from selected route
             self.log.debug("RouterPB selected %s route for this SubmitSmPDU", route)
