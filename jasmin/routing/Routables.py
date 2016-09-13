@@ -20,6 +20,10 @@ class TagNotFoundError(Exception):
     """Raised when trying to access a non existent tag
     """
 
+class InvalidLockError(Exception):
+    """Raised when an error is catched while trying to lock a pdu param
+    """
+
 class Routable(object):
     """Generick Routable:
 
@@ -97,10 +101,30 @@ class RoutableSubmitSm(Routable):
         self.pdu = PDU
         self.user = user
 
+        self.flushPduLocks()
+
         # Assume now() if datetime is not provided
         self.datetime = date_time
         if self.datetime is None:
             self.datetime = datetime.now()
+
+    def lockPduParam(self, param):
+        "Protect 'param' from being updated by Jasmin"
+        if param not in self.pdu.params:
+            raise InvalidLockError('Invalid locking param: %s' % param)
+
+        self._pdu_locks.append(param)
+
+    def pduParamIsLocked(self, param):
+        "Check if this pdu 'param' is locked"
+        if param not in self.pdu.params:
+            raise InvalidLockError('Invalid locking param: %s' % param)
+
+        return param in self._pdu_locks
+
+    def flushPduLocks(self):
+        "Remove all pdu locks from routable"
+        self._pdu_locks = []
 
 class RoutableDeliverSm(Routable):
     def __init__(self, PDU, connector, date_time=None):
