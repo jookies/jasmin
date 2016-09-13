@@ -151,3 +151,6 @@ it again, here's an example:
 
 .. literalinclude:: locking_pdu_param.py
    :language: python
+
+.. note::
+    Locking pdu parameters is only needed when message is pushed from httpapi.
