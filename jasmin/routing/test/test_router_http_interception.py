@@ -190,6 +190,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
 
 class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, HappySMSCTestCase):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
+    update_message_from_tags_sript = "routable.pdu.params['short_message'] = '%s' % routable.getTags()"
     raise_any_exception = "raise Exception('Exception from interceptor script')"
     return_ESME_RINVESMCLASS = "smpp_status = 67"
     return_HTTP_300 = "http_status = 300"
@@ -279,6 +280,39 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual('Intercepted message', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
         self.assertEqual(_ic+1, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec, self.stats_http.get('interceptor_error_count'))
+
+    @defer.inlineCallbacks
+    def test_send_with_tags(self):
+        """Related to #455
+        Will send message through http api using tags and then assert for getting the tags into the short_message
+        """
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript(self.update_message_from_tags_sript)
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=temporary&username=%s&password=%s&tags=%s' % (
+            self.u1.username, self.u1_password, '123,456')
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, None)
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual('[123, 456]', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
 
     @defer.inlineCallbacks
     def test_send_any_exception_from_script(self):

@@ -80,6 +80,15 @@ class Send(Resource):
             # Prepare for interception then routing
             routedConnector = None # init
             routable = RoutableSubmitSm(SubmitSmPDU, user)
+            self.log.debug("Built Routable %s for SubmitSmPDU: %s", routable, SubmitSmPDU)
+
+            # Should we tag the routable ?
+            tags = []
+            if 'tags' in updated_request.args:
+                tags = updated_request.args['tags'][0].split(',')
+                for tag in tags:
+                    routable.addTag(int(tag))
+                    self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
             interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
@@ -309,6 +318,7 @@ class Send(Resource):
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -414,6 +424,15 @@ class Rate(Resource):
 
             # Prepare for interception than routing
             routable = RoutableSubmitSm(SubmitSmPDU, user)
+            self.log.debug("Built Routable %s for SubmitSmPDU: %s", routable, SubmitSmPDU)
+
+            # Should we tag the routable ?
+            tags = []
+            if 'tags' in request.args:
+                tags = request.args['tags'][0].split(',')
+                for tag in tags:
+                    routable.addTag(int(tag))
+                    self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
             interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
@@ -520,6 +539,7 @@ class Rate(Resource):
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
                       'content'     : {'optional': True},
                       }
 

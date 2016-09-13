@@ -273,6 +273,28 @@ class SendTestCases(HTTPApiTestCases):
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
 
+    @defer.inlineCallbacks
+    def test_send_with_tags(self):
+        "Related to #455"
+        params = {'username': self.username,
+                  'password': 'correct',
+                  'to': '06155423',
+                  'content': 'anycontent'}
+
+        valid_tags = {'12', '1,2', '1000,2,12123'}
+        for params['tags'] in valid_tags:
+            response = yield self.web.get("send", params)
+
+            self.assertEqual(response.responseCode, 500)
+            self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+        invalid_tags = {'tag1', 'tag1,abc,tag2', '123,456,abc'}
+        for params['tags'] in invalid_tags:
+            response = yield self.web.get("send", params)
+
+            self.assertEqual(response.responseCode, 400)
+            self.assertEqual(response.value()[:23], "Error \"Argument [tags] ")
+
 class RateTestCases(HTTPApiTestCases):
     def setUp(self):
         HTTPApiTestCases.setUp(self)
@@ -345,6 +367,27 @@ class RateTestCases(HTTPApiTestCases):
                                                'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 2, u'unit_rate': 1.5})
+
+    @defer.inlineCallbacks
+    def test_rate_with_tags(self):
+        "Related to #455"
+        params = {'username': 'user3',
+                  'password': 'correct',
+                  'to': '06155423',
+                  'content': 'anycontent'}
+
+        valid_tags = {'12', '1,2', '1000,2,12123'}
+        for params['tags'] in valid_tags:
+            response = yield self.web.get("rate", params)
+
+            self.assertEqual(response.responseCode, 200)
+
+        invalid_tags = {'tag1', 'tag1,abc,tag2', '123,456,abc'}
+        for params['tags'] in invalid_tags:
+            response = yield self.web.get("rate", params)
+
+            self.assertEqual(response.responseCode, 400)
+            self.assertEqual(response.value()[:23], "\"Argument [tags] has an")
 
 class BalanceTestCases(HTTPApiTestCases):
     def setUp(self):
