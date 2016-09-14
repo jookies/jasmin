@@ -109,10 +109,10 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         for pdu in pdus:
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
 
-        # Wait 4 seconds
-        exitDeferred = defer.Deferred()
-        reactor.callLater(4, exitDeferred.callback, None)
-        yield exitDeferred
+            # Wait 2 seconds
+            exitDeferred = defer.Deferred()
+            reactor.callLater(2, exitDeferred.callback, None)
+            yield exitDeferred
 
     @defer.inlineCallbacks
     def test_delivery_HttpConnector(self):
@@ -318,10 +318,10 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
         for pdu in pdus:
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
 
-        # Wait 4 seconds
-        exitDeferred = defer.Deferred()
-        reactor.callLater(4, exitDeferred.callback, None)
-        yield exitDeferred
+            # Wait 2 seconds
+            exitDeferred = defer.Deferred()
+            reactor.callLater(2, exitDeferred.callback, None)
+            yield exitDeferred
 
     @defer.inlineCallbacks
     def test_delivery_SmppClientConnector(self):
@@ -361,10 +361,12 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
         # Install mocks
         self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
-        # Send 10 deliver_sm from the SMSC
+        # Send 10 data_sm from the SMSC
+        sn = 0
         for i in range(10):
+            sn += 1
             pdu = copy.copy(self.DataSmPDU)
-            pdu.seqNum+= 1
+            pdu.seqNum = sn
             yield self.triggerDataSmFromSMSC([pdu])
 
         # Run tests
