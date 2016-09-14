@@ -74,7 +74,7 @@ Let's say you need your filter to pass only messages from username **foo**::
 
 So your python script will have a **routable** global variable, it is an instance of **RoutableDeliverSm** if you're playing with a MO Route and it will be an instance of **RoutableSubmitSm** if you're considering it with a MT Route.
 
-In order to implement your specific filter, you have to know all_ the attributes these objects are providing, 
+In order to implement your specific filter, you have to know all_ the attributes these objects are providing,
 
 Now let's make an advanced example, the below filter will:
 
@@ -84,6 +84,8 @@ Now let's make an advanced example, the below filter will:
 
 .. literalinclude:: advanced_evalpyfilter.py
    :language: python
+
+.. _all: :ref:`Route_Routable`
 
 .. _faq_2_HtleiaE:
 
@@ -135,4 +137,20 @@ Second, create a MT Route::
 
 And you're done ! test your filter by sending a SMS through Jasmin's APIs.
 
-.. _all: :ref:`Route_Routable`
+.. _faq_2_Ppkrtcdeai:
+
+PDU params keep resetting to connector defaults even after interception ?
+*************************************************************************
+
+When sending MT messages through httpapi, some pdu parameters will be reset
+to connector defaults even if they were manually updated inside an interceptor
+script, how can Jasmin avoid updatingmy pdu params ?
+
+After updating a pdu parameter, it must be locked so Jasmin will not re-update
+it again, here's an example:
+
+.. literalinclude:: locking_pdu_param.py
+   :language: python
+
+.. note::
+    Locking pdu parameters is only needed when message is pushed from httpapi.

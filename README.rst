@@ -3,7 +3,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|codacy| |landscape| |ci| |docs|
+|codacy| |landscape| |ci| |docker| |docs|
 
 Introduction
 ************
@@ -84,6 +84,11 @@ Credits
     :alt: Build status
     :scale: 100%
     :target: https://travis-ci.org/jookies/jasmin
+
+.. |docker| image:: https://images.microbadger.com/badges/image/jookies/jasmin.svg
+    :alt: Docker image contents
+    :scale: 100%
+    :target: https://microbadger.com/#/images/jookies/jasmin
 
 .. |docs| image:: https://readthedocs.org/projects/jasmin/badge/?version=latest
     :alt: Documentation status

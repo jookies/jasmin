@@ -110,6 +110,11 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - GET
      - Mandatory *if dlr*
      - DLR is transmitted through http to a third party application using GET or POST method.
+   * - **tags**
+     - Text
+     - 1,702,9901
+     - Optional
+     - Will tag the routable to help interceptor or router enable specific business logics.
    * - **content**
      - Text
      - Hello world !

@@ -22,6 +22,36 @@ LOG_CATEGORY = "jasmin-http-api"
 #@TODO make it configurable
 reactor.suggestThreadPoolSize(30)
 
+def update_submit_sm_pdu(routable, config):
+    """Will set pdu parameters from smppclient configuration.
+    Parameters that were locked through the routable.lockPduParam() method will not be updated."""
+
+    update_params = [
+        'protocol_id',
+        'replace_if_present_flag',
+        'dest_addr_ton',
+        'source_addr_npi',
+        'dest_addr_npi',
+        'service_type',
+        'source_addr_ton',
+        'sm_default_msg_id',
+    ]
+
+    for param in update_params:
+        _pdu = routable.pdu
+
+        # Force setting param in main pdu
+        if not routable.pduParamIsLocked(param):
+            _pdu.params[param] = getattr(config, param)
+
+        # Force setting param in sub-pdus (multipart use case)
+        while hasattr(_pdu, 'nextPdu'):
+            _pdu = _pdu.nextPdu
+            if not routable.pduParamIsLocked(param):
+                _pdu.params[param] = getattr(config, param)
+
+    return routable
+
 class Send(Resource):
     isleaf = True
 
@@ -80,6 +110,15 @@ class Send(Resource):
             # Prepare for interception then routing
             routedConnector = None # init
             routable = RoutableSubmitSm(SubmitSmPDU, user)
+            self.log.debug("Built Routable %s for SubmitSmPDU: %s", routable, SubmitSmPDU)
+
+            # Should we tag the routable ?
+            tags = []
+            if 'tags' in updated_request.args:
+                tags = updated_request.args['tags'][0].split(',')
+                for tag in tags:
+                    routable.addTag(int(tag))
+                    self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
             interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
@@ -120,6 +159,12 @@ class Send(Resource):
                 self.stats.inc('route_error_count')
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s", user, routable.pdu)
                 raise RouteNotFoundError("No route found")
+
+            # Re-update SubmitSmPDU with parameters from the route's connector
+            connector_config = self.SMPPClientManagerPB.perspective_connector_config(route.getConnector().cid)
+            if connector_config != False:
+                connector_config = pickle.loads(connector_config)
+                routable = update_submit_sm_pdu(routable=routable, config=connector_config)
 
             # Get connector from selected route
             self.log.debug("RouterPB selected %s route for this SubmitSmPDU", route)
@@ -309,6 +354,7 @@ class Send(Resource):
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -414,6 +460,15 @@ class Rate(Resource):
 
             # Prepare for interception than routing
             routable = RoutableSubmitSm(SubmitSmPDU, user)
+            self.log.debug("Built Routable %s for SubmitSmPDU: %s", routable, SubmitSmPDU)
+
+            # Should we tag the routable ?
+            tags = []
+            if 'tags' in request.args:
+                tags = request.args['tags'][0].split(',')
+                for tag in tags:
+                    routable.addTag(int(tag))
+                    self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
             interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
@@ -520,6 +575,7 @@ class Rate(Resource):
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
                       'content'     : {'optional': True},
                       }
 
