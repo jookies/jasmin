@@ -111,7 +111,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Wait 2 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks
@@ -320,7 +320,7 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
 
         # Wait 2 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks
