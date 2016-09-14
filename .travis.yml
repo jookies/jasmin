@@ -13,10 +13,12 @@ install:
 script:
     # Trial tests and coverage:
     - coverage run `which trial` jasmin
-    # Docs building test:
-    - cd misc/doc;make html;cd ../../
+    # For debugging purpose
+    - ls -al
     # Report coverage:
     - coverage report --omit=/usr/*,/home/travis/virtualenv/*,venv/*
+    # Docs building test:
+    - cd misc/doc;make html;cd ../../
     # Pylint code analysis and rating:
     - ./misc/pylint/run.sh
 services:
