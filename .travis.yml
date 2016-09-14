@@ -12,7 +12,7 @@ install:
 # Commands to run tests:
 script:
     # Trial tests and coverage:
-    - coverage run `which jasmin.routing.test.test_routing_data_sm` jasmin
+    - coverage run `which trial` jasmin.routing.test.test_routing_data_sm
     # For debugging purpose
     - ls -al
     # Report coverage:
