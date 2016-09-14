@@ -109,9 +109,9 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         for pdu in pdus:
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
 
-        # Wait 2 seconds
+        # Wait 4 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks
@@ -318,9 +318,9 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
         for pdu in pdus:
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
 
-        # Wait 2 seconds
+        # Wait 4 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks

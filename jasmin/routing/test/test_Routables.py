@@ -2,7 +2,8 @@ from datetime import datetime
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import (SimpleRoutablePDU, RoutableSubmitSm,
                                       RoutableDeliverSm, InvalidRoutableParameterError,
-                                      InvalidTagError, TagNotFoundError)
+                                      InvalidTagError, TagNotFoundError,
+                                      InvalidLockError)
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.routing.jasminApi import *
 
@@ -84,6 +85,16 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
         self.assertEqual([23], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
+
+    def test_locking(self):
+        o = RoutableSubmitSm(self.PDU, self.user, datetime.now())
+
+        self.assertRaises(InvalidLockError, o.lockPduParam, 'anything')
+        self.assertRaises(InvalidLockError, o.pduParamIsLocked, 'anything')
+
+        o.lockPduParam('service_type')
+        self.assertTrue(o.pduParamIsLocked('service_type'))
+        self.assertFalse(o.pduParamIsLocked('source_addr_ton'))
 
 class RoutableDeliverSmTestCase(RoutablePDUTestCase):
 

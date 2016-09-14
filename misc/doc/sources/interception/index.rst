@@ -387,6 +387,11 @@ intercepted messages will have their sender-id set to **123456789**:
 .. literalinclude:: sc_override_senderid.py
    :language: python
 
+.. note::
+    Some pdu parameters require locking to protect them from being updated by Jasmin, more_ on this.
+
+.. _more: :ref:`faq_2_Ppkrtcdeai`
+
 Activate logging
 ================
 
