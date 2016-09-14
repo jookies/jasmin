@@ -111,7 +111,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
         # Wait 2 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks
@@ -324,7 +324,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
 
         # Wait 2 seconds
         exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
+        reactor.callLater(4, exitDeferred.callback, None)
         yield exitDeferred
 
     @defer.inlineCallbacks
