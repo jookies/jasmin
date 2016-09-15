@@ -496,10 +496,9 @@ class SMPPClientSMListener(object):
                 self.log.error("Error in submit_sm_errback (%s): %s", type(e), e)
 
     @defer.inlineCallbacks
-    def concatDeliverSMs(self, HSetReturn, splitMethod, total_segments, msg_ref_num, segment_seqnum):
-        hashKey = "longDeliverSm:%s" % (msg_ref_num)
-        if HSetReturn != 1:
-            self.log.warn('Error (%s) when trying to set hashKey %s', HSetReturn, hashKey)
+    def concatDeliverSMs(self, HSetReturn, hashKey, splitMethod, total_segments, msg_ref_num, segment_seqnum):
+        if HSetReturn == 0:
+            self.log.warn('This hashKey %s already exists, will not reset it !', hashKey)
             return
 
         # @TODO: longDeliverSm part expiry must be configurable
@@ -734,7 +733,10 @@ class SMPPClientSMListener(object):
                                   msgid)
 
                     # Save it to redis
-                    hashKey = "longDeliverSm:%s" % (msg_ref_num)
+                    hashKey = "longDeliverSm:%s:%s:%s" % (
+                        self.SMPPClientFactory.config.id,
+                        msg_ref_num,
+                        pdu.params['destination_addr'])
                     hashValues = {'pdu': pdu,
                                   'total_segments':total_segments,
                                   'msg_ref_num':msg_ref_num,
@@ -742,6 +744,7 @@ class SMPPClientSMListener(object):
                     yield self.redisClient.hset(
                         hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
                             self.concatDeliverSMs,
+                            hashKey,
                             splitMethod,
                             total_segments,
                             msg_ref_num,
