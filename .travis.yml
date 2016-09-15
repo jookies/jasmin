@@ -16,7 +16,7 @@ script:
     # For debugging purpose
     - ls -al
     # Report coverage:
-    - coverage report --omit=/usr/*,/home/travis/virtualenv/*,venv/*
+    - coverage report
     # Docs building test:
     - cd misc/doc;make html;cd ../../
     # Pylint code analysis and rating:
