@@ -22,44 +22,6 @@ from jasmin.routing.jasminApi import Connector
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
-def SubmitSmPDUUpdate(fCallback):
-    '''Will extract SubmitSmPDU and update it (if needed) then pass it to fCallback'''
-    def update_submit_sm_pdu(self, *args, **kwargs):
-        message = args[0]
-        SubmitSmPDU = pickle.loads(message.content.body)
-
-        if 'headers' in message.content.properties:
-            headers = message.content.properties['headers']
-            """SubmitSmPDU is sent through httpapi, in this case, some params that cannot be defined
-            through the api must be set here (from the connector config):"""
-            if 'source_connector' in headers and headers['source_connector'] == 'httpapi':
-                update_params = [
-                    'protocol_id',
-                    'replace_if_present_flag',
-                    'dest_addr_ton',
-                    'source_addr_npi',
-                    'dest_addr_npi',
-                    'service_type',
-                    'source_addr_ton',
-                    'sm_default_msg_id',
-                ]
-
-                for param in update_params:
-                    _pdu = SubmitSmPDU
-
-                    # Set param in main pdu
-                    if _pdu.params[param] is None:
-                        _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
-
-                    # Set param in sub-pdus (multipart use case)
-                    while hasattr(_pdu, 'nextPdu'):
-                        _pdu = _pdu.nextPdu
-                        if _pdu.params[param] is None:
-                            _pdu.params[param] = getattr(self.SMPPClientFactory.config, param)
-
-        return fCallback(self, message, SubmitSmPDU)
-    return update_submit_sm_pdu
-
 class SMPPClientSMListener(object):
     debug_it = {'rejectCount': 0}
     '''
@@ -158,14 +120,14 @@ class SMPPClientSMListener(object):
     def ackMessage(self, message):
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
 
-    @SubmitSmPDUUpdate
     @defer.inlineCallbacks
-    def submit_sm_callback(self, message, SubmitSmPDU):
+    def submit_sm_callback(self, message):
         """This callback is a queue listener
         it is called whenever a message was consumed from queue
         c.f. test_amqp.ConsumeTestCase for use cases
         """
         try:
+            SubmitSmPDU = pickle.loads(message.content.body)
             msgid = message.content.properties['message-id']
 
             self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
@@ -534,10 +496,9 @@ class SMPPClientSMListener(object):
                 self.log.error("Error in submit_sm_errback (%s): %s", type(e), e)
 
     @defer.inlineCallbacks
-    def concatDeliverSMs(self, HSetReturn, splitMethod, total_segments, msg_ref_num, segment_seqnum):
-        hashKey = "longDeliverSm:%s" % (msg_ref_num)
-        if HSetReturn != 1:
-            self.log.warn('Error (%s) when trying to set hashKey %s', HSetReturn, hashKey)
+    def concatDeliverSMs(self, HSetReturn, hashKey, splitMethod, total_segments, msg_ref_num, segment_seqnum):
+        if HSetReturn == 0:
+            self.log.warn('This hashKey %s already exists, will not reset it !', hashKey)
             return
 
         # @TODO: longDeliverSm part expiry must be configurable
@@ -772,7 +733,10 @@ class SMPPClientSMListener(object):
                                   msgid)
 
                     # Save it to redis
-                    hashKey = "longDeliverSm:%s" % (msg_ref_num)
+                    hashKey = "longDeliverSm:%s:%s:%s" % (
+                        self.SMPPClientFactory.config.id,
+                        msg_ref_num,
+                        pdu.params['destination_addr'])
                     hashValues = {'pdu': pdu,
                                   'total_segments':total_segments,
                                   'msg_ref_num':msg_ref_num,
@@ -780,6 +744,7 @@ class SMPPClientSMListener(object):
                     yield self.redisClient.hset(
                         hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
                             self.concatDeliverSMs,
+                            hashKey,
                             splitMethod,
                             total_segments,
                             msg_ref_num,

@@ -60,6 +60,9 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
 
+        # Initiate last seqNum
+        self.last_seqNum = 1
+
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.AckServer.stopListening()
@@ -107,12 +110,14 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
     @defer.inlineCallbacks
     def triggerDeliverSmFromSMSC(self, pdus):
         for pdu in pdus:
+            pdu.seqNum = self.last_seqNum
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
+            self.last_seqNum += 1
 
-        # Wait 2 seconds
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        yield exitDeferred
+            # Wait 0.5 seconds
+            exitDeferred = defer.Deferred()
+            reactor.callLater(0.5, exitDeferred.callback, None)
+            yield exitDeferred
 
     @defer.inlineCallbacks
     def test_delivery_HttpConnector(self):
@@ -265,7 +270,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         pdu_part2.params['sar_segment_seqnum'] = 2
         pdu_part3.params['short_message'] = '__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
-        yield self.triggerDeliverSmFromSMSC([pdu_part1, pdu_part3, pdu_part2])
+        yield self.triggerDeliverSmFromSMSC([pdu_part2, pdu_part1, pdu_part3])
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
@@ -281,6 +286,11 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
+
+    @defer.inlineCallbacks
+    def test_last_first_long_content_delivery_HttpConnector(self):
+        "Ensure that receiving the last data_sm part at first is handled"
+    test_last_first_long_content_delivery_HttpConnector.skip = "TODO: handle this specific case, it was omitted for more performance"
 
 class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
 
@@ -303,6 +313,9 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # Add SMPPs factory to DLRThrower
         self.deliverSmThrower.addSmpps(self.smpps_factory)
 
+        # Initiate last seqNum
+        self.last_seqNum = 1
+
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.deliverSmThrower.stopService()
@@ -320,12 +333,14 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
     @defer.inlineCallbacks
     def triggerDeliverSmFromSMSC(self, pdus):
         for pdu in pdus:
+            pdu.seqNum = self.last_seqNum
             yield self.SMSCPort.factory.lastClient.trigger_deliver_sm(pdu)
+            self.last_seqNum += 1
 
-        # Wait 2 seconds
-        exitDeferred = defer.Deferred()
-        reactor.callLater(2, exitDeferred.callback, None)
-        yield exitDeferred
+            # Wait 0.5 seconds
+            exitDeferred = defer.Deferred()
+            reactor.callLater(0.5, exitDeferred.callback, None)
+            yield exitDeferred
 
     @defer.inlineCallbacks
     def test_delivery_SmppClientConnector(self):
@@ -368,7 +383,6 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # Send 10 deliver_sm from the SMSC
         for i in range(10):
             pdu = copy.copy(self.DeliverSmPDU)
-            pdu.seqNum+= 1
             yield self.triggerDeliverSmFromSMSC([pdu])
 
         # Run tests

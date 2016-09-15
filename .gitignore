@@ -38,8 +38,9 @@ _trial_temp
 .project
 .pydevproject
 
-# Eclipse
+# IDEs
 .settings
+.idea
 
 # Python
 venv
