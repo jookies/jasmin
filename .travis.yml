@@ -3,20 +3,17 @@ language: python
 python:
     - '2.7'
 env:
-    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.9b7
-# Command to install dependencies
-install:
-    - python setup.py sdist
-    - pip install "dist/jasmin-$JASMIN_RELEASE.tar.gz"
-    - cp misc/config/init-script/jasmind-ubuntu $ROOT_PATH/etc/init.d/jasmind
+    - ROOT_PATH=~/jasmin
 # Commands to run tests:
 script:
+    # Simple check for packing Jasmin into a pypi package
+    - python setup.py sdist
     # Trial tests and coverage:
     - coverage run `which trial` jasmin.routing.test.test_routing_data_sm
     # For debugging purpose
     - ls -al
     # Report coverage:
-    - coverage report
+    - coverage report --omit=/usr/*,/home/travis/virtualenv/*,venv/*
     # Docs building test:
     - cd misc/doc;make html;cd ../../
     # Pylint code analysis and rating:
