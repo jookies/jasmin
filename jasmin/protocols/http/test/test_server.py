@@ -1,18 +1,21 @@
 import json
 from datetime import datetime
-from twisted.trial.unittest import TestCase
+
 from twisted.internet import defer
-from twisted_web_test_utils import DummySite
+from twisted.trial.unittest import TestCase
+
+from jasmin.managers.clients import SMPPClientManagerPB
+from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.protocols.http.stats import HttpAPIStatsCollector
-from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig
-from jasmin.managers.clients import SMPPClientManagerPB
-from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.routing.jasminApi import User, Group, SmppClientConnector
-from jasmin.routing.Filters import UserFilter, GroupFilter
+from jasmin.routing.Filters import GroupFilter
 from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
+from jasmin.routing.configs import RouterPBConfig
+from jasmin.routing.jasminApi import User, Group, SmppClientConnector
+from jasmin.routing.router import RouterPB
+from twisted_web_test_utils import DummySite
+
 
 class HTTPApiTestCases(TestCase):
     def setUp(self):
@@ -240,7 +243,6 @@ class SendTestCases(HTTPApiTestCases):
                       'http://www.google.com',
                       'http://www.google.com:99'}
 
-        import time
         for params['dlr-url'] in valid_urls:
             response = yield self.web.get("send", params)
 
@@ -281,14 +283,14 @@ class SendTestCases(HTTPApiTestCases):
                   'to': '06155423',
                   'content': 'anycontent'}
 
-        valid_tags = {'12', '1,2', '1000,2,12123'}
+        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e'}
         for params['tags'] in valid_tags:
             response = yield self.web.get("send", params)
 
             self.assertEqual(response.responseCode, 500)
             self.assertEqual(response.value(), "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
-        invalid_tags = {'tag1', 'tag1,abc,tag2', '123,456,abc'}
+        invalid_tags = {';', '#,.,:', '+++,sh1t,3r='}
         for params['tags'] in invalid_tags:
             response = yield self.web.get("send", params)
 
@@ -376,13 +378,13 @@ class RateTestCases(HTTPApiTestCases):
                   'to': '06155423',
                   'content': 'anycontent'}
 
-        valid_tags = {'12', '1,2', '1000,2,12123'}
+        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e'}
         for params['tags'] in valid_tags:
             response = yield self.web.get("rate", params)
 
             self.assertEqual(response.responseCode, 200)
 
-        invalid_tags = {'tag1', 'tag1,abc,tag2', '123,456,abc'}
+        invalid_tags = {';', '#,.,:', '+++,sh1t,3r='}
         for params['tags'] in invalid_tags:
             response = yield self.web.get("rate", params)
 

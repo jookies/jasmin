@@ -1,21 +1,23 @@
+import cPickle as pickle
+import json
 import logging
 import re
-import json
-import cPickle as pickle
-from twisted.internet import reactor, defer
-from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
+from logging.handlers import TimedRotatingFileHandler
+
+from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
+from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
+from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from .errors import (AuthenticationError, ServerError, RouteNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
-from .validation import UrlArgsValidator, HttpAPICredentialValidator
 from .stats import HttpAPIStatsCollector
+from .validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -117,7 +119,7 @@ class Send(Resource):
             if 'tags' in updated_request.args:
                 tags = updated_request.args['tags'][0].split(',')
                 for tag in tags:
-                    routable.addTag(int(tag))
+                    routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
@@ -354,7 +356,7 @@ class Send(Resource):
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([a-zA-Z0-9,])*$')},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -467,7 +469,7 @@ class Rate(Resource):
             if 'tags' in request.args:
                 tags = request.args['tags'][0].split(',')
                 for tag in tags:
-                    routable.addTag(int(tag))
+                    routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
@@ -575,7 +577,7 @@ class Rate(Resource):
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([a-zA-Z0-9,])*$')},
                       'content'     : {'optional': True},
                       }
 
