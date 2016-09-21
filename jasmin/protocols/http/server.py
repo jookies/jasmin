@@ -356,7 +356,7 @@ class Send(Resource):
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([a-zA-Z0-9,])*$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -577,7 +577,7 @@ class Rate(Resource):
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([a-zA-Z0-9,])*$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': True},
                       }
 

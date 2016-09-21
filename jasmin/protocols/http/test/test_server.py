@@ -283,7 +283,7 @@ class SendTestCases(HTTPApiTestCases):
                   'to': '06155423',
                   'content': 'anycontent'}
 
-        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e'}
+        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e', 'a-b,2'}
         for params['tags'] in valid_tags:
             response = yield self.web.get("send", params)
 
@@ -378,7 +378,7 @@ class RateTestCases(HTTPApiTestCases):
                   'to': '06155423',
                   'content': 'anycontent'}
 
-        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e'}
+        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e', 'a-b,2'}
         for params['tags'] in valid_tags:
             response = yield self.web.get("rate", params)
 
