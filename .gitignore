@@ -44,3 +44,6 @@ _trial_temp
 
 # Python
 venv
+
+# Twisted
+trial
