@@ -27,7 +27,7 @@ class InvalidLockError(Exception):
     """
 
 class Routable(object):
-    """Generick Routable:
+    """Generic Routable:
 
     Routable represents a PDU and optionnaly its owner and source Connector, it can be
     a submit_sm or deliver_sm for example

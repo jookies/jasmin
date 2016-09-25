@@ -18,7 +18,7 @@ def randomUniqueId():
     return msgid
 
 class Bill(object):
-    """This is a generick Bill class, it must be inherited to defined billables
+    """This is a generic Bill class, it must be inherited to defined billables
     A billable can be:
     - An amount to be deducted from user's balance
     - An action to be done (ex: decrement submit_sm_count on user balance)

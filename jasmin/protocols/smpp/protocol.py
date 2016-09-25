@@ -1,20 +1,21 @@
 #pylint: disable=W0401,W0611
-import re
-import uuid
 import logging
+import re
 import struct
+import uuid
 from datetime import datetime
+
+from twisted.cred import error
+from twisted.internet import defer, reactor
+
+from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
+from jasmin.vendor.smpp.pdu.operations import *
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
 from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
 from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
-                                                 SMPPOutboundTxnResult, _safelylogOutPdu)
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault, CommandId
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
-from jasmin.vendor.smpp.pdu.operations import *
-from twisted.internet import defer, reactor
+                                                 SMPPOutboundTxnResult)
 from .error import *
-from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
-from twisted.cred import error
 
 #@todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
@@ -224,7 +225,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
 
     def endLongSubmitSmTransactionErr(self, failure):
-        # Return on generick NACK
+        # Return on generic NACK
         try:
             failure.raiseException()
         except SMPPClientConnectionCorruptedError as _:
