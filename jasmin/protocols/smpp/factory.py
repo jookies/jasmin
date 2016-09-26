@@ -10,7 +10,6 @@ from twisted.internet import defer, reactor, ssl
 from twisted.internet.protocol import ClientFactory
 
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
@@ -353,14 +352,38 @@ class SMPPServerFactory(_SMPPServerFactory):
 
             self.log.debug('Handling submit_sm_post_interception event for system_id: %s', system_id)
 
-            # Routing
-            # Default connector is "None":
-            routedConnector = None
+            # Get the route
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s",
                                routable.user, routable.pdu)
                 raise SubmitSmRouteNotFoundError()
+
+            # Get connector from selected route
+            self.log.debug("RouterPB selected %s route for this SubmitSmPDU", route)
+            routedConnector = route.getConnector()
+            # Is it a failover route ? then check for a bound connector, otherwise don't route
+            # The failover route requires at least one connector to be up, no message enqueuing will
+            # occur otherwise.
+            if repr(route) == 'FailoverMTRoute':
+                self.log.debug('Selected route is a failover, will ensure connector is bound:')
+                while True:
+                    c = self.SMPPClientManagerPB.perspective_connector_details(routedConnector.cid)
+                    self.log.debug('Connector [%s] is: %s', routedConnector.cid, c['session_state'])
+
+                    if c['session_state'][:6] == 'BOUND_':
+                        # Choose this connector
+                        break
+                    else:
+                        # Check next connector, None if no more connectors are available
+                        routedConnector = route.getConnector()
+                        if routedConnector is None:
+                            break
+
+            if routedConnector is None:
+                self.log.error("Failover route has no bound connector to handle SubmitSmPDU: %s",
+                               routable.pdu)
+                raise SubmitSmRoutingError()
 
             # Get connector from selected route
             self.log.debug("RouterPB selected %s for this SubmitSmPDU", route)
