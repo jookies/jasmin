@@ -28,19 +28,23 @@ class RouteStrTestCase(RouteTestCase):
     def test_StaticMTRoute(self):
         s = StaticMTRoute(self.simple_filter_mt, self.connector2, 0.0)
         self.assertEqual(str(s), 'StaticMTRoute to generic(def) NOT RATED')
+        self.assertEqual(repr(s), 'StaticMTRoute')
 
     def test_StaticMORoute(self):
         s = StaticMORoute(self.simple_filter_mo, self.connector2)
         self.assertEqual(str(s), 'StaticMORoute to generic(def) NOT RATED')
+        self.assertEqual(repr(s), 'StaticMORoute')
 
     def test_DefaultRoute(self):
         s = DefaultRoute(self.connector2)
         self.assertEqual(str(s), 'DefaultRoute to generic(def) NOT RATED')
+        self.assertEqual(repr(s), 'DefaultRoute')
 
     def test_RandomRoundrobinMTRouteTestCase(self):
         s = RandomRoundrobinMTRoute(self.simple_filter_mt, [self.connector1, self.connector2], 0.0)
         self.assertEqual(str(s),
                          'RandomRoundrobinMTRoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def) \nNOT RATED')
+        self.assertEqual(repr(s), 'RandomRoundrobinMTRoute')
 
         # Routes having multiple connectors must have at least one connector
         self.assertRaises(InvalidRouteParameterError, RandomRoundrobinMTRoute, self.simple_filter_mt, [], 0.0)
@@ -48,6 +52,7 @@ class RouteStrTestCase(RouteTestCase):
     def test_RandomRoundrobinMORouteTestCase(self):
         s = RandomRoundrobinMORoute(self.simple_filter_mo, [self.connector1, self.connector2])
         self.assertEqual(str(s), 'RandomRoundrobinMORoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def)')
+        self.assertEqual(repr(s), 'RandomRoundrobinMORoute')
 
         # Routes having multiple connectors must have at least one connector
         self.assertRaises(InvalidRouteParameterError, RandomRoundrobinMORoute, self.simple_filter_mo, [])
@@ -55,6 +60,7 @@ class RouteStrTestCase(RouteTestCase):
     def test_FailoverMTRouteTestCase(self):
         s = FailoverMTRoute(self.simple_filter_mt, [self.connector1, self.connector2], 0.0)
         self.assertEqual(str(s), 'FailoverMTRoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def) \nNOT RATED')
+        self.assertEqual(repr(s), 'FailoverMTRoute')
 
         # Routes having multiple connectors must have at least one connector
         self.assertRaises(InvalidRouteParameterError, FailoverMTRoute, self.simple_filter_mt, [], 0.0)
@@ -62,6 +68,7 @@ class RouteStrTestCase(RouteTestCase):
     def test_FailoverMORouteTestCase(self):
         s = FailoverMORoute(self.simple_filter_mo, [self.connector1, self.connector2])
         self.assertEqual(str(s), 'FailoverMORoute to 2 connectors:\n\t- generic(abc)\n\t- generic(def)')
+        self.assertEqual(repr(s), 'FailoverMORoute')
 
         # Routes having multiple connectors must have at least one connector
         self.assertRaises(InvalidRouteParameterError, FailoverMORoute, self.simple_filter_mo, [])

@@ -28,6 +28,7 @@ class Route(object):
     """
     type = 'generic'
     _str = 'generic'
+    _repr = 'Route'
     filters = []
     connector = None
     rate = 0.0
@@ -64,6 +65,9 @@ class Route(object):
 
     def __str__(self):
         return self._str
+
+    def __repr__(self):
+        return self.__class__.__name__
 
     def getConnector(self):
         return self.connector
@@ -193,7 +197,7 @@ class RoundrobinRoute(object):
                         _filter.usedFor, self.type))
 
         self.filters = filters
-        self.connectors = connectors
+        self.connector = connectors
 
         connector_list_str = ''
         for c in connectors:
@@ -208,7 +212,7 @@ class RoundrobinRoute(object):
         return self._str
 
     def getConnector(self):
-        return random.choice(self.connectors)
+        return random.choice(self.connector)
 
 class RandomRoundrobinMORoute(RoundrobinRoute, MORoute):
     """Return one route taken randomly from a pool of
@@ -259,8 +263,8 @@ class FailoverRoute(object):
                         _filter.usedFor, self.type))
 
         self.filters = filters
-        self.connectors = connectors
-        self.iterable_connectors = iter(self.connectors)
+        self.seq = -1
+        self.connector = connectors
 
         connector_list_str = ''
         for c in connectors:
@@ -276,14 +280,21 @@ class FailoverRoute(object):
 
     def getConnector(self):
         try:
-            return self.iterable_connectors.next()
-        except StopIteration:
+            self.seq += 1
+            return self.connector[self.seq]
+        except IndexError:
             return None
 
 
 class FailoverMORoute(FailoverRoute, MORoute):
     """Returned connector from getConnector method is iterated through the list of available connectors
     """
+
+    def matchFilters(self, routable):
+        # Initialize self.seq to return first connector
+        self.seq = -1
+
+        return MORoute.matchFilters(self, routable)
 
 
 class FailoverMTRoute(FailoverRoute, MTRoute):
@@ -307,6 +318,12 @@ class FailoverMTRoute(FailoverRoute, MTRoute):
         else:
             rate_str = '\nNOT RATED'
         self._str = "%s %s" % (self._str, rate_str)
+
+    def matchFilters(self, routable):
+        # Initialize self.seq to return first connector
+        self.seq = -1
+
+        return MTRoute.matchFilters(self, routable)
 
 
 class BestQualityMTRoute(MTRoute):

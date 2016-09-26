@@ -1,21 +1,23 @@
 #pylint: disable=W0401,W0611,W0231
+import cPickle as pickle
 import logging
 import re
-import cPickle as pickle
-from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
+from logging.handlers import TimedRotatingFileHandler
+
 from OpenSSL import SSL
-from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor, ssl
-from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
-from .protocol import SMPPClientProtocol, SMPPServerProtocol
-from .error import *
-from .validation import SmppsCredentialValidator
-from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
-from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
-from jasmin.vendor.smpp.pdu import pdu_types, constants
-from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
+from twisted.internet.protocol import ClientFactory
+
 from jasmin.routing.Routables import RoutableSubmitSm
+from jasmin.vendor.smpp.pdu import pdu_types
+from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
+from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
+from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
+from .error import *
+from .protocol import SMPPClientProtocol, SMPPServerProtocol
+from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
+from .validation import SmppsCredentialValidator
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"
@@ -352,7 +354,8 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.debug('Handling submit_sm_post_interception event for system_id: %s', system_id)
 
             # Routing
-            routedConnector = None # init
+            # Default connector is "None":
+            routedConnector = None
             route = self.RouterPB.getMTRoutingTable().getRouteFor(routable)
             if route is None:
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s",

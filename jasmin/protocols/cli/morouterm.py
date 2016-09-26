@@ -1,13 +1,13 @@
 #pylint: disable=W0611
-import re
-import inspect
 import cPickle as pickle
-from jasmin.protocols.cli.managers import PersistableManager, Session
-from jasmin.protocols.cli.filtersm import MOFILTERS
-from jasmin.routing.jasminApi import SmppServerSystemIdConnector
-from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute)
+import inspect
+import re
 
-MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
+from jasmin.protocols.cli.filtersm import MOFILTERS
+from jasmin.protocols.cli.managers import PersistableManager, Session
+from jasmin.routing.jasminApi import SmppServerSystemIdConnector
+
+MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute', 'FailoverMORoute']
 
 # A config map between console-configuration keys and Route keys.
 MORouteKeyMap = {'order': 'order', 'type': 'type'}
