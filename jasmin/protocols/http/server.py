@@ -13,7 +13,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-from .errors import (AuthenticationError, ServerError, RouteNotFoundError,
+from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
 from .stats import HttpAPIStatsCollector
@@ -162,15 +162,37 @@ class Send(Resource):
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s", user, routable.pdu)
                 raise RouteNotFoundError("No route found")
 
-            # Re-update SubmitSmPDU with parameters from the route's connector
-            connector_config = self.SMPPClientManagerPB.perspective_connector_config(route.getConnector().cid)
-            if connector_config != False:
-                connector_config = pickle.loads(connector_config)
-                routable = update_submit_sm_pdu(routable=routable, config=connector_config)
-
             # Get connector from selected route
             self.log.debug("RouterPB selected %s route for this SubmitSmPDU", route)
             routedConnector = route.getConnector()
+            # Is it a failover route ? then check for a bound connector, otherwise don't route
+            # The failover route requires at least one connector to be up, no message enqueuing will
+            # occur otherwise.
+            if repr(route) == 'FailoverMTRoute':
+                self.log.debug('Selected route is a failover, will ensure connector is bound:')
+                while True:
+                    c = self.SMPPClientManagerPB.perspective_connector_details(routedConnector.cid)
+                    self.log.debug('Connector [%s] is: %s', routedConnector.cid, c['session_state'])
+
+                    if c['session_state'][:6] == 'BOUND_':
+                        # Choose this connector
+                        break
+                    else:
+                        # Check next connector, None if no more connectors are available
+                        routedConnector = route.getConnector()
+                        if routedConnector is None:
+                            break
+
+            if routedConnector is None:
+                self.stats.inc('route_error_count')
+                self.log.error("Failover route has no bound connector to handle SubmitSmPDU: %s", routable.pdu)
+                raise ConnectorNotFoundError("Failover route has no bound connectors")
+
+            # Re-update SubmitSmPDU with parameters from the route's connector
+            connector_config = self.SMPPClientManagerPB.perspective_connector_config(routedConnector.cid)
+            if connector_config:
+                connector_config = pickle.loads(connector_config)
+                routable = update_submit_sm_pdu(routable=routable, config=connector_config)
 
             # Set priority
             priority = 0

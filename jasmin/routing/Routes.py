@@ -111,7 +111,7 @@ class Route(object):
         return bill
 
     def matchFilters(self, routable):
-        """If filters match routable, the connector will be returned, if not, None will be returned
+        """If filters match routable, True will be returned, if not, False will be returned
         """
 
         if not isinstance(routable, Routable):
@@ -119,8 +119,8 @@ class Route(object):
 
         for _filter in self.filters:
             if not _filter.match(routable):
-                return None
-        return self.getConnector()
+                return False
+        return True
 
 class DefaultRoute(Route):
     """This is a default route which can contain one connector
