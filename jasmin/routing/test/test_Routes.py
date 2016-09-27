@@ -132,11 +132,10 @@ class StaticMTRouteTestCase(RouteTestCase):
         o = StaticMTRoute(self.simple_filter_mt, self.connector2, 0.0)
 
         t = o.matchFilters(self.routable_user1)
-        self.assertNotEqual(t, None)
-        self.assertEqual(t, self.connector2)
+        self.assertTrue(t)
 
         t = o.matchFilters(self.routable_user2)
-        self.assertEqual(t, None)
+        self.assertFalse(t)
 
 
 class StaticMORouteTestCase(RouteTestCase):
@@ -156,11 +155,10 @@ class StaticMORouteTestCase(RouteTestCase):
         o = StaticMORoute(self.simple_filter_mo, self.connector2)
 
         t = o.matchFilters(self.routable_connector1)
-        self.assertNotEqual(t, None)
-        self.assertEqual(t, self.connector2)
+        self.assertTrue(t)
 
         t = o.matchFilters(self.routable_connector2)
-        self.assertEqual(t, None)
+        self.assertFalse(t)
 
 
 class RandomRoundrobinMTRouteTestCase(RouteTestCase):
@@ -181,11 +179,10 @@ class RandomRoundrobinMTRouteTestCase(RouteTestCase):
         o = RandomRoundrobinMTRoute(self.simple_filter_mt, self.connectors, 0.0)
 
         t = o.matchFilters(self.routable_user1)
-        self.assertNotEqual(t, None)
-        self.assertIn(t, self.connectors)
+        self.assertTrue(t)
 
         t = o.matchFilters(self.routable_user2)
-        self.assertEqual(t, None)
+        self.assertFalse(t)
 
     def test_accepts_connectors_list(self):
         RandomRoundrobinMTRoute(self.simple_filter_mt, self.connectors, 0.0)
@@ -212,11 +209,10 @@ class RandomRoundrobinMORouteTestCase(RouteTestCase):
         o = RandomRoundrobinMORoute(self.simple_filter_mo, self.connectors)
 
         t = o.matchFilters(self.routable_connector1)
-        self.assertNotEqual(t, None)
-        self.assertIn(t, self.connectors)
+        self.assertTrue(t)
 
         t = o.matchFilters(self.routable_connector2)
-        self.assertEqual(t, None)
+        self.assertFalse(t)
 
     def test_accepts_connectors_list(self):
         RandomRoundrobinMORoute(self.simple_filter_mo, self.connectors)
@@ -368,11 +364,10 @@ class FailoverMORouteTestCase(RouteTestCase):
         o = FailoverMORoute(self.simple_filter_mo, self.connectors)
 
         t = o.matchFilters(self.routable_connector1)
-        self.assertNotEqual(t, None)
-        self.assertIn(t, self.connectors)
+        self.assertTrue(t)
 
         t = o.matchFilters(self.routable_connector2)
-        self.assertEqual(t, None)
+        self.assertFalse(t)
 
     def test_accepts_connectors_list(self):
         FailoverMORoute(self.simple_filter_mo, self.connectors)
@@ -405,11 +400,10 @@ class FailoverMTRouteTestCase(RouteTestCase):
         o = FailoverMTRoute(self.simple_filter_mt, self.connectors, 0.0)
 
         t = o.matchFilters(self.routable_user1)
-        self.assertNotEqual(t, None)
-        self.assertIn(t, self.connectors)
+        self.assertTrue(t)
 
         t = o.matchFilters(self.routable_user2)
-        self.assertEqual(t, None)
+        self.assertFalse(t)
 
     def test_accepts_connectors_list(self):
         FailoverMTRoute(self.simple_filter_mt, self.connectors, 0.0)
