@@ -5,7 +5,7 @@ import re
 
 from jasmin.protocols.cli.filtersm import MOFILTERS
 from jasmin.protocols.cli.managers import PersistableManager, Session
-from jasmin.routing.Routes import (DefaultRoute, StaticMTRoute, RandomRoundrobinMTRoute, FailoverMORoute)
+from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute, FailoverMORoute)
 from jasmin.routing.jasminApi import SmppServerSystemIdConnector
 
 MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute', 'FailoverMORoute']
@@ -94,6 +94,7 @@ def MORouteBuild(fCallback):
                 self.sessBuffer['type'] = _type
                 # Route class name must be already imported from jasmin.routing.Routes
                 # in order to get it from globals()
+                print _type
                 self.sessBuffer['route_class'] = globals()[_type]
 
                 # Show Route help and save Route args

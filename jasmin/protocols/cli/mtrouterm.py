@@ -5,7 +5,7 @@ import re
 
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.protocols.cli.managers import PersistableManager, Session
-from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute, FailoverMTRoute)
+from jasmin.routing.Routes import (DefaultRoute, StaticMTRoute, RandomRoundrobinMTRoute, FailoverMTRoute)
 from jasmin.routing.jasminApi import SmppClientConnector
 
 MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute', 'FailoverMTRoute']
