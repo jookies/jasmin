@@ -1,11 +1,12 @@
 #pylint: disable=W0611
-import re
-import inspect
 import cPickle as pickle
-from jasmin.protocols.cli.managers import PersistableManager, Session
+import inspect
+import re
+
 from jasmin.protocols.cli.filtersm import MOFILTERS
+from jasmin.protocols.cli.managers import PersistableManager, Session
+from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute, FailoverMORoute)
 from jasmin.routing.jasminApi import SmppServerSystemIdConnector
-from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute)
 
 MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
 
@@ -93,6 +94,7 @@ def MORouteBuild(fCallback):
                 self.sessBuffer['type'] = _type
                 # Route class name must be already imported from jasmin.routing.Routes
                 # in order to get it from globals()
+                print _type
                 self.sessBuffer['route_class'] = globals()[_type]
 
                 # Show Route help and save Route args

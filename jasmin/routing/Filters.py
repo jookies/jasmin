@@ -4,9 +4,11 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
 
 import datetime
+
 from jasmin.routing.Routables import Routable
 from jasmin.routing.jasminApi import *
 from jasmin.tools.eval import CompiledNode
+
 
 class InvalidFilterParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
@@ -15,7 +17,7 @@ class InvalidFilterParameterError(Exception):
 
 class Filter(object):
     """
-    Generick Filter:
+    Generic Filter:
 
     Filter will .match() a Routable against a filter and return true/false.
 
@@ -37,8 +39,8 @@ class Filter(object):
     """
 
     usedFor = ['mt', 'mo']
-    _str = 'Generick Filter'
-    _repr = '<Generick Filter>'
+    _str = 'Generic Filter'
+    _repr = '<Generic Filter>'
 
     def __init__(self, connector=None, user=None, group=None, source_addr=None,
                  destination_addr=None, short_message=None,

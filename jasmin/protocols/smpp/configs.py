@@ -1,11 +1,12 @@
 import logging
 import os
 import re
+
+from jasmin.config.tools import ConfigFile
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               RegisteredDelivery, RegisteredDeliveryReceipt,
                                               AddrTon, AddrNpi,
                                               PriorityFlag, ReplaceIfPresentFlag)
-from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
@@ -30,7 +31,7 @@ class SMPPClientConfig(object):
 
     def __init__(self, **kwargs):
         #####################
-        # Generick configuration block
+        # Generic configuration block
 
         # cid validation
         if kwargs.get('id', None) == None:

@@ -2,10 +2,12 @@
 Multiple classes extending of txamqp.content.Content
 """
 
-import uuid
 import cPickle as pickle
 import datetime
+import uuid
+
 from txamqp.content import Content
+
 
 class InvalidParameterError(Exception):
     """Raised when a parameter is invalid
@@ -18,7 +20,7 @@ def randomUniqueId():
     return msgid
 
 class PDU(Content):
-    "A generick SMPP PDU Content"
+    "A generic SMPP PDU Content"
 
     pickleProtocol = pickle.HIGHEST_PROTOCOL
 

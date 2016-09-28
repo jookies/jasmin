@@ -1,6 +1,9 @@
 import re
+
 from twisted.internet import defer
+
 from test_mxrouterm import MxRouterTestCases
+
 
 class BasicTestCases(MxRouterTestCases):
 
@@ -181,7 +184,7 @@ class MtRouteTypingTestCases(MxRouterTestCases):
 
         # Any new filter must be added here
         self.assertEqual(filters, ['DefaultRoute', 'StaticMTRoute',
-                                   'RandomRoundrobinMTRoute'])
+                                   'RandomRoundrobinMTRoute', 'FailoverMTRoute'])
 
         # Check if MtRouteTypingTestCases is covering all the mtroutes
         for f in filters:
@@ -267,6 +270,39 @@ class MtRouteTypingTestCases(MxRouterTestCases):
                         'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_add_FailoverMTRoute(self):
+        rorder = '10'
+        rtype = 'FailoverMTRoute'
+        cid1 = 'smpp1'
+        typed_cid1 = 'smppc(%s)' % cid1
+        cid2 = 'smpp2'
+        typed_cid2 = 'smppc(%s)' % cid2
+        rate = '0'
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2),
+                 'NOT RATED']
+
+        # Add MTRoute
+        extraCommands = [{'command': 'order %s' % rorder},
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
+                         {'command': 'rate %s' % rate},
+                         {'command': 'filters %s' % fid}]
+        yield self.add_mtroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#%s %s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13),
+                                      (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+            'Total MT Routes: 1']
+        commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
 
 class MtRouteArgsTestCases(MxRouterTestCases):
 
