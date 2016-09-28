@@ -11,9 +11,9 @@ class InvalidInterceptionTableParameterError(Exception):
     """
 
 class InterceptionTable(object):
-    """Generick Interception table
+    """Generic Interception table
     """
-    type = 'generick'
+    type = 'generic'
 
     def __init__(self):
         self.table = []

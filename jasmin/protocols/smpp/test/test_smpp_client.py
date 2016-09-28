@@ -3,23 +3,26 @@ Test cases for smpp client
 These are test cases for only Jasmin's code, smpp.twisted tests are not included here
 """
 
-import mock
 import copy
+
+import mock
 from testfixtures import LogCapture
-from jasmin.protocols.smpp.protocol import *
-from jasmin.protocols.smpp.test.smsc_simulator import *
-from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from twisted.internet import defer
-from twisted.trial.unittest import TestCase
 from twisted.internet.protocol import Factory
 from twisted.python import log
-from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from twisted.trial.unittest import TestCase
+
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPClientFactory
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
-from jasmin.vendor.smpp.pdu.operations import *
-from jasmin.vendor.smpp.pdu.error import *
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.protocols.smpp.protocol import *
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.routing.test.codepages import GSM0338, ISO8859_1
+from jasmin.vendor.smpp.pdu.error import *
+from jasmin.vendor.smpp.pdu.operations import *
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -1304,7 +1307,7 @@ class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
         self.assertEquals(1, smpp.startLongSubmitSmTransaction.call_count)
         self.verifyUnbindSuccess(smpp, sent3, recv3)
 
-class LongSubmitSmGenerickNackTestCase(SimulatorTestCase):
+class LongSubmitSmGenericNackTestCase(SimulatorTestCase):
     protocol = GenericNackNoSeqNumOnSubmitSMSC
 
     @defer.inlineCallbacks

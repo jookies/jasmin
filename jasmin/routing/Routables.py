@@ -4,8 +4,10 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
 
 from datetime import datetime
-from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
+
 from jasmin.routing.jasminApi import *
+from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
+
 
 class InvalidRoutableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
@@ -25,7 +27,7 @@ class InvalidLockError(Exception):
     """
 
 class Routable(object):
-    """Generick Routable:
+    """Generic Routable:
 
     Routable represents a PDU and optionnaly its owner and source Connector, it can be
     a submit_sm or deliver_sm for example
@@ -37,15 +39,15 @@ class Routable(object):
 
     def addTag(self, tag):
         "Add tag to this routable"
-        if not isinstance(tag, int):
-            raise InvalidTagError('Non int tag given: (%s):%s' % (type(tag), tag))
+        if not isinstance(tag, int) and not isinstance(tag, str):
+            raise InvalidTagError('Non int or str tag given: (%s):%s' % (type(tag), tag))
 
         self._tags.append(tag)
 
     def hasTag(self, tag):
         "Check if this routable has 'tag'"
-        if not isinstance(tag, int):
-            raise InvalidTagError('Non int tag given: (%s):%s' % (type(tag), tag))
+        if not isinstance(tag, int) and not isinstance(tag, str):
+            raise InvalidTagError('Non int or str tag given: (%s):%s' % (type(tag), tag))
 
         return tag in self._tags
 
@@ -55,8 +57,8 @@ class Routable(object):
 
     def removeTag(self, tag):
         "Remove tag from routable"
-        if not isinstance(tag, int):
-            raise InvalidTagError('Non int tag given: (%s):%s' % (type(tag), tag))
+        if not isinstance(tag, int) and not isinstance(tag, str):
+            raise InvalidTagError('Non int or str tag given: (%s):%s' % (type(tag), tag))
         if tag not in self._tags:
             raise TagNotFoundError('Trying to remove non existent tag: %s' % tag)
 

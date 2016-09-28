@@ -1,11 +1,14 @@
 from datetime import datetime
+
 from twisted.trial.unittest import TestCase
+
 from jasmin.routing.Routables import (SimpleRoutablePDU, RoutableSubmitSm,
                                       RoutableDeliverSm, InvalidRoutableParameterError,
                                       InvalidTagError, TagNotFoundError,
                                       InvalidLockError)
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.routing.jasminApi import *
+from jasmin.vendor.smpp.pdu.operations import SubmitSM
+
 
 class RoutablePDUTestCase(TestCase):
 
@@ -41,10 +44,12 @@ class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
     def test_tagging(self):
         o = SimpleRoutablePDU(self.connector, self.PDU, self.user, datetime.now())
 
-        self.assertRaises(InvalidTagError, o.addTag, 'anything')
-        self.assertRaises(InvalidTagError, o.hasTag, 'anything')
-        self.assertRaises(InvalidTagError, o.removeTag, 'anything')
+        _any_object = object()
+        self.assertRaises(InvalidTagError, o.addTag, _any_object)
+        self.assertRaises(InvalidTagError, o.hasTag, _any_object)
+        self.assertRaises(InvalidTagError, o.removeTag, _any_object)
 
+        # Integer tags
         o.addTag(23)
         self.assertTrue(o.hasTag(23))
         self.assertFalse(o.hasTag(30))
@@ -52,6 +57,21 @@ class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
         self.assertEqual([23], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
+
+        # String tags
+        o.addTag('23')
+        self.assertTrue(o.hasTag('23'))
+        self.assertFalse(o.hasTag('30'))
+        self.assertRaises(TagNotFoundError, o.removeTag, '30')
+        self.assertEqual(['23'], o.getTags())
+        o.flushTags()
+        self.assertEqual([], o.getTags())
+
+        # Mixed tags
+        o.addTag('23')
+        o.addTag(23)
+        self.assertEqual(['23', 23], o.getTags())
+        o.flushTags()
 
 class RoutableSubmitSmTestCase(RoutablePDUTestCase):
 
@@ -74,10 +94,12 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
     def test_tagging(self):
         o = RoutableSubmitSm(self.PDU, self.user, datetime.now())
 
-        self.assertRaises(InvalidTagError, o.addTag, 'anything')
-        self.assertRaises(InvalidTagError, o.hasTag, 'anything')
-        self.assertRaises(InvalidTagError, o.removeTag, 'anything')
+        _any_object = object()
+        self.assertRaises(InvalidTagError, o.addTag, _any_object)
+        self.assertRaises(InvalidTagError, o.hasTag, _any_object)
+        self.assertRaises(InvalidTagError, o.removeTag, _any_object)
 
+        # Integer tags
         o.addTag(23)
         self.assertTrue(o.hasTag(23))
         self.assertFalse(o.hasTag(30))
@@ -85,6 +107,21 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
         self.assertEqual([23], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
+
+        # String tags
+        o.addTag('23')
+        self.assertTrue(o.hasTag('23'))
+        self.assertFalse(o.hasTag('30'))
+        self.assertRaises(TagNotFoundError, o.removeTag, '30')
+        self.assertEqual(['23'], o.getTags())
+        o.flushTags()
+        self.assertEqual([], o.getTags())
+
+        # Mixed tags
+        o.addTag('23')
+        o.addTag(23)
+        self.assertEqual(['23', 23], o.getTags())
+        o.flushTags()
 
     def test_locking(self):
         o = RoutableSubmitSm(self.PDU, self.user, datetime.now())
@@ -116,10 +153,12 @@ class RoutableDeliverSmTestCase(RoutablePDUTestCase):
     def test_tagging(self):
         o = RoutableDeliverSm(self.PDU, self.connector, datetime.now())
 
-        self.assertRaises(InvalidTagError, o.addTag, 'anything')
-        self.assertRaises(InvalidTagError, o.hasTag, 'anything')
-        self.assertRaises(InvalidTagError, o.removeTag, 'anything')
+        _any_object = object()
+        self.assertRaises(InvalidTagError, o.addTag, _any_object)
+        self.assertRaises(InvalidTagError, o.hasTag, _any_object)
+        self.assertRaises(InvalidTagError, o.removeTag, _any_object)
 
+        # Integer tags
         o.addTag(23)
         self.assertTrue(o.hasTag(23))
         self.assertFalse(o.hasTag(30))
@@ -127,3 +166,18 @@ class RoutableDeliverSmTestCase(RoutablePDUTestCase):
         self.assertEqual([23], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
+
+        # String tags
+        o.addTag('23')
+        self.assertTrue(o.hasTag('23'))
+        self.assertFalse(o.hasTag('30'))
+        self.assertRaises(TagNotFoundError, o.removeTag, '30')
+        self.assertEqual(['23'], o.getTags())
+        o.flushTags()
+        self.assertEqual([], o.getTags())
+
+        # Mixed tags
+        o.addTag('23')
+        o.addTag(23)
+        self.assertEqual(['23', 23], o.getTags())
+        o.flushTags()

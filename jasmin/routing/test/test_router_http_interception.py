@@ -1,20 +1,22 @@
-from twisted.internet import reactor, defer
-from twisted.web.client import getPage
-from test_router import HappySMSCTestCase, id_generator
-from jasmin.routing.jasminApi import *
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.routing.Routes import DefaultRoute
-from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
-from jasmin.interceptor.proxies import InterceptorPBProxy
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.internet import reactor, defer
+from twisted.spread import pb
+from twisted.web.client import getPage
+
+from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
+from jasmin.interceptor.interceptor import InterceptorPB
+from jasmin.interceptor.proxies import InterceptorPBProxy
+from jasmin.protocols.http.stats import HttpAPIStatsCollector
+from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.routing.Interceptors import DefaultInterceptor
+from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.spread import pb
-from jasmin.protocols.http.stats import HttpAPIStatsCollector
+from test_router import HappySMSCTestCase, id_generator
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -313,7 +315,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, None)
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual('[123, 456]', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
+        self.assertEqual('[\'123\', \'456\']', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
 
     @defer.inlineCallbacks
     def test_send_and_lock_param(self):

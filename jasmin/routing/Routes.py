@@ -4,10 +4,12 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
 
 import random
+
 from jasmin.routing.Bills import SubmitSmBill
-from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import Filter
 from jasmin.routing.Routables import Routable
+from jasmin.routing.jasminApi import *
+
 
 class InvalidRouteParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
@@ -19,13 +21,14 @@ class InvalidRouteFilterError(Exception):
     """
 
 class Route(object):
-    """Generick Route:
+    """Generic Route:
 
     Route contain a triplet of [Filter(s), Connector, Rate]
     When more than one Filter is given, matching these filters will use the AND operator
     """
-    type = 'generick'
-    _str = 'generick'
+    type = 'generic'
+    _str = 'generic'
+    _repr = 'Route'
     filters = []
     connector = None
     rate = 0.0
@@ -62,6 +65,9 @@ class Route(object):
 
     def __str__(self):
         return self._str
+
+    def __repr__(self):
+        return self.__class__.__name__
 
     def getConnector(self):
         return self.connector
@@ -105,7 +111,7 @@ class Route(object):
         return bill
 
     def matchFilters(self, routable):
-        """If filters match routable, the connector will be returned, if not, None will be returned
+        """If filters match routable, True will be returned, if not, False will be returned
         """
 
         if not isinstance(routable, Routable):
@@ -113,8 +119,8 @@ class Route(object):
 
         for _filter in self.filters:
             if not _filter.match(routable):
-                return None
-        return self.getConnector()
+                return False
+        return True
 
 class DefaultRoute(Route):
     """This is a default route which can contain one connector
@@ -146,12 +152,12 @@ class DefaultRoute(Route):
         return self.getConnector()
 
 class MTRoute(Route):
-    """Generick MT Route
+    """Generic MT Route
     """
     type = 'mt'
 
 class MORoute(Route):
-    """Generick MO Route
+    """Generic MO Route
     """
     type = 'mo'
 
@@ -169,11 +175,13 @@ class StaticMTRoute(MTRoute):
     """
 
 class RoundrobinRoute(object):
-    """Generick RoundrobinRoute
+    """Generic RoundrobinRoute
     """
     def __init__(self, filters, connectors):
         if not isinstance(connectors, list):
             raise InvalidRouteParameterError("connectors must be a list")
+        if len(connectors) == 0:
+            raise InvalidRouteParameterError("Route cannot have zero connectors")
         for _connector in connectors:
             if not isinstance(_connector, Connector):
                 raise InvalidRouteParameterError("connector is not an instance of Connector")
@@ -191,14 +199,14 @@ class RoundrobinRoute(object):
         self.filters = filters
         self.connector = connectors
 
-        connectorList_str = ''
+        connector_list_str = ''
         for c in connectors:
-            if connectorList_str != '':
-                connectorList_str += '\n'
-            connectorList_str += '\t- %s(%s)' % (c.type, c.cid)
+            if connector_list_str != '':
+                connector_list_str += '\n'
+            connector_list_str += '\t- %s(%s)' % (c.type, c.cid)
         self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__,
                                                   len(connectors),
-                                                  connectorList_str)
+                                                  connector_list_str)
 
     def __str__(self):
         return self._str
@@ -215,7 +223,6 @@ class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
     """Return one route taken randomly from a pool of
     routes
     """
-
     def __init__(self, filters, connectors, rate):
         "Overriding RoundrobinRoute's __init__ to add rate parameter as it is only used for MT Routes"
 
@@ -234,23 +241,90 @@ class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
             rate_str = '\nNOT RATED'
         self._str = "%s %s" % (self._str, rate_str)
 
-class FailoverMORoute(MORoute):
-    # @todo: Work in progress
-    """Return a principal route with multiple failover
-    routes to try if the principal route failed
-    """
-    def __init__(self, filters, connector):
-        MORoute.__init__(self, filters, connector)
-        raise NotImplementedError
+class FailoverRoute(object):
+    """Generic FailoverRoute"""
+    def __init__(self, filters, connectors):
+        if not isinstance(connectors, list):
+            raise InvalidRouteParameterError("connectors must be a list")
+        if len(connectors) == 0:
+            raise InvalidRouteParameterError("Route cannot have zero connectors")
+        for _connector in connectors:
+            if not isinstance(_connector, Connector):
+                raise InvalidRouteParameterError("connector is not an instance of Connector")
+        if not isinstance(filters, list):
+            raise InvalidRouteParameterError("filters must be a list")
+        for _filter in filters:
+            if not isinstance(_filter, Filter):
+                raise InvalidRouteParameterError(
+                    "filter must be an instance of Filter, %s found" % type(_filter))
+            if self.type not in _filter.usedFor:
+                raise InvalidRouteFilterError(
+                    "filter types (%s) is not compatible with this route type (%s)" % (
+                        _filter.usedFor, self.type))
 
-class FailoverMTRoute(MTRoute):
-    # @todo: Work in progress
-    """Return a principal route with multiple failover
-    routes to try if the principal route failed
+        self.filters = filters
+        self.seq = -1
+        self.connector = connectors
+
+        connector_list_str = ''
+        for c in connectors:
+            if connector_list_str != '':
+                connector_list_str += '\n'
+            connector_list_str += '\t- %s(%s)' % (c.type, c.cid)
+        self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__,
+                                                  len(connectors),
+                                                  connector_list_str)
+
+    def __str__(self):
+        return self._str
+
+    def getConnector(self):
+        try:
+            self.seq += 1
+            return self.connector[self.seq]
+        except IndexError:
+            return None
+
+
+class FailoverMORoute(FailoverRoute, MORoute):
+    """Returned connector from getConnector method is iterated through the list of available connectors
     """
-    def __init__(self, filters, connector, rate):
-        MTRoute.__init__(self, filters, connector, rate)
-        raise NotImplementedError
+
+    def matchFilters(self, routable):
+        # Initialize self.seq to return first connector
+        self.seq = -1
+
+        return MORoute.matchFilters(self, routable)
+
+
+class FailoverMTRoute(FailoverRoute, MTRoute):
+    """Returned connector from getConnector method is iterated through the list of available connectors
+    """
+
+    def __init__(self, filters, connectors, rate):
+        """Overriding FailoverRoute's __init__ to add rate parameter as it is only used for MT Routes"""
+
+        if not isinstance(rate, float):
+            raise InvalidRouteParameterError("rate is not float")
+        if rate < 0:
+            raise InvalidRouteParameterError("rate can not be a negative value")
+
+        self.rate = rate
+
+        FailoverRoute.__init__(self, filters, connectors)
+
+        if self.rate > 0:
+            rate_str = '\nrated %.2f' % self.rate
+        else:
+            rate_str = '\nNOT RATED'
+        self._str = "%s %s" % (self._str, rate_str)
+
+    def matchFilters(self, routable):
+        # Initialize self.seq to return first connector
+        self.seq = -1
+
+        return MTRoute.matchFilters(self, routable)
+
 
 class BestQualityMTRoute(MTRoute):
     # @todo: Work in progress

@@ -2,8 +2,9 @@
 More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
 
-from jasmin.routing.Routes import Route
 from jasmin.routing.Routables import Routable
+from jasmin.routing.Routes import Route
+
 
 class InvalidRoutingTableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
@@ -11,9 +12,9 @@ class InvalidRoutingTableParameterError(Exception):
     """
 
 class RoutingTable(object):
-    """Generick Routing table
+    """Generic Routing table
     """
-    type = 'generick'
+    type = 'generic'
 
     def __init__(self):
         self.table = []

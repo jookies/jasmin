@@ -1,21 +1,23 @@
+import cPickle as pickle
+import json
 import logging
 import re
-import json
-import cPickle as pickle
-from twisted.internet import reactor, defer
-from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
+from logging.handlers import TimedRotatingFileHandler
+
+from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
-from .errors import (AuthenticationError, ServerError, RouteNotFoundError,
+from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
+from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
-from .validation import UrlArgsValidator, HttpAPICredentialValidator
 from .stats import HttpAPIStatsCollector
+from .validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -117,7 +119,7 @@ class Send(Resource):
             if 'tags' in updated_request.args:
                 tags = updated_request.args['tags'][0].split(',')
                 for tag in tags:
-                    routable.addTag(int(tag))
+                    routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
@@ -160,15 +162,37 @@ class Send(Resource):
                 self.log.error("No route matched from user %s for SubmitSmPDU: %s", user, routable.pdu)
                 raise RouteNotFoundError("No route found")
 
-            # Re-update SubmitSmPDU with parameters from the route's connector
-            connector_config = self.SMPPClientManagerPB.perspective_connector_config(route.getConnector().cid)
-            if connector_config != False:
-                connector_config = pickle.loads(connector_config)
-                routable = update_submit_sm_pdu(routable=routable, config=connector_config)
-
             # Get connector from selected route
             self.log.debug("RouterPB selected %s route for this SubmitSmPDU", route)
             routedConnector = route.getConnector()
+            # Is it a failover route ? then check for a bound connector, otherwise don't route
+            # The failover route requires at least one connector to be up, no message enqueuing will
+            # occur otherwise.
+            if repr(route) == 'FailoverMTRoute':
+                self.log.debug('Selected route is a failover, will ensure connector is bound:')
+                while True:
+                    c = self.SMPPClientManagerPB.perspective_connector_details(routedConnector.cid)
+                    self.log.debug('Connector [%s] is: %s', routedConnector.cid, c['session_state'])
+
+                    if c['session_state'][:6] == 'BOUND_':
+                        # Choose this connector
+                        break
+                    else:
+                        # Check next connector, None if no more connectors are available
+                        routedConnector = route.getConnector()
+                        if routedConnector is None:
+                            break
+
+            if routedConnector is None:
+                self.stats.inc('route_error_count')
+                self.log.error("Failover route has no bound connector to handle SubmitSmPDU: %s", routable.pdu)
+                raise ConnectorNotFoundError("Failover route has no bound connectors")
+
+            # Re-update SubmitSmPDU with parameters from the route's connector
+            connector_config = self.SMPPClientManagerPB.perspective_connector_config(routedConnector.cid)
+            if connector_config:
+                connector_config = pickle.loads(connector_config)
+                routable = update_submit_sm_pdu(routable=routable, config=connector_config)
 
             # Set priority
             priority = 0
@@ -354,7 +378,7 @@ class Send(Resource):
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': False}}
 
             # Default coding is 0 when not provided
@@ -467,7 +491,7 @@ class Rate(Resource):
             if 'tags' in request.args:
                 tags = request.args['tags'][0].split(',')
                 for tag in tags:
-                    routable.addTag(int(tag))
+                    routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
@@ -575,7 +599,7 @@ class Rate(Resource):
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([0-9,])*$')},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': True},
                       }
 

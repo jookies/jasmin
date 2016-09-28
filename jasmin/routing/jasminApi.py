@@ -4,7 +4,9 @@ A set of objects used by Jasmin to manage users, groups and connectors in memory
 
 import re
 from hashlib import md5
+
 from jasmin.tools.singleton import Singleton
+
 
 class jasminApiInvalidParamError(Exception):
     """Raised when trying to instanciate a jasminApi object with invalid parameter
@@ -14,11 +16,11 @@ class jasminApiCredentialError(Exception):
     """Raised for ant Credential-related error
     """
 
-class jasminApiGenerick(object):
+class jasminApiGeneric(object):
     pass
 
-class CredentialGenerick(jasminApiGenerick):
-    """A generick credential object"""
+class CredentialGeneric(jasminApiGeneric):
+    """A generic credential object"""
     authorizations = {}
     value_filters = {}
     defaults = {}
@@ -94,7 +96,7 @@ class CredentialGenerick(jasminApiGenerick):
 
         return self.quotas[key]
 
-class MtMessagingCredential(CredentialGenerick):
+class MtMessagingCredential(CredentialGeneric):
     """Credential set for sending MT Messages through"""
 
     def __init__(self, default_authorizations=True):
@@ -150,9 +152,9 @@ class MtMessagingCredential(CredentialGenerick):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a positive number' % (key, value))
 
-        CredentialGenerick.setQuota(self, key, value)
+        CredentialGeneric.setQuota(self, key, value)
 
-class SmppsCredential(CredentialGenerick):
+class SmppsCredential(CredentialGeneric):
     """Credential set for SMPP Server connection"""
 
     def __init__(self, default_authorizations=True):
@@ -169,9 +171,9 @@ class SmppsCredential(CredentialGenerick):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be a positive int' % (key, value))
 
-        CredentialGenerick.setQuota(self, key, value)
+        CredentialGeneric.setQuota(self, key, value)
 
-class Group(jasminApiGenerick):
+class Group(jasminApiGeneric):
     """Every user must have a group"""
 
     def __init__(self, gid):
@@ -194,7 +196,7 @@ class Group(jasminApiGenerick):
     def __str__(self):
         return str(self.gid)
 
-class CnxStatus(jasminApiGenerick):
+class CnxStatus(jasminApiGeneric):
     """Connection status information holder"""
 
     def __init__(self):
@@ -241,7 +243,7 @@ class UserStats(object):
     def set(self, uid, stats):
         self.users[uid] = stats
 
-class User(jasminApiGenerick):
+class User(jasminApiGeneric):
     """Jasmin user"""
 
     def __init__(self, uid, group, username, password,
@@ -297,14 +299,14 @@ class User(jasminApiGenerick):
     def __str__(self):
         return self.username
 
-class Connector(jasminApiGenerick):
+class Connector(jasminApiGeneric):
     """
-    This is a generick connector, it's used through its implementations
+    This is a generic connector, it's used through its implementations
     """
 
     type = 'generic'
-    _str = 'Generick Connector'
-    _repr = '<Generick Connector>'
+    _str = 'Generic Connector'
+    _repr = '<Generic Connector>'
 
     def __init__(self, cid):
         self.cid = cid
@@ -377,8 +379,8 @@ class SmppServerSystemIdConnector(Connector):
 
         self.system_id = system_id
 
-class InterceptorScript(jasminApiGenerick):
-    "This is a generick script for message interception"
+class InterceptorScript(jasminApiGeneric):
+    "This is a generic script for message interception"
 
     type = 'generic'
 

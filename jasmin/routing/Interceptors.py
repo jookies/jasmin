@@ -3,9 +3,10 @@
 More info: http://docs.jasminsms.com/en/latest/interception/index.html
 """
 
-from jasmin.routing.jasminApi import *
 from jasmin.routing.Filters import Filter
 from jasmin.routing.Routables import Routable
+from jasmin.routing.jasminApi import *
+
 
 class InvalidInterceptorParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class.
@@ -16,13 +17,13 @@ class InvalidInterceptorFilterError(Exception):
     "Raised when an interceptor is instanciated with a non-compatible type"
 
 class Interceptor(object):
-    """Generick Interceptor:
+    """Generic Interceptor:
 
     Interceptor contain a couple of [Filter(s), InterceptorScript]
     When more than one Filter is given, matching these filters will use the AND operator
     """
-    type = 'generick'
-    _str = 'generick'
+    type = 'generic'
+    _str = 'generic'
     filters = []
     script = None
 
@@ -82,12 +83,12 @@ class DefaultInterceptor(Interceptor):
         return self.getScript()
 
 class MTInterceptor(Interceptor):
-    """Generick MT Interceptor
+    """Generic MT Interceptor
     """
     type = 'mt'
 
 class MOInterceptor(Interceptor):
-    """Generick MO Interceptor
+    """Generic MO Interceptor
     """
     type = 'mo'
 

@@ -1,6 +1,9 @@
 import re
+
 from twisted.internet import defer
+
 from test_mxrouterm import MxRouterTestCases
+
 
 class BasicTestCases(MxRouterTestCases):
 
@@ -216,11 +219,13 @@ class MoRouteTypingTestCases(MxRouterTestCases):
 
         # Any new filter must be added here
         self.assertEqual(filters, ['DefaultRoute_http',
-            'DefaultRoute_smpps',
-            'StaticMORoute_http',
-            'StaticMORoute_smpps',
-            'RandomRoundrobinMORoute_http',
-            'RandomRoundrobinMORoute_smpps'])
+                                   'DefaultRoute_smpps',
+                                   'StaticMORoute_http',
+                                   'StaticMORoute_smpps',
+                                   'RandomRoundrobinMORoute_http',
+                                   'RandomRoundrobinMORoute_smpps',
+                                   'FailoverMORoute_http',
+                                   'FailoverMORoute_smpps'])
 
         # Check if MoRouteTypingTestCases is covering all the moroutes
         for f in filters:
@@ -402,6 +407,93 @@ class MoRouteTypingTestCases(MxRouterTestCases):
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
+
+    @defer.inlineCallbacks
+    def test_add_FailoverMORoute_http(self):
+        rorder = '10'
+        rtype = 'FailoverMORoute'
+        cid1 = 'http1'
+        typed_cid1 = 'http(%s)' % cid1
+        cid2 = 'http2'
+        typed_cid2 = 'http(%s)' % cid2
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2)]
+
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder},
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
+                         {'command': 'filters %s' % fid}]
+        yield self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
+                        '#%s %s %s     <T>' % (
+                        rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+
+    @defer.inlineCallbacks
+    def test_add_FailoverMORoute_smpps(self):
+        rorder = '10'
+        rtype = 'FailoverMORoute'
+        cid1 = 'smppuser1'
+        typed_cid1 = 'smpps(%s)' % cid1
+        cid2 = 'smppuser2'
+        typed_cid2 = 'smpps(%s)' % cid2
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2)]
+
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder},
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
+                         {'command': 'filters %s' % fid}]
+        yield self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
+                        '#%s %s %s     <T>' % (
+                        rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
+
+    @defer.inlineCallbacks
+    def test_add_FailoverMORoute_hybrid(self):
+        rorder = '10'
+        rtype = 'FailoverMORoute'
+        cid1 = 'smppuser1'
+        typed_cid1 = 'smpps(%s)' % cid1
+        cid2 = 'http1'
+        typed_cid2 = 'http(%s)' % cid2
+        fid = 'f1'
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2)]
+
+        # Add MORoute
+        extraCommands = [{'command': 'order %s' % rorder},
+                         {'command': 'type %s' % rtype},
+                         {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
+                         {'command': 'filters %s' % fid}]
+        yield self.add_moroute('jcli : ', extraCommands)
+
+        # Make asserts
+        expectedList = _str_
+        yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
+        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
+                        '#%s %s %s     <T>' % (
+                        rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+                        'Total MO Routes: 1']
+        commands = [{'command': 'morouter -l', 'expect': expectedList}]
+        yield self._test(r'jcli : ', commands)
+
 
 class MoRouteArgsTestCases(MxRouterTestCases):
 
