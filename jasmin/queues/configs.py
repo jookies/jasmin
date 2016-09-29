@@ -3,8 +3,10 @@ Config file handler for 'amqp-broker' section in jasmin.cfg
 """
 
 import logging
-import txamqp
 import os
+
+import txamqp
+
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
@@ -16,7 +18,7 @@ class AmqpConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.host = self._get('amqp-broker', 'host', '127.0.0.1')q
+        self.host = self._get('amqp-broker', 'host', '127.0.0.1')
         self.port = self._getint('amqp-broker', 'port', 5672)
         self.username = self._get('amqp-broker', 'username', 'guest')
         self.password = self._get('amqp-broker', 'password', 'guest')
