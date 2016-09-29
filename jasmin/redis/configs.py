@@ -2,9 +2,10 @@
 Config file handler for 'redis-client' section in jasmin.cfg
 """
 
-from jasmin.config.tools import ConfigFile
 import logging
 import os
+
+from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
