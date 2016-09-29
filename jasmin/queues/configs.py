@@ -3,8 +3,10 @@ Config file handler for 'amqp-broker' section in jasmin.cfg
 """
 
 import logging
-import txamqp
 import os
+
+import txamqp
+
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
