@@ -1,24 +1,26 @@
 #pylint: disable=W0401,W0611
-import logging
 import cPickle as pickle
+import logging
 import struct
-from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timedelta
+from logging.handlers import TimedRotatingFileHandler
+
 from dateutil import parser
 from twisted.internet import defer
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, CommandId
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from twisted.internet import reactor
 from txamqp.queue import Closed
-from twisted.internet import reactor, task
+
+from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.content import (SubmitSmRespContent, DeliverSmContent,
                                      DLRContentForHttpapi, DLRContentForSmpps,
                                      SubmitSmRespBillContent)
-from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
-from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
+from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, CommandId
+from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
@@ -634,10 +636,12 @@ class SMPPClientSMListener(object):
                 concatenated = False
 
             # Get message_content
-            if 'short_message' in pdu.params:
+            if 'short_message' in pdu.params and len(pdu.params['short_message']) > 0:
                 message_content = pdu.params['short_message']
             elif 'message_payload' in pdu.params:
                 message_content = pdu.params['message_payload']
+            elif 'short_message' in pdu.params:
+                message_content = pdu.params['short_message']
             else:
                 message_content = None
 

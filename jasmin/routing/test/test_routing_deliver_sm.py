@@ -1,22 +1,25 @@
-import mock
 import copy
-import time
 import string
-from twisted.internet import reactor, defer
+import time
+
+import mock
+from twisted.internet import defer
 from twisted.web import server
-from jasmin.routing.test.http_server import AckServer
+
+from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.protocols.smpp.test.smsc_simulator import *
+from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.configs import deliverSmThrowerConfig
 from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.http_server import AckServer
 from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, LastClientFactory,
                                             SubmitSmTestCaseTools, id_generator)
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.protocols.smpp.test.smsc_simulator import *
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower
-from jasmin.vendor.smpp.pdu.operations import DeliverSM
-from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from jasmin.routing.throwers import deliverSmThrower
+from jasmin.vendor.smpp.pdu import pdu_types
+from jasmin.vendor.smpp.pdu.operations import DeliverSM
+
 
 class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = DeliverSmSMSC
@@ -147,6 +150,39 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(receivedHttpReq['content'], [pdu.params['short_message']])
         self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu.params['short_message'])])
         self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+
+        # Disconnector from SMSC
+        yield self.stopConnector(source_connector)
+
+    @defer.inlineCallbacks
+    def test_delivery_HttpConnector_message_payload_when_short_message_empty(self):
+        """Related to #470
+        Consider 'message_payload' when 'short_message' is empty"""
+        yield self.connect('127.0.0.1', self.pbPort)
+        # Connect to SMSC
+        source_connector = Connector(id_generator())
+        yield self.prepareRoutingsAndStartConnector(source_connector)
+
+        # Send a deliver_sm from the SMSC
+        assert_content = 'Some content'
+        pdu = DeliverSM(
+            source_addr='1234',
+            destination_addr='4567',
+            short_message='',
+            message_payload=assert_content
+        )
+        yield self.triggerDeliverSmFromSMSC([pdu])
+
+        # Run tests
+        # Test callback in router
+        self.assertEquals(self.pbRoot_f.deliver_sm_callback.call_count, 1)
+        # Destination connector must receive the message one time (no retries)
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        # Assert received args
+        receivedHttpReq = self.AckServerResource.last_request.args
+        self.assertEqual(len(receivedHttpReq), 8)
+        self.assertEqual(receivedHttpReq['content'], [assert_content])
+        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(assert_content)])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)

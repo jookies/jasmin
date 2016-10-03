@@ -1,15 +1,18 @@
+import binascii
 import cPickle as pickle
 import logging
 import urllib
-import binascii
 from logging.handlers import TimedRotatingFileHandler
+
 from twisted.application.service import Service
 from twisted.internet import defer
+from twisted.internet import reactor
 from twisted.web.client import getPage
 from txamqp.queue import Closed
-from twisted.internet import reactor
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
+
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
+
 
 class MessageAcknowledgementError(Exception):
     """Raised when destination end does not return 'ACK/Jasmin' back to
@@ -197,10 +200,12 @@ class deliverSmThrower(Thrower):
             'origin-connector': message.content.properties['headers']['src-connector-id']}
 
         # Content can be short_message or message_payload:
-        if 'short_message' in RoutedDeliverSmContent.params:
+        if 'short_message' in RoutedDeliverSmContent.params and len(RoutedDeliverSmContent.params['short_message']) > 0:
             args['content'] = RoutedDeliverSmContent.params['short_message']
         elif 'message_payload' in RoutedDeliverSmContent.params:
             args['content'] = RoutedDeliverSmContent.params['message_payload']
+        elif 'short_message' in RoutedDeliverSmContent.params:
+            args['content'] = RoutedDeliverSmContent.params['short_message']
         else:
             self.log.error('Cannot find content in pdu (msgid:%s): %s', msgid, RoutedDeliverSmContent)
             yield self.rejectMessage(message)
