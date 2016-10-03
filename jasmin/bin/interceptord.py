@@ -92,7 +92,7 @@ class InterceptorDaemon(object):
 
 if __name__ == '__main__':
     # Must not be executed simultaneously (c.f. #265)
-    lock = FileLock("/tmp/interceptord.lock")
+    lock = FileLock("/tmp/interceptord")
 
     try:
         options = Options()
