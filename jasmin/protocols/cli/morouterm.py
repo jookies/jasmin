@@ -8,7 +8,7 @@ from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.Routes import (DefaultRoute, StaticMORoute, RandomRoundrobinMORoute, FailoverMORoute)
 from jasmin.routing.jasminApi import SmppServerSystemIdConnector
 
-MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute']
+MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute', 'FailoverMORoute']
 
 # A config map between console-configuration keys and Route keys.
 MORouteKeyMap = {'order': 'order', 'type': 'type'}
