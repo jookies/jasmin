@@ -84,7 +84,11 @@ def gotConnection(conn, username, password):
             pdu = pickle.loads(msg.content.body)
             pdu_count = 1
             short_message = pdu.params['short_message']
-            submit_sm_bill = pickle.loads(props['headers']['submit_sm_resp_bill'])
+            billing = props['headers']
+            billing_pickle = billing.get('submit_sm_resp_bill')
+            if not billing_pickle:
+                billing_pickle = billing.get('submit_sm_bill')
+            submit_sm_bill = pickle.loads(billing_pickle)
             source_connector = props['headers']['source_connector']
             routed_cid = msg.routing_key[10:]
 
