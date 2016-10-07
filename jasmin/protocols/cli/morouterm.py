@@ -1,4 +1,4 @@
-#pylint: disable=W0611
+# pylint: disable=W0611
 import cPickle as pickle
 import inspect
 import re
@@ -13,8 +13,10 @@ MOROUTES = ['DefaultRoute', 'StaticMORoute', 'RandomRoundrobinMORoute', 'Failove
 # A config map between console-configuration keys and Route keys.
 MORouteKeyMap = {'order': 'order', 'type': 'type'}
 
+
 class InvalidCidSyntax(Exception):
     pass
+
 
 def validate_typed_connector_id(cid):
     '''Used to ensure the cid imput is typed to indicate the connector
@@ -32,9 +34,11 @@ def validate_typed_connector_id(cid):
 
     return m.group(1).lower(), m.group(2)
 
+
 def MORouteBuild(fCallback):
     '''Parse args and try to build a route from  one of the routes in
        jasmin.routing.Routes instance to pass it to fCallback'''
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -94,7 +98,6 @@ def MORouteBuild(fCallback):
                 self.sessBuffer['type'] = _type
                 # Route class name must be already imported from jasmin.routing.Routes
                 # in order to get it from globals()
-                print _type
                 self.sessBuffer['route_class'] = globals()[_type]
 
                 # Show Route help and save Route args
@@ -109,7 +112,7 @@ def MORouteBuild(fCallback):
 
                 if len(RouteClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MORouteKeyMap.keys()+RouteClassArgs
+                    self.protocol.sessionCompletitions = MORouteKeyMap.keys() + RouteClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (self.sessBuffer['route_class'], ', '.join(RouteClassArgs)))
@@ -117,11 +120,11 @@ def MORouteBuild(fCallback):
                 # DefaultRoute's order is always zero
                 if cmd == 'order':
                     if (arg != '0' and 'type' in self.sessBuffer
-                            and self.sessBuffer['type'] == 'DefaultRoute'):
+                        and self.sessBuffer['type'] == 'DefaultRoute'):
                         self.sessBuffer['order'] = 0
                         return self.protocol.sendData('Route order forced to 0 since it is a DefaultRoute')
                     elif (arg == '0' and 'type' in self.sessBuffer and
-                        self.sessBuffer['type'] != 'DefaultRoute'):
+                                  self.sessBuffer['type'] != 'DefaultRoute'):
                         return self.protocol.sendData(
                             'This route order (0) is reserved for DefaultRoute only')
                     elif not arg.isdigit() or int(arg) < 0:
@@ -134,7 +137,7 @@ def MORouteBuild(fCallback):
                     try:
                         ctype, cid = validate_typed_connector_id(arg)
                         if ctype == 'http':
-                            if cid not in  self.protocol.managers['httpccm'].httpccs:
+                            if cid not in self.protocol.managers['httpccm'].httpccs:
                                 raise Exception('Unknown http cid: %s' % (cid))
 
                             # Pass ready HttpConnector instance
@@ -151,14 +154,15 @@ def MORouteBuild(fCallback):
                 if cmd == 'connectors':
                     CIDs = arg.split(';')
                     if len(CIDs) == 1:
-                        return self.protocol.sendData('%s option value must contain a minimum of 2 connector IDs separated with ";".' % (cmd))
+                        return self.protocol.sendData(
+                            '%s option value must contain a minimum of 2 connector IDs separated with ";".' % (cmd))
 
                     arg = []
                     for typed_cid in CIDs:
                         try:
                             ctype, cid = validate_typed_connector_id(typed_cid)
                             if ctype == 'http':
-                                if cid not in  self.protocol.managers['httpccm'].httpccs:
+                                if cid not in self.protocol.managers['httpccm'].httpccs:
                                     raise Exception('Unknown http cid: %s' % (cid))
 
                                 # Pass ready HttpConnector instance
@@ -197,14 +201,19 @@ def MORouteBuild(fCallback):
                 self.sessBuffer[RouteKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
+
 
 class MORouteExist(object):
     'Check if a mo route exist with a given order before passing it to fCallback'
+
     def __init__(self, order_key):
         self.order_key = order_key
+
     def __call__(self, fCallback):
         order_key = self.order_key
+
         def exist_moroute_and_call(self, *args, **kwargs):
             opts = args[1]
             order = getattr(opts, order_key)
@@ -216,7 +225,9 @@ class MORouteExist(object):
                 return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown MO Route: %s' % order)
+
         return exist_moroute_and_call
+
 
 class MoRouterManager(PersistableManager):
     "MO Router manager logics"
@@ -252,7 +263,7 @@ class MoRouterManager(PersistableManager):
                 'Type'.ljust(23),
                 'Connector ID(s)'.ljust(48),
                 'Filter(s)'.ljust(64),
-                ), prompt=False)
+            ), prompt=False)
 
             for e in moroutes:
                 order = e.keys()[0]
@@ -281,7 +292,7 @@ class MoRouterManager(PersistableManager):
                     str(moroute.__class__.__name__).ljust(23),
                     connectors.ljust(48),
                     filters.ljust(64),
-                    ), prompt=False)
+                ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total MO Routes: %s' % counter)
@@ -299,6 +310,7 @@ class MoRouterManager(PersistableManager):
             self.stopSession()
         else:
             self.protocol.sendData('Failed adding MORoute, check log for details')
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Route: (ok: save, ko: exit)',

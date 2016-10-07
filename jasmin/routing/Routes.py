@@ -290,6 +290,24 @@ class FailoverMORoute(FailoverRoute, MORoute):
     """Returned connector from getConnector method is iterated through the list of available connectors
     """
 
+    def __init__(self, filters, connectors):
+        FailoverRoute.__init__(self, filters, connectors)
+
+        # Don't accept mixed connector types for FailoverMORoute
+        #  This is a design limitation: the deliver_sm throwers are isolated by type of connector,
+        #  they cannot execute a failover algorithm on top of two different connector types.
+        _types = None
+        for c in connectors:
+            if _types is not None and c.type != _types:
+                raise InvalidRouteParameterError('FailoverMORoute cannot have mixed connector types')
+            _types = c.type
+
+        if not isinstance(connectors, list):
+            raise InvalidRouteParameterError("connectors must be a list")
+
+    def getConnectos(self):
+        return self.connector
+
     def matchFilters(self, routable):
         # Initialize self.seq to return first connector
         self.seq = -1
