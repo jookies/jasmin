@@ -305,7 +305,7 @@ class FailoverMORoute(FailoverRoute, MORoute):
         if not isinstance(connectors, list):
             raise InvalidRouteParameterError("connectors must be a list")
 
-    def getConnectos(self):
+    def getConnectors(self):
         return self.connector
 
     def matchFilters(self, routable):
