@@ -91,7 +91,7 @@ class SMPPClientSMListener(object):
     def rejectAndRequeueMessage(self, message, delay=True):
         msgid = message.content.properties['message-id']
 
-        if delay != False:
+        if delay:
             # Use configured requeue_delay or specific one
             if not isinstance(delay, bool):
                 requeue_delay = delay

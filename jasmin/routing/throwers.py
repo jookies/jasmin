@@ -133,38 +133,36 @@ class Thrower(Service):
         self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
         self.log.info('Consuming from routing key: %s', self.routingKey)
 
+    @defer.inlineCallbacks
     def rejectAndRequeueMessage(self, message, delay=True):
         msgid = message.content.properties['message-id']
 
-        # Reject message
-        self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
-
-        # Publish it
         if delay:
             self.log.debug("Requeuing Content[%s] with delay: %s seconds",
                            msgid, self.config.retry_delay)
-            t = reactor.callLater(self.config.retry_delay,
-                                  self.amqpBroker.publish,
-                                  exchange='messaging',
-                                  routing_key=message.routing_key,
-                                  content=message.content)
+
+            # Requeue the message with a delay
+            timer = reactor.callLater(self.config.retry_delay,
+                                      self.rejectMessage,
+                                      message=message,
+                                      requeue=1)
 
             # If any, clear timer before setting a new one
             self.clearRequeueTimer(msgid)
 
-            self.requeueTimers[msgid] = t
-            return t
+            self.requeueTimers[msgid] = timer
+            defer.returnValue(timer)
         else:
             self.log.debug("Requeuing Content[%s] without delay", msgid)
-            return self.amqpBroker.publish(exchange='messaging',
-                                           routing_key=message.routing_key,
-                                           content=message.content)
+            yield self.rejectMessage(message, requeue=1)
 
-    def rejectMessage(self, message):
-        return self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
+    @defer.inlineCallbacks
+    def rejectMessage(self, message, requeue=0):
+        yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
 
+    @defer.inlineCallbacks
     def ackMessage(self, message):
-        return self.amqpBroker.chan.basic_ack(message.delivery_tag)
+        yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
 
 
 class deliverSmThrower(Thrower):
@@ -232,8 +230,14 @@ class deliverSmThrower(Thrower):
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
 
+        counter = 0
         for dc in dcs:
-            self.log.debug('DCS Iteration taking [cid:%s] (%s)', dc.cid, dc)
+            counter += 1
+            self.log.debug('DCS Iteration %s/%s taking [cid:%s] (%s)', counter, len(dcs), dc.cid, dc)
+            last_dc = True
+            if route_type == 'failover' and counter < len(dcs):
+                last_dc = False
+
             try:
                 # Throw the message to http endpoint
                 encodedArgs = urllib.urlencode(args)
@@ -263,34 +267,50 @@ class deliverSmThrower(Thrower):
                 if content.strip() != 'ACK/Jasmin':
                     raise MessageAcknowledgementError(
                         'Destination end did not acknowledge receipt of the message.')
-
-                yield self.ackMessage(message)
             except Exception, e:
                 message.content.properties['headers']['try-count'] += 1
-                self.log.error('Throwing message [msgid:%s] to [cid:%s] (%s): %r.',
-                               msgid, dc.cid, dc.baseurl, e)
+                self.log.error('Throwing message [msgid:%s] to (%s %s/%s)[cid:%s] (%s), %s: %s.',
+                               msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl, type(e), e)
 
                 # List of errors after which, no further retrying shall be made
                 noRetryErrors = ['404 Not Found']
 
-                # Requeue message for later retry
-                if (str(e) not in noRetryErrors
-                    and message.content.properties['headers']['try-count'] <= self.config.max_retries):
-                    self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
-                                   message.content.properties['headers']['try-count'], msgid)
-                    yield self.rejectAndRequeueMessage(message)
-                elif str(e) in noRetryErrors:
-                    self.log.warn('Message is no more processed after receiving "%s" error', str(e))
-                    yield self.rejectMessage(message)
-                else:
-                    self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
-                                  message.content.properties['headers']['try-count'], msgid)
-                    yield self.rejectMessage(message)
+                if route_type == 'simple':
+                    # Requeue message for later retry
+                    if (str(e) not in noRetryErrors
+                            and message.content.properties['headers']['try-count'] <= self.config.max_retries):
+                        self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
+                                       message.content.properties['headers']['try-count'], msgid)
+                        yield self.rejectAndRequeueMessage(message)
+                    elif str(e) in noRetryErrors:
+                        self.log.warn('Message [msgid:%s] is no more processed after receiving "%s" error',
+                                      msgid, str(e))
+                        yield self.rejectMessage(message)
+                    else:
+                        self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                                      message.content.properties['headers']['try-count'], msgid)
+                        yield self.rejectMessage(message)
+                elif route_type == 'failover':
+                    # The route has multiple connectors, we will not retry throwing to same connector
+                    if last_dc:
+                        self.log.warn(
+                            'Message [msgid:%s] is no more processed after receiving "%s" error on this fo/connector',
+                            msgid, str(e))
+            else:
+                # Everything is okay ? then:
+                yield self.ackMessage(message)
+
+                if route_type == 'failover':
+                    self.log.debug('Stopping iteration for failover route.')
+                    break
             finally:
                 if route_type == 'simple':
                     # There's only one connector for simple routes
                     break
-                elif route_type == 'failover':
+                elif route_type == 'failover' and last_dc:
+                    self.log.debug('Break (last dc) iteration for failover route.')
+                    break
+                elif route_type == 'failover' and not last_dc:
                     self.log.debug('Continue iteration for failover route.')
 
     @defer.inlineCallbacks
@@ -313,56 +333,76 @@ class deliverSmThrower(Thrower):
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
+        counter = 0
         for dc in dcs:
-            self.log.debug('DCS Iteration taking [cid:%s] (%s)', dc.cid, dc)
-            try:
-                system_id = dc.cid
+            counter += 1
+            self.log.debug('DCS Iteration %s/%s taking [cid:%s] (%s)', counter, len(dcs), dc.cid, dc)
+            last_dc = True
+            if route_type == 'failover' and counter < len(dcs):
+                last_dc = False
 
+            try:
                 if self.smppsFactory is None:
                     raise SmppsNotSetError()
 
-                if system_id not in self.smppsFactory.bound_connections:
-                    raise SystemIdNotBound(system_id)
+                if dc.cid not in self.smppsFactory.bound_connections:
+                    raise SystemIdNotBound(dc.cid)
 
-                deliverer = self.smppsFactory.bound_connections[system_id].getNextBindingForDelivery()
+                deliverer = self.smppsFactory.bound_connections[dc.cid].getNextBindingForDelivery()
                 if deliverer is None:
-                    raise NoDelivererForSystemId(system_id)
+                    raise NoDelivererForSystemId(dc.cid)
 
                 # Deliver (or throw) the pdu through the deliverer
                 yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
-
-                # Everything is okay ? then:
-                yield self.ackMessage(message)
             except Exception, e:
                 message.content.properties['headers']['try-count'] += 1
-                self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s): %r.', msgid, system_id, e)
+                self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
+                               msgid, route_type, counter, len(dcs), dc.cid, type(e), e)
 
                 # List of exceptions after which, no further retrying shall be made
                 noRetryExceptions = [SmppsNotSetError]
 
-                retry = True
-                for noRetryException in noRetryExceptions:
-                    if isinstance(e, noRetryException):
-                        retry = False
-                        break
+                if route_type == 'simple':
+                    retry = True
+                    for noRetryException in noRetryExceptions:
+                        if isinstance(e, noRetryException):
+                            retry = False
+                            break
 
-                # Requeue message for later retry
-                if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
-                    self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
-                                   message.content.properties['headers']['try-count'], msgid)
-                    yield self.rejectAndRequeueMessage(message)
-                elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
-                    self.log.warn('Message is no more processed after receiving "%s" error', str(e))
-                    yield self.rejectMessage(message)
-                else:
-                    self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
-                                  message.content.properties['headers']['try-count'], msgid)
-                    yield self.rejectMessage(message)
+                    # Requeue message for later retry
+                    if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
+                        self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
+                                       message.content.properties['headers']['try-count'], msgid)
+                        yield self.rejectAndRequeueMessage(message)
+                    elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
+                        self.log.warn('Message [msgid:%s] is no more processed after receiving "%s" error',
+                                      msgid, str(e))
+                        yield self.rejectMessage(message)
+                    else:
+                        self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                                      message.content.properties['headers']['try-count'], msgid)
+                        yield self.rejectMessage(message)
+                elif route_type == 'failover':
+                    # The route has multiple connectors, we will not retry throwing to same connector
+                    if last_dc:
+                        self.log.warn(
+                            'Message [msgid:%s] is no more processed after receiving "%s" error on this fo/connector',
+                            msgid, str(e))
+            else:
+                # Everything is okay ? then:
+                yield self.ackMessage(message)
+
+                if route_type == 'failover':
+                    self.log.debug('Stopping iteration for failover route.')
+                    break
             finally:
                 if route_type == 'simple':
                     # There's only one connector for simple routes
                     break
-                elif route_type == 'failover':
+                elif route_type == 'failover' and last_dc:
+                    self.log.debug('Break (last dc) iteration for failover route.')
+                    break
+                elif route_type == 'failover' and not last_dc:
                     self.log.debug('Continue iteration for failover route.')
 
     @defer.inlineCallbacks
