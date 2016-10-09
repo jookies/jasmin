@@ -258,8 +258,8 @@ class deliverSmThrower(Thrower):
                     agent='Jasmin gateway/1.0 deliverSmHttpThrower',
                     headers={'Content-Type': 'application/x-www-form-urlencoded',
                              'Accept': 'text/plain'})
-                self.log.info('Throwed message [msgid:%s] to connector [cid:%s] using http to %s.',
-                              msgid, dc.cid, dc.baseurl)
+                self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using http to %s.',
+                              msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl)
 
                 self.log.debug('Destination end replied to message [msgid:%s]: %r',
                                msgid, content)
@@ -354,6 +354,9 @@ class deliverSmThrower(Thrower):
 
                 # Deliver (or throw) the pdu through the deliverer
                 yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+
+                self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using smpp.',
+                              msgid, route_type, counter, len(dcs), dc.cid)
             except Exception, e:
                 message.content.properties['headers']['try-count'] += 1
                 self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
