@@ -411,9 +411,6 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # the received pdu must be our self.DeliverSmPDU
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(received_pdu_1.params['source_addr'], self.DeliverSmPDU.params['source_addr'])
-        self.assertEqual(received_pdu_1.params['destination_addr'], self.DeliverSmPDU.params['destination_addr'])
-        self.assertEqual(received_pdu_1.params['short_message'], self.DeliverSmPDU.params['short_message'])
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
