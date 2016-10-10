@@ -4,11 +4,20 @@ import time
 
 import mock
 from twisted.internet import defer
+
+import mock
+from twisted.internet import defer
 from twisted.web import server
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.configs import deliverSmThrowerConfig
+
+from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.protocols.smpp.test.smsc_simulator import *
+from jasmin.routing.Filters import TransparentFilter
+from jasmin.routing.Routes import DefaultRoute, FailoverMORoute
 from jasmin.routing.configs import deliverSmThrowerConfig
 from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
@@ -20,6 +29,13 @@ from jasmin.routing.throwers import deliverSmThrower
 from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.vendor.smpp.pdu.operations import DeliverSM
 
+
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
 
 class DeliverSmSMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = DeliverSmSMSC
@@ -73,14 +89,18 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         yield DeliverSmSMSCTestCase.tearDown(self)
 
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, connector):
+    def prepareRoutingsAndStartConnector(self, connector, route=None, route_order=1):
         self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
 
         # Prepare for routing
         connector.port = self.SMSCPort.getHost().port
-        c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+
         # Set the route
-        yield self.moroute_add(DefaultRoute(c2_destination), 0)
+        if route is None:
+            c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+            yield self.moroute_add(DefaultRoute(c2_destination), 0)
+        else:
+            yield self.moroute_add(route, route_order)
 
         # Now we'll create the connector 1 from which we'll receive DeliverSm PDUs before
         # throwing to http
@@ -94,9 +114,9 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(connector.cid)
             if ssRet == 'BOUND_TRX':
-                break;
+                break
             else:
-                time.sleep(0.2)
+                yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def stopConnector(self, connector):
@@ -108,7 +128,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
             if ssRet == 'NONE':
                 break;
             else:
-                time.sleep(0.2)
+                yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def triggerDeliverSmFromSMSC(self, pdus):
@@ -118,9 +138,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
             self.last_seqNum += 1
 
             # Wait 0.5 seconds
-            exitDeferred = defer.Deferred()
-            reactor.callLater(0.5, exitDeferred.callback, None)
-            yield exitDeferred
+            yield waitFor(0.5)
 
     @defer.inlineCallbacks
     def test_delivery_HttpConnector(self):
@@ -183,6 +201,36 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(len(receivedHttpReq), 8)
         self.assertEqual(receivedHttpReq['content'], [assert_content])
         self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(assert_content)])
+
+        # Disconnector from SMSC
+        yield self.stopConnector(source_connector)
+
+    @defer.inlineCallbacks
+    def test_delivery_failover_route(self):
+        """#467: Will ensure a failover route will deliver the message"""
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        # Connect to SMSC
+        source_connector = Connector(id_generator())
+        wrong_port = self.AckServer.getHost().port + 1000
+        route = FailoverMORoute([TransparentFilter()], [
+            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % wrong_port),
+            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)])
+        yield self.prepareRoutingsAndStartConnector(source_connector, route)
+
+        # Send a deliver_sm from the SMSC
+        pdu = DeliverSM(
+            source_addr='1234',
+            destination_addr='4567',
+            short_message='any content',
+        )
+        yield self.triggerDeliverSmFromSMSC([pdu])
+
+        # Run tests
+        # Test callback in router
+        self.assertEquals(self.pbRoot_f.deliver_sm_callback.call_count, 1)
+        # Destination connector must receive the message one time (no retries)
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -358,13 +406,16 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield SMPPClientTestCases.tearDown(self)
 
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self):
+    def prepareRoutingsAndStartConnector(self, route=None, route_order=1):
         yield SubmitSmTestCaseTools.prepareRoutingsAndStartConnector(self)
 
-        # Add a MO Route to a SmppServerSystemIdConnector
-        c2_destination = SmppServerSystemIdConnector(system_id = self.smppc_factory.config.username)
         # Set the route
-        yield self.moroute_add(DefaultRoute(c2_destination), 0)
+        if route is None:
+            # Add a MO Route to a SmppServerSystemIdConnector
+            c2_destination = SmppServerSystemIdConnector(system_id = self.smppc_factory.config.username)
+            yield self.moroute_add(DefaultRoute(c2_destination), 0)
+        else:
+            yield self.moroute_add(route, route_order)
 
     @defer.inlineCallbacks
     def triggerDeliverSmFromSMSC(self, pdus):
@@ -374,9 +425,38 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
             self.last_seqNum += 1
 
             # Wait 0.5 seconds
-            exitDeferred = defer.Deferred()
-            reactor.callLater(0.5, exitDeferred.callback, None)
-            yield exitDeferred
+            yield waitFor(0.5)
+
+    @defer.inlineCallbacks
+    def test_delivery_failover_route(self):
+        """#467: Will ensure a failover route will deliver the message"""
+
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        route = FailoverMORoute([TransparentFilter()], [
+            SmppServerSystemIdConnector(system_id='wrong_username1'),
+            SmppServerSystemIdConnector(system_id=self.smppc_factory.config.username)])
+        yield self.prepareRoutingsAndStartConnector(route)
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+
+        # Send a deliver_sm from the SMSC
+        yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
+
+        # Run tests
+        self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
+        # the received pdu must be our self.DeliverSmPDU
+        received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
+        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+
+        # Unbind and disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
 
     @defer.inlineCallbacks
     def test_delivery_SmppClientConnector(self):

@@ -1,46 +1,46 @@
 # -*- coding: utf-8 -*-
-import copy
+import cPickle as pickle
 import glob
 import os
-import mock
-import cPickle as pickle
-import time
 import string
 import urllib
-import jasmin
-from twisted.internet import reactor, defer
-from twisted.trial import unittest
+
+import mock
+from twisted.cred import portal
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.internet import defer
 from twisted.spread import pb
+from twisted.trial import unittest
 from twisted.web import server
 from twisted.web.client import getPage
-from jasmin.routing.test.http_server import AckServer
-from jasmin.protocols.smpp.test.smsc_simulator import *
-from jasmin.redis.configs import RedisForJasminConfig
-from jasmin.redis.client import ConnectionWithConfiguration
-from jasmin.routing.router import RouterPB
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.configs import RouterPBConfig
-from jasmin.routing.configs import DLRThrowerConfig
-from jasmin.routing.throwers import DLRThrower
-from jasmin.protocols.http.server import HTTPApi
-from jasmin.protocols.http.configs import HTTPApiConfig
-from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.managers.proxies import SMPPClientManagerPBProxy
+
+import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
-from jasmin.routing.Interceptors import DefaultInterceptor, StaticMTInterceptor
-from jasmin.routing.Filters import GroupFilter
-from jasmin.routing.jasminApi import *
-from jasmin.queues.factory import AmqpFactory
+from jasmin.managers.proxies import SMPPClientManagerPBProxy
+from jasmin.protocols.http.configs import HTTPApiConfig
+from jasmin.protocols.http.server import HTTPApi
+from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, MoreMessagesToSend,
-    AddrTon, AddrNpi)
-from twisted.cred import portal
+from jasmin.queues.factory import AmqpFactory
+from jasmin.redis.client import ConnectionWithConfiguration
+from jasmin.redis.configs import RedisForJasminConfig
+from jasmin.routing.Filters import GroupFilter
+from jasmin.routing.Interceptors import DefaultInterceptor, StaticMTInterceptor
+from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
+from jasmin.routing.configs import DLRThrowerConfig
+from jasmin.routing.configs import RouterPBConfig
+from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.router import RouterPB
+from jasmin.routing.test.http_server import AckServer
+from jasmin.routing.throwers import DLRThrower
 from jasmin.tools.cred.portal import JasminPBRealm
-from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from jasmin.tools.proxies import ConnectError
+from jasmin.tools.spread.pb import JasminPBPortalRoot
+from jasmin.vendor.smpp.pdu.pdu_types import (AddrTon, AddrNpi)
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -1307,19 +1307,28 @@ class SubmitSmTestCaseTools(object):
     def prepareRoutingsAndStartConnector(self, reconnectOnConnectionLoss = True, bindOperation = 'transceiver',
                                          route_rate = 0.0, user = None, port = None, dlr_msg_id_bases = 0,
                                          source_addr_ton = AddrTon.NATIONAL, source_addr_npi = AddrNpi.ISDN,
-                                         dest_addr_ton = AddrTon.INTERNATIONAL, dest_addr_npi = AddrNpi.ISDN):
+                                         dest_addr_ton=AddrTon.INTERNATIONAL, dest_addr_npi=AddrNpi.ISDN,
+                                         route=None, route_order=1, c1=None):
         # Routing stuff
         g1 = Group(1)
         yield self.group_add(g1)
 
-        self.c1 = SmppClientConnector(id_generator())
         user_password = 'password'
         if user is None:
             self.u1 = User(1, g1, 'username', user_password)
         else:
             self.u1 = user
         yield self.user_add(self.u1)
-        yield self.mtroute_add(DefaultRoute(self.c1, route_rate), 0)
+
+        if c1 is None:
+            self.c1 = SmppClientConnector(id_generator())
+        else:
+            self.c1 = c1
+
+        if route is None:
+            yield self.mtroute_add(DefaultRoute(self.c1, route_rate), 0)
+        else:
+            yield self.mtroute_add(route, route_order)
 
         # Set port
         if port is None:
