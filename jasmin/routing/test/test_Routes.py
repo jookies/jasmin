@@ -381,6 +381,16 @@ class FailoverMORouteTestCase(RouteTestCase):
         self.assertEqual(self.connectors[1], o.getConnector())
         self.assertIsNone(o.getConnector())
 
+    def test_get_connectors(self):
+        """Ensures getConnectors is returning all available connectors"""
+        o = FailoverMORoute(self.simple_filter_mo, self.connectors)
+        self.assertEqual(self.connectors, o.getConnectors())
+
+    def test_mixed_connector_types(self):
+        """FailoverMORoute must not accept mixed connector types"""
+        mixed_connector_types = [HttpConnector('http', 'http://wwww.jasminsms.com'), SmppClientConnector('smpp')]
+        self.assertRaises(InvalidRouteParameterError, FailoverMORoute, self.simple_filter_mo, mixed_connector_types)
+
 
 class FailoverMTRouteTestCase(RouteTestCase):
     def setUp(self):

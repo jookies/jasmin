@@ -369,9 +369,12 @@ class SMPPServerFactory(_SMPPServerFactory):
                 self.log.debug('Selected route is a failover, will ensure connector is bound:')
                 while True:
                     c = self.SMPPClientManagerPB.perspective_connector_details(routedConnector.cid)
-                    self.log.debug('Connector [%s] is: %s', routedConnector.cid, c['session_state'])
+                    if c:
+                        self.log.debug('Connector [%s] is: %s', routedConnector.cid, c['session_state'])
+                    else:
+                        self.log.debug('Connector [%s] is not found', routedConnector.cid)
 
-                    if c['session_state'][:6] == 'BOUND_':
+                    if c and c['session_state'][:6] == 'BOUND_':
                         # Choose this connector
                         break
                     else:
@@ -384,10 +387,6 @@ class SMPPServerFactory(_SMPPServerFactory):
                 self.log.error("Failover route has no bound connector to handle SubmitSmPDU: %s",
                                routable.pdu)
                 raise SubmitSmRoutingError()
-
-            # Get connector from selected route
-            self.log.debug("RouterPB selected %s for this SubmitSmPDU", route)
-            routedConnector = route.getConnector()
 
             # QoS throttling
             if (routable.user.mt_credential.getQuota('smpps_throughput') >= 0

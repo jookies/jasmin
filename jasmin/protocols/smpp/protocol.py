@@ -422,6 +422,12 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
     def sendPDU(self, pdu):
         twistedSMPPServerProtocol.sendPDU(self, pdu)
 
+        # Prepare for logging
+        if pdu.commandId in [CommandId.deliver_sm, CommandId.data_sm]:
+            message_content = pdu.params.get('short_message', None)
+            if message_content is None:
+                message_content = pdu.params.get('message_payload', '')
+
         # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
         if pdu.commandId == CommandId.deliver_sm:
@@ -432,7 +438,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                     self.user.uid,
                     pdu.params['source_addr'],
                     pdu.params['destination_addr'],
-                    re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                    re.sub(r'[^\x20-\x7E]+', '.', message_content))
                 self.user.getCnxStatus().smpps['deliver_sm_count'] += 1
         elif pdu.commandId == CommandId.data_sm:
             self.factory.stats.inc('data_sm_count')
@@ -441,7 +447,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                               self.user.uid,
                               pdu.params['source_addr'],
                               pdu.params['destination_addr'],
-                              re.sub(r'[^\x20-\x7E]+', '.', pdu.params['short_message']))
+                              re.sub(r'[^\x20-\x7E]+', '.', message_content))
                 self.user.getCnxStatus().smpps['data_sm_count'] += 1
         elif pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:

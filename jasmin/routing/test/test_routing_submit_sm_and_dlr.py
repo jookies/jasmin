@@ -1,21 +1,25 @@
-import urllib
-import mock
 import copy
-import random
-from datetime import datetime
+import urllib
+
+import mock
+from twisted.internet import defer
 from twisted.web import server
-from twisted.internet import reactor, defer
 from twisted.web.client import getPage
-from jasmin.vendor.smpp.pdu import pdu_types
+
+from jasmin.protocols.smpp.test.smsc_simulator import *
+from jasmin.routing.Filters import TransparentFilter
+from jasmin.routing.Routes import FailoverMTRoute
+from jasmin.routing.jasminApi import SmppClientConnector
+from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.test.http_server import AckServer
 from jasmin.routing.test.test_router import (HappySMSCTestCase, SubmitSmTestCaseTools,
-											composeMessage, SMPPClientManagerPBTestCase,
-                                            LastClientFactory)
+                                             composeMessage, SMPPClientManagerPBTestCase,
+                                             LastClientFactory, id_generator)
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.protocols.smpp.test.smsc_simulator import *
-from jasmin.vendor.smpp.pdu.pdu_types import MessageState, AddrTon, AddrNpi
+from jasmin.vendor.smpp.pdu import pdu_types
+from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
 from jasmin.vendor.smpp.pdu.smpp_time import FixedOffset
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -24,19 +28,19 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
-class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
 
+class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def test_validity_period(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
-        self.params['validity-period'] = 1440 # 1 Day = 24 x 60 minutes = 1440 minutes
+        self.params['validity-period'] = 1440  # 1 Day = 24 x 60 minutes = 1440 minutes
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -47,7 +51,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period'])
         timediff = self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period'] - datetime.now()
-        self.assertGreaterEqual(timediff.seconds / 60, (self.params['validity-period'] - 1)) # Tolerate one minute of test latency
+        self.assertGreaterEqual(timediff.seconds / 60,
+                                (self.params['validity-period'] - 1))  # Tolerate one minute of test latency
         self.assertLess(timediff.seconds / 60, (self.params['validity-period'] + 1))
 
     @defer.inlineCallbacks
@@ -59,7 +64,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -69,7 +74,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-            'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
+                         'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_1(self):
@@ -81,7 +86,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -91,7 +96,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-            'SMSC_DELIVERY_RECEIPT_REQUESTED')
+                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_2(self):
@@ -103,7 +108,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -113,7 +118,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-            'SMSC_DELIVERY_RECEIPT_REQUESTED')
+                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_3(self):
@@ -125,7 +130,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -135,7 +140,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-            'SMSC_DELIVERY_RECEIPT_REQUESTED')
+                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_connector_source_addr_ton(self):
@@ -147,7 +152,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -157,7 +162,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
-            'NATIONAL')
+                         'NATIONAL')
 
     @defer.inlineCallbacks
     def test_connector_source_addr_ton_long_message(self):
@@ -170,9 +175,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -180,9 +184,39 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
-            'NATIONAL')
+                         'NATIONAL')
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton']),
-            'NATIONAL')
+                         'NATIONAL')
+
+
+class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
+    @defer.inlineCallbacks
+    def test_failovermtroute(self):
+        """#467: Will ensure a failover route will deliver the message"""
+
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        # Initiate a failover mt route with c1 as the falling back connector
+        c1 = SmppClientConnector(id_generator())
+        route = FailoverMTRoute(
+            [TransparentFilter()],
+            [SmppClientConnector(id_generator()), c1],
+            0.0)
+        yield self.prepareRoutingsAndStartConnector(route=route, c1=c1)
+
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        msgStatus = c[:7]
+
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+
 
 class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -215,7 +249,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -248,7 +282,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -287,7 +321,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -329,7 +363,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -360,7 +394,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -397,7 +431,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -447,7 +481,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -509,7 +543,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -549,7 +583,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -582,13 +616,14 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['content'] = ''
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
         # Send a MT
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
+
 
 class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -622,7 +657,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -655,7 +690,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -694,7 +729,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -736,7 +771,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -770,7 +805,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -810,7 +845,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -835,6 +870,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.assertEqual(callArgs_level1['id'][0], msgId)
         self.assertEqual(callArgs_level2['id'][0], msgId)
 
+
 class NoResponseOnSubmitSMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = NoResponseOnSubmitSMSCRecorder
 
@@ -852,8 +888,8 @@ class NoResponseOnSubmitSMSCTestCase(SMPPClientManagerPBTestCase):
 
         yield self.SMSCPort.stopListening()
 
-class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMSCTestCase, SubmitSmTestCaseTools):
 
+class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def test_submit_sm_with_no_submit_sm_resp(self):
         """Related to #247
@@ -863,14 +899,14 @@ class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMS
         """
 
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(reconnectOnConnectionLoss = False)
+        yield self.prepareRoutingsAndStartConnector(reconnectOnConnectionLoss=False)
 
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -888,6 +924,7 @@ class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMS
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
 
+
 class SmppsDlrCallbacking(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     msg_stats_final = ['UNDELIV',
                        'REJECTD',
@@ -899,12 +936,13 @@ class SmppsDlrCallbacking(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTo
                            'UNKNOWN'
                            ]
     formatted_stats = {'UNDELIV': 'UNDELIVERABLE',
-    				   'REJECTD': 'REJECTED',
-    				   'DELIVRD': 'DELIVERED',
-    				   'EXPIRED': 'EXPIRED',
-    				   'DELETED': 'DELETED',
-    				   'ACCEPTD': 'ACCEPTED',
-    				   'UNKNOWN': 'UNKNOWN'}
+                       'REJECTD': 'REJECTED',
+                       'DELIVRD': 'DELIVERED',
+                       'EXPIRED': 'EXPIRED',
+                       'DELETED': 'DELETED',
+                       'ACCEPTD': 'ACCEPTED',
+                       'UNKNOWN': 'UNKNOWN'}
+
 
 class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
     @defer.inlineCallbacks
@@ -925,7 +963,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
@@ -942,8 +981,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         for msg_stat in self.msg_stats_non_final:
             # Trigger a receipt
             stat = str(msg_stat)
-            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = stat)
-            x+= 1
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat=stat)
+            x += 1
 
             # Wait some time before testing
             yield waitFor(0.5)
@@ -969,8 +1008,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         for msg_stat in self.msg_stats_final:
             # Trigger a receipt
             stat = str(msg_stat)
-            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = stat)
-            x+= 1
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat=stat)
+            x += 1
 
             # Wait some time before testing
             yield waitFor(0.5)
@@ -1021,7 +1060,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
@@ -1038,8 +1078,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         for msg_stat in self.msg_stats_non_final:
             # Trigger a receipt
             stat = str(msg_stat)
-            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = stat, pdu_type = 'data_sm')
-            x+= 1
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat=stat, pdu_type='data_sm')
+            x += 1
 
             # Wait some time before testing
             yield waitFor(0.5)
@@ -1065,8 +1105,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         for msg_stat in self.msg_stats_final:
             # Trigger a receipt
             stat = str(msg_stat)
-            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = stat, pdu_type = 'data_sm')
-            x+= 1
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat=stat, pdu_type='data_sm')
+            x += 1
 
             # Wait some time before testing
             yield waitFor(0.5)
@@ -1115,7 +1155,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
@@ -1128,7 +1169,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
 
         # Trigger receipt with an unknown id
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD', _id = '77unknown_id77')
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD', _id='77unknown_id77')
 
         # Wait some time before testing
         yield waitFor(0.5)
@@ -1160,14 +1201,15 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['destination_addr'] = '905325932042'
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
         # Trigger DLR
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD')
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD')
 
         # Wait some time before testing
         yield waitFor(0.5)
@@ -1201,7 +1243,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         SubmitSmPDU.params['source_addr_ton'] = AddrTon.NATIONAL
         SubmitSmPDU.params['source_addr_npi'] = AddrNpi.ISDN
         SubmitSmPDU.params['dest_addr_ton'] = AddrTon.INTERNATIONAL
@@ -1212,7 +1255,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield waitFor(3)
 
         # Trigger DLR
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD')
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD')
 
         # Wait some time before testing
         yield waitFor(0.5)
@@ -1249,7 +1292,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         SubmitSmPDU.params['source_addr_ton'] = AddrTon.NATIONAL
         SubmitSmPDU.params['source_addr_npi'] = AddrNpi.ISDN
         SubmitSmPDU.params['dest_addr_ton'] = AddrTon.INTERNATIONAL
@@ -1260,7 +1304,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield waitFor(3)
 
         # Trigger DLR
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'DELIVRD', pdu_type = 'data_sm')
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD', pdu_type='data_sm')
 
         # Wait some time before testing
         yield waitFor(0.5)
@@ -1298,7 +1342,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
@@ -1311,7 +1356,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
 
         # Trigger receipt with an unknown id
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat = 'UNDELIV')
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='UNDELIV')
 
         # Wait some time before testing
         yield waitFor(0.5)
@@ -1323,7 +1368,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
         # smpps last response was a unbind_resp
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        last_pdu = \
+            self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
+                0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
@@ -1344,7 +1391,8 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
@@ -1369,11 +1417,13 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 3)
         # smpps last response was a unbind_resp
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        last_pdu = \
+            self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
+                0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
-class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
 
+class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def test_validity_period_with_tzinfo(self):
         """Related to #267
@@ -1407,6 +1457,42 @@ class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertTrue(type(self.SMSCPort.factory.lastClient.submitRecords[0].params['validity_period']) == datetime)
 
+
+class FailoverMTRouteSmppTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
+    @defer.inlineCallbacks
+    def test_failovermtroute(self):
+        """#467: Will ensure a failover route will deliver the message"""
+
+        yield self.connect('127.0.0.1', self.pbPort)
+
+        # Initiate a failover mt route with c1 as the falling back connector
+        c1 = SmppClientConnector(id_generator())
+        route = FailoverMTRoute(
+            [TransparentFilter()],
+            [SmppClientConnector(id_generator()), c1],
+            0.0)
+        yield self.prepareRoutingsAndStartConnector(route=route, c1=c1)
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Send a SMS MT through smpps interface
+        yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
+
+        # Wait 3 seconds for submit_sm_resp
+        yield waitFor(3)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+
+
 class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def test_msg_id_dec_then_hex(self):
@@ -1420,7 +1506,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         msgid_hex = '%x' % msgid_dec
 
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases = 2)
+        yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases=2)
 
         # Bind
         yield self.smppc_factory.connectAndBind()
@@ -1433,14 +1519,15 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
         # Trigger receipt with different base
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id = msgid_hex)
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id=msgid_hex)
 
         # Wait some time before testing
         yield waitFor(1)
@@ -1459,7 +1546,9 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
 
         # Run tests
         # smpps last response was a unbind_resp
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        last_pdu = \
+            self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
+                0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
@@ -1474,7 +1563,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         msgid_hex = '%x' % msgid_dec
 
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases = 1)
+        yield self.prepareRoutingsAndStartConnector(dlr_msg_id_bases=1)
 
         # Bind
         yield self.smppc_factory.connectAndBind()
@@ -1487,14 +1576,15 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
-        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
         yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
 
         # Wait 3 seconds for submit_sm_resp
         yield waitFor(3)
 
         # Trigger receipt with different base
-        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id = msgid_dec)
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(_id=msgid_dec)
 
         # Wait some time before testing
         yield waitFor(1)
@@ -1513,5 +1603,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
 
         # Run tests
         # smpps last response was a unbind_resp
-        last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][0]
+        last_pdu = \
+            self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
+                0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)

@@ -453,7 +453,7 @@ class JasminDaemon(object):
 
 if __name__ == '__main__':
     # Must not be executed simultaneously (c.f. #265)
-    lock = FileLock("/tmp/jasmind.lock")
+    lock = FileLock("/tmp/jasmind")
 
     try:
         options = Options()

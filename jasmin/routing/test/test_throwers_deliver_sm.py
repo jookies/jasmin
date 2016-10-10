@@ -1,22 +1,25 @@
-import mock
-import copy
 import binascii
+import copy
+from datetime import datetime, timedelta
+
+import mock
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
-from datetime import datetime, timedelta
-from jasmin.queues.factory import AmqpFactory
-from jasmin.queues.configs import AmqpConfig
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower
-from jasmin.routing.content import RoutedDeliverSmContent
-from jasmin.routing.jasminApi import HttpConnector, SmppClientConnector, SmppServerSystemIdConnector
-from jasmin.vendor.smpp.pdu.operations import DeliverSM
-from jasmin.routing.test.http_server import LeafServer, TimeoutLeafServer, AckServer, NoAckServer, Error404Server
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.vendor.smpp.pdu.pdu_types import *
 from twisted.web import server
+
+from jasmin.queues.configs import AmqpConfig
+from jasmin.queues.factory import AmqpFactory
+from jasmin.routing.configs import deliverSmThrowerConfig
+from jasmin.routing.content import RoutedDeliverSmContent
+from jasmin.routing.jasminApi import HttpConnector, SmppServerSystemIdConnector
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.http_server import TimeoutLeafServer, AckServer, NoAckServer, Error404Server
+from jasmin.routing.test.test_router import SubmitSmTestCaseTools
+from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from jasmin.routing.throwers import deliverSmThrower
+from jasmin.vendor.smpp.pdu.operations import DeliverSM
+from jasmin.vendor.smpp.pdu.pdu_types import *
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -128,7 +131,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        yield waitFor(2)
+        yield waitFor(4)
 
         # Retries must be made when ACK is not received
         self.assertTrue(self.NoAckServerResource.render_GET.call_count > 1)
@@ -149,7 +152,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
         yield waitFor(12)
 
-        self.assertEqual(self.TimeoutLeafServerResource.render_GET.call_count, 3)
+        self.assertEqual(self.TimeoutLeafServerResource.render_GET.call_count, 2)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):
@@ -161,7 +164,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
-        # Wait 4 seconds
+        # Wait 1 second
         yield waitFor(1)
 
         self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
@@ -395,10 +398,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
         yield waitFor(5)
 
         # Run tests
-        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 3)
+        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 2)
         self.assertEqual(self.deliverSmThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 1)
-        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 2)
+        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 2)
+        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 1)
 
     @defer.inlineCallbacks
     def test_throwing_smpps_with_no_deliverers(self):
@@ -423,10 +426,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
         yield waitFor(5)
 
         # Run tests
-        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 3)
+        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 2)
         self.assertEqual(self.deliverSmThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 1)
-        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 2)
+        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 2)
+        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

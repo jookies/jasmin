@@ -390,6 +390,8 @@ SMS MO, here are the basics of Jasmin MO routing mechanism:
      * **StaticMORoute**: A basic route with **Filters** and one **Connector**
      * **RandomRoundrobinMORoute**: A route with **Filters** and many **Connectors**, will return a random
        **Connector** if its **Filters** are matched, can be used as a load balancer route
+     * **FailoverMORoute**: A route with **Filters** and many **Connectors**, will return an available (connected)
+       **Connector** if its **Filters** are matched
 
  #. When a SMS MO is received, Jasmin will ask for the right **MORoute** to consider, all routes are checked
     in descendant order for their respective **Filters** (when a **MORoute** have many filters, they are checked
@@ -462,10 +464,26 @@ Here's an example of adding a **RandomRoundrobinMORoute** to two HTTP Client Con
 
 .. note:: It is possible to use a **RoundRobinMORoute** with a mix of connectors, example: **connectors smpps(user_1);http(http_1);http(http_3)**.
 
+Here's an example of adding a **FailoverMORoute** to two HTTP Client Connectors (http_4 and http_5)::
+
+   jcli : morouter -a
+   Adding a new MO Route: (ok: save, ko: exit)
+   > type FailoverMORoute
+   jasmin.routing.Routes.FailoverMORoute arguments:
+   filters, connectors
+   > filters filter_4
+   > connectors http(http_4);http(http_5)
+   > order 30
+   > ok
+   Successfully added MORoute [FailoverMORoute] with order:20
+
+.. note:: It is **not possible** to use a **FailoverMORoute** with a mix of connectors, example: **connectors smpps(user_1);http(http_1);http(http_3)**.
+
 Once the above MO Routes are added to **MORoutingTable**, it is possible to list these routes::
 
    jcli : morouter -l
    #Order Type                    Connector ID(s)                  Filter(s)
+   #30    FailoverMORoute         http(http_4), http(http_5)       <T>, <T>
    #20    RandomRoundrobinMORoute http(http_2), http(http_3)       <T>, <T>
    #15    StaticMORoute           smpps(user_1)                    <T>
    #10    StaticMORoute           http(http_1)                     <T>
@@ -536,6 +554,8 @@ here are the basics of Jasmin MT routing mechanism:
      * **StaticMTRoute**: A basic route with **Filters** and one **Connector**
      * **RandomRoundrobinMTRoute**: A route with **Filters** and many **Connectors**, will return a random
        **Connector** if its **Filters** are matching, can be used as a load balancer route
+     * **FailoverMTRoute**: A route with **Filters** and many **Connectors**, will return an available (connected)
+       **Connector** if its **Filters** are matched
 
  #. When a SMS MT is to be sent, Jasmin will ask for the right **MTRoute** to consider, all routes are checked
     in descendant order for their respective **Filters** (when a **MTRoute** have many filters, they are checked
@@ -596,10 +616,25 @@ Here's an example of adding a **RandomRoundrobinMTRoute** to two SMPP Client Con
    > ok
    Successfully added MTRoute [RandomRoundrobinMTRoute] with order:20
 
+Here's an example of adding a **FailoverMTRoute** to two SMPP Client Connectors (smppcc_4 and smppcc_5)::
+
+   jcli : mtrouter -a
+   Adding a new MT Route: (ok: save, ko: exit)
+   > order 30
+   > type FailoverMTRoute
+   jasmin.routing.Routes.FailoverMTRoute arguments:
+   filters, connectors
+   > filters filter_4
+   > connectors smppc(smppcc_4);smppc(smppcc_5)
+   > rate 0.0
+   > ok
+   Successfully added MTRoute [FailoverMTRoute] with order:20
+
 Once the above MT Routes are added to **MTRoutingTable**, it is possible to list these routes::
 
    jcli : mtrouter -l
    #Order Type                    Rate    Connector ID(s)                     Filter(s)
+   #20    FailoverMTRoute         0 (!)   smppc(smppcc_3), smppc(smppcc_4)    <T>
    #20    RandomRoundrobinMTRoute 0 (!)   smppc(smppcc_2), smppc(smppcc_3)    <T>
    #10    StaticMTRoute           0 (!)   smppc(smppcc_1)                     <T>, <T>
    #0     DefaultRoute            0 (!)   smppc(smppcc_default)
