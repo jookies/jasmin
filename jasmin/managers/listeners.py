@@ -322,6 +322,9 @@ class SMPPClientSMListener(object):
                         # Requeue the message for later redelivery
                         yield self.rejectAndRequeueMessage(amqpMessage, delay=retrial['delay'])
                         will_be_retried = True
+                    else:
+                        # Prevent this list from over-growing
+                        del self.submit_retrials[msgid]
 
                 # Log the message
                 self.log.info("SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
