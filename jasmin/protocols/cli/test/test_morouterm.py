@@ -481,18 +481,9 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         extraCommands = [{'command': 'order %s' % rorder},
                          {'command': 'type %s' % rtype},
                          {'command': 'connectors %s;%s' % (typed_cid1, typed_cid2)},
-                         {'command': 'filters %s' % fid}]
-        yield self.add_moroute('jcli : ', extraCommands)
-
-        # Make asserts
-        expectedList = _str_
-        yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s     <T>' % (
-                        rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
-                        'Total MO Routes: 1']
-        commands = [{'command': 'morouter -l', 'expect': expectedList}]
-        yield self._test(r'jcli : ', commands)
+                         {'command': 'filters %s' % fid},
+                         {'command': 'ok', 'expect': 'Error: FailoverMORoute cannot have mixed connector types'}]
+        yield self.add_moroute('>', extraCommands)
 
 
 class MoRouteArgsTestCases(MxRouterTestCases):

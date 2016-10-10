@@ -209,8 +209,6 @@ Static and default routes are the simplest implemented routes, the difference be
 
 There's a lot of things you can do by extending the **Route** class, here's a bunch of possibilities:
 
-* *Failover route*: Will always return the same connector when it is up, and will fail over/back between master and backup connectors depending on
-  their status
 * *Best quality routing*: Implement a connector scoring system to always return the best quality route for a given message
 
 .. _Route_multiple_con:
@@ -220,7 +218,10 @@ Multiple connectors
 
 When extending **Route** class, it is possible to customize the behavior of the route and that's what **RoundrobinMORoute** and **RoundrobinMTRoute**
 do, they are initially provisioned with a set of connectors, and the **getConnector()** method is overloaded to return a random connector from it;
-this can be a basic usage of  a load balancer route.
+this can be a basic usage of a load balancer route.
+
+The newly added (Jasmin 0.9b10+) has new **FailoverMORoute** and **FailoverMTRoute** routes, they are also extending the **Route** class to provide failover
+on top of multiple connectors.
 
 RoutingTable
 ============

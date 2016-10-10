@@ -1,23 +1,26 @@
-import time
-import logging
 import cPickle as pickle
-import jasmin
+import logging
+import time
 from copy import copy
 from hashlib import md5
 from logging.handlers import TimedRotatingFileHandler
-from twisted.spread import pb
+
 from twisted.internet import defer, reactor
+from twisted.spread import pb
 from txamqp.queue import Closed
-from jasmin.routing.content import RoutedDeliverSmContent
-from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
+
+import jasmin
 from jasmin.routing.InterceptionTables import (MOInterceptionTable,
                                                MTInterceptionTable,
                                                InvalidInterceptionTableParameterError)
 from jasmin.routing.Routables import RoutableDeliverSm
+from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
+from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.jasminApi import Connector
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-router"
+
 
 class RouterPB(pb.Avatar):
     def setConfig(self, RouterPBConfig, persistenceTimer=True):
@@ -80,7 +83,7 @@ class RouterPB(pb.Avatar):
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
         consumerTag = 'RouterPB-delivers'
         routingKey = 'deliver.sm.*'
-        queueName = 'RouterPB_deliver_sm_all' # A local queue to RouterPB
+        queueName = 'RouterPB_deliver_sm_all'  # A local queue to RouterPB
         yield self.amqpBroker.named_queue_declare(queue=queueName)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
         yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
@@ -92,19 +95,20 @@ class RouterPB(pb.Avatar):
         yield self.amqpBroker.chan.exchange_declare(exchange='billing', type='topic')
         consumerTag = 'RouterPB-billrequests'
         routingKey = 'bill_request.submit_sm_resp.*'
-        queueName = 'RouterPB_bill_request_submit_sm_resp_all' # A local queue to RouterPB
+        queueName = 'RouterPB_bill_request_submit_sm_resp_all'  # A local queue to RouterPB
         yield self.amqpBroker.named_queue_declare(queue=queueName)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="billing", routing_key=routingKey)
         yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
         self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
         self.bill_request_submit_sm_resp_q.get().addCallback(
             self.bill_request_submit_sm_resp_callback).addErrback(
-                self.bill_request_submit_sm_resp_errback)
+            self.bill_request_submit_sm_resp_errback)
         self.log.info('RouterPB is consuming from routing key: %s', routingKey)
 
     @defer.inlineCallbacks
     def rejectMessage(self, message):
         yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=0)
+
     @defer.inlineCallbacks
     def ackMessage(self, message):
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
@@ -171,35 +175,49 @@ class RouterPB(pb.Avatar):
         else:
             # Get connector from selected route
             self.log.debug("RouterPB selected %s for this SubmitSmPDU", route)
-            routedConnector = route.getConnector()
+            if repr(route) == 'FailoverMORoute':
+                # The failover route will return all connectors, we don't care about
+                #   connectors statuses, this will be the thrower responsability
+                routedConnectors = route.getConnectors()
+                route_type = 'failover'
+            else:
+                routedConnectors = [route.getConnector()]
+                route_type = 'simple'
 
             # Smpps will not route any concatenated content, it must instead route
             # multiparted messages
             # Only http connector needs concatenated content
-            if concatenated and routedConnector.type != 'http':
-                self.log.debug("DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s",
-                               msgid, routedConnector.type)
+            if concatenated and routedConnectors[0].type != 'http':
+                self.log.debug(
+                    "DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s",
+                    msgid, routedConnectors[0].type)
                 yield self.rejectMessage(message)
 
             # Http will not route any multipart messages, it must instead route
             # concatenated messages
             # Only smpps connector needs multipart content
-            elif will_be_concatenated and routedConnector.type == 'http':
-                self.log.debug("DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts",
-                               msgid)
+            elif will_be_concatenated and routedConnectors[0].type == 'http':
+                self.log.debug(
+                    "DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts",
+                    msgid)
                 yield self.rejectMessage(message)
 
             else:
-                self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU",
-                               routedConnector.cid, routedConnector.type)
+                if len(routedConnectors) == 1:
+                    self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU",
+                                   routedConnectors[0].cid, routedConnectors[0].type)
+                else:
+                    self.log.debug("%s %s connectors (failover route) are set to be a route for this DeliverSmPDU",
+                                   len(routedConnectors), routedConnectors[0].type)
                 yield self.ackMessage(message)
 
                 # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
-                content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnector)
-                self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s with [dcid:%s]",
-                               msgid, routedConnector.type, routedConnector.cid)
+                content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnectors, route_type)
+                self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s",
+                               msgid, routedConnectors[0].type)
                 yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' %
-                                              routedConnector.type, content=content)
+                                                                                routedConnectors[0].type,
+                                              content=content)
 
     def deliver_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
@@ -208,7 +226,7 @@ class RouterPB(pb.Avatar):
         as a @TODO requiring knowledge of the queue api behaviour
         """
         if error.check(Closed) == None:
-            #@todo: implement this errback
+            # @todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside deliver_sm_callback
             self.log.error("Error in deliver_sm_errback: %s", error)
@@ -225,7 +243,7 @@ class RouterPB(pb.Avatar):
 
         self.bill_request_submit_sm_resp_q.get().addCallback(
             self.bill_request_submit_sm_resp_callback).addErrback(
-                self.bill_request_submit_sm_resp_errback)
+            self.bill_request_submit_sm_resp_errback)
 
         _user = self.getUser(uid)
         if _user is None:
@@ -233,8 +251,9 @@ class RouterPB(pb.Avatar):
             yield self.rejectMessage(message)
         elif _user.mt_credential.getQuota('balance') is not None:
             if _user.mt_credential.getQuota('balance') < amount:
-                self.log.error('User [uid:%s] have no sufficient balance (%s/%s) for this billing [bid:%s] request: rejected',
-                               uid, _user.mt_credential.getQuota('balance'), amount, bid)
+                self.log.error(
+                    'User [uid:%s] have no sufficient balance (%s/%s) for this billing [bid:%s] request: rejected',
+                    uid, _user.mt_credential.getQuota('balance'), amount, bid)
                 yield self.rejectMessage(message)
             else:
                 _user.mt_credential.updateQuota('balance', -amount)
@@ -248,7 +267,7 @@ class RouterPB(pb.Avatar):
         as a @TODO requiring knowledge of the queue api behaviour
         """
         if error.check(Closed) == None:
-            #@todo: implement this errback
+            # @todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside deliver_sm_callback
             self.log.error("Error in bill_request_submit_sm_resp_errback: %s", error)
@@ -256,12 +275,16 @@ class RouterPB(pb.Avatar):
 
     def getMOInterceptionTable(self):
         return self.mo_interception_table
+
     def getMTInterceptionTable(self):
         return self.mt_interception_table
+
     def getMORoutingTable(self):
         return self.mo_routing_table
+
     def getMTRoutingTable(self):
         return self.mt_routing_table
+
     def authenticateUser(self, username, password, return_pickled=False):
         """Authenticate a user agains username and password and return user object or None
         """
@@ -291,6 +314,7 @@ class RouterPB(pb.Avatar):
 
         self.log.info('authenticateUser [username:%s] returned None', username)
         return None
+
     def chargeUserForSubmitSms(self, user, bill, submit_sm_count=1, requirements=None):
         """Will charge the user using the bill object after checking requirements
         """
@@ -311,19 +335,20 @@ class RouterPB(pb.Avatar):
 
         # Charge _user
         if (bill.getAmount('submit_sm') * submit_sm_count > 0
-                and _user.mt_credential.getQuota('balance') is not None):
+            and _user.mt_credential.getQuota('balance') is not None):
             if _user.mt_credential.getQuota('balance') < bill.getAmount('submit_sm') * submit_sm_count:
                 self.log.info('User [uid:%s] have no sufficient balance (%s) for submit_sm charging: %s',
                               user.uid, _user.mt_credential.getQuota('balance'),
                               bill.getAmount('submit_sm') * submit_sm_count)
                 return None
-            _user.mt_credential.updateQuota('balance', -(bill.getAmount('submit_sm')*submit_sm_count))
+            _user.mt_credential.updateQuota('balance', -(bill.getAmount('submit_sm') * submit_sm_count))
             self.log.info('User [uid:%s] charged for submit_sm amount: %s',
                           user.uid, bill.getAmount('submit_sm') * submit_sm_count)
         # Decrement counts
         if (bill.getAction('decrement_submit_sm_count') * submit_sm_count > 0
-                and _user.mt_credential.getQuota('submit_sm_count') is not None):
-            if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction('decrement_submit_sm_count') * submit_sm_count:
+            and _user.mt_credential.getQuota('submit_sm_count') is not None):
+            if _user.mt_credential.getQuota('submit_sm_count') < bill.getAction(
+                    'decrement_submit_sm_count') * submit_sm_count:
                 self.log.info('User [uid:%s] have no sufficient submit_sm_count (%s) for submit_sm charging: %s',
                               user.uid, _user.mt_credential.getQuota('submit_sm_count'),
                               bill.getAction('decrement_submit_sm_count') * submit_sm_count)
@@ -772,7 +797,6 @@ class RouterPB(pb.Avatar):
                     _users.append(_user)
 
             return pickle.dumps(_users)
-
 
     def perspective_user_update_quota(self, uid, cred, quota, value):
         self.log.info('Updating a User (id:%s) quota: %s/%s %s', uid, cred, quota, value)
