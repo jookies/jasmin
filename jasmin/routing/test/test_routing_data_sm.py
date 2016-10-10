@@ -1,6 +1,5 @@
 import copy
 import string
-import time
 
 import mock
 from twisted.internet import defer
@@ -20,6 +19,14 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
 from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.vendor.smpp.pdu.operations import DataSM
+
+
+@defer.inlineCallbacks
+def waitFor(seconds):
+    # Wait seconds
+    waitDeferred = defer.Deferred()
+    reactor.callLater(seconds, waitDeferred.callback, None)
+    yield waitDeferred
 
 
 class DataSmSMSCTestCase(SMPPClientManagerPBTestCase):
@@ -101,7 +108,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
             if ssRet == 'BOUND_TRX':
                 break;
             else:
-                time.sleep(0.2)
+                yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def stopConnector(self, connector):
@@ -113,7 +120,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
             if ssRet == 'NONE':
                 break;
             else:
-                time.sleep(0.2)
+                yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def triggerDataSmFromSMSC(self, pdus):
@@ -123,9 +130,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
             self.last_seqNum += 1
 
             # Wait 0.5 seconds
-            exitDeferred = defer.Deferred()
-            reactor.callLater(0.5, exitDeferred.callback, None)
-            yield exitDeferred
+            yield waitFor(0.5)
 
     @defer.inlineCallbacks
     def test_delivery_HttpConnector(self):
@@ -374,9 +379,7 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
             self.last_seqNum += 1
 
             # Wait 0.5 seconds
-            exitDeferred = defer.Deferred()
-            reactor.callLater(0.5, exitDeferred.callback, None)
-            yield exitDeferred
+            yield waitFor(0.5)
 
     @defer.inlineCallbacks
     def test_delivery_failover_route(self):
@@ -622,7 +625,7 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
 
         # Run tests
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
-        # the received pdu must be our DeliverSmPDU
+        # the received pdu must be our DataSm
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.id, pdu_types.CommandId.data_sm)
         self.assertEqual(received_pdu_1.params['network_error_code'], DataSmPDU.params['network_error_code'])
