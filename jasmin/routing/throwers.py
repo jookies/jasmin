@@ -40,6 +40,7 @@ class Thrower(Service):
 
     def __init__(self):
         self.requeueTimers = {}
+        self.throwing_retrials = {}
         self.log_category = "abstract-thrower"
 
         self.exchangeName = 'messaging'
@@ -54,7 +55,26 @@ class Thrower(Service):
     def addSmpps(self, smppsFactory):
         self.smppsFactory = smppsFactory
 
+    def getThrowingRetrials(self, message):
+        return self.throwing_retrials.get(message.content.properties['message-id'], 0)
+
+    def delThrowingRetrials(self, message):
+        if message.content.properties['message-id'] in self.throwing_retrials:
+            del self.throwing_retrials[message.content.properties['message-id']]
+            return True
+        else:
+            return False
+
+    def incThrowingRetrials(self, message):
+        if message.content.properties['message-id'] in self.throwing_retrials:
+            self.throwing_retrials[message.content.properties['message-id']] += 1
+        else:
+            self.throwing_retrials[message.content.properties['message-id']] = 1
+
     def throwing_callback(self, message):
+        # Init retrial mechanism
+        self.incThrowingRetrials(message)
+
         self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
 
     def throwing_errback(self, error):
@@ -158,10 +178,20 @@ class Thrower(Service):
 
     @defer.inlineCallbacks
     def rejectMessage(self, message, requeue=0):
+        if requeue == 1:
+            # Increment retrial tracking for this message
+            self.incThrowingRetrials(message)
+        else:
+            # Remove retrial tracker
+            self.delThrowingRetrials(message)
+
         yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
 
     @defer.inlineCallbacks
     def ackMessage(self, message):
+        # Remove retrial tracker
+        self.delThrowingRetrials(message)
+
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
 
 
@@ -263,12 +293,12 @@ class deliverSmThrower(Thrower):
 
                 self.log.debug('Destination end replied to message [msgid:%s]: %r',
                                msgid, content)
+
                 # Check for acknowledgement
                 if content.strip() != 'ACK/Jasmin':
                     raise MessageAcknowledgementError(
                         'Destination end did not acknowledge receipt of the message.')
             except Exception, e:
-                message.content.properties['headers']['try-count'] += 1
                 self.log.error('Throwing message [msgid:%s] to (%s %s/%s)[cid:%s] (%s), %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl, type(e), e)
 
@@ -278,9 +308,9 @@ class deliverSmThrower(Thrower):
                 if route_type == 'simple':
                     # Requeue message for later retry
                     if (str(e) not in noRetryErrors
-                            and message.content.properties['headers']['try-count'] <= self.config.max_retries):
+                        and self.getThrowingRetrials(message) <= self.config.max_retries):
                         self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
-                                       message.content.properties['headers']['try-count'], msgid)
+                                       self.getThrowingRetrials(message), msgid)
                         yield self.rejectAndRequeueMessage(message)
                     elif str(e) in noRetryErrors:
                         self.log.warn('Message [msgid:%s] is no more processed after receiving "%s" error',
@@ -288,7 +318,7 @@ class deliverSmThrower(Thrower):
                         yield self.rejectMessage(message)
                     else:
                         self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
-                                      message.content.properties['headers']['try-count'], msgid)
+                                      self.getThrowingRetrials(message), msgid)
                         yield self.rejectMessage(message)
                 elif route_type == 'failover':
                     # The route has multiple connectors, we will not retry throwing to same connector
@@ -358,7 +388,6 @@ class deliverSmThrower(Thrower):
                 self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using smpp.',
                               msgid, route_type, counter, len(dcs), dc.cid)
             except Exception, e:
-                message.content.properties['headers']['try-count'] += 1
                 self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, type(e), e)
 
@@ -373,17 +402,17 @@ class deliverSmThrower(Thrower):
                             break
 
                     # Requeue message for later retry
-                    if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
+                    if retry and self.getThrowingRetrials(message) <= self.config.max_retries:
                         self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
-                                       message.content.properties['headers']['try-count'], msgid)
+                                       self.getThrowingRetrials(message), msgid)
                         yield self.rejectAndRequeueMessage(message)
-                    elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
+                    elif retry and self.getThrowingRetrials(message) > self.config.max_retries:
                         self.log.warn('Message [msgid:%s] is no more processed after receiving "%s" error',
                                       msgid, str(e))
                         yield self.rejectMessage(message)
                     else:
                         self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
-                                      message.content.properties['headers']['try-count'], msgid)
+                                      self.getThrowingRetrials(message), msgid)
                         yield self.rejectMessage(message)
                 elif route_type == 'failover':
                     # The route has multiple connectors, we will not retry throwing to same connector
@@ -491,7 +520,6 @@ class DLRThrower(Thrower):
             # Everything is okay ? then:
             yield self.ackMessage(message)
         except Exception, e:
-            message.content.properties['headers']['try-count'] += 1
             self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.', msgid, baseurl, e)
 
             # List of errors after which, no further retrying shall be made
@@ -499,16 +527,16 @@ class DLRThrower(Thrower):
 
             # Requeue message for later retry
             if (str(e) not in noRetryErrors
-                and message.content.properties['headers']['try-count'] <= self.config.max_retries):
+                and self.getThrowingRetrials(message) <= self.config.max_retries):
                 self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
-                               message.content.properties['headers']['try-count'], msgid)
+                               self.getThrowingRetrials(message), msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
                 self.log.warn('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
-                              message.content.properties['headers']['try-count'], msgid)
+                              self.getThrowingRetrials(message), msgid)
                 yield self.rejectMessage(message)
 
     @defer.inlineCallbacks
@@ -557,7 +585,6 @@ class DLRThrower(Thrower):
             # Everything is okay ? then:
             yield self.ackMessage(message)
         except Exception, e:
-            message.content.properties['headers']['try-count'] += 1
             self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
             # List of exceptions after which, no further retrying shall be made
@@ -570,16 +597,16 @@ class DLRThrower(Thrower):
                     break
 
             # Requeue message for later retry
-            if retry and message.content.properties['headers']['try-count'] <= self.config.max_retries:
+            if retry and self.getThrowingRetrials(message) <= self.config.max_retries:
                 self.log.debug('Message try-count is %s [msgid:%s]: requeuing',
-                               message.content.properties['headers']['try-count'], msgid)
+                               self.getThrowingRetrials(message), msgid)
                 yield self.rejectAndRequeueMessage(message)
-            elif retry and message.content.properties['headers']['try-count'] > self.config.max_retries:
+            elif retry and self.getThrowingRetrials(message) > self.config.max_retries:
                 self.log.warn('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
-                              message.content.properties['headers']['try-count'], msgid)
+                              self.getThrowingRetrials(message), msgid)
                 yield self.rejectMessage(message)
 
     @defer.inlineCallbacks
