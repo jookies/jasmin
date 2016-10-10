@@ -1,18 +1,21 @@
-import mock
 import datetime
+
+import mock
 from twisted.internet import reactor, defer
 from twisted.trial import unittest
-from jasmin.queues.factory import AmqpFactory
+from twisted.web import server
+
+from jasmin.managers.content import DLRContentForHttpapi, DLRContentForSmpps
 from jasmin.queues.configs import AmqpConfig
+from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.configs import DLRThrowerConfig
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.http_server import TimeoutLeafServer, AckServer, NoAckServer, Error404Server
+from jasmin.routing.test.test_router import SubmitSmTestCaseTools
+from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import DLRThrower
 from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.managers.content import DLRContentForHttpapi, DLRContentForSmpps
-from jasmin.routing.test.http_server import LeafServer, TimeoutLeafServer, AckServer, NoAckServer, Error404Server
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.proxies import RouterPBProxy
-from twisted.web import server
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -133,7 +136,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
 
         yield waitFor(9)
 
-        self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 3)
+        self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 2)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):
@@ -293,10 +296,10 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield waitFor(5)
 
         # Run tests
-        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 3)
+        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 2)
         self.assertEqual(self.DLRThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 1)
-        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 2)
+        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 2)
+        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 1)
 
     @defer.inlineCallbacks
     def test_throwing_smpps_with_no_deliverers(self):
@@ -316,10 +319,10 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield waitFor(5)
 
         # Run tests
-        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 3)
+        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 2)
         self.assertEqual(self.DLRThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 1)
-        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 2)
+        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 2)
+        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
