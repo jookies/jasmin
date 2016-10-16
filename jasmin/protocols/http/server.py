@@ -213,14 +213,22 @@ class Send(Resource):
                     routable.pdu.params['validity_period'],
                     updated_request.args['validity-period'][0])
 
-            # Set DLR bit mask
+            # Set DLR bit mask on the last pdu
+            _last_pdu = routable.pdu
+            while True:
+                if hasattr(_last_pdu, 'nextPdu'):
+                    _last_pdu = _last_pdu.nextPdu
+                else:
+                    break
             # DLR setting is clearly described in #107
-            routable.pdu.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
+            _last_pdu.params['registered_delivery'] = RegisteredDelivery(
+                RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
             if updated_request.args['dlr'][0] == 'yes':
-                routable.pdu.params['registered_delivery'] = RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+                _last_pdu.params['registered_delivery'] = RegisteredDelivery(
+                    RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
                 self.log.debug(
                     "SubmitSmPDU registered_delivery is set to %s",
-                    str(routable.pdu.params['registered_delivery']))
+                    str(_last_pdu.params['registered_delivery']))
 
                 dlr_level = int(updated_request.args['dlr-level'][0])
                 if 'dlr-url' in updated_request.args:

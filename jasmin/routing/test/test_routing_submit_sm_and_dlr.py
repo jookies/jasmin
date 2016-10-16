@@ -1,4 +1,5 @@
 import copy
+import string
 import urllib
 
 import mock
@@ -623,6 +624,56 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Run tests
         self.assertEqual(msgStatus, 'Success')
+
+    @defer.inlineCallbacks
+    def test_long_message_with_inurl_dlr(self):
+        """As discussed in #483: It appears that when sending a long message through http and requesting
+        dlr-level 3 with a callback, only the first pdu is asking for dlr and when deliver_sm holding delivery
+        receipt is received for that pdu jasmin is not finding the correct mapping for it.
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 3
+        self.params['dlr-method'] = 'GET'
+        self.params['content'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(200))
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        msgStatus = c[:7]
+        msgId = c[9:45]
+
+        # Wait 1 seconds for 2 submit_sm_resps
+        yield waitFor(1)
+
+        # Trigger a deliver_sm
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait 1 seconds for deliver_sm
+        yield waitFor(1)
+
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        # Ensure the only the last pdu has requested a dlr
+        self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
+                         'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['registered_delivery'].receipt),
+                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
+
+        # Ensure dlr-url were called
+        self.assertEqual(msgStatus, 'Success')
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 2)
+        # Message ID must be transmitted in the DLR
+        callArgs_level1 = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
+        self.assertEqual(callArgs_level1['id'][0], msgId)
+        self.assertEqual(callArgs_level2['id'][0], msgId)
 
 
 class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):

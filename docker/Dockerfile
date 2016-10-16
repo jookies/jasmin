@@ -5,7 +5,7 @@ MAINTAINER Jookies LTD <jasmin@jookies.net>
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 
-ENV JASMIN_VERSION 0.9b10
+ENV JASMIN_VERSION 0.9b11
 
 # Install requirements
 RUN apt-get update && apt-get install -y \
