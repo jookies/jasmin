@@ -647,13 +647,13 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         msgId = c[9:45]
 
         # Wait 1 seconds for 2 submit_sm_resps
-        yield waitFor(5)
+        yield waitFor(1)
 
         # Trigger a deliver_sm
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
 
         # Wait 1 seconds for deliver_sm
-        yield waitFor(5)
+        yield waitFor(1)
 
         yield self.stopSmppClientConnectors()
 
