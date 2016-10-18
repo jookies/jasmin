@@ -613,6 +613,7 @@ class DLRThrower(Thrower):
 
     @defer.inlineCallbacks
     def dlr_throwing_callback(self, message):
+        print 'here'
         Thrower.throwing_callback(self, message)
 
         if message.routing_key == 'dlr_thrower.http':
