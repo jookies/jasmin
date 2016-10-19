@@ -196,8 +196,8 @@ class Thrower(Service):
 class deliverSmThrower(Thrower):
     name = 'deliverSmThrower'
 
-    def __init__(self):
-        Thrower.__init__(self)
+    def __init__(self, config):
+        Thrower.__init__(self, config)
 
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
@@ -453,8 +453,8 @@ class deliverSmThrower(Thrower):
 class DLRThrower(Thrower):
     name = 'DLRThrower'
 
-    def __init__(self):
-        Thrower.__init__(self)
+    def __init__(self, config):
+        Thrower.__init__(self, config)
 
         self.log_category = "jasmin-dlr-thrower"
         self.exchangeName = 'messaging'
