@@ -9,6 +9,7 @@ from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.internet import reactor, defer
 from twisted.python import usage
 
+from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.configs import DLRThrowerConfig
@@ -52,6 +53,25 @@ class DlrDaemon(object):
         "Stop AMQP Broker"
 
         return self.components['amqp-broker-client'].disconnect()
+
+    def startSMPPServerPBClient(self):
+        "Start SMPPServerPB client"
+
+        SMPPServerPBClientConfigInstance = SMPPServerPBClientConfig(self.options['config'])
+        self.components['smpps-pb-client'] = SMPPServerPBProxy()
+
+        return self.components['smpps-pb-client'].connect(
+            SMPPServerPBClientConfigInstance.host,
+            SMPPServerPBClientConfigInstance.port,
+            SMPPServerPBClientConfigInstance.username,
+            SMPPServerPBClientConfigInstance.password,
+            retry=True)
+
+    def stopSMPPServerPBClient(self):
+        "Stop SMPPServerPB client"
+
+        if self.components['smpps-pb-client'].isConnected:
+            return self.components['smpps-pb-client'].disconnect()
 
     def startDLRThrowerService(self):
         "Start DLRThrower"
