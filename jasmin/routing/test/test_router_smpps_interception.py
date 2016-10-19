@@ -1,21 +1,22 @@
 import mock
-from datetime import datetime
-from twisted.internet import reactor, defer
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.routing.jasminApi import *
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
-from jasmin.interceptor.proxies import InterceptorPBProxy
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.internet import reactor, defer
+from twisted.spread import pb
+
+from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
+from jasmin.interceptor.interceptor import InterceptorPB
+from jasmin.interceptor.proxies import InterceptorPBProxy
+from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
+from jasmin.routing.Interceptors import DefaultInterceptor
+from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.test_router import SubmitSmTestCaseTools
+from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.spread import pb
-from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
+from jasmin.vendor.smpp.pdu import pdu_types
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -65,8 +66,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         InterceptorPBConfigInstance = InterceptorPBConfig()
 
         # Launch the interceptor server
-        pbInterceptor_factory = InterceptorPB()
-        pbInterceptor_factory.setConfig(InterceptorPBConfigInstance)
+        pbInterceptor_factory = InterceptorPB(InterceptorPBConfigInstance)
 
         # Configure portal
         p = portal.Portal(JasminPBRealm(pbInterceptor_factory))

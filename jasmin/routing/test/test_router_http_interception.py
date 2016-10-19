@@ -95,8 +95,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         InterceptorPBConfigInstance = InterceptorPBConfig()
 
         # Launch the interceptor server
-        pbInterceptor_factory = InterceptorPB()
-        pbInterceptor_factory.setConfig(InterceptorPBConfigInstance)
+        pbInterceptor_factory = InterceptorPB(InterceptorPBConfigInstance)
 
         # Configure portal
         p = portal.Portal(JasminPBRealm(pbInterceptor_factory))

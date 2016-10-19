@@ -65,8 +65,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         deliverSmThrowerConfigInstance.max_retries = 2
 
         # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        self.deliverSmThrower = deliverSmThrower(deliverSmThrowerConfigInstance)
 
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
@@ -342,8 +341,7 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
         deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
 
         # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        self.deliverSmThrower = deliverSmThrower(deliverSmThrowerConfigInstance)
 
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)

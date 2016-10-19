@@ -1,24 +1,25 @@
 import mock
-from twisted.internet import defer, reactor
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower
-from jasmin.routing.jasminApi import *
-from jasmin.routing.Routes import DefaultRoute
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.routing.jasminApi import *
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
-from jasmin.interceptor.proxies import InterceptorPBProxy
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.internet import defer, reactor
+from twisted.spread import pb
+
+from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
+from jasmin.interceptor.interceptor import InterceptorPB
+from jasmin.interceptor.proxies import InterceptorPBProxy
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.routing.Interceptors import DefaultInterceptor
+from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.configs import deliverSmThrowerConfig
+from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.test_router import SubmitSmTestCaseTools
+from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from jasmin.routing.throwers import deliverSmThrower
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.spread import pb
-from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.vendor.smpp.pdu import pdu_types
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -43,8 +44,7 @@ class ProvisionWithoutInterceptorPB(object):
         deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
 
         # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        self.deliverSmThrower = deliverSmThrower(deliverSmThrowerConfigInstance)
 
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
@@ -101,8 +101,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         InterceptorPBConfigInstance = InterceptorPBConfig()
 
         # Launch the interceptor server
-        pbInterceptor_factory = InterceptorPB()
-        pbInterceptor_factory.setConfig(InterceptorPBConfigInstance)
+        pbInterceptor_factory = InterceptorPB(InterceptorPBConfigInstance)
 
         # Configure portal
         p = portal.Portal(JasminPBRealm(pbInterceptor_factory))

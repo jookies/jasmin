@@ -57,8 +57,7 @@ class DlrDaemon(object):
         "Start DLRThrower"
 
         DLRThrowerConfigInstance = DLRThrowerConfig(self.options['config'])
-        self.components['dlr-thrower'] = DLRThrower()
-        self.components['dlr-thrower'].setConfig(DLRThrowerConfigInstance)
+        self.components['dlr-thrower'] = DLRThrower(DLRThrowerConfigInstance)
         # TODO: smpp dlr thrower must be tricked to inject dlr back to smpp server:
         # self.components['dlr-thrower'].addSmpps(self.components['smpp-server-factory'])
 

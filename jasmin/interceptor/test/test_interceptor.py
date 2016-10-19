@@ -1,20 +1,22 @@
 from datetime import datetime
-from hashlib import md5
+
+from testfixtures import LogCapture
+from twisted.cred import portal
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import reactor, defer
-from twisted.trial import unittest
 from twisted.spread import pb
+from twisted.trial import unittest
+
+from jasmin.interceptor.configs import InterceptorPBConfig
 from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.interceptor.proxies import InterceptorPBProxy, InvalidRoutableObject, InvalidScriptObject
-from jasmin.interceptor.configs import InterceptorPBClientConfig, InterceptorPBConfig
-from twisted.cred import portal
-from jasmin.tools.cred.portal import JasminPBRealm
-from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from jasmin.tools.proxies import ConnectError
-from jasmin.routing.Routables import SimpleRoutablePDU, RoutableSubmitSm, RoutableDeliverSm, Routable
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from jasmin.routing.Routables import SimpleRoutablePDU, Routable
 from jasmin.routing.jasminApi import *
-from testfixtures import LogCapture
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.proxies import ConnectError
+from jasmin.tools.spread.pb import JasminPBPortalRoot
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+
 
 class InterceptorPBTestCase(unittest.TestCase):
     def setUp(self, authentication = False):
@@ -25,8 +27,7 @@ class InterceptorPBTestCase(unittest.TestCase):
         self.InterceptorPBConfigInstance.authentication = authentication
 
         # Launch the interceptor pb server
-        pbRoot = InterceptorPB()
-        pbRoot.setConfig(self.InterceptorPBConfigInstance)
+        pbRoot = InterceptorPB(self.InterceptorPBConfigInstance)
 
         p = portal.Portal(JasminPBRealm(pbRoot))
         if not authentication:
@@ -183,7 +184,7 @@ class RunScriptTestCases(IntercentorPBProxyTestCase):
 
     @defer.inlineCallbacks
     def test_slow_script_logging(self):
-        lc = LogCapture("jasmin-interceptor")
+        lc = LogCapture("jasmin-interceptor-pb")
 
         yield self.connect('127.0.0.1', self.ipbPort)
 

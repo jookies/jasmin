@@ -1,17 +1,19 @@
 #!/usr/bin/python
 
 import os
-import sys
 import signal
+import sys
 import syslog
+
 from lockfile import FileLock, LockTimeout, AlreadyLocked
-from twisted.python import usage
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from twisted.spread import pb
 from twisted.internet import reactor, defer
-from jasmin.interceptor.interceptor import InterceptorPB
+from twisted.python import usage
+from twisted.spread import pb
+
 from jasmin.interceptor.configs import InterceptorPBConfig
+from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 
@@ -35,8 +37,7 @@ class InterceptorDaemon(object):
         "Start Interceptor PB server"
 
         InterceptorPBConfigInstance = InterceptorPBConfig(self.options['config'])
-        self.components['interceptor-pb-factory'] = InterceptorPB()
-        self.components['interceptor-pb-factory'].setConfig(InterceptorPBConfigInstance)
+        self.components['interceptor-pb-factory'] = InterceptorPB(InterceptorPBConfigInstance)
 
         # Set authentication portal
         p = portal.Portal(JasminPBRealm(self.components['interceptor-pb-factory']))

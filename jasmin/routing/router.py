@@ -23,9 +23,10 @@ LOG_CATEGORY = "jasmin-router"
 
 
 class RouterPB(pb.Avatar):
-    def setConfig(self, RouterPBConfig, persistenceTimer=True):
+    def __init__(self, RouterPBConfig, persistenceTimer=True):
         self.config = RouterPBConfig
         self.persistenceTimer = None
+        self.avatar = avatar
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)

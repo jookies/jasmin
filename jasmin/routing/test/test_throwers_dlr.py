@@ -48,8 +48,7 @@ class DLRThrowerTestCases(unittest.TestCase):
         DLRThrowerConfigInstance.max_retries = 2
 
         # Launch the DLRThrower
-        self.DLRThrower = DLRThrower()
-        self.DLRThrower.setConfig(DLRThrowerConfigInstance)
+        self.DLRThrower = DLRThrower(DLRThrowerConfigInstance)
 
         # Add the broker to the DLRThrower
         yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
