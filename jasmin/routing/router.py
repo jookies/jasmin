@@ -26,7 +26,7 @@ class RouterPB(pb.Avatar):
     def __init__(self, RouterPBConfig, persistenceTimer=True):
         self.config = RouterPBConfig
         self.persistenceTimer = None
-        self.avatar = avatar
+        self.avatar = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
