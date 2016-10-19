@@ -1,15 +1,19 @@
-import logging
 import cPickle as pickle
 import datetime as dt
+import logging
 from logging.handlers import TimedRotatingFileHandler
+
 from twisted.spread import pb
+
 from jasmin.tools.eval import CompiledNode
 
-LOG_CATEGORY = "jasmin-interceptor"
+LOG_CATEGORY = "jasmin-interceptor-pb"
+
 
 class InterceptorPB(pb.Avatar):
-    def setConfig(self, InterceptorPBConfig):
+    def __init__(self, InterceptorPBConfig):
         self.config = InterceptorPBConfig
+        self.avatar = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)

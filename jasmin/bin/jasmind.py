@@ -100,8 +100,7 @@ class JasminDaemon(object):
         "Start Router PB server"
 
         RouterPBConfigInstance = RouterPBConfig(self.options['config'])
-        self.components['router-pb-factory'] = RouterPB()
-        self.components['router-pb-factory'].setConfig(RouterPBConfigInstance)
+        self.components['router-pb-factory'] = RouterPB(RouterPBConfigInstance)
 
         # Set authentication portal
         p = portal.Portal(JasminPBRealm(self.components['router-pb-factory']))
@@ -131,8 +130,7 @@ class JasminDaemon(object):
         "Start SMPP Client Manager PB server"
 
         SMPPClientPBConfigInstance = SMPPClientPBConfig(self.options['config'])
-        self.components['smppcm-pb-factory'] = SMPPClientManagerPB()
-        self.components['smppcm-pb-factory'].setConfig(SMPPClientPBConfigInstance)
+        self.components['smppcm-pb-factory'] = SMPPClientManagerPB(SMPPClientPBConfigInstance)
 
         # Set authentication portal
         p = portal.Portal(JasminPBRealm(self.components['smppcm-pb-factory']))
@@ -202,8 +200,7 @@ class JasminDaemon(object):
         "Start deliverSmThrower"
 
         deliverThrowerConfigInstance = deliverSmThrowerConfig(self.options['config'])
-        self.components['deliversm-thrower'] = deliverSmThrower()
-        self.components['deliversm-thrower'].setConfig(deliverThrowerConfigInstance)
+        self.components['deliversm-thrower'] = deliverSmThrower(deliverThrowerConfigInstance)
         self.components['deliversm-thrower'].addSmpps(self.components['smpp-server-factory'])
 
         # AMQP Broker is used to listen to deliver_sm queue
@@ -217,8 +214,7 @@ class JasminDaemon(object):
         "Start DLRThrower"
 
         DLRThrowerConfigInstance = DLRThrowerConfig(self.options['config'])
-        self.components['dlr-thrower'] = DLRThrower()
-        self.components['dlr-thrower'].setConfig(DLRThrowerConfigInstance)
+        self.components['dlr-thrower'] = DLRThrower(DLRThrowerConfigInstance)
         self.components['dlr-thrower'].addSmpps(self.components['smpp-server-factory'])
 
         # AMQP Broker is used to listen to DLRThrower queue

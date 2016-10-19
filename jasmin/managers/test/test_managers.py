@@ -26,6 +26,8 @@ from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.Routables import RoutableDeliverSm
+from jasmin.queues.factory import AmqpFactory
+from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import Group, User
 from jasmin.routing.router import RouterPB
@@ -61,8 +63,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         yield self.amqpBroker.getChannelReadyDeferred()
 
         # Launch the client manager server
-        pbRoot = SMPPClientManagerPB()
-        pbRoot.setConfig(self.SMPPClientPBConfigInstance)
+        pbRoot = SMPPClientManagerPB(self.SMPPClientPBConfigInstance)
 
         yield pbRoot.addAmqpBroker(self.amqpBroker)
         p = portal.Portal(JasminPBRealm(pbRoot))
@@ -77,8 +78,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
         self.pbPort = self.PBServer.getHost().port
 
         # Launch the router server
-        self.RouterPBInstance = RouterPB()
-        self.RouterPBInstance.setConfig(RouterPBConfig())
+        self.RouterPBInstance = RouterPB(RouterPBConfig())
         pbRoot.addRouterPB(self.RouterPBInstance)
 
         # Default SMPPClientConfig

@@ -8,6 +8,12 @@ from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientC
 from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
+from jasmin.routing.Interceptors import DefaultInterceptor
+from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.test_router import SubmitSmTestCaseTools
+from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
 from jasmin.routing.Filters import TagFilter
 from jasmin.routing.Interceptors import DefaultInterceptor
 from jasmin.routing.Routes import StaticMTRoute
@@ -68,8 +74,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         InterceptorPBConfigInstance = InterceptorPBConfig()
 
         # Launch the interceptor server
-        pbInterceptor_factory = InterceptorPB()
-        pbInterceptor_factory.setConfig(InterceptorPBConfigInstance)
+        pbInterceptor_factory = InterceptorPB(InterceptorPBConfigInstance)
 
         # Configure portal
         p = portal.Portal(JasminPBRealm(pbInterceptor_factory))

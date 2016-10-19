@@ -8,6 +8,16 @@ from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientC
 from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.routing.Interceptors import DefaultInterceptor
+from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.configs import deliverSmThrowerConfig
+from jasmin.routing.jasminApi import *
+from twisted.spread import pb
+
+from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
+from jasmin.interceptor.interceptor import InterceptorPB
+from jasmin.interceptor.proxies import InterceptorPBProxy
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from jasmin.routing.Filters import TagFilter
 from jasmin.routing.Interceptors import DefaultInterceptor
 from jasmin.routing.Routes import DefaultRoute, StaticMORoute
@@ -45,8 +55,7 @@ class ProvisionWithoutInterceptorPB(object):
         deliverSmThrowerConfigInstance = deliverSmThrowerConfig()
 
         # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        self.deliverSmThrower = deliverSmThrower(deliverSmThrowerConfigInstance)
 
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
@@ -103,8 +112,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         InterceptorPBConfigInstance = InterceptorPBConfig()
 
         # Launch the interceptor server
-        pbInterceptor_factory = InterceptorPB()
-        pbInterceptor_factory.setConfig(InterceptorPBConfigInstance)
+        pbInterceptor_factory = InterceptorPB(InterceptorPBConfigInstance)
 
         # Configure portal
         p = portal.Portal(JasminPBRealm(pbInterceptor_factory))

@@ -2,31 +2,27 @@
 Test cases for smpp server
 """
 
-import logging
 import cPickle as pickle
-import mock
 import copy
-from datetime import datetime, timedelta
-from twisted.internet import reactor, defer
-from twisted.trial.unittest import TestCase
-from twisted.internet.protocol import Factory
-from zope.interface import implements
+from datetime import timedelta
+
+import mock
 from twisted.cred import portal
-from jasmin.tools.cred.portal import SmppsRealm
-from jasmin.tools.cred.checkers import RouterAuthChecker
-from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
+from twisted.trial.unittest import TestCase
+
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
-from jasmin.managers.clients import SMPPClientManagerPB
-from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.protocols.smpp.protocol import *
-from jasmin.routing.router import RouterPB
+from jasmin.protocols.smpp.stats import SMPPServerStatsCollector
+from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.vendor.smpp.pdu.error import SMPPTransactionError
-from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.router import RouterPB
 from jasmin.routing.test.test_router import id_generator
+from jasmin.tools.cred.checkers import RouterAuthChecker
+from jasmin.tools.cred.portal import SmppsRealm
+from jasmin.vendor.smpp.pdu.error import SMPPTransactionError
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -63,8 +59,7 @@ class RouterPBTestCases(TestCase):
         # Instanciate RouterPB but will not launch a server
         # we only need the instance to access its .users attribute
         # for authentication
-        self.routerpb_factory = RouterPB()
-        self.routerpb_factory.setConfig(self.routerpb_config, persistenceTimer = False)
+        self.routerpb_factory = RouterPB(self.routerpb_config, persistenceTimer=False)
 
         # Provision a user and default route into RouterPB
         self.foo = User('u1', Group('test'), 'username', 'password')

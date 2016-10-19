@@ -21,8 +21,7 @@ class HTTPApiTestCases(TestCase):
     def setUp(self):
         # Instanciate a RouterPB (a requirement for HTTPApi)
         RouterPBConfigInstance = RouterPBConfig()
-        self.RouterPB_f = RouterPB()
-        self.RouterPB_f.setConfig(RouterPBConfigInstance)
+        self.RouterPB_f = RouterPB(RouterPBConfigInstance)
 
         # Provision Router with User and Route
         self.g1 = Group(1)
@@ -34,8 +33,7 @@ class HTTPApiTestCases(TestCase):
         # Instanciate a SMPPClientManagerPB (a requirement for HTTPApi)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
         SMPPClientPBConfigInstance.authentication = False
-        clientManager_f = SMPPClientManagerPB()
-        clientManager_f.setConfig(SMPPClientPBConfigInstance)
+        clientManager_f = SMPPClientManagerPB(SMPPClientPBConfigInstance)
 
         httpApiConfigInstance = HTTPApiConfig()
         self.web = DummySite(HTTPApi(self.RouterPB_f, clientManager_f, httpApiConfigInstance))

@@ -69,14 +69,13 @@ class RouterPBTestCase(unittest.TestCase):
         self.RouterPBConfigInstance = RouterPBConfig()
 
         # Launch the router server
-        self.pbRoot_f = RouterPB()
+        self.pbRoot_f = RouterPB(self.RouterPBConfigInstance)
 
         # Mock callbacks
         # will be used for assertions
         self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(wraps = self.pbRoot_f.bill_request_submit_sm_resp_callback)
         self.pbRoot_f.deliver_sm_callback = mock.Mock(wraps = self.pbRoot_f.deliver_sm_callback)
 
-        self.pbRoot_f.setConfig(self.RouterPBConfigInstance)
         p = portal.Portal(JasminPBRealm(self.pbRoot_f))
         if not authentication:
             p.registerChecker(AllowAnonymousAccess())
@@ -107,8 +106,7 @@ class HttpServerTestCase(RouterPBTestCase):
         SMPPClientPBConfigInstance.authentication = False
 
         # Smpp client manager is required for HTTPApi instanciation
-        self.clientManager_f = SMPPClientManagerPB()
-        self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
+        self.clientManager_f = SMPPClientManagerPB(SMPPClientPBConfigInstance)
 
         # Add RouterPB to Smpp client manager
         self.clientManager_f.addRouterPB(self.pbRoot_f)
@@ -156,8 +154,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
 
         # Start DLRThrower
         DLRThrowerConfigInstance = DLRThrowerConfig()
-        self.DLRThrower = DLRThrower()
-        self.DLRThrower.setConfig(DLRThrowerConfigInstance)
+        self.DLRThrower = DLRThrower(DLRThrowerConfigInstance)
         yield self.DLRThrower.addAmqpBroker(self.amqpBroker)
 
         # Connect to redis server

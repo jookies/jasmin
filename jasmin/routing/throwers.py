@@ -38,7 +38,8 @@ class NoDelivererForSystemId(Exception):
 class Thrower(Service):
     name = 'abstract thrower'
 
-    def __init__(self):
+    def __init__(self, config):
+        self.config = config
         self.requeueTimers = {}
         self.throwing_retrials = {}
         self.log_category = "abstract-thrower"
@@ -51,6 +52,19 @@ class Thrower(Service):
         self.errback = self.throwing_errback
 
         self.smppsFactory = None
+
+        # Set up a dedicated logger
+        self.log = logging.getLogger(self.log_category)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                               when=self.config.log_rotate)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
+            self.log.propagate = False
+
+        self.log.info('Thrower configured and ready.')
 
     def addSmpps(self, smppsFactory):
         self.smppsFactory = smppsFactory
@@ -112,22 +126,6 @@ class Thrower(Service):
         Service.stopService(self)
 
         self.clearAllTimers()
-
-    def setConfig(self, config):
-        self.config = config
-
-        # Set up a dedicated logger
-        self.log = logging.getLogger(self.log_category)
-        if len(self.log.handlers) != 1:
-            self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
-            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
-            handler.setFormatter(formatter)
-            self.log.addHandler(handler)
-            self.log.propagate = False
-
-        self.log.info('Thrower configured and ready.')
 
     @defer.inlineCallbacks
     def addAmqpBroker(self, amqpBroker):
