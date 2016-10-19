@@ -11,21 +11,26 @@ from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassTy
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class ConfigUndefinedIdError(Exception):
     """Raised when a *Config class is initialized without ID
     """
+
 
 class ConfigInvalidIdError(Exception):
     """Raised when a *Config class is initialized with an invalid ID syntax
     """
 
+
 class TypeMismatch(Exception):
     """Raised when a *Config element has not a valid type
     """
 
+
 class UnknownValue(Exception):
     """Raised when a *Config element has a valid type and inappropriate value
     """
+
 
 class SMPPClientConfig(object):
 
@@ -191,6 +196,7 @@ class SMPPClientConfig(object):
         if self.dlr_msg_id_bases not in [0, 1, 2]:
             raise UnknownValue('Invalid dlr_msg_id_bases: %s' % self.dlr_msg_id_bases)
 
+
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):
         ConfigFile.__init__(self, config_file)
@@ -202,6 +208,7 @@ class SMPPClientServiceConfig(ConfigFile):
         self.log_format = self._get(
             'service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('service-smppclient', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
 
 class SMPPServerConfig(ConfigFile):
     def __init__(self, config_file=None):
@@ -242,3 +249,26 @@ class SMPPServerConfig(ConfigFile):
         # DLR
         # How much time a message is kept in redis waiting for receipt
         self.dlr_expiry = self._getint('smpp-server', 'dlr_expiry', 86400)
+
+
+class SMPPServerPBConfig(ConfigFile):
+    "Config handler for 'smpp-server-pb' section"
+
+    def __init__(self, config_file=None):
+        ConfigFile.__init__(self, config_file)
+
+        self.bind = self._get('smpp-server-pb', 'bind', '0.0.0.0')
+        self.port = self._getint('smpp-server-pb', 'port', 14000)
+
+        self.authentication = self._getbool('smpp-server-pb', 'authentication', True)
+        self.admin_username = self._get('smpp-server-pb', 'admin_username', 'smppsadmin')
+        self.admin_password = self._get(
+            'smpp-server-pb', 'admin_password', "b9c12de6cdfd15459ecf85f628b21e71").decode('hex')
+
+        # Logging
+        self.log_level = logging.getLevelName(self._get('smpp-server-pb', 'log_level', 'INFO'))
+        self.log_rotate = self._get('smpp-server-pb', 'log_rotate', 'W6')
+        self.log_file = self._get('smpp-server-pb', 'log_file', '%s/var/log/jasmin/smpp-server-pb.log' % ROOT_PATH)
+        self.log_format = self._get(
+            'smpp-server-pb', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
+        self.log_date_format = self._get('smpp-server-pb', 'log_date_format', '%Y-%m-%d %H:%M:%S')
