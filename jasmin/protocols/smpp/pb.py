@@ -39,3 +39,6 @@ class SMPPServerPB(pb.Avatar):
             self.log.info('Replaced SMPP Server: %s', smppsFactory.config.id)
 
         self.smpp_servers[smppsFactory.config.id] = smppsFactory
+
+    def perspective_smpps_list(self):
+        """Returning list of available smpp servers"""
