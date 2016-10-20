@@ -21,11 +21,13 @@ from .validation import SmppsCredentialValidator
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"
 
+
 class SmppClientIsNotConnected(Exception):
     """
     An exception that is raised when a trying to use smpp object when
     it is still None (before callbacking bind())
     """
+
 
 class SMPPClientFactory(ClientFactory):
     protocol = SMPPClientProtocol
@@ -186,6 +188,7 @@ class SMPPClientFactory(ClientFactory):
         else:
             return self.smpp.sessionState
 
+
 class CtxFactory(ssl.ClientContextFactory):
 
     def __init__(self, config):
@@ -197,6 +200,7 @@ class CtxFactory(ssl.ClientContextFactory):
         if self.smppConfig.SSLCertificateFile:
             ctx.use_certificate_file(self.smppConfig.SSLCertificateFile)
         return ctx
+
 
 class SMPPServerFactory(_SMPPServerFactory):
     protocol = SMPPServerProtocol
@@ -569,6 +573,7 @@ class SMPPServerFactory(_SMPPServerFactory):
 
         d = self.unbindGateway(user.username)
         return d
+
 
 class SMPPBindManager(_SMPPBindManager):
     "Overloads _SMPPBindManager to add user tracking"

@@ -10,7 +10,9 @@ from twisted.internet import reactor
 from twisted.web.client import getPage
 from txamqp.queue import Closed
 
+from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
 
 
@@ -37,21 +39,28 @@ class NoDelivererForSystemId(Exception):
 
 class Thrower(Service):
     name = 'abstract thrower'
+    log_category = 'abstract-thrower'
+    exchangeName = 'messaging'
+    consumerTag = 'abstractThrower'
+    routingKey = 'abstract_thrower.*'
+    queueName = 'abstract_thrower'
+    callback = None
+    errback = None
+    requeueTimers = {}
+    throwing_retrials = {}
 
     def __init__(self, config):
         self.config = config
-        self.requeueTimers = {}
-        self.throwing_retrials = {}
-        self.log_category = "abstract-thrower"
 
-        self.exchangeName = 'messaging'
-        self.consumerTag = 'abstractThrower'
-        self.routingKey = 'abstract_thrower.*'
-        self.queueName = 'abstract_thrower'
-        self.callback = self.throwing_callback
-        self.errback = self.throwing_errback
+        # Check if callbacks are defined in child class ?
+        if self.callback is None:
+            self.callback = self.throwing_callback
+        if self.errback is None:
+            self.errback = self.throwing_errback
 
-        self.smppsFactory = None
+        # For these values to None since they must be defined through .addSmpps()
+        self.smpps = None
+        self.smpps_access = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(self.log_category)
@@ -66,8 +75,15 @@ class Thrower(Service):
 
         self.log.info('Thrower configured and ready.')
 
-    def addSmpps(self, smppsFactory):
-        self.smppsFactory = smppsFactory
+    def addSmpps(self, smpps):
+        self.smpps = smpps
+
+        if isinstance(smpps, SMPPServerPBProxy):
+            self.smpps_access = 'perspectivebroker'
+        elif isinstance(smpps, SMPPServerFactory):
+            self.smpps_access = 'direct'
+
+        self.log.info('Added a %s access to SMPPServerFactory', self.smpps_access)
 
     def getThrowingRetrials(self, message):
         return self.throwing_retrials.get(message.content.properties['message-id'], 0)
@@ -197,15 +213,14 @@ class deliverSmThrower(Thrower):
     name = 'deliverSmThrower'
 
     def __init__(self, config):
-        Thrower.__init__(self, config)
-
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
         self.consumerTag = 'deliverSmThrower'
         self.routingKey = 'deliver_sm_thrower.*'
         self.queueName = 'deliver_sm_thrower'
-
         self.callback = self.deliver_sm_throwing_callback
+
+        Thrower.__init__(self, config)
 
     @defer.inlineCallbacks
     def http_deliver_sm_callback(self, message):
@@ -454,16 +469,15 @@ class DLRThrower(Thrower):
     name = 'DLRThrower'
 
     def __init__(self, config):
-        Thrower.__init__(self, config)
-
         self.log_category = "jasmin-dlr-thrower"
         self.exchangeName = 'messaging'
         self.consumerTag = 'DLRThrower'
         self.routingKey = 'dlr_thrower.*'
         self.queueName = 'dlr_thrower'
         self.callback = self.dlr_throwing_callback
-
         self.opFactory = SMPPOperationFactory()
+
+        Thrower.__init__(self, config)
 
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):

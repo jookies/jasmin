@@ -9,6 +9,7 @@ from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.internet import reactor, defer
 from twisted.python import usage
 
+from jasmin.protocols.smpp.configs import SMPPServerPBClientConfig
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
@@ -21,7 +22,7 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class Options(usage.Options):
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/jasmin.cfg' % ROOT_PATH,
+        ['config', 'c', '%s/etc/jasmin/dlr.cfg' % ROOT_PATH,
          'Jasmin configuration file'],
         ['id', 'i', 'master',
          'Daemon id, need to be different for each dlrd daemon'],
@@ -78,8 +79,7 @@ class DlrDaemon(object):
 
         DLRThrowerConfigInstance = DLRThrowerConfig(self.options['config'])
         self.components['dlr-thrower'] = DLRThrower(DLRThrowerConfigInstance)
-        # TODO: smpp dlr thrower must be tricked to inject dlr back to smpp server:
-        # self.components['dlr-thrower'].addSmpps(self.components['smpp-server-factory'])
+        self.components['dlr-thrower'].addSmpps(self.components['smpps-pb-client'])
 
         # AMQP Broker is used to listen to DLRThrower queue
         return self.components['dlr-thrower'].addAmqpBroker(self.components['amqp-broker-factory'])
@@ -105,6 +105,16 @@ class DlrDaemon(object):
 
         ########################################################
         try:
+            # Start SMPPServerPB Client
+            yield self.startSMPPServerPBClient()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPServerPBClient: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  SMPPServerPBClientStarted.")
+
+        ########################################################
+        try:
+            # Start DLRThrower
             yield self.startDLRThrowerService()
         except Exception, e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRThrower: %s" % e)
@@ -115,6 +125,10 @@ class DlrDaemon(object):
     def stop(self):
         "Stop Dlrd daemon"
         syslog.syslog(syslog.LOG_INFO, "Stopping Dlr Daemon ...")
+
+        if 'smpps-pb-client' in self.components:
+            yield self.stopSMPPServerPBClient()
+            syslog.syslog(syslog.LOG_INFO, "  SMPPServerPBClient stopped.")
 
         if 'dlr-thrower' in self.components:
             yield self.stopDLRThrowerService()

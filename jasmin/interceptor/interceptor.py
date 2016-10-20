@@ -36,7 +36,7 @@ class InterceptorPB(pb.Avatar):
         self.avatar = avatar
 
     def perspective_run_script(self, pyCode, routable):
-        "Will execute pyCode with the routable argument"
+        """Will execute pyCode with the routable argument"""
         routable = pickle.loads(routable)
         smpp_status = 0
         http_status = 0

@@ -2,15 +2,16 @@
 Config file handlers for 'interceptor' section in interceptor.cfg
 """
 
-import os
 import logging
+import os
+
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 class InterceptorPBConfig(ConfigFile):
-    "Config handler for 'interceptor' section"
+    """Config handler for 'interceptor' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -34,7 +35,7 @@ class InterceptorPBConfig(ConfigFile):
         self.log_slow_script = self._getint('interceptor', 'log_slow_script', 1)
 
 class InterceptorPBClientConfig(ConfigFile):
-    "Config handler for 'interceptor' section"
+    """Config handler for 'interceptor-client' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)

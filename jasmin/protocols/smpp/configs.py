@@ -252,7 +252,7 @@ class SMPPServerConfig(ConfigFile):
 
 
 class SMPPServerPBConfig(ConfigFile):
-    "Config handler for 'smpp-server-pb' section"
+    """Config handler for 'smpp-server-pb' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -263,7 +263,7 @@ class SMPPServerPBConfig(ConfigFile):
         self.authentication = self._getbool('smpp-server-pb', 'authentication', True)
         self.admin_username = self._get('smpp-server-pb', 'admin_username', 'smppsadmin')
         self.admin_password = self._get(
-            'smpp-server-pb', 'admin_password', "b9c12de6cdfd15459ecf85f628b21e71").decode('hex')
+            'smpp-server-pb', 'admin_password', "e97ab122faa16beea8682d84f3d2eea4").decode('hex')
 
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server-pb', 'log_level', 'INFO'))
@@ -272,3 +272,16 @@ class SMPPServerPBConfig(ConfigFile):
         self.log_format = self._get(
             'smpp-server-pb', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('smpp-server-pb', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+
+class SMPPServerPBClientConfig(ConfigFile):
+    """Config handler for 'smpp-server-pb-client' section"""
+
+    def __init__(self, config_file=None):
+        ConfigFile.__init__(self, config_file)
+
+        self.host = self._get('smpp-server-pb-client', 'host', '127.0.0.1')
+        self.port = self._getint('smpp-server-pb-client', 'port', 14000)
+
+        self.username = self._get('smpp-server-pb-client', 'username', 'smppsadmin')
+        self.password = self._get('smpp-server-pb-client', 'password', 'smppspwd')
