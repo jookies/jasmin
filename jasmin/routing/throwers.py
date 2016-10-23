@@ -85,6 +85,13 @@ class Thrower(Service):
 
         self.log.info('Added a %s access to SMPPServerFactory', self.smpps_access)
 
+    def get_smpps_bound_connections(self):
+        if self.smpps is None or self.smpps_access is None:
+            raise SmppsNotSetError()
+
+        if self.smpps_access == 'direct':
+            return self.smpps.bound_connections
+
     def getThrowingRetrials(self, message):
         return self.throwing_retrials.get(message.content.properties['message-id'], 0)
 
@@ -387,13 +394,11 @@ class deliverSmThrower(Thrower):
                 last_dc = False
 
             try:
-                if self.smppsFactory is None:
-                    raise SmppsNotSetError()
-
-                if dc.cid not in self.smppsFactory.bound_connections:
+                bound_connections = self.get_smpps_bound_connections()
+                if dc.cid not in bound_connections:
                     raise SystemIdNotBound(dc.cid)
 
-                deliverer = self.smppsFactory.bound_connections[dc.cid].getNextBindingForDelivery()
+                deliverer = bound_connections[dc.cid].getNextBindingForDelivery()
                 if deliverer is None:
                     raise NoDelivererForSystemId(dc.cid)
 
@@ -571,13 +576,11 @@ class DLRThrower(Thrower):
         self.clearRequeueTimer(msgid)
 
         try:
-            if self.smppsFactory is None:
-                raise SmppsNotSetError()
-
-            if system_id not in self.smppsFactory.bound_connections:
+            bound_connections = self.get_smpps_bound_connections()
+            if system_id not in bound_connections:
                 raise SystemIdNotBound(system_id)
 
-            deliverer = self.smppsFactory.bound_connections[system_id].getNextBindingForDelivery()
+            deliverer = bound_connections[system_id].getNextBindingForDelivery()
             if deliverer is None:
                 raise NoDelivererForSystemId(system_id)
 
