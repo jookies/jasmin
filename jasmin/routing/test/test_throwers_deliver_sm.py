@@ -441,7 +441,8 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
         self.deliverSmThrower.smpp_deliver_sm_callback = mock.Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
 
         # Remove smpps from self.DLRThrower
-        self.deliverSmThrower.smppsFactory = None
+        self.deliverSmThrower.smpps = None
+        self.deliverSmThrower.smpps_access = None
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
@@ -450,7 +451,7 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
             'src',
             routedConnector)
 
-        yield waitFor(5)
+        yield waitFor(1)
 
         # Run tests
         self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 1)
