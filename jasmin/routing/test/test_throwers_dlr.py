@@ -118,7 +118,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         message_status = 'DELIVRD'
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
-        yield waitFor(2)
+        yield waitFor(4)
 
         # Retries must be made when ACK is not received
         self.assertTrue(self.NoAckServerResource.render_POST.call_count > 1)
