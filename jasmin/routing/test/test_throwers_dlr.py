@@ -133,9 +133,9 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         message_status = 'DELIVRD'
         self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level)
 
-        yield waitFor(9)
+        yield waitFor(12)
 
-        self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 2)
+        self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 3)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):
@@ -292,13 +292,13 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
-        yield waitFor(5)
+        yield waitFor(3)
 
         # Run tests
-        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 2)
+        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 3)
         self.assertEqual(self.DLRThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 2)
-        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 1)
+        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 3)
+        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 2)
 
     @defer.inlineCallbacks
     def test_throwing_smpps_with_no_deliverers(self):
@@ -315,13 +315,13 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
-        yield waitFor(5)
+        yield waitFor(3)
 
         # Run tests
-        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 2)
+        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 3)
         self.assertEqual(self.DLRThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 2)
-        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 1)
+        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 3)
+        self.assertEqual(self.DLRThrower.rejectAndRequeueMessage.call_count, 2)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -335,8 +335,8 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         # Remove smpps from self.DLRThrower
-        self.deliverSmThrower.smpps = None
-        self.deliverSmThrower.smpps_access = None
+        self.DLRThrower.smpps = None
+        self.DLRThrower.smpps_access = None
 
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
