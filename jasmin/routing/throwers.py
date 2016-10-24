@@ -199,10 +199,7 @@ class Thrower(Service):
 
     @defer.inlineCallbacks
     def rejectMessage(self, message, requeue=0):
-        if requeue == 1:
-            # Increment retrial tracking for this message
-            self.incThrowingRetrials(message)
-        else:
+        if requeue == 0:
             # Remove retrial tracker
             self.delThrowingRetrials(message)
 

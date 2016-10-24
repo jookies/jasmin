@@ -335,11 +335,12 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         # Remove smpps from self.DLRThrower
-        self.DLRThrower.smppsFactory = None
+        self.deliverSmThrower.smpps = None
+        self.deliverSmThrower.smpps_access = None
 
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
-        yield waitFor(5)
+        yield waitFor(1)
 
         # Run tests
         self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 1)
