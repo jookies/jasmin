@@ -554,7 +554,7 @@ class SMPPClientSMListener(object):
             yield self.deliver_sm_event_post_interception(smpp=None, pdu=pdu, concatenated=True)
 
     def code_dlr_msgid(self, pdu):
-        "Code the dlr msg id accordingly to SMPPc's dlr_msg_id_bases value"
+        """Code the dlr msg id accordingly to SMPPc's dlr_msg_id_bases value"""
 
         try:
             if isinstance(pdu, DeliverSM):
