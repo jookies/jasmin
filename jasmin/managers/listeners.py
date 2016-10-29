@@ -18,8 +18,8 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, CommandId
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 
 LOG_CATEGORY = "jasmin-sm-listener"
@@ -557,7 +557,7 @@ class SMPPClientSMListener(object):
         "Code the dlr msg id accordingly to SMPPc's dlr_msg_id_bases value"
 
         try:
-            if pdu.id == CommandId.deliver_sm:
+            if isinstance(pdu, DeliverSM):
                 if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
                     ret = ('%x' % int(pdu.dlr['id'])).upper().lstrip('0')
                 elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
