@@ -1,24 +1,26 @@
 import mock
-from twisted.internet import defer, reactor
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower
-from jasmin.routing.jasminApi import *
-from jasmin.routing.Routes import DefaultRoute
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.routing.jasminApi import *
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
-from jasmin.interceptor.proxies import InterceptorPBProxy
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.internet import defer, reactor
+from twisted.spread import pb
+
+from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
+from jasmin.interceptor.interceptor import InterceptorPB
+from jasmin.interceptor.proxies import InterceptorPBProxy
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.routing.Filters import TagFilter
+from jasmin.routing.Interceptors import DefaultInterceptor
+from jasmin.routing.Routes import DefaultRoute, StaticMORoute
+from jasmin.routing.configs import deliverSmThrowerConfig
+from jasmin.routing.jasminApi import *
+from jasmin.routing.proxies import RouterPBProxy
+from jasmin.routing.test.test_router import SubmitSmTestCaseTools
+from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from jasmin.routing.throwers import deliverSmThrower
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.spread import pb
-from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
+from jasmin.vendor.smpp.pdu import pdu_types
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -70,7 +72,7 @@ class ProvisionWithoutInterceptorPB(object):
         yield SubmitSmTestCaseTools.prepareRoutingsAndStartConnector(self)
 
         # Add a MO Route to a SmppServerSystemIdConnector
-        c2_destination = SmppServerSystemIdConnector(system_id = self.smppc_factory.config.username)
+        c2_destination = SmppServerSystemIdConnector(system_id=self.smppc_factory.config.username)
         # Set the route
         yield self.moroute_add(DefaultRoute(c2_destination), 0)
 
@@ -418,6 +420,49 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RUNKNOWNERR)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
         self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+
+        # Unbind and disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+    @defer.inlineCallbacks
+    def test_tagging(self):
+        """Refs #495
+        Will tag message inside interceptor script and assert
+        routing based tagfilter were correctly done
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        mo_interceptor = MOInterceptorScript("routable.addTag(10)")
+        yield self.mointerceptor_add(DefaultInterceptor(mo_interceptor), 0)
+        # Disconnect from RouterPB
+        self.disconnect()
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Change routing rules by shadowing (high order value) default route with a
+        # static route having a tagfilter
+        c2_destination = SmppServerSystemIdConnector(system_id=self.smppc_factory.config.username)
+        yield self.moroute_flush()
+        yield self.moroute_add(StaticMORoute([TagFilter(10)], c2_destination), 1000)
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+
+        # Send a deliver_sm from the SMSC
+        yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
+
+        # Run tests on downstream smpp client
+        self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
+        received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
+        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
