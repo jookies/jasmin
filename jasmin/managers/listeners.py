@@ -587,11 +587,11 @@ class SMPPClientSMListener(object):
 
         # Prepare for interception
         # this is a temporary routable instance to be used in interception
-        temp_routable = RoutableDeliverSm(pdu, Connector(self.SMPPClientFactory.config.id))
+        routable = RoutableDeliverSm(pdu, Connector(self.SMPPClientFactory.config.id))
 
         # Interception inline
         # @TODO: make Interception in a thread, just like httpapi interception
-        interceptor = self.RouterPB.getMOInterceptionTable().getInterceptorFor(temp_routable)
+        interceptor = self.RouterPB.getMOInterceptionTable().getInterceptorFor(routable)
         if interceptor is not None:
             self.log.debug("RouterPB selected %s interceptor for this DeliverSmPDU", interceptor)
             if self.interceptorpb_client is None:
@@ -607,12 +607,12 @@ class SMPPClientSMListener(object):
             self.log.debug("Interceptor script loaded: %s", script)
 
             # Run !
-            d = self.interceptorpb_client.run_script(script, temp_routable)
-            d.addCallback(self.deliver_sm_event_post_interception, smpp=smpp, pdu=pdu)
+            d = self.interceptorpb_client.run_script(script, routable)
+            d.addCallback(self.deliver_sm_event_post_interception, routable=routable, smpp=smpp, pdu=pdu)
             d.addErrback(self.deliver_sm_event_post_interception)
             return d
         else:
-            return self.deliver_sm_event_post_interception(smpp=smpp, pdu=pdu)
+            return self.deliver_sm_event_post_interception(routable=routable, smpp=smpp, pdu=pdu)
 
     @defer.inlineCallbacks
     def deliver_sm_event_post_interception(self, *args, **kw):
@@ -624,7 +624,7 @@ class SMPPClientSMListener(object):
 
         try:
             # Control args
-            if 'smpp' not in kw or 'pdu' not in kw:
+            if 'smpp' not in kw or 'pdu' not in kw or 'routable' not in kw:
                 self.log.error(
                     'deliver_sm_event_post_interception missing arguments after interception: %s', kw)
                 raise InterceptorRunError(
@@ -632,19 +632,20 @@ class SMPPClientSMListener(object):
 
             # Set defaults
             smpp = kw['smpp']
-            pdu = kw['pdu']
+            routable = kw['routable']
+
             if 'concatenated' in kw:
                 concatenated = kw['concatenated']
             else:
                 concatenated = False
 
             # Get message_content
-            if 'short_message' in pdu.params and len(pdu.params['short_message']) > 0:
-                message_content = pdu.params['short_message']
-            elif 'message_payload' in pdu.params:
-                message_content = pdu.params['message_payload']
-            elif 'short_message' in pdu.params:
-                message_content = pdu.params['short_message']
+            if 'short_message' in routable.pdu.params and len(routable.pdu.params['short_message']) > 0:
+                message_content = routable.pdu.params['short_message']
+            elif 'message_payload' in routable.pdu.params:
+                message_content = routable.pdu.params['message_payload']
+            elif 'short_message' in routable.pdu.params:
+                message_content = routable.pdu.params['short_message']
             else:
                 message_content = None
 
@@ -661,8 +662,7 @@ class SMPPClientSMListener(object):
                     raise DeliverSmInterceptionError(code=args[0]['smpp_status'])
                 elif isinstance(args[0], str):
                     smpp.factory.stats.inc('interceptor_count')
-                    temp_routable = pickle.loads(args[0])
-                    pdu = temp_routable.pdu
+                    routable = pickle.loads(args[0])
                 else:
                     smpp.factory.stats.inc('interceptor_error_count')
                     self.log.error(
@@ -673,31 +673,31 @@ class SMPPClientSMListener(object):
             self.log.debug('Handling deliver_sm_event_post_interception event for smppc: %s',
                            self.SMPPClientFactory.config.id)
 
-            pdu.dlr = self.SMPPOperationFactory.isDeliveryReceipt(pdu)
-            content = DeliverSmContent(pdu,
+            routable.pdu.dlr = self.SMPPOperationFactory.isDeliveryReceipt(routable.pdu)
+            content = DeliverSmContent(routable,
                                        self.SMPPClientFactory.config.id,
                                        pickleProtocol=self.pickleProtocol,
                                        concatenated=concatenated)
             msgid = content.properties['message-id']
 
-            if pdu.dlr is None:
+            if routable.pdu.dlr is None:
                 # We have a SMS-MO
 
                 # UDH is set ?
                 UDHI_INDICATOR_SET = False
-                if 'esm_class' in pdu.params and hasattr(pdu.params['esm_class'], 'gsmFeatures'):
-                    for gsmFeature in pdu.params['esm_class'].gsmFeatures:
+                if 'esm_class' in routable.pdu.params and hasattr(routable.pdu.params['esm_class'], 'gsmFeatures'):
+                    for gsmFeature in routable.pdu.params['esm_class'].gsmFeatures:
                         if str(gsmFeature) == 'UDHI_INDICATOR_SET':
                             UDHI_INDICATOR_SET = True
                             break
 
                 splitMethod = None
                 # Is it a part of a long message ?
-                if 'sar_msg_ref_num' in pdu.params:
+                if 'sar_msg_ref_num' in routable.pdu.params:
                     splitMethod = 'sar'
-                    total_segments = pdu.params['sar_total_segments']
-                    segment_seqnum = pdu.params['sar_segment_seqnum']
-                    msg_ref_num = pdu.params['sar_msg_ref_num']
+                    total_segments = routable.pdu.params['sar_total_segments']
+                    segment_seqnum = routable.pdu.params['sar_segment_seqnum']
+                    msg_ref_num = routable.pdu.params['sar_msg_ref_num']
                     self.log.debug('Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
                                    msgid, total_segments, segment_seqnum, msg_ref_num)
                 elif UDHI_INDICATOR_SET and message_content[:3] == '\x05\x00\x03':
@@ -718,20 +718,20 @@ class SMPPClientSMListener(object):
 
                     # Get values from data_sm or deliver_sm
                     priority_flag = None
-                    if 'priority_flag' in pdu.params:
-                        priority_flag = pdu.params['priority_flag']
+                    if 'priority_flag' in routable.pdu.params:
+                        priority_flag = routable.pdu.params['priority_flag']
                     validity_period = None
-                    if 'validity_period' in pdu.params:
-                        validity_period = pdu.params['validity_period']
+                    if 'validity_period' in routable.pdu.params:
+                        validity_period = routable.pdu.params['validity_period']
 
                     self.log.info("SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
                                   self.SMPPClientFactory.config.id,
                                   msgid,
-                                  pdu.status,
+                                  routable.pdu.status,
                                   priority_flag,
                                   validity_period,
-                                  pdu.params['source_addr'],
-                                  pdu.params['destination_addr'],
+                                  routable.pdu.params['source_addr'],
+                                  routable.pdu.params['destination_addr'],
                                   message_content)
                 else:
                     # Long message part received
@@ -743,8 +743,8 @@ class SMPPClientSMListener(object):
                     hashKey = "longDeliverSm:%s:%s:%s" % (
                         self.SMPPClientFactory.config.id,
                         msg_ref_num,
-                        pdu.params['destination_addr'])
-                    hashValues = {'pdu': pdu,
+                        routable.pdu.params['destination_addr'])
+                    hashValues = {'pdu': routable.pdu,
                                   'total_segments':total_segments,
                                   'msg_ref_num':msg_ref_num,
                                   'segment_seqnum':segment_seqnum}
@@ -771,7 +771,7 @@ class SMPPClientSMListener(object):
                 # This is a DLR !
                 # Check for DLR request
                 if self.redisClient is not None:
-                    _coded_dlr_id = self.code_dlr_msgid(pdu)
+                    _coded_dlr_id = self.code_dlr_msgid(routable.pdu)
 
                     q = yield self.redisClient.hgetall("queue-msgid:%s" % _coded_dlr_id)
                     submit_sm_queue_id = None
@@ -800,12 +800,15 @@ class SMPPClientSMListener(object):
                                 # The dlr_url in DLRContentForHttpapi indicates the level
                                 # of the actual delivery receipt (2) and not the
                                 # requested one (maybe 2 or 3)
-                                content = DLRContentForHttpapi(pdu.dlr['stat'], submit_sm_queue_id,
+                                content = DLRContentForHttpapi(routable.pdu.dlr['stat'], submit_sm_queue_id,
                                                                dlr_url, dlr_level=2, id_smsc=_coded_dlr_id,
-                                                               sub=pdu.dlr['sub'], dlvrd=pdu.dlr['dlvrd'],
-                                                               subdate=pdu.dlr['sdate'],
-                                                               donedate=pdu.dlr['ddate'], err=pdu.dlr['err'],
-                                                               text=pdu.dlr['text'], method=dlr_method)
+                                                               sub=routable.pdu.dlr['sub'],
+                                                               dlvrd=routable.pdu.dlr['dlvrd'],
+                                                               subdate=routable.pdu.dlr['sdate'],
+                                                               donedate=routable.pdu.dlr['ddate'],
+                                                               err=routable.pdu.dlr['err'],
+                                                               text=routable.pdu.dlr['text'],
+                                                               method=dlr_method)
                                 routing_key = 'dlr_thrower.http'
                                 self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
                                                submit_sm_queue_id, routing_key)
@@ -861,26 +864,26 @@ class SMPPClientSMListener(object):
                                     yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
                     else:
                         self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)',
-                                      pdu.dlr['id'], _coded_dlr_id)
+                                      routable.pdu.dlr['id'], _coded_dlr_id)
                 else:
                     self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found', msgid)
 
                 self.log.info("DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%r]",
                               self.SMPPClientFactory.config.id,
                               _coded_dlr_id,
-                              pdu.dlr['stat'],
-                              pdu.dlr['sdate'],
-                              pdu.dlr['ddate'],
-                              pdu.dlr['sub'],
-                              pdu.dlr['dlvrd'],
-                              pdu.dlr['err'],
-                              pdu.dlr['text'])
+                              routable.pdu.dlr['stat'],
+                              routable.pdu.dlr['sdate'],
+                              routable.pdu.dlr['ddate'],
+                              routable.pdu.dlr['sub'],
+                              routable.pdu.dlr['dlvrd'],
+                              routable.pdu.dlr['err'],
+                              routable.pdu.dlr['text'])
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
             self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%r]",
                           self.SMPPClientFactory.config.id,
                           e.status,
-                          pdu.params['source_addr'],
-                          pdu.params['destination_addr'],
+                          routable.pdu.params['source_addr'],
+                          routable.pdu.params['destination_addr'],
                           message_content)
 
             # Known exception handling
