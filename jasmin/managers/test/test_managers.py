@@ -25,6 +25,8 @@ from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill
+from jasmin.queues.factory import AmqpFactory
+from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill
