@@ -8,33 +8,10 @@ from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientC
 from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
-from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.routing.Routes import DefaultRoute
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.jasminApi import *
-from twisted.spread import pb
-
-from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.proxies import InterceptorPBProxy
-from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from jasmin.routing.Filters import TagFilter
 from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.routing.Routes import DefaultRoute, StaticMORoute
-from jasmin.routing.configs import deliverSmThrowerConfig
-from jasmin.routing.jasminApi import *
-from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.routing.throwers import deliverSmThrower
-from twisted.spread import pb
-
-from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
-from jasmin.interceptor.interceptor import InterceptorPB
-from jasmin.interceptor.proxies import InterceptorPBProxy
-from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
-from jasmin.routing.Interceptors import DefaultInterceptor
 from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.Routes import StaticMORoute
 from jasmin.routing.configs import deliverSmThrowerConfig
 from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
@@ -53,13 +30,14 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 class ProvisionWithoutInterceptorPB(object):
     script = 'Default script that generates a syntax error !'
 
     @defer.inlineCallbacks
     def setUp(self):
         if hasattr(self, 'ipb_client'):
-            yield SMPPClientTestCases.setUp(self, interceptorpb_client = self.ipb_client)
+            yield SMPPClientTestCases.setUp(self, interceptorpb_client=self.ipb_client)
         else:
             yield SMPPClientTestCases.setUp(self)
 
@@ -110,9 +88,10 @@ class ProvisionWithoutInterceptorPB(object):
         # Wait 2 seconds
         yield waitFor(2)
 
+
 class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
     @defer.inlineCallbacks
-    def setUp(self, authentication = False):
+    def setUp(self, authentication=False):
         "This will launch InterceptorPB and provide a client connected to it."
         # Launch a client in a disconnected state
         # it will be connected on demand through the self.ipb_connect() method
@@ -141,7 +120,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         self.pbInterceptor_port = self.pbInterceptor_server.getHost().port
 
     @defer.inlineCallbacks
-    def ipb_connect(self, config = None):
+    def ipb_connect(self, config=None):
         if config is None:
             # Default test config (username is None for anonymous connection)
             config = InterceptorPBClientConfig()
@@ -170,8 +149,9 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
             self.ipb_client.disconnect()
         yield self.pbInterceptor_server.stopListening()
 
-class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
 
+class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, RouterPBProxy, SMPPClientTestCases,
+                                             SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def test_interceptorpb_not_set(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -184,7 +164,8 @@ class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rout
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -197,13 +178,15 @@ class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rout
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
         yield self.stopSmppClientConnectors()
 
-class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
+
+class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy, SMPPClientTestCases,
+                                           SubmitSmTestCaseTools):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
     raise_any_exception = "raise Exception('Exception from interceptor script')"
     return_ESME_RINVESMCLASS = "smpp_status = 67"
@@ -221,7 +204,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -234,7 +218,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -255,7 +239,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -268,7 +253,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -297,7 +282,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -312,7 +298,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_ROK)
-        self.assertEqual(_ic+1, self.stats_smppc.get('interceptor_count'))
+        self.assertEqual(_ic + 1, self.stats_smppc.get('interceptor_count'))
         self.assertEqual(_iec, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
@@ -342,7 +328,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -355,7 +342,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RSYSERR)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -384,7 +371,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -397,7 +385,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RINVESMCLASS)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -428,7 +416,8 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
         yield self.triggerDeliverSmFromSMSC([self.DeliverSmPDU])
@@ -441,7 +430,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(sent_back_resp.id, pdu_types.CommandId.deliver_sm_resp)
         self.assertEqual(sent_back_resp.status, pdu_types.CommandStatus.ESME_RUNKNOWNERR)
         self.assertEqual(_ic, self.stats_smppc.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_smppc.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_smppc.get('interceptor_error_count'))
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

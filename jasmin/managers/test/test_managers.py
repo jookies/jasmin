@@ -3,7 +3,6 @@ import copy
 import glob
 import os
 import time
-from datetime import datetime, timedelta
 from hashlib import md5
 from random import randint
 
@@ -25,11 +24,7 @@ from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill
-from jasmin.queues.factory import AmqpFactory
-from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.Routables import RoutableDeliverSm
-from jasmin.queues.factory import AmqpFactory
-from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import Group, User
 from jasmin.routing.router import RouterPB
@@ -45,9 +40,10 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 class SMPPClientPBTestCase(unittest.TestCase):
     @defer.inlineCallbacks
-    def setUp(self, authentication = False):
+    def setUp(self, authentication=False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
@@ -59,7 +55,8 @@ class SMPPClientPBTestCase(unittest.TestCase):
         # Launch AMQP Broker
         self.amqpBroker = AmqpFactory(AMQPServiceConfigInstance)
         self.amqpBroker.preConnect()
-        self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, self.amqpBroker)
+        self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port,
+                                             self.amqpBroker)
 
         # Wait for AMQP Broker connection to get ready
         yield self.amqpBroker.getChannelReadyDeferred()
@@ -98,11 +95,13 @@ class SMPPClientPBTestCase(unittest.TestCase):
         yield self.PBServer.stopListening()
         yield self.amqpClient.disconnect()
 
+
 class SMPPClientPBProxyTestCase(SMPPClientManagerPBProxy, SMPPClientPBTestCase):
     @defer.inlineCallbacks
     def tearDown(self):
         yield SMPPClientPBTestCase.tearDown(self)
         yield self.disconnect()
+
 
 class SMSCSimulator(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -118,12 +117,15 @@ class SMSCSimulator(SMPPClientPBProxyTestCase):
         yield SMPPClientPBProxyTestCase.tearDown(self)
         yield self.SMSCPort.stopListening()
 
+
 class LastClientFactory(Factory):
     lastClient = None
+
     def buildProtocol(self, addr):
         self.lastClient = Factory.buildProtocol(self, addr)
         self.lastClient.submitRecords = []
         return self.lastClient
+
 
 class SMSCSimulatorRecorder(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -139,6 +141,7 @@ class SMSCSimulatorRecorder(SMPPClientPBProxyTestCase):
         yield SMPPClientPBProxyTestCase.tearDown(self)
         yield self.SMSCPort.stopListening()
 
+
 class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def setUp(self):
@@ -152,6 +155,7 @@ class SMSCSimulatorDeliverSM(SMPPClientPBProxyTestCase):
     def tearDown(self):
         yield SMPPClientPBProxyTestCase.tearDown(self)
         yield self.SMSCPort.stopListening()
+
 
 class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -188,6 +192,7 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
 
         self.assertFalse(self.isConnected)
 
+
 class BasicTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_version_release(self):
@@ -204,6 +209,7 @@ class BasicTestCases(SMPPClientPBProxyTestCase):
         version = yield self.version()
 
         self.assertEqual(version, jasmin.get_version())
+
 
 class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
@@ -353,6 +359,7 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
         listRet = yield self.connector_list()
         self.assertEqual(5, len(listRet))
 
+
 class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
     @defer.inlineCallbacks
     def test_add_and_list(self):
@@ -475,7 +482,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         while i < 150:
             yield self.start(self.defaultConfig.id)
             yield self.stop(self.defaultConfig.id)
-            i+= 1
+            i += 1
 
         yield self.stopall()
 
@@ -610,6 +617,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         # of id only
         self.assertEqual(cnfRet.id, localConfig.id)
 
+
 class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
     @defer.inlineCallbacks
     def setUp(self):
@@ -665,6 +673,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
     @defer.inlineCallbacks
     def test_submitSm_priority(self):
         yield self.connect('127.0.0.1', self.pbPort)
+
     test_submitSm_priority.skip = 'Priority is not implemented in RabbitMQ, the broker on which jasmin tests are done.'
 
     @defer.inlineCallbacks
@@ -706,7 +715,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 5)
         # Delivery mut be delayed for around 5 seconds (+/- 1s) since we throughput is
         # 1 submitsm per second
-        self.assertApproximates(endAt - startAt, timedelta( seconds = 5 ), timedelta( seconds = 1 ))
+        self.assertApproximates(endAt - startAt, timedelta(seconds=5), timedelta(seconds=1))
 
     @defer.inlineCallbacks
     def test_redelivery_of_rejected_messages(self):
@@ -802,7 +811,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield waitFor(2)
 
         # Update the counter
-        _submitRecordsCount+= len(self.SMSCPort.factory.lastClient.submitRecords)
+        _submitRecordsCount += len(self.SMSCPort.factory.lastClient.submitRecords)
 
         # Assertions
         self.assertEqual(_submitRecordsCount, 4)
@@ -878,6 +887,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Setting validity period to only 2 seconds when throughput is 1 submit/s
         # will lead to rejecting 3 expired messages from the queue
         self.assertApproximates(len(self.SMSCPort.factory.lastClient.submitRecords), 2, 1)
+
 
 class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
     @defer.inlineCallbacks
@@ -958,6 +968,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         # By default, ESME_RREPLACEFAIL is not retried !
         self.assertEqual(len(receivedSubmits), 1)
 
+
 class LoggingTestCases(SMSCSimulatorRecorder):
     @defer.inlineCallbacks
     def setUp(self):
@@ -982,9 +993,9 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         yield waitFor(2)
 
         # Build a long submit_sm
-        assertionKey = str(randint(10, 99)) * 100 + 'EOF' # 203 chars
+        assertionKey = str(randint(10, 99)) * 100 + 'EOF'  # 203 chars
         config = SMPPClientConfig(id='defaultId')
-        opFactory = SMPPOperationFactory(config, long_content_split = long_content_split)
+        opFactory = SMPPOperationFactory(config, long_content_split=long_content_split)
         SubmitSmPDU = opFactory.SubmitSM(
             source_addr='1423',
             destination_addr='06155423',
@@ -1007,10 +1018,10 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 2)
         if long_content_split == 'udh':
             concatenatedShortMessage = self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'][6:]
-            concatenatedShortMessage+= self.SMSCPort.factory.lastClient.submitRecords[1].params['short_message'][6:]
+            concatenatedShortMessage += self.SMSCPort.factory.lastClient.submitRecords[1].params['short_message'][6:]
         else:
             concatenatedShortMessage = self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']
-            concatenatedShortMessage+= self.SMSCPort.factory.lastClient.submitRecords[1].params['short_message']
+            concatenatedShortMessage += self.SMSCPort.factory.lastClient.submitRecords[1].params['short_message']
         self.assertEqual(concatenatedShortMessage, assertionKey)
         # Logged concatenated message
         loggedSms = False
@@ -1032,6 +1043,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
     def test_long_submitSm_udh(self):
         return self.send_long_submit_sm('udh')
 
+
 class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
     receivedDeliverSm = None
 
@@ -1046,7 +1058,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         routingKey = 'deliver.sm.%s' % self.defaultConfig.id
         queueName = 'test_deliverSm'
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        yield self.amqpBroker.named_queue_declare(queue=queueName, exclusive = True, auto_delete = True)
+        yield self.amqpBroker.named_queue_declare(queue=queueName, exclusive=True, auto_delete=True)
         yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
 
         yield self.add(self.defaultConfig)
@@ -1063,7 +1075,6 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
         deliver_sm_q.get().addCallback(self.deliver_sm_callback)
 
-
         yield self.stop(self.defaultConfig.id)
 
         # Wait for unbound state
@@ -1073,8 +1084,8 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         self.assertTrue(self.receivedDeliverSm is not None)
         self.assertIsInstance(self.receivedDeliverSm, RoutableDeliverSm)
 
-class ClientConnectorStatusTestCases(SMSCSimulator):
 
+class ClientConnectorStatusTestCases(SMSCSimulator):
     @defer.inlineCallbacks
     def test_session_state_bound(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -1104,7 +1115,7 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.connect('127.0.0.1', self.pbPort)
 
         localConfig = copy.copy(self.defaultConfig)
-        localConfig.port = 8888; # This is a non responsive port
+        localConfig.port = 8888;  # This is a non responsive port
         yield self.add(localConfig)
 
         ssRet = yield self.session_state(localConfig.id)
