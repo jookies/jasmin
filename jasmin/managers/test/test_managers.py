@@ -1,35 +1,38 @@
-import copy
-import time
-import mock
 import cPickle as pickle
+import copy
 import glob
 import os
-import jasmin
+import time
+from datetime import datetime, timedelta
 from hashlib import md5
+from random import randint
+
+import mock
 from testfixtures import LogCapture
-from twisted.internet import reactor, defer
-from twisted.trial import unittest
-from twisted.python import log
+from twisted.cred import portal
+from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
+from twisted.internet import defer
 from twisted.spread import pb
+from twisted.trial import unittest
+
+import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
-from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from jasmin.queues.factory import AmqpFactory
+from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
-from random import randint
-from datetime import datetime, timedelta
-from twisted.cred import portal
-from jasmin.tools.cred.portal import JasminPBRealm
-from jasmin.tools.spread.pb import JasminPBPortalRoot
-from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from jasmin.tools.proxies import ConnectError
-from jasmin.routing.router import RouterPB
+from jasmin.queues.factory import AmqpFactory
+from jasmin.routing.Bills import SubmitSmBill
+from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import Group, User
-from jasmin.routing.Bills import SubmitSmBill
+from jasmin.routing.router import RouterPB
+from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.proxies import ConnectError
+from jasmin.tools.spread.pb import JasminPBPortalRoot
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -1066,7 +1069,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
 
         # Assertions
         self.assertTrue(self.receivedDeliverSm is not None)
-        self.assertIsInstance(self.receivedDeliverSm, DeliverSM)
+        self.assertIsInstance(self.receivedDeliverSm, RoutableDeliverSm)
 
 class ClientConnectorStatusTestCases(SMSCSimulator):
 
