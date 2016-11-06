@@ -912,7 +912,7 @@ The SMPP Client connector manager module is accessible through the **smppccm** c
    * - -1 CID, --start=CID
      - Start SMPP connector using it's CID
    * - -0 CID, --stop=CID
-     - Start SMPP connector using it's CID
+     - Stop SMPP connector using it's CID
 
 A SMPP Client connector is used to send/receive SMS through SMPP v3.4 protocol, it is directly connected to MO and MT routers to
 provide end-to-end message delivery.
