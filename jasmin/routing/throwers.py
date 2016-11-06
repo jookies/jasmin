@@ -605,7 +605,7 @@ class DLRThrower(Thrower):
             else:
                 r = yield self.smpps.deliverer_send_request(system_id, pdu)
                 if not r:
-                    raise DeliveringFailed('Delivering failed, check %s smpps logs for more details', system_id)
+                    raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % system_id)
 
             # Everything is okay ? then:
             yield self.ackMessage(message)

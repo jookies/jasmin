@@ -1,23 +1,25 @@
 # -*- test-case-name: jasmin.test.test_operations -*-
-import struct
+import datetime
 import math
 import re
-import datetime
+import struct
+
 import dateutil.parser as parser
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
+
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
 message_state_map = {
-    MessageState.ACCEPTED:      'ACCEPTD',
-    MessageState.UNDELIVERABLE: 'UNDELIV',
-    MessageState.REJECTED:      'REJECTD',
-    MessageState.DELIVERED:     'DELIVRD',
-    MessageState.EXPIRED:       'EXPIRED',
-    MessageState.DELETED:       'DELETED',
-    MessageState.ACCEPTED:      'ACCEPTD',
-    MessageState.UNKNOWN:       'UNKNOWN',
+    '%s' % MessageState.ACCEPTED: 'ACCEPTD',
+    '%s' % MessageState.UNDELIVERABLE: 'UNDELIV',
+    '%s' % MessageState.REJECTED: 'REJECTD',
+    '%s' % MessageState.DELIVERED: 'DELIVRD',
+    '%s' % MessageState.EXPIRED: 'EXPIRED',
+    '%s' % MessageState.DELETED: 'DELETED',
+    '%s' % MessageState.ACCEPTED: 'ACCEPTD',
+    '%s' % MessageState.UNKNOWN: 'UNKNOWN',
 }
 
 class UnknownMessageStatusError(Exception):
@@ -73,8 +75,8 @@ class SMPPOperationFactory(object):
         if 'receipted_message_id' in pdu.params and 'message_state' in pdu.params:
             ret['id'] = pdu.params['receipted_message_id']
 
-            if pdu.params['message_state'] in message_state_map:
-                ret['stat'] = message_state_map[pdu.params['message_state']]
+            if str(pdu.params['message_state']) in message_state_map:
+                ret['stat'] = message_state_map[str(pdu.params['message_state'])]
             else:
                 ret['stat'] = 'UNKNOWN'
 
