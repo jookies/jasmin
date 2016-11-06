@@ -37,6 +37,10 @@ class NoDelivererForSystemId(Exception):
     """
 
 
+class DeliveringFailed(Exception):
+    """Raised when delivering a pdu errored"""
+
+
 class Thrower(Service):
     name = 'abstract thrower'
     log_category = 'abstract-thrower'
@@ -84,13 +88,6 @@ class Thrower(Service):
             self.smpps_access = 'direct'
 
         self.log.info('Added a %s access to SMPPServerFactory', self.smpps_access)
-
-    def get_smpps_bound_connections(self):
-        if self.smpps is None or self.smpps_access is None:
-            raise SmppsNotSetError()
-
-        if self.smpps_access == 'direct':
-            return self.smpps.bound_connections
 
     def getThrowingRetrials(self, message):
         return self.throwing_retrials.get(message.content.properties['message-id'], 0)
@@ -573,13 +570,17 @@ class DLRThrower(Thrower):
         self.clearRequeueTimer(msgid)
 
         try:
-            bound_connections = self.get_smpps_bound_connections()
-            if system_id not in bound_connections:
-                raise SystemIdNotBound(system_id)
+            if self.smpps is None or self.smpps_access is None:
+                raise SmppsNotSetError()
 
-            deliverer = bound_connections[system_id].getNextBindingForDelivery()
-            if deliverer is None:
-                raise NoDelivererForSystemId(system_id)
+            # Get bound connections (or systemids)
+            if self.smpps_access == 'direct':
+                bound_systemdids = self.smpps.bound_connections
+            else:
+                bound_systemdids = yield self.smpps.list_bound_systemids()
+
+            if system_id not in bound_systemdids:
+                raise SystemIdNotBound(system_id)
 
             # Build the Receipt PDU (data_sm)
             pdu = self.opFactory.getReceipt(dlr_pdu=self.config.dlr_pdu,
@@ -593,8 +594,18 @@ class DLRThrower(Thrower):
                                             dest_addr_ton=dest_addr_ton,
                                             dest_addr_npi=dest_addr_npi)
 
-            # Deliver (or throw) the receipt through the deliverer
-            yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+            # Pick a deliverer and sendRequest
+            if self.smpps_access == 'direct':
+                deliverer = bound_systemdids[system_id].getNextBindingForDelivery()
+
+                if deliverer is None:
+                    raise NoDelivererForSystemId(system_id)
+
+                yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+            else:
+                r = yield self.smpps.deliverer_send_request(system_id, pdu)
+                if not r:
+                    raise DeliveringFailed('Delivering failed, check %s smpps logs for more details', system_id)
 
             # Everything is okay ? then:
             yield self.ackMessage(message)

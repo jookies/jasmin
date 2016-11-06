@@ -1,6 +1,8 @@
+import cPickle as pickle
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
+from twisted.internet import defer
 from twisted.spread import pb
 
 LOG_CATEGORY = "jasmin-smpps-pb"
@@ -10,7 +12,7 @@ class SMPPServerPB(pb.Avatar):
     def __init__(self, SmppServerPBConfig):
         self.config = SmppServerPBConfig
         self.avatar = None
-        self.smpp_servers = {}
+        self.smpps = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
@@ -33,12 +35,45 @@ class SMPPServerPB(pb.Avatar):
         self.avatar = avatar
 
     def addSmpps(self, smppsFactory):
-        if smppsFactory.config.id not in self.smpp_servers:
-            self.log.info('Added a new SMPP Server: %s', smppsFactory.config.id)
+        if self.smpps is None:
+            self.log.info('Added SMPP Server: %s', smppsFactory.config.id)
         else:
             self.log.info('Replaced SMPP Server: %s', smppsFactory.config.id)
 
-        self.smpp_servers[smppsFactory.config.id] = smppsFactory
+        self.smpps = smppsFactory
 
-    def perspective_smpps_list(self):
-        """Returning list of available smpp servers"""
+    def perspective_list_bound_systemids(self):
+        """Returning list of bound smpp systemd_ids"""
+
+        systemdids = []
+        for bound_connection in self.smpps.bound_connections:
+            systemdids.append(bound_connection)
+
+        return systemdids
+
+    @defer.inlineCallbacks
+    def perspective_deliverer_send_request(self, system_id, pdu, pickled=True):
+        """Will lookup for a deliverer (for system_id) and call sendRequest on it"""
+
+        if system_id in self.smpps.bound_connections:
+            deliverer = self.smpps.bound_connections[system_id].getNextBindingForDelivery()
+        else:
+            deliverer = None
+
+        # There were no deliverers !
+        if deliverer is None:
+            self.log.error('Found no deliverer on system_id %s for pdu %s', system_id, pdu.seqNum)
+            defer.returnValue(False)
+        else:
+            if pickled:
+                pdu = pickle.loads(pdu)
+
+            try:
+                # Push pdu through the deliverer
+                yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+            except Exception as e:
+                self.log.error('Caught an error while trying to push pdu through deliverer (system_id:%s): (%s) %s',
+                               system_id, e.__class__.__name__, e)
+                defer.returnValue(False)
+            else:
+                defer.returnValue(True)
