@@ -388,19 +388,30 @@ class deliverSmThrower(Thrower):
                 last_dc = False
 
             try:
-                bound_connections = self.get_smpps_bound_connections()
-                if dc.cid not in bound_connections:
+                if self.smpps is None or self.smpps_access is None:
+                    raise SmppsNotSetError()
+
+                # Get bound connections (or systemids)
+                if self.smpps_access == 'direct':
+                    bound_systemdids = self.smpps.bound_connections
+                else:
+                    bound_systemdids = yield self.smpps.list_bound_systemids()
+
+                if dc.cid not in bound_systemdids:
                     raise SystemIdNotBound(dc.cid)
 
-                deliverer = bound_connections[dc.cid].getNextBindingForDelivery()
-                if deliverer is None:
-                    raise NoDelivererForSystemId(dc.cid)
+                # Pick a deliverer and sendRequest
+                if self.smpps_access == 'direct':
+                    deliverer = bound_systemdids[dc.cid].getNextBindingForDelivery()
 
-                # Deliver (or throw) the pdu through the deliverer
-                yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+                    if deliverer is None:
+                        raise NoDelivererForSystemId(dc.cid)
 
-                self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using smpp.',
-                              msgid, route_type, counter, len(dcs), dc.cid)
+                    yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+                else:
+                    r = yield self.smpps.deliverer_send_request(dc.cid, pdu)
+                    if not r:
+                        raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % dc.cid)
             except Exception, e:
                 self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, type(e), e)
@@ -437,6 +448,9 @@ class deliverSmThrower(Thrower):
             else:
                 # Everything is okay ? then:
                 yield self.ackMessage(message)
+
+                self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using smpp.',
+                              msgid, route_type, counter, len(dcs), dc.cid)
 
                 if route_type == 'failover':
                     self.log.debug('Stopping iteration for failover route.')
@@ -606,9 +620,6 @@ class DLRThrower(Thrower):
                 r = yield self.smpps.deliverer_send_request(system_id, pdu)
                 if not r:
                     raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % system_id)
-
-            # Everything is okay ? then:
-            yield self.ackMessage(message)
         except Exception, e:
             self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
@@ -633,6 +644,9 @@ class DLRThrower(Thrower):
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
                               self.getThrowingRetrials(message), msgid)
                 yield self.rejectMessage(message)
+        else:
+            # Everything is okay ? then:
+            yield self.ackMessage(message)
 
     @defer.inlineCallbacks
     def dlr_throwing_callback(self, message):
