@@ -399,3 +399,11 @@ The following is an example of activating log inside a script:
 
 .. literalinclude:: sc_logging.py
    :language: python
+
+Enforcing DLR
+=============
+
+Ask for DLR for all submit_sm pdus, no matter the downstream user choice, can be used for route qualification and scoring purposes.
+
+.. literalinclude:: sc_enforce_dlr.py
+:language: python
