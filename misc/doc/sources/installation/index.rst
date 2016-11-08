@@ -31,15 +31,15 @@ Ubuntu
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-  wget -qO - http://bit.ly/jasmin-deb-repo | sudo bash
-  sudo apt-get install python-jasmin
+    wget -qO - http://bit.ly/jasmin-deb-repo | sudo bash
+    sudo apt-get install python-jasmin
 
 .. note:: Ubuntu 15.04 and higher versions are supported.
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 
-  sudo systemctl enable jasmind
-  sudo systemctl start jasmind
+    sudo systemctl enable jasmind
+    sudo systemctl start jasmind
 
 .. note:: redis and rabbitmq must be started with jasmin.
 
@@ -48,25 +48,25 @@ RHEL & CentOS
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-  wget -qO - http://bit.ly/jasmin-rpm-repo | sudo bash
-  sudo yum install python-jasmin
+    wget -qO - http://bit.ly/jasmin-rpm-repo | sudo bash
+    sudo yum install python-jasmin
 
 .. note:: Red Hat Enterprise Linux 7 & CentOS 7 are supported.
 
 You may get the following error if **RabbitMQ** or **Redis** server are not installed::
 
-  No package redis available.
-  No package rabbitmq-server available.
+    No package redis available.
+    No package rabbitmq-server available.
 
 These requirements are available from the `EPEL repository <https://fedoraproject.org/wiki/EPEL>`_, you'll need to enable it before installing Jasmin::
 
-  ## RHEL/CentOS 7 64-Bit ##
-  yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    ## RHEL/CentOS 7 64-Bit ##
+    yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 
-  sudo systemctl enable jasmind
-  sudo systemctl start jasmind
+    sudo systemctl enable jasmind
+    sudo systemctl start jasmind
 
 .. note:: redis and rabbitmq must be started with jasmin.
 
@@ -101,19 +101,11 @@ The last step is to install jasmin through `pip <https://pypi.python.org/pypi/pi
 
     sudo pip install jasmin
 
-Once Jasmin installed, execute the following steps to start Jasmin as a system service::
+systemd scripts must be downloaded from `here <https://github.com/jookies/jasmin/tree/master/misc/config/systemd>` and
+manually installed into your system, once placed in **/lib/systemd/system** jasmind shall be enabled and started::
 
-  # On ubuntu:
-  sudo wget http://bit.ly/jasmind-ubuntu -O /etc/init.d/jasmind
-  # On redhat, centos:
-  sudo wget http://bit.ly/jasmind-redhat -O /etc/init.d/jasmind
-
-  # Then:
-  sudo chmod +x /etc/init.d/jasmind
-  sudo update-rc.d jasmind defaults
-  sudo invoke-rc.d jasmind start
-
-.. note:: On some Linux distributions, you may use **sudo systemctl enable jasmind**.
+    sudo systemctl enable jasmind
+    sudo systemctl start jasmind
 
 .. note:: redis and rabbitmq must be started with jasmin.
 
