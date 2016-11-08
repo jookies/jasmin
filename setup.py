@@ -1,11 +1,12 @@
-import uuid
-import pwd
-import grp
 import getpass
-import sys
+import grp
 import os
-from setuptools import setup, find_packages
+import pwd
+import sys
+import uuid
+
 from pip.req import parse_requirements
+from setuptools import setup, find_packages
 
 # After passing on travis docker-based ci, sudo is no more
 # used, ROOT_PATH is a env variable set in .travis.yml to avoid
@@ -23,9 +24,9 @@ if "install" in sys.argv:
 
     # 2. Check if system folders are created
     sysdirs = ['%s/etc/jasmin' % ROOT_PATH,
-                '%s/etc/jasmin/resource' % ROOT_PATH,
-                '%s/etc/jasmin/store' % ROOT_PATH,
-                '%s/var/log/jasmin' % ROOT_PATH,]
+               '%s/etc/jasmin/resource' % ROOT_PATH,
+               '%s/etc/jasmin/store' % ROOT_PATH,
+               '%s/var/log/jasmin' % ROOT_PATH, ]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
             print 'WARNING: %s does not exist !' % sysdir
@@ -41,8 +42,8 @@ if "install" in sys.argv:
             print 'WARNING: %s is not owned by jasmin user !' % sysdir
 
 session = uuid.uuid1()
-install_reqs = parse_requirements('install-requirements', session = session)
-test_reqs = parse_requirements('test-requirements', session = session)
+install_reqs = parse_requirements('install-requirements', session=session)
+test_reqs = parse_requirements('test-requirements', session=session)
 
 # Dynamically calculate the version based on jasmin.RELEASE.
 release = __import__('jasmin').get_release()
@@ -59,7 +60,7 @@ setup(
     long_description=open('README.rst', 'r').read(),
     keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
     packages=find_packages(),
-    scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py'],
+    scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py', 'jasmin/bin/dlrd.py'],
     include_package_data=True,
     install_requires=[str(ir.req) for ir in install_reqs],
     tests_require=[str(ir.req) for ir in test_reqs],
@@ -78,11 +79,11 @@ setup(
     ],
     platforms='POSIX',
     data_files=[
-                    ('%s/etc/jasmin' % ROOT_PATH, ['misc/config/jasmin.cfg']),
-                    ('%s/etc/jasmin/resource' % ROOT_PATH, [
-                        'misc/config/resource/amqp0-8.stripped.rabbitmq.xml',
-                        'misc/config/resource/amqp0-9-1.xml'
-                    ],),
-                    ('%s/etc/jasmin/store' % ROOT_PATH, []),
-                ],
+        ('%s/etc/jasmin' % ROOT_PATH, ['misc/config/jasmin.cfg']),
+        ('%s/etc/jasmin/resource' % ROOT_PATH, [
+            'misc/config/resource/amqp0-8.stripped.rabbitmq.xml',
+            'misc/config/resource/amqp0-9-1.xml'
+        ],),
+        ('%s/etc/jasmin/store' % ROOT_PATH, []),
+    ],
 )

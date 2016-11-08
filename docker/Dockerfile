@@ -35,4 +35,5 @@ VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]
+# jasmind is started with dlr-thrower thread instead of a standalone process
+CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "-u", "jcliadmin", "-p", "jclipwd"]
