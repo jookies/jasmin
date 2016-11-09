@@ -9,6 +9,14 @@ class SMPPServerPBProxy(JasminPBProxy):
     used mainly for delivering dlr and deliver_sm from a standalone process"""
 
     @ConnectedPB
+    def version_release(self):
+        return self.pb.callRemote('version_release')
+
+    @ConnectedPB
+    def version(self):
+        return self.pb.callRemote('version')
+
+    @ConnectedPB
     def list_bound_systemids(self):
         return self.pb.callRemote('list_bound_systemids')
 

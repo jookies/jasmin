@@ -5,6 +5,8 @@ from logging.handlers import TimedRotatingFileHandler
 from twisted.internet import defer
 from twisted.spread import pb
 
+import jasmin
+
 LOG_CATEGORY = "jasmin-smpps-pb"
 
 
@@ -62,7 +64,7 @@ class SMPPServerPB(pb.Avatar):
 
         # There were no deliverers !
         if deliverer is None:
-            self.log.error('Found no deliverer on system_id %s for pdu %s', system_id, pdu.seqNum)
+            self.log.error('Found no deliverer on system_id %s', system_id)
             defer.returnValue(False)
         else:
             if pickled:
@@ -77,3 +79,9 @@ class SMPPServerPB(pb.Avatar):
                 defer.returnValue(False)
             else:
                 defer.returnValue(True)
+
+    def perspective_version_release(self):
+        return jasmin.get_release()
+
+    def perspective_version(self):
+        return jasmin.get_version()
