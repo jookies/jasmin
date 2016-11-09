@@ -25,7 +25,7 @@ Enabling interceptor
 Jasmin's interceptor is a system service that run separately from Jasmin, it can be hosted on remote server as
 well; **interceptord** is a system service just like **jasmind**, so simply start it by typing::
 
-  sudo systemctl start interceptord
+  sudo systemctl start jasmin-interceptord
 
 .. note:: After starting the **interceptord** service, you may check */var/log/jasmin/interceptor.log* to
   ensure everything is okay.
