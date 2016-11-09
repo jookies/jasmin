@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     rabbitmq-server \
     redis-server \
+    supervisor \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 

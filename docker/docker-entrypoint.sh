@@ -3,6 +3,7 @@ set -e
 
 /etc/init.d/rabbitmq-server start
 /etc/init.d/redis-server start
+/etc/init.d/supervisor start
 
 echo 'Cleaning lock files'
 rm -f /tmp/*.lock
