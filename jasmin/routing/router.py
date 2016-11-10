@@ -13,19 +13,18 @@ import jasmin
 from jasmin.routing.InterceptionTables import (MOInterceptionTable,
                                                MTInterceptionTable,
                                                InvalidInterceptionTableParameterError)
-from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.RoutingTables import MORoutingTable, MTRoutingTable, InvalidRoutingTableParameterError
 from jasmin.routing.content import RoutedDeliverSmContent
-from jasmin.routing.jasminApi import Connector
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
 
 LOG_CATEGORY = "jasmin-router"
 
 
 class RouterPB(pb.Avatar):
-    def setConfig(self, RouterPBConfig, persistenceTimer=True):
+    def __init__(self, RouterPBConfig, persistenceTimer=True):
         self.config = RouterPBConfig
         self.persistenceTimer = None
+        self.avatar = None
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
@@ -158,16 +157,14 @@ class RouterPB(pb.Avatar):
         scid = message.content.properties['headers']['connector-id']
         concatenated = message.content.properties['headers']['concatenated']
         will_be_concatenated = message.content.properties['headers']['will_be_concatenated']
-        connector = Connector(scid)
-        DeliverSmPDU = pickle.loads(message.content.body)
-        self.log.debug("Callbacked a deliver_sm with a DeliverSmPDU[%s] (?): %s", msgid, DeliverSmPDU)
+        routable = pickle.loads(message.content.body)
+        self.log.debug("Callbacked a deliver_sm with a DeliverSmPDU[%s] (?): %s", msgid, routable.pdu)
 
         # @todo: Implement MO throttling here, same as in
         # jasmin.managers.listeners.SMPPClientSMListener.submit_sm_callback
         self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
 
         # Routing
-        routable = RoutableDeliverSm(DeliverSmPDU, connector)
         route = self.getMORoutingTable().getRouteFor(routable)
         if route is None:
             self.log.debug("No route matched this DeliverSmPDU with scid:%s and msgid:%s", scid, msgid)
@@ -212,7 +209,7 @@ class RouterPB(pb.Avatar):
                 yield self.ackMessage(message)
 
                 # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
-                content = RoutedDeliverSmContent(DeliverSmPDU, msgid, scid, routedConnectors, route_type)
+                content = RoutedDeliverSmContent(routable.pdu, msgid, scid, routedConnectors, route_type)
                 self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s",
                                msgid, routedConnectors[0].type)
                 yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' %

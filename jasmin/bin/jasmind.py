@@ -1,43 +1,46 @@
 #!/usr/bin/python
 
-import sys
-import signal
-import syslog
 import os
+import signal
+import sys
+import syslog
+
 from lockfile import FileLock, LockTimeout, AlreadyLocked
-from twisted.python import usage
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from twisted.web import server
-from twisted.spread import pb
 from twisted.internet import reactor, defer
+from twisted.python import usage
+from twisted.spread import pb
+from twisted.web import server
+
+from jasmin.interceptor.configs import InterceptorPBClientConfig
+from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.queues.configs import AmqpConfig
-from jasmin.queues.factory import AmqpFactory
-from jasmin.protocols.smpp.configs import SMPPServerConfig
-from jasmin.protocols.smpp.factory import SMPPServerFactory
+from jasmin.protocols.cli.configs import JCliConfig
+from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
-from jasmin.tools.cred.portal import SmppsRealm
-from jasmin.tools.cred.checkers import RouterAuthChecker
-from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRThrowerConfig
-from jasmin.routing.throwers import deliverSmThrower, DLRThrower
-from jasmin.redis.configs import RedisForJasminConfig
+from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPServerPBConfig
+from jasmin.protocols.smpp.factory import SMPPServerFactory
+from jasmin.protocols.smpp.pb import SMPPServerPB
+from jasmin.queues.configs import AmqpConfig
+from jasmin.queues.factory import AmqpFactory
 from jasmin.redis.client import ConnectionWithConfiguration
-from jasmin.protocols.cli.factory import JCliFactory
-from jasmin.protocols.cli.configs import JCliConfig
-from jasmin.interceptor.proxies import InterceptorPBProxy
-from jasmin.interceptor.configs import InterceptorPBClientConfig
+from jasmin.redis.configs import RedisForJasminConfig
+from jasmin.routing.configs import RouterPBConfig, deliverSmThrowerConfig, DLRThrowerConfig
+from jasmin.routing.router import RouterPB
+from jasmin.routing.throwers import deliverSmThrower, DLRThrower
+from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.tools.cred.portal import JasminPBRealm
+from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
-class Options(usage.Options):
 
+class Options(usage.Options):
     optParameters = [
         ['config', 'c', '%s/etc/jasmin/jasmin.cfg' % ROOT_PATH,
          'Jasmin configuration file'],
@@ -45,19 +48,19 @@ class Options(usage.Options):
          'jCli username used to load configuration profile on startup'],
         ['password', 'p', None,
          'jCli password used to load configuration profile on startup'],
-        ]
+    ]
 
     optFlags = [
         ['disable-smpp-server', None, 'Do not start SMPP Server service'],
-        ['disable-dlr-thrower', None, 'Do not DLR Thrower service'],
+        ['enable-dlr-thrower', None, 'Enable DLR Thrower service (not recommended: start the dlrd daemon instead)'],
         ['disable-deliver-thrower', None, 'Do not DeliverSm Thrower service'],
         ['disable-http-api', None, 'Do not HTTP API'],
         ['disable-jcli', None, 'Do not jCli console'],
         ['enable-interceptor-client', None, 'Start Interceptor client'],
     ]
 
-class JasminDaemon(object):
 
+class JasminDaemon(object):
     def __init__(self, opt):
         self.options = opt
         self.components = {}
@@ -98,8 +101,7 @@ class JasminDaemon(object):
         "Start Router PB server"
 
         RouterPBConfigInstance = RouterPBConfig(self.options['config'])
-        self.components['router-pb-factory'] = RouterPB()
-        self.components['router-pb-factory'].setConfig(RouterPBConfigInstance)
+        self.components['router-pb-factory'] = RouterPB(RouterPBConfigInstance)
 
         # Set authentication portal
         p = portal.Portal(JasminPBRealm(self.components['router-pb-factory']))
@@ -129,8 +131,7 @@ class JasminDaemon(object):
         "Start SMPP Client Manager PB server"
 
         SMPPClientPBConfigInstance = SMPPClientPBConfig(self.options['config'])
-        self.components['smppcm-pb-factory'] = SMPPClientManagerPB()
-        self.components['smppcm-pb-factory'].setConfig(SMPPClientPBConfigInstance)
+        self.components['smppcm-pb-factory'] = SMPPClientManagerPB(SMPPClientPBConfigInstance)
 
         # Set authentication portal
         p = portal.Portal(JasminPBRealm(self.components['smppcm-pb-factory']))
@@ -161,6 +162,32 @@ class JasminDaemon(object):
     def stopSMPPClientManagerPBService(self):
         "Stop SMPP Client Manager PB server"
         return self.components['smppcm-pb-server'].stopListening()
+
+    def startSMPPServerPBService(self):
+        "Start SMPP Server PB server"
+
+        SMPPServerPBConfigInstance = SMPPServerPBConfig(self.options['config'])
+        self.components['smpps-pb-factory'] = SMPPServerPB(SMPPServerPBConfigInstance)
+
+        # Set authentication portal
+        p = portal.Portal(JasminPBRealm(self.components['smpps-pb-factory']))
+        if SMPPServerPBConfigInstance.authentication:
+            c = InMemoryUsernamePasswordDatabaseDontUse()
+            c.addUser(SMPPServerPBConfigInstance.admin_username, SMPPServerPBConfigInstance.admin_password)
+            p.registerChecker(c)
+        else:
+            p.registerChecker(AllowAnonymousAccess())
+        jPBPortalRoot = JasminPBPortalRoot(p)
+
+        # Add service
+        self.components['smpps-pb-server'] = reactor.listenTCP(
+            SMPPServerPBConfigInstance.port,
+            pb.PBServerFactory(jPBPortalRoot),
+            interface=SMPPServerPBConfigInstance.bind)
+
+    def stopSMPPServerPBService(self):
+        "Stop SMPP Server PB"
+        return self.components['smpps-pb-server'].stopListening()
 
     def startSMPPServerService(self):
         "Start SMPP Server"
@@ -200,8 +227,7 @@ class JasminDaemon(object):
         "Start deliverSmThrower"
 
         deliverThrowerConfigInstance = deliverSmThrowerConfig(self.options['config'])
-        self.components['deliversm-thrower'] = deliverSmThrower()
-        self.components['deliversm-thrower'].setConfig(deliverThrowerConfigInstance)
+        self.components['deliversm-thrower'] = deliverSmThrower(deliverThrowerConfigInstance)
         self.components['deliversm-thrower'].addSmpps(self.components['smpp-server-factory'])
 
         # AMQP Broker is used to listen to deliver_sm queue
@@ -215,8 +241,7 @@ class JasminDaemon(object):
         "Start DLRThrower"
 
         DLRThrowerConfigInstance = DLRThrowerConfig(self.options['config'])
-        self.components['dlr-thrower'] = DLRThrower()
-        self.components['dlr-thrower'].setConfig(DLRThrowerConfigInstance)
+        self.components['dlr-thrower'] = DLRThrower(DLRThrowerConfigInstance)
         self.components['dlr-thrower'].addSmpps(self.components['smpp-server-factory'])
 
         # AMQP Broker is used to listen to DLRThrower queue
@@ -357,6 +382,15 @@ class JasminDaemon(object):
             else:
                 syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
 
+            try:
+                # [optional] Start SMPP Server PB
+                self.startSMPPServerPBService()
+                self.components['smpps-pb-factory'].addSmpps(self.components['smpp-server-factory'])
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPServerPB: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
+
         ########################################################
         if not self.options['disable-deliver-thrower']:
             try:
@@ -368,7 +402,7 @@ class JasminDaemon(object):
                 syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower Started.")
 
         ########################################################
-        if not self.options['disable-dlr-thrower']:
+        if self.options['enable-dlr-thrower']:
             try:
                 # [optional] Start DLRThrower
                 yield self.startDLRThrowerService()
@@ -418,6 +452,10 @@ class JasminDaemon(object):
             yield self.stopdeliverSmThrowerService()
             syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower stopped.")
 
+        if 'smpps-pb-server' in self.components:
+            yield self.stopSMPPServerPBService()
+            syslog.syslog(syslog.LOG_INFO, "  SMPPServerPB stopped.")
+
         if 'smpp-server' in self.components:
             yield self.stopSMPPServerService()
             syslog.syslog(syslog.LOG_INFO, "  SMPPServer stopped.")
@@ -450,6 +488,7 @@ class JasminDaemon(object):
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Jasmin Daemon")
 
         return self.stop()
+
 
 if __name__ == '__main__':
     # Must not be executed simultaneously (c.f. #265)

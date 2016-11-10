@@ -5,6 +5,7 @@ Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' sec
 import cPickle as pickle
 import logging
 import os
+
 from jasmin.config.tools import ConfigFile
 
 # Related to travis-ci builds
@@ -67,7 +68,7 @@ class DLRThrowerConfig(ConfigFile):
         self.retry_delay = self._getint('dlr-thrower', 'retry_delay', 30)
         self.max_retries = self._getint('dlr-thrower', 'max_retries', 3)
 
-        #139: need configuration to send deliver_sm instead of data_sm for SMPP delivery receipt
+        # #139: need configuration to send deliver_sm instead of data_sm for SMPP delivery receipt
         # 20150521: it seems better to get deliver_sm the default pdu for receipts
         self.dlr_pdu = self._get('dlr-thrower', 'dlr_pdu', 'deliver_sm')
 

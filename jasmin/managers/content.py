@@ -149,8 +149,6 @@ class DeliverSmContent(PDU):
         props['message-id'] = randomUniqueId()
 
         # For routing purpose, connector-id indicates the source connector of the PDU
-        # the connector-id is used to instanciate RoutableDeliverSm when checking for
-        # routes
         props['headers'] = {'try-count': 0,
                             'connector-id': sourceCid,
                             'concatenated': concatenated,

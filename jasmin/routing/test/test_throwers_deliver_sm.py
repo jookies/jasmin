@@ -51,8 +51,7 @@ class deliverSmThrowerTestCase(unittest.TestCase):
         deliverSmThrowerConfigInstance.max_retries = 2
 
         # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        self.deliverSmThrower = deliverSmThrower(deliverSmThrowerConfigInstance)
 
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
@@ -152,7 +151,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
         yield waitFor(12)
 
-        self.assertEqual(self.TimeoutLeafServerResource.render_GET.call_count, 2)
+        self.assertEqual(self.TimeoutLeafServerResource.render_GET.call_count, 3)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):
@@ -326,8 +325,7 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
         deliverSmThrowerConfigInstance.max_retries = 2
 
         # Launch the deliverSmThrower
-        self.deliverSmThrower = deliverSmThrower()
-        self.deliverSmThrower.setConfig(deliverSmThrowerConfigInstance)
+        self.deliverSmThrower = deliverSmThrower(deliverSmThrowerConfigInstance)
 
         # Add the broker to the deliverSmThrower
         yield self.deliverSmThrower.addAmqpBroker(self.amqpBroker)
@@ -395,13 +393,13 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
             'src',
             routedConnector)
 
-        yield waitFor(5)
+        yield waitFor(3)
 
         # Run tests
-        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 2)
+        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 3)
         self.assertEqual(self.deliverSmThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 2)
-        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 1)
+        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 3)
+        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 2)
 
     @defer.inlineCallbacks
     def test_throwing_smpps_with_no_deliverers(self):
@@ -423,13 +421,13 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
             'src',
             routedConnector)
 
-        yield waitFor(5)
+        yield waitFor(3)
 
         # Run tests
-        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 2)
+        self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 3)
         self.assertEqual(self.deliverSmThrower.ackMessage.call_count, 0)
-        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 2)
-        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 1)
+        self.assertEqual(self.deliverSmThrower.rejectMessage.call_count, 3)
+        self.assertEqual(self.deliverSmThrower.rejectAndRequeueMessage.call_count, 2)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -443,7 +441,8 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
         self.deliverSmThrower.smpp_deliver_sm_callback = mock.Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
 
         # Remove smpps from self.DLRThrower
-        self.deliverSmThrower.smppsFactory = None
+        self.deliverSmThrower.smpps = None
+        self.deliverSmThrower.smpps_access = None
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
@@ -452,7 +451,7 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
             'src',
             routedConnector)
 
-        yield waitFor(5)
+        yield waitFor(1)
 
         # Run tests
         self.assertEqual(self.deliverSmThrower.smpp_deliver_sm_callback.call_count, 1)

@@ -10,7 +10,9 @@ from twisted.internet import reactor
 from twisted.web.client import getPage
 from txamqp.queue import Closed
 
+from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
 
 
@@ -35,25 +37,57 @@ class NoDelivererForSystemId(Exception):
     """
 
 
+class DeliveringFailed(Exception):
+    """Raised when delivering a pdu errored"""
+
+
 class Thrower(Service):
     name = 'abstract thrower'
+    log_category = 'abstract-thrower'
+    exchangeName = 'messaging'
+    consumerTag = 'abstractThrower'
+    routingKey = 'abstract_thrower.*'
+    queueName = 'abstract_thrower'
+    callback = None
+    errback = None
+    requeueTimers = {}
+    throwing_retrials = {}
 
-    def __init__(self):
-        self.requeueTimers = {}
-        self.throwing_retrials = {}
-        self.log_category = "abstract-thrower"
+    def __init__(self, config):
+        self.config = config
 
-        self.exchangeName = 'messaging'
-        self.consumerTag = 'abstractThrower'
-        self.routingKey = 'abstract_thrower.*'
-        self.queueName = 'abstract_thrower'
-        self.callback = self.throwing_callback
-        self.errback = self.throwing_errback
+        # Check if callbacks are defined in child class ?
+        if self.callback is None:
+            self.callback = self.throwing_callback
+        if self.errback is None:
+            self.errback = self.throwing_errback
 
-        self.smppsFactory = None
+        # For these values to None since they must be defined through .addSmpps()
+        self.smpps = None
+        self.smpps_access = None
 
-    def addSmpps(self, smppsFactory):
-        self.smppsFactory = smppsFactory
+        # Set up a dedicated logger
+        self.log = logging.getLogger(self.log_category)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                               when=self.config.log_rotate)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
+            self.log.propagate = False
+
+        self.log.info('Thrower configured and ready.')
+
+    def addSmpps(self, smpps):
+        self.smpps = smpps
+
+        if isinstance(smpps, SMPPServerPBProxy):
+            self.smpps_access = 'perspectivebroker'
+        elif isinstance(smpps, SMPPServerFactory):
+            self.smpps_access = 'direct'
+
+        self.log.info('Added a %s access to SMPPServerFactory', self.smpps_access)
 
     def getThrowingRetrials(self, message):
         return self.throwing_retrials.get(message.content.properties['message-id'], 0)
@@ -113,22 +147,6 @@ class Thrower(Service):
 
         self.clearAllTimers()
 
-    def setConfig(self, config):
-        self.config = config
-
-        # Set up a dedicated logger
-        self.log = logging.getLogger(self.log_category)
-        if len(self.log.handlers) != 1:
-            self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
-            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
-            handler.setFormatter(formatter)
-            self.log.addHandler(handler)
-            self.log.propagate = False
-
-        self.log.info('Thrower configured and ready.')
-
     @defer.inlineCallbacks
     def addAmqpBroker(self, amqpBroker):
         self.amqpBroker = amqpBroker
@@ -178,10 +196,7 @@ class Thrower(Service):
 
     @defer.inlineCallbacks
     def rejectMessage(self, message, requeue=0):
-        if requeue == 1:
-            # Increment retrial tracking for this message
-            self.incThrowingRetrials(message)
-        else:
+        if requeue == 0:
             # Remove retrial tracker
             self.delThrowingRetrials(message)
 
@@ -198,16 +213,15 @@ class Thrower(Service):
 class deliverSmThrower(Thrower):
     name = 'deliverSmThrower'
 
-    def __init__(self):
-        Thrower.__init__(self)
-
+    def __init__(self, config):
         self.log_category = "jasmin-deliversm-thrower"
         self.exchangeName = 'messaging'
         self.consumerTag = 'deliverSmThrower'
         self.routingKey = 'deliver_sm_thrower.*'
         self.queueName = 'deliver_sm_thrower'
-
         self.callback = self.deliver_sm_throwing_callback
+
+        Thrower.__init__(self, config)
 
     @defer.inlineCallbacks
     def http_deliver_sm_callback(self, message):
@@ -374,21 +388,30 @@ class deliverSmThrower(Thrower):
                 last_dc = False
 
             try:
-                if self.smppsFactory is None:
+                if self.smpps is None or self.smpps_access is None:
                     raise SmppsNotSetError()
 
-                if dc.cid not in self.smppsFactory.bound_connections:
+                # Get bound connections (or systemids)
+                if self.smpps_access == 'direct':
+                    bound_systemdids = self.smpps.bound_connections
+                else:
+                    bound_systemdids = yield self.smpps.list_bound_systemids()
+
+                if dc.cid not in bound_systemdids:
                     raise SystemIdNotBound(dc.cid)
 
-                deliverer = self.smppsFactory.bound_connections[dc.cid].getNextBindingForDelivery()
-                if deliverer is None:
-                    raise NoDelivererForSystemId(dc.cid)
+                # Pick a deliverer and sendRequest
+                if self.smpps_access == 'direct':
+                    deliverer = bound_systemdids[dc.cid].getNextBindingForDelivery()
 
-                # Deliver (or throw) the pdu through the deliverer
-                yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+                    if deliverer is None:
+                        raise NoDelivererForSystemId(dc.cid)
 
-                self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using smpp.',
-                              msgid, route_type, counter, len(dcs), dc.cid)
+                    yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+                else:
+                    r = yield self.smpps.deliverer_send_request(dc.cid, pdu)
+                    if not r:
+                        raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % dc.cid)
             except Exception, e:
                 self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, type(e), e)
@@ -426,6 +449,9 @@ class deliverSmThrower(Thrower):
                 # Everything is okay ? then:
                 yield self.ackMessage(message)
 
+                self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using smpp.',
+                              msgid, route_type, counter, len(dcs), dc.cid)
+
                 if route_type == 'failover':
                     self.log.debug('Stopping iteration for failover route.')
                     break
@@ -455,17 +481,16 @@ class deliverSmThrower(Thrower):
 class DLRThrower(Thrower):
     name = 'DLRThrower'
 
-    def __init__(self):
-        Thrower.__init__(self)
-
+    def __init__(self, config):
         self.log_category = "jasmin-dlr-thrower"
         self.exchangeName = 'messaging'
         self.consumerTag = 'DLRThrower'
         self.routingKey = 'dlr_thrower.*'
         self.queueName = 'dlr_thrower'
         self.callback = self.dlr_throwing_callback
-
         self.opFactory = SMPPOperationFactory()
+
+        Thrower.__init__(self, config)
 
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):
@@ -559,15 +584,17 @@ class DLRThrower(Thrower):
         self.clearRequeueTimer(msgid)
 
         try:
-            if self.smppsFactory is None:
+            if self.smpps is None or self.smpps_access is None:
                 raise SmppsNotSetError()
 
-            if system_id not in self.smppsFactory.bound_connections:
-                raise SystemIdNotBound(system_id)
+            # Get bound connections (or systemids)
+            if self.smpps_access == 'direct':
+                bound_systemdids = self.smpps.bound_connections
+            else:
+                bound_systemdids = yield self.smpps.list_bound_systemids()
 
-            deliverer = self.smppsFactory.bound_connections[system_id].getNextBindingForDelivery()
-            if deliverer is None:
-                raise NoDelivererForSystemId(system_id)
+            if system_id not in bound_systemdids:
+                raise SystemIdNotBound(system_id)
 
             # Build the Receipt PDU (data_sm)
             pdu = self.opFactory.getReceipt(dlr_pdu=self.config.dlr_pdu,
@@ -581,11 +608,18 @@ class DLRThrower(Thrower):
                                             dest_addr_ton=dest_addr_ton,
                                             dest_addr_npi=dest_addr_npi)
 
-            # Deliver (or throw) the receipt through the deliverer
-            yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+            # Pick a deliverer and sendRequest
+            if self.smpps_access == 'direct':
+                deliverer = bound_systemdids[system_id].getNextBindingForDelivery()
 
-            # Everything is okay ? then:
-            yield self.ackMessage(message)
+                if deliverer is None:
+                    raise NoDelivererForSystemId(system_id)
+
+                yield deliverer.sendRequest(pdu, deliverer.config().responseTimerSecs)
+            else:
+                r = yield self.smpps.deliverer_send_request(system_id, pdu)
+                if not r:
+                    raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % system_id)
         except Exception, e:
             self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
@@ -610,6 +644,9 @@ class DLRThrower(Thrower):
                 self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
                               self.getThrowingRetrials(message), msgid)
                 yield self.rejectMessage(message)
+        else:
+            # Everything is okay ? then:
+            yield self.ackMessage(message)
 
     @defer.inlineCallbacks
     def dlr_throwing_callback(self, message):

@@ -16,6 +16,8 @@ VERBOSE='yes'
 NAME='interceptord'
 COMMAND_ARGS=''
 
+echo "WARNING: This script will be removed in upcoming major release, please use systemd to manage $NAME service."
+
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="$NAME system service"
 DAEMON=/usr/bin/python
