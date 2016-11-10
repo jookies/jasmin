@@ -1,20 +1,22 @@
-import jasmin
+from twisted.cred import portal
 from twisted.internet import reactor, defer
-from test_cmdprotocol import ProtocolTestCases
-from jasmin.protocols.cli.factory import JCliFactory
-from jasmin.protocols.cli.configs import JCliConfig
-from jasmin.routing.router import RouterPB
-from jasmin.routing.configs import RouterPBConfig
+from twisted.test import proto_helpers
+
+import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
 from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.queues.factory import AmqpFactory
-from jasmin.queues.configs import AmqpConfig
+from jasmin.protocols.cli.configs import JCliConfig
+from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.smpp.configs import SMPPServerConfig
 from jasmin.protocols.smpp.factory import SMPPServerFactory
-from twisted.test import proto_helpers
-from twisted.cred import portal
-from jasmin.tools.cred.portal import SmppsRealm
+from jasmin.queues.configs import AmqpConfig
+from jasmin.queues.factory import AmqpFactory
+from jasmin.routing.configs import RouterPBConfig
+from jasmin.routing.router import RouterPB
 from jasmin.tools.cred.checkers import RouterAuthChecker
+from jasmin.tools.cred.portal import SmppsRealm
+from test_cmdprotocol import ProtocolTestCases
+
 
 class jCliTestCases(ProtocolTestCases):
     @defer.inlineCallbacks
@@ -32,14 +34,12 @@ class jCliTestCases(ProtocolTestCases):
         # Instanciate a RouterPB (a requirement for JCliFactory)
         self.RouterPBConfigInstance = RouterPBConfig()
         self.RouterPBConfigInstance.authentication = False
-        self.RouterPB_f = RouterPB()
-        self.RouterPB_f.setConfig(self.RouterPBConfigInstance)
+        self.RouterPB_f = RouterPB(self.RouterPBConfigInstance)
 
         # Instanciate a SMPPClientManagerPB (a requirement for JCliFactory)
         SMPPClientPBConfigInstance = SMPPClientPBConfig()
         SMPPClientPBConfigInstance.authentication = False
-        self.clientManager_f = SMPPClientManagerPB()
-        self.clientManager_f.setConfig(SMPPClientPBConfigInstance)
+        self.clientManager_f = SMPPClientManagerPB(SMPPClientPBConfigInstance)
         yield self.clientManager_f.addAmqpBroker(self.amqpBroker)
 
         # Instanciate a SMPPServerFactory (a requirement for JCliFactory)

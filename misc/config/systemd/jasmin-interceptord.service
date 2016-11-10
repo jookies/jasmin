@@ -1,7 +1,8 @@
 [Unit]
 Description=Jasmin SMS Gateway interceptor
-Requires=network.target
+Requires=network.target jasmind.service
 After=network.target
+Before=jasmind.service
 
 [Service]
 SyslogIdentifier=interceptord

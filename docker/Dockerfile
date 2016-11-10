@@ -5,7 +5,7 @@ MAINTAINER Jookies LTD <jasmin@jookies.net>
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 
-ENV JASMIN_VERSION 0.9b11
+ENV JASMIN_VERSION 0.9b13
 
 # Install requirements
 RUN apt-get update && apt-get install -y \
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     rabbitmq-server \
     redis-server \
+    supervisor \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -35,4 +36,5 @@ VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]
+# jasmind is started with dlr-thrower thread instead of a standalone process
+CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "-u", "jcliadmin", "-p", "jclipwd"]

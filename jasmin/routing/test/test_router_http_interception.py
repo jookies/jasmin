@@ -9,8 +9,9 @@ from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.protocols.http.stats import HttpAPIStatsCollector
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.routing.Filters import TagFilter
 from jasmin.routing.Interceptors import DefaultInterceptor
-from jasmin.routing.Routes import DefaultRoute
+from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
 from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.tools.cred.portal import JasminPBRealm
@@ -95,8 +96,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         InterceptorPBConfigInstance = InterceptorPBConfig()
 
         # Launch the interceptor server
-        pbInterceptor_factory = InterceptorPB()
-        pbInterceptor_factory.setConfig(InterceptorPBConfigInstance)
+        pbInterceptor_factory = InterceptorPB(InterceptorPBConfigInstance)
 
         # Configure portal
         p = portal.Portal(JasminPBRealm(pbInterceptor_factory))
@@ -638,3 +638,41 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastResponse, '"Interception specific error code 520"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+
+    @defer.inlineCallbacks
+    def test_tagging(self):
+        """Refs #495
+        Will tag message inside interceptor script and assert
+        routing based tagfilter were correctly done
+        """
+        # Re-provision interceptor with correct script
+        mt_interceptor = MTInterceptorScript("routable.addTag(10)")
+        yield self.mtinterceptor_add(DefaultInterceptor(mt_interceptor), 0)
+
+        # Change routing rules by shadowing (high order value) default route with a
+        # static route having a tagfilter
+        yield self.mtroute_flush()
+        yield self.mtroute_add(StaticMTRoute([TagFilter(10)], self.c1, 0.0), 1000)
+
+        # Connect to InterceptorPB
+        yield self.ipb_connect()
+
+        # Send a SMS MT through http interface
+        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
+            self.u1.username, self.u1_password)
+
+        # We should receive an error since interceptorpb is not connected
+        lastErrorStatus = None
+        lastResponse = None
+        try:
+            yield getPage(url)
+        except Exception, e:
+            lastErrorStatus = e.status
+            lastResponse = e.response
+
+        # Wait some time for message delivery through smppc
+        yield waitFor(2)
+
+        # Asserts
+        self.assertEqual(lastErrorStatus, None)
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))

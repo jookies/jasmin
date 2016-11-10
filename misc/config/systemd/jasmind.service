@@ -1,6 +1,6 @@
 [Unit]
 Description=Jasmin SMS Gateway
-Requires=network.target
+Requires=network.target interceptord.service
 After=network.target
 
 [Service]

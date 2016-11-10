@@ -25,7 +25,7 @@ Enabling interceptor
 Jasmin's interceptor is a system service that run separately from Jasmin, it can be hosted on remote server as
 well; **interceptord** is a system service just like **jasmind**, so simply start it by typing::
 
-  sudo systemctl start interceptord
+  sudo systemctl start jasmin-interceptord
 
 .. note:: After starting the **interceptord** service, you may check */var/log/jasmin/interceptor.log* to
   ensure everything is okay.
@@ -399,3 +399,11 @@ The following is an example of activating log inside a script:
 
 .. literalinclude:: sc_logging.py
    :language: python
+
+Enforcing DLR
+=============
+
+Ask for DLR for all submit_sm pdus, no matter the downstream user choice, can be used for route qualification and scoring purposes.
+
+.. literalinclude:: sc_enforce_dlr.py
+:language: python

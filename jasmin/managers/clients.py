@@ -1,19 +1,21 @@
-import logging
 import cPickle as pickle
-import time
 import datetime
-from twisted.spread import pb
-from twisted.internet import defer
+import logging
+import time
 from logging.handlers import TimedRotatingFileHandler
+
+from twisted.internet import defer
+from twisted.spread import pb
+
 import jasmin
+from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.protocols.smpp.services import SMPPClientService
-from .listeners import SMPPClientSMListener
+from jasmin.tools.migrations.configuration import ConfigurationMigrator
+from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
+from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
 from .configs import SMPPClientSMListenerConfig
 from .content import SubmitSmContent
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
-from jasmin.protocols.smpp.protocol import SMPPServerProtocol
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
-from jasmin.tools.migrations.configuration import ConfigurationMigrator
+from .listeners import SMPPClientSMListener
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
@@ -24,7 +26,8 @@ class ConfigProfileLoadingError(Exception):
     """
 
 class SMPPClientManagerPB(pb.Avatar):
-    def __init__(self):
+    def __init__(self, SMPPClientPBConfig):
+        self.config = SMPPClientPBConfig
         self.avatar = None
         self.redisClient = None
         self.amqpBroker = None
@@ -36,17 +39,6 @@ class SMPPClientManagerPB(pb.Avatar):
 
         # Persistence flag, accessed through perspective_is_persisted
         self.persisted = True
-
-    def setAvatar(self, avatar):
-        if type(avatar) is str:
-            self.log.info('Authenticated Avatar: %s', avatar)
-        else:
-            self.log.info('Anonymous connection')
-
-        self.avatar = avatar
-
-    def setConfig(self, SMPPClientPBConfig):
-        self.config = SMPPClientPBConfig
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
@@ -64,6 +56,14 @@ class SMPPClientManagerPB(pb.Avatar):
         self.pickleProtocol = self.config.pickle_protocol
 
         self.log.info('SMPP Client manager configured and ready.')
+
+    def setAvatar(self, avatar):
+        if type(avatar) is str:
+            self.log.info('Authenticated Avatar: %s', avatar)
+        else:
+            self.log.info('Anonymous connection')
+
+        self.avatar = avatar
 
     def addAmqpBroker(self, amqpBroker):
         self.amqpBroker = amqpBroker
