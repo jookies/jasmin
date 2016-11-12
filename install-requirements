@@ -6,4 +6,3 @@ pyparsing>=2.0.0
 python-dateutil>=2.0
 service_identity>=14.0.0
 lockfile>=0.10.0
-dateutil
