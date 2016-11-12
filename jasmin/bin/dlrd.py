@@ -23,7 +23,7 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 class Options(usage.Options):
     optParameters = [
         ['config', 'c', '%s/etc/jasmin/dlr.cfg' % ROOT_PATH,
-         'Jasmin configuration file'],
+         'Jasmin dlrd configuration file'],
         ['id', 'i', 'master',
          'Daemon id, need to be different for each dlrd daemon'],
     ]
@@ -38,7 +38,7 @@ class DlrDaemon(object):
         self.components = {}
 
     def startAMQPBrokerService(self):
-        "Start AMQP Broker"
+        """Start AMQP Broker"""
 
         AMQPServiceConfigInstance = AmqpConfig(self.options['config'])
         self.components['amqp-broker-factory'] = AmqpFactory(AMQPServiceConfigInstance)
@@ -51,12 +51,12 @@ class DlrDaemon(object):
             self.components['amqp-broker-factory'])
 
     def stopAMQPBrokerService(self):
-        "Stop AMQP Broker"
+        """Stop AMQP Broker"""
 
         return self.components['amqp-broker-client'].disconnect()
 
     def startSMPPServerPBClient(self):
-        "Start SMPPServerPB client"
+        """Start SMPPServerPB client"""
 
         SMPPServerPBClientConfigInstance = SMPPServerPBClientConfig(self.options['config'])
         self.components['smpps-pb-client'] = SMPPServerPBProxy()
@@ -69,13 +69,13 @@ class DlrDaemon(object):
             retry=True)
 
     def stopSMPPServerPBClient(self):
-        "Stop SMPPServerPB client"
+        """Stop SMPPServerPB client"""
 
         if self.components['smpps-pb-client'].isConnected:
             return self.components['smpps-pb-client'].disconnect()
 
     def startDLRThrowerService(self):
-        "Start DLRThrower"
+        """Start DLRThrower"""
 
         DLRThrowerConfigInstance = DLRThrowerConfig(self.options['config'])
         self.components['dlr-thrower'] = DLRThrower(DLRThrowerConfigInstance)
@@ -85,12 +85,12 @@ class DlrDaemon(object):
         return self.components['dlr-thrower'].addAmqpBroker(self.components['amqp-broker-factory'])
 
     def stopDLRThrowerService(self):
-        "Stop DLRThrower"
+        """Stop DLRThrower"""
         return self.components['dlr-thrower'].stopService()
 
     @defer.inlineCallbacks
     def start(self):
-        "Start Dlrd daemon"
+        """Start Dlrd daemon"""
         syslog.syslog(syslog.LOG_INFO, "Starting Dlr Daemon ...")
 
         ########################################################
@@ -123,7 +123,7 @@ class DlrDaemon(object):
 
     @defer.inlineCallbacks
     def stop(self):
-        "Stop Dlrd daemon"
+        """Stop Dlrd daemon"""
         syslog.syslog(syslog.LOG_INFO, "Stopping Dlr Daemon ...")
 
         if 'smpps-pb-client' in self.components:
@@ -141,13 +141,14 @@ class DlrDaemon(object):
         reactor.stop()
 
     def sighandler_stop(self, signum, frame):
-        "Handle stop signal cleanly"
+        """Handle stop signal cleanly"""
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Dlr Daemon")
 
         return self.stop()
 
 
 if __name__ == '__main__':
+    lock = None
     try:
         options = Options()
         options.parseOptions()
@@ -175,5 +176,5 @@ if __name__ == '__main__':
         print "There's another instance on dlrd running, exiting."
     finally:
         # Release the lock
-        if lock.i_am_locking():
+        if lock is not None and lock.i_am_locking():
             lock.release()
