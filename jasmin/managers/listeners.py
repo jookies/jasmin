@@ -26,11 +26,10 @@ LOG_CATEGORY = "jasmin-sm-listener"
 
 
 class SMPPClientSMListener(object):
-    debug_it = {'rejectCount': 0}
-    '''
-    This is a listener object instanciated for every new SMPP connection, it is responsible of handling
+    """
+    This is a listener object instantiated for every new SMPP connection, it is responsible of handling
     SubmitSm, DeliverSm and SubmitSm PDUs for a given SMPP connection
-    '''
+    """
 
     def __init__(self, SMPPClientSMListenerConfig,
                  SMPPClientFactory, amqpBroker, redisClient, RouterPB=None, interceptorpb_client=None):
@@ -131,9 +130,10 @@ class SMPPClientSMListener(object):
         it is called whenever a message was consumed from queue
         c.f. test_amqp.ConsumeTestCase for use cases
         """
+        msgid = None
         try:
-            SubmitSmPDU = pickle.loads(message.content.body)
             msgid = message.content.properties['message-id']
+            SubmitSmPDU = pickle.loads(message.content.body)
 
             self.submit_sm_q.get().addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
 
@@ -158,7 +158,7 @@ class SMPPClientSMListener(object):
                     # We're faster than submit_sm_throughput,
                     # slow down before taking a new message from the queue
                     self.log.debug(
-                        "QoS: submit_sm_callback is faster (%s) than fixed throughput (%s), slowing down by %s seconds (message will be requeued).",
+                        "QoS: submit_sm_callback faster (%s) than throughput (%s), slowing down %ss (requeuing).",
                         qos_delay, qos_throughput_ysecond_td, qos_slow_down)
 
                     # Relaunch queue callbacking after qos_slow_down seconds
@@ -173,7 +173,7 @@ class SMPPClientSMListener(object):
             # Verify if message is a SubmitSm PDU
             if isinstance(SubmitSmPDU, SubmitSM) is False:
                 self.log.error(
-                    "Received an object[%s] which is not an instance of SubmitSm: discarding this unkown object from the queue",
+                    "Received object[%s] is not an instance of SubmitSm: discarding this unknown object from queue",
                     msgid)
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
@@ -197,7 +197,7 @@ class SMPPClientSMListener(object):
                     yield self.rejectMessage(message)
                     defer.returnValue(False)
                 else:
-                    if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    if self.config.submit_retrial_delay_smppc_not_ready:
                         delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
                     else:
                         delay_str = ''
@@ -220,7 +220,7 @@ class SMPPClientSMListener(object):
                     yield self.rejectMessage(message)
                     defer.returnValue(False)
                 else:
-                    if self.config.submit_retrial_delay_smppc_not_ready != False:
+                    if self.config.submit_retrial_delay_smppc_not_ready:
                         delay_str = ' with delay %s seconds' % self.config.submit_retrial_delay_smppc_not_ready
                     else:
                         delay_str = ''
@@ -327,7 +327,7 @@ class SMPPClientSMListener(object):
                 if str(r.response.status) in self.config.submit_error_retrial:
                     retrial = self.config.submit_error_retrial[str(r.response.status)]
 
-                    # Still have some retrys to go ?
+                    # Still have some retries to go ?
                     if self.submit_retrials[msgid] < retrial['count']:
                         # Requeue the message for later redelivery
                         yield self.rejectAndRequeueMessage(amqpMessage, delay=retrial['delay'])
@@ -492,19 +492,19 @@ class SMPPClientSMListener(object):
             if will_be_retried:
                 defer.returnValue(False)
         except Exception, e:
-            self.log.error('Error while handling submit_sm_resp pdu for msgig:%s: %s',
+            self.log.error('Error while handling submit_sm_resp pdu for msgid:%s: %s',
                            msgid, e)
 
     def submit_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
-        a txamqp.queue.Closed exception, didnt find a clean way to stop consuming a queue
+        a txamqp.queue.Closed exception, didn't find a clean way to stop consuming a queue
         without errbacking here so this is a workaround to make it clean, it can be considered
         as a @TODO requiring knowledge of the queue api behaviour
         """
         if error.check(Closed) is None:
             # @todo: implement this errback
             # For info, this errback is called whenever:
-            # - an error has occured inside submit_sm_callback
+            # - an error has occurred inside submit_sm_callback
             # - the qosTimer has been cancelled (self.clearQosTimer())
             try:
                 error.raiseException()
@@ -683,7 +683,7 @@ class SMPPClientSMListener(object):
                     self.log.error(
                         'Failed running interception script, got the following return: %s', args[0])
                     raise InterceptorRunError(
-                        'Failed running interception script, got the following return: %s', args[0])
+                        'Failed running interception script, got the following return: %s' % args[0])
 
             self.log.debug('Handling deliver_sm_event_post_interception event for smppc: %s',
                            self.SMPPClientFactory.config.id)
@@ -714,7 +714,7 @@ class SMPPClientSMListener(object):
                     segment_seqnum = routable.pdu.params['sar_segment_seqnum']
                     msg_ref_num = routable.pdu.params['sar_msg_ref_num']
                     self.log.debug(
-                        'Received a part of SMS-MO [queue-msgid:%s] using SAR options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
+                        'Received SMS-MO part [queue-msgid:%s] using SAR: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)
                 elif UDHI_INDICATOR_SET and message_content[:3] == '\x05\x00\x03':
                     splitMethod = 'udh'
@@ -722,7 +722,7 @@ class SMPPClientSMListener(object):
                     segment_seqnum = struct.unpack('!B', message_content[5])[0]
                     msg_ref_num = struct.unpack('!B', message_content[3])[0]
                     self.log.debug(
-                        'Received a part of SMS-MO [queue-msgid:%s] using UDH options: total_segments=%s, segmen_seqnum=%s, msg_ref_num=%s',
+                        'Received SMS-MO part [queue-msgid:%s] using UDH: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)
 
                 if splitMethod is None:
@@ -754,8 +754,8 @@ class SMPPClientSMListener(object):
                 else:
                     # Long message part received
                     if self.redisClient is None:
-                        self.warn(
-                            'No valid RC were found while receiving a part of a long DeliverSm [queue-msgid:%s], MESSAGE IS LOST !',
+                        self.log.warning(
+                            'Invalid RC found while receiving part of long DeliverSm [queue-msgid:%s], MSG IS LOST !',
                             msgid)
 
                     # Save it to redis
@@ -777,7 +777,7 @@ class SMPPClientSMListener(object):
                         segment_seqnum)
 
                     self.log.info(
-                        "DeliverSmContent[%s] is a part of a long message of %s parts, will be sent to queue after concatenation.",
+                        "DeliverSmContent[%s] is part of a long msg of %s parts, will enqueued after concatenation.",
                         msgid, total_segments)
 
                     # Flag it as "will_be_concatenated" and publish it to router
@@ -901,7 +901,7 @@ class SMPPClientSMListener(object):
                     routable.pdu.dlr['err'],
                     routable.pdu.dlr['text'])
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
-            self.log.info("SMS-MO [cid:%s] [istatus:%s] [from:%s] [to:%s] [content:%r]",
+            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%r]",
                           self.SMPPClientFactory.config.id,
                           e.status,
                           routable.pdu.params['source_addr'],
