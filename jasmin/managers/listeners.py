@@ -18,6 +18,7 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
+from jasmin.tools.singleton import Singleton
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
 from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
@@ -32,6 +33,7 @@ class DLRLookup(object):
     """
 
     def __init__(self, name, config, amqpBroker, redisClient):
+        self.name = name
         self.config = config
         self.amqpBroker = amqpBroker
         self.redisClient = redisClient
@@ -47,24 +49,55 @@ class DLRLookup(object):
             self.log.addHandler(handler)
             self.log.propagate = False
 
-        # Subscribe to dlr.* queues
-        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        consumerTag = 'DLRLookup-%s' % name
-        routingKey = 'dlr.*'
-        queueName = 'DLRLookup-%s' % name  # A local queue to this object
-        yield self.amqpBroker.named_queue_declare(queue=queueName)
-        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
-        self.dlr_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.dlr_q.get().addCallback(self.dlr_callback).addErrback(self.dlr_errback)
+        self.log.info('Started %s #%s.', self.__class__.__name__, self.name)
 
-        self.log.info('Started %s #%s.', self.__class__.__name__, name)
+        # Subscribe to dlr.* queues
+        consumerTag = 'DLRLookup-%s' % self.name
+        queueName = 'DLRLookup-%s' % self.name  # A local queue to this object
+        routing_key = 'dlr.*'
+        self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic').addCallback(
+            lambda _: self.amqpBroker.named_queue_declare(queue=queueName).addCallback(
+                lambda _: self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging",
+                                                          routing_key=routing_key).addCallback(
+                    lambda _: self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False,
+                                                                 consumer_tag=consumerTag).addCallback(
+                        lambda _: self.amqpBroker.client.queue(consumerTag).addCallback(self.setup_callbacks)
+                    )
+                )
+            )
+        )
+
+    def setup_callbacks(self, q):
+        q.get().addCallback(self.dlr_callback).addErrback(self.dlr_errback)
 
     def dlr_callback(self):
         print 'dlr'
 
-    def dlr_errback(self):
-        print 'dlre'
+    def dlr_errback(self, error):
+        """It appears that when closing a queue with the close() method it errbacks with
+        a txamqp.queue.Closed exception, didnt find a clean way to stop consuming a queue
+        without errbacking here so this is a workaround to make it clean, it can be considered
+        as a @TODO requiring knowledge of the queue api behaviour
+        """
+        if error.check(Closed) == None:
+            # @todo: implement this errback
+            # For info, this errback is called whenever:
+            # - an error has occured inside dlr_callback
+            self.log.error("Error in dlr_callback: %s", error)
+
+
+class DLRLookupSingleton(object):
+    """Only one DLRLookup object for all SMPPCLientSMListeners"""
+    __metaclass__ = Singleton
+    objects = {}
+
+    def get(self, config, amqpBroker, redisClient):
+        """Return a DLRLookup object or instanciate a new one"""
+        name = '_singleton'
+        if name not in self.objects:
+            self.objects[name] = DLRLookup(name, config, amqpBroker, redisClient)
+
+        return self.objects[name]
 
 
 class SMPPClientSMListener(object):
@@ -104,9 +137,8 @@ class SMPPClientSMListener(object):
         # Should we start local dlr lookup ?
         self.dlrlookup = None
         if self.config.enable_local_dlr_lookup:
-            self.dlrlookup = DLRLookup('cid_%s_local' % self.SMPPClientFactory.config.id, config, amqpBroker,
-                                       redisClient)
-            self.log.info('Started %s for [cid:%s] with local dlrlookup.', self.__class__.__name__,
+            self.dlrlookup = DLRLookupSingleton().get(config, amqpBroker, redisClient)
+            self.log.info('Started %s for [cid:%s] with local dlrlookup singleton.', self.__class__.__name__,
                           self.SMPPClientFactory.config.id)
         else:
             self.log.info('Started %s for [cid:%s].', self.__class__.__name__, self.SMPPClientFactory.config.id)

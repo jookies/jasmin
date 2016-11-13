@@ -12,12 +12,15 @@ class jasminApiInvalidParamError(Exception):
     """Raised when trying to instanciate a jasminApi object with invalid parameter
     """
 
+
 class jasminApiCredentialError(Exception):
     """Raised for ant Credential-related error
     """
 
+
 class jasminApiGeneric(object):
     pass
+
 
 class CredentialGeneric(jasminApiGeneric):
     """A generic credential object"""
@@ -96,6 +99,7 @@ class CredentialGeneric(jasminApiGeneric):
 
         return self.quotas[key]
 
+
 class MtMessagingCredential(CredentialGeneric):
     """Credential set for sending MT Messages through"""
 
@@ -136,7 +140,7 @@ class MtMessagingCredential(CredentialGeneric):
         }
 
     def setQuota(self, key, value):
-        "Additional validation steps"
+        """Additional validation steps"""
         if key == 'balance' and value is not None and (value < 0):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a positive number' % (key, value))
@@ -154,6 +158,7 @@ class MtMessagingCredential(CredentialGeneric):
 
         CredentialGeneric.setQuota(self, key, value)
 
+
 class SmppsCredential(CredentialGeneric):
     """Credential set for SMPP Server connection"""
 
@@ -166,12 +171,13 @@ class SmppsCredential(CredentialGeneric):
         self.quotas = {'max_bindings': None}
 
     def setQuota(self, key, value):
-        "Additional validation steps"
+        """Additional validation steps"""
         if key == 'max_bindings' and value is not None and (value < 0 or not isinstance(value, int)):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be a positive int' % (key, value))
 
         CredentialGeneric.setQuota(self, key, value)
+
 
 class Group(jasminApiGeneric):
     """Every user must have a group"""
@@ -186,15 +192,16 @@ class Group(jasminApiGeneric):
         self.enabled = True
 
     def disable(self):
-        "Related to #306: disable/enable user, a disabled group will indicate all sub-users are disabled"
+        """Related to #306: disable/enable user, a disabled group will indicate all sub-users are disabled"""
         self.enabled = False
 
     def enable(self):
-        "Related to #306: disable/enable user, a disabled group will indicate all sub-users are disabled"
+        """Related to #306: disable/enable user, a disabled group will indicate all sub-users are disabled"""
         self.enabled = True
 
     def __str__(self):
         return str(self.gid)
+
 
 class CnxStatus(jasminApiGeneric):
     """Connection status information holder"""
@@ -228,13 +235,14 @@ class CnxStatus(jasminApiGeneric):
             'qos_last_submit_sm_at': 0,
         }
 
+
 class UserStats(object):
-    "User statistics singleton holder"
+    """User statistics singleton holder"""
     __metaclass__ = Singleton
     users = {}
 
     def get(self, uid):
-        "Return a user stats dic or create a new one"
+        """Return a user stats dic or create a new one"""
         if uid not in self.users:
             self.users[uid] = {'cnx': CnxStatus()}
 
@@ -243,6 +251,7 @@ class UserStats(object):
     def set(self, uid, stats):
         self.users[uid] = stats
 
+
 class User(jasminApiGeneric):
     """Jasmin user"""
 
@@ -250,7 +259,7 @@ class User(jasminApiGeneric):
                  mt_credential=None, smpps_credential=None, password_crypted=False):
         # Validate uid
         regex = re.compile(r'^[A-Za-z0-9_-]{1,16}$')
-        if regex.match(str(uid)) == None:
+        if regex.match(str(uid)) is None:
             raise jasminApiInvalidParamError('User uid syntax is invalid')
 
         self.uid = uid
@@ -260,7 +269,7 @@ class User(jasminApiGeneric):
         # Validate username, if needed because User object
         # can be called with a None username for some purposes
         regex = re.compile(r'^[A-Za-z0-9_-]{1,15}$')
-        if username is not None and regex.match(username) == None:
+        if username is not None and regex.match(username) is None:
             raise jasminApiInvalidParamError('User username syntax is invalid')
         self.username = username
 
@@ -289,15 +298,16 @@ class User(jasminApiGeneric):
         UserStats().set(self.uid, {'cnx': status})
 
     def disable(self):
-        "Related to #306: disable/enable user"
+        """Related to #306: disable/enable user"""
         self.enabled = False
 
     def enable(self):
-        "Related to #306: disable/enable user"
+        """Related to #306: disable/enable user"""
         self.enabled = True
 
     def __str__(self):
         return self.username
+
 
 class Connector(jasminApiGeneric):
     """
@@ -315,6 +325,7 @@ class Connector(jasminApiGeneric):
 
     def __repr__(self):
         return self._repr
+
     def __str__(self):
         return self._str
 
@@ -360,6 +371,7 @@ class HttpConnector(Connector):
             self.baseurl,
             self.method)
 
+
 class SmppClientConnector(Connector):
     """This is a SMPP Client connector"""
 
@@ -367,6 +379,7 @@ class SmppClientConnector(Connector):
 
     def __init__(self, cid):
         Connector.__init__(self, cid)
+
 
 class SmppServerSystemIdConnector(Connector):
     """This is a SMPP Server connector mapped to a system_id, it is used to deliver Messages
@@ -379,8 +392,9 @@ class SmppServerSystemIdConnector(Connector):
 
         self.system_id = system_id
 
+
 class InterceptorScript(jasminApiGeneric):
-    "This is a generic script for message interception"
+    """This is a generic script for message interception"""
 
     type = 'generic'
 
@@ -392,11 +406,13 @@ class InterceptorScript(jasminApiGeneric):
 
     def __repr__(self):
         return self._repr
+
     def __str__(self):
         return self._str
 
+
 class MOInterceptorScript(InterceptorScript):
-    "This is a script for MO message interception"
+    """This is a script for MO message interception"""
 
     type = 'moi'
 
@@ -406,8 +422,9 @@ class MOInterceptorScript(InterceptorScript):
         self._repr = '<MOIS (pyCode=%s ..)>' % (pyCode[:30].replace('\n', ''))
         self._str = '%s:\n%s' % (self.__class__.__name__, pyCode)
 
+
 class MTInterceptorScript(InterceptorScript):
-    "This is a script for MT message interception"
+    """This is a script for MT message interception"""
 
     type = 'mti'
 
