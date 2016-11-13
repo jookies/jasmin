@@ -25,15 +25,56 @@ from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 LOG_CATEGORY = "jasmin-sm-listener"
 
 
+class DLRLookup(object):
+    """
+    Will consume dlr pdus (submit_sm, deliver_sm or data_sm), lookup for matching dlr maps in redis db
+    and publish dlr for later throwing (http or smpp)
+    """
+
+    def __init__(self, name, config, amqpBroker, redisClient):
+        self.config = config
+        self.amqpBroker = amqpBroker
+        self.redisClient = redisClient
+
+        # Set up a dedicated logger
+        self.log = logging.getLogger(LOG_CATEGORY)
+        if len(self.log.handlers) != 1:
+            self.log.setLevel(self.config.log_level)
+            handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                               when=self.config.log_rotate)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
+            handler.setFormatter(formatter)
+            self.log.addHandler(handler)
+            self.log.propagate = False
+
+        # Subscribe to dlr.* queues
+        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        consumerTag = 'DLRLookup-%s' % name
+        routingKey = 'dlr.*'
+        queueName = 'DLRLookup-%s' % name  # A local queue to this object
+        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
+        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+        self.dlr_q = yield self.amqpBroker.client.queue(consumerTag)
+        self.dlr_q.get().addCallback(self.dlr_callback).addErrback(self.dlr_errback)
+
+        self.log.info('Started %s #%s.', self.__class__.__name__, name)
+
+    def dlr_callback(self):
+        print 'dlr'
+
+    def dlr_errback(self):
+        print 'dlre'
+
+
 class SMPPClientSMListener(object):
     """
     This is a listener object instantiated for every new SMPP connection, it is responsible of handling
     SubmitSm, DeliverSm and SubmitSm PDUs for a given SMPP connection
     """
 
-    def __init__(self, SMPPClientSMListenerConfig,
-                 SMPPClientFactory, amqpBroker, redisClient, RouterPB=None, interceptorpb_client=None):
-        self.config = SMPPClientSMListenerConfig
+    def __init__(self, config, SMPPClientFactory, amqpBroker, redisClient, RouterPB=None, interceptorpb_client=None):
+        self.config = config
         self.SMPPClientFactory = SMPPClientFactory
         self.SMPPOperationFactory = SMPPOperationFactory(self.SMPPClientFactory.config)
         self.amqpBroker = amqpBroker
@@ -45,7 +86,6 @@ class SMPPClientSMListener(object):
         self.rejectTimers = {}
         self.submit_retrials = {}
         self.qosTimer = None
-        self.re_patterns = {}
 
         # Set pickleProtocol
         self.pickleProtocol = SMPPClientPBConfig(self.config.config_file).pickle_protocol
@@ -60,6 +100,16 @@ class SMPPClientSMListener(object):
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False
+
+        # Should we start local dlr lookup ?
+        self.dlrlookup = None
+        if self.config.enable_local_dlr_lookup:
+            self.dlrlookup = DLRLookup('cid_%s_local' % self.SMPPClientFactory.config.id, config, amqpBroker,
+                                       redisClient)
+            self.log.info('Started %s for [cid:%s] with local dlrlookup.', self.__class__.__name__,
+                          self.SMPPClientFactory.config.id)
+        else:
+            self.log.info('Started %s for [cid:%s].', self.__class__.__name__, self.SMPPClientFactory.config.id)
 
     def setSubmitSmQ(self, queue):
         self.log.debug('Setting a new submit_sm_q: %s', queue)
@@ -309,7 +359,8 @@ class SMPPClientSMListener(object):
                     short_message = r.request.params['short_message']
 
                 self.log.info(
-                    "SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
+                    "SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] \
+[from:%s] [to:%s] [content:%r]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.params['message_id'],
@@ -338,7 +389,8 @@ class SMPPClientSMListener(object):
 
                 # Log the message
                 self.log.info(
-                    "SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
+                    "SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] \
+[from:%s] [to:%s] [content:%r]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.status,
@@ -742,7 +794,8 @@ class SMPPClientSMListener(object):
                         validity_period = routable.pdu.params['validity_period']
 
                     self.log.info(
-                        "SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] [content:%r]",
+                        "SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] \
+[content:%r]",
                         self.SMPPClientFactory.config.id,
                         msgid,
                         routable.pdu.status,
@@ -754,39 +807,39 @@ class SMPPClientSMListener(object):
                 else:
                     # Long message part received
                     if self.redisClient is None:
-                        self.log.warning(
+                        self.log.critical(
                             'Invalid RC found while receiving part of long DeliverSm [queue-msgid:%s], MSG IS LOST !',
                             msgid)
+                    else:
+                        # Save it to redis
+                        hashKey = "longDeliverSm:%s:%s:%s" % (
+                            self.SMPPClientFactory.config.id,
+                            msg_ref_num,
+                            routable.pdu.params['destination_addr'])
+                        hashValues = {'pdu': routable.pdu,
+                                      'total_segments': total_segments,
+                                      'msg_ref_num': msg_ref_num,
+                                      'segment_seqnum': segment_seqnum}
+                        yield self.redisClient.hset(
+                            hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
+                            self.concatDeliverSMs,
+                            hashKey,
+                            splitMethod,
+                            total_segments,
+                            msg_ref_num,
+                            segment_seqnum)
 
-                    # Save it to redis
-                    hashKey = "longDeliverSm:%s:%s:%s" % (
-                        self.SMPPClientFactory.config.id,
-                        msg_ref_num,
-                        routable.pdu.params['destination_addr'])
-                    hashValues = {'pdu': routable.pdu,
-                                  'total_segments': total_segments,
-                                  'msg_ref_num': msg_ref_num,
-                                  'segment_seqnum': segment_seqnum}
-                    yield self.redisClient.hset(
-                        hashKey, segment_seqnum, pickle.dumps(hashValues, self.pickleProtocol)).addCallback(
-                        self.concatDeliverSMs,
-                        hashKey,
-                        splitMethod,
-                        total_segments,
-                        msg_ref_num,
-                        segment_seqnum)
+                        self.log.info(
+                            "DeliverSmContent[%s] is part of long msg of (%s), will be enqueued after concatenation.",
+                            msgid, total_segments)
 
-                    self.log.info(
-                        "DeliverSmContent[%s] is part of a long msg of %s parts, will enqueued after concatenation.",
-                        msgid, total_segments)
-
-                    # Flag it as "will_be_concatenated" and publish it to router
-                    routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
-                    self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]",
-                                   msgid, routing_key)
-                    content.properties['headers']['will_be_concatenated'] = True
-                    yield self.amqpBroker.publish(exchange='messaging',
-                                                  routing_key=routing_key, content=content)
+                        # Flag it as "will_be_concatenated" and publish it to router
+                        routing_key = 'deliver.sm.%s' % self.SMPPClientFactory.config.id
+                        self.log.debug("Publishing DeliverSmContent[%s](flagged:wbc) with routing_key[%s]",
+                                       msgid, routing_key)
+                        content.properties['headers']['will_be_concatenated'] = True
+                        yield self.amqpBroker.publish(exchange='messaging',
+                                                      routing_key=routing_key, content=content)
             else:
                 # This is a DLR !
                 # Check for DLR request
@@ -890,7 +943,8 @@ class SMPPClientSMListener(object):
                     self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found', msgid)
 
                 self.log.info(
-                    "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] [err:%s] [content:%r]",
+                    "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] \
+[sub/dlvrd messages:%s/%s] [err:%s] [content:%r]",
                     self.SMPPClientFactory.config.id,
                     _coded_dlr_id,
                     routable.pdu.dlr['stat'],
