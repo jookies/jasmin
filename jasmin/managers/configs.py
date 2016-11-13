@@ -2,16 +2,18 @@
 Config file handlers for 'client-management' and 'sm-listener' section in jasmin.cfg
 """
 
+import ast
 import cPickle as pickle
 import logging
-import ast
 import os
+
 from jasmin.config.tools import ConfigFile
 
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+
 
 class SMPPClientPBConfig(ConfigFile):
     "Config handler for 'client-management' section"
@@ -36,6 +38,7 @@ class SMPPClientPBConfig(ConfigFile):
         self.log_format = self._get('client-management', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('client-management', 'log_date_format', '%Y-%m-%d %H:%M:%S')
         self.pickle_protocol = self._getint('client-management', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
+
 
 class SMPPClientSMListenerConfig(ConfigFile):
     "Config handler for 'sm-listener' section"
@@ -63,6 +66,8 @@ class SMPPClientSMListenerConfig(ConfigFile):
 
         self.submit_retrial_delay_smppc_not_ready = self._getint(
             'sm-listener', 'submit_retrial_delay_smppc_not_ready', False)
+
+        self.enable_local_dlr_lookup = self._getbool('sm-listener', 'enable_local_dlr_lookup', True)
 
         self.log_level = logging.getLevelName(
             self._get('sm-listener', 'log_level', 'INFO'))
