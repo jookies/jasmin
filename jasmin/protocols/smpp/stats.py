@@ -1,6 +1,7 @@
 from jasmin.tools.singleton import Singleton
 from jasmin.tools.stats import Stats
 
+
 class ConnectorStatistics(Stats):
 
     def __init__(self, cid):
@@ -8,8 +9,9 @@ class ConnectorStatistics(Stats):
 
         self.init()
 
+
 class ClientConnectorStatistics(ConnectorStatistics):
-    "One client connector statistics holder"
+    """One client connector statistics holder"""
 
     def init(self):
         self._stats = {
@@ -39,8 +41,9 @@ class ClientConnectorStatistics(ConnectorStatistics):
     def getStats(self):
         return self._stats
 
+
 class ServerConnectorStatistics(ConnectorStatistics):
-    "One server connector statistics holder"
+    """One server connector statistics holder"""
 
     def init(self):
         self._stats = {
@@ -71,25 +74,27 @@ class ServerConnectorStatistics(ConnectorStatistics):
     def getStats(self):
         return self._stats
 
+
 class SMPPClientStatsCollector(object):
-    "SMPP Clients statistics collection holder"
+    """SMPP Clients statistics collection holder"""
     __metaclass__ = Singleton
     connectors = {}
 
     def get(self, cid):
-        "Return a connector's stats object or instanciate a new one"
+        """Return a connector's stats object or instanciate a new one"""
         if cid not in self.connectors:
             self.connectors[cid] = ClientConnectorStatistics(cid)
 
         return self.connectors[cid]
 
+
 class SMPPServerStatsCollector(object):
-    "SMPP Servers statistics collection holder"
+    """SMPP Servers statistics collection holder"""
     __metaclass__ = Singleton
     connectors = {}
 
     def get(self, cid):
-        "Return a connector's stats object or instanciate a new one"
+        """Return a connector's stats object or instanciate a new one"""
         if cid not in self.connectors:
             self.connectors[cid] = ServerConnectorStatistics(cid)
 
