@@ -146,7 +146,6 @@ class DLRLookup(object):
 
     @defer.inlineCallbacks
     def submit_sm_resp_dlr_callback(self, message):
-        print 'here'
         msgid = message.content.properties['message-id']
         smpp_msgid = message.content.properties['headers']['smpp_msgid']
         dlr_status = message.content.body
@@ -166,7 +165,6 @@ class DLRLookup(object):
                 raise DLRMapError('Fetched unknown dlr: %s' % dlr)
 
             if dlr['sc'] == 'httpapi':
-                print 'here'
                 self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
                 dlr_url = dlr['url']
                 dlr_level = dlr['level']
@@ -174,7 +172,6 @@ class DLRLookup(object):
                 dlr_expiry = dlr['expiry']
 
                 if dlr['level'] in [1, 3]:
-                    print 'here'
                     self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
                                    msgid, dlr_url, dlr_level)
 
@@ -183,7 +180,6 @@ class DLRLookup(object):
                     # one (maybe 1 or 3)
                     self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
                                    msgid, 'dlr_thrower.http')
-                    print 'here'
                     yield self.amqpBroker.publish(exchange='messaging',
                                                   routing_key='dlr_thrower.http',
                                                   content=DLRContentForHttpapi(dlr_status,
