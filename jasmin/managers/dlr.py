@@ -126,8 +126,11 @@ class DLRLookup(object):
         else:
             self.lookup_retrials[message.content.properties['message-id']] = 1
 
+        # Dispatching
         if message.routing_key == 'dlr.submit_sm_resp':
             yield self.submit_sm_resp_dlr_callback(message)
+        elif message.routing_key == 'dlr.deliver_sm':
+            yield self.deliver_sm_dlr_callback(message)
         else:
             self.log.error('Unknown routing_key in dlr_callback_dispatcher: %s', message.routing_key)
             yield self.rejectMessage(message)
@@ -209,7 +212,6 @@ class DLRLookup(object):
                     yield self.redisClient.expire(hashKey, dlr_expiry)
             elif dlr['sc'] == 'smppsapi':
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
-
                 system_id = dlr['system_id']
                 source_addr_ton = dlr['source_addr_ton']
                 source_addr_npi = dlr['source_addr_npi']
@@ -263,6 +265,124 @@ class DLRLookup(object):
             yield self.rejectMessage(message)
         else:
             yield self.ackMessage(message)
+
+    @defer.inlineCallbacks
+    def deliver_sm_dlr_callback(self, message):
+        msgid = message.content.properties['message-id']
+        pdu_cid = message.content.properties['headers']['cid']
+        pdu_dlr_details = message.content.properties['headers']['dlr_details']
+        pdu_dlr_status = message.content.body
+
+        try:
+            if self.redisClient is None:
+                raise RedisError('RC undefined !')
+            if self.redisClient.connected != 1:
+                raise RedisError('RC is offline !')
+
+            q = yield self.redisClient.hgetall("queue-msgid:%s" % msgid)
+            if len(q) != 2 or 'msgid' not in q or 'connector_type' not in q:
+                raise DLRMapError('Fetched unknown queued dlr: %s' % q)
+
+            submit_sm_queue_id = q['msgid']
+            connector_type = q['connector_type']
+
+            # Get dlr and ensure it's sc (source_connector) is same as q['connector_type']
+            dlr = yield self.redisClient.hgetall("dlr:%s" % submit_sm_queue_id)
+            if dlr is None:
+                raise DLRMapError('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_details['id'], msgid))
+            if len(dlr) > 0 and dlr['sc'] != connector_type:
+                raise DLRMapError('Found a dlr for msgid:%s with diffrent sc: %s' % (submit_sm_queue_id, dlr['sc']))
+
+            if connector_type == 'httpapi':
+                self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
+                dlr_url = dlr['url']
+                dlr_level = dlr['level']
+                dlr_method = dlr['method']
+
+                if dlr_level in [2, 3]:
+                    self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
+                                   submit_sm_queue_id, dlr_url, dlr_level)
+                    # The dlr_url in DLRContentForHttpapi indicates the level
+                    # of the actual delivery receipt (2) and not the
+                    # requested one (maybe 2 or 3)
+                    self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
+                                   submit_sm_queue_id, 'dlr_thrower.http')
+                    yield self.amqpBroker.publish(exchange='messaging',
+                                                  routing_key='dlr_thrower.http',
+                                                  content=DLRContentForHttpapi(pdu_dlr_details['stat'],
+                                                                               submit_sm_queue_id,
+                                                                               dlr_url, dlr_level=2, id_smsc=msgid,
+                                                                               sub=pdu_dlr_details['sub'],
+                                                                               dlvrd=pdu_dlr_details['dlvrd'],
+                                                                               subdate=pdu_dlr_details['sdate'],
+                                                                               donedate=pdu_dlr_details['ddate'],
+                                                                               err=pdu_dlr_details['err'],
+                                                                               text=pdu_dlr_details['text'],
+                                                                               method=dlr_method))
+
+                    self.log.debug('Removing HTTP dlr map for msgid[%s]', submit_sm_queue_id)
+                    yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
+            elif connector_type == 'smppsapi':
+                self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
+                system_id = dlr['system_id']
+                source_addr_ton = dlr['source_addr_ton']
+                source_addr_npi = dlr['source_addr_npi']
+                source_addr = str(dlr['source_addr'])
+                dest_addr_ton = dlr['dest_addr_ton']
+                dest_addr_npi = dlr['dest_addr_npi']
+                destination_addr = str(dlr['destination_addr'])
+                sub_date = dlr['sub_date']
+                registered_delivery_receipt = dlr['rd_receipt']
+
+                success_states = ['ACCEPTD', 'DELIVRD']
+                final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
+                # Do we need to forward the receipt to the original sender ?
+                if ((pdu_dlr_details['stat'] in success_states and
+                             registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
+                        (pdu_dlr_details['stat'] not in success_states and
+                                 registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
+                                                                 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
+                    self.log.debug(
+                        'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
+                        submit_sm_queue_id, registered_delivery_receipt, system_id)
+
+                    self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",
+                                   submit_sm_queue_id, 'dlr_thrower.smpps')
+                    yield self.amqpBroker.publish(exchange='messaging',
+                                                  routing_key='dlr_thrower.smpps',
+                                                  content=DLRContentForSmpps(pdu_dlr_details['stat'],
+                                                                             submit_sm_queue_id, system_id,
+                                                                             source_addr, destination_addr, sub_date,
+                                                                             source_addr_ton, source_addr_npi,
+                                                                             dest_addr_ton, dest_addr_npi))
+
+                    if pdu_dlr_details['stat'] in final_states:
+                        self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
+                        yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
+        except DLRMapError as e:
+            self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
+            yield self.rejectMessage(message)
+        except RedisError as e:
+            self.log.error('[msgid:%s] Redis: %s', msgid, e)
+            yield self.rejectAndRequeueMessage(message)
+        except Exception as e:
+            self.log.error('[msgid:%s] Unknown error (%s): %s', msgid, type(e), e)
+            yield self.rejectMessage(message)
+        else:
+            yield self.ackMessage(message)
+        finally:
+            self.log.info(
+                "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] \
+[err:%s] [content:%r]",
+                pdu_cid,
+                msgid,
+                pdu_dlr_details['stat'],
+                pdu_dlr_details['sdate'],
+                pdu_dlr_details['ddate'],
+                pdu_dlr_details['sub'],
+                pdu_dlr_details['dlvrd'],
+                pdu_dlr_details['err'],
+                pdu_dlr_details['text'])
 
 
 class DLRLookupSingleton(object):

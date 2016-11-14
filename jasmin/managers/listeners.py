@@ -11,9 +11,7 @@ from twisted.internet import reactor
 from txamqp.queue import Closed
 
 from jasmin.managers.configs import SMPPClientPBConfig
-from jasmin.managers.content import (SubmitSmRespContent, DeliverSmContent,
-                                     DLRContentForHttpapi, DLRContentForSmpps,
-                                     SubmitSmRespBillContent, DLR)
+from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, SubmitSmRespBillContent, DLR
 from jasmin.managers.dlr import DLRLookupSingleton
 from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
@@ -375,8 +373,8 @@ class SMPPClientSMListener(object):
             # Send DLR to DLRLookup
             yield self.amqpBroker.publish(exchange='messaging',
                                           routing_key='dlr.submit_sm_resp',
-                                          content=DLR(r.response.id, msgid, r.response.params['message_id'],
-                                                      r.response.status))
+                                          content=DLR(pdu_type=r.response.id, msgid=msgid, status=r.response.status,
+                                                      smpp_msgid=r.response.params['message_id']))
 
             # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer
             if total_bill_amount > 0:
@@ -702,118 +700,14 @@ class SMPPClientSMListener(object):
                                                       routing_key=routing_key, content=content)
             else:
                 # This is a DLR !
-                # Check for DLR request
-                if self.redisClient is not None:
-                    _coded_dlr_id = self.code_dlr_msgid(routable.pdu)
-
-                    q = yield self.redisClient.hgetall("queue-msgid:%s" % _coded_dlr_id)
-                    submit_sm_queue_id = None
-                    connector_type = None
-                    dlr = {}
-                    if len(q) == 2:
-                        submit_sm_queue_id = q['msgid']
-                        connector_type = q['connector_type']
-
-                        # Get dlr and ensure it's sc (source_connector) is same as q['connector_type']
-                        dlr = yield self.redisClient.hgetall("dlr:%s" % submit_sm_queue_id)
-                        if len(dlr) > 0 and dlr['sc'] != connector_type:
-                            self.log.error('Found a dlr for msgid:%s with diffrent sc: %s',
-                                           submit_sm_queue_id, dlr['sc'])
-                            dlr = {}
-
-                    if submit_sm_queue_id is not None and connector_type == 'httpapi':
-                        if len(dlr) > 0:
-                            dlr_url = dlr['url']
-                            dlr_level = dlr['level']
-                            dlr_method = dlr['method']
-
-                            if dlr_level in [2, 3]:
-                                self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
-                                               submit_sm_queue_id, dlr_url, dlr_level)
-                                # The dlr_url in DLRContentForHttpapi indicates the level
-                                # of the actual delivery receipt (2) and not the
-                                # requested one (maybe 2 or 3)
-                                content = DLRContentForHttpapi(routable.pdu.dlr['stat'], submit_sm_queue_id,
-                                                               dlr_url, dlr_level=2, id_smsc=_coded_dlr_id,
-                                                               sub=routable.pdu.dlr['sub'],
-                                                               dlvrd=routable.pdu.dlr['dlvrd'],
-                                                               subdate=routable.pdu.dlr['sdate'],
-                                                               donedate=routable.pdu.dlr['ddate'],
-                                                               err=routable.pdu.dlr['err'],
-                                                               text=routable.pdu.dlr['text'],
-                                                               method=dlr_method)
-                                routing_key = 'dlr_thrower.http'
-                                self.log.debug("Publishing DLRContentForHttpapi[%s] with routing_key[%s]",
-                                               submit_sm_queue_id, routing_key)
-                                yield self.amqpBroker.publish(exchange='messaging',
-                                                              routing_key=routing_key,
-                                                              content=content)
-
-                                self.log.debug('Removing HTTP dlr map for msgid[%s]', submit_sm_queue_id)
-                                yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
-                            else:
-                                self.log.debug(
-                                    'SMS-C receipt is requested, will not send any DLR receipt at this level.')
-                        else:
-                            self.log.warn('DLR for msgid[%s] not found !',
-                                          submit_sm_queue_id)
-                    elif submit_sm_queue_id is not None and connector_type == 'smppsapi':
-                        if len(dlr) > 0:
-                            system_id = dlr['system_id']
-                            source_addr_ton = dlr['source_addr_ton']
-                            source_addr_npi = dlr['source_addr_npi']
-                            source_addr = str(dlr['source_addr'])
-                            dest_addr_ton = dlr['dest_addr_ton']
-                            dest_addr_npi = dlr['dest_addr_npi']
-                            destination_addr = str(dlr['destination_addr'])
-                            sub_date = dlr['sub_date']
-                            registered_delivery_receipt = dlr['rd_receipt']
-
-                            success_states = ['ACCEPTD', 'DELIVRD']
-                            final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
-                            # Do we need to forward the receipt to the original sender ?
-                            if ((routable.pdu.dlr['stat'] in success_states and
-                                         registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
-                                    (routable.pdu.dlr['stat'] not in success_states and
-                                             registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
-                                                                             'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
-                                self.log.debug(
-                                    'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
-                                    submit_sm_queue_id, registered_delivery_receipt, system_id)
-
-                                content = DLRContentForSmpps(routable.pdu.dlr['stat'], submit_sm_queue_id, system_id,
-                                                             source_addr, destination_addr, sub_date,
-                                                             source_addr_ton, source_addr_npi,
-                                                             dest_addr_ton, dest_addr_npi)
-
-                                routing_key = 'dlr_thrower.smpps'
-                                self.log.debug("Publishing DLRContentForSmpps[%s] with routing_key[%s]",
-                                               submit_sm_queue_id, routing_key)
-                                yield self.amqpBroker.publish(exchange='messaging',
-                                                              routing_key=routing_key,
-                                                              content=content)
-
-                                if routable.pdu.dlr['stat'] in final_states:
-                                    self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
-                                    yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
-                    else:
-                        self.log.warn('Got a DLR for an unknown message id: %s (coded:%s)',
-                                      routable.pdu.dlr['id'], _coded_dlr_id)
-                else:
-                    self.log.warn('DLR for msgid[%s] is not checked, no valid RC were found', msgid)
-
-                self.log.info(
-                    "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] \
-[sub/dlvrd messages:%s/%s] [err:%s] [content:%r]",
-                    self.SMPPClientFactory.config.id,
-                    _coded_dlr_id,
-                    routable.pdu.dlr['stat'],
-                    routable.pdu.dlr['sdate'],
-                    routable.pdu.dlr['ddate'],
-                    routable.pdu.dlr['sub'],
-                    routable.pdu.dlr['dlvrd'],
-                    routable.pdu.dlr['err'],
-                    routable.pdu.dlr['text'])
+                # Send DLR to DLRLookup
+                yield self.amqpBroker.publish(exchange='messaging',
+                                              routing_key='dlr.deliver_sm',
+                                              content=DLR(pdu_type=routable.pdu.id,
+                                                          msgid=self.code_dlr_msgid(routable.pdu),
+                                                          status=routable.pdu.dlr['stat'],
+                                                          cid=self.SMPPClientFactory.config.id,
+                                                          dlr_details=routable.pdu.dlr))
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
             self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%r]",
                           self.SMPPClientFactory.config.id,

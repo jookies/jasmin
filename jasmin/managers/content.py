@@ -43,9 +43,25 @@ class PDU(Content):
 class DLR(Content):
     """A DLR is published to dlr.* routes for DLRLookup"""
 
-    def __init__(self, pdu_type, msgid, smpp_msgid, status):
-        properties = {'message-id': msgid, 'headers': {'type': str(pdu_type),
-                                                       'smpp_msgid': smpp_msgid.upper().lstrip('0')}}
+    def __init__(self, pdu_type, msgid, status, smpp_msgid=None, cid=None, dlr_details=None):
+        pdu_type_s = pdu_type
+
+        if pdu_type_s not in ['deliver_sm', 'submit_sm_resp']:
+            raise InvalidParameterError('Invalid pdu_type: %s' % pdu_type_s)
+
+        if pdu_type_s == 'submit_sm_resp' and smpp_msgid is None:
+            raise InvalidParameterError('submit_sm_resp dlr must have smpp_msgid arg defined')
+        elif pdu_type_s == 'deliver_sm' and (cid is None or dlr_details is None):
+            raise InvalidParameterError('deliver_sm dlr must have cid and dlr_details args defined')
+
+        properties = {'message-id': msgid, 'headers': {'type': pdu_type_s}}
+
+        if pdu_type == 'submit_sm_resp':
+            # smpp_msgid is used to define mapping between msgid and smpp_msgid (when receiving submit_sm_resp)
+            properties['headers']['smpp_msgid'] = smpp_msgid.upper().lstrip('0')
+        elif pdu_type == 'deliver_sm':
+            properties['headers']['cid'] = cid
+            properties['headers']['dlr_details'] = dlr_details
 
         Content.__init__(self, str(status), properties=properties)
 
@@ -62,11 +78,11 @@ class DLRContentForHttpapi(Content):
         if message_status[:5] != 'ESME_' and message_status not in [
             'DELIVRD', 'EXPIRED', 'DELETED',
             'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
-            raise InvalidParameterError("Invalid message_status: %s", message_status)
+            raise InvalidParameterError("Invalid message_status: %s" % message_status)
         if dlr_level not in [1, 2, 3]:
-            raise InvalidParameterError("Invalid dlr_level: %s", dlr_level)
+            raise InvalidParameterError("Invalid dlr_level: %s" % dlr_level)
         if method not in ['POST', 'GET']:
-            raise InvalidParameterError('Invalid method: %s', method)
+            raise InvalidParameterError('Invalid method: %s' % method)
 
         properties = {'message-id': msgid, 'headers': {'try-count': 0,
                                                        'url': dlr_url,
@@ -95,7 +111,7 @@ class DLRContentForSmpps(Content):
         if message_status[:5] != 'ESME_' and message_status not in [
             'DELIVRD', 'EXPIRED', 'DELETED',
             'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
-            raise InvalidParameterError("Invalid message_status: %s", message_status)
+            raise InvalidParameterError("Invalid message_status: %s" % message_status)
 
         properties = {'message-id': msgid, 'headers': {'try-count': 0,
                                                        'message_status': message_status,
@@ -125,7 +141,7 @@ class SubmitSmContent(PDU):
             raise InvalidParameterError("Priority must be set from 0 to 3, it is actually set to %s" %
                                         priority)
         if source_connector not in ['httpapi', 'smppsapi']:
-            raise InvalidParameterError('Invalid source_connector value: %s.')
+            raise InvalidParameterError('Invalid source_connector value: %s.' % source_connector)
         if msgid is None:
             msgid = randomUniqueId()
 
