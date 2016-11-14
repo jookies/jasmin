@@ -69,6 +69,12 @@ class SMPPClientSMListenerConfig(ConfigFile):
 
         self.enable_local_dlr_lookup = self._getbool('sm-listener', 'enable_local_dlr_lookup', True)
 
+        self.dlr_lookup_retry_delay = self._getint(
+            'sm-listener', 'dlr_lookup_retry_delay', 10)
+
+        self.dlr_lookup_retry_delay = self._getint(
+            'sm-listener', 'dlr_lookup_max_retries', 2)
+
         self.log_level = logging.getLevelName(
             self._get('sm-listener', 'log_level', 'INFO'))
         self.log_file = self._get('sm-listener', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)

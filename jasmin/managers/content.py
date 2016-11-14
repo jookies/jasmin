@@ -43,9 +43,11 @@ class PDU(Content):
 class DLR(Content):
     """A DLR is published to dlr.* routes for DLRLookup"""
 
-    def __init__(self, pdu_type, msgid, status):
-        # TODO: Finish DLR content implementation in DLRLookup/Listeners.py #472
-        pass
+    def __init__(self, pdu_type, msgid, smpp_msgid, status):
+        properties = {'message-id': msgid, 'headers': {'type': str(pdu_type),
+                                                       'smpp_msgid': smpp_msgid.upper().lstrip('0')}}
+
+        Content.__init__(self, str(status), properties=properties)
 
 
 class DLRContentForHttpapi(Content):
@@ -88,7 +90,6 @@ class DLRContentForSmpps(Content):
 
     def __init__(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date,
                  source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
-
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
         if message_status[:5] != 'ESME_' and message_status not in [
