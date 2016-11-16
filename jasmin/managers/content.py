@@ -44,7 +44,7 @@ class DLR(Content):
     """A DLR is published to dlr.* routes for DLRLookup"""
 
     def __init__(self, pdu_type, msgid, status, smpp_msgid=None, cid=None, dlr_details=None):
-        pdu_type_s = pdu_type
+        pdu_type_s = '%s' % pdu_type
 
         if pdu_type_s not in ['deliver_sm', 'submit_sm_resp']:
             raise InvalidParameterError('Invalid pdu_type: %s' % pdu_type_s)
@@ -54,14 +54,15 @@ class DLR(Content):
         elif pdu_type_s == 'deliver_sm' and (cid is None or dlr_details is None):
             raise InvalidParameterError('deliver_sm dlr must have cid and dlr_details args defined')
 
-        properties = {'message-id': msgid, 'headers': {'type': pdu_type_s}}
+        properties = {'message-id': str(msgid), 'headers': {'type': pdu_type_s}}
 
-        if pdu_type == 'submit_sm_resp':
+        if pdu_type_s == 'submit_sm_resp':
             # smpp_msgid is used to define mapping between msgid and smpp_msgid (when receiving submit_sm_resp)
             properties['headers']['smpp_msgid'] = smpp_msgid.upper().lstrip('0')
-        elif pdu_type == 'deliver_sm':
+        elif pdu_type_s == 'deliver_sm':
             properties['headers']['cid'] = cid
-            properties['headers']['dlr_details'] = dlr_details
+            for k, v in dlr_details.iteritems():
+                properties['headers']['dlr_%s' % k] = v
 
         Content.__init__(self, str(status), properties=properties)
 

@@ -398,12 +398,11 @@ class SMPPClientSMListener(object):
                 yield self.amqpBroker.publish(exchange='messaging',
                                               routing_key=amqpMessage.content.properties['reply-to'],
                                               content=content)
-
+        except Exception, e:
+            self.log.error('Error while handling submit_sm_resp pdu for msgid:%s: %s', msgid, e)
+        else:
             if will_be_retried:
                 defer.returnValue(False)
-        except Exception, e:
-            self.log.error('Error while handling submit_sm_resp pdu for msgid:%s: %s',
-                           msgid, e)
 
     def submit_sm_errback(self, error):
         """It appears that when closing a queue with the close() method it errbacks with
