@@ -246,14 +246,14 @@ class DLRLookup(object):
                                                                                  dest_addr_ton,
                                                                                  dest_addr_npi))
 
-                        if dlr_status == 'ESME_ROK':
-                            # Map received submit_sm_resp's message_id to the msg for later rceipt handling
-                            self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
-                                           smpp_msgid, msgid, smpps_map_expiry)
-                            hashKey = "queue-msgid:%s" % smpp_msgid
-                            hashValues = {'msgid': msgid, 'connector_type': 'smppsapi', }
-                            yield self.redisClient.hmset(hashKey, hashValues)
-                            yield self.redisClient.expire(hashKey, smpps_map_expiry)
+                    if dlr_status == 'ESME_ROK':
+                        # Map received submit_sm_resp's message_id to the msg for later rceipt handling
+                        self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
+                                       smpp_msgid, msgid, smpps_map_expiry)
+                        hashKey = "queue-msgid:%s" % smpp_msgid
+                        hashValues = {'msgid': msgid, 'connector_type': 'smppsapi', }
+                        yield self.redisClient.hmset(hashKey, hashValues)
+                        yield self.redisClient.expire(hashKey, smpps_map_expiry)
         except DLRMapError as e:
             self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
             yield self.rejectMessage(message)
@@ -270,7 +270,13 @@ class DLRLookup(object):
     def deliver_sm_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
         pdu_cid = message.content.properties['headers']['cid']
-        pdu_dlr_details = message.content.properties['headers']['dlr_details']
+        pdu_dlr_id = message.content.properties['headers']['dlr_id']
+        pdu_dlr_ddate = message.content.properties['headers']['dlr_ddate']
+        pdu_dlr_sdate = message.content.properties['headers']['dlr_sdate']
+        pdu_dlr_sub = message.content.properties['headers']['dlr_sub']
+        pdu_dlr_err = message.content.properties['headers']['dlr_err']
+        pdu_dlr_text = message.content.properties['headers']['dlr_text']
+        pdu_dlr_dlvrd = message.content.properties['headers']['dlr_dlvrd']
         pdu_dlr_status = message.content.body
 
         try:
@@ -289,7 +295,7 @@ class DLRLookup(object):
             # Get dlr and ensure it's sc (source_connector) is same as q['connector_type']
             dlr = yield self.redisClient.hgetall("dlr:%s" % submit_sm_queue_id)
             if dlr is None:
-                raise DLRMapError('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_details['id'], msgid))
+                raise DLRMapError('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_id, msgid))
             if len(dlr) > 0 and dlr['sc'] != connector_type:
                 raise DLRMapError('Found a dlr for msgid:%s with diffrent sc: %s' % (submit_sm_queue_id, dlr['sc']))
 
@@ -309,15 +315,15 @@ class DLRLookup(object):
                                    submit_sm_queue_id, 'dlr_thrower.http')
                     yield self.amqpBroker.publish(exchange='messaging',
                                                   routing_key='dlr_thrower.http',
-                                                  content=DLRContentForHttpapi(pdu_dlr_details['stat'],
+                                                  content=DLRContentForHttpapi(pdu_dlr_status,
                                                                                submit_sm_queue_id,
                                                                                dlr_url, dlr_level=2, id_smsc=msgid,
-                                                                               sub=pdu_dlr_details['sub'],
-                                                                               dlvrd=pdu_dlr_details['dlvrd'],
-                                                                               subdate=pdu_dlr_details['sdate'],
-                                                                               donedate=pdu_dlr_details['ddate'],
-                                                                               err=pdu_dlr_details['err'],
-                                                                               text=pdu_dlr_details['text'],
+                                                                               sub=pdu_dlr_sub,
+                                                                               dlvrd=pdu_dlr_dlvrd,
+                                                                               subdate=pdu_dlr_sdate,
+                                                                               donedate=pdu_dlr_ddate,
+                                                                               err=pdu_dlr_err,
+                                                                               text=pdu_dlr_text,
                                                                                method=dlr_method))
 
                     self.log.debug('Removing HTTP dlr map for msgid[%s]', submit_sm_queue_id)
@@ -337,9 +343,9 @@ class DLRLookup(object):
                 success_states = ['ACCEPTD', 'DELIVRD']
                 final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                 # Do we need to forward the receipt to the original sender ?
-                if ((pdu_dlr_details['stat'] in success_states and
+                if ((pdu_dlr_status in success_states and
                              registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
-                        (pdu_dlr_details['stat'] not in success_states and
+                        (pdu_dlr_status not in success_states and
                                  registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
                                                                  'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
                     self.log.debug(
@@ -350,13 +356,13 @@ class DLRLookup(object):
                                    submit_sm_queue_id, 'dlr_thrower.smpps')
                     yield self.amqpBroker.publish(exchange='messaging',
                                                   routing_key='dlr_thrower.smpps',
-                                                  content=DLRContentForSmpps(pdu_dlr_details['stat'],
+                                                  content=DLRContentForSmpps(pdu_dlr_status,
                                                                              submit_sm_queue_id, system_id,
                                                                              source_addr, destination_addr, sub_date,
                                                                              source_addr_ton, source_addr_npi,
                                                                              dest_addr_ton, dest_addr_npi))
 
-                    if pdu_dlr_details['stat'] in final_states:
+                    if pdu_dlr_status in final_states:
                         self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
                         yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
         except DLRMapError as e:
@@ -376,13 +382,13 @@ class DLRLookup(object):
 [err:%s] [content:%r]",
                 pdu_cid,
                 msgid,
-                pdu_dlr_details['stat'],
-                pdu_dlr_details['sdate'],
-                pdu_dlr_details['ddate'],
-                pdu_dlr_details['sub'],
-                pdu_dlr_details['dlvrd'],
-                pdu_dlr_details['err'],
-                pdu_dlr_details['text'])
+                pdu_dlr_text,
+                pdu_dlr_sdate,
+                pdu_dlr_ddate,
+                pdu_dlr_sub,
+                pdu_dlr_dlvrd,
+                pdu_dlr_err,
+                pdu_dlr_text)
 
 
 class DLRLookupSingleton(object):
