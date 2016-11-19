@@ -83,8 +83,9 @@ class DLRLookupConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.dlr_lookup_retry_delay = self._getint('dlr', 'dlr_lookup_retry_delay', 10)
+        self.pid = self._get('dlr', 'pid', 'main')
 
+        self.dlr_lookup_retry_delay = self._getint('dlr', 'dlr_lookup_retry_delay', 10)
         self.dlr_lookup_retry_delay = self._getint('dlr', 'dlr_lookup_max_retries', 2)
 
         self.smpp_receipt_on_success_submit_sm_resp = self._getbool('dlr', 'smpp_receipt_on_success_submit_sm_resp',

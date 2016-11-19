@@ -29,8 +29,8 @@ class DLRLookup(object):
     and publish dlr for later throwing (http or smpp)
     """
 
-    def __init__(self, name, config, amqpBroker, redisClient):
-        self.name = name
+    def __init__(self, config, amqpBroker, redisClient):
+        self.pid = config.pid
         self.q = None
         self.config = config
         self.amqpBroker = amqpBroker
@@ -49,11 +49,11 @@ class DLRLookup(object):
             self.log.addHandler(handler)
             self.log.propagate = False
 
-        self.log.info('Started %s #%s.', self.__class__.__name__, self.name)
+        self.log.info('Started %s #%s.', self.__class__.__name__, self.pid)
 
         # Subscribe to dlr.* queues
-        consumerTag = 'DLRLookup-%s' % self.name
-        queueName = 'DLRLookup-%s' % self.name  # A local queue to this object
+        consumerTag = 'DLRLookup-%s' % self.pid
+        queueName = 'DLRLookup-%s' % self.pid  # A local queue to this object
         routing_key = 'dlr.*'
         self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic').addCallback(
             lambda _: self.amqpBroker.named_queue_declare(queue=queueName).addCallback(
@@ -115,7 +115,7 @@ class DLRLookup(object):
     def setup_callbacks(self, q):
         if self.q is None:
             self.q = q
-            self.log.info('DLRLookup (%s) is ready.', self.name)
+            self.log.info('DLRLookup (%s) is ready.', self.pid)
 
         q.get().addCallback(self.dlr_callback_dispatcher).addErrback(self.dlr_errback)
 

@@ -170,8 +170,8 @@ class JasminDaemon(object):
         """Start DLRLookup"""
 
         DLRLookupConfigInstance = DLRLookupConfig(self.options['config'])
-        self.components['dlrlookup'] = DLRLookup('jasmind', DLRLookupConfigInstance,
-                                                 self.components['amqp-broker-factory'], self.components['rc'])
+        self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
+                                                 self.components['rc'])
 
     def startSMPPServerPBService(self):
         """Start SMPP Server PB server"""

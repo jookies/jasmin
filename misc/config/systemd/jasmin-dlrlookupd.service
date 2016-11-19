@@ -1,0 +1,14 @@
+[Unit]
+Description=Jasmin SMS Gateway DLR lookup standalone daemon
+Requires=network.target jasmind.service
+After=network.target jasmind.service
+
+[Service]
+SyslogIdentifier=jasmin-dlrlookupd
+PIDFile=/var/run/jasmin-dlrlookupd.pid
+User=jasmin
+Group=jasmin
+ExecStart=/usr/bin/dlrlookupd.py
+
+[Install]
+WantedBy=multi-user.target

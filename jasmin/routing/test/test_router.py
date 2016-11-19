@@ -180,8 +180,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
 
         # Should we start local dlr lookup ?
         self.dlrlookup_config = DLRLookupConfig()
-        self.dlrlookup = DLRLookup('SMPPClientManagerPBTestCase', self.dlrlookup_config, self.amqpBroker,
-                                   self.redisClient)
+        self.dlrlookup = DLRLookup(self.dlrlookup_config, self.amqpBroker, self.redisClient)
 
     @defer.inlineCallbacks
     def tearDown(self):
