@@ -366,10 +366,10 @@ class DLRLookup(object):
                         self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
                         yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
         except DLRMapError as e:
-            self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
+            self.log.error('[msgid:%s] DLRMapError: %s', msgid, e)
             yield self.rejectMessage(message)
         except RedisError as e:
-            self.log.error('[msgid:%s] Redis: %s', msgid, e)
+            self.log.error('[msgid:%s] RedisError: %s', msgid, e)
             yield self.rejectAndRequeueMessage(message)
         except Exception as e:
             self.log.error('[msgid:%s] Unknown error (%s): %s', msgid, type(e), e)
