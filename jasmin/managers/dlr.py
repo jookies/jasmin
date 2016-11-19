@@ -150,7 +150,6 @@ class DLRLookup(object):
     @defer.inlineCallbacks
     def submit_sm_resp_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
-        smpp_msgid = message.content.properties['headers']['smpp_msgid']
         dlr_status = message.content.body
 
         try:
@@ -203,6 +202,7 @@ class DLRLookup(object):
                         'Terminal level receipt is requested, will not send any DLR receipt at this level.')
 
                 if dlr_level in [2, 3] and dlr_status == 'ESME_ROK':
+                    smpp_msgid = message.content.properties['headers']['smpp_msgid']
                     # Map received submit_sm_resp's message_id to the msg for later receipt handling
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                    smpp_msgid, msgid, dlr_expiry)
@@ -247,6 +247,7 @@ class DLRLookup(object):
                                                                                  dest_addr_npi))
 
                     if dlr_status == 'ESME_ROK':
+                        smpp_msgid = message.content.properties['headers']['smpp_msgid']
                         # Map received submit_sm_resp's message_id to the msg for later rceipt handling
                         self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                        smpp_msgid, msgid, smpps_map_expiry)
