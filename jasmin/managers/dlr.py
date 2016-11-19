@@ -19,6 +19,10 @@ class DLRMapError(Exception):
     """Raised when receiving an invalid dlr content from Redis"""
 
 
+class DLRMapNotFound(Exception):
+    """Raised if no dlr is found in Redis db"""
+
+
 class DLRLookup(object):
     """
     Will consume dlr pdus (submit_sm, deliver_sm or data_sm), lookup for matching dlr maps in redis db
@@ -163,7 +167,9 @@ class DLRLookup(object):
             # back by publishing a DLRContentForHttpapi to the messaging exchange
             dlr = yield self.redisClient.hgetall("dlr:%s" % msgid)
 
-            if len(dlr) == 0 or 'sc' not in dlr or dlr['sc'] not in ['httpapi', 'smppsapi']:
+            if len(dlr) == 0:
+                raise DLRMapNotFound('No dlr map for msgid[%s]' % msgid)
+            if 'sc' not in dlr or dlr['sc'] not in ['httpapi', 'smppsapi']:
                 raise DLRMapError('Fetched unknown dlr: %s' % dlr)
 
             if dlr['sc'] == 'httpapi':
@@ -261,6 +267,9 @@ class DLRLookup(object):
         except RedisError as e:
             self.log.error('[msgid:%s] Redis: %s', msgid, e)
             yield self.rejectAndRequeueMessage(message)
+        except DLRMapNotFound as e:
+            self.log.debug('[msgid:%s] DLRMapNotFound: %s', msgid, e)
+            yield self.rejectMessage(message)
         except Exception as e:
             self.log.error('[msgid:%s] Unknown error (%s): %s', msgid, type(e), e)
             yield self.rejectMessage(message)
