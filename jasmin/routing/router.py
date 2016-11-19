@@ -222,7 +222,7 @@ class RouterPB(pb.Avatar):
         without errbacking here so this is a workaround to make it clean, it can be considered
         as a @TODO requiring knowledge of the queue api behaviour
         """
-        if error.check(Closed) == None:
+        if error.check(Closed) is None:
             # @todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside deliver_sm_callback
@@ -263,7 +263,7 @@ class RouterPB(pb.Avatar):
         without errbacking here so this is a workaround to make it clean, it can be considered
         as a @TODO requiring knowledge of the queue api behaviour
         """
-        if error.check(Closed) == None:
+        if error.check(Closed) is None:
             # @todo: implement this errback
             # For info, this errback is called whenever:
             # - an error has occured inside deliver_sm_callback

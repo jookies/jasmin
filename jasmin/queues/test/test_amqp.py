@@ -3,15 +3,18 @@ Test cases for AmqpFactory
 These are test cases for only Jasmin's code, smpp.twisted tests are not included here
 """
 
-import time
 import logging
+import time
 import uuid
-from twisted.trial.unittest import TestCase
+
 from twisted.internet import defer, reactor
+from twisted.trial.unittest import TestCase
+from txamqp.content import Content
+from txamqp.queue import Closed
+
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
-from txamqp.queue import Closed
-from txamqp.content import Content
+
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -136,7 +139,7 @@ class ConsumeTools(AmqpTestCase):
         without errbacking here so this is a workaround to make it clean, it can be considered
         as a @TODO requiring knowledge of the queue api behaviour
         """
-        if error.check(Closed) == None:
+        if error.check(Closed) is None:
             print "Error in _errback %s" % (error)
             return error
 
