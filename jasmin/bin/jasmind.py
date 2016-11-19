@@ -16,7 +16,8 @@ from twisted.web import server
 from jasmin.interceptor.configs import InterceptorPBClientConfig
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.managers.clients import SMPPClientManagerPB
-from jasmin.managers.configs import SMPPClientPBConfig
+from jasmin.managers.configs import SMPPClientPBConfig, DLRLookupConfig
+from jasmin.managers.dlr import DLRLookup
 from jasmin.protocols.cli.configs import JCliConfig
 from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
@@ -53,6 +54,8 @@ class Options(usage.Options):
     optFlags = [
         ['disable-smpp-server', None, 'Do not start SMPP Server service'],
         ['enable-dlr-thrower', None, 'Enable DLR Thrower service (not recommended: start the dlrd daemon instead)'],
+        ['enable-dlr-lookup', None, 'Enable DLR Lookup service (not recommended: start the dlrlookupd daemon instead)'],
+        # @TODO: deliver-thrower must be executed as a standalone process, just like dlr-thrower
         ['disable-deliver-thrower', None, 'Do not DeliverSm Thrower service'],
         ['disable-http-api', None, 'Do not HTTP API'],
         ['disable-jcli', None, 'Do not jCli console'],
@@ -162,6 +165,13 @@ class JasminDaemon(object):
     def stopSMPPClientManagerPBService(self):
         """Stop SMPP Client Manager PB server"""
         return self.components['smppcm-pb-server'].stopListening()
+
+    def startDLRLookupService(self):
+        """Start DLRLookup"""
+
+        DLRLookupConfigInstance = DLRLookupConfig(self.options['config'])
+        self.components['dlrlookup'] = DLRLookup('jasmind', DLRLookupConfigInstance,
+                                                 self.components['amqp-broker-factory'], self.components['rc'])
 
     def startSMPPServerPBService(self):
         """Start SMPP Server PB server"""
@@ -371,6 +381,16 @@ class JasminDaemon(object):
             syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPClientManagerPB: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
+
+        ########################################################
+        if self.options['enable-dlr-lookup']:
+            try:
+                # [optional] Start DLR Lookup
+                self.startDLRLookupService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRLookup: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  DLRLookup Started.")
 
         ########################################################
         if not self.options['disable-smpp-server']:
