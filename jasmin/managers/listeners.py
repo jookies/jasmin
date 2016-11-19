@@ -361,10 +361,12 @@ class SMPPClientSMListener(object):
                 yield self.ackMessage(amqpMessage)
 
             # Send DLR to DLRLookup
-            yield self.amqpBroker.publish(exchange='messaging',
-                                          routing_key='dlr.submit_sm_resp',
-                                          content=DLR(pdu_type=r.response.id, msgid=msgid, status=r.response.status,
-                                                      smpp_msgid=r.response.params['message_id']))
+            if r.response.status == CommandStatus.ESME_ROK:
+                dlr = DLR(pdu_type=r.response.id, msgid=msgid, status=r.response.status,
+                          smpp_msgid=r.response.params['message_id'])
+            else:
+                dlr = DLR(pdu_type=r.response.id, msgid=msgid, status=r.response.status)
+            yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr.submit_sm_resp', content=dlr)
 
             # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer
             if total_bill_amount > 0:
@@ -389,7 +391,7 @@ class SMPPClientSMListener(object):
                                               routing_key=amqpMessage.content.properties['reply-to'],
                                               content=content)
         except Exception, e:
-            self.log.error('Error while handling submit_sm_resp pdu for msgid:%s: %s', msgid, e)
+            self.log.error('(%s) while handling submit_sm_resp pdu for msgid:%s: %s', type(e), msgid, e)
         else:
             if will_be_retried:
                 defer.returnValue(False)
