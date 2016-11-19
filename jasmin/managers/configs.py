@@ -16,7 +16,7 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 
 class SMPPClientPBConfig(ConfigFile):
-    "Config handler for 'client-management' section"
+    """Config handler for 'client-management' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -41,15 +41,12 @@ class SMPPClientPBConfig(ConfigFile):
 
 
 class SMPPClientSMListenerConfig(ConfigFile):
-    "Config handler for 'sm-listener' section"
+    """Config handler for 'sm-listener' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.publish_submit_sm_resp = self._getbool('sm-listener', 'publish_submit_sm_resp', False)
-
-        self.smpp_receipt_on_success_submit_sm_resp = self._getbool(
-            'sm-listener', 'smpp_receipt_on_success_submit_sm_resp', False)
 
         self.submit_error_retrial = ast.literal_eval(
             self._get(
@@ -67,17 +64,34 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.submit_retrial_delay_smppc_not_ready = self._getint(
             'sm-listener', 'submit_retrial_delay_smppc_not_ready', False)
 
-        self.enable_local_dlr_lookup = self._getbool('sm-listener', 'enable_local_dlr_lookup', True)
-
         self.dlr_lookup_retry_delay = self._getint(
             'sm-listener', 'dlr_lookup_retry_delay', 10)
 
         self.dlr_lookup_retry_delay = self._getint(
             'sm-listener', 'dlr_lookup_max_retries', 2)
 
-        self.log_level = logging.getLevelName(
-            self._get('sm-listener', 'log_level', 'INFO'))
+        self.log_level = logging.getLevelName(self._get('sm-listener', 'log_level', 'INFO'))
         self.log_file = self._get('sm-listener', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
         self.log_rotate = self._get('sm-listener', 'log_rotate', 'midnight')
         self.log_format = self._get('sm-listener', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('sm-listener', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+
+class DLRLookupConfig(ConfigFile):
+    """Config handler for 'dlr' section"""
+
+    def __init__(self, config_file=None):
+        ConfigFile.__init__(self, config_file)
+
+        self.dlr_lookup_retry_delay = self._getint('dlr', 'dlr_lookup_retry_delay', 10)
+
+        self.dlr_lookup_retry_delay = self._getint('dlr', 'dlr_lookup_max_retries', 2)
+
+        self.smpp_receipt_on_success_submit_sm_resp = self._getbool('dlr', 'smpp_receipt_on_success_submit_sm_resp',
+                                                                    False)
+
+        self.log_level = logging.getLevelName(self._get('dlr', 'log_level', 'INFO'))
+        self.log_file = self._get('dlr', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
+        self.log_rotate = self._get('dlr', 'log_rotate', 'midnight')
+        self.log_format = self._get('dlr', 'log_format', DEFAULT_LOGFORMAT)
+        self.log_date_format = self._get('dlr', 'log_date_format', '%Y-%m-%d %H:%M:%S')
