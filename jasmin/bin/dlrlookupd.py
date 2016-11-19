@@ -9,6 +9,8 @@ from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.internet import reactor, defer
 from twisted.python import usage
 
+from jasmin.managers.configs import DLRLookupConfig
+from jasmin.managers.dlr import DLRLookup
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.redis.client import ConnectionWithConfiguration
@@ -67,6 +69,13 @@ class DlrlookupDaemon(object):
 
         return self.components['amqp-broker-client'].disconnect()
 
+    def startDLRLookupService(self):
+        """Start DLRLookup"""
+
+        DLRLookupConfigInstance = DLRLookupConfig(self.options['config'])
+        self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
+                                                 self.components['rc'])
+
     @defer.inlineCallbacks
     def start(self):
         """Start Dlrlookupd daemon"""
@@ -90,6 +99,14 @@ class DlrlookupDaemon(object):
             syslog.syslog(syslog.LOG_ERR, "  Cannot start AMQP Broker: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  AMQP Broker Started.")
+
+        try:
+            # [optional] Start DLR Lookup
+            self.startDLRLookupService()
+        except Exception, e:
+            syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRLookup: %s" % e)
+        else:
+            syslog.syslog(syslog.LOG_INFO, "  DLRLookup Started.")
 
     @defer.inlineCallbacks
     def stop(self):
