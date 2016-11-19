@@ -12,7 +12,6 @@ from txamqp.queue import Closed
 
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, SubmitSmRespBillContent, DLR
-from jasmin.managers.dlr import DLRLookupSingleton
 from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
@@ -57,15 +56,6 @@ class SMPPClientSMListener(object):
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False
-
-        # Should we start local dlr lookup ?
-        self.dlrlookup = None
-        if self.config.enable_local_dlr_lookup:
-            self.dlrlookup = DLRLookupSingleton().get(config, amqpBroker, redisClient)
-            self.log.info('Started %s for [cid:%s] with local dlrlookup singleton.', self.__class__.__name__,
-                          self.SMPPClientFactory.config.id)
-        else:
-            self.log.info('Started %s for [cid:%s].', self.__class__.__name__, self.SMPPClientFactory.config.id)
 
     def setSubmitSmQ(self, queue):
         self.log.debug('Setting a new submit_sm_q: %s', queue)

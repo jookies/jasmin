@@ -392,7 +392,7 @@ class DLRLookup(object):
 
 
 class DLRLookupSingleton(object):
-    """Only one DLRLookup object for all SMPPCLientSMListeners"""
+    """Used to launch only one DLRLookup object"""
     __metaclass__ = Singleton
     objects = {}
 
