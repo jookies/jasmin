@@ -167,7 +167,7 @@ class DLRLookup(object):
             # back by publishing a DLRContentForHttpapi to the messaging exchange
             dlr = yield self.redisClient.hgetall("dlr:%s" % msgid)
 
-            if len(dlr) == 0:
+            if dlr is None or len(dlr) == 0:
                 raise DLRMapNotFound('No dlr map for msgid[%s]' % msgid)
             if 'sc' not in dlr or dlr['sc'] not in ['httpapi', 'smppsapi']:
                 raise DLRMapError('Fetched unknown dlr: %s' % dlr)
@@ -213,7 +213,7 @@ class DLRLookup(object):
                     self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                    smpp_msgid, msgid, dlr_expiry)
                     hashKey = "queue-msgid:%s" % smpp_msgid
-                    hashValues = {'msgid': msgid, 'connector_type': 'httpapi', }
+                    hashValues = {'msgid': msgid, 'connector_type': 'httpapi'}
                     yield self.redisClient.hmset(hashKey, hashValues)
                     yield self.redisClient.expire(hashKey, dlr_expiry)
             elif dlr['sc'] == 'smppsapi':
@@ -258,15 +258,20 @@ class DLRLookup(object):
                         self.log.debug('Mapping smpp msgid: %s to queue msgid: %s, expiring in %s',
                                        smpp_msgid, msgid, smpps_map_expiry)
                         hashKey = "queue-msgid:%s" % smpp_msgid
-                        hashValues = {'msgid': msgid, 'connector_type': 'smppsapi', }
+                        hashValues = {'msgid': msgid, 'connector_type': 'smppsapi'}
                         yield self.redisClient.hmset(hashKey, hashValues)
                         yield self.redisClient.expire(hashKey, smpps_map_expiry)
         except DLRMapError as e:
             self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
             yield self.rejectMessage(message)
         except RedisError as e:
-            self.log.error('[msgid:%s] Redis: %s', msgid, e)
-            yield self.rejectAndRequeueMessage(message)
+            if self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
+                self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
+                               self.config.dlr_lookup_max_retries, e)
+                yield self.rejectAndRequeueMessage(message)
+            else:
+                self.log.error('[msgid:%s] (final) RedisError: %s', msgid, e)
+                yield self.rejectMessage(message)
         except DLRMapNotFound as e:
             self.log.debug('[msgid:%s] DLRMapNotFound: %s', msgid, e)
             yield self.rejectMessage(message)
@@ -297,15 +302,15 @@ class DLRLookup(object):
 
             q = yield self.redisClient.hgetall("queue-msgid:%s" % msgid)
             if len(q) != 2 or 'msgid' not in q or 'connector_type' not in q:
-                raise DLRMapError('Fetched unknown queued dlr: %s' % q)
+                raise DLRMapNotFound('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_id, msgid))
 
             submit_sm_queue_id = q['msgid']
             connector_type = q['connector_type']
 
             # Get dlr and ensure it's sc (source_connector) is same as q['connector_type']
             dlr = yield self.redisClient.hgetall("dlr:%s" % submit_sm_queue_id)
-            if dlr is None:
-                raise DLRMapError('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_id, msgid))
+            if dlr is None or len(dlr) == 0:
+                raise DLRMapNotFound('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_id, msgid))
             if len(dlr) > 0 and dlr['sc'] != connector_type:
                 raise DLRMapError('Found a dlr for msgid:%s with diffrent sc: %s' % (submit_sm_queue_id, dlr['sc']))
 
@@ -379,14 +384,27 @@ class DLRLookup(object):
             self.log.error('[msgid:%s] DLRMapError: %s', msgid, e)
             yield self.rejectMessage(message)
         except RedisError as e:
-            self.log.error('[msgid:%s] RedisError: %s', msgid, e)
-            yield self.rejectAndRequeueMessage(message)
+            if self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
+                self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
+                               self.config.dlr_lookup_max_retries, e)
+                yield self.rejectAndRequeueMessage(message)
+            else:
+                self.log.error('[msgid:%s] (final) RedisError: %s', msgid, e)
+                yield self.rejectMessage(message)
+        except DLRMapNotFound as e:
+            if self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
+                self.log.error('[msgid:%s] (retrials: %s/%s) DLRMapNotFound: %s', msgid, self.lookup_retrials[msgid],
+                               self.config.dlr_lookup_max_retries, e)
+                yield self.rejectAndRequeueMessage(message)
+            else:
+                self.log.error('[msgid:%s] (final) DLRMapNotFound: %s', msgid, e)
+                yield self.rejectMessage(message)
         except Exception as e:
             self.log.error('[msgid:%s] Unknown error (%s): %s', msgid, type(e), e)
             yield self.rejectMessage(message)
         else:
             yield self.ackMessage(message)
-        finally:
+
             self.log.info(
                 "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] \
 [err:%s] [content:%r]",
