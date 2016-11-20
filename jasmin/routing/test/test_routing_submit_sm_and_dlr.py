@@ -8,6 +8,8 @@ from twisted.web import server
 from twisted.web.client import getPage
 
 from jasmin.protocols.smpp.test.smsc_simulator import *
+from jasmin.redis.client import ConnectionWithConfiguration
+from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.routing.Filters import TransparentFilter
 from jasmin.routing.Routes import FailoverMTRoute
 from jasmin.routing.jasminApi import SmppClientConnector
@@ -1472,6 +1474,68 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
                 0]
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+
+    @defer.inlineCallbacks
+    def test_quick_dlrs(self):
+        """Refs #472
+        Will slow down the call to redis when saving the dlr map in submit_sm_resp callback and get the
+        deliver_sm dlr before it, this will let DLRLookup to retry looking up the dlr map.
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Bind
+        yield self.smppc_factory.connectAndBind()
+
+        # Install mocks
+        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+
+        # Make a new connection to redis
+        # It is used to wrap DLRLookup's redis client and slowdown calls to hmset
+        RCInstance = RedisForJasminConfig()
+        r = yield ConnectionWithConfiguration(RCInstance)
+        # Authenticate and select db
+        if RCInstance.password is not None:
+            yield r.auth(RCInstance.password)
+            yield r.select(RCInstance.dbid)
+
+        # Mock hmset redis's call to slow it down
+        @defer.inlineCallbacks
+        def mocked_hmset(k, v):
+            # Slow down hmset
+            # We need to receive the deliver_sm dlr before submit_sm_resp
+            if k[:11] == 'queue-msgid':
+                yield waitFor(1)
+
+            yield r.hmset(k, v)
+
+        self.dlrlookup.redisClient.hmset = mock.MagicMock(wraps=mocked_hmset)
+
+        # Send mass SMS MT through smpps interface
+        SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
+        SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
+            RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+        iterations = 10
+        for _ in range(iterations):
+            # Send SubmitSmPDU
+            yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+            yield waitFor(1)
+            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD')
+
+        # Cool down
+        yield waitFor(13)
+
+        # Count delivers
+        deliver_count = 0
+        for pdu in self.smpps_factory.lastProto.sendPDU.call_args_list:
+            if pdu[0][0].id == pdu_types.CommandId.deliver_sm:
+                deliver_count += 1
+        self.assertEqual(iterations, deliver_count)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+        yield r.disconnect()
 
 
 class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):

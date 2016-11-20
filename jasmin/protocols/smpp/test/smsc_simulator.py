@@ -1,25 +1,26 @@
-from datetime import datetime, timedelta
-from jasmin.vendor.smpp.twisted.tests.smsc_simulator import *
-from jasmin.vendor.smpp.pdu.pdu_types import *
 import random
+from datetime import datetime, timedelta
 
-LOG_CATEGORY="jasmin.smpp.tests.smsc_simulator"
+from jasmin.vendor.smpp.twisted.tests.smsc_simulator import *
+
+LOG_CATEGORY = "jasmin.smpp.tests.smsc_simulator"
 
 message_state_map = {
-    'ACCEPTD':                  MessageState.ACCEPTED,
-    'UNDELIV':                  MessageState.UNDELIVERABLE,
-    'REJECTD':                  MessageState.REJECTED,
-    'DELIVRD':                  MessageState.DELIVERED,
-    'EXPIRED':                  MessageState.EXPIRED,
-    'DELETED':                  MessageState.DELETED,
-    'ACCEPTD':                  MessageState.ACCEPTED,
-    'UNKNOWN':                  MessageState.UNKNOWN,
+    'ACCEPTD': MessageState.ACCEPTED,
+    'UNDELIV': MessageState.UNDELIVERABLE,
+    'REJECTD': MessageState.REJECTED,
+    'DELIVRD': MessageState.DELIVERED,
+    'EXPIRED': MessageState.EXPIRED,
+    'DELETED': MessageState.DELETED,
+    'ACCEPTD': MessageState.ACCEPTED,
+    'UNKNOWN': MessageState.UNKNOWN,
 }
 
-class NoSubmitSmWhenReceiverIsBoundSMSC(HappySMSC):
 
+class NoSubmitSmWhenReceiverIsBoundSMSC(HappySMSC):
     def handleSubmit(self, reqPDU):
         self.sendResponse(reqPDU, CommandStatus.ESME_RINVBNDSTS)
+
 
 class NoResponseOnSubmitSMSCRecorder(HappySMSC):
     submitRecords = []
@@ -28,6 +29,7 @@ class NoResponseOnSubmitSMSCRecorder(HappySMSC):
         self.submitRecords.append(reqPDU)
         pass
 
+
 class HappySMSCRecorder(HappySMSC):
     def __init__(self):
         HappySMSC.__init__(self)
@@ -35,8 +37,8 @@ class HappySMSCRecorder(HappySMSC):
         self.pduRecords = []
         self.submitRecords = []
 
-    def PDUReceived( self, pdu ):
-        HappySMSC.PDUReceived( self, pdu )
+    def PDUReceived(self, pdu):
+        HappySMSC.PDUReceived(self, pdu)
         self.pduRecords.append(pdu)
 
     def handleSubmit(self, reqPDU):
@@ -55,21 +57,24 @@ class HappySMSCRecorder(HappySMSC):
             status = CommandStatus.ESME_ROK
 
         # Return back a pdu
-        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, status=status, message_id = str(random.randint(10000000, 9999999999)))
+        self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum, status=status,
+                                                     message_id=str(random.randint(10000000, 9999999999)))
         self.sendPDU(self.lastSubmitSmRestPDU)
 
     def handleData(self, reqPDU):
         self.sendSuccessResponse(reqPDU)
 
+
 class DeliverSmSMSC(HappySMSC):
     def trigger_deliver_sm(self, pdu):
         self.sendPDU(pdu)
+
 
 class DeliveryReceiptSMSC(HappySMSC):
     """Will send a deliver_sm on bind request
     """
 
-    def __init__( self ):
+    def __init__(self):
         HappySMSC.__init__(self)
         self.responseMap[BindReceiver] = self.sendDeliverSM
         self.responseMap[BindTransceiver] = self.sendDeliverSM
@@ -87,6 +92,7 @@ class DeliveryReceiptSMSC(HappySMSC):
         )
         self.sendPDU(pdu)
 
+
 class ManualDeliveryReceiptHappySMSC(HappySMSC):
     """Will send a deliver_sm through trigger_DLR() method
     A submit_sm must be sent to this SMSC before requesting sendDeliverSM !
@@ -101,7 +107,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         self.nextResponseMsgId = None
         self.pduRecords = []
 
-    def PDUReceived( self, pdu ):
+    def PDUReceived(self, pdu):
         HappySMSC.PDUReceived(self, pdu)
         self.pduRecords.append(pdu)
 
@@ -119,10 +125,10 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
             self.nextResponseMsgId = None
 
         self.lastSubmitSmRestPDU = reqPDU.requireAck(reqPDU.seqNum,
-            status=CommandStatus.ESME_ROK,
-            message_id=msgid,
-            )
-        self.sendPDU(self.lastSubmitSmRestPDU)
+                                                     status=CommandStatus.ESME_ROK,
+                                                     message_id=msgid,
+                                                     )
+        return self.sendPDU(self.lastSubmitSmRestPDU)
 
     def handleSubmit(self, reqPDU):
         # Send back a submit_sm_resp
@@ -132,43 +138,49 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         self.submitRecords.append(reqPDU)
 
     def trigger_deliver_sm(self, pdu):
-        self.sendPDU(pdu)
+        return self.sendPDU(pdu)
 
     def trigger_data_sm(self, pdu):
-        self.sendPDU(pdu)
+        return self.sendPDU(pdu)
 
-    def trigger_DLR(self, _id = None, pdu_type = 'deliver_sm', stat = 'DELIVRD'):
+    def trigger_DLR(self, _id=None, pdu_type='deliver_sm', stat='DELIVRD'):
         if self.lastSubmitSmRestPDU is None:
             raise Exception('A submit_sm must be sent to this SMSC before requesting sendDeliverSM !')
 
+        # Pick the last submit_sm
+        submitsm_pdu = self.lastSubmitSmPDU
+
+        # Pick the last submit_sm_resp
+        submitsm_resp_pdu = self.lastSubmitSmRestPDU
         if _id is None:
-            _id = self.lastSubmitSmRestPDU.params['message_id']
+            _id = submitsm_resp_pdu.params['message_id']
 
         if pdu_type == 'deliver_sm':
             # Send back a deliver_sm with containing a DLR
             pdu = DeliverSM(
-                source_addr=self.lastSubmitSmPDU.params['source_addr'],
-                destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
+                source_addr=submitsm_pdu.params['source_addr'],
+                destination_addr=submitsm_pdu.params['destination_addr'],
                 short_message='id:%s sub:001 dlvrd:001 submit date:1305050826 done date:1305050826 stat:%s err:000 text:%s' % (
-                            str(_id),
-                            stat,
-                            self.lastSubmitSmPDU.params['short_message'][:20]
-                            ),
+                    str(_id),
+                    stat,
+                    submitsm_pdu.params['short_message'][:20]
+                ),
                 message_state=message_state_map[stat],
                 receipted_message_id=str(_id),
             )
-            self.trigger_deliver_sm(pdu)
+            return self.trigger_deliver_sm(pdu)
         elif pdu_type == 'data_sm':
             # Send back a data_sm with containing a DLR
             pdu = DataSM(
-                source_addr=self.lastSubmitSmPDU.params['source_addr'],
-                destination_addr=self.lastSubmitSmPDU.params['destination_addr'],
+                source_addr=submitsm_pdu.params['source_addr'],
+                destination_addr=submitsm_pdu.params['destination_addr'],
                 message_state=message_state_map[stat],
                 receipted_message_id=str(_id),
             )
-            self.trigger_data_sm(pdu)
+            return self.trigger_data_sm(pdu)
         else:
             raise Exception('Unknown pdu_type (%s) when calling trigger_DLR()' % pdu_type)
+
 
 class QoSSMSC_2MPS(HappySMSC):
     "A throttled SMSC that only accept 2 Messages per second"
@@ -177,7 +189,7 @@ class QoSSMSC_2MPS(HappySMSC):
     def handleSubmit(self, reqPDU):
         # Calculate MPS
         permitted_throughput = 1 / 2.0
-        permitted_delay = timedelta( microseconds = permitted_throughput * 1000000)
+        permitted_delay = timedelta(microseconds=permitted_throughput * 1000000)
         if self.last_submit_at is not None:
             delay = datetime.now() - self.last_submit_at
 
@@ -187,9 +199,10 @@ class QoSSMSC_2MPS(HappySMSC):
             self.last_submit_at = datetime.now()
             self.sendResponse(reqPDU, CommandStatus.ESME_ROK)
 
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    factory          = Factory()
+    factory = Factory()
     factory.protocol = BlackHoleSMSC
     reactor.listenTCP(8007, factory)
     reactor.run()
