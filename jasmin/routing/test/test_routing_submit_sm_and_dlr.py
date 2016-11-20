@@ -677,6 +677,59 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(callArgs_level1['id'][0], msgId)
         self.assertEqual(callArgs_level2['id'][0], msgId)
 
+    @defer.inlineCallbacks
+    def test_quick_dlr(self):
+        """Refs #472
+        Will slow down the call to redis when saving the dlr map in submit_sm_resp callback and get the
+        deliver_sm dlr before it, this will let DLRLookup to retry looking up the dlr map.
+        """
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Make a new connection to redis
+        # It is used to wrap DLRLookup's redis client and slowdown calls to hmset
+        RCInstance = RedisForJasminConfig()
+        r = yield ConnectionWithConfiguration(RCInstance)
+        # Authenticate and select db
+        if RCInstance.password is not None:
+            yield r.auth(RCInstance.password)
+            yield r.select(RCInstance.dbid)
+
+        # Mock hmset redis's call to slow it down
+        @defer.inlineCallbacks
+        def mocked_hmset(k, v):
+            # Slow down hmset
+            # We need to receive the deliver_sm dlr before submit_sm_resp
+            if k[:11] == 'queue-msgid':
+                yield waitFor(1)
+
+            yield r.hmset(k, v)
+
+        self.dlrlookup.redisClient.hmset = mock.MagicMock(wraps=mocked_hmset)
+
+        # Ask for DLR
+        self.params['dlr-url'] = self.dlr_url
+        self.params['dlr-level'] = 2
+        self.params['dlr-method'] = 'GET'
+        self.params['content'] = 'somecontent'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send SubmitSmPDU
+        yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        yield waitFor(1)
+        # Push DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR()
+
+        # Wait for DLRLookup retrial
+        yield waitFor(11)
+
+        yield self.stopSmppClientConnectors()
+        yield r.disconnect()
+
+        # Run tests
+        # A DLR must be sent to dlr_url
+        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+
 
 class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -1476,7 +1529,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
 
     @defer.inlineCallbacks
-    def test_quick_dlrs(self):
+    def test_quick_dlr(self):
         """Refs #472
         Will slow down the call to redis when saving the dlr map in submit_sm_resp callback and get the
         deliver_sm dlr before it, this will let DLRLookup to retry looking up the dlr map.
@@ -1508,29 +1561,25 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 yield waitFor(1)
 
             yield r.hmset(k, v)
-
         self.dlrlookup.redisClient.hmset = mock.MagicMock(wraps=mocked_hmset)
 
-        # Send mass SMS MT through smpps interface
+        # Ask for DLR
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
         SubmitSmPDU.params['registered_delivery'] = RegisteredDelivery(
             RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
-        iterations = 10
-        for _ in range(iterations):
-            # Send SubmitSmPDU
-            yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
-            yield waitFor(1)
-            yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD')
 
-        # Cool down
-        yield waitFor(13)
+        # Send SubmitSmPDU
+        yield self.smppc_factory.lastProto.sendDataRequest(SubmitSmPDU)
+        yield waitFor(1)
+        # Push DLR
+        yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD')
+
+        # Wait for DLRLookup retrial
+        yield waitFor(11)
 
         # Count delivers
-        deliver_count = 0
-        for pdu in self.smpps_factory.lastProto.sendPDU.call_args_list:
-            if pdu[0][0].id == pdu_types.CommandId.deliver_sm:
-                deliver_count += 1
-        self.assertEqual(iterations, deliver_count)
+        # 2 = submit_sm_resp + deliver_sm
+        self.assertEqual(2, self.smpps_factory.lastProto.sendPDU.call_count)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
