@@ -12,7 +12,7 @@ The AMQP broker is providing a strong store & forward queuing mechanism, through
 
    AMQP Messaging flows
 
-Five main actors are messaging through the "*messaging*" topic, their business logic are explained in the below paragraphs.
+    Six main actors are messaging through the "*messaging*" topic, their business logic are explained in the below paragraphs.
 
 SMPPClientManagerPB
 *******************
@@ -27,6 +27,13 @@ an AMQP Content message and publish it to a queue named **submit.sm.CID** where 
 
 Every SMPP Connector have a consumer waiting for these messages, once published as explained above, it will be consumed by
 the destination connector's **submit_sm_callback()** method (c.f. :ref:`SMPPClientSMListener`).
+
+.. _DLRLookup:
+
+DLRLookup
+*********
+
+This is a consumer on the **dlr.\*** AMQP route, added in *v0.9*, it's main role is DLR map fetching from Redis database and publishing the dlr to the right thrower (http or smpp).
 
 .. _RouterPB:
 
