@@ -280,7 +280,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['dlr-url'] = self.dlr_url
-        self.params['dlr-level'] = 1
+        self.params['dlr-level'] = 2
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
         # Send a MT
@@ -791,7 +791,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['dlr-url'] = self.dlr_url
-        self.params['dlr-level'] = 1
+        self.params['dlr-level'] = 2
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
         # Send a MT
@@ -1061,6 +1061,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        # Cancel DLRLookup retrial
+        self.dlrlookup.config.dlr_lookup_max_retries = 1
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1158,6 +1161,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
+        # Cancel DLRLookup retrial
+        self.dlrlookup.config.dlr_lookup_max_retries = 1
+
         # Bind
         yield self.smppc_factory.connectAndBind()
 
@@ -1252,6 +1258,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         """
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
+
+        # Cancel DLRLookup retrial
+        self.dlrlookup.config.dlr_lookup_max_retries = 1
 
         # Bind
         yield self.smppc_factory.connectAndBind()

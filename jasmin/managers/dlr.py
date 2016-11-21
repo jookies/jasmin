@@ -265,7 +265,7 @@ class DLRLookup(object):
             self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
             yield self.rejectMessage(message)
         except RedisError as e:
-            if self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
+            if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)
                 yield self.rejectAndRequeueMessage(message)
@@ -384,7 +384,7 @@ class DLRLookup(object):
             self.log.error('[msgid:%s] DLRMapError: %s', msgid, e)
             yield self.rejectMessage(message)
         except RedisError as e:
-            if self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
+            if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)
                 yield self.rejectAndRequeueMessage(message)
@@ -392,7 +392,7 @@ class DLRLookup(object):
                 self.log.error('[msgid:%s] (final) RedisError: %s', msgid, e)
                 yield self.rejectMessage(message)
         except DLRMapNotFound as e:
-            if self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
+            if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) DLRMapNotFound: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)
                 yield self.rejectAndRequeueMessage(message)
