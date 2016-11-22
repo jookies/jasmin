@@ -16,7 +16,8 @@ from twisted.web.client import getPage
 
 import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
-from jasmin.managers.configs import SMPPClientPBConfig
+from jasmin.managers.configs import SMPPClientPBConfig, DLRLookupConfig
+from jasmin.managers.dlr import DLRLookup
 from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
@@ -49,6 +50,7 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 def composeMessage(characters, length):
     if length <= len(characters):
         return ''.join(random.sample(characters, length))
@@ -58,11 +60,13 @@ def composeMessage(characters, length):
             s += ''.join(random.sample(characters, len(characters)))
         return s[:length]
 
+
 def id_generator(size=12, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
+
 class RouterPBTestCase(unittest.TestCase):
-    def setUp(self, authentication = False):
+    def setUp(self, authentication=False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
         # need to run the tests
@@ -73,8 +77,9 @@ class RouterPBTestCase(unittest.TestCase):
 
         # Mock callbacks
         # will be used for assertions
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(wraps = self.pbRoot_f.bill_request_submit_sm_resp_callback)
-        self.pbRoot_f.deliver_sm_callback = mock.Mock(wraps = self.pbRoot_f.deliver_sm_callback)
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(
+            wraps=self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        self.pbRoot_f.deliver_sm_callback = mock.Mock(wraps=self.pbRoot_f.deliver_sm_callback)
 
         p = portal.Portal(JasminPBRealm(self.pbRoot_f))
         if not authentication:
@@ -94,8 +99,9 @@ class RouterPBTestCase(unittest.TestCase):
         yield self.PBServer.stopListening()
         self.pbRoot_f.cancelPersistenceTimer()
 
+
 class HttpServerTestCase(RouterPBTestCase):
-    def setUp(self, interceptorpb_client = None):
+    def setUp(self, interceptorpb_client=None):
         RouterPBTestCase.setUp(self)
 
         # Initiating config objects without any filename
@@ -114,7 +120,7 @@ class HttpServerTestCase(RouterPBTestCase):
         # Launch the http server
         httpApi = HTTPApi(self.pbRoot_f, self.clientManager_f, httpApiConfigInstance, interceptorpb_client)
         self.httpServer = reactor.listenTCP(httpApiConfigInstance.port, server.Site(httpApi))
-        self.httpPort  = httpApiConfigInstance.port
+        self.httpPort = httpApiConfigInstance.port
 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -122,9 +128,10 @@ class HttpServerTestCase(RouterPBTestCase):
 
         yield self.httpServer.stopListening()
 
+
 class SMPPClientManagerPBTestCase(HttpServerTestCase):
     @defer.inlineCallbacks
-    def setUp(self, interceptorpb_client = None):
+    def setUp(self, interceptorpb_client=None):
         HttpServerTestCase.setUp(self, interceptorpb_client)
 
         # Initiating config objects without any filename
@@ -136,7 +143,8 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         # Launch AMQP Broker
         self.amqpBroker = AmqpFactory(AMQPServiceConfigInstance)
         self.amqpBroker.preConnect()
-        self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, self.amqpBroker)
+        self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port,
+                                             self.amqpBroker)
 
         # Wait for AMQP Broker connection to get ready
         yield self.amqpBroker.getChannelReadyDeferred()
@@ -170,6 +178,10 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         # Set a smpp client manager proxy instance
         self.SMPPClientManagerPBProxy = SMPPClientManagerPBProxy()
 
+        # Should we start local dlr lookup ?
+        self.dlrlookup_config = DLRLookupConfig()
+        self.dlrlookup = DLRLookup(self.dlrlookup_config, self.amqpBroker, self.redisClient)
+
     @defer.inlineCallbacks
     def tearDown(self):
         yield HttpServerTestCase.tearDown(self)
@@ -179,6 +191,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         yield self.CManagerServer.stopListening()
         yield self.amqpClient.disconnect()
         yield self.redisClient.disconnect()
+
 
 class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
@@ -215,6 +228,7 @@ class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
 
         self.assertFalse(self.isConnected)
 
+
 class BasicTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def test_version_release(self):
@@ -231,6 +245,7 @@ class BasicTestCases(RouterPBProxy, RouterPBTestCase):
         version = yield self.version()
 
         self.assertEqual(version, jasmin.get_version())
+
 
 class InterceptionTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
@@ -295,6 +310,7 @@ class InterceptionTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
 
+
 class InterceptionConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
     """Ensure that mtinterceptor_add and mointerceptor_add methods wont accept invalid scripts,
     for example:
@@ -323,6 +339,7 @@ class InterceptionConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
         self.assertFalse(r)
         r = yield self.mointerceptor_add(DefaultInterceptor(MOInterceptorScript('some code')), 0)
         self.assertTrue(r)
+
 
 class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
@@ -417,6 +434,7 @@ class RoutingTestCases(RouterPBProxy, RouterPBTestCase):
         self.assertEqual(1, len(listRet1))
         self.assertEqual(0, len(listRet2))
 
+
 class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
     """Ensure that mtroute_add and moroute_add methods wont accept invalid connectors,
     for example:
@@ -449,6 +467,7 @@ class RoutingConnectorTypingCases(RouterPBProxy, RouterPBTestCase):
         self.assertFalse(r)
         r = yield self.moroute_add(DefaultRoute(SmppClientConnector(id_generator())), 0)
         self.assertFalse(r)
+
 
 class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
@@ -696,6 +715,7 @@ class UserAndGroupTestCases(RouterPBProxy, RouterPBTestCase):
         # Asserts
         self.assertEqual(oldCnxStatus, newCnxStatus)
 
+
 class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
     @defer.inlineCallbacks
     def tearDown(self):
@@ -706,8 +726,8 @@ class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
 
         yield RouterPBTestCase.tearDown(self)
 
-class ConfigurationPersistenceTestCases(PersistenceTestCase):
 
+class ConfigurationPersistenceTestCases(PersistenceTestCase):
     @defer.inlineCallbacks
     def test_persist_default(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -973,7 +993,7 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         self.assertEqual(0, len(c))
 
         # Load
-        yield self.load(scope='groups') # Load with scope=all may also work
+        yield self.load(scope='groups')  # Load with scope=all may also work
 
         # List users
         c = yield self.user_get_all()
@@ -1053,6 +1073,7 @@ class ConfigurationPersistenceTestCases(PersistenceTestCase):
         # Config is now persisted
         isPersisted = yield self.is_persisted()
         self.assertTrue(isPersisted)
+
 
 class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
     @defer.inlineCallbacks
@@ -1157,7 +1178,8 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
 
         # assert for 2 calls to persist: 1.users and 2.groups
         self.assertEqual(self.pbRoot_f.perspective_persist.call_count, 2)
-        self.assertEqual(self.pbRoot_f.perspective_persist.call_args_list, [mock.call(scope='groups'), mock.call(scope='users')])
+        self.assertEqual(self.pbRoot_f.perspective_persist.call_args_list,
+                         [mock.call(scope='groups'), mock.call(scope='users')])
 
     @defer.inlineCallbacks
     def test_increase_decrease_quota(self):
@@ -1222,6 +1244,7 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         self.assertFalse(r)
         self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('submit_sm_count'), 10)
 
+
 class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManagerPBTestCase):
     @defer.inlineCallbacks
     def test_delivery(self):
@@ -1240,8 +1263,10 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         yield self.mtroute_add(DefaultRoute(c1), 0)
 
         # Send a SMS MT through http interface
-        url_ko = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (u2.username, u1_password)
-        url_ok = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (u1.username, u2_password)
+        url_ko = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
+            u2.username, u1_password)
+        url_ok = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
+            u1.username, u2_password)
 
         # Incorrect username/password will lead to '403 Forbidden' error
         lastErrorStatus = 200
@@ -1272,17 +1297,20 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         # @todo: Should be a real uuid pattern testing
         self.assertApproximates(len(c), 40, 10)
 
+
 class LastClientFactory(Factory):
     lastClient = None
+
     def buildProtocol(self, addr):
         self.lastClient = Factory.buildProtocol(self, addr)
         return self.lastClient
+
 
 class HappySMSCTestCase(SMPPClientManagerPBTestCase):
     protocol = ManualDeliveryReceiptHappySMSC
 
     @defer.inlineCallbacks
-    def setUp(self, interceptorpb_client = None):
+    def setUp(self, interceptorpb_client=None):
         yield SMPPClientManagerPBTestCase.setUp(self, interceptorpb_client)
 
         self.smsc_f = LastClientFactory()
@@ -1295,15 +1323,16 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
 
         yield self.SMSCPort.stopListening()
 
+
 class SubmitSmTestCaseTools(object):
     """
     Factorized methods for child classes testing SubmitSm and DeliverSm routing scenarios
     """
 
     @defer.inlineCallbacks
-    def prepareRoutingsAndStartConnector(self, reconnectOnConnectionLoss = True, bindOperation = 'transceiver',
-                                         route_rate = 0.0, user = None, port = None, dlr_msg_id_bases = 0,
-                                         source_addr_ton = AddrTon.NATIONAL, source_addr_npi = AddrNpi.ISDN,
+    def prepareRoutingsAndStartConnector(self, reconnectOnConnectionLoss=True, bindOperation='transceiver',
+                                         route_rate=0.0, user=None, port=None, dlr_msg_id_bases=0,
+                                         source_addr_ton=AddrTon.NATIONAL, source_addr_npi=AddrNpi.ISDN,
                                          dest_addr_ton=AddrTon.INTERNATIONAL, dest_addr_npi=AddrNpi.ISDN,
                                          route=None, route_order=1, c1=None):
         # Routing stuff
@@ -1333,15 +1362,15 @@ class SubmitSmTestCaseTools(object):
 
         # Now we'll create the connecter
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=self.c1.cid, port = port,
-                                    reconnectOnConnectionLoss = reconnectOnConnectionLoss,
-                                    responseTimerSecs = 1,
-                                    bindOperation = bindOperation,
-                                    dlr_msg_id_bases = dlr_msg_id_bases,
-                                    source_addr_ton = source_addr_ton,
-                                    source_addr_npi = source_addr_npi,
-                                    dest_addr_ton = dest_addr_ton,
-                                    dest_addr_npi = dest_addr_npi,
+        c1Config = SMPPClientConfig(id=self.c1.cid, port=port,
+                                    reconnectOnConnectionLoss=reconnectOnConnectionLoss,
+                                    responseTimerSecs=1,
+                                    bindOperation=bindOperation,
+                                    dlr_msg_id_bases=dlr_msg_id_bases,
+                                    source_addr_ton=source_addr_ton,
+                                    source_addr_npi=source_addr_npi,
+                                    dest_addr_ton=dest_addr_ton,
+                                    dest_addr_npi=dest_addr_npi,
                                     )
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
@@ -1359,9 +1388,9 @@ class SubmitSmTestCaseTools(object):
         self.method = 'GET'
         self.postdata = None
         self.params = {'to': '06155423',
-                        'username': self.u1.username,
-                        'password': user_password,
-                        'content': 'test'}
+                       'username': self.u1.username,
+                       'password': user_password,
+                       'content': 'test'}
 
         if hasattr(self, 'AckServer'):
             # Send a SMS MT through http interface and set delivery receipt callback in url
@@ -1378,9 +1407,10 @@ class SubmitSmTestCaseTools(object):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(self.c1.cid)
             if ssRet == 'NONE' or ssRet == 'UNBOUND':
-                break;
+                break
             else:
                 yield waitFor(0.2)
+
 
 class NoSubmitSmWhenReceiverIsBoundSMSCTestCases(SMPPClientManagerPBTestCase):
     protocol = NoSubmitSmWhenReceiverIsBoundSMSC
@@ -1398,6 +1428,7 @@ class NoSubmitSmWhenReceiverIsBoundSMSCTestCases(SMPPClientManagerPBTestCase):
         yield SMPPClientManagerPBTestCase.tearDown(self)
 
         yield self.SMSCPort.stopListening()
+
 
 class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMSCTestCases, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -1417,13 +1448,13 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
     @defer.inlineCallbacks
     def test_delivery_using_incorrectly_bound_connector(self):
         yield self.connect('127.0.0.1', self.pbPort)
-        yield self.prepareRoutingsAndStartConnector(bindOperation = 'receiver')
+        yield self.prepareRoutingsAndStartConnector(bindOperation='receiver')
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
         # Send a MT
-        c = yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -1441,6 +1472,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         self.assertEqual(callArgs['id'][0], msgId)
         self.assertEqual(callArgs['message_status'][0], 'ESME_RINVBNDSTS')
 
+
 class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def test_unrated_route(self):
@@ -1448,13 +1480,14 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield self.prepareRoutingsAndStartConnector()
 
         # Mock callback
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(self.pbRoot_f.bill_request_submit_sm_resp_callback)
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(
+            self.pbRoot_f.bill_request_submit_sm_resp_callback)
 
         self.params['content'] = composeMessage({'_'}, 200)
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
         # Send a MT
-        yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        yield getPage(baseurl, method=self.method, postdata=self.postdata)
 
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
@@ -1472,13 +1505,13 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         mt_c.setQuota('balance', 2.0)
         mt_c.setQuota('early_decrement_balance_percent', 10)
         user = User(1, Group(1), 'username', 'password', mt_c)
-        yield self.prepareRoutingsAndStartConnector(route_rate = 1.0, user = user)
+        yield self.prepareRoutingsAndStartConnector(route_rate=1.0, user=user)
 
         self.params['content'] = composeMessage({'_'}, 10)
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
 
         # Send a MT
-        yield getPage(baseurl, method = self.method, postdata = self.postdata)
+        yield getPage(baseurl, method=self.method, postdata=self.postdata)
 
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)

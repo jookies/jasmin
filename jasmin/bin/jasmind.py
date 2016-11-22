@@ -16,7 +16,8 @@ from twisted.web import server
 from jasmin.interceptor.configs import InterceptorPBClientConfig
 from jasmin.interceptor.proxies import InterceptorPBProxy
 from jasmin.managers.clients import SMPPClientManagerPB
-from jasmin.managers.configs import SMPPClientPBConfig
+from jasmin.managers.configs import SMPPClientPBConfig, DLRLookupConfig
+from jasmin.managers.dlr import DLRLookup
 from jasmin.protocols.cli.configs import JCliConfig
 from jasmin.protocols.cli.factory import JCliFactory
 from jasmin.protocols.http.configs import HTTPApiConfig
@@ -53,6 +54,8 @@ class Options(usage.Options):
     optFlags = [
         ['disable-smpp-server', None, 'Do not start SMPP Server service'],
         ['enable-dlr-thrower', None, 'Enable DLR Thrower service (not recommended: start the dlrd daemon instead)'],
+        ['enable-dlr-lookup', None, 'Enable DLR Lookup service (not recommended: start the dlrlookupd daemon instead)'],
+        # @TODO: deliver-thrower must be executed as a standalone process, just like dlr-thrower
         ['disable-deliver-thrower', None, 'Do not DeliverSm Thrower service'],
         ['disable-http-api', None, 'Do not HTTP API'],
         ['disable-jcli', None, 'Do not jCli console'],
@@ -67,7 +70,7 @@ class JasminDaemon(object):
 
     @defer.inlineCallbacks
     def startRedisClient(self):
-        "Start AMQP Broker"
+        """Start AMQP Broker"""
         RedisForJasminConfigInstance = RedisForJasminConfig(self.options['config'])
         self.components['rc'] = yield ConnectionWithConfiguration(RedisForJasminConfigInstance)
         # Authenticate and select db
@@ -76,11 +79,11 @@ class JasminDaemon(object):
             yield self.components['rc'].select(RedisForJasminConfigInstance.dbid)
 
     def stopRedisClient(self):
-        "Stop AMQP Broker"
+        """Stop AMQP Broker"""
         return self.components['rc'].disconnect()
 
     def startAMQPBrokerService(self):
-        "Start AMQP Broker"
+        """Start AMQP Broker"""
 
         AMQPServiceConfigInstance = AmqpConfig(self.options['config'])
         self.components['amqp-broker-factory'] = AmqpFactory(AMQPServiceConfigInstance)
@@ -93,12 +96,12 @@ class JasminDaemon(object):
             self.components['amqp-broker-factory'])
 
     def stopAMQPBrokerService(self):
-        "Stop AMQP Broker"
+        """Stop AMQP Broker"""
 
         return self.components['amqp-broker-client'].disconnect()
 
     def startRouterPBService(self):
-        "Start Router PB server"
+        """Start Router PB server"""
 
         RouterPBConfigInstance = RouterPBConfig(self.options['config'])
         self.components['router-pb-factory'] = RouterPB(RouterPBConfigInstance)
@@ -124,11 +127,11 @@ class JasminDaemon(object):
         return self.components['router-pb-factory'].addAmqpBroker(self.components['amqp-broker-factory'])
 
     def stopRouterPBService(self):
-        "Stop Router PB server"
+        """Stop Router PB server"""
         return self.components['router-pb-server'].stopListening()
 
     def startSMPPClientManagerPBService(self):
-        "Start SMPP Client Manager PB server"
+        """Start SMPP Client Manager PB server"""
 
         SMPPClientPBConfigInstance = SMPPClientPBConfig(self.options['config'])
         self.components['smppcm-pb-factory'] = SMPPClientManagerPB(SMPPClientPBConfigInstance)
@@ -160,11 +163,18 @@ class JasminDaemon(object):
                 self.components['interceptor-pb-client'])
 
     def stopSMPPClientManagerPBService(self):
-        "Stop SMPP Client Manager PB server"
+        """Stop SMPP Client Manager PB server"""
         return self.components['smppcm-pb-server'].stopListening()
 
+    def startDLRLookupService(self):
+        """Start DLRLookup"""
+
+        DLRLookupConfigInstance = DLRLookupConfig(self.options['config'])
+        self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
+                                                 self.components['rc'])
+
     def startSMPPServerPBService(self):
-        "Start SMPP Server PB server"
+        """Start SMPP Server PB server"""
 
         SMPPServerPBConfigInstance = SMPPServerPBConfig(self.options['config'])
         self.components['smpps-pb-factory'] = SMPPServerPB(SMPPServerPBConfigInstance)
@@ -186,11 +196,11 @@ class JasminDaemon(object):
             interface=SMPPServerPBConfigInstance.bind)
 
     def stopSMPPServerPBService(self):
-        "Stop SMPP Server PB"
+        """Stop SMPP Server PB"""
         return self.components['smpps-pb-server'].stopListening()
 
     def startSMPPServerService(self):
-        "Start SMPP Server"
+        """Start SMPP Server"""
 
         SMPPServerConfigInstance = SMPPServerConfig(self.options['config'])
 
@@ -220,11 +230,11 @@ class JasminDaemon(object):
                 self.components['interceptor-pb-client'])
 
     def stopSMPPServerService(self):
-        "Stop SMPP Server"
+        """Stop SMPP Server"""
         return self.components['smpp-server'].stopListening()
 
     def startdeliverSmThrowerService(self):
-        "Start deliverSmThrower"
+        """Start deliverSmThrower"""
 
         deliverThrowerConfigInstance = deliverSmThrowerConfig(self.options['config'])
         self.components['deliversm-thrower'] = deliverSmThrower(deliverThrowerConfigInstance)
@@ -234,11 +244,11 @@ class JasminDaemon(object):
         return self.components['deliversm-thrower'].addAmqpBroker(self.components['amqp-broker-factory'])
 
     def stopdeliverSmThrowerService(self):
-        "Stop deliverSmThrower"
+        """Stop deliverSmThrower"""
         return self.components['deliversm-thrower'].stopService()
 
     def startDLRThrowerService(self):
-        "Start DLRThrower"
+        """Start DLRThrower"""
 
         DLRThrowerConfigInstance = DLRThrowerConfig(self.options['config'])
         self.components['dlr-thrower'] = DLRThrower(DLRThrowerConfigInstance)
@@ -248,11 +258,11 @@ class JasminDaemon(object):
         return self.components['dlr-thrower'].addAmqpBroker(self.components['amqp-broker-factory'])
 
     def stopDLRThrowerService(self):
-        "Stop DLRThrower"
+        """Stop DLRThrower"""
         return self.components['dlr-thrower'].stopService()
 
     def startHTTPApiService(self):
-        "Start HTTP Api"
+        """Start HTTP Api"""
 
         httpApiConfigInstance = HTTPApiConfig(self.options['config'])
 
@@ -274,11 +284,11 @@ class JasminDaemon(object):
             interface=httpApiConfigInstance.bind)
 
     def stopHTTPApiService(self):
-        "Stop HTTP Api"
+        """Stop HTTP Api"""
         return self.components['http-api-server'].stopListening()
 
     def startJCliService(self):
-        "Start jCli console server"
+        """Start jCli console server"""
         loadConfigProfileWithCreds = {
             'username': self.options['username'],
             'password': self.options['password']}
@@ -296,11 +306,11 @@ class JasminDaemon(object):
             interface=JCliConfigInstance.bind)
 
     def stopJCliService(self):
-        "Stop jCli console server"
+        """Stop jCli console server"""
         return self.components['jcli-server'].stopListening()
 
     def startInterceptorPBClient(self):
-        "Start Interceptor client"
+        """Start Interceptor client"""
 
         InterceptorPBClientConfigInstance = InterceptorPBClientConfig(self.options['config'])
         self.components['interceptor-pb-client'] = InterceptorPBProxy()
@@ -313,14 +323,14 @@ class JasminDaemon(object):
             retry=True)
 
     def stopInterceptorPBClient(self):
-        "Stop Interceptor client"
+        """Stop Interceptor client"""
 
         if self.components['interceptor-pb-client'].isConnected:
             return self.components['interceptor-pb-client'].disconnect()
 
     @defer.inlineCallbacks
     def start(self):
-        "Start Jasmind daemon"
+        """Start Jasmind daemon"""
         syslog.syslog(syslog.LOG_INFO, "Starting Jasmin Daemon ...")
 
         # Requirements check begin:
@@ -371,6 +381,16 @@ class JasminDaemon(object):
             syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPClientManagerPB: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
+
+        ########################################################
+        if self.options['enable-dlr-lookup']:
+            try:
+                # [optional] Start DLR Lookup
+                self.startDLRLookupService()
+            except Exception, e:
+                syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRLookup: %s" % e)
+            else:
+                syslog.syslog(syslog.LOG_INFO, "  DLRLookup Started.")
 
         ########################################################
         if not self.options['disable-smpp-server']:
@@ -433,7 +453,7 @@ class JasminDaemon(object):
 
     @defer.inlineCallbacks
     def stop(self):
-        "Stop Jasmind daemon"
+        """Stop Jasmind daemon"""
         syslog.syslog(syslog.LOG_INFO, "Stopping Jasmin Daemon ...")
 
         if 'jcli-server' in self.components:
@@ -484,19 +504,20 @@ class JasminDaemon(object):
         reactor.stop()
 
     def sighandler_stop(self, signum, frame):
-        "Handle stop signal cleanly"
+        """Handle stop signal cleanly"""
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Jasmin Daemon")
 
         return self.stop()
 
 
 if __name__ == '__main__':
-    # Must not be executed simultaneously (c.f. #265)
-    lock = FileLock("/tmp/jasmind")
-
+    lock = None
     try:
         options = Options()
         options.parseOptions()
+
+        # Must not be executed simultaneously (c.f. #265)
+        lock = FileLock("/tmp/jasmind")
 
         # Ensure there are no paralell runs of this script
         lock.acquire(timeout=2)
@@ -518,5 +539,5 @@ if __name__ == '__main__':
         print "There's another instance on jasmind running, exiting."
     finally:
         # Release the lock
-        if lock.i_am_locking():
+        if lock is not None and lock.i_am_locking():
             lock.release()

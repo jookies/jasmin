@@ -1,6 +1,6 @@
 [Unit]
 Description=Jasmin SMS Gateway
-Requires=network.target jasmin-interceptord.service jasmin-dlrd.service
+Requires=network.target jasmin-interceptord.service jasmin-dlrd.service jasmin-dlrlookupd.service
 After=network.target
 
 [Service]
