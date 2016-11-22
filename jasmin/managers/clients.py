@@ -252,7 +252,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
         # Instanciate a SM listener
         smListener = SMPPClientSMListener(
-            SMPPClientSMListenerConfig=SMPPClientSMListenerConfig(self.config.config_file),
+            config=SMPPClientSMListenerConfig(self.config.config_file),
             SMPPClientFactory=serviceManager.SMPPClientFactory,
             amqpBroker=self.amqpBroker,
             redisClient=self.redisClient,

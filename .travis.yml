@@ -3,7 +3,7 @@ language: python
 python:
     - '2.7'
 env:
-    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.9b14
+    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.9b15
 # Command to install dependencies
 install:
     - python setup.py sdist

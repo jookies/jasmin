@@ -4,20 +4,23 @@ Test cases for amqp contents
 
 import cPickle as pickle
 from datetime import datetime
+
 from twisted.trial.unittest import TestCase
-from jasmin.routing.Bills import SubmitSmBill
-from jasmin.routing.jasminApi import *
+
 from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent,
                                      DeliverSmContent, SubmitSmRespBillContent,
                                      DLRContentForHttpapi, DLRContentForSmpps,
-                                     InvalidParameterError)
+                                     DLR, InvalidParameterError)
+from jasmin.routing.jasminApi import *
 from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
+
 
 class ContentTestCase(TestCase):
     body = 'TESTBODY'
     replyto = 'any.route'
     expiration = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     bill = User('foo', Group('test'), 'foo', 'bar')
+
 
 class SubmitSmContentTestCase(ContentTestCase):
     def test_normal(self):
@@ -49,12 +52,14 @@ class SubmitSmContentTestCase(ContentTestCase):
                 counter += 1
 
             c = SubmitSmContent(self.body, self.replyto, self.bill)
-            self.assertEquals(msgIds.count(c['message-id']), 0, "Collision detected at position %s/%s" % (counter, maxCounter))
+            self.assertEquals(msgIds.count(c['message-id']), 0,
+                              "Collision detected at position %s/%s" % (counter, maxCounter))
             msgIds.append(c['message-id'])
 
     def test_set_incorrect_source_connector(self):
         self.assertRaises(InvalidParameterError, SubmitSmContent, self.body, self.replyto,
-                          self.bill, source_connector = 'anythingelse')
+                          self.bill, source_connector='anythingelse')
+
 
 class SubmitSmRespContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
@@ -71,6 +76,45 @@ class SubmitSmRespContentTestCase(ContentTestCase):
         self.assertEquals(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
         self.assertEquals(c['message-id'], 1)
         self.assertTrue('created_at' in c['headers'])
+
+
+class DLRTestCase(ContentTestCase):
+    def test_deliversm_and_datasm(self):
+        for pdu_type in ['deliver_sm', 'data_sm']:
+            c = DLR(pdu_type=pdu_type, msgid=1, status='ESME_ROK', cid='test', dlr_details={'some': 'detail'})
+
+            self.assertEqual('ESME_ROK', c.body)
+            self.assertEqual('1', c.properties['message-id'])
+            self.assertEqual(pdu_type, c.properties['headers']['type'])
+            self.assertEqual('test', c.properties['headers']['cid'])
+            self.assertEqual('detail', c.properties['headers']['dlr_some'])
+
+            # Exceptions:
+            self.assertRaises(InvalidParameterError, DLR, pdu_type=pdu_type, msgid=1, status='ESME_ROK')
+            self.assertRaises(InvalidParameterError, DLR, pdu_type=pdu_type, msgid=1, status='ESME_ROK',
+                              dlr_details={'some': 'detail'})
+            self.assertRaises(InvalidParameterError, DLR, pdu_type=pdu_type, msgid=1, status='ESME_ROK', cid='test')
+
+    def test_submitsmresp(self):
+        # Successful submit_sm_resp
+        c_success = DLR(pdu_type='submit_sm_resp', msgid=1, status='ESME_ROK', smpp_msgid=2)
+        # Errored submit_sm_resp
+        c_errored = DLR(pdu_type='submit_sm_resp', msgid=3, status='ESME_RINVPARLEN')
+
+        self.assertEqual('ESME_ROK', c_success.body)
+        self.assertEqual('1', c_success.properties['message-id'])
+        self.assertEqual('submit_sm_resp', c_success.properties['headers']['type'])
+        self.assertEqual('2', c_success.properties['headers']['smpp_msgid'])
+        self.assertEqual('ESME_RINVPARLEN', c_errored.body)
+        self.assertEqual('3', c_errored.properties['message-id'])
+        self.assertEqual('submit_sm_resp', c_errored.properties['headers']['type'])
+
+        # Exceptions:
+        self.assertRaises(InvalidParameterError, DLR, pdu_type='submit_sm_resp', msgid=1, status='ESME_ROK')
+
+    def test_invalid_pdu_type(self):
+        self.assertRaises(InvalidParameterError, DLR, pdu_type='enquire_link', msgid=1, status='ESME_ROK')
+
 
 class DLRContentForHttpapiTestCase(ContentTestCase):
     def test_normal_level1(self):
@@ -98,8 +142,8 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 2
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3',
-                 dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc='abc', sub='3',
+                                 dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text')
 
         self.assertEquals(c.body, msgid)
         self.assertEquals(len(c['headers']), 12)
@@ -120,8 +164,8 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 3
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3',
-                 dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc='abc', sub='3',
+                                 dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text')
 
         self.assertEquals(c.body, msgid)
         self.assertEquals(len(c['headers']), 12)
@@ -144,7 +188,7 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         dlr_level = 1
 
         validStatuses = ['DELIVRD', 'EXPIRED', 'DELETED',
-                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
+                         'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
 
         for status in validStatuses:
             c = DLRContentForHttpapi(status, msgid, dlr_url, dlr_level)
@@ -168,13 +212,15 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1)
         self.assertEquals(c['headers']['method'], 'POST')
 
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method = 'GET')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method='GET')
         self.assertEquals(c['headers']['method'], 'GET')
 
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method = 'POST')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method='POST')
         self.assertEquals(c['headers']['method'], 'POST')
 
-        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1, method = 'ANY METHOD')
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1,
+                          method='ANY METHOD')
+
 
 class DLRContentForSmppsTestCase(ContentTestCase):
     def test_normal(self):
@@ -217,7 +263,7 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         dest_addr_npi = AddrNpi.ISDN
 
         validStatuses = ['ESME_ROK', 'DELIVRD', 'EXPIRED', 'DELETED',
-                                  'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
+                         'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
 
         for status in validStatuses:
             c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr, sub_date,
@@ -228,6 +274,7 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         self.assertRaises(InvalidParameterError, DLRContentForSmpps,
                           'anystatus', msgid, system_id, source_addr, destination_addr, sub_date,
                           source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
+
 
 class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
@@ -250,11 +297,12 @@ class DeliverSmContentTestCase(ContentTestCase):
         self.assertTrue('created_at' in c['headers'])
 
     def test_headers_concatenated(self):
-        c = DeliverSmContent(self.body, 'connector1', prePickle=False, concatenated = True)
+        c = DeliverSmContent(self.body, 'connector1', prePickle=False, concatenated=True)
 
         self.assertEquals(c['headers']['concatenated'], True)
         self.assertFalse(c['message-id'] == None)
         self.assertTrue('created_at' in c['headers'])
+
 
 class SubmitSmRespBillContentTestCase(ContentTestCase):
     def test_normal(self):

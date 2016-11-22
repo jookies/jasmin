@@ -2,10 +2,11 @@
 Config file handlers for 'client-management' and 'sm-listener' section in jasmin.cfg
 """
 
+import ast
 import cPickle as pickle
 import logging
-import ast
 import os
+
 from jasmin.config.tools import ConfigFile
 
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
@@ -13,8 +14,9 @@ DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class SMPPClientPBConfig(ConfigFile):
-    "Config handler for 'client-management' section"
+    """Config handler for 'client-management' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -37,16 +39,14 @@ class SMPPClientPBConfig(ConfigFile):
         self.log_date_format = self._get('client-management', 'log_date_format', '%Y-%m-%d %H:%M:%S')
         self.pickle_protocol = self._getint('client-management', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
 
+
 class SMPPClientSMListenerConfig(ConfigFile):
-    "Config handler for 'sm-listener' section"
+    """Config handler for 'sm-listener' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
         self.publish_submit_sm_resp = self._getbool('sm-listener', 'publish_submit_sm_resp', False)
-
-        self.smpp_receipt_on_success_submit_sm_resp = self._getbool(
-            'sm-listener', 'smpp_receipt_on_success_submit_sm_resp', False)
 
         self.submit_error_retrial = ast.literal_eval(
             self._get(
@@ -64,9 +64,35 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.submit_retrial_delay_smppc_not_ready = self._getint(
             'sm-listener', 'submit_retrial_delay_smppc_not_ready', False)
 
-        self.log_level = logging.getLevelName(
-            self._get('sm-listener', 'log_level', 'INFO'))
+        self.dlr_lookup_retry_delay = self._getint(
+            'sm-listener', 'dlr_lookup_retry_delay', 10)
+
+        self.dlr_lookup_retry_delay = self._getint(
+            'sm-listener', 'dlr_lookup_max_retries', 2)
+
+        self.log_level = logging.getLevelName(self._get('sm-listener', 'log_level', 'INFO'))
         self.log_file = self._get('sm-listener', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
         self.log_rotate = self._get('sm-listener', 'log_rotate', 'midnight')
         self.log_format = self._get('sm-listener', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('sm-listener', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+
+
+class DLRLookupConfig(ConfigFile):
+    """Config handler for 'dlr' section"""
+
+    def __init__(self, config_file=None):
+        ConfigFile.__init__(self, config_file)
+
+        self.pid = self._get('dlr', 'pid', 'main')
+
+        self.dlr_lookup_retry_delay = self._getint('dlr', 'dlr_lookup_retry_delay', 10)
+        self.dlr_lookup_max_retries = self._getint('dlr', 'dlr_lookup_max_retries', 2)
+
+        self.smpp_receipt_on_success_submit_sm_resp = self._getbool('dlr', 'smpp_receipt_on_success_submit_sm_resp',
+                                                                    False)
+
+        self.log_level = logging.getLevelName(self._get('dlr', 'log_level', 'INFO'))
+        self.log_file = self._get('dlr', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
+        self.log_rotate = self._get('dlr', 'log_rotate', 'midnight')
+        self.log_format = self._get('dlr', 'log_format', DEFAULT_LOGFORMAT)
+        self.log_date_format = self._get('dlr', 'log_date_format', '%Y-%m-%d %H:%M:%S')
