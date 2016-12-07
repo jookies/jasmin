@@ -54,7 +54,7 @@ class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
         self.assertTrue(o.hasTag(23))
         self.assertFalse(o.hasTag(30))
         self.assertRaises(TagNotFoundError, o.removeTag, 30)
-        self.assertEqual([23], o.getTags())
+        self.assertEqual(['23'], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
 
@@ -69,8 +69,8 @@ class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
 
         # Mixed tags
         o.addTag('23')
-        o.addTag(23)
-        self.assertEqual(['23', 23], o.getTags())
+        o.addTag(24)
+        self.assertEqual(['23', '24'], o.getTags())
         o.flushTags()
 
 class RoutableSubmitSmTestCase(RoutablePDUTestCase):
@@ -104,7 +104,7 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
         self.assertTrue(o.hasTag(23))
         self.assertFalse(o.hasTag(30))
         self.assertRaises(TagNotFoundError, o.removeTag, 30)
-        self.assertEqual([23], o.getTags())
+        self.assertEqual(['23'], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
 
@@ -119,8 +119,8 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
 
         # Mixed tags
         o.addTag('23')
-        o.addTag(23)
-        self.assertEqual(['23', 23], o.getTags())
+        o.addTag(24)
+        self.assertEqual(['23', '24'], o.getTags())
         o.flushTags()
 
     def test_locking(self):
@@ -163,7 +163,7 @@ class RoutableDeliverSmTestCase(RoutablePDUTestCase):
         self.assertTrue(o.hasTag(23))
         self.assertFalse(o.hasTag(30))
         self.assertRaises(TagNotFoundError, o.removeTag, 30)
-        self.assertEqual([23], o.getTags())
+        self.assertEqual(['23'], o.getTags())
         o.flushTags()
         self.assertEqual([], o.getTags())
 
@@ -178,6 +178,6 @@ class RoutableDeliverSmTestCase(RoutablePDUTestCase):
 
         # Mixed tags
         o.addTag('23')
-        o.addTag(23)
-        self.assertEqual(['23', 23], o.getTags())
+        o.addTag(24)
+        self.assertEqual(['23', '24'], o.getTags())
         o.flushTags()

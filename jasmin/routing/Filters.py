@@ -254,9 +254,9 @@ class EvalPyFilter(Filter):
 class TagFilter(Filter):
     def __init__(self, tag):
         Filter.__init__(self)
-        if not isinstance(tag, int):
-            raise InvalidFilterParameterError("tag must be integer, %s given" % type(tag))
-        self.tag = tag
+        if not isinstance(tag, int) and not isinstance(tag, str):
+            raise InvalidFilterParameterError("tag must be integer or str, %s given" % type(tag))
+        self.tag = str(tag)
 
         self._repr = '<TG (tag=%s)>' % tag
         self._str = '%s:\nhas tag = %s' % (self.__class__.__name__, tag)
