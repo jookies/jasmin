@@ -46,14 +46,14 @@ class Routable(object):
         if not isinstance(tag, int) and not isinstance(tag, str):
             raise InvalidTagError('Non int or str tag given: (%s):%s' % (type(tag), tag))
 
-        self._tags.append(tag)
+        self._tags.append(str(tag))
 
     def hasTag(self, tag):
         """Check if this routable has 'tag'"""
         if not isinstance(tag, int) and not isinstance(tag, str):
             raise InvalidTagError('Non int or str tag given: (%s):%s' % (type(tag), tag))
 
-        return tag in self._tags
+        return str(tag) in self._tags
 
     def getTags(self):
         """Return all routable tags"""
@@ -63,10 +63,10 @@ class Routable(object):
         """Remove tag from routable"""
         if not isinstance(tag, int) and not isinstance(tag, str):
             raise InvalidTagError('Non int or str tag given: (%s):%s' % (type(tag), tag))
-        if tag not in self._tags:
+        if str(tag) not in self._tags:
             raise TagNotFoundError('Trying to remove non existent tag: %s' % tag)
 
-        return self._tags.remove(tag)
+        return self._tags.remove(str(tag))
 
     def flushTags(self):
         """Remove all tags from routable"""

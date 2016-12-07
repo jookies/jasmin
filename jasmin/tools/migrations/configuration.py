@@ -13,8 +13,9 @@ _REGEX_VER = re.compile(r'^(?P<major>(\d+))'
                         r'(?P<patch>(\d+))$')
 _REGEX_HEADER = re.compile(r'^Persisted on (?P<date>(.*)) \[Jasmin (?P<release_version>(.*))\]')
 
+
 def version_parse(version):
-    "Will parse Jasmin release version and return a float, ex: 0.8rc2 will return 0.8002"
+    """Will parse Jasmin release version and return a float, ex: 0.8rc2 will return 0.8002"""
     match = _REGEX_VER.match(version)
     if match is None:
         raise ValueError('%s is not valid Jasmin version string' % version)
@@ -22,8 +23,9 @@ def version_parse(version):
     return float("%s.%s%s" % (match.groupdict()['major'],
                               match.groupdict()['minor'], match.groupdict()['patch'].zfill(3)))
 
+
 def version_is_valid(version, condition):
-    "Will compare version with condition, example of condition: <=0.52"
+    """Will compare version with condition, example of condition: <=0.52"""
     version = version_parse(version)
 
     if condition[:2] in ('>=', '<=', '=='):
@@ -48,8 +50,9 @@ def version_is_valid(version, condition):
     else:
         return False
 
+
 class ConfigurationMigrator(object):
-    "Responsible of migrating old saved configuration to recent definition, if any"
+    """Responsible of migrating old saved configuration to recent definition, if any"""
 
     def __init__(self, context, header, data):
         "Will contain inputs and parse header to get version and date of persisted data"
@@ -67,7 +70,7 @@ class ConfigurationMigrator(object):
         self.log.debug('[%s] @%s/%s', self.context, self.date, self.version)
 
     def getMigratedData(self):
-        "Return data after executing migration steps"
+        """Return data after executing migration steps"""
         for m in MAP:
             # Context verification
             if self.context not in m['contexts']:
@@ -88,5 +91,5 @@ class ConfigurationMigrator(object):
                 for operation in m['operations']:
                     self.log.info('Migrating old data [%s] from v%s to v%s by calling %s(data)',
                                   self.context, self.version, jasmin.get_release(), operation.func_name)
-                    self.data = operation(self.data)
+                    self.data = operation(self.data, context=self.context)
         return self.data
