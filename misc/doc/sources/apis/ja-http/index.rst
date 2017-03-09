@@ -85,6 +85,11 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - 2
      - Optional
      - Default is 0 (lowest priority)
+   * - **schedule-delivery-time**
+     - String
+     - 000000000100000R (send in 1 minute) 
+     - Optional
+     - Specifies  the  scheduled  time  at  which  the  message  delivery  should  be  first attempted, default is value is None (message will take SMSC's default). Supports Absolute and Relative Times per SMPP v3.4 Issue 1.2 
    * - **validity-period**
      - Integer
      - 1440

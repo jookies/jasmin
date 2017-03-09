@@ -13,6 +13,8 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
+from jasmin.vendor.smpp.pdu.smpp_time import parse
 from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
@@ -204,6 +206,14 @@ class Send(Resource):
                 routable.pdu.params['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s", priority)
 
+	    # Set schedule_delivery_time
+            if 'schedule-delivery-time' in updated_request.args:
+                routable.pdu.params['schedule_delivery_time'] = parse(updated_request.args['schedule-delivery-time'][0])
+                self.log.debug(
+                    "SubmitSmPDU schedule_delivery_time is set to %s (%s)",
+                    routable.pdu.params['schedule_delivery_time'],
+                    updated_request.args['schedule-delivery-time'][0])
+
             # Set validity_period
             if 'validity-period' in updated_request.args:
                 delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
@@ -380,6 +390,7 @@ class Send(Resource):
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
+                      'schedule-delivery-time'    : {'optional': True, 'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' : {'optional': True, 'pattern': re.compile(r'^\d+$')},
@@ -391,7 +402,6 @@ class Send(Resource):
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': False}}
-
             # Default coding is 0 when not provided
             if 'coding' not in updated_request.args:
                 updated_request.args['coding'] = ['0']

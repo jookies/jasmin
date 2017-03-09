@@ -564,11 +564,6 @@ class SMPPClientManagerPB(pb.Avatar):
 
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
-            # Remove schedule_delivery_time / not supported right now
-            if SubmitSmPDU.params['schedule_delivery_time'] is not None:
-                SubmitSmPDU.params['schedule_delivery_time'] = None
-                self.log.warn('Removing schedule_delivery_time from SubmitSmPDU.')
-
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
             submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
         else:
