@@ -21,6 +21,7 @@ class RoutablePDUTestCase(TestCase):
         self.connector = Connector('abc')
         self.user = User(1, Group(100), 'username', 'password')
 
+
 class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
 
     def test_standard(self):
@@ -72,6 +73,7 @@ class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
         o.addTag(24)
         self.assertEqual(['23', '24'], o.getTags())
         o.flushTags()
+
 
 class RoutableSubmitSmTestCase(RoutablePDUTestCase):
 
@@ -132,6 +134,7 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
         o.lockPduParam('service_type')
         self.assertTrue(o.pduParamIsLocked('service_type'))
         self.assertFalse(o.pduParamIsLocked('source_addr_ton'))
+
 
 class RoutableDeliverSmTestCase(RoutablePDUTestCase):
 

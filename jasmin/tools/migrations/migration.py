@@ -1,5 +1,6 @@
-from jasmin.routing.jasminApi import User, Group
 from jasmin.routing.Filters import TagFilter
+from jasmin.routing.jasminApi import User, Group
+
 
 def user_status(data, context=None):
     """Changes impacted by #306
@@ -21,6 +22,7 @@ def user_status(data, context=None):
 
     return new_data
 
+
 def group_status(data, context=None):
     """Changes impacted by #306
 
@@ -33,6 +35,7 @@ def group_status(data, context=None):
         new_data.append(group)
 
     return new_data
+
 
 def tagfilters_casting(data, context=None):
     """Changes impacted by #516
