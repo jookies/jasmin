@@ -24,6 +24,7 @@ LOG_CATEGORY = "jasmin-http-api"
 #@TODO make it configurable
 reactor.suggestThreadPoolSize(30)
 
+
 def update_submit_sm_pdu(routable, config):
     """Will set pdu parameters from smppclient configuration.
     Parameters that were locked through the routable.lockPduParam() method will not be updated."""
@@ -53,6 +54,7 @@ def update_submit_sm_pdu(routable, config):
                 _pdu.params[param] = getattr(config, param)
 
     return routable
+
 
 class Send(Resource):
     isleaf = True
@@ -256,7 +258,7 @@ class Send(Resource):
                 if qos_delay < qos_throughput_ysecond_td:
                     self.stats.inc('throughput_error_count')
                     self.log.error(
-                        "QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message.",
+                        "QoS: submit_sm_event is faster (%s) than fixed throughput (%s), user:%s, rejecting message.",
                         qos_delay,
                         qos_throughput_ysecond_td,
                         user)
@@ -436,6 +438,7 @@ class Send(Resource):
             return 'Error "%s"' % response['return']
         else:
             return NOT_DONE_YET
+
 
 class Rate(Resource):
     isleaf = True
@@ -648,6 +651,7 @@ class Rate(Resource):
         else:
             return NOT_DONE_YET
 
+
 class Balance(Resource):
     isleaf = True
 
@@ -733,6 +737,7 @@ class Balance(Resource):
                 request.setResponseCode(response['status'])
             return json.dumps(response['return'])
 
+
 class Ping(Resource):
     isleaf = True
 
@@ -752,6 +757,7 @@ class Ping(Resource):
         self.log.info("Received ping from %s", request.getClientIP())
         request.setResponseCode(200)
         return 'Jasmin/PONG'
+
 
 class HTTPApi(Resource):
 
