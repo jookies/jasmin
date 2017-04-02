@@ -9,10 +9,11 @@ from .config import *
 
 # @TODO: make configuration loadable from /etc/jasmin/restapi.conf
 logger = logging.getLogger('jasmin-restapi')
-logger.setLevel(log_level)
-handler = logging.handlers.TimedRotatingFileHandler(filename=log_file, when=log_rotate)
-handler.setFormatter(logging.Formatter(log_format, log_date_format))
-logger.addHandler(handler)
+if len(logger.handlers) == 0:
+    logger.setLevel(log_level)
+    handler = logging.handlers.TimedRotatingFileHandler(filename=log_file, when=log_rotate)
+    handler.setFormatter(logging.Formatter(log_format, log_date_format))
+    logger.addHandler(handler)
 
 
 class TokenNotFound(Exception):
@@ -90,6 +91,8 @@ class AuthenticationFilter(object):
             self._token_decode(request, token)
 
 
+# Start the falcon API with some fancy logging
+logger.info('Starting Jasmin Rest API ...')
 api = falcon.API(
     middleware=[
         ContentTypeFilter(),
@@ -99,7 +102,13 @@ api = falcon.API(
     ]
 )
 api.add_route('/ping', PingResource())
+logger.info('\t[OK] /ping')
 api.add_route('/secure/balance', BalanceResource())
+logger.info('\t[OK] /secure/balance')
 api.add_route('/secure/rate', RateResource())
+logger.info('\t[OK] /secure/rate')
 api.add_route('/secure/send', SendResource())
+logger.info('\t[OK] /secure/send')
 api.add_route('/secure/sendbatch', SendBatchResource())
+logger.info('\t[OK] /secure/sendbatch')
+logger.info('API Started.')

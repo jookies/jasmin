@@ -1,9 +1,11 @@
 import json
+import uuid
 
 import falcon
 import requests
 
 from .config import *
+from .tasks import httpapi_send
 
 
 class JasminHttpApiProxy(object):
@@ -44,7 +46,8 @@ class JasminRestApi(object):
             request_data = request.stream.read()
             params = json.loads(request_data)
         except Exception as e:
-            raise falcon.HTTPPreconditionFailed('Cannot parse JSON data: %s' % request_data)
+            raise falcon.HTTPPreconditionFailed('Cannot parse JSON data',
+                                                'Got unparseable json data: %s' % request_data)
         else:
             return params
 
@@ -124,6 +127,7 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
 
 
 class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
+
     def on_post(self, request, response):
         """
         POST /secure/sendbatch request processing
@@ -131,15 +135,34 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
         Note: Calls Jasmin http api /send resource
         """
 
-        self.build_response_from_proxy_result(
-            response,
-            self.call_jasmin(
-                'send',
-                params=dict(
-                    request.params.items() + {
-                        'username': request.context['username'],
-                        'password': request.context['password']
-                    }.items()
-                )
-            )
-        )
+        batch_id = uuid.uuid4()
+        params = self.decode_request_data(request)
+
+        message_count = 0
+        for _message_params in params.get('messages', {}):
+            # Construct message params
+            message_params = {'username': request.context['username'], 'password': request.context['password']}
+            message_params.update(params.get('globals', {}))
+            message_params.update(_message_params)
+
+            # Ignore message if these args are not found
+            if 'to' not in message_params or 'content' not in message_params:
+                continue
+
+            # Do we have multiple destinations for this message ?
+            if isinstance(message_params.get('to', ''), list):
+                to_list = message_params.get('to')
+                for _to in to_list:
+                    message_params['to'] = _to
+                    httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params)
+                    message_count += 1
+            else:
+                httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params)
+                message_count += 1
+
+        response.body = {
+            'data': {
+                "batchId": '%s' % batch_id,
+                "messageCount": message_count
+            }
+        }
