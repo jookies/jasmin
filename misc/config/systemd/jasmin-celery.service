@@ -1,7 +1,8 @@
 [Unit]
 Description=Jasmin Celery server
-Requires=network.target jasmind.service jasmind-restapi.service
-After=network.target jasmind-restapi.service
+Requires=network.target jasmind.service jasmin-restapi.service
+After=network.target
+Before=jasmin-restapi.service
 
 [Service]
 SyslogIdentifier=jasmin-celery
