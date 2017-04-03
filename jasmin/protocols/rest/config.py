@@ -3,8 +3,8 @@ import logging
 # @TODO: make configuration loadable from /etc/jasmin/restapi.conf
 
 # CELERY
-broker_url = 'amqp://guest:guest@192.168.99.100:5672//'
-result_backend = 'redis://:@192.168.99.100:6379/1'
+broker_url = 'amqp://guest:guest@127.0.0.1:5672//'
+result_backend = 'redis://:@127.0.0.1:6379/1'
 task_serializer = 'json'
 result_serializer = 'json'
 accept_content = ['json']

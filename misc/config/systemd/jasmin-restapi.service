@@ -1,6 +1,6 @@
 [Unit]
 Description=Jasmin SMS Restful API server
-Requires=network.target jasmind.service
+Requires=network.target jasmind.service jasmin-celery.service
 After=network.target jasmind.service
 
 [Service]

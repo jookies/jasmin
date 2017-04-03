@@ -1,6 +1,6 @@
 [Unit]
 Description=Jasmin Celery server
-Requires=network.target jasmind.service jasmin-restapi.service
+Requires=network.target jasmin-restapi.service
 After=network.target
 Before=jasmin-restapi.service
 
