@@ -8,7 +8,7 @@ SyslogIdentifier=jasmin-restapi
 PIDFile=/var/run/jasmin-restapi.pid
 User=jasmin
 Group=jasmin
-ExecStart=gunicorn -b 0.0.0.0:1402 jasmin.protocols.rest:api
+ExecStart=twistd -n web --wsgi=jasmin.protocols.rest.api
 
 [Install]
 WantedBy=multi-user.target

@@ -11,4 +11,3 @@ lockfile>=0.10.0
 celery>=4.0.0
 redis>=2.10
 falcon>=1.1.0
-gunicorn>=19.7.1
