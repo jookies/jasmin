@@ -1,6 +1,6 @@
-import logging
+"""This is the jasmin-celery and jasmin-restapi configurations"""
 
-# @TODO: make configuration loadable from /etc/jasmin/restapi.conf
+import logging
 
 # CELERY
 broker_url = 'amqp://guest:guest@127.0.0.1:5672//'
