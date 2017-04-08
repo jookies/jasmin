@@ -68,13 +68,23 @@ class AuthenticationFilter(object):
     def _token_decode(self, request, token):
         """Decodes token and set username/password in context"""
 
-        token_keys = token.split(' ')
-        if len(token_keys) != 2:
-            raise TokenNotFound('Invalid token: %s' % token)
+        try:
+            token_keys = token.split(' ')
+            if len(token_keys) != 2:
+                raise TokenNotFound('Invalid token: %s' % token)
 
-        # Get the auth token and extract username/password
-        auth_token = base64.b64decode(token_keys[1])
-        request.context['username'], request.context['password'] = auth_token.split(':')
+            # Get the auth token and extract username/password
+            auth_token = base64.b64decode(token_keys[1])
+        except TokenNotFound as e:
+            raise falcon.HTTPUnauthorized('%s' % e,
+                                          'Please provide a valid Basic auth token',
+                                          href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+        except Exception as e:
+            raise falcon.HTTPUnauthorized('Invalid token: %s' % e,
+                                          'Please provide a valid Basic auth token',
+                                          href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+        else:
+            request.context['username'], request.context['password'] = auth_token.split(':')
 
     def process_request(self, request, response):
         """Ensuring request has the Basic auth token,

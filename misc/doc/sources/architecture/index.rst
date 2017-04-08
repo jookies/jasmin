@@ -19,6 +19,8 @@ Architecture overview
    through HTTP, refer to :doc:`/apis/ja-http/index` for more details,
 #. **DeliverSM Thrower**: A service for delivering MO SMS (Mobile originated) to third party applications
    through HTTP, refer to :doc:`/apis/ja-http/index` for more details,
+#. **Restful API**: A Restful API to be used by third party application to send MT SMS (Mobile Terminated) and launch batches,
+   refer to :doc:`/apis/rest/index` for more details.
 #. **HTTP API**: A HTTP Server to be used by third party application to send MT SMS (Mobile Terminated),
    refer to :doc:`/apis/ja-http/index` for more details.
 #. **SMPP Server API**: A SMPP Server to be used by third party application to send and receive SMS through
