@@ -30,7 +30,7 @@ Getting started
 
    * :doc:`/installation/index` -- Install and run Jasmin SMS Gateway
    * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application via HTTP
-   * :doc:`/apis/rest/index` -- Restful API technical specification
+   * :doc:`/apis/rest/index` -- RESTful API technical specification
    * :doc:`/apis/smpp-server/index` -- SMPP Server API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
    * :doc:`/faq/users` -- Frequently asked questions
@@ -43,7 +43,7 @@ Full contents
    /architecture/index
    /support/index
    /installation/index
-          /apis/rest/index
+         /apis/rest/index
    /apis/ja-http/index
    /apis/smpp-server/index
    /routing/index
