@@ -410,7 +410,7 @@ class DLRLookup(object):
 [err:%s] [content:%r]",
                 pdu_cid,
                 msgid,
-                pdu_dlr_text,
+                pdu_dlr_status,
                 pdu_dlr_sdate,
                 pdu_dlr_ddate,
                 pdu_dlr_sub,

@@ -5,7 +5,7 @@ MAINTAINER Jookies LTD <jasmin@jookies.net>
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 
-ENV JASMIN_VERSION 0.9b15
+ENV JASMIN_VERSION 0.9rc16
 
 # Install requirements
 RUN apt-get update && apt-get install -y \
@@ -36,5 +36,7 @@ VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
-# jasmind is started with dlr-thrower and dlr-lookup threads instead of standalone processes
 CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
+# Notes:
+# - jasmind is started with native dlr-thrower and dlr-lookup threads instead of standalone processes
+# - restapi (0.9rc16+) is not started in this docker configuration
