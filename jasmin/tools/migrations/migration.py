@@ -1,6 +1,8 @@
+from jasmin.routing.Filters import TagFilter
 from jasmin.routing.jasminApi import User, Group
 
-def user_status(data):
+
+def user_status(data, context=None):
     """Changes impacted by #306
 
     Will migrate users to enable newly applied changes for enable/disable"""
@@ -20,7 +22,8 @@ def user_status(data):
 
     return new_data
 
-def group_status(data):
+
+def group_status(data, context=None):
     """Changes impacted by #306
 
     Will migrate groups to enable newly applied changes for enable/disable"""
@@ -32,6 +35,25 @@ def group_status(data):
         new_data.append(group)
 
     return new_data
+
+
+def tagfilters_casting(data, context=None):
+    """Changes impacted by #516
+
+    Will cast tag filters to string (from integer) in filters and routes having tagfilters"""
+
+    if context == 'filters':
+        for fid, tagfilter in data.iteritems():
+            tagfilter.tag = str(tagfilter.tag)
+    elif context == 'mtroutes':
+        for routes in data.getAll():
+            route = routes[routes.keys()[0]]
+            for filter in route.filters:
+                if isinstance(filter, TagFilter):
+                    # Cast tags to str
+                    filter.tag = str(filter.tag)
+
+    return data
 
 """This is the main map for orchestring config migrations.
 
@@ -47,4 +69,7 @@ MAP = [
      'operations': [group_status]},
     {'conditions': ['<0.8008'],
      'contexts': {'users'},
-     'operations': [user_status]},]
+     'operations': [user_status]},
+    {'conditions': ['<=0.9015'],
+     'contexts': {'filters', 'mtroutes'},
+     'operations': [tagfilters_casting]},]

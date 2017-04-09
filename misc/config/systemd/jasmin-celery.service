@@ -1,0 +1,15 @@
+[Unit]
+Description=Jasmin Celery server
+Requires=network.target jasmin-restapi.service
+After=network.target
+Before=jasmin-restapi.service
+
+[Service]
+SyslogIdentifier=jasmin-celery
+PIDFile=/var/run/jasmin-celery.pid
+User=jasmin
+Group=jasmin
+ExecStart=/bin/sh -c "celery -A jasmin.protocols.rest.tasks worker -l info -c 4 --autoscale=10,3"
+
+[Install]
+WantedBy=multi-user.target

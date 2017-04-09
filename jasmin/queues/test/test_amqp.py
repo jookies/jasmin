@@ -23,6 +23,7 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 class AmqpTestCase(TestCase):
     exchange_name = "CONNECTOR-00"
     message = "Any Message"
@@ -42,7 +43,7 @@ class AmqpTestCase(TestCase):
         self.config.log_level = self.configArgs.get('amqp_log_level', logging.DEBUG)
         self.config.reconnectOnConnectionFailure = self.configArgs.get('reconnectOnConnectionFailure', True)
         self.config.reconnectOnConnectionLoss = self.configArgs.get('reconnectOnConnectionLoss', True)
-        
+
         self.amqp = None
     
     def requirement_disclaimer(self):
@@ -60,7 +61,8 @@ class AmqpTestCase(TestCase):
             raise
         
         yield self.amqp.getChannelReadyDeferred()
-    
+
+
 class ConnectTestCase(AmqpTestCase):
     
     @defer.inlineCallbacks
@@ -78,7 +80,8 @@ class ConnectTestCase(AmqpTestCase):
         yield self.amqp.chan.exchange_declare(exchange=exchange_name, type="fanout")
 
         yield self.amqp.disconnect()
-        
+
+
 class PublishTestCase(AmqpTestCase):
     
     @defer.inlineCallbacks
@@ -121,6 +124,7 @@ class PublishTestCase(AmqpTestCase):
         
         yield self.amqp.disconnect()
 
+
 class ConsumeTools(AmqpTestCase):
     consumedMessages = 0
     
@@ -143,7 +147,8 @@ class ConsumeTools(AmqpTestCase):
             print "Error in _errback %s" % (error)
             return error
 
-class ConsumeTestCase(ConsumeTools):    
+
+class ConsumeTestCase(ConsumeTools):
     @defer.inlineCallbacks
     def test_consume_queue(self):
         yield self.connect()
@@ -160,7 +165,8 @@ class ConsumeTestCase(ConsumeTools):
         yield self.queue.close()
         yield self.amqp.disconnect()
 
-class PublishConsumeTestCase(ConsumeTools):    
+
+class PublishConsumeTestCase(ConsumeTools):
     @defer.inlineCallbacks
     def test_simple_publish_consume(self):
         yield self.connect()
@@ -274,6 +280,7 @@ class PublishConsumeTestCase(ConsumeTools):
         
         self.assertEqual(self.consumedMessages, 5000)
 
+
 class RejectAndRequeueTestCase(ConsumeTools):
     rejectedMessages = 0
     # Used to store rejected messages:
@@ -331,7 +338,7 @@ class RejectAndRequeueTestCase(ConsumeTools):
 
     @defer.inlineCallbacks
     def test_requeue_all_restart_then_reconsume(self):
-        "Related to #67, Starting consuming with a "
+        """Related to #67, Starting consuming with a """
         yield self.connect()
         
         yield self.amqp.chan.exchange_declare(exchange='messaging', type='topic')
