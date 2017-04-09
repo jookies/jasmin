@@ -39,7 +39,7 @@ Services
 The Services resource represents all web services currently available via Jasmin's RESTful API.
 
 .. list-table:: RESTful services
-:header-rows: 1
+   :header-rows: 1
 
    * - Method
      - Service
@@ -150,7 +150,7 @@ If successful, response header HTTP status code will be **200 OK** and and the m
 .. _restapi-POST_sendbatch_params:
 
 .. list-table:: POST /secure/sendbatch json parameters
-:header-rows: 1
+   :header-rows: 1
 
    * - Parameter
      - Example(s)
@@ -312,7 +312,7 @@ The **callback_url** will be called (GET) everytime a message is successfuly sen
 In both callbacks the following parameters are passed:
 
 .. list-table:: Batch callbacks parameters
-:header-rows: 1
+   :header-rows: 1
 
    * - Parameter
      - Example(s)
