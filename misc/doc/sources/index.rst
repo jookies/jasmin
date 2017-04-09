@@ -43,7 +43,7 @@ Full contents
    /architecture/index
    /support/index
    /installation/index
-         /apis/rest/index
+   /apis/rest/index
    /apis/ja-http/index
    /apis/smpp-server/index
    /routing/index
