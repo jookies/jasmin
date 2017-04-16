@@ -87,7 +87,7 @@ class SMPPOperationFactory(object):
         # date:YYMMDDhhmm stat:DDDDDDD err:E text: . . . . . . . . .
         if 'short_message' in pdu.params:
             patterns = [
-                r"id:(?P<id>[\dA-Za-z-_]+)",
+                r"id:(?P<id>[\dA-Za-z-_.]+)",
                 r"sub:(?P<sub>\d{3})",
                 r"dlvrd:(?P<dlvrd>\d{3})",
                 r"submit date:(?P<sdate>\d+)",
