@@ -1,4 +1,6 @@
 # -*- test-case-name: jasmin.test.test_operations -*-
+# -*- coding: utf-8 -*-
+
 import datetime
 import math
 import re
@@ -11,6 +13,29 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
+gsm_chars = (u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"
+             u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà")
+gsm_chars_ext = (u"````````````````````^```````````````````{}`````\\````````````[~]`"
+                 u"|````````````````````````````````````€``````````````````````````")
+
+
+def gsm_encode(plaintext):
+    """Will encode plaintext to gsm 338
+    Taken from
+    http://stackoverflow.com/questions/2452861/python-library-for-converting-plain-text-ascii-into-gsm-7-bit-character-set
+    """
+    res = ""
+    for c in plaintext:
+        idx = gsm_chars.find(c)
+        if idx != -1:
+            res += chr(idx)
+            continue
+        idx = gsm_chars_ext.find(c)
+        if idx != -1:
+            res += chr(27) + chr(idx)
+    return res
+
+
 message_state_map = {
     '%s' % MessageState.ACCEPTED: 'ACCEPTD',
     '%s' % MessageState.UNDELIVERABLE: 'UNDELIV',
@@ -22,9 +47,11 @@ message_state_map = {
     '%s' % MessageState.UNKNOWN: 'UNKNOWN',
 }
 
+
 class UnknownMessageStatusError(Exception):
     """Raised when message_status is not recognized
     """
+
 
 class SMPPOperationFactory(object):
     lastLongMsgRefNum = 0
@@ -33,7 +60,7 @@ class SMPPOperationFactory(object):
         if config is not None:
             self.config = config
         else:
-            self.config = SMPPClientConfig(**{'id':'anyid'})
+            self.config = SMPPClientConfig(**{'id': 'anyid'})
 
         self.long_content_max_parts = long_content_max_parts
         self.long_content_split = long_content_split
@@ -103,8 +130,8 @@ class SMPPOperationFactory(object):
                 if m:
                     key = m.groupdict().keys()[0]
                     if (key not in ['id', 'stat']
-                            or (key == 'id' and 'id' not in ret)
-                            or (key == 'stat' and 'stat' not in ret)):
+                        or (key == 'id' and 'id' not in ret)
+                        or (key == 'stat' and 'stat' not in ret)):
                         ret.update(m.groupdict())
 
         # Should we consider this as a DLR ?
@@ -166,7 +193,7 @@ class SMPPOperationFactory(object):
             msg_ref_num = self.claimLongMsgRefNum()
 
             for i in range(total_segments):
-                segment_seqnum = i+1
+                segment_seqnum = i + 1
 
                 # Keep in memory previous PDU in order to set nextPdu in it later
                 try:
@@ -176,9 +203,9 @@ class SMPPOperationFactory(object):
                     previousPdu = None
 
                 if bits == 16:
-                    kwargs['short_message'] = longMessage[slicedMaxSmLength*i*2:slicedMaxSmLength*(i+1)*2]
+                    kwargs['short_message'] = longMessage[slicedMaxSmLength * i * 2:slicedMaxSmLength * (i + 1) * 2]
                 else:
-                    kwargs['short_message'] = longMessage[slicedMaxSmLength*i:slicedMaxSmLength*(i+1)]
+                    kwargs['short_message'] = longMessage[slicedMaxSmLength * i:slicedMaxSmLength * (i + 1)]
                 tmpPdu = self._setConfigParamsInPDU(SubmitSM(**kwargs), kwargs)
                 if self.long_content_split == 'sar':
                     # Slice short_message and create the PDU using SAR options
