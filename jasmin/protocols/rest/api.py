@@ -1,11 +1,16 @@
+import jasmin
 import json
+import os
+import sys
 import uuid
 
-import falcon
 import requests
 
 from .config import *
 from .tasks import httpapi_send
+
+sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
+import falcon
 
 
 class JasminHttpApiProxy(object):
