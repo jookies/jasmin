@@ -17,14 +17,17 @@ Copyright 2009-2010 Mozes, Inc.
 """
 Updated code parts are marked with "Jasmin update" comment
 """
-import struct, string, binascii
-from jasmin.vendor.smpp.pdu import smpp_time
+import binascii
+import string
+import struct
+
 from jasmin.vendor.smpp.pdu import constants, pdu_types, operations
+from jasmin.vendor.smpp.pdu import smpp_time
 from jasmin.vendor.smpp.pdu.error import PDUParseError, PDUCorruptError
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId
-from jasmin.vendor.smpp.pdu.pdu_types import DataCodingDefault
+
+
 # Jasmin update:
-from jasmin.vendor.messaging.sms.gsm0338 import encode
 
 class IEncoder(object):
 
@@ -327,7 +330,8 @@ class CommandStatusEncoder(Int4Encoder):
                 elif 1280 <= intval:
                     name = constants.command_status_value_map[-3]['name']
             else:
-                raise PDUParseError("Unknown command_status %s" % intval, pdu_types.CommandStatus.ESME_RUNKNOWNERR)
+                # RESERVEDSTATUS_UNKNOWN_STATUS
+                name = constants.command_status_value_map[-4]['name']
         else:
             name = constants.command_status_value_map[intval]['name']
 
