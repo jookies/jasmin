@@ -5,7 +5,7 @@
 
 MAJOR = 0
 MINOR = 9
-PATCH = 17
+PATCH = 18
 META = 'rc'
 
 def get_version():
