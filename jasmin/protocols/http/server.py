@@ -9,7 +9,7 @@ from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
-from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
@@ -96,11 +96,17 @@ class Send(Resource):
             user.getCnxStatus().httpapi['submit_sm_request_count'] += 1
             user.getCnxStatus().httpapi['last_activity_at'] = datetime.now()
 
+            # Convert utf8 to GSM 03.38
+            if updated_request.args['coding'][0] == '0':
+                short_message = gsm_encode(updated_request.args['content'][0].decode('utf-8'))
+            else:
+                short_message = updated_request.args['content'][0]
+
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
                 source_addr=None if 'from' not in updated_request.args else updated_request.args['from'][0],
                 destination_addr=updated_request.args['to'][0],
-                short_message=updated_request.args['content'][0],
+                short_message=short_message,
                 data_coding=int(updated_request.args['coding'][0]))
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
@@ -480,11 +486,17 @@ class Rate(Resource):
             user.getCnxStatus().httpapi['rate_request_count'] += 1
             user.getCnxStatus().httpapi['last_activity_at'] = datetime.now()
 
+            # Convert utf8 to GSM 03.38
+            if request.args['coding'][0] == '0':
+                short_message = gsm_encode(request.args['content'][0].decode('utf-8'))
+            else:
+                short_message = request.args['content'][0]
+
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
                 source_add=None if 'from' not in request.args else request.args['from'][0],
                 destination_addr=request.args['to'][0],
-                short_message=request.args['content'][0],
+                short_message=short_message,
                 data_coding=int(request.args['coding'][0]),
             )
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)

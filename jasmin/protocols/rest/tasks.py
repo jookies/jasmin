@@ -30,32 +30,35 @@ def httpapi_send(self, batch_id, batch_config, message_params):
     except requests.exceptions.ConnectionError as e:
         logger.error('[%s] Jasmin httpapi connection error: %s' % (batch_id, e))
         if batch_config.get('errback_url', None):
-            batch_callback.delay(batch_config.get('errback_url'), batch_id, 0, 'HTTPAPI Connection error: %s' % e)
+            batch_callback.delay(batch_config.get('errback_url'), batch_id, message_params['to'], 0,
+                                 'HTTPAPI Connection error: %s' % e)
     except Exception as e:
         logger.error('[%s] Unknown error (%s): %s' % (batch_id, type(e), e))
         if batch_config.get('errback_url', None):
-            batch_callback.delay(batch_config.get('errback_url'), batch_id, 0, 'Unknown error: %s' % e)
+            batch_callback.delay(batch_config.get('errback_url'), batch_id, message_params['to'], 0,
+                                 'Unknown error: %s' % e)
     else:
         if r.status_code != 200:
             logger.error('[%s] %s' % (batch_id, r.content.strip('"')))
             if batch_config.get('errback_url', None):
                 batch_callback.delay(
-                    batch_config.get('errback_url'), batch_id, 0, 'HTTPAPI error: %s' % r.content.strip('"'))
+                    batch_config.get('errback_url'), batch_id, message_params['to'], 0,
+                    'HTTPAPI error: %s' % r.content.strip('"'))
         else:
             if batch_config.get('callback_url', None):
                 batch_callback.delay(
-                    batch_config.get('callback_url'), batch_id, 1, r.content)
+                    batch_config.get('callback_url'), batch_id, message_params['to'], 1, r.content)
 
 
 @task(bind=True, base=JasminTask)
-def batch_callback(self, url, batch_id, status, status_text):
+def batch_callback(self, url, batch_id, to, status, status_text):
     try:
         if status == 0:
             operation_name = 'Errback'
         else:
             operation_name = 'Callback'
 
-        requests.get(url, params={'batchId': batch_id, 'status': status, 'statusText': status_text})
+        requests.get(url, params={'batchId': batch_id, 'to': to, 'status': status, 'statusText': status_text})
     except Exception as e:
         logger.error('(%s) of batch %s to %s failed (%s): %s.' % (operation_name, batch_id, url, type(e), e))
     else:
