@@ -1,11 +1,14 @@
 import base64
-import json
-
-import falcon
-
 import jasmin
+import json
+import os
+import sys
+
 from .api import PingResource, BalanceResource, RateResource, SendResource, SendBatchResource
 from .config import *
+
+sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
+import falcon
 
 # @TODO: make configuration loadable from /etc/jasmin/restapi.conf
 logger = logging.getLogger('jasmin-restapi')

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import copy
 import string
 import urllib
@@ -45,7 +47,6 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # We should receive a msg id
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -69,7 +70,6 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # We should receive a msg id
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -91,7 +91,6 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # We should receive a msg id
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -113,7 +112,6 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # We should receive a msg id
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -135,7 +133,6 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # We should receive a msg id
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -157,7 +154,6 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # We should receive a msg id
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
-        msgId = c[9:45]
 
         yield self.stopSmppClientConnectors()
 
@@ -190,6 +186,31 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
                          'NATIONAL')
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton']),
                          'NATIONAL')
+
+    @defer.inlineCallbacks
+    def test_gsm338_chars_in_smsc_default_data_coding(self):
+        """Related to #566"""
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Some gsm338 chars
+        self.params['content'] = '@$ΔßÉ'
+        self.params['coding'] = '0'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        msgStatus = c[:7]
+
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        # '@$ΔßÉ' encoded in gsm338 = '\x00\x02\x10\x1e\x1f'
+        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']),
+                         '\x00\x02\x10\x1e\x1f')
 
 
 class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
