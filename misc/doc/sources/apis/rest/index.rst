@@ -170,6 +170,47 @@ If successful, response header HTTP status code will be **200 OK** and and the m
      - Optional
      - May contain a callback or/and errback urls, c.f. :ref:`examples <restapi-POST_callbacks>`
 
+.. _restapi-binary_messages:
+
+Send binary messages
+********************
+
+Sending binary messages can be done using :ref:`single <restapi-POST_send>` or :ref:`batch <restapi-POST_sendbatch>`
+messaging APIs.
+
+It's made possible by replacing the **content** parameter by the **hex_content**, the latter shall contain your binary
+data hex value.
+
+Example of sending a message with coding=8:
+
+.. code-block:: bash
+
+  curl -X POST -H 'Authorization: Basic Zm9vOmJhcg==' -d '{
+    "to": 19012233451,
+    "from": "Jookies",
+    "coding": 8,
+    "hex_content": "0623063106460628"
+  }' http://127.0.0.1:8080/secure/send
+
+The **hex_content** used in the above example is the UTF16BE encoding of arabic word "أرنب" ('\x06\x23\x06\x31\x06\x46\x06\x28').
+
+Same goes for sending batches with binary data:
+
+.. code-block:: bash
+
+  curl -X POST -H 'Authorization: Basic Zm9vOmJhcg==' -d '{
+    "messages": [
+      {
+        "to": [
+          "33333331",
+          "33333332",
+          "33333333"
+        ],
+        "hex_content": "0623063106460628"
+      }
+    ]
+  }' http://127.0.0.1:8080/secure/sendbatch
+
 .. _restapi-POST_sendbatch_ex:
 
 Usage examples:

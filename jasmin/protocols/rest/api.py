@@ -1,4 +1,3 @@
-import jasmin
 import json
 import os
 import sys
@@ -6,11 +5,13 @@ import uuid
 
 import requests
 
+import jasmin
 from .config import *
 from .tasks import httpapi_send
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 import falcon
+import binascii
 
 
 class JasminHttpApiProxy(object):
@@ -117,22 +118,34 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
         Note: Calls Jasmin http api /send resource
         """
 
+        request_args = dict(
+            self.decode_request_data(request).items() + {
+                'username': request.context['username'],
+                'password': request.context['password']
+            }.items()
+        )
+
+        # If we have a hex_content then convert it back to content:
+        if 'hex_content' in request_args:
+            try:
+                request_args['content'] = binascii.unhexlify(request_args['hex_content'])
+            except Exception:
+                raise falcon.HTTPPreconditionFailed('Cannot parse hex_content value',
+                                                    'Got unparseable hex_content value: %s' % request_args[
+                                                        'hex_content'])
+            else:
+                del (request_args['hex_content'])
+
         self.build_response_from_proxy_result(
             response,
             self.call_jasmin(
                 'send',
-                params=dict(
-                    self.decode_request_data(request).items() + {
-                        'username': request.context['username'],
-                        'password': request.context['password']
-                    }.items()
-                )
+                params=request_args
             )
         )
 
 
 class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
-
     def on_post(self, request, response):
         """
         POST /secure/sendbatch request processing
@@ -151,8 +164,18 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
             message_params.update(_message_params)
 
             # Ignore message if these args are not found
-            if 'to' not in message_params or 'content' not in message_params:
+            if 'to' not in message_params or ('content' not in message_params and 'hex_content' not in message_params):
                 continue
+
+            # If we have a hex_content then convert it back to content:
+            if 'hex_content' in message_params:
+                try:
+                    message_params['content'] = binascii.unhexlify(message_params['hex_content'])
+                except Exception:
+                    # Ignore message on any error that may occur when unhexlifying hex_content
+                    continue
+                else:
+                    del (message_params['hex_content'])
 
             # Do we have multiple destinations for this message ?
             if isinstance(message_params.get('to', ''), list):
