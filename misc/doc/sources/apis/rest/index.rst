@@ -361,6 +361,9 @@ In both callbacks the following parameters are passed:
    * - **batchId**
      - 50a4581a-6e46-48a4-b617-bbefe7faa3dc
      - The batch id
+   * - **to**
+     - 1234567890
+     - The **to** parameter identifying the destination number
    * - **status**
      - 1
      - 1 or 0, indicates the status of a message sendout
