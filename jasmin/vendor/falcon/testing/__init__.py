@@ -71,7 +71,3 @@ supported::
 """
 
 # Hoist classes and functions into the falcon.testing namespace
-from falcon.testing.base import TestBase  # NOQA
-from falcon.testing.client import *  # NOQA
-from falcon.testing.helpers import *  # NOQA
-from falcon.testing.srmock import StartResponseMock  # NOQA

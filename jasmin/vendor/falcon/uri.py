@@ -13,4 +13,3 @@ in the `falcon` module, and so must be explicitly imported::
 # work. Eventually we will remove the util module and flatten the
 # falcon namespace, but in the meantime...
 
-from falcon.util.uri import *  # NOQA
