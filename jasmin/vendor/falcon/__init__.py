@@ -40,14 +40,21 @@ DEFAULT_MEDIA_TYPE = 'application/json; charset=UTF-8'
 
 
 # Hoist classes and functions into the falcon namespace
+from falcon.version import __version__  # NOQA
+from falcon.api import API, DEFAULT_MEDIA_TYPE  # NOQA
 from falcon.status_codes import *  # NOQA
 from falcon.errors import *  # NOQA
 from falcon.redirects import *  # NOQA
 from falcon.http_error import HTTPError  # NOQA
+from falcon.http_status import HTTPStatus  # NOQA
 
 # NOTE(kgriffs): Ensure that "from falcon import uri" will import
 # the same front-door module as "import falcon.uri". This works by
 # priming the import cache with the one we want.
+import falcon.uri  # NOQA
 
 from falcon.util import *  # NOQA
 
+from falcon.hooks import before, after  # NOQA
+from falcon.request import Request, RequestOptions  # NOQA
+from falcon.response import Response, ResponseOptions  # NOQA

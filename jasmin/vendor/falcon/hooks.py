@@ -17,6 +17,7 @@
 from functools import wraps
 
 import six
+
 from falcon import HTTP_METHODS
 from falcon.util.misc import get_argnames
 

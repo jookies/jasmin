@@ -14,6 +14,14 @@
 
 """Response class."""
 
+from six import PY2
+from six import string_types as STRING_TYPES
+
+# NOTE(tbug): In some cases, http_cookies is not a module
+# but a dict-like structure. This fixes that issue.
+# See issue https://github.com/falconry/falcon/issues/556
+from six.moves import http_cookies
+
 from falcon.response_helpers import (
     format_header_value_list,
     format_range,
@@ -23,9 +31,6 @@ from falcon.response_helpers import (
 from falcon.util import dt_to_http, TimezoneGMT
 from falcon.util.uri import encode as uri_encode
 from falcon.util.uri import encode_value as uri_encode_value
-from six import PY2
-from six import string_types as STRING_TYPES
-from six.moves import http_cookies
 
 SimpleCookie = http_cookies.SimpleCookie
 CookieError = http_cookies.CookieError

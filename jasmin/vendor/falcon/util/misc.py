@@ -30,6 +30,7 @@ import inspect
 import warnings
 
 import six
+
 from falcon import status_codes
 
 __all__ = (

@@ -17,6 +17,7 @@
 from functools import wraps
 
 import six
+
 from falcon import util
 
 

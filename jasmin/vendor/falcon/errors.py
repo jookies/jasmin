@@ -37,10 +37,10 @@ package namespace::
 
 from datetime import datetime
 
-import falcon.status_codes as status
 from falcon import util
 from falcon.http_error import HTTPError, NoRepresentation, \
     OptionalRepresentation
+import falcon.status_codes as status
 
 
 class HTTPBadRequest(HTTPError):
