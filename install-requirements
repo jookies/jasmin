@@ -10,5 +10,4 @@ lockfile>=0.10.0
 # Added in 0.9rc16:
 celery>=4.0.0
 redis>=2.10
-falcon>=1.1.0
 requests>=2.13.0

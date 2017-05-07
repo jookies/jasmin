@@ -18,13 +18,13 @@
 from __future__ import print_function
 
 import argparse
+from collections import defaultdict, deque
+from decimal import Decimal
 import gc
 import inspect
 import random
 import sys
 import timeit
-from collections import defaultdict, deque
-from decimal import Decimal
 
 try:
     import cProfile
@@ -43,6 +43,7 @@ try:
 except ImportError:
     pprofile = None
 
+from falcon.bench import create  # NOQA
 import falcon.testing as helpers
 
 # NOTE(kgriffs): Based on testing, these values provide a ceiling that's
@@ -327,6 +328,7 @@ def main():
             print(heap_diff)
 
     print()
+
 
 if __name__ == '__main__':
     main()

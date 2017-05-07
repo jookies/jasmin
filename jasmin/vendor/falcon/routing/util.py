@@ -17,6 +17,7 @@
 import re
 
 import six
+
 from falcon import HTTP_METHODS, responders
 
 
