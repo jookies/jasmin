@@ -16,14 +16,15 @@
 
 import re
 
-import falcon.responders
-import falcon.status_codes as status
 import six
+
 from falcon import api_helpers as helpers, DEFAULT_MEDIA_TYPE, routing
 from falcon.http_error import HTTPError
 from falcon.http_status import HTTPStatus
 from falcon.request import Request, RequestOptions
-from falcon.response import Response
+import falcon.responders
+from falcon.response import Response, ResponseOptions
+import falcon.status_codes as status
 from falcon.util.misc import get_argnames
 
 
@@ -102,9 +103,15 @@ class API(object):
             to use in lieu of the default engine.
             See also: :ref:`Routing <routing>`.
 
+        independent_middleware (bool): Set to ``True`` if response
+            middleware should be executed independently of whether or
+            not request middleware raises an exception.
+
     Attributes:
         req_options: A set of behavioral options related to incoming
             requests. See also: :py:class:`~.RequestOptions`
+        resp_options: A set of behavioral options related to outgoing
+            responses. See also: :py:class:`~.ResponseOptions`
     """
 
     # PERF(kgriffs): Reference via self since that is faster than
@@ -120,25 +127,32 @@ class API(object):
 
     __slots__ = ('_request_type', '_response_type',
                  '_error_handlers', '_media_type', '_router', '_sinks',
-                 '_serialize_error', 'req_options', '_middleware')
+                 '_serialize_error', 'req_options', 'resp_options',
+                 '_middleware', '_independent_middleware', '_router_search')
 
     def __init__(self, media_type=DEFAULT_MEDIA_TYPE,
                  request_type=Request, response_type=Response,
-                 middleware=None, router=None):
+                 middleware=None, router=None,
+                 independent_middleware=False):
         self._sinks = []
         self._media_type = media_type
 
         # set middleware
-        self._middleware = helpers.prepare_middleware(middleware)
+        self._middleware = helpers.prepare_middleware(
+            middleware, independent_middleware=independent_middleware)
+        self._independent_middleware = independent_middleware
 
         self._router = router or routing.DefaultRouter()
+        self._router_search = helpers.make_router_search(self._router)
 
         self._request_type = request_type
         self._response_type = response_type
 
         self._error_handlers = []
         self._serialize_error = helpers.default_serialize_error
+
         self.req_options = RequestOptions()
+        self.resp_options = ResponseOptions()
 
         # NOTE(kgriffs): Add default error handlers
         self.add_error_handler(falcon.HTTPError, self._http_error_handler)
@@ -161,11 +175,13 @@ class API(object):
         """
 
         req = self._request_type(env, options=self.req_options)
-        resp = self._response_type()
+        resp = self._response_type(options=self.resp_options)
         resource = None
         params = {}
 
-        mw_pr_stack = []  # Keep track of executed middleware components
+        dependent_mw_resp_stack = []
+        mw_req_stack, mw_rsrc_stack, mw_resp_stack = self._middleware
+
         req_succeeded = False
 
         try:
@@ -173,13 +189,18 @@ class API(object):
                 # NOTE(ealogar): The execution of request middleware
                 # should be before routing. This will allow request mw
                 # to modify the path.
-                for component in self._middleware:
-                    process_request, _, process_response = component
-                    if process_request is not None:
+                # NOTE: if flag set to use independent middleware, execute
+                # request middleware independently. Otherwise, only queue
+                # response middleware after request middleware succeeds.
+                if self._independent_middleware:
+                    for process_request in mw_req_stack:
                         process_request(req, resp)
-
-                    if process_response is not None:
-                        mw_pr_stack.append(process_response)
+                else:
+                    for process_request, process_response in mw_req_stack:
+                        if process_request:
+                            process_request(req, resp)
+                        if process_response:
+                            dependent_mw_resp_stack.insert(0, process_response)
 
                 # NOTE(warsaw): Moved this to inside the try except
                 # because it is possible when using object-based
@@ -200,10 +221,8 @@ class API(object):
                     # resource middleware methods.
                     if resource is not None:
                         # Call process_resource middleware methods.
-                        for component in self._middleware:
-                            _, process_resource, _ = component
-                            if process_resource is not None:
-                                process_resource(req, resp, resource, params)
+                        for process_resource in mw_rsrc_stack:
+                            process_resource(req, resp, resource, params)
 
                     responder(req, resp, **params)
                     req_succeeded = True
@@ -219,8 +238,7 @@ class API(object):
             # reworked.
 
             # Call process_response middleware methods.
-            while mw_pr_stack:
-                process_response = mw_pr_stack.pop()
+            for process_response in mw_resp_stack or dependent_mw_resp_stack:
                 try:
                     process_response(req, resp, resource, req_succeeded)
                 except Exception as ex:
@@ -232,7 +250,13 @@ class API(object):
         #
         # Set status and headers
         #
-        if req.method == 'HEAD' or resp.status in self._BODILESS_STATUS_CODES:
+
+        # NOTE(kgriffs): While not specified in the spec that the status
+        # must be of type str (not unicode on Py27), some WSGI servers
+        # can complain when it is not.
+        resp_status = str(resp.status) if six.PY2 else resp.status
+
+        if req.method == 'HEAD' or resp_status in self._BODILESS_STATUS_CODES:
             body = []
         else:
             body, length = self._get_body(resp, env.get('wsgi.file_wrapper'))
@@ -243,15 +267,15 @@ class API(object):
         # RFC 2616, as commented in that module's source code. The
         # presence of the Content-Length header is not similarly
         # enforced.
-        if resp.status in (status.HTTP_204, status.HTTP_304):
+        if resp_status in (status.HTTP_204, status.HTTP_304):
             media_type = None
         else:
             media_type = self._media_type
 
         headers = resp._wsgi_headers(media_type)
 
-        # Return the response per the WSGI spec
-        start_response(resp.status, headers)
+        # Return the response per the WSGI spec.
+        start_response(resp_status, headers)
         return body
 
     def add_route(self, uri_template, resource, *args, **kwargs):
@@ -267,28 +291,47 @@ class API(object):
         which HTTP method they handle, as in `on_get`, `on_post`, `on_put`,
         etc.
 
-        If your resource does not support a particular
-        HTTP method, simply omit the corresponding responder and
-        Falcon will reply with "405 Method not allowed" if that
-        method is ever requested.
+        Note:
+            If your resource does not support a particular
+            HTTP method, simply omit the corresponding responder and
+            Falcon will reply with "405 Method not allowed" if that
+            method is ever requested.
 
         Responders must always define at least two arguments to receive
-        request and response objects, respectively. For example::
+        :class:`~.Request` and :class:`~.Response` objects, respectively.
+        For example::
 
             def on_post(self, req, resp):
                 pass
 
-        In addition, if the route's template contains field
-        expressions, any responder that desires to receive requests
-        for that route must accept arguments named after the respective
-        field names defined in the template. A field expression consists
-        of a bracketed field name.
+        The :class:`~.Request` object represents the incoming HTTP
+        request. It exposes properties and methods for examining headers,
+        query string parameters, and other metadata associated with
+        the request. A file-like stream is also provided for reading
+        any data that was included in the body of the request.
+
+        The :class:`~.Response` object represents the application's
+        HTTP response to the above request. It provides properties
+        and methods for setting status, header and body data. The
+        :class:`~.Response` object also exposes a dict-like
+        :attr:`~.Response.context` property for passing arbitrary
+        data to hooks and middleware methods. This property could be
+        used, for example, to provide a resource representation to a
+        middleware component that would then serialize the
+        representation according to the client's preferred media type.
 
         Note:
-            Since field names correspond to argument names in responder
-            methods, they must be valid Python identifiers.
+            Rather than directly manipulate the :class:`~.Response`
+            object, a responder may raise an instance of either
+            :class:`~.HTTPError` or :class:`~.HTTPStatus`.
 
-        For example, given the following template::
+        In addition to the standard `req` and `resp` parameters, if the
+        route's template contains field expressions, any responder that
+        desires to receive requests for that route must accept arguments
+        named after the respective field names defined in the template.
+
+        A field expression consists of a bracketed field name. For
+        example, given the following template::
 
             /user/{name}
 
@@ -298,9 +341,15 @@ class API(object):
                 pass
 
         Individual path segments may contain one or more field
-        expressions::
+        expressions, and fields need not span the entire path
+        segment. For example::
 
             /repos/{org}/{repo}/compare/{usr0}:{branch0}...{usr1}:{branch1}
+            /serviceRoot/People('{name}')
+
+        Note:
+            Because field names correspond to argument names in responder
+            methods, they must be valid Python identifiers.
 
         Args:
             uri_template (str): A templatized URI. Care must be
@@ -381,8 +430,13 @@ class API(object):
     def add_error_handler(self, exception, handler=None):
         """Registers a handler for a given exception error type.
 
-        A handler can raise an instance of ``HTTPError`` or
-        ``HTTPStatus`` to communicate information about the issue to
+        Error handlers may be registered for any type, including
+        :class:`~.HTTPError`. This feature provides a central location
+        for logging and otherwise handling exceptions raised by
+        responders, hooks, and middleware components.
+
+        A handler can raise an instance of :class:`~.HTTPError` or
+        :class:`~.HTTPStatus` to communicate information about the issue to
         the client.  Alternatively, a handler may modify `resp`
         directly.
 
@@ -391,8 +445,8 @@ class API(object):
         more than one handler matches the exception type, the framework
         will choose the one that was most recently registered.
         Therefore, more general error handlers (e.g., for the
-        ``Exception`` type) should be added first, to avoid masking more
-        specific handlers for subclassed types.
+        standard ``Exception`` type) should be added first, to avoid
+        masking more specific handlers for subclassed types.
 
         Args:
             exception (type): Whenever an error occurs when handling a request
@@ -432,16 +486,22 @@ class API(object):
         self._error_handlers.insert(0, (exception, handler))
 
     def set_error_serializer(self, serializer):
-        """Override the default serializer for instances of HTTPError.
+        """Override the default serializer for instances of :class:`~.HTTPError`.
 
-        When a responder raises an instance of HTTPError, Falcon converts
-        it to an HTTP response automatically. The default serializer
-        supports JSON and XML, but may be overridden by this method to
-        use a custom serializer in order to support other media types.
+        When a responder raises an instance of :class:`~.HTTPError`,
+        Falcon converts it to an HTTP response automatically. The
+        default serializer supports JSON and XML, but may be overridden
+        by this method to use a custom serializer in order to support
+        other media types.
 
-        The ``falcon.HTTPError`` class contains helper methods, such as
-        `to_json()` and `to_dict()`, that can be used from within
-        custom serializers. For example::
+        Note:
+            If a custom media type is used and the type includes a
+            "+json" or "+xml" suffix, the default serializer will
+            convert the error to JSON or XML, respectively.
+
+        The :class:`~.HTTPError` class contains helper methods,
+        such as `to_json()` and `to_dict()`, that can be used from
+        within custom serializers. For example::
 
             def my_serializer(req, resp, exception):
                 representation = None
@@ -458,12 +518,7 @@ class API(object):
                     resp.body = representation
                     resp.content_type = preferred
 
-        Note:
-            If a custom media type is used and the type includes a
-            "+json" or "+xml" suffix, the default serializer will
-            convert the error to JSON or XML, respectively. If this
-            is not desirable, a custom error serializer may be used
-            to override this behavior.
+                resp.append_header('Vary', 'Accept')
 
         Args:
             serializer (callable): A function taking the form
@@ -510,7 +565,7 @@ class API(object):
         method = req.method
         uri_template = None
 
-        route = self._router.find(path)
+        route = self._router_search(path, req=req)
 
         if route is not None:
             try:
@@ -665,10 +720,7 @@ class API(object):
                     iterable = wsgi_file_wrapper(stream,
                                                  self._STREAM_BLOCK_SIZE)
                 else:
-                    iterable = iter(
-                        lambda: stream.read(self._STREAM_BLOCK_SIZE),
-                        b''
-                    )
+                    iterable = helpers.CloseableStreamIterator(stream, self._STREAM_BLOCK_SIZE)
             else:
                 iterable = stream
 

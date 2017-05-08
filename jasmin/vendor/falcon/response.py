@@ -14,6 +14,14 @@
 
 """Response class."""
 
+from six import PY2
+from six import string_types as STRING_TYPES
+
+# NOTE(tbug): In some cases, http_cookies is not a module
+# but a dict-like structure. This fixes that issue.
+# See issue https://github.com/falconry/falcon/issues/556
+from six.moves import http_cookies
+
 from falcon.response_helpers import (
     format_header_value_list,
     format_range,
@@ -23,9 +31,6 @@ from falcon.response_helpers import (
 from falcon.util import dt_to_http, TimezoneGMT
 from falcon.util.uri import encode as uri_encode
 from falcon.util.uri import encode_value as uri_encode_value
-from six import PY2
-from six import string_types as STRING_TYPES
-from six.moves import http_cookies
 
 SimpleCookie = http_cookies.SimpleCookie
 CookieError = http_cookies.CookieError
@@ -38,6 +43,9 @@ class Response(object):
 
     Note:
         `Response` is not meant to be instantiated directly by responders.
+
+    Keyword Arguments:
+        options (dict): Set of global options passed from the API handler.
 
     Attributes:
         status (str): HTTP status line (e.g., '200 OK'). Falcon requires the
@@ -104,6 +112,8 @@ class Response(object):
                 opposed to a class), the function is called like a method of
                 the current Response instance. Therefore the first argument is
                 the Response instance itself (self).
+
+        options (dict): Set of global options passed from the API handler.
     """
 
     __slots__ = (
@@ -115,15 +125,18 @@ class Response(object):
         'stream',
         'stream_len',
         'context',
+        'options',
         '__dict__',
     )
 
     # Child classes may override this
     context_type = None
 
-    def __init__(self):
+    def __init__(self, options=None):
         self.status = '200 OK'
         self._headers = {}
+
+        self.options = ResponseOptions() if options is None else options
 
         # NOTE(tbug): will be set to a SimpleCookie object
         # when cookie is set via set_cookie
@@ -159,7 +172,7 @@ class Response(object):
         self.stream_len = stream_len
 
     def set_cookie(self, name, value, expires=None, max_age=None,
-                   domain=None, path=None, secure=True, http_only=True):
+                   domain=None, path=None, secure=None, http_only=True):
         """Set a response cookie.
 
         Note:
@@ -217,6 +230,12 @@ class Response(object):
                 in subsequent requests if they are made over HTTPS
                 (default: ``True``). This prevents attackers from
                 reading sensitive cookie data.
+
+                Note:
+                    The default value for this argument is normally
+                    ``True``, but can be modified by setting
+                    :py:attr:`~.ResponseOptions.secure_cookies_by_default`
+                    via :any:`API.resp_options`.
 
                 Warning:
                     For the `secure` cookie attribute to be effective,
@@ -290,8 +309,13 @@ class Response(object):
         if path:
             self._cookies[name]['path'] = path
 
-        if secure:
-            self._cookies[name]['secure'] = secure
+        if secure is None:
+            is_secure = self.options.secure_cookies_by_default
+        else:
+            is_secure = secure
+
+        if is_secure:
+            self._cookies[name]['secure'] = True
 
         if http_only:
             self._cookies[name]['httponly'] = http_only
@@ -359,6 +383,20 @@ class Response(object):
 
         # NOTE(kgriffs): normalize name by lowercasing it
         self._headers[name.lower()] = value
+
+    def delete_header(self, name):
+        """Delete a header for this response.
+
+        If the header was not previously set, do nothing.
+
+        Args:
+            name (str): Header name (case-insensitive).  Must be of type
+                ``str`` or ``StringType`` and contain only US-ASCII characters.
+                Under Python 2.x, the ``unicode`` type is also accepted,
+                although such strings are also limited to US-ASCII.
+        """
+        # NOTE(kgriffs): normalize name by lowercasing it
+        self._headers.pop(name.lower(), None)
 
     def append_header(self, name, value):
         """Set or append a header for this response.
@@ -441,8 +479,7 @@ class Response(object):
 
     def add_link(self, target, rel, title=None, title_star=None,
                  anchor=None, hreflang=None, type_hint=None):
-        """
-        Add a link header to the response.
+        """Add a link header to the response.
 
         See also: https://tools.ietf.org/html/rfc5988
 
@@ -462,7 +499,7 @@ class Response(object):
                 "bookmark". See also http://goo.gl/618GHr for a list
                 of registered link relation types.
 
-        Kwargs:
+        Keyword Args:
             title (str): Human-readable label for the destination of
                 the link (default ``None``). If the title includes non-ASCII
                 characters, you will need to use `title_star` instead, or
@@ -561,7 +598,7 @@ class Response(object):
 
     cache_control = header_property(
         'Cache-Control',
-        """Sets the Cache-Control header.
+        """Set the Cache-Control header.
 
         Used to set a list of cache directives to use as the value of the
         Cache-Control header. The list will be joined with ", " to produce
@@ -572,7 +609,7 @@ class Response(object):
 
     content_location = header_property(
         'Content-Location',
-        """Sets the Content-Location header.
+        """Set the Content-Location header.
 
         This value will be URI encoded per RFC 3986. If the value that is
         being set is already URI encoded it should be decoded first or the
@@ -602,15 +639,15 @@ class Response(object):
 
     content_type = header_property(
         'Content-Type',
-        'Sets the Content-Type header.')
+        'Set the Content-Type header.')
 
     etag = header_property(
         'ETag',
-        'Sets the ETag header.')
+        'Set the ETag header.')
 
     last_modified = header_property(
         'Last-Modified',
-        """Sets the Last-Modified header. Set to a ``datetime`` (UTC) instance.
+        """Set the Last-Modified header. Set to a ``datetime`` (UTC) instance.
 
         Note:
             Falcon will format the ``datetime`` as an HTTP date string.
@@ -619,7 +656,7 @@ class Response(object):
 
     location = header_property(
         'Location',
-        """Sets the Location header.
+        """Set the Location header.
 
         This value will be URI encoded per RFC 3986. If the value that is
         being set is already URI encoded it should be decoded first or the
@@ -629,7 +666,7 @@ class Response(object):
 
     retry_after = header_property(
         'Retry-After',
-        """Sets the Retry-After header.
+        """Set the Retry-After header.
 
         The expected value is an integral number of seconds to use as the
         value for the header. The HTTP-date syntax is not supported.
@@ -657,7 +694,7 @@ class Response(object):
 
     accept_ranges = header_property(
         'Accept-Ranges',
-        """Sets the Accept-Ranges header.
+        """Set the Accept-Ranges header.
 
         The Accept-Ranges header field indicates to the client which
         range units are supported (e.g. "bytes") for the target
@@ -711,3 +748,24 @@ class Response(object):
             items += [('set-cookie', c.OutputString())
                       for c in self._cookies.values()]
         return items
+
+
+class ResponseOptions(object):
+    """Defines a set of configurable response options.
+
+    An instance of this class is exposed via :any:`API.resp_options` for
+    configuring certain :py:class:`~.Response` behaviors.
+
+    Attributes:
+        secure_cookies_by_default (bool): Set to ``False`` in development
+            environments to make the `secure` attribute for all cookies
+            default to ``False``. This can make testing easier by
+            not requiring HTTPS. Note, however, that this setting can
+            be overridden via `set_cookie()`'s `secure` kwarg.
+    """
+    __slots__ = (
+        'secure_cookies_by_default',
+    )
+
+    def __init__(self):
+        self.secure_cookies_by_default = True

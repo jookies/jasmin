@@ -16,22 +16,52 @@
 
 from functools import wraps
 
+import six
+
 from falcon import util
 
 
-def prepare_middleware(middleware=None):
+def make_router_search(router):
+    """Create a search function for routing requests.
+
+    Args:
+        router(object): An object that implements the routing engine
+            interface.
+
+    Returns:
+        callable: A function that accepts a request and invokes the
+            router's find method.
+    """
+
+    arg_names = util.get_argnames(router.find)
+    supports_req = 'req' in arg_names and len(arg_names) > 1
+
+    if supports_req:
+        return router.find
+
+    def search_shim(path, req):
+        return router.find(path)
+
+    return search_shim
+
+
+def prepare_middleware(middleware=None, independent_middleware=False):
     """Check middleware interface and prepare it to iterate.
 
     Args:
-        middleware:  list (or object) of input middleware
+        middleware: list (or object) of input middleware
+        independent_middleware: bool whether should prepare request and
+            response middleware independently
 
     Returns:
-        list: A list of prepared middleware tuples
+        list: A tuple of prepared middleware tuples
     """
 
     # PERF(kgriffs): do getattr calls once, in advance, so we don't
     # have to do them every time in the request path.
-    prepared_middleware = []
+    request_mw = []
+    resource_mw = []
+    response_mw = []
 
     if middleware is None:
         middleware = []
@@ -66,10 +96,22 @@ def prepare_middleware(middleware=None):
 
                 process_response = let()
 
-        prepared_middleware.append((process_request, process_resource,
-                                    process_response))
+        # NOTE: depending on whether we want to execute middleware
+        # independently, we group response and request middleware either
+        # together or separately.
+        if independent_middleware:
+            if process_request:
+                request_mw.append(process_request)
+            if process_response:
+                response_mw.insert(0, process_response)
+        else:
+            if process_request or process_response:
+                request_mw.append((process_request, process_response))
 
-    return prepared_middleware
+        if process_resource:
+            resource_mw.append(process_resource)
+
+    return (tuple(request_mw), tuple(resource_mw), tuple(response_mw))
 
 
 def default_serialize_error(req, resp, exception):
@@ -123,7 +165,6 @@ def default_serialize_error(req, resp, exception):
             preferred = 'application/xml'
 
     if preferred is not None:
-        resp.append_header('Vary', 'Accept')
         if preferred == 'application/json':
             representation = exception.to_json()
         else:
@@ -131,6 +172,8 @@ def default_serialize_error(req, resp, exception):
 
         resp.body = representation
         resp.content_type = preferred + '; charset=UTF-8'
+
+    resp.append_header('Vary', 'Accept')
 
 
 def wrap_old_error_serializer(old_fn):
@@ -150,3 +193,39 @@ def wrap_old_error_serializer(old_fn):
             resp.content_type = media_type
 
     return new_fn
+
+
+class CloseableStreamIterator(six.Iterator):
+    """Iterator that wraps a file-like stream with support for close().
+
+    This iterator can be used to read from an underlying file-like stream
+    in block_size-chunks until the response from the stream is an empty
+    byte string.
+
+    This class is used to wrap WSGI response streams when a
+    wsgi_file_wrapper is not provided by the server.  The fact that it
+    also supports closing the underlying stream allows use of (e.g.)
+    Python tempfile resources that would be deleted upon close.
+
+    Args:
+        stream (object): Readable file-like stream object.
+        block_size (int): Number of bytes to read per iteration.
+    """
+
+    def __init__(self, stream, block_size):
+        self.stream = stream
+        self.block_size = block_size
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        data = self.stream.read(self.block_size)
+        if data == b'':
+            raise StopIteration
+        else:
+            return data
+
+    def close(self):
+        if hasattr(self.stream, 'close') and callable(self.stream.close):
+            self.stream.close()
