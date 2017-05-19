@@ -55,6 +55,28 @@ def tagfilters_casting(data, context=None):
 
     return data
 
+
+def user_set_hex_content_authorization(data, context=None):
+    """Adding the new authorization 'set_hex_content'"""
+
+    # Create new users and modify the mt_ctedential to include the new authorization
+    new_data = []
+    for old_user in data:
+        user = User(
+            uid=old_user.uid,
+            group=Group(old_user.group.gid),
+            username=old_user.username,
+            password=old_user.password,
+            password_crypted=True,
+            mt_credential=old_user.mt_credential,
+            smpps_credential=old_user.smpps_credential)
+
+        user.mt_credential.authorizations['set_hex_content'] = True
+        new_data.append(user)
+
+    return new_data
+
+
 """This is the main map for orchestring config migrations.
 
 The map is based on 3 elements:
@@ -72,4 +94,8 @@ MAP = [
      'operations': [user_status]},
     {'conditions': ['<=0.9015'],
      'contexts': {'filters', 'mtroutes'},
-     'operations': [tagfilters_casting]},]
+     'operations': [tagfilters_casting]},
+    {'conditions': ['<=0.9022'],
+     'contexts': {'users'},
+     'operations': [user_set_hex_content_authorization]},
+]

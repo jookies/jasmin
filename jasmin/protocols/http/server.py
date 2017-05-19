@@ -2,6 +2,7 @@ import cPickle as pickle
 import json
 import logging
 import re
+import binascii
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 
@@ -9,6 +10,7 @@ from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
+from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
@@ -56,6 +58,17 @@ def update_submit_sm_pdu(routable, config):
     return routable
 
 
+def hex2bin(hex_content):
+    """Convert hex-content back to binary data, raise a UrlArgsValidationError on failure"""
+
+    try:
+        b = binascii.unhexlify(hex_content)
+    except:
+        raise UrlArgsValidationError("Invalid hex-content data: '%s'" % hex_content)
+    else:
+        return b
+
+
 class Send(Resource):
     isleaf = True
 
@@ -75,6 +88,18 @@ class Send(Resource):
     @defer.inlineCallbacks
     def route_routable(self, updated_request):
         try:
+            # Do we have a hex-content ?
+            if 'hex-content' not in updated_request.args:
+                # Convert utf8 to GSM 03.38
+                if updated_request.args['coding'][0] == '0':
+                    short_message = gsm_encode(updated_request.args['content'][0].decode('utf-8'))
+                else:
+                    # Otherwise forward it as is
+                    short_message = updated_request.args['content'][0]
+            else:
+                # Otherwise convert hex to bin
+                short_message = hex2bin(updated_request.args['hex-content'][0])
+
             # Authentication
             user = self.RouterPB.authenticateUser(
                 username=updated_request.args['username'][0],
@@ -95,12 +120,6 @@ class Send(Resource):
             user.getCnxStatus().httpapi['connects_count'] += 1
             user.getCnxStatus().httpapi['submit_sm_request_count'] += 1
             user.getCnxStatus().httpapi['last_activity_at'] = datetime.now()
-
-            # Convert utf8 to GSM 03.38
-            if updated_request.args['coding'][0] == '0':
-                short_message = gsm_encode(updated_request.args['content'][0].decode('utf-8'))
-            else:
-                short_message = updated_request.args['content'][0]
 
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
@@ -354,7 +373,7 @@ class Send(Resource):
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
                     updated_request.args['to'][0],
-                    re.sub(r'[^\x20-\x7E]+', '.', updated_request.args['content'][0]))
+                    re.sub(r'[^\x20-\x7E]+', '.', short_message))
                 _return = 'Success "%s"' % response['return']
 
             updated_request.write(_return)
@@ -398,7 +417,8 @@ class Send(Resource):
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
-                      'content'     : {'optional': False}}
+                      'content'     : {'optional': True},
+                      'hex-content' : {'optional': True}}
 
             # Default coding is 0 when not provided
             if 'coding' not in updated_request.args:
@@ -427,6 +447,13 @@ class Send(Resource):
             # Make validation
             v = UrlArgsValidator(updated_request, fields)
             v.validate()
+
+            # Check if have content --OR-- hex-content
+            # @TODO: make this inside UrlArgsValidator !
+            if 'content' not in request.args and 'hex-content' not in request.args:
+                raise UrlArgsValidationError("content or hex-content not present.")
+            elif 'content' in request.args and 'hex-content' in request.args:
+                raise UrlArgsValidationError("content and hex-content cannot be used both in same request.")
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, updated_request=updated_request)
@@ -464,6 +491,18 @@ class Rate(Resource):
     @defer.inlineCallbacks
     def route_routable(self, request):
         try:
+            # Do we have a hex-content ?
+            if 'hex-content' not in request.args:
+                # Convert utf8 to GSM 03.38
+                if request.args['coding'][0] == '0':
+                    short_message = gsm_encode(request.args['content'][0].decode('utf-8'))
+                else:
+                    # Otherwise forward it as is
+                    short_message = request.args['content'][0]
+            else:
+                # Otherwise convert hex to bin
+                short_message = hex2bin(request.args['hex-content'][0])
+
             # Authentication
             user = self.RouterPB.authenticateUser(
                 username=request.args['username'][0],
@@ -485,12 +524,6 @@ class Rate(Resource):
             user.getCnxStatus().httpapi['connects_count'] += 1
             user.getCnxStatus().httpapi['rate_request_count'] += 1
             user.getCnxStatus().httpapi['last_activity_at'] = datetime.now()
-
-            # Convert utf8 to GSM 03.38
-            if request.args['coding'][0] == '0':
-                short_message = gsm_encode(request.args['content'][0].decode('utf-8'))
-            else:
-                short_message = request.args['content'][0]
 
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
@@ -627,19 +660,25 @@ class Rate(Resource):
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': True},
+                      'hex-content' : {'optional': True},
                       }
 
             # Default coding is 0 when not provided
             if 'coding' not in request.args:
                 request.args['coding'] = ['0']
 
-            # Content is optional, defaults to empty string
-            if 'content' not in request.args:
+            # Content is optional, defaults to empty content string
+            if 'hex-content' not in request.args and 'content' not in request.args:
                 request.args['content'] = ['']
 
             # Make validation
             v = UrlArgsValidator(request, fields)
             v.validate()
+
+            # Check if have content --OR-- hex-content
+            # @TODO: make this inside UrlArgsValidator !
+            if 'content' in request.args and 'hex-content' in request.args:
+                raise UrlArgsValidationError("content and hex-content cannot be used both in same request.")
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, request=request)
