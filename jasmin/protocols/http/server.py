@@ -23,7 +23,7 @@ from .validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
-#@TODO make it configurable
+# @TODO make it configurable
 reactor.suggestThreadPoolSize(30)
 
 
