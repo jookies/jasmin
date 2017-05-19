@@ -1065,14 +1065,8 @@ class PDUEncoder(IEncoder):
             mandatoryParams = self.decodeRequiredParams(pdu.mandatoryParams, self.getRequiredParamEncoders(pdu), file)
         iAfterMParams = file.tell()
         mParamsLen = iAfterMParams - iBeforeMParams
-
-        # Jasmin update:
-        # Ignore optionalParams for _resp pdus, no matter what status they have
-        if pdu.commandId not in (
-                CommandId.bind_receiver_resp, CommandId.bind_transmitter_resp, CommandId.bind_transceiver_resp,
-                CommandId.submit_sm_resp):
-            if len(pdu.optionalParams) > 0:
-                optionalParams = self.decodeOptionalParams(pdu.optionalParams, file, bodyLength - mParamsLen)
+        if len(pdu.optionalParams) > 0:
+            optionalParams = self.decodeOptionalParams(pdu.optionalParams, file, bodyLength - mParamsLen)
 
         pdu.params = dict(mandatoryParams.items() + optionalParams.items())
 
@@ -1129,7 +1123,12 @@ class PDUEncoder(IEncoder):
         while file.tell() - iBefore < optionsLength:
             option = self.optionEncoder.decode(file)
             optionName = str(option.tag)
-            if optionName not in paramList:
+
+            # Jasmin update:
+            # Silently drop vendor_specific_bypass optional param
+            if optionName == 'vendor_specific_bypass':
+                continue
+            elif optionName not in paramList:
                 raise PDUParseError("Invalid option %s" % optionName, pdu_types.CommandStatus.ESME_ROPTPARNOTALLWD)
             optionalParams[optionName] = option.value
         return optionalParams
