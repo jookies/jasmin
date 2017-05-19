@@ -1,13 +1,15 @@
 import cPickle as pickle
 import logging
+
 from twisted.internet import defer, reactor
-from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
+
 from jasmin.protocols.cli.managers import PersistableManager, Session
-from jasmin.vendor.smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
-from jasmin.vendor.smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
-from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
-from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
 from jasmin.protocols.cli.protocol import str2num
+from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
+from jasmin.vendor.smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
+from jasmin.vendor.smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
+from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
+from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
 
 # A config map between console-configuration keys and SMPPClientConfig keys.
 SMPPClientConfigKeyMap = {
@@ -32,8 +34,9 @@ SMPPClientConfigStringKeys = [
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']
 
+
 def castOutputToBuiltInType(key, value):
-    'Will cast value to the correct type depending on the key'
+    """Will cast value to the correct type depending on the key"""
 
     if isinstance(value, bool):
         return 'yes' if value else 'no'
@@ -48,8 +51,9 @@ def castOutputToBuiltInType(key, value):
     else:
         return value
 
+
 def castInputToBuiltInType(key, value):
-    'Will cast value to the correct type depending on the key'
+    """Will cast value to the correct type depending on the key"""
 
     try:
         if key in ['bind_npi', 'dst_npi', 'src_npi']:
@@ -68,17 +72,18 @@ def castInputToBuiltInType(key, value):
             else:
                 raise KeyError('Boolean value must be expressed by yes or no.')
         elif (key == 'loglevel' and
-                value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
+                      value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
             raise KeyError('loglevel must be numeric value of 10, 20, 30, 40 or 50.')
-        elif isinstance(value, str) == str and value.lower() == 'none':
+        elif isinstance(value, str) and value.lower() == 'none':
             value = None
     except KeyError:
         raise UnknownValue('Unknown value for key %s: %s' % (key, value))
 
     return value
 
+
 class JCliSMPPClientConfig(SMPPClientConfig):
-    'Overload SMPPClientConfig with getters and setters for JCli'
+    """Overload SMPPClientConfig with getters and setters for JCli"""
     PendingRestart = False
 
     def set(self, key, value):
@@ -98,8 +103,10 @@ class JCliSMPPClientConfig(SMPPClientConfig):
 
         return r
 
+
 def SMPPClientConfigBuild(fCallback):
-    'Parse args and try to build a JCliSMPPClientConfig instance to pass it to fCallback'
+    """Parse args and try to build a JCliSMPPClientConfig instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -137,11 +144,14 @@ def SMPPClientConfigBuild(fCallback):
                 return self.protocol.sendData('Error: %s' % str(e))
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
+
 def SMPPClientConfigUpdate(fCallback):
-    '''Get connector configuration and log update requests passing to fCallback
-    The log will be handed to fCallback when 'ok' is received'''
+    """Get connector configuration and log update requests passing to fCallback
+    The log will be handed to fCallback when 'ok' is received"""
+
     def log_update_requests_and_call(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -182,14 +192,19 @@ def SMPPClientConfigUpdate(fCallback):
                 return self.protocol.sendData('Error: %s' % str(e))
 
             return self.protocol.sendData()
+
     return log_update_requests_and_call
 
+
 class ConnectorExist(object):
-    'Check if connector cid exist before passing it to fCallback'
+    """Check if connector cid exist before passing it to fCallback"""
+
     def __init__(self, cid_key):
         self.cid_key = cid_key
+
     def __call__(self, fCallback):
         cid_key = self.cid_key
+
         def exist_connector_and_call(self, *args, **kwargs):
             opts = args[1]
             cid = getattr(opts, cid_key)
@@ -198,10 +213,12 @@ class ConnectorExist(object):
                 return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown connector: %s' % cid)
+
         return exist_connector_and_call
 
+
 class SmppCCManager(PersistableManager):
-    "SMPP Client Connector manager logics"
+    """SMPP Client Connector manager logics"""
     managerName = 'smppcc'
 
     def persist(self, arg, opts):
@@ -245,7 +262,7 @@ class SmppCCManager(PersistableManager):
                     str(connector['session_state']).ljust(16),
                     str(connector['start_count']).ljust(6),
                     str(connector['stop_count']).ljust(5),
-                    ), prompt=False)
+                ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total connectors: %s' % counter)
@@ -263,6 +280,7 @@ class SmppCCManager(PersistableManager):
             self.stopSession()
         else:
             self.protocol.sendData('Failed adding connector, check log for details')
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new connector: (ok: save, ko: exit)',
@@ -302,6 +320,7 @@ class SmppCCManager(PersistableManager):
         self.protocol.sendData(
             'Successfully updated connector [%s]' % self.sessionContext['cid'], prompt=False)
         self.stopSession()
+
     @ConnectorExist(cid_key='update')
     def update(self, arg, opts):
         return self.startSession(

@@ -126,3 +126,13 @@ class PDUDecoderTest(unittest.TestCase):
         # Asserts
         self.assertEquals('submit_sm_resp', str(pdu.id))
         self.assertEquals('RESERVEDSTATUS_UNKNOWN_STATUS', str(pdu.status))
+
+    def test_invalid_option_vendor_specific_bypass(self):
+        """Related to #577"""
+
+        pduHex = '0000001c80000009000000000000000159656e746131001002000134'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEquals('bind_transceiver_resp', str(pdu.id))
+        self.assertEquals('ESME_ROK', str(pdu.status))
