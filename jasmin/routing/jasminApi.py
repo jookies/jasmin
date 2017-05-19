@@ -119,6 +119,7 @@ class MtMessagingCredential(CredentialGeneric):
             'set_source_address': default_authorizations,
             'set_priority': default_authorizations,
             'set_validity_period': default_authorizations,
+            'set_hex_content': default_authorizations,
         }
 
         self.value_filters = {

@@ -1,6 +1,7 @@
 import requests
 from celery import Celery, Task
 from celery.task import task
+import binascii
 
 from .config import *
 

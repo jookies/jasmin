@@ -13,3 +13,8 @@ urllib2.urlopen("http://127.0.0.1:1401/send?%s" % urllib.urlencode(baseParams)).
 baseParams['content'] = '\x06\x23\x06\x31\x06\x46\x06\x28'
 baseParams['coding'] = 8
 urllib2.urlopen("http://127.0.0.1:1401/send?%s" % urllib.urlencode(baseParams)).read()
+
+# Sending UCS2 (UTF-16) arabic binary content
+baseParams['hex-content'] = '0623063106460628'
+baseParams['coding'] = 8
+urllib2.urlopen("http://127.0.0.1:1401/send?%s" % urllib.urlencode(baseParams)).read()

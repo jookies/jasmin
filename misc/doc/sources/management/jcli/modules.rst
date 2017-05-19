@@ -101,6 +101,7 @@ All the above parameters can be displayed after User creation, except the passwo
    mt_messaging_cred authorization http_rate True
    mt_messaging_cred authorization validity_period True
    mt_messaging_cred authorization http_bulk False
+   mt_messaging_cred authorization hex_content True
    uid foo
    smpps_cred quota max_bindings ND
    smpps_cred authorization bind True
@@ -158,37 +159,40 @@ In the below tables, you can find exhaustive list of keys for each **mt_messagin
      - Description
    * - http_send
      - True
-     - Privilege to send SMS through :ref:`sending_sms-mt`
+     - Privilege to send SMS through :ref:`sending_sms-mt` (default is True)
    * - http_balance
      - True
-     - Privilege to check balance through :ref:`check_balance`
+     - Privilege to check balance through :ref:`check_balance` (default is True)
    * - http_rate
      - True
-     - Privilege to check a message rate through :ref:`check_rate`
+     - Privilege to check a message rate through :ref:`check_rate` (default is True)
    * - http_bulk
      - False
-     - Privilege to send bulks through http api *(Not implemented yet)*
+     - Privilege to send bulks through http api *(Deprecated and will be removed)*
    * - smpps_send
      - True
-     - Privilege to send SMS through :doc:`/apis/smpp-server/index`
+     - Privilege to send SMS through :doc:`/apis/smpp-server/index` (default is True)
    * - http_long_content
      - True
-     - Privilege to send long content SMS through :ref:`sending_sms-mt`
+     - Privilege to send long content SMS through :ref:`sending_sms-mt` (default is True)
    * - dlr_level
      - True
-     - Privilege to set **dlr-level** parameter (default is 1)
+     - Privilege to set **dlr-level** parameter (default is True)
    * - http_dlr_method
      - True
-     - Privilege to set **dlr-method** HTTP parameter (default is GET)
+     - Privilege to set **dlr-method** HTTP parameter (default is True)
    * - src_addr
      - True
-     - Privilege to defined source address of SMS-MT
+     - Privilege to define source address of SMS-MT (default is True)
    * - priority
      - True
-     - Privilege to defined priority of SMS-MT (default is 0)
+     - Privilege to define priority of SMS-MT (default is True)
    * - validity_period
      - True
-     - Privilege to defined validity_period of SMS-MT (default is NOT SET)
+     - Privilege to define validity_period of SMS-MT (default is True)
+   * - hex_content
+     - True
+     - Privilege to send binary message using the *hex-content* parameter (default is NOT SET)
 
 .. note:: Authorizations keys prefixed by **http_** or **smpps_** are only applicable for their respective channels.
 

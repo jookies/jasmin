@@ -118,8 +118,13 @@ When calling Jasmin's URL from an application, the below parameters must be pass
    * - **content**
      - Text
      - Hello world !
-     - Mandatory
+     - Mandatory if **hex-content** not defined
      - Content to be sent
+   * - **hex-content**
+     - Binary hex value
+     - 0623063106460628
+     - Mandatory if **content** not defined
+     - Binary to be sent
 
 .. _http_response:
 
@@ -195,7 +200,7 @@ Here is an example of how to request acknowledgement when sending a SMS:
 .. literalinclude:: example_send_dlr2.py
    :language: python
 
-And more use cases:
+And more use cases for sending long, UCS2 (UTF16) and binary messages:
 
 .. literalinclude:: example_send_misc.py
    :language: python

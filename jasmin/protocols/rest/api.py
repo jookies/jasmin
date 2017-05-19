@@ -2,7 +2,7 @@ import json
 import os
 import sys
 import uuid
-
+import re
 import requests
 
 import jasmin
@@ -11,7 +11,6 @@ from .tasks import httpapi_send
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 import falcon
-import binascii
 
 
 class JasminHttpApiProxy(object):
@@ -96,16 +95,24 @@ class RateResource(JasminRestApi, JasminHttpApiProxy):
         Note: This method will indicate the rate of the message once sent
         """
 
+        request_args = dict(
+            self.decode_request_data(request).items() + {
+                'username': request.context['username'],
+                'password': request.context['password']
+            }.items()
+        )
+
+        # Convert _ to -
+        # Added for compliance with json encoding/decoding constraints on dev env like .Net
+        for k, v in request_args.iteritems():
+            del (request_args[k])
+            request_args[re.sub('_', '-', k)] = v
+
         self.build_response_from_proxy_result(
             response,
             self.call_jasmin(
                 'rate',
-                params=dict(
-                    request.params.items() + {
-                        'username': request.context['username'],
-                        'password': request.context['password']
-                    }.items()
-                )
+                params=request_args
             )
         )
 
@@ -125,16 +132,11 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
             }.items()
         )
 
-        # If we have a hex_content then convert it back to content:
-        if 'hex_content' in request_args:
-            try:
-                request_args['content'] = binascii.unhexlify(request_args['hex_content'])
-            except Exception:
-                raise falcon.HTTPPreconditionFailed('Cannot parse hex_content value',
-                                                    'Got unparseable hex_content value: %s' % request_args[
-                                                        'hex_content'])
-            else:
-                del (request_args['hex_content'])
+        # Convert _ to -
+        # Added for compliance with json encoding/decoding constraints on dev env like .Net
+        for k, v in request_args.iteritems():
+            del (request_args[k])
+            request_args[re.sub('_', '-', k)] = v
 
         self.build_response_from_proxy_result(
             response,
@@ -163,19 +165,15 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
             message_params.update(params.get('globals', {}))
             message_params.update(_message_params)
 
-            # Ignore message if these args are not found
-            if 'to' not in message_params or ('content' not in message_params and 'hex_content' not in message_params):
-                continue
+            # Convert _ to -
+            # Added for compliance with json encoding/decoding constraints on dev env like .Net
+            for k, v in message_params.iteritems():
+                del(message_params[k])
+                message_params[re.sub('_', '-', k)] = v
 
-            # If we have a hex_content then convert it back to content:
-            if 'hex_content' in message_params:
-                try:
-                    message_params['content'] = binascii.unhexlify(message_params['hex_content'])
-                except Exception:
-                    # Ignore message on any error that may occur when unhexlifying hex_content
-                    continue
-                else:
-                    del (message_params['hex_content'])
+            # Ignore message if these args are not found
+            if 'to' not in message_params or ('content' not in message_params and 'hex-content' not in message_params):
+                continue
 
             # Do we have multiple destinations for this message ?
             if isinstance(message_params.get('to', ''), list):

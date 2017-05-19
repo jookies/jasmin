@@ -3,6 +3,7 @@
 import copy
 import string
 import urllib
+import binascii
 
 import mock
 from twisted.internet import defer
@@ -211,6 +212,30 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # '@$ΔßÉ' encoded in gsm338 = '\x00\x02\x10\x1e\x1f'
         self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']),
                          '\x00\x02\x10\x1e\x1f')
+
+    @defer.inlineCallbacks
+    def test_hex_content(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        # Some hebrew data
+        del(self.params['content'])
+        self.params['hex-content'] = '05d905d005dc05dc05dc05dc05dc05dc05dc05d4'
+        self.params['coding'] = '8'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        msgStatus = c[:7]
+
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertEqual(binascii.hexlify(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']),
+                         self.params['hex-content'])
 
 
 class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
