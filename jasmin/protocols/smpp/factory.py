@@ -330,15 +330,18 @@ class SMPPServerFactory(_SMPPServerFactory):
 
             # Post interception:
             if len(args) == 1:
-                if isinstance(args[0], bool) and args[0] == False:
+                if isinstance(args[0], bool) and not args[0]:
                     self.stats.inc('interceptor_error_count')
                     self.log.error('Failed running interception script, got a False return.')
                     raise InterceptorRunError('Failed running interception script, check log for details')
                 elif isinstance(args[0], dict) and args[0]['smpp_status'] > 0:
                     self.stats.inc('interceptor_error_count')
-                    self.log.error('Interceptor script returned %s smpp_status error.',
-                                   args[0]['smpp_status'])
+                    self.log.error('Interceptor script returned %s smpp_status error.', args[0]['smpp_status'])
                     raise SubmitSmInterceptionError(code=args[0]['smpp_status'])
+                elif isinstance(args[0], dict) and args[0]['smpp_status'] == 0:
+                    self.stats.inc('interceptor_count')
+                    self.log.error('Interceptor script returned %s success smpp_status.', args[0]['smpp_status'])
+                    raise SubmitSmInterceptionSuccess()
                 elif isinstance(args[0], str):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
@@ -466,8 +469,9 @@ class SMPPServerFactory(_SMPPServerFactory):
 
             # Otherwise, message_id is defined on ESME_ROK
             message_id = c.result
-        except (SubmitSmInterceptionError, InterceptorRunError, SubmitSmRouteNotFoundError,
-                SubmitSmThroughputExceededError, SubmitSmChargingError, SubmitSmRoutingError) as e:
+        except (SubmitSmInterceptionError, SubmitSmInterceptionSuccess, InterceptorRunError,
+                SubmitSmRouteNotFoundError, SubmitSmThroughputExceededError, SubmitSmChargingError,
+                SubmitSmRoutingError) as e:
             # Known exception handling
             status = e.status
         except Exception, e:
