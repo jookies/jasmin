@@ -10,8 +10,9 @@ from jasmin.config.tools import ConfigFile
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class RedisForJasminConfig(ConfigFile):
-    "Config handler for 'redis-client' section"
+    """Config handler for 'redis-client' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)

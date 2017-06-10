@@ -2,6 +2,7 @@ import cPickle as pickle
 import json
 import logging
 import re
+import binascii
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 
@@ -9,7 +10,8 @@ from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 
-from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.protocols.http.errors import UrlArgsValidationError
+from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
@@ -23,8 +25,9 @@ from .validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
-#@TODO make it configurable
+# @TODO make it configurable
 reactor.suggestThreadPoolSize(30)
+
 
 def update_submit_sm_pdu(routable, config):
     """Will set pdu parameters from smppclient configuration.
@@ -56,6 +59,18 @@ def update_submit_sm_pdu(routable, config):
 
     return routable
 
+
+def hex2bin(hex_content):
+    """Convert hex-content back to binary data, raise a UrlArgsValidationError on failure"""
+
+    try:
+        b = binascii.unhexlify(hex_content)
+    except:
+        raise UrlArgsValidationError("Invalid hex-content data: '%s'" % hex_content)
+    else:
+        return b
+
+
 class Send(Resource):
     isleaf = True
 
@@ -75,6 +90,18 @@ class Send(Resource):
     @defer.inlineCallbacks
     def route_routable(self, updated_request):
         try:
+            # Do we have a hex-content ?
+            if 'hex-content' not in updated_request.args:
+                # Convert utf8 to GSM 03.38
+                if updated_request.args['coding'][0] == '0':
+                    short_message = gsm_encode(updated_request.args['content'][0].decode('utf-8'))
+                else:
+                    # Otherwise forward it as is
+                    short_message = updated_request.args['content'][0]
+            else:
+                # Otherwise convert hex to bin
+                short_message = hex2bin(updated_request.args['hex-content'][0])
+
             # Authentication
             user = self.RouterPB.authenticateUser(
                 username=updated_request.args['username'][0],
@@ -100,7 +127,7 @@ class Send(Resource):
             SubmitSmPDU = self.opFactory.SubmitSM(
                 source_addr=None if 'from' not in updated_request.args else updated_request.args['from'][0],
                 destination_addr=updated_request.args['to'][0],
-                short_message=updated_request.args['content'][0],
+                short_message=short_message,
                 data_coding=int(updated_request.args['coding'][0]))
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
@@ -266,7 +293,7 @@ class Send(Resource):
                 if qos_delay < qos_throughput_ysecond_td:
                     self.stats.inc('throughput_error_count')
                     self.log.error(
-                        "QoS: submit_sm_event is faster (%s) than fixed throughput (%s) for user (%s), rejecting message.",
+                        "QoS: submit_sm_event is faster (%s) than fixed throughput (%s), user:%s, rejecting message.",
                         qos_delay,
                         qos_throughput_ysecond_td,
                         user)
@@ -356,7 +383,7 @@ class Send(Resource):
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
                     updated_request.args['to'][0],
-                    re.sub(r'[^\x20-\x7E]+', '.', updated_request.args['content'][0]))
+                    re.sub(r'[^\x20-\x7E]+', '.', short_message))
                 _return = 'Success "%s"' % response['return']
 
             updated_request.write(_return)
@@ -432,6 +459,13 @@ class Send(Resource):
             v = UrlArgsValidator(updated_request, fields)
             v.validate()
 
+            # Check if have content --OR-- hex-content
+            # @TODO: make this inside UrlArgsValidator !
+            if 'content' not in request.args and 'hex-content' not in request.args:
+                raise UrlArgsValidationError("content or hex-content not present.")
+            elif 'content' in request.args and 'hex-content' in request.args:
+                raise UrlArgsValidationError("content and hex-content cannot be used both in same request.")
+
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, updated_request=updated_request)
         except Exception, e:
@@ -448,6 +482,7 @@ class Send(Resource):
             return 'Error "%s"' % response['return']
         else:
             return NOT_DONE_YET
+
 
 class Rate(Resource):
     isleaf = True
@@ -467,6 +502,18 @@ class Rate(Resource):
     @defer.inlineCallbacks
     def route_routable(self, request):
         try:
+            # Do we have a hex-content ?
+            if 'hex-content' not in request.args:
+                # Convert utf8 to GSM 03.38
+                if request.args['coding'][0] == '0':
+                    short_message = gsm_encode(request.args['content'][0].decode('utf-8'))
+                else:
+                    # Otherwise forward it as is
+                    short_message = request.args['content'][0]
+            else:
+                # Otherwise convert hex to bin
+                short_message = hex2bin(request.args['hex-content'][0])
+
             # Authentication
             user = self.RouterPB.authenticateUser(
                 username=request.args['username'][0],
@@ -493,7 +540,7 @@ class Rate(Resource):
             SubmitSmPDU = self.opFactory.SubmitSM(
                 source_add=None if 'from' not in request.args else request.args['from'][0],
                 destination_addr=request.args['to'][0],
-                short_message=request.args['content'][0],
+                short_message=short_message,
                 data_coding=int(request.args['coding'][0]),
             )
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
@@ -624,19 +671,25 @@ class Rate(Resource):
                       'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': True},
+                      'hex-content' : {'optional': True},
                       }
 
             # Default coding is 0 when not provided
             if 'coding' not in request.args:
                 request.args['coding'] = ['0']
 
-            # Content is optional, defaults to empty string
-            if 'content' not in request.args:
+            # Content is optional, defaults to empty content string
+            if 'hex-content' not in request.args and 'content' not in request.args:
                 request.args['content'] = ['']
 
             # Make validation
             v = UrlArgsValidator(request, fields)
             v.validate()
+
+            # Check if have content --OR-- hex-content
+            # @TODO: make this inside UrlArgsValidator !
+            if 'content' in request.args and 'hex-content' in request.args:
+                raise UrlArgsValidationError("content and hex-content cannot be used both in same request.")
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, request=request)
@@ -659,6 +712,7 @@ class Rate(Resource):
             return json.dumps(response['return'])
         else:
             return NOT_DONE_YET
+
 
 class Balance(Resource):
     isleaf = True
@@ -745,6 +799,7 @@ class Balance(Resource):
                 request.setResponseCode(response['status'])
             return json.dumps(response['return'])
 
+
 class Ping(Resource):
     isleaf = True
 
@@ -764,6 +819,7 @@ class Ping(Resource):
         self.log.info("Received ping from %s", request.getClientIP())
         request.setResponseCode(200)
         return 'Jasmin/PONG'
+
 
 class HTTPApi(Resource):
 

@@ -375,7 +375,7 @@ class SendTestCases(HTTPApiTestCases):
             self.assertEqual(response.responseCode, 400)
             self.assertEqual(response.value()[:23], "Error \"Argument [sdt] ")
 
-
+            
 class RateTestCases(HTTPApiTestCases):
     def setUp(self):
         HTTPApiTestCases.setUp(self)

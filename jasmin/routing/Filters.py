@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 """
 More info: http://docs.jasminsms.com/en/latest/routing/index.html
 """
@@ -14,6 +14,7 @@ class InvalidFilterParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
     validating inputs
     """
+
 
 class Filter(object):
     """
@@ -86,8 +87,10 @@ class Filter(object):
 
     def __repr__(self):
         return self._repr
+
     def __str__(self):
         return self._str
+
 
 class TransparentFilter(Filter):
     """This filter will match any routable
@@ -95,12 +98,13 @@ class TransparentFilter(Filter):
     def __init__(self):
         Filter.__init__(self)
         self._repr = '<T>'
-        self._str = '%s' % (self.__class__.__name__)
+        self._str = '%s' % self.__class__.__name__
 
     def match(self, routable):
         Filter.match(self, routable)
 
         return True
+
 
 class ConnectorFilter(Filter):
     usedFor = ['mo']
@@ -108,7 +112,7 @@ class ConnectorFilter(Filter):
     def __init__(self, connector):
         Filter.__init__(self, connector=connector)
 
-        self._repr = '<C (cid=%s)>' % (connector.cid)
+        self._repr = '<C (cid=%s)>' % connector.cid
         self._str = '%s:\ncid = %s' % (self.__class__.__name__, connector.cid)
 
     def match(self, routable):
@@ -119,13 +123,14 @@ class ConnectorFilter(Filter):
         else:
             return False
 
+
 class UserFilter(Filter):
     usedFor = ['mt']
 
     def __init__(self, user):
         Filter.__init__(self, user=user)
 
-        self._repr = '<U (uid=%s)>' % (user.uid)
+        self._repr = '<U (uid=%s)>' % user.uid
         self._str = '%s:\nuid = %s' % (self.__class__.__name__, user.uid)
 
     def match(self, routable):
@@ -136,13 +141,14 @@ class UserFilter(Filter):
         else:
             return False
 
+
 class GroupFilter(Filter):
     usedFor = ['mt']
 
     def __init__(self, group):
         Filter.__init__(self, group=group)
 
-        self._repr = '<G (gid=%s)>' % (group.gid)
+        self._repr = '<G (gid=%s)>' % group.gid
         self._str = '%s:\ngid = %s' % (self.__class__.__name__, group.gid)
 
     def match(self, routable):
@@ -153,11 +159,12 @@ class GroupFilter(Filter):
         else:
             return False
 
+
 class SourceAddrFilter(Filter):
     def __init__(self, source_addr):
         Filter.__init__(self, source_addr=source_addr)
 
-        self._repr = '<SA (src_addr=%s)>' % (source_addr)
+        self._repr = '<SA (src_addr=%s)>' % source_addr
         self._str = '%s:\nsource_addr = %s' % (self.__class__.__name__, source_addr)
 
     def match(self, routable):
@@ -165,11 +172,12 @@ class SourceAddrFilter(Filter):
 
         return False if self.source_addr.match(routable.pdu.params['source_addr']) is None else True
 
+
 class DestinationAddrFilter(Filter):
     def __init__(self, destination_addr):
         Filter.__init__(self, destination_addr=destination_addr)
 
-        self._repr = '<DA (dst_addr=%s)>' % (destination_addr)
+        self._repr = '<DA (dst_addr=%s)>' % destination_addr
         self._str = '%s:\ndestination_addr = %s' % (self.__class__.__name__, destination_addr)
 
     def match(self, routable):
@@ -180,11 +188,12 @@ class DestinationAddrFilter(Filter):
         else:
             return True
 
+
 class ShortMessageFilter(Filter):
     def __init__(self, short_message):
         Filter.__init__(self, short_message=short_message)
 
-        self._repr = '<SM (msg=%s)>' % (short_message)
+        self._repr = '<SM (msg=%s)>' % short_message
         self._str = '%s:\nshort_message = %s' % (self.__class__.__name__, short_message)
 
     def match(self, routable):
@@ -197,6 +206,7 @@ class ShortMessageFilter(Filter):
             return False if self.short_message.match(routable.pdu.params['message_payload']) is None else True
         else:
             return False
+
 
 class DateIntervalFilter(Filter):
     def __init__(self, dateInterval):
@@ -214,6 +224,7 @@ class DateIntervalFilter(Filter):
 
         return True if self.dateInterval[0] <= routable.datetime.date() <= self.dateInterval[1] else False
 
+
 class TimeIntervalFilter(Filter):
     def __init__(self, timeInterval):
         Filter.__init__(self, timeInterval=timeInterval)
@@ -229,6 +240,7 @@ class TimeIntervalFilter(Filter):
         Filter.match(self, routable)
 
         return True if self.timeInterval[0] <= routable.datetime.time() <= self.timeInterval[1] else False
+
 
 class EvalPyFilter(Filter):
     def __init__(self, pyCode):
@@ -251,12 +263,13 @@ class EvalPyFilter(Filter):
         else:
             return glo['result']
 
+
 class TagFilter(Filter):
     def __init__(self, tag):
         Filter.__init__(self)
-        if not isinstance(tag, int):
-            raise InvalidFilterParameterError("tag must be integer, %s given" % type(tag))
-        self.tag = tag
+        if not isinstance(tag, int) and not isinstance(tag, str):
+            raise InvalidFilterParameterError("tag must be integer or str, %s given" % type(tag))
+        self.tag = str(tag)
 
         self._repr = '<TG (tag=%s)>' % tag
         self._str = '%s:\nhas tag = %s' % (self.__class__.__name__, tag)
