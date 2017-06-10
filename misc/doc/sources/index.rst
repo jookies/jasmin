@@ -6,9 +6,7 @@ The Jasmin Open source SMS gateway
 
 Based on strong message routing algorithms, Jasmin provides flexibility to define rule based routing based on various criteria: sender ID, source, destination and many combinations. Auto reconnection and re-routing mechanism managing peak hours or link failover for high availability services.
 
-Jasmin is written in Python and Twisted framework for serving highly scalable applications, SMS message delivery can be done through HTTP and SMPP protocols, intelligent routing can be configured in real-time through an API, cli interface or a web backend.
-
-Web backend is written in Django [1]_ and is providing advanced tools for managing and monitoring the gateway.
+Jasmin is written in Python and Twisted framework for serving highly scalable applications, SMS message delivery can be done through HTTP and SMPP protocols, intelligent routing can be configured in real-time through an API, cli interface or a web backend [1]_.
 
 Features
 ********
@@ -19,7 +17,6 @@ Features
 * Standard message filtering: *TransparentFilter*, *ConnectorFilter*, *UserFilter* ..
 * Advanced message filtering: *EvalPyFilter*
 * Flexible billing support
-* Web ui for management
 * Supports Unicode (UTF-8 / 16) for sending out multilingual SMS
 * Supports easy creation and sending of specialized/binary SMS like mono Ringtones, WAP Push, Vcards
 * Supports concatenated (multipart) SMS contents (long SMS)
@@ -33,7 +30,7 @@ Getting started
 
    * :doc:`/installation/index` -- Install and run Jasmin SMS Gateway
    * :ref:`Examples_Receiving_SMS` -- Basic push/pull SMS application via HTTP
-   * :doc:`/apis/ja-http/index` -- HTTP API technical specification
+   * :doc:`/apis/rest/index` -- RESTful API technical specification
    * :doc:`/apis/smpp-server/index` -- SMPP Server API technical specification
    * :ref:`Examples_Routing` -- Running basic SMS and routing scenarios
    * :doc:`/faq/users` -- Frequently asked questions
@@ -46,6 +43,7 @@ Full contents
    /architecture/index
    /support/index
    /installation/index
+   /apis/rest/index
    /apis/ja-http/index
    /apis/smpp-server/index
    /routing/index
@@ -71,4 +69,4 @@ License
 Jasmin is released under the terms of the [Apache License Version 2]. See **`LICENSE`** file for details.
 
 .. rubric:: Footnotes
-.. [1] Web interface will come in v0.7
+.. [1] Web backend is provided under a commercial license, c.f. :doc:`/support/index`

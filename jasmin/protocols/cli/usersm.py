@@ -17,7 +17,8 @@ MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
                                                  'http_dlr_method': 'http_set_dlr_method',
                                                  'src_addr': 'set_source_address',
                                                  'priority': 'set_priority',
-                                                 'validity_period': 'set_validity_period'},
+                                                 'validity_period': 'set_validity_period',
+                                                 'hex_content': 'set_hex_content'},
                                'ValueFilter': {'dst_addr': 'destination_address',
                                                'src_addr': 'source_address',
                                                'priority': 'priority',
@@ -46,6 +47,7 @@ UserConfigStringKeys = ['username', 'password', 'uid', 'gid']
 
 TrueBoolCastMap = ['true', '1', 't', 'y', 'yes']
 FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
+
 
 def castToBuiltCorrectCredType(cred, section, key, value, update=False):
     'Will cast value to the correct type depending on the cred class, section and key'
@@ -116,8 +118,9 @@ def castToBuiltCorrectCredType(cred, section, key, value, update=False):
     else:
         return value
 
+
 def UserBuild(fCallback):
-    'Parse args and try to build a jasmin.routing.jasminApi.User instance to pass it to fCallback'
+    """Parse args and try to build a jasmin.routing.jasminApi.User instance to pass it to fCallback"""
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -224,8 +227,9 @@ def UserBuild(fCallback):
             return self.protocol.sendData()
     return parse_args_and_call_with_instance
 
+
 class UserExist(object):
-    'Check if user uid exist before passing it to fCallback'
+    """Check if user uid exist before passing it to fCallback"""
     def __init__(self, uid_key):
         self.uid_key = uid_key
     def __call__(self, fCallback):
@@ -240,9 +244,10 @@ class UserExist(object):
             return self.protocol.sendData('Unknown User: %s' % uid)
         return exist_user_and_call
 
+
 def UserUpdate(fCallback):
-    '''Get User and log update requests passing to fCallback
-    The log will be handed to fCallback when 'ok' is received'''
+    """Get User and log update requests passing to fCallback
+    The log will be handed to fCallback when 'ok' is received"""
     def log_update_requests_and_call(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -336,8 +341,9 @@ def UserUpdate(fCallback):
             return self.protocol.sendData()
     return log_update_requests_and_call
 
+
 class UsersManager(PersistableManager):
-    "Users manager logics"
+    """Users manager logics"""
     managerName = 'user'
 
     def persist(self, arg, opts):
@@ -429,6 +435,7 @@ class UsersManager(PersistableManager):
             self.stopSession()
         else:
             self.protocol.sendData('Failed adding User, check log for details')
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new User: (ok: save, ko: exit)',
@@ -496,6 +503,7 @@ class UsersManager(PersistableManager):
 
         self.protocol.sendData('Successfully updated User [%s]' % self.sessionContext['uid'], prompt=False)
         self.stopSession()
+
     @UserExist(uid_key='update')
     def update(self, arg, opts):
         return self.startSession(self.update_session,

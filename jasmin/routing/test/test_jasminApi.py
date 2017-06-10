@@ -125,6 +125,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('set_source_address'), True)
         self.assertEqual(mc.getAuthorization('set_priority'), True)
         self.assertEqual(mc.getAuthorization('set_validity_period'), True)
+        self.assertEqual(mc.getAuthorization('set_hex_content'), True)
         self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('source_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('priority'), re.compile(r'^[0-3]$'))
@@ -147,6 +148,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('set_source_address'), False)
         self.assertEqual(mc.getAuthorization('set_priority'), False)
         self.assertEqual(mc.getAuthorization('set_validity_period'), False)
+        self.assertEqual(mc.getAuthorization('set_hex_content'), False)
         self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('source_address'), re.compile(r'.*'))
         self.assertEqual(mc.getValueFilter('priority'), re.compile(r'^[0-3]$'))
@@ -177,6 +179,8 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('set_priority'), False)
         mc.setAuthorization('set_validity_period', False)
         self.assertEqual(mc.getAuthorization('set_validity_period'), False)
+        mc.setAuthorization('set_hex_content', False)
+        self.assertEqual(mc.getAuthorization('set_hex_content'), False)
         mc.setValueFilter('destination_address', r'^D.*')
         self.assertEqual(mc.getValueFilter('destination_address'), re.compile(r'^D.*'))
         mc.setValueFilter('source_address', r'^S.*')
@@ -225,6 +229,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getAuthorization('set_source_address'), False)
         self.assertEqual(mc.getAuthorization('set_priority'), False)
         self.assertEqual(mc.getAuthorization('set_validity_period'), False)
+        self.assertEqual(mc.getAuthorization('set_hex_content'), False)
 
     def test_set_invalid_value(self):
         mc = MtMessagingCredential()

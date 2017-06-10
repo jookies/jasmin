@@ -3,6 +3,7 @@ from hashlib import md5
 from test_jcli import jCliWithoutAuthTestCases
 from jasmin.routing.jasminApi import MtMessagingCredential, SmppsCredential
 
+
 class UserTestCases(jCliWithoutAuthTestCases):
     def add_user(self, finalPrompt, extraCommands = [], GID = None, Username = None):
         sessionTerminated = False
@@ -155,6 +156,7 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
                         'mt_messaging_cred authorization http_send True',
                         'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization hex_content True',
                         'mt_messaging_cred authorization http_balance True',
                         'mt_messaging_cred authorization smpps_send True',
                         'mt_messaging_cred authorization priority True',
@@ -262,6 +264,7 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
                         'mt_messaging_cred authorization http_send True',
                         'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization hex_content True',
                         'mt_messaging_cred authorization http_balance True',
                         'mt_messaging_cred authorization smpps_send True',
                         'mt_messaging_cred authorization priority True',
@@ -476,6 +479,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape(mtcred.getValueFilter('validity_period').pattern),
                         'mt_messaging_cred authorization http_send %s' % mtcred.getAuthorization('http_send'),
                         'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
+                        'mt_messaging_cred authorization hex_content %s' % mtcred.getAuthorization('set_hex_content'),
                         'mt_messaging_cred authorization http_balance %s' % mtcred.getAuthorization('http_balance'),
                         'mt_messaging_cred authorization smpps_send %s' % mtcred.getAuthorization('smpps_send'),
                         'mt_messaging_cred authorization priority %s' % mtcred.getAuthorization('set_priority'),
@@ -677,6 +681,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('set_source_address', False)
         _cred.setAuthorization('set_priority', False)
         _cred.setAuthorization('set_validity_period', False)
+        _cred.setAuthorization('set_hex_content', False)
         _cred.setValueFilter('destination_address', '^HELLO$')
         _cred.setValueFilter('source_address', '^World$')
         _cred.setValueFilter('priority', '^1$')
@@ -696,6 +701,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization src_addr false'},
                          {'command': 'mt_messaging_cred authorization priority f'},
                          {'command': 'mt_messaging_cred authorization validity_period f'},
+                         {'command': 'mt_messaging_cred authorization hex_content f'},
                          {'command': 'mt_messaging_cred Valuefilter dst_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^World$'},
                          {'command': 'mt_messaging_cred valuefilter priority ^1$'},
@@ -706,7 +712,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred quota http_throughput 2.2'},
                          {'command': 'mt_messaging_cred quota smpps_throughput 0.5'},
                         ]
-        self.add_user(r'jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self.add_user(r'jcli : ', extraCommands, GID='AnyGroup', Username='AnyUsername')
         self._test_user_with_MtMessagingCredential('user_1', 'AnyGroup', 'AnyUsername', _cred)
 
         # Assert User updating
@@ -717,6 +723,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('set_source_address', True)
         _cred.setAuthorization('set_priority', True)
         _cred.setAuthorization('set_validity_period', True)
+        _cred.setAuthorization('set_hex_content', True)
         _cred.setValueFilter('destination_address', '^WORLD$')
         _cred.setValueFilter('source_address', '^HELLO$')
         _cred.setValueFilter('priority', '^2$')
@@ -731,6 +738,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization src_addr true'},
                          {'command': 'mt_messaging_cred authorization priority t'},
                          {'command': 'mt_messaging_cred authorization validity_period t'},
+                         {'command': 'mt_messaging_cred authorization hex_content t'},
                          {'command': 'mt_messaging_cred valuefilter dst_addr ^WORLD$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter priority ^2$'},
@@ -786,6 +794,7 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Show and assert
         expectedList = ['username AnyUsername',
+                        'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
