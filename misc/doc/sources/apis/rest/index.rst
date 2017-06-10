@@ -31,6 +31,8 @@ If you are not using rpm/deb packages to install Jasmin then that systemd servic
 
 Configuration file for Celery and the Web server can be found in **/etc/jasmin/rest-api.py.conf**.
 
+.. note:: You may also use any other WSGI server for better performance, eg: gunicorn with parallel workers ...
+
 .. _restapi-services:
 
 Services
@@ -169,6 +171,8 @@ If successful, response header HTTP status code will be **200 OK** and and the m
      - {"callback_url": "http://127.0.0.1:7877"}
      - Optional
      - May contain a callback or/and errback urls, c.f. :ref:`examples <restapi-POST_callbacks>`
+
+.. note:: The Rest API server has an advanced QoS control to throttle pushing messages back to Jasmin, you may fine-tune it through the **http_throughput_per_worker** and **smart_qos** parameters.
 
 .. _restapi-binary_messages:
 

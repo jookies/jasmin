@@ -157,6 +157,7 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
 
         batch_id = uuid.uuid4()
         params = self.decode_request_data(request)
+        config = {'throughput': http_throughput_per_worker, 'smart_qos': smart_qos}
 
         message_count = 0
         for _message_params in params.get('messages', {}):
@@ -180,10 +181,10 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
                 to_list = message_params.get('to')
                 for _to in to_list:
                     message_params['to'] = _to
-                    httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params)
+                    httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params, config)
                     message_count += 1
             else:
-                httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params)
+                httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params, config)
                 message_count += 1
 
         response.body = {
