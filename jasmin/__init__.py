@@ -8,6 +8,7 @@ MINOR = 9
 PATCH = 23 
 META = 'rc'
 
+
 def get_version():
     "Will return Jasmin's version"
     return '%s.%s' % (MAJOR, MINOR)
