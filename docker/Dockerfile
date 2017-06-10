@@ -40,4 +40,3 @@ CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--ena
 # Notes:
 # - jasmind is started with native dlr-thrower and dlr-lookup threads instead of standalone processes
 # - restapi (0.9rc16+) is not started in this docker configuration
-
