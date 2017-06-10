@@ -403,6 +403,7 @@ class Send(Resource):
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': False},
                       'hex-content' : {'optional': True}}
+
             # Default coding is 0 when not provided
             if 'coding' not in updated_request.args:
                 updated_request.args['coding'] = ['0']
