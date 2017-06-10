@@ -17,7 +17,7 @@ class RedisForJasminConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.host = self._get('redis-client', 'host', '192.168.99.100')
+        self.host = self._get('redis-client', 'host', '127.0.0.1')
         self.port = self._getint('redis-client', 'port', 6379)
         self.dbid = self._getint('redis-client', 'dbid', '0')
         self.password = self._get('redis-client', 'password', None)
