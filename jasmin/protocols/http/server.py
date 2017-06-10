@@ -207,12 +207,12 @@ class Send(Resource):
             self.log.debug("SubmitSmPDU priority is set to %s", priority)
 
 	    # Set schedule_delivery_time
-            if 'schedule-delivery-time' in updated_request.args:
-                routable.pdu.params['schedule_delivery_time'] = parse(updated_request.args['schedule-delivery-time'][0])
+            if 'sdt' in updated_request.args:
+                routable.pdu.params['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
                 self.log.debug(
                     "SubmitSmPDU schedule_delivery_time is set to %s (%s)",
                     routable.pdu.params['schedule_delivery_time'],
-                    updated_request.args['schedule-delivery-time'][0])
+                    updated_request.args['sdt'][0])
 
             # Set validity_period
             if 'validity-period' in updated_request.args:
@@ -390,7 +390,7 @@ class Send(Resource):
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
-                      'schedule-delivery-time'    : {'optional': True, 'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
+                      'sdt'    : {'optional': True, 'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' : {'optional': True, 'pattern': re.compile(r'^\d+$')},
