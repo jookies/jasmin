@@ -401,7 +401,7 @@ class Send(Resource):
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
-                      'content'     : {'optional': False},
+                      'content'     : {'optional': True},
                       'hex-content' : {'optional': True}}
 
             # Default coding is 0 when not provided
