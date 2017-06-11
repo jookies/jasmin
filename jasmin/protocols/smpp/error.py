@@ -2,6 +2,7 @@ from jasmin.vendor.smpp.pdu import constants
 from jasmin.vendor.smpp.pdu.error import *
 from jasmin.vendor.smpp.pdu import pdu_types
 
+
 class LongSubmitSmTransactionError(SMPPError):
     """Raised inside a long message transaction
     """
@@ -9,6 +10,7 @@ class LongSubmitSmTransactionError(SMPPError):
         SMPPError.__init__(self, message)
         
         self.message = message
+
 
 class SubmitSmEventHandlerErrorNoShutdown(SMPPProtocolError):
     """Errors raised from jasmin.protocols.smpp.factory.SMPPServerFactory.submit_sm_event()
@@ -20,10 +22,12 @@ class SubmitSmEventHandlerErrorNoShutdown(SMPPProtocolError):
         else:
             SMPPProtocolError.__init__(self, message, self.status)
 
+
 class SubmitSmEventHandlerErrorShutdown(SMPPError):
     """Errors raised from jasmin.protocols.smpp.factory.SMPPServerFactory.submit_sm_event()
     Any error raising this exception will cause connection shutdown
     """
+
 
 class SubmitSmInvalidArgsError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when args validation fail
@@ -32,12 +36,14 @@ class SubmitSmInvalidArgsError(SubmitSmEventHandlerErrorNoShutdown):
         self.status = pdu_types.CommandStatus.ESME_RSYSERR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
+
 class SubmitSmWithoutDestinationAddrError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when args validation fail
     """
     def __init__(self):
         self.status = pdu_types.CommandStatus.ESME_RINVDSTADR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
+
 
 class SubmitSmRouteNotFoundError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when no route is found for a given submit_sm
@@ -46,12 +52,14 @@ class SubmitSmRouteNotFoundError(SubmitSmEventHandlerErrorNoShutdown):
         self.status = pdu_types.CommandStatus.ESME_RINVDSTADR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
+
 class SubmitSmRoutingError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when failing to send SubmitSm to routedConnector
     """
     def __init__(self):
         self.status = pdu_types.CommandStatus.ESME_RSUBMITFAIL
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
+
 
 class SubmitSmChargingError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when charging user for sending submit_sm failed
@@ -60,6 +68,7 @@ class SubmitSmChargingError(SubmitSmEventHandlerErrorNoShutdown):
         self.status = pdu_types.CommandStatus.ESME_RSYSERR
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
+
 class SubmitSmThroughputExceededError(SubmitSmEventHandlerErrorNoShutdown):
     """Raised when throughput is exceeded
     """
@@ -67,11 +76,13 @@ class SubmitSmThroughputExceededError(SubmitSmEventHandlerErrorNoShutdown):
         self.status = pdu_types.CommandStatus.ESME_RTHROTTLED
         SubmitSmEventHandlerErrorNoShutdown.__init__(self)
 
+
 class CredentialValidationError(SubmitSmEventHandlerErrorShutdown):
     """
     Raised when user credential validation fails
     (jasmin.protocols.smpp.validation.SmppsCredentialValidator)
     """
+
 
 class AuthorizationError(SubmitSmEventHandlerErrorNoShutdown):
     """
@@ -81,6 +92,7 @@ class AuthorizationError(SubmitSmEventHandlerErrorNoShutdown):
     def __init__(self, message):
         self.status = pdu_types.CommandStatus.ESME_RINVSYSID
         SubmitSmEventHandlerErrorNoShutdown.__init__(self, message)
+
 
 class FilterError(SubmitSmEventHandlerErrorNoShutdown):
     """
@@ -98,6 +110,7 @@ class FilterError(SubmitSmEventHandlerErrorNoShutdown):
             self.status = pdu_types.CommandStatus.ESME_RSYSERR
 
         SubmitSmEventHandlerErrorNoShutdown.__init__(self, message)
+
 
 class InterceptorError(SMPPProtocolError):
     """Errors raised when intercepting a submit_sm or deliver_sm pdu
@@ -117,19 +130,32 @@ class InterceptorError(SMPPProtocolError):
         else:
             SMPPProtocolError.__init__(self, message, self.status)
 
+
 class DeliverSmInterceptionError(InterceptorError):
     pass
 
+
 class SubmitSmInterceptionError(InterceptorError):
     pass
+
+
+class SubmitSmInterceptionSuccess(InterceptorError):
+    """This is used to return a ESME_ROK status after interception
+    As described in #589"""
+    def __init__(self, message=None):
+        self.status = pdu_types.CommandStatus.ESME_ROK
+        SMPPProtocolError.__init__(self, "%s" % self.getStatusDescription(), self.status)
+
 
 class InterceptorNotSetError(InterceptorError):
     def __init__(self, message=None):
         InterceptorError.__init__(self, code=8, message=message)
 
+
 class InterceptorNotConnectedError(InterceptorError):
     def __init__(self, message=None):
         InterceptorError.__init__(self, code=8, message=message)
+
 
 class InterceptorRunError(InterceptorError):
     def __init__(self, message=None):

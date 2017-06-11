@@ -22,3 +22,11 @@ result_serializer = 'json'
 accept_content = ['json']
 timezone = 'UTC'
 enable_utc = True
+# Will push messages back to Jasmin's http api with a maximum throughput *per worker*
+# Please consider this is a *per worker* throughput !
+# Set to zero (0) to disable throughput control
+http_throughput_per_worker = 8
+# When set to True, the batch executor will consider Jasmin's response time to
+# control the batch throughput, slower response time will slow down the throughput
+# and vice-versa
+smart_qos = True

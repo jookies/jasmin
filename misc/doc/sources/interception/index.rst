@@ -324,6 +324,7 @@ As for http errors, the value you set in **http_status** will be the http error 
    set to **255** (ESME_RUNKNOWNERR).
 .. note:: When setting **smpp_status** to some value different from 0, the **http_status** value will be automatically
    set to **520** (Unknown error).
+.. note:: When setting **smpp_status** to 0, the routing process will be bypassed and an ESME_ROK status is returned.
 
 Checkout the :ref:`sc_charging_mo` example to see how's rejection is done.
 
