@@ -8,6 +8,7 @@ import requests
 import jasmin
 from .config import *
 from .tasks import httpapi_send
+from datetime import datetime, timedelta
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 import falcon
@@ -148,6 +149,36 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
 
 
 class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
+    def parse_schedule_at(self, val):
+        """
+        Tries to parse the schedule_at parameter and get the datetime value for scheduling
+        :param val: schedule_at rest parameter
+        :return: countdown in seconds or raising HTTPPreconditionFailed if parsing errored
+        """
+
+        if val is None:
+            return 0
+        else:
+            # Do we have a ISO Date format ?
+            try:
+                schedule_at = datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
+
+                if schedule_at < datetime.now():
+                    raise falcon.HTTPPreconditionFailed('Cannot schedule batch in past date',
+                                                        "Invalid past date given: %s" % schedule_at)
+            except ValueError:
+                # Do we have Seconds format ?
+                m = re.match("^(\d+)s$", val)
+                if not m:
+                    raise falcon.HTTPPreconditionFailed('Cannot parse scheduled_at value',
+                                                        ("Got unknown format: %s, correct formats are "
+                                                         "'YYYY-MM-DD mm:hh:ss' or number of seconds, "
+                                                         "c.f. http://docs.jasminsms.com/en/latest/apis/rest") % val)
+
+                return int(m.group(1))
+            else:
+                return (schedule_at - datetime.now()).total_seconds()
+
     def on_post(self, request, response):
         """
         POST /secure/sendbatch request processing
@@ -158,6 +189,9 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
         batch_id = uuid.uuid4()
         params = self.decode_request_data(request)
         config = {'throughput': http_throughput_per_worker, 'smart_qos': smart_qos}
+
+        # Batch scheduling
+        countdown = self.parse_schedule_at(params.get('batch_config', {}).get('schedule_at', None))
 
         message_count = 0
         for _message_params in params.get('messages', {}):
@@ -181,10 +215,19 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
                 to_list = message_params.get('to')
                 for _to in to_list:
                     message_params['to'] = _to
-                    httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params, config)
+                    if countdown == 0:
+                        httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params, config)
+                    else:
+                        httpapi_send.apply_async(
+                            args=[batch_id, params.get('batch_config', {}), message_params, config],
+                            countdown=countdown)
                     message_count += 1
             else:
-                httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params, config)
+                if countdown == 0:
+                    httpapi_send.delay(batch_id, params.get('batch_config', {}), message_params, config)
+                else:
+                    httpapi_send.apply_async(
+                        args=[batch_id, params.get('batch_config', {}), message_params, config], countdown=countdown)
                 message_count += 1
 
         response.body = {
@@ -193,3 +236,5 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
                 "messageCount": message_count
             }
         }
+        if countdown > 0:
+            response.body['data']['scheduled'] = '%ss' % countdown

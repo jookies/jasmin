@@ -168,9 +168,9 @@ If successful, response header HTTP status code will be **200 OK** and and the m
      - Optional
      - May contain any global message parameter, c.f. :ref:`examples <restapi-POST_sendbatch_ex>`
    * - **batch_config**
-     - {"callback_url": "http://127.0.0.1:7877"}
+     - {"callback_url": "http://127.0.0.1:7877", "schedule_at": "2017-11-15 09:00:00"}
      - Optional
-     - May contain a callback or/and errback urls, c.f. :ref:`examples <restapi-POST_callbacks>`
+     - May contain the following parameters: callback_url or/and errback_url (used for batch tracking in real time c.f. :ref:`examples <restapi-POST_callbacks>`), schedule_at (used for scheduling sendouts c.f. :ref:`examples <restapi-POST_scheduling>`).
 
 .. note:: The Rest API server has an advanced QoS control to throttle pushing messages back to Jasmin, you may fine-tune it through the **http_throughput_per_worker** and **smart_qos** parameters.
 
@@ -374,6 +374,49 @@ In both callbacks the following parameters are passed:
    * - **statusText**
      - Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"
      - Extra text for the **status**
+
+
+.. _restapi-POST_scheduling:
+
+About batch scheduling:
+=======================
+
+It is possible to schedule the launch of a batch, the api will enqueue the sendouts through Celery and return a **batchId** while
+deferring message deliveries to the scheduled date & time.
+
+.. code-block:: json
+
+  {
+    "batch_config": {
+      "schedule_at": "2017-11-15 09:00:00"
+	},
+    "messages": [
+      {
+        "to": "7777771",
+        "content": "Good morning !"
+      }
+    ]
+  }
+
+The above batch will be scheduled for the 15th of November 2017 at 9am, the Rest API will consider it's local server time to make the delivery, so please make sure it's accurate to whatever timezone you're in.
+
+It's possible to use another **schedule_at** format:
+
+.. code-block:: json
+
+  {
+    "batch_config": {
+      "schedule_at": "86400s"
+	},
+    "messages": [
+      {
+        "to": "7777771",
+        "content": "Good morning !"
+      }
+    ]
+  }
+
+The above batch will be scheduled for delivery in 1 day from now (86400 seconds = 1 day).
 
 .. _restapi-GET_balance:
 
