@@ -373,7 +373,7 @@ class SendTestCases(HTTPApiTestCases):
             response = yield self.web.get("send", params)
 
             self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value()[:23], "Error \"Argument [sdt] ")
+            self.assertEqual(response.value()[:22], "Error \"Argument [sdt] ")
 
 
 class RateTestCases(HTTPApiTestCases):
