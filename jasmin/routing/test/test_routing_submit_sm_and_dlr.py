@@ -237,6 +237,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(binascii.hexlify(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']),
                          self.params['hex-content'])
 
+    @defer.inlineCallbacks
     def test_sdt(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
@@ -254,7 +255,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['sdt'])
+        self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time'])
         schedule_delivery_time = self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time']
         self.assertEqual(schedule_delivery_time,
                                 self.params['sdt'])
