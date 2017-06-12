@@ -12,8 +12,9 @@ from jasmin.config.tools import ConfigFile
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class AmqpConfig(ConfigFile):
-    "Config handler for 'amqp-broker' section"
+    """Config handler for 'amqp-broker' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -41,6 +42,6 @@ class AmqpConfig(ConfigFile):
             'amqp-broker', 'connection_failure_retry_delay', 10)
 
     def getSpec(self):
-        "Will return the specifications from self.spec file"
+        """Will return the specifications from self.spec file"""
 
         return txamqp.spec.load(self.spec)
