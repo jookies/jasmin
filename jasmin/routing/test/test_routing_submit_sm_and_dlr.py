@@ -258,7 +258,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time'])
         schedule_delivery_time = self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time']
         self.assertEqual(schedule_delivery_time,
-                                SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+                                'SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0)')
 
 
 class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
