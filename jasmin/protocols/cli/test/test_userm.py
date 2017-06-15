@@ -165,6 +165,7 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred authorization dlr_level True',
                         'mt_messaging_cred authorization http_rate True',
                         'mt_messaging_cred authorization validity_period True',
+                        'mt_messaging_cred authorization schedule_delivery_time True',
                         'mt_messaging_cred authorization http_bulk False',
                         'uid %s' % uid,
                         'smpps_cred quota max_bindings ND',

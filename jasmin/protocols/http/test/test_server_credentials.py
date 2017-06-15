@@ -116,7 +116,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         if priority is not None:
             self.params['priority'] = priority
         if schedule_delivery_time is not None:
-            self.params['sdt'] = schedule_delivery_time 
+            self.params['sdt'] = schedule_delivery_time
         if validity_period is not None:
             self.params['validity-period'] = validity_period
         if destination_address is not None:
