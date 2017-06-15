@@ -355,8 +355,11 @@ class SendTestCases(HTTPApiTestCases):
                   'content': 'anycontent'}
 
         # Assert sdt optional
-        # response = yield self.web.get("send", params)
-        # self.assertEqual(response.responseCode, 200)
+        response = yield self.web.get("send", params)
+        self.assertEqual(response.responseCode, 500)
+        # This is a normal error since SMPPClientManagerPB is not really running
+        self.assertEqual(response.value(),
+                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Assert valid sdt
         valid_sdt = {'000000000100000R'}

@@ -95,7 +95,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def run_send_test(self, user=None, content='anycontent', hex_content=None,
                       dlr_level=None, dlr_method=None, source_address=None,
-                      priority=None, validity_period=None, destination_address=None,
+                      priority=None, schedule_delivery_time=None, validity_period=None, destination_address=None,
                       default_route=None, side_effect=None):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(user, default_route, side_effect)
@@ -115,6 +115,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['from'] = source_address
         if priority is not None:
             self.params['priority'] = priority
+        if schedule_delivery_time is not None:
+            self.params['sdt'] = schedule_delivery_time
         if validity_period is not None:
             self.params['validity-period'] = validity_period
         if destination_address is not None:

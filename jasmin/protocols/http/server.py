@@ -417,7 +417,7 @@ class Send(Resource):
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
-                      'sdt'    : {'optional': True, 'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
+                      'sdt'         : {'optional': True, 'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'validity-period' : {'optional': True, 'pattern': re.compile(r'^\d+$')},
