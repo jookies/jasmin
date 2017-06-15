@@ -15,7 +15,7 @@ from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.test.test_router import HappySMSCTestCase
-
+from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -469,6 +469,34 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, hex_content='00', content=None)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_default_schedule_delivery_time(self):
+        # User have default authorization to set message schedule_delivery_time
+        response_text, response_code = yield self.run_send_test(schedule_delivery_time=SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_unauthorized_set_schedule_delivery_time(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_schedule_delivery_time', False)
+
+        # User unauthorized
+        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time=SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+        self.assertEqual(response_text,
+                         'Error "Authorization failed for user [u1] (Setting schedule delivery time not authorized)."')
+        self.assertEqual(response_code, '400 Bad Request')
+
+    @defer.inlineCallbacks
+    def test_authorized_set_schedule_delivery_time(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_schedule_delivery_time', True)
+
+        # User authorized
+        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time=SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 
