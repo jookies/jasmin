@@ -475,7 +475,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     @defer.inlineCallbacks
     def test_default_schedule_delivery_time(self):
         # User have default authorization to set message schedule_delivery_time
-        response_text, response_code = yield self.run_send_test(schedule_delivery_time=SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+        response_text, response_code = yield self.run_send_test(schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 
@@ -485,7 +485,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         user.mt_credential.setAuthorization('set_schedule_delivery_time', False)
 
         # User unauthorized
-        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time=SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting schedule delivery time not authorized)."')
         self.assertEqual(response_code, '400 Bad Request')
@@ -496,7 +496,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         user.mt_credential.setAuthorization('set_schedule_delivery_time', True)
 
         # User authorized
-        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time=SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 
