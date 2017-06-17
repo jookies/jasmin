@@ -824,6 +824,7 @@ class SmppsCredentialTestCases(UserTestCases):
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
+                        'mt_messaging_cred ',
                         'uid user_1',
                         'smpps_cred quota max_bindings %s' % assertMaxBindings,
                         'smpps_cred authorization bind %s' % smppscred.getAuthorization('bind'),
