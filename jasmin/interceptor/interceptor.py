@@ -48,7 +48,7 @@ class InterceptorPB(pb.Avatar):
             self.log.debug('Running [%s]', pyCode)
             self.log.debug('... having routable with pdu: %s', routable.pdu)
             node = CompiledNode().get(pyCode)
-            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status}
+            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status, 'extra': {}}
 
             # Run script and measure execution time
             start = dt.datetime.now()
@@ -88,6 +88,6 @@ class InterceptorPB(pb.Avatar):
                         glo['http_status'])
                     glo['http_status'] = 520
 
-                r = {'http_status': glo['http_status'], 'smpp_status': glo['smpp_status']}
+                r = {'http_status': glo['http_status'], 'smpp_status': glo['smpp_status'], 'extra': glo['extra']}
                 self.log.info('Returning statuses: %s', r)
                 return r
