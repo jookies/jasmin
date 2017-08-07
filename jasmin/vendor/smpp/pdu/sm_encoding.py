@@ -19,6 +19,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import *
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu.gsm_types import InformationElementIdentifier
 from jasmin.vendor.smpp.pdu.gsm_encoding import UserDataHeaderEncoder
+from jasmin.vendor.messaging.sms.gsm0338 import *
 
 ShortMessageString = namedtuple('ShortMessageString', 'bytes, unicode, udh')
 
@@ -34,7 +35,7 @@ class SMStringEncoder(object):
         if data_coding.scheme == DataCodingScheme.DEFAULT:
             unicodeStr = None
             if data_coding.schemeData == DataCodingDefault.SMSC_DEFAULT_ALPHABET:
-                unicodeStr = unicode(smStrBytes, 'ascii')
+                unicodeStr = encode(unicode(smStrBytes, 'utf8'))
             elif data_coding.schemeData == DataCodingDefault.IA5_ASCII:
                 unicodeStr = unicode(smStrBytes, 'ascii')
             elif data_coding.schemeData == DataCodingDefault.UCS2:
