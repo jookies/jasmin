@@ -346,6 +346,38 @@ class SendTestCases(HTTPApiTestCases):
         self.assertEqual(response.value()[:33],
                          "Error \"Invalid hex-content data: ")
 
+    @defer.inlineCallbacks
+    def test_send_with_sdt(self):
+        """Related to #541"""
+        params = {'username': self.username,
+                  'password': 'correct',
+                  'to': '06155423',
+                  'content': 'anycontent'}
+
+        # Assert sdt optional
+        response = yield self.web.get("send", params)
+        self.assertEqual(response.responseCode, 500)
+        # This is a normal error since SMPPClientManagerPB is not really running
+        self.assertEqual(response.value(),
+                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+        # Assert valid sdt
+        valid_sdt = {'000000000100000R'}
+        for params['sdt'] in valid_sdt:
+            response = yield self.web.get("send", params)
+
+            self.assertEqual(response.responseCode, 500)
+            self.assertEqual(response.value(),
+                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+        # Assert invalid sdt
+        invalid_sdt = {'', '000000000100000', '00', '00+', '00R', '00-', '0000000001000000R', '00000000100000R'}
+        for params['sdt'] in invalid_sdt:
+            response = yield self.web.get("send", params)
+
+            self.assertEqual(response.responseCode, 400)
+            self.assertEqual(response.value()[:22], "Error \"Argument [sdt] ")
+
 
 class RateTestCases(HTTPApiTestCases):
     def setUp(self):

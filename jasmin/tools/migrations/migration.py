@@ -61,7 +61,7 @@ def fix_users_and_smppccs_09rc23(data, context=None):
     value"""
 
     if context == 'users':
-        # Create new users and modify the mt_ctedential to include the new authorization
+        # Create new users and modify the mt_credential to include the new authorization
         new_data = []
         for old_user in data:
             user = User(
@@ -74,6 +74,7 @@ def fix_users_and_smppccs_09rc23(data, context=None):
                 smpps_credential=old_user.smpps_credential)
 
             user.mt_credential.authorizations['set_hex_content'] = True
+            user.mt_credential.authorizations['set_schedule_delivery_time'] = True
             new_data.append(user)
 
         return new_data
@@ -85,8 +86,30 @@ def fix_users_and_smppccs_09rc23(data, context=None):
 
         return data
 
+def fix_users_09rc24(data, context=None):
+    """Adding the new authorization 'set_schedule_delivery_time'
+    value"""
 
-"""This is the main map for orchestring config migrations.
+    if context == 'users':
+        # Create new users and modify the mt_credential to include the new authorization
+        new_data = []
+        for old_user in data:
+            user = User(
+                uid=old_user.uid,
+                group=Group(old_user.group.gid),
+                username=old_user.username,
+                password=old_user.password,
+                password_crypted=True,
+                mt_credential=old_user.mt_credential,
+                smpps_credential=old_user.smpps_credential)
+
+            user.mt_credential.authorizations['set_schedule_delivery_time'] = True
+            new_data.append(user)
+
+        return new_data
+
+
+"""This is the main map for orchestrating config migrations.
 
 The map is based on 3 elements:
   1. conditions: binary conditions on Jasmin version, the patch version is zfilled(3), this means 0.8rc2 (or
@@ -107,4 +130,7 @@ MAP = [
     {'conditions': ['<=0.9022'],
      'contexts': {'users', 'smppccs'},
      'operations': [fix_users_and_smppccs_09rc23]},
+    {'conditions': ['<=0.9023'],
+     'contexts': {'users', 'smppccs'},
+     'operations': [fix_users_09rc24]},
 ]
