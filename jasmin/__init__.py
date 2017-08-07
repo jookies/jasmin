@@ -5,7 +5,7 @@
 
 MAJOR = 0
 MINOR = 9
-PATCH = 24
+PATCH = 25
 META = 'rc'
 
 

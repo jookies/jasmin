@@ -38,8 +38,7 @@ class InterceptorPB(pb.Avatar):
     def perspective_run_script(self, pyCode, routable):
         """Will execute pyCode with the routable argument"""
         routable = pickle.loads(routable)
-        smpp_status = 0
-        http_status = 0
+        smpp_status = http_status = None
 
         try:
             self.log.info('Running with a %s (from:%s, to:%s).',
@@ -49,7 +48,7 @@ class InterceptorPB(pb.Avatar):
             self.log.debug('Running [%s]', pyCode)
             self.log.debug('... having routable with pdu: %s', routable.pdu)
             node = CompiledNode().get(pyCode)
-            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status}
+            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status, 'extra': {}}
 
             # Run script and measure execution time
             start = dt.datetime.now()
@@ -64,24 +63,24 @@ class InterceptorPB(pb.Avatar):
                            '%s: %s' % (type(e), e))
             return False
         else:
-            if self.config.log_slow_script >= 0 and delay >= self.config.log_slow_script:
+            if 0 <= self.config.log_slow_script <= delay:
                 self.log.warn('Execution delay [%ss] for script [%s].', delay, pyCode)
 
-            if glo['smpp_status'] == 0 and glo['http_status'] == 0:
+            if glo['smpp_status'] is None and glo['http_status'] is None:
                 return pickle.dumps(glo['routable'], pickle.HIGHEST_PROTOCOL)
             else:
                 # If we have one of the statuses set to non-zero value
                 #  then both of them must be non-zero to avoid misbehaviour
                 #  of differents apis: if we return an error in smpp, we must
                 #  do the same in http as well.
-                if glo['smpp_status'] == 0 or not isinstance(glo['smpp_status'], int):
+                if glo['smpp_status'] is None or not isinstance(glo['smpp_status'], int):
                     # ESME_RUNKNOWNERR
                     self.log.info(
                         'Setting smpp_status to 255 when having http_status = %s and smpp_status = %s.',
                         glo['http_status'],
                         glo['smpp_status'])
                     glo['smpp_status'] = 255
-                elif glo['http_status'] == 0 or not isinstance(glo['http_status'], int):
+                elif glo['http_status'] is None or not isinstance(glo['http_status'], int):
                     # Unknown Error
                     self.log.info(
                         'Setting http_status to 520 when having smpp_status = %s and http_status = %s.',
@@ -89,6 +88,6 @@ class InterceptorPB(pb.Avatar):
                         glo['http_status'])
                     glo['http_status'] = 520
 
-                r = {'http_status': glo['http_status'], 'smpp_status': glo['smpp_status']}
-                self.log.info('Returning statuses: %s' % (r))
+                r = {'http_status': glo['http_status'], 'smpp_status': glo['smpp_status'], 'extra': glo['extra']}
+                self.log.info('Returning statuses: %s', r)
                 return r
