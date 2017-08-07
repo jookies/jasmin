@@ -25,6 +25,7 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
 from jasmin.vendor.smpp.pdu.smpp_time import FixedOffset
+from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
 
 
 @defer.inlineCallbacks
@@ -236,6 +237,29 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(binascii.hexlify(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']),
                          self.params['hex-content'])
+
+    @defer.inlineCallbacks
+    def test_sdt(self):
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        self.params['sdt'] = '000000000100000R'
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        msgStatus = c[:7]
+
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
+        self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time'])
+        schedule_delivery_time = self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time']
+        self.assertEqual(schedule_delivery_time,
+                                SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
 
 
 class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):

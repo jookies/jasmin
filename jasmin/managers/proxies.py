@@ -79,10 +79,6 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
         if not isinstance(submit_sm_bill, SubmitSmBill):
             raise Exception("submit_sm_bill is not an instance of SubmitSmBill")
 
-        # Remove schedule_delivery_time / not supported right now
-        if SubmitSmPDU.params['schedule_delivery_time'] is not None:
-            SubmitSmPDU.params['schedule_delivery_time'] = None
-
         # Set the message priority
         if SubmitSmPDU.params['priority_flag'] is not None:
             priority_flag = SubmitSmPDU.params['priority_flag'].index

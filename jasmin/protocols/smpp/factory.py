@@ -340,7 +340,10 @@ class SMPPServerFactory(_SMPPServerFactory):
                     raise SubmitSmInterceptionError(code=args[0]['smpp_status'])
                 elif isinstance(args[0], dict) and args[0]['smpp_status'] == 0:
                     self.stats.inc('interceptor_count')
-                    self.log.error('Interceptor script returned %s success smpp_status.', args[0]['smpp_status'])
+                    self.log.info('Interceptor script returned %s success smpp_status.', args[0]['smpp_status'])
+                    # Do we have a message_id returned from interceptor ?
+                    if 'message_id' in args[0]['extra']:
+                        message_id = str(args[0]['extra']['message_id'])
                     raise SubmitSmInterceptionSuccess()
                 elif isinstance(args[0], str):
                     self.stats.inc('interceptor_count')
@@ -479,12 +482,12 @@ class SMPPServerFactory(_SMPPServerFactory):
             self.log.critical('Got an unknown exception: %s', e)
             status = pdu_types.CommandStatus.ESME_RUNKNOWNERR
         else:
-            self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, c.result)
+            self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, message_id)
             self.log.info(
                 'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]',
                 routable.user.uid,
                 routedConnector.cid,
-                c.result,
+                message_id,
                 priority,
                 routable.pdu.params['source_addr'],
                 routable.pdu.params['destination_addr'],
@@ -492,7 +495,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             status = pdu_types.CommandStatus.ESME_ROK
         finally:
             if message_id is not None:
-                return DataHandlerResponse(status=status, message_id=c.result)
+                return DataHandlerResponse(status=status, message_id=message_id)
             elif status is not None:
                 return DataHandlerResponse(status=status)
 
