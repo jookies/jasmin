@@ -483,7 +483,7 @@ class SMPPClientSMListener(object):
             else:
                 # TODO: code dlr for submit_sm_resp maybe ? TBC
                 ret = str(pdu.dlr['id']).upper().lstrip('0')
-        except Exception, e:
+        except Exception as e:
             self.log.error('code_dlr_msgid, cannot code msgid [%s] with dlr_msg_id_bases:%s',
                            pdu.dlr['id'], self.SMPPClientFactory.config.dlr_msg_id_bases)
             self.log.error('code_dlr_msgid, error details: %s', e)
