@@ -15,7 +15,7 @@ from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.test.test_router import HappySMSCTestCase
-
+from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -95,7 +95,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def run_send_test(self, user=None, content='anycontent', hex_content=None,
                       dlr_level=None, dlr_method=None, source_address=None,
-                      priority=None, validity_period=None, destination_address=None,
+                      priority=None, schedule_delivery_time=None, validity_period=None, destination_address=None,
                       default_route=None, side_effect=None):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector(user, default_route, side_effect)
@@ -115,6 +115,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['from'] = source_address
         if priority is not None:
             self.params['priority'] = priority
+        if schedule_delivery_time is not None:
+            self.params['sdt'] = schedule_delivery_time
         if validity_period is not None:
             self.params['validity-period'] = validity_period
         if destination_address is not None:
@@ -467,6 +469,34 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, hex_content='00', content=None)
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_default_schedule_delivery_time(self):
+        # User have default authorization to set message schedule_delivery_time
+        response_text, response_code = yield self.run_send_test(schedule_delivery_time='000000000100000R')
+        self.assertEqual(response_text[:7], 'Success')
+        self.assertEqual(response_code, 'Success')
+
+    @defer.inlineCallbacks
+    def test_unauthorized_set_schedule_delivery_time(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_schedule_delivery_time', False)
+
+        # User unauthorized
+        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time='000000000100000R')
+        self.assertEqual(response_text,
+                         'Error "Authorization failed for user [u1] (Setting schedule delivery time not authorized)."')
+        self.assertEqual(response_code, '400 Bad Request')
+
+    @defer.inlineCallbacks
+    def test_authorized_set_schedule_delivery_time(self):
+        user = copy.copy(self.user1)
+        user.mt_credential.setAuthorization('set_schedule_delivery_time', True)
+
+        # User authorized
+        response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 'Success')
 

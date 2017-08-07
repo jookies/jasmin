@@ -156,6 +156,7 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
                         'mt_messaging_cred authorization http_send True',
                         'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization schedule_delivery_time True',
                         'mt_messaging_cred authorization hex_content True',
                         'mt_messaging_cred authorization http_balance True',
                         'mt_messaging_cred authorization smpps_send True',
@@ -264,6 +265,7 @@ class BasicTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape('^\d+$'),
                         'mt_messaging_cred authorization http_send True',
                         'mt_messaging_cred authorization http_dlr_method True',
+                        'mt_messaging_cred authorization schedule_delivery_time True',
                         'mt_messaging_cred authorization hex_content True',
                         'mt_messaging_cred authorization http_balance True',
                         'mt_messaging_cred authorization smpps_send True',
@@ -479,6 +481,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                         'mt_messaging_cred valuefilter validity_period %s' % re.escape(mtcred.getValueFilter('validity_period').pattern),
                         'mt_messaging_cred authorization http_send %s' % mtcred.getAuthorization('http_send'),
                         'mt_messaging_cred authorization http_dlr_method %s' % mtcred.getAuthorization('http_set_dlr_method'),
+                        'mt_messaging_cred authorization schedule_delivery_time %s' % mtcred.getAuthorization('set_schedule_delivery_time'),
                         'mt_messaging_cred authorization hex_content %s' % mtcred.getAuthorization('set_hex_content'),
                         'mt_messaging_cred authorization http_balance %s' % mtcred.getAuthorization('http_balance'),
                         'mt_messaging_cred authorization smpps_send %s' % mtcred.getAuthorization('smpps_send'),
@@ -681,6 +684,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('set_source_address', False)
         _cred.setAuthorization('set_priority', False)
         _cred.setAuthorization('set_validity_period', False)
+        _cred.setAuthorization('set_schedule_delivery_time', False)
         _cred.setAuthorization('set_hex_content', False)
         _cred.setValueFilter('destination_address', '^HELLO$')
         _cred.setValueFilter('source_address', '^World$')
@@ -701,6 +705,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization src_addr false'},
                          {'command': 'mt_messaging_cred authorization priority f'},
                          {'command': 'mt_messaging_cred authorization validity_period f'},
+                         {'command': 'mt_messaging_cred authorization schedule_delivery_time f'},
                          {'command': 'mt_messaging_cred authorization hex_content f'},
                          {'command': 'mt_messaging_cred Valuefilter dst_addr ^HELLO$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^World$'},
@@ -723,6 +728,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
         _cred.setAuthorization('set_source_address', True)
         _cred.setAuthorization('set_priority', True)
         _cred.setAuthorization('set_validity_period', True)
+        _cred.setAuthorization('set_schedule_delivery_time', True)
         _cred.setAuthorization('set_hex_content', True)
         _cred.setValueFilter('destination_address', '^WORLD$')
         _cred.setValueFilter('source_address', '^HELLO$')
@@ -738,6 +744,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
                          {'command': 'mt_messaging_cred authorization src_addr true'},
                          {'command': 'mt_messaging_cred authorization priority t'},
                          {'command': 'mt_messaging_cred authorization validity_period t'},
+                         {'command': 'mt_messaging_cred authorization schedule_delivery_time t'},
                          {'command': 'mt_messaging_cred authorization hex_content t'},
                          {'command': 'mt_messaging_cred valuefilter dst_addr ^WORLD$'},
                          {'command': 'mt_messaging_cred valuefilter src_addr ^HELLO$'},
@@ -794,6 +801,7 @@ class SmppsCredentialTestCases(UserTestCases):
 
         # Show and assert
         expectedList = ['username AnyUsername',
+                        'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',

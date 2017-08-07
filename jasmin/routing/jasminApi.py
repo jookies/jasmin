@@ -120,6 +120,7 @@ class MtMessagingCredential(CredentialGeneric):
             'set_priority': default_authorizations,
             'set_validity_period': default_authorizations,
             'set_hex_content': default_authorizations,
+            'set_schedule_delivery_time': default_authorizations,
         }
 
         self.value_filters = {

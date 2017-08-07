@@ -91,6 +91,10 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             and not self.user.mt_credential.getAuthorization('set_hex_content')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting hex content not authorized).' % self.user)
+        if ('sdt' in self.request.args
+            and not self.user.mt_credential.getAuthorization('set_schedule_delivery_time')):
+            raise CredentialValidationError(
+                'Authorization failed for user [%s] (Setting schedule delivery time not authorized).' % self.user)
 
     def _checkBalanceAuthorizations(self):
         """Balance Authorizations check"""
