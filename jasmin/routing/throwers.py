@@ -14,6 +14,7 @@ from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
+from vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
 
 
 class MessageAcknowledgementError(Exception):
@@ -270,8 +271,7 @@ class deliverSmThrower(Thrower):
             args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
-            args['coding'] = data_coding_default_name_map[
-                str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
+            args['coding'] = DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])
         if ('validity_period' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
