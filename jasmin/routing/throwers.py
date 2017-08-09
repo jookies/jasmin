@@ -14,7 +14,7 @@ from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
-from vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
+from jasmin.vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
 
 
 class MessageAcknowledgementError(Exception):
