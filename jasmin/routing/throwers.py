@@ -271,7 +271,7 @@ class deliverSmThrower(Thrower):
             args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
-            args['coding'] = DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])
+            args['coding'] = ord(DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])[0])
         if ('validity_period' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
