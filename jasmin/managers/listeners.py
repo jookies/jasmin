@@ -607,6 +607,12 @@ class SMPPClientSMListener(object):
                             UDHI_INDICATOR_SET = True
                             break
 
+                not_class2 = True
+                if 'data_coding' in routable.pdu.params:
+                    dcs = routable.pdu.params['data_coding']
+                    if (str(dcs.scheme) == 'GSM_MESSAGE_CLASS') and (dcs.schemeData is not None):
+                        not_class2 = (str(dcs.schemeData.msgClass) != 'CLASS_2')
+
                 splitMethod = None
                 # Is it a part of a long message ?
                 if 'sar_msg_ref_num' in routable.pdu.params:
@@ -617,7 +623,7 @@ class SMPPClientSMListener(object):
                     self.log.debug(
                         'Received SMS-MO part [queue-msgid:%s] using SAR: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)
-                elif UDHI_INDICATOR_SET and message_content[:3] == '\x05\x00\x03':
+                elif UDHI_INDICATOR_SET and not_class2 and message_content[:3] == '\x05\x00\x03':
                     splitMethod = 'udh'
                     total_segments = struct.unpack('!B', message_content[4])[0]
                     segment_seqnum = struct.unpack('!B', message_content[5])[0]
