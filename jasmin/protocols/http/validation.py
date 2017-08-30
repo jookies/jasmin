@@ -9,7 +9,7 @@ from jasmin.protocols.validation import AbstractCredentialValidator
 class UrlArgsValidator(object):
     """Will check for arguments syntax errors"""
 
-    def __init__(self, request, fields):
+    def __init__(self, request, fields):  # TODO add if JSON dont do [0]
         self.fields = fields
         self.request = request
 

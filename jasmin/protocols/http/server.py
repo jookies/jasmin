@@ -408,6 +408,15 @@ class Send(Resource):
         updated_request = request
 
         try:
+            if updated_request.getHeader('content-type') == 'application/json':
+                json_body = updated_request.content.read()
+                json_data = json.loads(json_body)
+                for key, value in json_data.items():
+                    if isinstance(value, unicode):
+                        value = value.encode()
+
+                    updated_request.args[key.encode()] = [value]
+
             # Validation (must have almost the same params as /rate service)
             fields = {'to'          : {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
                       'from'        : {'optional': True},

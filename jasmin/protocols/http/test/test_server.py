@@ -140,244 +140,264 @@ class AuthenticationTestCases(HTTPApiTestCases):
 class SendTestCases(HTTPApiTestCases):
     username = 'nathalie'
 
+    # @defer.inlineCallbacks
+    # def test_post_send_json_with_correct_args(self):
+    #     response = yield self.web.post("send", json_data={'username': self.username,
+    #                                            'password': 'incorrec',
+    #                                            'to': '06155423',
+    #                                            'content': 'anycontent'}, headers={'Content-type': ['application/json']})
+    #     self.assertEqual(response.responseCode, 403)
+    #     self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+
     @defer.inlineCallbacks
-    def test_send_with_correct_args(self):
-        response = yield self.web.get("send", {'username': self.username,
-                                               'password': 'incorrec',
-                                               'to': '06155423',
-                                               'content': 'anycontent'})
+    def test_post_send_json_with_extra_args(self):
+        response = yield self.web.post("send", json_data={'username': self.username,
+                                                          'password': 'incorrec',
+                                                          'to': '06155423',
+                                                          'content': 'anycontent',
+                                                          'some_other_data': ['test1', 'test2'],
+                                                          'some_other_data2': {'more': 'nested_stuff'}}, headers={'Content-type': ['application/json']})
         self.assertEqual(response.responseCode, 403)
         self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
 
-    @defer.inlineCallbacks
-    def test_send_with_incorrect_args(self):
-        response = yield self.web.get("send", {'username': self.username,
-                                               'passwd': 'correct',
-                                               'to': '06155423',
-                                               'content': 'anycontent'})
-        self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory argument [password] is not found.\"")
-
-    @defer.inlineCallbacks
-    def test_send_with_auth_success(self):
-        response = yield self.web.get("send", {'username': self.username,
-                                               'password': 'correct',
-                                               'to': '06155423',
-                                               'content': 'anycontent'})
-        self.assertEqual(response.responseCode, 500)
-        # This is a normal error since SMPPClientManagerPB is not really running
-        self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-    @defer.inlineCallbacks
-    def test_send_with_priority(self):
-        params = {'username': self.username,
-                  'password': 'correct',
-                  'to': '06155423',
-                  'content': 'anycontent'}
-
-        # Priority definitions
-        valid_priorities = {0, 1, 2, 3}
-
-        for params['priority'] in valid_priorities:
-            response = yield self.web.get("send", params)
-            self.assertEqual(response.responseCode, 500)
-
-            # This is a normal error since SMPPClientManagerPB is not really running
-            self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        # Priority definitions
-        invalid_priorities = {-1, 'a', 44, 4}
-
-        for params['priority'] in invalid_priorities:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 400)
-            # This is a normal error since SMPPClientManagerPB is not really running
-            self.assertEqual(response.value(),
-                             'Error "Argument [priority] has an invalid value: [%s]."' % params['priority'])
-
-    @defer.inlineCallbacks
-    def test_send_with_validity_period(self):
-        params = {'username': self.username,
-                  'password': 'correct',
-                  'to': '06155423',
-                  'content': 'anycontent'}
-
-        # Validity period definitions
-        valid_vps = {0, 1, 2, 3, 4000}
-
-        for params['validity-period'] in valid_vps:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 500)
-            # This is a normal error since SMPPClientManagerPB is not really running
-            self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        # Validity period definitions
-        invalid_vps = {-1, 'a', 1.0}
-
-        for params['validity-period'] in invalid_vps:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 400)
-            # This is a normal error since SMPPClientManagerPB is not really running
-            self.assertEqual(response.value(),
-                             'Error "Argument [validity-period] has an invalid value: [%s]."' % params[
-                                 'validity-period'])
-
-    @defer.inlineCallbacks
-    def test_send_with_inurl_dlr(self):
-        params = {'username': self.username,
-                  'password': 'correct',
-                  'to': '06155423',
-                  'content': 'anycontent'}
-
-        # URL definitions
-        valid_urls = {'http://127.0.0.1/receipt',
-                      'http://127.0.0.1:99/receipt',
-                      'https://127.0.0.1/receipt',
-                      'https://127.0.0.1:99/receipt',
-                      'https://127.0.0.1/receipt.html',
-                      'https://127.0.0.1:99/receipt.html',
-                      'http://www.google.com/receipt',
-                      'http://www.google.com:99/receipt',
-                      'http://www.google.com/receipt.html',
-                      'http://www.google.com:99/receipt.html',
-                      'http://www.google.com/',
-                      'http://www.google.com:99/',
-                      'http://www.google.com',
-                      'http://www.google.com:99'}
-
-        for params['dlr-url'] in valid_urls:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 500)
-            self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        # URL definitions
-        invalid_urls = {'ftp://127.0.0.1/receipt',
-                        'smtp://127.0.0.1:99/receipt',
-                        'smpp://127.0.0.1/receipt',
-                        '127.0.0.1:99',
-                        'www.google.com',
-                        'www.google.com:99/'}
-
-        for params['dlr-url'] in invalid_urls:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value(),
-                             "Error \"Argument [dlr-url] has an invalid value: [%s].\"" % params['dlr-url'])
-
-    @defer.inlineCallbacks
-    def test_send_without_args(self):
-        response = yield self.web.get("send")
-        self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory argument [username] is not found.\"")
-
-    @defer.inlineCallbacks
-    def test_send_with_some_args(self):
-        response = yield self.web.get("send", {'username': self.username})
-        self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
-
-    @defer.inlineCallbacks
-    def test_send_with_tags(self):
-        """Related to #455"""
-        params = {'username': self.username,
-                  'password': 'correct',
-                  'to': '06155423',
-                  'content': 'anycontent'}
-
-        valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e', 'a-b,2'}
-        for params['tags'] in valid_tags:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 500)
-            self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        invalid_tags = {';', '#,.,:', '+++,sh1t,3r='}
-        for params['tags'] in invalid_tags:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value()[:23], "Error \"Argument [tags] ")
-
-    @defer.inlineCallbacks
-    def test_send_hex_content(self):
-        params = {'username': self.username,
-                  'password': 'correct',
-                  'to': '06155423'}
-
-        # Assert having an error if content and hex_content are not present
-        response = yield self.web.get("send", params)
-
-        self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(),
-                         "Error \"content or hex-content not present.\"")
-
-        # Assert having an error if content and hex_content are present
-        params['hex-content'] = ''
-        params['content'] = ''
-        response = yield self.web.get("send", params)
-
-        self.assertEqual(response.value(),
-                         "Error \"content and hex-content cannot be used both in same request.\"")
-
-        # Assert correct encoding
-        del(params['content'])
-        params['hex-content'] = ''
-        response = yield self.web.get("send", params)
-
-        self.assertEqual(response.responseCode, 500)
-        self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        # Assert incorrect encoding
-        params['hex-content'] = 'Clear text'
-        response = yield self.web.get("send", params)
-
-        self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value()[:33],
-                         "Error \"Invalid hex-content data: ")
-
-    @defer.inlineCallbacks
-    def test_send_with_sdt(self):
-        """Related to #541"""
-        params = {'username': self.username,
-                  'password': 'correct',
-                  'to': '06155423',
-                  'content': 'anycontent'}
-
-        # Assert sdt optional
-        response = yield self.web.get("send", params)
-        self.assertEqual(response.responseCode, 500)
-        # This is a normal error since SMPPClientManagerPB is not really running
-        self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        # Assert valid sdt
-        valid_sdt = {'000000000100000R'}
-        for params['sdt'] in valid_sdt:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 500)
-            self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
-
-        # Assert invalid sdt
-        invalid_sdt = {'', '000000000100000', '00', '00+', '00R', '00-', '0000000001000000R', '00000000100000R'}
-        for params['sdt'] in invalid_sdt:
-            response = yield self.web.get("send", params)
-
-            self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value()[:22], "Error \"Argument [sdt] ")
-
+    # @defer.inlineCallbacks
+    # def test_send_with_correct_args(self):
+    #     response = yield self.web.get("send", {'username': self.username,
+    #                                            'password': 'incorrec',
+    #                                            'to': '06155423',
+    #                                            'content': 'anycontent'})
+    #     self.assertEqual(response.responseCode, 403)
+    #     self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_incorrect_args(self):
+    #     response = yield self.web.get("send", {'username': self.username,
+    #                                            'passwd': 'correct',
+    #                                            'to': '06155423',
+    #                                            'content': 'anycontent'})
+    #     self.assertEqual(response.responseCode, 400)
+    #     self.assertEqual(response.value(), "Error \"Mandatory argument [password] is not found.\"")
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_auth_success(self):
+    #     response = yield self.web.get("send", {'username': self.username,
+    #                                            'password': 'correct',
+    #                                            'to': '06155423',
+    #                                            'content': 'anycontent'})
+    #     self.assertEqual(response.responseCode, 500)
+    #     # This is a normal error since SMPPClientManagerPB is not really running
+    #     self.assertEqual(response.value(),
+    #                      "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_priority(self):
+    #     params = {'username': self.username,
+    #               'password': 'correct',
+    #               'to': '06155423',
+    #               'content': 'anycontent'}
+    #
+    #     # Priority definitions
+    #     valid_priorities = {0, 1, 2, 3}
+    #
+    #     for params['priority'] in valid_priorities:
+    #         response = yield self.web.get("send", params)
+    #         self.assertEqual(response.responseCode, 500)
+    #
+    #         # This is a normal error since SMPPClientManagerPB is not really running
+    #         self.assertEqual(response.value(),
+    #                          "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     # Priority definitions
+    #     invalid_priorities = {-1, 'a', 44, 4}
+    #
+    #     for params['priority'] in invalid_priorities:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 400)
+    #         # This is a normal error since SMPPClientManagerPB is not really running
+    #         self.assertEqual(response.value(),
+    #                          'Error "Argument [priority] has an invalid value: [%s]."' % params['priority'])
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_validity_period(self):
+    #     params = {'username': self.username,
+    #               'password': 'correct',
+    #               'to': '06155423',
+    #               'content': 'anycontent'}
+    #
+    #     # Validity period definitions
+    #     valid_vps = {0, 1, 2, 3, 4000}
+    #
+    #     for params['validity-period'] in valid_vps:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 500)
+    #         # This is a normal error since SMPPClientManagerPB is not really running
+    #         self.assertEqual(response.value(),
+    #                          "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     # Validity period definitions
+    #     invalid_vps = {-1, 'a', 1.0}
+    #
+    #     for params['validity-period'] in invalid_vps:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 400)
+    #         # This is a normal error since SMPPClientManagerPB is not really running
+    #         self.assertEqual(response.value(),
+    #                          'Error "Argument [validity-period] has an invalid value: [%s]."' % params[
+    #                              'validity-period'])
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_inurl_dlr(self):
+    #     params = {'username': self.username,
+    #               'password': 'correct',
+    #               'to': '06155423',
+    #               'content': 'anycontent'}
+    #
+    #     # URL definitions
+    #     valid_urls = {'http://127.0.0.1/receipt',
+    #                   'http://127.0.0.1:99/receipt',
+    #                   'https://127.0.0.1/receipt',
+    #                   'https://127.0.0.1:99/receipt',
+    #                   'https://127.0.0.1/receipt.html',
+    #                   'https://127.0.0.1:99/receipt.html',
+    #                   'http://www.google.com/receipt',
+    #                   'http://www.google.com:99/receipt',
+    #                   'http://www.google.com/receipt.html',
+    #                   'http://www.google.com:99/receipt.html',
+    #                   'http://www.google.com/',
+    #                   'http://www.google.com:99/',
+    #                   'http://www.google.com',
+    #                   'http://www.google.com:99'}
+    #
+    #     for params['dlr-url'] in valid_urls:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 500)
+    #         self.assertEqual(response.value(),
+    #                          "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     # URL definitions
+    #     invalid_urls = {'ftp://127.0.0.1/receipt',
+    #                     'smtp://127.0.0.1:99/receipt',
+    #                     'smpp://127.0.0.1/receipt',
+    #                     '127.0.0.1:99',
+    #                     'www.google.com',
+    #                     'www.google.com:99/'}
+    #
+    #     for params['dlr-url'] in invalid_urls:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 400)
+    #         self.assertEqual(response.value(),
+    #                          "Error \"Argument [dlr-url] has an invalid value: [%s].\"" % params['dlr-url'])
+    #
+    # @defer.inlineCallbacks
+    # def test_send_without_args(self):
+    #     response = yield self.web.get("send")
+    #     self.assertEqual(response.responseCode, 400)
+    #     self.assertEqual(response.value(), "Error \"Mandatory argument [username] is not found.\"")
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_some_args(self):
+    #     response = yield self.web.get("send", {'username': self.username})
+    #     self.assertEqual(response.responseCode, 400)
+    #     self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_tags(self):
+    #     """Related to #455"""
+    #     params = {'username': self.username,
+    #               'password': 'correct',
+    #               'to': '06155423',
+    #               'content': 'anycontent'}
+    #
+    #     valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e', 'a-b,2'}
+    #     for params['tags'] in valid_tags:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 500)
+    #         self.assertEqual(response.value(),
+    #                          "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     invalid_tags = {';', '#,.,:', '+++,sh1t,3r='}
+    #     for params['tags'] in invalid_tags:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 400)
+    #         self.assertEqual(response.value()[:23], "Error \"Argument [tags] ")
+    #
+    # @defer.inlineCallbacks
+    # def test_send_hex_content(self):
+    #     params = {'username': self.username,
+    #               'password': 'correct',
+    #               'to': '06155423'}
+    #
+    #     # Assert having an error if content and hex_content are not present
+    #     response = yield self.web.get("send", params)
+    #
+    #     self.assertEqual(response.responseCode, 400)
+    #     self.assertEqual(response.value(),
+    #                      "Error \"content or hex-content not present.\"")
+    #
+    #     # Assert having an error if content and hex_content are present
+    #     params['hex-content'] = ''
+    #     params['content'] = ''
+    #     response = yield self.web.get("send", params)
+    #
+    #     self.assertEqual(response.value(),
+    #                      "Error \"content and hex-content cannot be used both in same request.\"")
+    #
+    #     # Assert correct encoding
+    #     del(params['content'])
+    #     params['hex-content'] = ''
+    #     response = yield self.web.get("send", params)
+    #
+    #     self.assertEqual(response.responseCode, 500)
+    #     self.assertEqual(response.value(),
+    #                      "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     # Assert incorrect encoding
+    #     params['hex-content'] = 'Clear text'
+    #     response = yield self.web.get("send", params)
+    #
+    #     self.assertEqual(response.responseCode, 400)
+    #     self.assertEqual(response.value()[:33],
+    #                      "Error \"Invalid hex-content data: ")
+    #
+    # @defer.inlineCallbacks
+    # def test_send_with_sdt(self):
+    #     """Related to #541"""
+    #     params = {'username': self.username,
+    #               'password': 'correct',
+    #               'to': '06155423',
+    #               'content': 'anycontent'}
+    #
+    #     # Assert sdt optional
+    #     response = yield self.web.get("send", params)
+    #     self.assertEqual(response.responseCode, 500)
+    #     # This is a normal error since SMPPClientManagerPB is not really running
+    #     self.assertEqual(response.value(),
+    #                      "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     # Assert valid sdt
+    #     valid_sdt = {'000000000100000R'}
+    #     for params['sdt'] in valid_sdt:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 500)
+    #         self.assertEqual(response.value(),
+    #                          "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+    #
+    #     # Assert invalid sdt
+    #     invalid_sdt = {'', '000000000100000', '00', '00+', '00R', '00-', '0000000001000000R', '00000000100000R'}
+    #     for params['sdt'] in invalid_sdt:
+    #         response = yield self.web.get("send", params)
+    #
+    #         self.assertEqual(response.responseCode, 400)
+    #         self.assertEqual(response.value()[:22], "Error \"Argument [sdt] ")
+    #
 
 class RateTestCases(HTTPApiTestCases):
     def setUp(self):
