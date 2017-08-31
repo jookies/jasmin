@@ -1146,7 +1146,7 @@ class PDUEncoder(IEncoder):
                 # Needs some padding
                 encoded_value += (length - len(encoded_value)) * '\0'
 
-            result += TagEncoder().encode(tag) + Int2Encoder().encode(length) + encoded_value
+            result += Int2Encoder().encode(tag) + Int2Encoder().encode(length) + encoded_value
         return result
 
     def decodeOptionalParams(self, paramList, file, optionsLength):
