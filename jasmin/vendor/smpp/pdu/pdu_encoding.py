@@ -1089,6 +1089,7 @@ class PDUEncoder(IEncoder):
 
         body += self.encodeRequiredParams(pdu.mandatoryParams, self.getRequiredParamEncoders(pdu), pdu.params)
         body += self.encodeOptionalParams(pdu.optionalParams, pdu.params)
+        body += self.encodeRawParams(pdu.custom_tlvs)
         return body
 
     def encodeHeader(self, pdu, body):
@@ -1115,6 +1116,37 @@ class PDUEncoder(IEncoder):
                 tag = getattr(pdu_types.Tag, paramName)
                 value = params[paramName]
                 result += self.optionEncoder.encode(pdu_types.Option(tag, value))
+        return result
+
+    def encodeRawParams(self, tlvs):
+        # Jasmin update:
+        # Do not encode vendor_specific_bypass parameter:
+        result = ''
+        for tlv in tlvs:
+            if len(tlv) != 4:
+                continue
+            tag, length, value_type, value = tlv
+
+            if value_type == 'Int1':
+                encoded_value = Int1Encoder().encode(value)
+            elif value_type == 'Int2':
+                encoded_value = Int2Encoder().encode(value)
+            elif value_type == 'Int4':
+                encoded_value = Int4Encoder().encode(value)
+            elif value_type == 'OctetString':
+                encoded_value = OctetStringEncoder().encode(value)
+            elif value_type == 'COctetString':
+                encoded_value = COctetStringEncoder().encode(value)
+            else:
+                continue  # Unknown tlv
+
+            if length is None:
+                length = len(encoded_value)
+            elif len(encoded_value) < length:
+                # Needs some padding
+                encoded_value += (length - len(encoded_value)) * '\0'
+
+            result += TagEncoder().encode(tag) + Int2Encoder().encode(length) + encoded_value
         return result
 
     def decodeOptionalParams(self, paramList, file, optionsLength):

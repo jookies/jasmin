@@ -139,7 +139,11 @@ class PDU(object):
         self.id = self.commandId
         self.seqNum = seqNum
         self.status = status
+        # TLV format
+        # (tag:int, length:int|None, type:str, value:str/int)
+        self.custom_tlvs = kwargs.pop('custom_tlvs', [])
         self.params = kwargs
+
         for mParam in self.mandatoryParams:
             if mParam not in self.params:
                 self.params[mParam] = None

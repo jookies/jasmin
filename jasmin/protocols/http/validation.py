@@ -32,7 +32,9 @@ class UrlArgsValidator(object):
                 fieldData = self.fields[field]
 
                 if field in args:
-                    if isinstance(args[field][0], int) or isinstance(args[field][0], float):
+                    if isinstance(args[field][0], dict) or isinstance(args[field][0], list):
+                        continue  # Todo check structure of dict/list
+                    elif isinstance(args[field][0], int) or isinstance(args[field][0], float):
                         value = str(args[field][0])
                     else:
                         value = args[field][0]
