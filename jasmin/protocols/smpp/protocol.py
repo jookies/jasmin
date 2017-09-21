@@ -523,7 +523,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                 username,
                 password,
                 self.transport.getPeer().host)
-        except error.UnauthorizedLogin, e:
+        except error.UnauthorizedLogin as e:
             self.log.debug('From host %s and using password: %s', self.transport.getPeer().host, password)
             self.log.warning('SMPP Bind request failed for username: "%s", reason: %s', username, str(e))
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, username)
