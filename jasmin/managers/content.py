@@ -15,14 +15,14 @@ class InvalidParameterError(Exception):
 
 
 def randomUniqueId():
-    "Returns a UUID4 unique message id"
+    """Returns a UUID4 unique message id"""
     msgid = str(uuid.uuid4())
 
     return msgid
 
 
 class PDU(Content):
-    "A generic SMPP PDU Content"
+    """A generic SMPP PDU Content"""
 
     pickleProtocol = pickle.HIGHEST_PROTOCOL
 
@@ -77,9 +77,8 @@ class DLRContentForHttpapi(Content):
 
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
-        if message_status[:5] != 'ESME_' and message_status not in [
-            'DELIVRD', 'EXPIRED', 'DELETED',
-            'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
+                'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s" % message_status)
         if dlr_level not in [1, 2, 3]:
             raise InvalidParameterError("Invalid dlr_level: %s" % dlr_level)
@@ -110,9 +109,8 @@ class DLRContentForSmpps(Content):
                  source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
-        if message_status[:5] != 'ESME_' and message_status not in [
-            'DELIVRD', 'EXPIRED', 'DELETED',
-            'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
+                'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s" % message_status)
 
         properties = {'message-id': msgid, 'headers': {'try-count': 0,
@@ -130,7 +128,7 @@ class DLRContentForSmpps(Content):
 
 
 class SubmitSmContent(PDU):
-    "A SMPP SubmitSm Content"
+    """A SMPP SubmitSm Content"""
 
     def __init__(self, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
                  source_connector='httpapi'):
@@ -160,7 +158,7 @@ class SubmitSmContent(PDU):
 
 
 class SubmitSmRespContent(PDU):
-    "A SMPP SubmitSmResp Content"
+    """A SMPP SubmitSmResp Content"""
 
     def __init__(self, body, msgid, pickleProtocol=2, prePickle=True):
         props = {'message-id': msgid}
@@ -169,7 +167,7 @@ class SubmitSmRespContent(PDU):
 
 
 class DeliverSmContent(PDU):
-    "A SMPP DeliverSm Content"
+    """A SMPP DeliverSm Content"""
 
     def __init__(self, body, sourceCid, pickleProtocol=2, prePickle=True,
                  concatenated=False, will_be_concatenated=False):
@@ -187,7 +185,7 @@ class DeliverSmContent(PDU):
 
 
 class SubmitSmRespBillContent(Content):
-    "A Bill Content holding amount to be charged to user (uid)"
+    """A Bill Content holding amount to be charged to user (uid)"""
 
     def __init__(self, bid, uid, amount):
         if not isinstance(amount, float) and not isinstance(amount, int):

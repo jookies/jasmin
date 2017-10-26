@@ -78,7 +78,7 @@ class DlrlookupDaemon(object):
         # This is a separate process: do not log to same log_file as Jasmin sm-listener
         # Refs #629
         DLRLookupConfigInstance.log_file = '%s/dlrlookupd-%s' % ntpath.split(DLRLookupConfigInstance.log_file)
-        
+
         self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
                                                  self.components['rc'])
 
