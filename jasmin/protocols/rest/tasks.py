@@ -21,7 +21,7 @@ app.config_from_object('jasmin.protocols.rest.config')
 
 class JasminTask(Task):
     def __init__(self):
-        super(JasminTask, self).__init__()
+        Task.__init__(self)
 
         # Shared namespace
         self.worker_tracker = {'last_req_at': datetime.now(), 'last_req_time': 0, 'throughput': 0}
