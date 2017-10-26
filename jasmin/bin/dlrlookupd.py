@@ -4,6 +4,7 @@ import os
 import signal
 import sys
 import syslog
+import ntpath
 
 from lockfile import FileLock, LockTimeout, AlreadyLocked
 from twisted.internet import reactor, defer
@@ -73,6 +74,11 @@ class DlrlookupDaemon(object):
         """Start DLRLookup"""
 
         DLRLookupConfigInstance = DLRLookupConfig(self.options['config'])
+
+        # This is a separate process: do not log to same log_file as Jasmin sm-listener
+        # Refs #629
+        DLRLookupConfigInstance.log_file = '%s/dlrlookupd-%s' % ntpath.split(DLRLookupConfigInstance.log_file)
+        
         self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
                                                  self.components['rc'])
 
@@ -85,7 +91,7 @@ class DlrlookupDaemon(object):
         # Connect to redis server
         try:
             yield self.startRedisClient()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start RedisClient: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  RedisClient Started.")
@@ -95,7 +101,7 @@ class DlrlookupDaemon(object):
         try:
             self.startAMQPBrokerService()
             yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start AMQP Broker: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  AMQP Broker Started.")
@@ -103,7 +109,7 @@ class DlrlookupDaemon(object):
         try:
             # [optional] Start DLR Lookup
             self.startDLRLookupService()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRLookup: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  DLRLookup Started.")
@@ -150,13 +156,13 @@ if __name__ == '__main__':
         ja_d.start()
 
         reactor.run()
-    except usage.UsageError, errortext:
-        print '%s: %s' % (sys.argv[0], errortext)
-        print '%s: Try --help for usage details.' % (sys.argv[0])
+    except usage.UsageError as errortext:
+        print ('%s: %s' % (sys.argv[0], errortext))
+        print ('%s: Try --help for usage details.' % (sys.argv[0]))
     except LockTimeout:
-        print "Lock not acquired ! exiting"
+        print ("Lock not acquired ! exiting")
     except AlreadyLocked:
-        print "There's another instance on dlrlookupd running, exiting."
+        print ("There's another instance on dlrlookupd running, exiting.")
     finally:
         # Release the lock
         if lock is not None and lock.i_am_locking():
