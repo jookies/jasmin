@@ -8,17 +8,22 @@ import uuid
 
 from txamqp.content import Content
 
+from pkg_resources import iter_entry_points
+
 
 class InvalidParameterError(Exception):
     """Raised when a parameter is invalid
     """
 
 
-def randomUniqueId():
-    """Returns a UUID4 unique message id"""
-    msgid = str(uuid.uuid4())
-
-    return msgid
+# msgid generator is a pluggable method, make the lookup to find an existant
+# plugin or use the default one (randomUniqueId)
+randomUniqueId = lambda: str(uuid.uuid4())
+for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
+    print("Hooking randomUniqueId() from %s" % entry_point.dist)
+    randomUniqueId = entry_point.load()
+    # Takes the first one from the iteration
+    break
 
 
 class PDU(Content):
