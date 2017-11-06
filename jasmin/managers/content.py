@@ -18,7 +18,7 @@ class InvalidParameterError(Exception):
 
 # msgid generator is a pluggable method, make the lookup to find an existant
 # plugin or use the default one (randomUniqueId)
-randomUniqueId = lambda: str(uuid.uuid4())
+randomUniqueId = lambda uid, destination_cid: str(uuid.uuid4())
 for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
     print("Hooking randomUniqueId() from %s" % entry_point.dist)
     randomUniqueId = entry_point.load()
@@ -135,8 +135,8 @@ class DLRContentForSmpps(Content):
 class SubmitSmContent(PDU):
     """A SMPP SubmitSm Content"""
 
-    def __init__(self, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
-                 source_connector='httpapi'):
+    def __init__(self, uid, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
+                 source_connector='httpapi', destination_cid=None):
         props = {}
 
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -148,7 +148,7 @@ class SubmitSmContent(PDU):
         if source_connector not in ['httpapi', 'smppsapi']:
             raise InvalidParameterError('Invalid source_connector value: %s.' % source_connector)
         if msgid is None:
-            msgid = randomUniqueId()
+            msgid = randomUniqueId(uid, destination_cid)
 
         props['priority'] = priority
         props['message-id'] = msgid

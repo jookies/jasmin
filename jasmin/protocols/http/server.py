@@ -233,7 +233,7 @@ class Send(Resource):
                 routable.pdu.params['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s", priority)
 
-	    # Set schedule_delivery_time
+            # Set schedule_delivery_time
             if 'sdt' in updated_request.args:
                 routable.pdu.params['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
                 self.log.debug(
@@ -339,6 +339,7 @@ class Send(Resource):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU", routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(
+                uid=user.uid,
                 cid=routedConnector.cid,
                 SubmitSmPDU=routable.pdu,
                 submit_sm_bill=bill,
