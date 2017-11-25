@@ -7,7 +7,7 @@ env:
 # Command to install dependencies
 install:
     - python setup.py sdist
-    - pip install "dist/jasmin-$JASMIN_RELEASE.tar.gz"
+    - pip install "dist/jasmin-$JASMIN_RELEASE.tar.gz" --no-binary jasmin
 # Commands to run tests:
 script:
     # Trial tests and coverage:
