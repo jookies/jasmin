@@ -18,7 +18,7 @@ class InvalidParameterError(Exception):
 
 # msgid generator is a pluggable method, make the lookup to find an existant
 # plugin or use the default one (randomUniqueId)
-randomUniqueId = lambda uid, destination_cid: str(uuid.uuid4())
+randomUniqueId = lambda pdu_type, uid, source_cid, destination_cid: str(uuid.uuid4())
 for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
     print("Hooking randomUniqueId() from %s" % entry_point.dist)
     randomUniqueId = entry_point.load()
@@ -148,7 +148,7 @@ class SubmitSmContent(PDU):
         if source_connector not in ['httpapi', 'smppsapi']:
             raise InvalidParameterError('Invalid source_connector value: %s.' % source_connector)
         if msgid is None:
-            msgid = randomUniqueId(uid, destination_cid)
+            msgid = randomUniqueId('submit_sm', uid, source_connector, destination_cid)
 
         props['priority'] = priority
         props['message-id'] = msgid
@@ -178,7 +178,7 @@ class DeliverSmContent(PDU):
                  concatenated=False, will_be_concatenated=False):
         props = {}
 
-        props['message-id'] = randomUniqueId()
+        props['message-id'] = randomUniqueId('deliver_sm', None, sourceCid, None)
 
         # For routing purpose, connector-id indicates the source connector of the PDU
         props['headers'] = {'try-count': 0,
