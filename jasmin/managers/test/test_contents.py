@@ -24,7 +24,7 @@ class ContentTestCase(TestCase):
 
 class SubmitSmContentTestCase(ContentTestCase):
     def test_normal(self):
-        c = SubmitSmContent(self.body, self.replyto, self.bill, 1, self.expiration)
+        c = SubmitSmContent(1, self.body, self.replyto, self.bill, 1, self.expiration)
 
         self.assertEquals(c.body, self.body)
         self.assertEquals(c['reply-to'], self.replyto)
@@ -36,7 +36,7 @@ class SubmitSmContentTestCase(ContentTestCase):
         self.assertTrue('created_at' in c['headers'])
 
     def test_minimal_arguments(self):
-        c = SubmitSmContent(self.body, self.replyto, self.bill)
+        c = SubmitSmContent(1, self.body, self.replyto, self.bill)
 
         self.assertEquals(c['priority'], 1)
         self.assertNotEquals(c['message-id'], None)
@@ -51,13 +51,13 @@ class SubmitSmContentTestCase(ContentTestCase):
             else:
                 counter += 1
 
-            c = SubmitSmContent(self.body, self.replyto, self.bill)
+            c = SubmitSmContent(1, self.body, self.replyto, self.bill)
             self.assertEquals(msgIds.count(c['message-id']), 0,
                               "Collision detected at position %s/%s" % (counter, maxCounter))
             msgIds.append(c['message-id'])
 
     def test_set_incorrect_source_connector(self):
-        self.assertRaises(InvalidParameterError, SubmitSmContent, self.body, self.replyto,
+        self.assertRaises(InvalidParameterError, SubmitSmContent, 1, self.body, self.replyto,
                           self.bill, source_connector='anythingelse')
 
 
