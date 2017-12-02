@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 import logging
 import re
 import struct
@@ -17,8 +17,9 @@ from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutbound
                                                  SMPPOutboundTxnResult)
 from .error import *
 
-#@todo: LOG_CATEGORY seems to be unused, check before removing it
+# @todo: LOG_CATEGORY seems to be unused, check before removing it
 LOG_CATEGORY = "smpp.twisted.protocol"
+
 
 class SMPPClientProtocol(twistedSMPPClientProtocol):
     def __init__(self):
@@ -32,13 +33,13 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
 
-        #A better version than vendor's PDUReceived method:
-        #- Dont re-encode pdu !
-        #if self.log.isEnabledFor(logging.DEBUG):
+        # A better version than vendor's PDUReceived method:
+        # - Dont re-encode pdu !
+        # if self.log.isEnabledFor(logging.DEBUG):
         #    encoded = self.encoder.encode(pdu)
         #    self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
 
-        #Signal SMPP operation
+        # Signal SMPP operation
         self.onSMPPOperation()
 
         if isinstance(pdu, PDURequest):
@@ -137,7 +138,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                     SMPPProtocolError, "Invalid PDU response type [%s] returned for request type [%s]" % (
                         type(respPDU), type(txn.request)))
                 return
-            #Do callback
+            # Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
             return
 
@@ -159,7 +160,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
             self.log.exception(err)
             txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
-            #Do errback
+            # Do errback
             txn.ackDeferred.errback(err)
 
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
@@ -171,14 +172,14 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             raise LongSubmitSmTransactionError(
                 'Transaction with msg_ref_num [%s] already in progress.' % reqPDU.LongSubmitSm['msg_ref_num'])
 
-        #Create callback deferred
+        # Create callback deferred
         ackDeferred = defer.Deferred()
-        #Create response timer
+        # Create response timer
         timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
-        #Save transaction
+        # Save transaction
         self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
-            'txn' : SMPPOutboundTxn(reqPDU, timer, ackDeferred),
-            'nack_count' : reqPDU.LongSubmitSm['total_segments']}
+            'txn': SMPPOutboundTxn(reqPDU, timer, ackDeferred),
+            'nack_count': reqPDU.LongSubmitSm['total_segments']}
         self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
                        reqPDU.LongSubmitSm['msg_ref_num'])
         return ackDeferred
@@ -207,7 +208,8 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                 len(self.longSubmitSmTxns)
             )
             raise LongSubmitSmTransactionError(
-                'Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s].' % reqPDU.LongSubmitSm['msg_ref_num'])
+                'Received a submit_sm_resp in a unknown transaction with msg_ref_num [%s].' % reqPDU.LongSubmitSm[
+                    'msg_ref_num'])
 
         # Decrement pending ACKs
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] > 0:
@@ -221,7 +223,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] == 0:
             txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
 
-            #Do callback
+            # Do callback
             txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
 
     def endLongSubmitSmTransactionErr(self, failure):
@@ -303,8 +305,10 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                     elif splitMethod == 'udh':
                         # Using UDH options:
                         partedSmPdu.LongSubmitSm['msg_ref_num'] = struct.unpack('!B', pdu.params['short_message'][3])[0]
-                        partedSmPdu.LongSubmitSm['total_segments'] = struct.unpack('!B', pdu.params['short_message'][4])[0]
-                        partedSmPdu.LongSubmitSm['segment_seqnum'] = struct.unpack('!B', pdu.params['short_message'][5])[0]
+                        partedSmPdu.LongSubmitSm['total_segments'] = \
+                        struct.unpack('!B', pdu.params['short_message'][4])[0]
+                        partedSmPdu.LongSubmitSm['segment_seqnum'] = \
+                        struct.unpack('!B', pdu.params['short_message'][5])[0]
 
                     self.preSubmitSm(partedSmPdu)
                     self.sendPDU(partedSmPdu)
@@ -344,6 +348,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
 
         return twistedSMPPClientProtocol.sendDataRequest(self, pdu)
 
+
 class SMPPServerProtocol(twistedSMPPServerProtocol):
     def __init__(self):
         twistedSMPPServerProtocol.__init__(self)
@@ -366,13 +371,13 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         self.log.debug("Complete PDU dump: %s", pdu)
         self.factory.stats.set('last_received_pdu_at', datetime.now())
 
-        #A better version than vendor's PDUReceived method:
-        #- Dont re-encode pdu !
-        #if self.log.isEnabledFor(logging.DEBUG):
+        # A better version than vendor's PDUReceived method:
+        # - Dont re-encode pdu !
+        # if self.log.isEnabledFor(logging.DEBUG):
         #    encoded = self.encoder.encode(pdu)
         #    self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
 
-        #Signal SMPP operation
+        # Signal SMPP operation
         self.onSMPPOperation()
 
         if isinstance(pdu, PDURequest):
@@ -463,7 +468,6 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                 self.factory.stats.inc('submit_sm_count')
                 if self.user is not None:
                     self.user.getCnxStatus().smpps['submit_sm_count'] += 1
-
 
     def onPDURequest_unbind(self, reqPDU):
         twistedSMPPServerProtocol.onPDURequest_unbind(self, reqPDU)

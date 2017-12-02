@@ -31,25 +31,30 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 class LastProtoSMPPServerFactory(SMPPServerFactory):
     """This a SMPPServerFactory used to keep track of the last protocol instance for
     testing purpose"""
 
     lastProto = None
+
     def buildProtocol(self, addr):
         self.lastProto = SMPPServerFactory.buildProtocol(self, addr)
         return self.lastProto
+
+
 class LastProtoSMPPClientFactory(SMPPClientFactory):
     """This a SMPPClientFactory used to keep track of the last protocol instance for
     testing purpose"""
 
     lastProto = None
+
     def buildProtocol(self, addr):
         self.lastProto = SMPPClientFactory.buildProtocol(self, addr)
         return self.lastProto
 
-class RouterPBTestCases(TestCase):
 
+class RouterPBTestCases(TestCase):
     def setUp(self):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
@@ -65,9 +70,9 @@ class RouterPBTestCases(TestCase):
         self.foo = User('u1', Group('test'), 'username', 'password')
         self.c1 = SmppClientConnector(id_generator())
         self.defaultroute = DefaultRoute(self.c1)
-        self.provision_user_defaultroute(user = self.foo, defaultroute = self.defaultroute)
+        self.provision_user_defaultroute(user=self.foo, defaultroute=self.defaultroute)
 
-    def provision_user_defaultroute(self, user, defaultroute = None):
+    def provision_user_defaultroute(self, user, defaultroute=None):
         # This is normally done through jcli API (or any other high level API to come)
         # Using perspective_user_add() is just a shortcut for testing purposes
         if user.group not in self.routerpb_factory.groups:
@@ -78,8 +83,8 @@ class RouterPBTestCases(TestCase):
         if defaultroute is not None:
             self.routerpb_factory.perspective_mtroute_add(pickle.dumps(defaultroute, pickle.HIGHEST_PROTOCOL), 0)
 
-class SMPPServerTestCases(RouterPBTestCases):
 
+class SMPPServerTestCases(RouterPBTestCases):
     def setUp(self):
         RouterPBTestCases.setUp(self)
 
@@ -91,38 +96,38 @@ class SMPPServerTestCases(RouterPBTestCases):
         _portal.registerChecker(RouterAuthChecker(self.routerpb_factory))
 
         # SMPPServerFactory init
-        self.smpps_factory = LastProtoSMPPServerFactory(config = self.smpps_config,
-                                                    auth_portal = _portal,
-                                                    RouterPB = self.routerpb_factory,
-                                                    SMPPClientManagerPB = None)
+        self.smpps_factory = LastProtoSMPPServerFactory(config=self.smpps_config,
+                                                        auth_portal=_portal,
+                                                        RouterPB=self.routerpb_factory,
+                                                        SMPPClientManagerPB=None)
         self.smpps_port = reactor.listenTCP(self.smpps_config.port, self.smpps_factory)
 
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.smpps_port.stopListening()
 
-class SMPPClientTestCases(SMPPServerTestCases):
 
+class SMPPClientTestCases(SMPPServerTestCases):
     def setUp(self):
         SMPPServerTestCases.setUp(self)
 
         self.SubmitSmPDU = SubmitSM(
-            source_addr = '1234',
-            destination_addr = '4567',
-            short_message = 'hello !',
-            seqNum = 1,
+            source_addr='1234',
+            destination_addr='4567',
+            short_message='hello !',
+            seqNum=1,
         )
         self.DeliverSmPDU = DeliverSM(
-            source_addr = '4567',
-            destination_addr = '1234',
-            short_message = 'hello !',
-            seqNum = 1,
+            source_addr='4567',
+            destination_addr='1234',
+            short_message='hello !',
+            seqNum=1,
         )
         self.DataSmPDU = DataSM(
-            source_addr = '4567',
-            destination_addr = '1234',
-            short_message = 'hello !',
-            seqNum = 1,
+            source_addr='4567',
+            destination_addr='1234',
+            short_message='hello !',
+            seqNum=1,
         )
 
         # SMPPClientConfig init
@@ -139,8 +144,8 @@ class SMPPClientTestCases(SMPPServerTestCases):
     def tearDown(self):
         yield SMPPServerTestCases.tearDown(self)
 
-class BindTestCases(SMPPClientTestCases):
 
+class BindTestCases(SMPPClientTestCases):
     @defer.inlineCallbacks
     def test_bind_successfull_trx(self):
         # Connect and bind
@@ -262,7 +267,7 @@ class BindTestCases(SMPPClientTestCases):
         yield self.smppc_factory.connectAndBind()
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
-        yield self.smpps_factory.unbindAndRemoveGateway(user, ban = False)
+        yield self.smpps_factory.unbindAndRemoveGateway(user, ban=False)
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
     @defer.inlineCallbacks
@@ -281,8 +286,8 @@ class BindTestCases(SMPPClientTestCases):
         yield self.smppc_factory.connectAndBind()
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
-class MessagingTestCases(SMPPClientTestCases):
 
+class MessagingTestCases(SMPPClientTestCases):
     @defer.inlineCallbacks
     def test_messaging_fidelity(self):
         # Connect and bind
@@ -305,19 +310,19 @@ class MessagingTestCases(SMPPClientTestCases):
         # Asserts SMPPServer side
         self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_count, 3)
         self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_args_list[1][0][0].params['source_addr'],
-                            self.SubmitSmPDU.params['source_addr'])
+                         self.SubmitSmPDU.params['source_addr'])
         self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_args_list[1][0][0].params['destination_addr'],
-                            self.SubmitSmPDU.params['destination_addr'])
+                         self.SubmitSmPDU.params['destination_addr'])
         self.assertEqual(self.smpps_factory.lastProto.PDUReceived.call_args_list[1][0][0].params['short_message'],
-                            self.SubmitSmPDU.params['short_message'])
+                         self.SubmitSmPDU.params['short_message'])
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 3)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['source_addr'],
-                            self.DeliverSmPDU.params['source_addr'])
+                         self.DeliverSmPDU.params['source_addr'])
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['destination_addr'],
-                            self.DeliverSmPDU.params['destination_addr'])
+                         self.DeliverSmPDU.params['destination_addr'])
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['short_message'],
-                            self.DeliverSmPDU.params['short_message'])
+                         self.DeliverSmPDU.params['short_message'])
 
     @defer.inlineCallbacks
     def test_messaging_rx(self):
@@ -377,11 +382,11 @@ class MessagingTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 1)
         self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['source_addr'],
-                            self.DeliverSmPDU.params['source_addr'])
+                         self.DeliverSmPDU.params['source_addr'])
         self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['destination_addr'],
-                            self.DeliverSmPDU.params['destination_addr'])
+                         self.DeliverSmPDU.params['destination_addr'])
         self.assertEqual(smppc2_factory.lastProto.PDUReceived.call_args_list[0][0][0].params['short_message'],
-                            self.DeliverSmPDU.params['short_message'])
+                         self.DeliverSmPDU.params['short_message'])
 
     @defer.inlineCallbacks
     def test_deliver_sm_from_smpps(self):
@@ -405,8 +410,8 @@ class MessagingTestCases(SMPPClientTestCases):
 
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
-class InactivityTestCases(SMPPClientTestCases):
 
+class InactivityTestCases(SMPPClientTestCases):
     @defer.inlineCallbacks
     def test_server_unbind_after_inactivity(self):
         """Server will send an unbind request to client when inactivity
@@ -450,8 +455,8 @@ class InactivityTestCases(SMPPClientTestCases):
 
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.NONE)
 
-class UserCnxStatusTestCases(SMPPClientTestCases):
 
+class UserCnxStatusTestCases(SMPPClientTestCases):
     def setUp(self):
         SMPPClientTestCases.setUp(self)
 
@@ -461,7 +466,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         self.foo.mt_credential.setQuota('smpps_throughput', 2)
         self.c1 = SmppClientConnector(id_generator())
         self.defaultroute = DefaultRoute(self.c1)
-        self.provision_user_defaultroute(user = self.foo, defaultroute = self.defaultroute)
+        self.provision_user_defaultroute(user=self.foo, defaultroute=self.defaultroute)
 
         self.user = self.routerpb_factory.getUser('u1')
 
@@ -477,22 +482,22 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # One bind
-        self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], _bind_count+1)
-        self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count+0)
+        self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], _bind_count + 1)
+        self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count + 0)
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
         # Still one bind
-        self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], _bind_count+1)
-        self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count+1)
+        self.assertEqual(self.user.getCnxStatus().smpps['bind_count'], _bind_count + 1)
+        self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count + 1)
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
     @defer.inlineCallbacks
     def test_smpps_unbind_count_connection_loss(self):
@@ -512,14 +517,14 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         yield waitFor(1)
 
         # Unbind were triggered on server side
-        self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count+1)
+        self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count + 1)
 
     @defer.inlineCallbacks
     def test_smpps_bound_trx(self):
         # User have never binded
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
 
         # Connect and bind
         yield self.smppc_factory.connectAndBind()
@@ -527,11 +532,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # One bind
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 1,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 1, })
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -539,11 +544,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # Still one bind
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
     @defer.inlineCallbacks
     def test_smpps_bound_rx(self):
@@ -551,8 +556,8 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # User have never binded
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
 
         # Connect and bind
         yield self.smppc_factory.connectAndBind()
@@ -560,11 +565,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # One bind
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 1,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 1,
+                                                                                     'bind_transceiver': 0, })
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -572,11 +577,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # Still one bind
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
     @defer.inlineCallbacks
     def test_smpps_bound_tx(self):
@@ -584,8 +589,8 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # User have never binded
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
 
         # Connect and bind
         yield self.smppc_factory.connectAndBind()
@@ -593,11 +598,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # One bind
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 1,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -605,11 +610,11 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         # Still one bind
         self.assertEqual(self.user.getCnxStatus().smpps['bound_connections_count'], {'bind_transmitter': 0,
-                                                                                'bind_receiver': 0,
-                                                                                'bind_transceiver': 0,})
+                                                                                     'bind_receiver': 0,
+                                                                                     'bind_transceiver': 0, })
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 0.1 ))
+                                timedelta(seconds=0.1))
 
     @defer.inlineCallbacks
     def test_enquire_link_set_last_activity(self):
@@ -624,7 +629,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 1 ))
+                                timedelta(seconds=1))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -644,7 +649,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
 
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta( seconds = 1 ))
+                                timedelta(seconds=1))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -663,7 +668,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
         # Assert after
-        self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count+1)
+        self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count + 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -688,7 +693,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
         # Asserts
-        self.assertEqual(_elink_count+4, self.user.getCnxStatus().smpps['elink_count'])
+        self.assertEqual(_elink_count + 4, self.user.getCnxStatus().smpps['elink_count'])
 
     @defer.inlineCallbacks
     def test_throttling_error_count(self):
@@ -714,9 +719,9 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
             yield waitFor(0.1)
 
         # Assert after
-        self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count+50)
+        self.assertEqual(self.user.getCnxStatus().smpps['submit_sm_request_count'], _submit_sm_request_count + 50)
         self.assertEqual(self.user.getCnxStatus().smpps['other_submit_error_count'], _other_submit_error_count)
-        self.assertLess(self.user.getCnxStatus().smpps['throttling_error_count'], _submit_sm_request_count+50)
+        self.assertLess(self.user.getCnxStatus().smpps['throttling_error_count'], _submit_sm_request_count + 50)
         self.assertGreater(self.user.getCnxStatus().smpps['throttling_error_count'], 0)
         self.assertGreater(self.user.getCnxStatus().smpps['submit_sm_count'], _submit_sm_count)
 
@@ -742,7 +747,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
         # Assert after
-        self.assertEqual(self.user.getCnxStatus().smpps['other_submit_error_count'], _other_submit_error_count+1)
+        self.assertEqual(self.user.getCnxStatus().smpps['other_submit_error_count'], _other_submit_error_count + 1)
         self.assertEqual(self.user.getCnxStatus().smpps['throttling_error_count'], _throttling_error_count)
 
         # Unbind & Disconnect
@@ -762,7 +767,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
 
         # Assert after
-        self.assertEqual(self.user.getCnxStatus().smpps['deliver_sm_count'], _deliver_sm_count+1)
+        self.assertEqual(self.user.getCnxStatus().smpps['deliver_sm_count'], _deliver_sm_count + 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -781,14 +786,14 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         yield self.smpps_factory.lastProto.sendDataRequest(self.DataSmPDU)
 
         # Assert after
-        self.assertEqual(self.user.getCnxStatus().smpps['data_sm_count'], _data_sm_count+1)
+        self.assertEqual(self.user.getCnxStatus().smpps['data_sm_count'], _data_sm_count + 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
-class SmppsStatsTestCases(SMPPClientTestCases):
 
+class SmppsStatsTestCases(SMPPClientTestCases):
     def setUp(self):
         SMPPClientTestCases.setUp(self)
 
@@ -798,9 +803,9 @@ class SmppsStatsTestCases(SMPPClientTestCases):
         self.foo.mt_credential.setQuota('smpps_throughput', 2)
         self.c1 = SmppClientConnector(id_generator())
         self.defaultroute = DefaultRoute(self.c1)
-        self.provision_user_defaultroute(user = self.foo, defaultroute = self.defaultroute)
+        self.provision_user_defaultroute(user=self.foo, defaultroute=self.defaultroute)
 
-        self.stats = SMPPServerStatsCollector().get(cid = self.smpps_config.id)
+        self.stats = SMPPServerStatsCollector().get(cid=self.smpps_config.id)
 
     @defer.inlineCallbacks
     def test_elink_count(self):
@@ -821,7 +826,7 @@ class SmppsStatsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
         # Asserts
-        self.assertEqual(_elink_count+4, self.stats.get('elink_count'))
+        self.assertEqual(_elink_count + 4, self.stats.get('elink_count'))
 
     @defer.inlineCallbacks
     def test_throttling_error_count(self):
@@ -847,9 +852,9 @@ class SmppsStatsTestCases(SMPPClientTestCases):
             yield waitFor(0.1)
 
         # Assert after
-        self.assertEqual(self.stats.get('submit_sm_request_count'), _submit_sm_request_count+50)
+        self.assertEqual(self.stats.get('submit_sm_request_count'), _submit_sm_request_count + 50)
         self.assertEqual(self.stats.get('other_submit_error_count'), _other_submit_error_count)
-        self.assertLess(self.stats.get('throttling_error_count'), _submit_sm_request_count+50)
+        self.assertLess(self.stats.get('throttling_error_count'), _submit_sm_request_count + 50)
         self.assertGreater(self.stats.get('throttling_error_count'), 0)
         self.assertGreater(self.stats.get('submit_sm_count'), _submit_sm_count)
 
@@ -877,7 +882,7 @@ class SmppsStatsTestCases(SMPPClientTestCases):
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
         # Assert after
-        self.assertEqual(self.stats.get('other_submit_error_count'), _other_submit_error_count+1)
+        self.assertEqual(self.stats.get('other_submit_error_count'), _other_submit_error_count + 1)
         self.assertEqual(self.stats.get('throttling_error_count'), _throttling_error_count)
 
         # Unbind & Disconnect
@@ -897,7 +902,7 @@ class SmppsStatsTestCases(SMPPClientTestCases):
         yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
 
         # Assert after
-        self.assertEqual(self.stats.get('deliver_sm_count'), _deliver_sm_count+1)
+        self.assertEqual(self.stats.get('deliver_sm_count'), _deliver_sm_count + 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -916,26 +921,26 @@ class SmppsStatsTestCases(SMPPClientTestCases):
         yield self.smpps_factory.lastProto.sendDataRequest(self.DataSmPDU)
 
         # Assert after
-        self.assertEqual(self.stats.get('data_sm_count'), _data_sm_count+1)
+        self.assertEqual(self.stats.get('data_sm_count'), _data_sm_count + 1)
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.UNBOUND)
 
-class StatsTestCases(SMPPClientTestCases):
 
+class StatsTestCases(SMPPClientTestCases):
     def setUp(self):
         SMPPClientTestCases.setUp(self)
 
         # Re-init stats singleton collector
-        created_at = SMPPServerStatsCollector().get(cid = self.smpps_config.id).get('created_at')
-        SMPPServerStatsCollector().get(cid = self.smpps_config.id).init()
-        SMPPServerStatsCollector().get(cid = self.smpps_config.id).set('created_at', created_at)
+        created_at = SMPPServerStatsCollector().get(cid=self.smpps_config.id).get('created_at')
+        SMPPServerStatsCollector().get(cid=self.smpps_config.id).init()
+        SMPPServerStatsCollector().get(cid=self.smpps_config.id).set('created_at', created_at)
 
     @defer.inlineCallbacks
     def test_01_smpps_basic(self):
         "A simple test of _some_ stats parameters"
-        stats = SMPPServerStatsCollector().get(cid = self.smpps_config.id)
+        stats = SMPPServerStatsCollector().get(cid=self.smpps_config.id)
 
         self.assertTrue(type(stats.get('created_at')) == datetime)
         self.assertEqual(stats.get('last_received_pdu_at'), 0)
@@ -990,7 +995,7 @@ class StatsTestCases(SMPPClientTestCases):
     @defer.inlineCallbacks
     def test_02_enquire_link(self):
         self.smppc_config.enquireLinkTimerSecs = 1
-        stats = SMPPServerStatsCollector().get(cid = self.smpps_config.id)
+        stats = SMPPServerStatsCollector().get(cid=self.smpps_config.id)
 
         self.assertEqual(stats.get('last_received_elink_at'), 0)
 

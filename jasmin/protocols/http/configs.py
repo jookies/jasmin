@@ -11,7 +11,7 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
 
 class HTTPApiConfig(ConfigFile):
-    "Config handler for 'http-api' section"
+    """Config handler for 'http-api' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)

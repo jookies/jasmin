@@ -33,7 +33,6 @@ class UnknownValue(Exception):
 
 
 class SMPPClientConfig(object):
-
     def __init__(self, **kwargs):
         #####################
         # Generic configuration block
@@ -61,13 +60,13 @@ class SMPPClientConfig(object):
         # Timeout for response to bind request
         self.sessionInitTimerSecs = kwargs.get('sessionInitTimerSecs', 30)
         if (not isinstance(self.sessionInitTimerSecs, int)
-                and not isinstance(self.sessionInitTimerSecs, float)):
+            and not isinstance(self.sessionInitTimerSecs, float)):
             raise TypeMismatch('sessionInitTimerSecs must be an integer or float')
 
         # Enquire link interval
         self.enquireLinkTimerSecs = kwargs.get('enquireLinkTimerSecs', 30)
         if (not isinstance(self.enquireLinkTimerSecs, int)
-                and not isinstance(self.enquireLinkTimerSecs, float)):
+            and not isinstance(self.enquireLinkTimerSecs, float)):
             raise TypeMismatch('enquireLinkTimerSecs must be an integer or float')
 
         # Maximum time lapse allowed between transactions, after which,
@@ -116,11 +115,11 @@ class SMPPClientConfig(object):
             raise TypeMismatch('reconnectOnConnectionFailure must be a boolean')
         self.reconnectOnConnectionLossDelay = kwargs.get('reconnectOnConnectionLossDelay', 10)
         if (not isinstance(self.reconnectOnConnectionLossDelay, int)
-                and not isinstance(self.reconnectOnConnectionLossDelay, float)):
+            and not isinstance(self.reconnectOnConnectionLossDelay, float)):
             raise TypeMismatch('reconnectOnConnectionLossDelay must be an integer or float')
         self.reconnectOnConnectionFailureDelay = kwargs.get('reconnectOnConnectionFailureDelay', 10)
         if (not isinstance(self.reconnectOnConnectionFailureDelay, int)
-                and not isinstance(self.reconnectOnConnectionFailureDelay, float)):
+            and not isinstance(self.reconnectOnConnectionFailureDelay, float)):
             raise TypeMismatch('reconnectOnConnectionFailureDelay must be an integer or float')
 
         self.useSSL = kwargs.get('useSSL', False)
@@ -183,7 +182,7 @@ class SMPPClientConfig(object):
             raise TypeMismatch('requeue_delay must be an integer or float')
         self.submit_sm_throughput = kwargs.get('submit_sm_throughput', 1)
         if (not isinstance(self.submit_sm_throughput, int)
-                and not isinstance(self.submit_sm_throughput, float)):
+            and not isinstance(self.submit_sm_throughput, float)):
             raise TypeMismatch('submit_sm_throughput must be an integer or float')
 
         # DLR Message id bases from submit_sm_resp to deliver_sm, possible values:

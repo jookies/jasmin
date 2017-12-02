@@ -129,7 +129,7 @@ class ConsumeTools(AmqpTestCase):
     @defer.inlineCallbacks
     def _callback(self, message, queue, ack=False):
         queue.get().addCallback(self._callback, queue, ack=ack).addErrback(self._errback)
-        #print(" [x] Received %r" % message)
+        # print(" [x] Received %r" % message)
         self.consumedMessages += 1
 
         if ack:

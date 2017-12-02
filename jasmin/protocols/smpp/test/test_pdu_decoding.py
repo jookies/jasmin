@@ -7,7 +7,6 @@ from jasmin.vendor.smpp.pdu.sm_encoding import SMStringEncoder
 
 
 class PDUDecoderTest(unittest.TestCase):
-
     def getPDU(self, hexStr):
         return PDUEncoder().decode(StringIO.StringIO(binascii.a2b_hex(hexStr)))
 
