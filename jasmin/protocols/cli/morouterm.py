@@ -19,14 +19,14 @@ class InvalidCidSyntax(Exception):
 
 
 def validate_typed_connector_id(cid):
-    '''Used to ensure the cid imput is typed to indicate the connector
+    """Used to ensure the cid imput is typed to indicate the connector
     type, some examples:
     - smpps(con_1) would indicate con_1 is a SmppServerSystemIdConnector
     - http(con_2) would indicate con_2 is a HttpConnector
 
     (connector_type, cid) will be return, otherwise a InvalidCidSyntax
     exception will be throwed.
-    '''
+    """
 
     m = re.match(r'(smpps|http)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
     if not m:
@@ -36,8 +36,8 @@ def validate_typed_connector_id(cid):
 
 
 def MORouteBuild(fCallback):
-    '''Parse args and try to build a route from  one of the routes in
-       jasmin.routing.Routes instance to pass it to fCallback'''
+    """Parse args and try to build a route from  one of the routes in
+       jasmin.routing.Routes instance to pass it to fCallback"""
 
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
@@ -64,7 +64,7 @@ def MORouteBuild(fCallback):
 
                 # Hand the instance to fCallback
                 return fCallback(self, self.sessBuffer['order'], RouteInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -147,7 +147,7 @@ def MORouteBuild(fCallback):
                             arg = SmppServerSystemIdConnector(cid)
                         else:
                             raise NotImplementedError("Not implemented yet !")
-                    except Exception, e:
+                    except Exception as e:
                         return self.protocol.sendData(str(e))
 
                 # Validate connectors
@@ -172,7 +172,7 @@ def MORouteBuild(fCallback):
                                 arg.append(SmppServerSystemIdConnector(cid))
                             else:
                                 raise NotImplementedError("Not implemented yet !")
-                        except Exception, e:
+                        except Exception as e:
                             return self.protocol.sendData(str(e))
 
                 # Validate filters
@@ -206,7 +206,7 @@ def MORouteBuild(fCallback):
 
 
 class MORouteExist(object):
-    'Check if a mo route exist with a given order before passing it to fCallback'
+    """Check if a mo route exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):
         self.order_key = order_key
@@ -230,7 +230,7 @@ class MORouteExist(object):
 
 
 class MoRouterManager(PersistableManager):
-    "MO Router manager logics"
+    """MO Router manager logics"""
     managerName = 'morouter'
 
     def persist(self, arg, opts):

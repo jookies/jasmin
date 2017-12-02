@@ -567,7 +567,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         localConfig.reconnectOnConnectionFailure = False
         yield self.add(localConfig)
         yield self.start(localConfig.id)
+        yield waitFor(0.2)
         startRet = yield self.start(localConfig.id)
+        yield waitFor(0.2)
 
         self.assertEqual(False, startRet)
 

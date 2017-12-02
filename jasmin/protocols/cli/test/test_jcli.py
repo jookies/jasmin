@@ -26,7 +26,8 @@ class jCliTestCases(ProtocolTestCases):
         AMQPServiceConfigInstance.reconnectOnConnectionLoss = False
         self.amqpBroker = AmqpFactory(AMQPServiceConfigInstance)
         self.amqpBroker.preConnect()
-        self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port, self.amqpBroker)
+        self.amqpClient = reactor.connectTCP(AMQPServiceConfigInstance.host, AMQPServiceConfigInstance.port,
+                                             self.amqpBroker)
 
         # Wait for AMQP Broker connection to get ready
         yield self.amqpBroker.getChannelReadyDeferred()
@@ -50,14 +51,15 @@ class jCliTestCases(ProtocolTestCases):
         _portal.registerChecker(RouterAuthChecker(self.RouterPB_f))
 
         self.SMPPSFactory = SMPPServerFactory(
-            config = SMPPServerConfigInstance,
-            auth_portal = _portal,
-            RouterPB = self.RouterPB_f,
-            SMPPClientManagerPB = self.clientManager_f)
+            config=SMPPServerConfigInstance,
+            auth_portal=_portal,
+            RouterPB=self.RouterPB_f,
+            SMPPClientManagerPB=self.clientManager_f)
 
     def tearDown(self):
         self.amqpClient.disconnect()
         self.RouterPB_f.cancelPersistenceTimer()
+
 
 class jCliWithAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks
@@ -77,6 +79,7 @@ class jCliWithAuthTestCases(jCliTestCases):
         # Test for greeting
         receivedLines = self.getBuffer(True)
         self.assertRegexpMatches(receivedLines[0], r'Authentication required.')
+
 
 class jCliWithoutAuthTestCases(jCliTestCases):
     @defer.inlineCallbacks
@@ -99,6 +102,7 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.assertRegexpMatches(receivedLines[0], r'Welcome to Jasmin %s console' % jasmin.get_release())
         self.assertRegexpMatches(receivedLines[3], r'Type help or \? to list commands\.')
         self.assertRegexpMatches(receivedLines[9], r'Session ref: ')
+
 
 class BasicTestCases(jCliWithoutAuthTestCases):
     def test_quit(self):
@@ -128,8 +132,8 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'help', 'expect': expectedList}]
         return self._test('jcli : ', commands)
 
-class PersistanceTestCases(jCliWithoutAuthTestCases):
 
+class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_persist(self):
         expectedList = [r'mtrouter configuration persisted \(profile:jcli-prod\)',
@@ -212,6 +216,7 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
                         ]
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
+
 
 class LoadingTestCases(jCliWithoutAuthTestCases):
     """The 2 test cases below will ensure that persisted configurations to the default profile

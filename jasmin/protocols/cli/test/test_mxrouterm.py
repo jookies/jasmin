@@ -1,6 +1,6 @@
-import re
 from twisted.internet import defer
 from test_jcli import jCliWithoutAuthTestCases
+
 
 class MxRouterTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
@@ -69,7 +69,7 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
-    def add_moroute(self, finalPrompt, extraCommands = []):
+    def add_moroute(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
         commands.append({'command': 'morouter -a', 'expect': r'Adding a new MO Route\: \(ok\: save, ko\: exit\)'})
@@ -85,7 +85,7 @@ class MxRouterTestCases(jCliWithoutAuthTestCases):
         yield self._test(finalPrompt, commands)
 
     @defer.inlineCallbacks
-    def add_mtroute(self, finalPrompt, extraCommands = []):
+    def add_mtroute(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
         commands.append({'command': 'mtrouter -a', 'expect': r'Adding a new MT Route\: \(ok\: save, ko\: exit\)'})

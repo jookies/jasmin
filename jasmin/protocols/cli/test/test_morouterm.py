@@ -6,7 +6,6 @@ from test_mxrouterm import MxRouterTestCases
 
 
 class BasicTestCases(MxRouterTestCases):
-
     @defer.inlineCallbacks
     def test_add_with_minimum_args_http(self):
         extraCommands = [{'command': 'order 0'},
@@ -89,7 +88,8 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector http(%s)' % cid}]
         yield self.add_moroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to %s\(%s\) NOT RATED' % ('http', cid)}]
+        commands = [
+            {'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to %s\(%s\) NOT RATED' % ('http', cid)}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -101,7 +101,8 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector smpps(%s)' % cid}]
         yield self.add_moroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to %s\(%s\) NOT RATED' % ('smpps', cid)}]
+        commands = [
+            {'command': 'morouter -s %s' % order, 'expect': 'DefaultRoute to %s\(%s\) NOT RATED' % ('smpps', cid)}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -131,7 +132,8 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector http(http1)'}]
         self.add_moroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
+        commands = [
+            {'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -142,7 +144,8 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector smpps(smpp_user)'}]
         yield self.add_moroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
+        commands = [
+            {'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -191,15 +194,16 @@ class BasicTestCases(MxRouterTestCases):
         yield self._test(r'jcli : ', commands)
 
         # Remove
-        commands = [{'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
+        commands = [
+            {'command': 'morouter -r %s' % order, 'expect': r'Successfully removed MO Route with order\:%s' % order}]
         yield self._test(r'jcli : ', commands)
 
         # List again
         commands = [{'command': 'morouter -l', 'expect': r'Total MO Routes: 0'}]
         yield self._test(r'jcli : ', commands)
 
-class MoRouteTypingTestCases(MxRouterTestCases):
 
+class MoRouteTypingTestCases(MxRouterTestCases):
     @defer.inlineCallbacks
     def test_available_moroutes(self):
         # Go to MORoute adding invite
@@ -349,7 +353,8 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = _str_
         yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)),
+                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23),
+                                               (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -376,7 +381,8 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = _str_
         yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)),
+                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23),
+                                               (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -403,7 +409,8 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         expectedList = _str_
         yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)),
+                        '#%s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23),
+                                               (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -431,11 +438,11 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
                         '#%s %s %s     <T>' % (
-                        rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+                            rorder.ljust(5), rtype.ljust(23),
+                            (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
-
 
     @defer.inlineCallbacks
     def test_add_FailoverMORoute_smpps(self):
@@ -460,11 +467,11 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         yield self._test('jcli : ', [{'command': 'morouter -s %s' % rorder, 'expect': expectedList}])
         expectedList = ['#Order Type                    Connector ID\(s\)                                  Filter\(s\)',
                         '#%s %s %s     <T>' % (
-                        rorder.ljust(5), rtype.ljust(23), (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+                            rorder.ljust(5), rtype.ljust(23),
+                            (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
                         'Total MO Routes: 1']
         commands = [{'command': 'morouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
-
 
     @defer.inlineCallbacks
     def test_add_FailoverMORoute_hybrid(self):
@@ -487,7 +494,6 @@ class MoRouteTypingTestCases(MxRouterTestCases):
 
 
 class MoRouteArgsTestCases(MxRouterTestCases):
-
     @defer.inlineCallbacks
     def test_add_defaultroute_with_nonzero_order(self):
         """The route order will be forced to 0 when route type is set to
@@ -546,7 +552,8 @@ class MoRouteArgsTestCases(MxRouterTestCases):
                     {'command': 'type StaticMORoute'},
                     {'command': 'connector http(http1)'},
                     {'command': 'filters uf1', 'expect': 'UserFilter#uf1 is not a valid filter for MORoute'},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, filters, connector'}]
+                    {'command': 'ok',
+                     'expect': 'You must set these options before saving: type, order, filters, connector'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks

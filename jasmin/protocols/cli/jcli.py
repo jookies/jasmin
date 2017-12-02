@@ -15,6 +15,7 @@ from jasmin.protocols.cli.filtersm import FiltersManager
 from jasmin.protocols.cli.httpccm import HttpccManager
 from jasmin.protocols.cli.statsm import StatsManager
 
+
 class JCliProtocol(CmdProtocol):
     motd = 'Welcome to Jasmin %s console\nType help or ? to list commands.\n' % jasmin.get_release()
     prompt = 'jcli : '
@@ -80,7 +81,7 @@ class JCliProtocol(CmdProtocol):
                          'stats': StatsManager(self, self.factory.pb)}
 
     def lineReceived(self, line):
-        "Go to CmdProtocol.lineReceived when authenticated only"
+        """Go to CmdProtocol.lineReceived when authenticated only"""
 
         if self.authentication['auth']:
             return CmdProtocol.lineReceived(self, line)
@@ -93,25 +94,25 @@ class JCliProtocol(CmdProtocol):
         if self.mode == 'insert':
             self.lineBuffer.insert(self.lineBufferIndex, ch)
         else:
-            self.lineBuffer[self.lineBufferIndex:self.lineBufferIndex+1] = [ch]
+            self.lineBuffer[self.lineBufferIndex:self.lineBufferIndex + 1] = [ch]
         self.lineBufferIndex += 1
 
         # Dont print back chars if password is being entered
         if (not self.authentication['auth']
-                and self.authentication['username'] is not None
-                and self.authentication['password'] is None):
+            and self.authentication['username'] is not None
+            and self.authentication['password'] is None):
             return
         else:
             self.terminal.write(ch)
 
     def handle_TAB(self):
-        "TABulation is only enabled when authenticated"
+        """TABulation is only enabled when authenticated"""
 
         if self.authentication['auth']:
             return CmdProtocol.handle_TAB(self)
 
     def auth_username(self, username):
-        "Save typed username and prompt for password"
+        """Save typed username and prompt for password"""
 
         username = username.strip()
         if username:
@@ -135,7 +136,7 @@ class JCliProtocol(CmdProtocol):
 
         # Authentication check against configured admin
         if (self.authentication['username'] == self.factory.config.admin_username and
-                md5(self.authentication['password']).digest() == self.factory.config.admin_password):
+                    md5(self.authentication['password']).digest() == self.factory.config.admin_password):
             # Authenticated user
             self.authentication['auth'] = True
             self.prompt = self.oldPrompt
@@ -167,7 +168,7 @@ class JCliProtocol(CmdProtocol):
               make_option('--smpp-ban', type="string", metavar="UID",
                           help="Unbind and ban user from smpp server using it's UID")], '')
     def do_user(self, arg, opts):
-        'User management'
+        """User management"""
 
         if opts.list:
             self.managers['user'].list(arg, opts)
@@ -201,7 +202,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-r', '--remove', type="string", metavar="GID",
                           help="Remove group using it's GID")], '')
     def do_group(self, arg, opts):
-        'Group management'
+        """Group management"""
 
         if opts.list:
             self.managers['group'].list(arg, opts)
@@ -225,7 +226,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-s', '--show', type="string", metavar="FID",
                           help="Show filter using it's FID")], '')
     def do_filter(self, arg, opts):
-        'Filter management'
+        """Filter management"""
 
         if opts.list:
             self.managers['filter'].list(arg, opts)
@@ -247,7 +248,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-s', '--show', type="string", metavar="CID",
                           help="Show HTTP client connector using it's CID")], '')
     def do_httpccm(self, arg, opts=None):
-        'HTTP client connector management'
+        """HTTP client connector management"""
 
         if opts.list:
             self.managers['httpccm'].list(arg, opts)
@@ -271,7 +272,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-f', '--flush', action="store_true",
                           help="Flush MO interception table")], '')
     def do_mointerceptor(self, arg, opts=None):
-        'MO Interceptor management'
+        """MO Interceptor management"""
 
         if opts.list:
             self.managers['mointerceptor'].list(arg, opts)
@@ -297,7 +298,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-f', '--flush', action="store_true",
                           help="Flush MT interception table")], '')
     def do_mtinterceptor(self, arg, opts=None):
-        'MT Interceptor management'
+        """MT Interceptor management"""
 
         if opts.list:
             self.managers['mtinterceptor'].list(arg, opts)
@@ -323,7 +324,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-f', '--flush', action="store_true",
                           help="Flush MO routing table")], '')
     def do_morouter(self, arg, opts=None):
-        'MO Router management'
+        """MO Router management"""
 
         if opts.list:
             self.managers['morouter'].list(arg, opts)
@@ -349,7 +350,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-f', '--flush', action="store_true",
                           help="Flush MT routing table")], '')
     def do_mtrouter(self, arg, opts=None):
-        'MT Router management'
+        """MT Router management"""
 
         if opts.list:
             self.managers['mtrouter'].list(arg, opts)
@@ -379,7 +380,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-0', '--stop', type="string", metavar="CID",
                           help="Start SMPP connector using it's CID")], '')
     def do_smppccm(self, arg, opts):
-        'SMPP connector management'
+        """SMPP connector management"""
 
         if opts.list:
             self.managers['smppccm'].list(arg, opts)
@@ -401,7 +402,7 @@ class JCliProtocol(CmdProtocol):
     @options([make_option('-p', '--profile', type="string", default="jcli-prod",
                           help="Configuration profile, default: jcli-prod")], '')
     def do_persist(self, arg, opts):
-        'Persist current configuration profile to disk in PROFILE'
+        """Persist current configuration profile to disk in PROFILE"""
 
         for _, manager in self.managers.iteritems():
             if manager is not None and isinstance(manager, PersistableManager):
@@ -411,7 +412,7 @@ class JCliProtocol(CmdProtocol):
     @options([make_option('-p', '--profile', type="string", default="jcli-prod",
                           help="Configuration profile, default: jcli-prod")], '')
     def do_load(self, arg, opts):
-        'Load configuration PROFILE profile from disk'
+        """Load configuration PROFILE profile from disk"""
 
         for _, manager in self.managers.iteritems():
             if manager is not None and isinstance(manager, PersistableManager):
@@ -431,7 +432,7 @@ class JCliProtocol(CmdProtocol):
               make_option(None, '--smppsapi', action="store_true",
                           help="Show SMPP Server API stats")], '')
     def do_stats(self, arg, opts=None):
-        'Stats management'
+        """Stats management"""
 
         if opts.user:
             self.managers['stats'].user(arg, opts)
