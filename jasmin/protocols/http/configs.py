@@ -9,6 +9,7 @@ from jasmin.config.tools import ConfigFile
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class HTTPApiConfig(ConfigFile):
     "Config handler for 'http-api' section"
 
@@ -30,4 +31,4 @@ class HTTPApiConfig(ConfigFile):
 
         # Long message splitting
         self.long_content_max_parts = self._get('http-api', 'long_content_max_parts', 5)
-        self.long_content_split = self._get('http-api', 'long_content_split', 'udh') # sar or udh
+        self.long_content_split = self._get('http-api', 'long_content_split', 'udh')  # sar or udh

@@ -4,8 +4,9 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.routing.Bills import SubmitSmBill
 
+
 class SMPPClientManagerPBProxy(JasminPBProxy):
-    'This is a proxy to SMPPClientManagerPB perspective broker'
+    """This is a proxy to SMPPClientManagerPB perspective broker"""
 
     @ConnectedPB
     def version_release(self):

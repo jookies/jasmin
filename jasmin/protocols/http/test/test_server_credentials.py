@@ -103,7 +103,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
 
         # Set params
         if content is None:
-            del(self.params['content'])
+            del (self.params['content'])
         else:
             self.params['content'] = content
         if hex_content is not None:

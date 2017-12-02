@@ -19,11 +19,13 @@ from .listeners import SMPPClientSMListener
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
+
 class ConfigProfileLoadingError(Exception):
     """
     Raised for any error occurring while loading a configuration
     profile with perspective_load
     """
+
 
 class SMPPClientManagerPB(pb.Avatar):
     def __init__(self, SMPPClientPBConfig):
@@ -138,7 +140,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 connectors.append({
                     'id': c['id'],
                     'config': c['config'],
-                    'service_status':c['service'].running})
+                    'service_status': c['service'].running})
 
             # Write configuration with datetime stamp
             fh = open(path, 'w')
@@ -263,12 +265,12 @@ class SMPPClientManagerPB(pb.Avatar):
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event_interceptor
 
         self.connectors.append({
-            'id':           c.id,
-            'config':       c,
-            'service':      serviceManager,
+            'id': c.id,
+            'config': c,
+            'service': serviceManager,
             'consumer_tag': None,
-            'submit_sm_q':  None,
-            'sm_listener':  smListener})
+            'submit_sm_q': None,
+            'sm_listener': smListener})
 
         self.log.info('Added a new connector: %s', c.id)
 
@@ -605,7 +607,8 @@ class SMPPClientManagerPB(pb.Avatar):
                     lambda response: self.redisClient.expire(
                         hashKey, connector['config'].dlr_expiry))
         elif (isinstance(source_connector, SMPPServerProtocol) and
-              SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
+                      SubmitSmPDU.params[
+                          'registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
             # requested, then map message-id to the source_connector to permit related deliver_sm
             # messages holding further receipts to be sent back to the right connector
