@@ -443,6 +443,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         startRet = yield self.start('anything')
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
         self.assertEqual(False, startRet)
 
     @defer.inlineCallbacks
