@@ -95,6 +95,7 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
 
         return self.pb.callRemote(
             'submit_sm',
+            uid=submit_sm_bill.user.uid,
             cid=cid,
             SubmitSmPDU=self.pickle(SubmitSmPDU),
             submit_sm_bill=self.pickle(submit_sm_bill),

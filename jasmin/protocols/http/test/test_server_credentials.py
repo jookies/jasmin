@@ -17,6 +17,7 @@ from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.test.test_router import HappySMSCTestCase
 from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
 
+
 @defer.inlineCallbacks
 def waitFor(seconds):
     # Wait seconds
@@ -63,7 +64,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(self.c1.cid)
             if ssRet[:6] == 'BOUND_':
-                break;
+                break
             else:
                 yield waitFor(0.2)
 
@@ -88,7 +89,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(self.c1.cid)
             if ssRet == 'NONE':
-                break;
+                break
             else:
                 yield waitFor(0.2)
 
@@ -128,7 +129,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         try:
             response_text = yield getPage(baseurl, method=self.method, postdata=self.postdata)
             response_code = 'Success'
-        except Exception, error:
+        except Exception as error:
             response_text = error.response
             response_code = str(error)
 
@@ -152,7 +153,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         try:
             response_text = yield getPage(baseurl)
             response_code = 'Success'
-        except Exception, error:
+        except Exception as error:
             response_text = error.response
             response_code = str(error)
 
@@ -185,7 +186,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         try:
             response_text = yield getPage(baseurl)
             response_code = 'Success'
-        except Exception, error:
+        except Exception as error:
             response_text = error.response
             response_code = str(error)
 
@@ -1002,7 +1003,7 @@ class QuotasTestCases(CredentialsTestCases):
             try:
                 response_text = yield getPage(baseurl, method=self.method, postdata=self.postdata)
                 response_code = 'Success'
-            except Exception, error:
+            except Exception as error:
                 response_text = error.response
                 response_code = str(error)
 

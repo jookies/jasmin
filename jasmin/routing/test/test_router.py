@@ -181,6 +181,7 @@ class SMPPClientManagerPBTestCase(HttpServerTestCase):
         # Should we start local dlr lookup ?
         self.dlrlookup_config = DLRLookupConfig()
         self.dlrlookup = DLRLookup(self.dlrlookup_config, self.amqpBroker, self.redisClient)
+        yield self.dlrlookup.subscribe()
 
     @defer.inlineCallbacks
     def tearDown(self):
@@ -206,9 +207,9 @@ class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
     def test_connect_failure(self):
         try:
             yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Authentication error test_anyuser')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -219,9 +220,9 @@ class AuthenticatedTestCases(RouterPBProxy, RouterPBTestCase):
     def test_connect_non_anonymous(self):
         try:
             yield self.connect('127.0.0.1', self.pbPort)
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Anonymous connection is not authorized !')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -1272,7 +1273,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         lastErrorStatus = 200
         try:
             yield getPage(url_ko)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '403')
 
@@ -1282,7 +1283,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: '
         try:
             yield getPage(url_ok)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '500')
 

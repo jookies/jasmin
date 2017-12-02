@@ -151,7 +151,7 @@ class SMPPClientManagerPB(pb.Avatar):
         except IOError:
             self.log.error('Cannot persist to %s', path)
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while persisting configuration: %s', e)
             return False
 
@@ -199,13 +199,13 @@ class SMPPClientManagerPB(pb.Avatar):
 
             # Set persistance state to True
             self.persisted = True
-        except IOError, e:
+        except IOError as e:
             self.log.error('Cannot load configuration from %s: %s', path, str(e))
             defer.returnValue(False)
-        except ConfigProfileLoadingError, e:
+        except ConfigProfileLoadingError as e:
             self.log.error('Error while loading configuration: %s', e)
             defer.returnValue(False)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while loading configuration: %s', e)
             defer.returnValue(False)
 
@@ -373,7 +373,7 @@ class SMPPClientManagerPB(pb.Avatar):
             # Start a new consumer
             yield self.amqpBroker.chan.basic_consume(queue=submit_sm_queue,
                                                      no_ack=False, consumer_tag=consumerTag)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Error consuming from queue %s: %s', submit_sm_queue, e)
             defer.returnValue(False)
 

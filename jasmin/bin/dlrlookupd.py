@@ -70,6 +70,7 @@ class DlrlookupDaemon(object):
 
         return self.components['amqp-broker-client'].disconnect()
 
+    @defer.inlineCallbacks
     def startDLRLookupService(self):
         """Start DLRLookup"""
 
@@ -81,6 +82,7 @@ class DlrlookupDaemon(object):
 
         self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
                                                  self.components['rc'])
+        yield self.components['dlrlookup'].subscribe()
 
     @defer.inlineCallbacks
     def start(self):
@@ -99,7 +101,7 @@ class DlrlookupDaemon(object):
         ########################################################
         # Start AMQP Broker
         try:
-            self.startAMQPBrokerService()
+            yield self.startAMQPBrokerService()
             yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
         except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start AMQP Broker: %s" % e)

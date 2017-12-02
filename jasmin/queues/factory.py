@@ -8,6 +8,7 @@ from jasmin.queues.protocol import AmqpProtocol
 
 LOG_CATEGORY = "jasmin-amqp-factory"
 
+
 class AmqpFactory(ClientFactory):
     protocol = AmqpProtocol
 
