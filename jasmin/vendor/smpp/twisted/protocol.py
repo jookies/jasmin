@@ -193,11 +193,11 @@ class SMPPProtocolBase( protocol.Protocol ):
         pdu = None
         try:
             pdu = self.encoder.decode(StringIO.StringIO(message))
-        except PDUCorruptError, e:
+        except PDUCorruptError as e:
             self.log.exception(e)
             self.log.critical("Received corrupt PDU %s" % _safelylogOutPdu(message))
             self.corruptDataRecvd(status=e.status)
-        except PDUParseError, e:
+        except PDUParseError as e:
             self.log.exception(e)
             self.log.critical("Received unparsable PDU %s" % _safelylogOutPdu(message))
             header = self.getHeader(message)
@@ -662,7 +662,7 @@ class SMPPClientProtocol(SMPPProtocolBase):
         if self.alertNotificationHandler:
             try:
                 self.alertNotificationHandler(self, pdu)
-            except Exception, e:
+            except Exception as e:
                 self.log.critical('Alert handler threw exception: %s' % str(e))
                 self.log.exception(e)
                 self.shutdown()

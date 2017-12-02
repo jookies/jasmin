@@ -2,6 +2,7 @@ from zope.interface import implements
 from twisted.spread import pb
 from twisted.cred import portal
 
+
 class JasminPBRealm(object):
     implements(portal.IRealm)
 
@@ -14,6 +15,7 @@ class JasminPBRealm(object):
 
         self.PBFactory.setAvatar(avatarId)
         return pb.IPerspective, self.PBFactory, lambda: None
+
 
 class SmppsRealm(object):
     implements(portal.IRealm)

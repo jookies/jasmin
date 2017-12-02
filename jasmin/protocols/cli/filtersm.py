@@ -82,7 +82,7 @@ def FilterBuild(fCallback):
 
                 # Hand the instance to fCallback
                 return fCallback(self, self.sessBuffer['fid'], FilterInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key

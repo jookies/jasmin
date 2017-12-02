@@ -400,7 +400,7 @@ class MessagingTestCases(SMPPClientTestCases):
         try:
             # SMPPClient > SMPPServer
             yield self.smppc_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
-        except Exception, e:
+        except Exception as e:
             if isinstance(e, SMPPTransactionError):
                 raised = True
         self.assertTrue(raised)

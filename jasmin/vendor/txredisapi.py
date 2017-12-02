@@ -219,7 +219,7 @@ class RedisProtocol(LineReceiver, policies.TimeoutMixin):
                 response = yield self.select(self.factory.dbid)
                 if isinstance(response, ResponseError):
                     raise response
-            except Exception, e:
+            except Exception as e:
                 self.factory.continueTrying = False
                 self.transport.loseConnection()
 
@@ -412,7 +412,7 @@ class RedisProtocol(LineReceiver, policies.TimeoutMixin):
                 elif isinstance(s, unicode):
                     try:
                         cmd = s.encode(self.charset, self.errors)
-                    except UnicodeEncodeError, e:
+                    except UnicodeEncodeError as e:
                         raise InvalidData(
                             "Error encoding unicode value '%s': %s" %
                             (repr(s), e))
@@ -1503,7 +1503,7 @@ class ConnectionHandler(object):
     def __getattr__(self, method):
         try:
             return getattr(self._factory.getConnection, method)
-        except Exception, e:
+        except Exception as e:
             d = defer.Deferred()
             d.errback(e)
             return lambda *ign: d
@@ -1772,7 +1772,7 @@ class RedisFactory(protocol.ReconnectingClientFactory):
     def delConnection(self, conn):
         try:
             self.pool.remove(conn)
-        except Exception, e:
+        except Exception as e:
             log.msg("Could not remove connection from pool: %s" % str(e))
 
         self.size = len(self.pool)

@@ -5,11 +5,13 @@ from twisted.cred.credentials import IUsernameHashedPassword, Anonymous
 from twisted.spread.flavors import IPBRoot, Referenceable
 from twisted.cred.error import UnhandledCredentials, UnauthorizedLogin
 
+
 class _JellyableAvatarMixin(object):
     """
     Helper class for code which deals with avatars which PB must be capable of
     sending to a peer.
     """
+
     def _cb_login(self, (interface, avatar, logout)):
         """
         Ensure that the avatar to be returned to the client is jellyable and
@@ -24,12 +26,14 @@ class _JellyableAvatarMixin(object):
         # or a logout occurs (cleanup), and be careful to drop the reference to
         # it in either case
         logout = [logout]
+
         def maybeLogout():
             if not logout:
                 return
             fn = logout[0]
             del logout[0]
             fn()
+
         self.broker._localCleanup[puid] = maybeLogout
         self.broker.notifyOnDisconnect(maybeLogout)
 
@@ -50,6 +54,7 @@ class _JellyableAvatarMixin(object):
             # Fallback solution when err is not known
             self.log.error('Unknown authentication error: %s', err)
             return False, 'Unknown authentication error: %s' % err
+
 
 class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
     """
@@ -85,6 +90,7 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
         correct = md.digest()
         return self.response == correct
 
+
 class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
     """
     Root Referenceable object, used to login to portal.
@@ -96,7 +102,6 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
 
         # Will use the PBFactory's logger
         self.log = self.portal.realm.PBFactory.log
-
 
     def remote_login(self, username):
         """
@@ -120,6 +125,7 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
         d.addCallback(self._cb_login)
         d.addErrback(self._login_error)
         return d
+
 
 class JasminPBPortalRoot(object):
     implements(IPBRoot)

@@ -521,7 +521,7 @@ class RouterPB(pb.Avatar):
         except IOError:
             self.log.error('Cannot persist to %s', path)
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while persisting configuration: %s', e)
             return False
 
@@ -673,10 +673,10 @@ class RouterPB(pb.Avatar):
                 # Set persistance state to True
                 self.persistenceState['mtroutes'] = True
 
-        except IOError, e:
+        except IOError as e:
             self.log.error('Cannot load configuration from %s: %s', path, str(e))
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while loading configuration: %s', e)
             return False
 
@@ -813,7 +813,7 @@ class RouterPB(pb.Avatar):
                     # Update the quota
                     _cred.updateQuota(quota, value)
 
-                except Exception, e:
+                except Exception as e:
                     self.log.error("Error updating user (id:%s): %s", uid, e)
                     return False
                 else:
@@ -933,10 +933,10 @@ class RouterPB(pb.Avatar):
 
         try:
             self.mt_interception_table.add(interceptor, order)
-        except InvalidInterceptionTableParameterError, e:
+        except InvalidInterceptionTableParameterError as e:
             self.log.error('Cannot add MT Interceptor: %s', str(e))
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while adding MT Interceptor: %s', str(e))
             return False
 
@@ -952,10 +952,10 @@ class RouterPB(pb.Avatar):
 
         try:
             self.mo_interception_table.add(interceptor, order)
-        except InvalidInterceptionTableParameterError, e:
+        except InvalidInterceptionTableParameterError as e:
             self.log.error('Cannot add MO Interceptor: %s', str(e))
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while adding MO Interceptor: %s', str(e))
             return False
 
@@ -1019,10 +1019,10 @@ class RouterPB(pb.Avatar):
 
         try:
             self.mt_routing_table.add(route, order)
-        except InvalidRoutingTableParameterError, e:
+        except InvalidRoutingTableParameterError as e:
             self.log.error('Cannot add MT Route: %s', str(e))
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while adding MT Route: %s', str(e))
             return False
 
@@ -1038,10 +1038,10 @@ class RouterPB(pb.Avatar):
 
         try:
             self.mo_routing_table.add(route, order)
-        except InvalidRoutingTableParameterError, e:
+        except InvalidRoutingTableParameterError as e:
             self.log.error('Cannot add MO Route: %s', str(e))
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while adding MO Route: %s', str(e))
             return False
 

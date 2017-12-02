@@ -3,10 +3,12 @@ class KeyNotFound(Exception):
     Raised when setting or getting an unknown statistics key
     """
 
+
 class KeyNotIncrementable(Exception):
     """
     Raised when trying to increment a non integer key
     """
+
 
 class Stats(object):
     def set(self, key, value):
