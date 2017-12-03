@@ -3,8 +3,9 @@ from twisted.trial import unittest
 from twisted.test import proto_helpers
 from twisted.internet import reactor, defer
 
+
 class ProtocolTestCases(unittest.TestCase):
-    def getBuffer(self, clear = False, split = True):
+    def getBuffer(self, clear=False, split=True):
         b = self.tr.value()
 
         if clear:
@@ -15,7 +16,7 @@ class ProtocolTestCases(unittest.TestCase):
         return b
 
     @defer.inlineCallbacks
-    def sendCommand(self, command, wait = None):
+    def sendCommand(self, command, wait=None):
         self.proto.dataReceived('%s\r\n' % command)
 
         # Wait before getting recv buffer
@@ -37,7 +38,7 @@ class ProtocolTestCases(unittest.TestCase):
 
             # Get buffer and assert for `expect`
             receivedLines = self.getBuffer(True)
-            #print receivedLines
+            # print receivedLines
 
             # First line is the command itself
             # 'noecho' is used when there's no echo back from the server while typing (e.g. password input)
@@ -47,14 +48,16 @@ class ProtocolTestCases(unittest.TestCase):
             # Assert reply
             if 'expect' in cmd:
                 if isinstance(cmd['expect'], str):
-                    self.assertGreaterEqual(len(receivedLines), 4, 'Got no return from command %s: %s' % (cmd['command'], receivedLines))
+                    self.assertGreaterEqual(len(receivedLines), 4,
+                                            'Got no return from command %s: %s' % (cmd['command'], receivedLines))
                     receivedContent = ''
                     for line in range(len(receivedLines)):
                         if line % 3 == 0:
-                            receivedContent+= receivedLines[line]
+                            receivedContent += receivedLines[line]
                     self.assertRegexpMatches(receivedContent, cmd['expect'])
                 elif isinstance(cmd['expect'], list):
-                    self.assertGreaterEqual(len(receivedLines), 3+(len(cmd['expect']) * 3), 'Got no return from command %s: %s' % (cmd['command'], receivedLines))
+                    self.assertGreaterEqual(len(receivedLines), 3 + (len(cmd['expect']) * 3),
+                                            'Got no return from command %s: %s' % (cmd['command'], receivedLines))
 
                     offset = 0
                     for e in cmd['expect']:
@@ -63,7 +66,8 @@ class ProtocolTestCases(unittest.TestCase):
 
         # Assert for final prompt
         if receivedLines is not None and finalPrompt is not None:
-            self.assertRegexpMatches(receivedLines[len(receivedLines)-1], finalPrompt)
+            self.assertRegexpMatches(receivedLines[len(receivedLines) - 1], finalPrompt)
+
 
 class CmdProtocolTestCases(ProtocolTestCases):
     def setUp(self):
@@ -76,6 +80,7 @@ class CmdProtocolTestCases(ProtocolTestCases):
         receivedLines = self.getBuffer(True)
         self.assertRegexpMatches(receivedLines[0], r'Welcome !')
         self.assertRegexpMatches(receivedLines[3], r'Session ref: ')
+
 
 class BasicTestCase(CmdProtocolTestCases):
     def test_quit(self):

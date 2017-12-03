@@ -4,8 +4,9 @@ from twisted.conch import recvline
 
 IDENTCHARS = string.ascii_letters + string.digits + '_'
 
+
 def str2num(s):
-    'User input is always received as string, str2num will try to cast it to the right type (int or float)'
+    """User input is always received as string, str2num will try to cast it to the right type (int or float)"""
 
     try:
         return int(s)
@@ -18,6 +19,7 @@ def str2num(s):
         # Fallback to the original type
         return s
 
+
 class CmdProtocol(recvline.HistoricRecvLine):
     """CmdProtocol is a ported/simplified version of cmd module that
     can be served through a socket server
@@ -28,7 +30,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
     nohelp = "*** No help on %s"
     helpHeaders = {'commands': 'Available commands:',
                    'baseCommands': 'Control commands:',
-                   'ruler': '=',}
+                   'ruler': '=', }
     prompt = '>>> '
     sessionLineCallback = None
     sessionCompletitions = None
@@ -43,7 +45,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.log.propagate = False
 
     def initializeScreen(self):
-        'Overrides twisted.conch.recvline.RecvLine.initializeScreen() to not to show prompt'
+        """Overrides twisted.conch.recvline.RecvLine.initializeScreen() to not to show prompt"""
 
         self.terminal.reset()
         self.setInsertMode()
@@ -54,7 +56,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.drawInputLine()
 
     def drawInputLine(self):
-        'Overrides twisted.conch.recvline.RecvLine.drawInputLine() to reset prompt'
+        """Overrides twisted.conch.recvline.RecvLine.drawInputLine() to reset prompt"""
 
         self.terminal.write(self.prompt + ''.join(self.lineBuffer))
 
@@ -104,7 +106,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         if prompt is not False:
             if prompt is None:
                 prompt = self.prompt
-            self.terminal.write(prompt+append)
+            self.terminal.write(prompt + append)
         # Just append to the current line
         elif append != '':
             self.terminal.write(append)
@@ -125,7 +127,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
 
         i, n = 0, len(line)
         while i < n and line[i] in self.identchars:
-            i = i+1
+            i = i + 1
         cmd, arg = line[:i], line[i:].strip()
 
         self.log.debug(
@@ -160,7 +162,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
         if self.sessionCompletitions is not None:
             completetions = self.sessionCompletitions
         else:
-            completetions = self.commands+self.baseCommands
+            completetions = self.commands + self.baseCommands
 
         # No prefix finding, return all commands
         if prefix is None:
@@ -183,17 +185,17 @@ class CmdProtocol(recvline.HistoricRecvLine):
 
         if cmd is None:
             # list available commands
-            return self.sendData('\n'+' '.join(self.findCommands()))
+            return self.sendData('\n' + ' '.join(self.findCommands()))
         elif cmd is not None and arg == '':
             # Complete or list available commands
             completions = self.findCommands(cmd)
 
             # List available commands
             if len(completions) > 1:
-                return self.sendData('\n'+' '.join(completions), append=cmd)
+                return self.sendData('\n' + ' '.join(completions), append=cmd)
             # Complete command name if it is not
             elif len(completions) == 1 and cmd != completions[0]:
-                completetion = completions[0]+' '
+                completetion = completions[0] + ' '
                 self.lineBuffer = list(completetion)
                 self.lineBufferIndex = len(self.lineBuffer)
                 return self.sendData(data=None, prompt=False, append=completetion[len(cmd):])
@@ -202,16 +204,16 @@ class CmdProtocol(recvline.HistoricRecvLine):
         self.sendData('Incorrect command: %s, type help for a list of commands' % line)
 
     def do_quit(self, arg):
-        'Disconnect from console'
+        """Disconnect from console"""
 
         self.terminal.loseConnection()
 
     def do_help(self, arg):
-        'List available commands with "help" or detailed help with "help cmd".'
+        """List available commands with "help" or detailed help with "help cmd"."""
 
         if arg:
             # Don't provide help for non-exposed commands
-            if arg not in self.commands+self.baseCommands:
+            if arg not in self.commands + self.baseCommands:
                 return self.sendData("%s" % str(self.nohelp % (arg,)))
 
             # XXX check arg syntax
@@ -225,16 +227,16 @@ class CmdProtocol(recvline.HistoricRecvLine):
                 # Do we have any extended doc from options ?
                 extended_doc = getattr(self, 'do_' + arg).__extended_doc__
                 if extended_doc:
-                    DOC += '\n'+extended_doc
+                    DOC += '\n' + extended_doc
 
             except Exception:
                 if DOC == '':
                     return self.sendData("%s" % str(self.nohelp % (arg,)))
 
-            return self.sendData("%s"%str(DOC))
+            return self.sendData("%s" % str(DOC))
         else:
             # Get commands first
-            helpText = self.helpHeaders['commands']+'\n'+self.helpHeaders['ruler']*len(
+            helpText = self.helpHeaders['commands'] + '\n' + self.helpHeaders['ruler'] * len(
                 self.helpHeaders['commands'])
             for cmd in self.commands:
                 helpText += "\n"
@@ -246,7 +248,7 @@ class CmdProtocol(recvline.HistoricRecvLine):
                     helpText += "%s" % str(self.nohelp % (cmd,))
 
             # Then get baseCommands
-            helpText += '\n\n'+self.helpHeaders['baseCommands']+'\n'+self.helpHeaders['ruler']*len(
+            helpText += '\n\n' + self.helpHeaders['baseCommands'] + '\n' + self.helpHeaders['ruler'] * len(
                 self.helpHeaders['baseCommands'])
             for cmd in self.baseCommands:
                 helpText += "\n"

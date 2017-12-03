@@ -126,7 +126,7 @@ def SMPPClientConfigBuild(fCallback):
                 SMPPClientConfigInstance = JCliSMPPClientConfig(**connector)
                 # Hand the instance to fCallback
                 return fCallback(self, SMPPClientConfigInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -140,7 +140,7 @@ def SMPPClientConfigBuild(fCallback):
                     self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, str2num(arg))
                 else:
                     self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, arg)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
 
             return self.protocol.sendData()
@@ -170,7 +170,7 @@ def SMPPClientConfigUpdate(fCallback):
                 configArgs = self.sessBuffer
                 configArgs['id'] = self.sessionContext['cid']
                 SMPPClientConfig(**configArgs)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
 
             return fCallback(self, self.sessBuffer)
@@ -188,7 +188,7 @@ def SMPPClientConfigUpdate(fCallback):
                     self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, str2num(arg))
                 else:
                     self.sessBuffer[SMPPClientConfigKey] = castInputToBuiltInType(cmd, arg)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
 
             return self.protocol.sendData()

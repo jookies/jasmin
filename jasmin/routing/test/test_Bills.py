@@ -1,14 +1,15 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Bills import SubmitSmBill, SubmitSmRespBill, InvalidBillKeyError, InvalidBillValueError
 from jasmin.routing.jasminApi import User, Group
 
-class BillsTestCase(TestCase):
 
+class BillsTestCase(TestCase):
     def setUp(self):
         self.group = Group(1)
         self.user = User(1, self.group, 'foo', 'bar')
+
 
 class SubmitSmBillTestCase(BillsTestCase):
     def test_default(self):
@@ -53,6 +54,7 @@ class SubmitSmBillTestCase(BillsTestCase):
         self.assertNotEquals(c.bid, None)
         self.assertNotEquals(b.bid, c.bid)
         self.assertEqual(b.user, c.user)
+
 
 class SubmitSmRespBillTestCase(BillsTestCase):
     def test_default(self):

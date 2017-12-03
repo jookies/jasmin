@@ -56,7 +56,7 @@ class InterceptorPB(pb.Avatar):
             end = dt.datetime.now()
             delay = (end - start).seconds
             self.log.debug('... took %s seconds.', delay)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Executing script on routable (from:%s, to:%s) returned: %s',
                            routable.pdu.params['source_addr'],
                            routable.pdu.params['destination_addr'],

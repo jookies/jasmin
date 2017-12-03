@@ -314,7 +314,7 @@ class deliverSmThrower(Thrower):
                 if content.strip() != 'ACK/Jasmin':
                     raise MessageAcknowledgementError(
                         'Destination end did not acknowledge receipt of the message.')
-            except Exception, e:
+            except Exception as e:
                 self.log.error('Throwing message [msgid:%s] to (%s %s/%s)[cid:%s] (%s), %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl, type(e), e)
 
@@ -412,7 +412,7 @@ class deliverSmThrower(Thrower):
                     r = yield self.smpps.deliverer_send_request(dc.cid, pdu)
                     if not r:
                         raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % dc.cid)
-            except Exception, e:
+            except Exception as e:
                 self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, type(e), e)
 
@@ -546,7 +546,7 @@ class DLRThrower(Thrower):
 
             # Everything is okay ? then:
             yield self.ackMessage(message)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.', msgid, baseurl, e)
 
             # List of errors after which, no further retrying shall be made
@@ -620,7 +620,7 @@ class DLRThrower(Thrower):
                 r = yield self.smpps.deliverer_send_request(system_id, pdu)
                 if not r:
                     raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % system_id)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
             # List of exceptions after which, no further retrying shall be made

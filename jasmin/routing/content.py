@@ -16,6 +16,7 @@ class PDU(Content):
 
         Content.__init__(self, body, children, properties)
 
+
 class RoutedDeliverSmContent(PDU):
     def __init__(self, deliver_sm, msgid, scid, dcs, route_type='simple', trycount=0, pickleProtocol=2):
         props = {}

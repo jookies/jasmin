@@ -24,8 +24,8 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
-class DLRThrowerTestCases(unittest.TestCase):
 
+class DLRThrowerTestCases(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self):
         # Initiating config objects without any filename
@@ -58,6 +58,7 @@ class DLRThrowerTestCases(unittest.TestCase):
         yield self.amqpBroker.disconnect()
         yield self.DLRThrower.stopService()
 
+
 class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
     @defer.inlineCallbacks
     def setUp(self):
@@ -78,10 +79,10 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.TimeoutLeafServer = reactor.listenTCP(0, server.Site(self.TimeoutLeafServerResource))
 
     @defer.inlineCallbacks
-    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, id_smsc = '', sub = '',
-                 dlvrd = '', subdate = '', donedate = '', err = '', text = '', method = 'POST', trycount = 0):
+    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, id_smsc='', sub='',
+                                    dlvrd='', subdate='', donedate='', err='', text='', method='POST', trycount=0):
         content = DLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc, sub, dlvrd, subdate,
-                             donedate, err, text, method, trycount)
+                                       donedate, err, text, method, trycount)
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.http', content=content)
 
     @defer.inlineCallbacks
@@ -161,7 +162,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         dlr_level = 1
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, method = 'GET')
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, method='GET')
 
         yield waitFor(1)
 
@@ -180,8 +181,9 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         dlr_level = 2
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc = 'abc', sub = '3',
-                 dlvrd = '3', subdate = 'anydate', donedate = 'anydate', err = '', text = 'Any text', method = 'GET')
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc='abc', sub='3',
+                                         dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text',
+                                         method='GET')
 
         yield waitFor(1)
 
@@ -199,6 +201,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.assertEqual(callArgs['err'][0], '')
         self.assertEqual(callArgs['text'][0], 'Any text')
 
+
 class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
     def setUp(self):
@@ -210,7 +213,8 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.DLRThrower.config.max_retries = 2
 
     @defer.inlineCallbacks
-    def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date=None,
+    def publishDLRContentForSmppapi(self, message_status, msgid, system_id, source_addr, destination_addr,
+                                    sub_date=None,
                                     source_addr_ton='UNKNOWN', source_addr_npi='UNKNOWN',
                                     dest_addr_ton='UNKNOWN', dest_addr_npi='UNKNOWN'):
         if sub_date is None:
@@ -234,7 +238,8 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
+        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+            wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         sub_date = datetime.datetime.now()
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000', sub_date)
@@ -250,10 +255,11 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.assertEqual(received_pdu_1.params['destination_addr'], '999')
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
         self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
-        self.assertEqual(received_pdu_1.params['short_message'], 'id:MSGID submit date:%s done date:%s stat:ACCEPTD err:000' % (
-            sub_date.strftime("%Y%m%d%H%M"),
-            sub_date.strftime("%Y%m%d%H%M"),
-        ))
+        self.assertEqual(received_pdu_1.params['short_message'],
+                         'id:MSGID submit date:%s done date:%s stat:ACCEPTD err:000' % (
+                             sub_date.strftime("%Y%m%d%H%M"),
+                             sub_date.strftime("%Y%m%d%H%M"),
+                         ))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

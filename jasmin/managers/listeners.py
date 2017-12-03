@@ -238,12 +238,12 @@ class SMPPClientSMListener(object):
                            msgid, self.SMPPClientFactory.config.id)
             self.rejectAndRequeueMessage(message)
             defer.returnValue(False)
-        except LongSubmitSmTransactionError, e:
+        except LongSubmitSmTransactionError as e:
             self.log.error("Long SubmitSmPDU[%s] error in [cid:%s], message requeued: %s",
                            msgid, self.SMPPClientFactory.config.id, e.message)
             self.rejectAndRequeueMessage(message)
             defer.returnValue(False)
-        except Exception, e:
+        except Exception as e:
             self.log.critical("Rejecting SubmitSmPDU[%s] through [cid:%s] for an unknown error (%s): %s",
                               msgid, self.SMPPClientFactory.config.id, type(e), e)
             self.rejectMessage(message)
@@ -390,7 +390,7 @@ class SMPPClientSMListener(object):
                 yield self.amqpBroker.publish(exchange='messaging',
                                               routing_key=amqpMessage.content.properties['reply-to'],
                                               content=content)
-        except Exception, e:
+        except Exception as e:
             self.log.error('(%s) while handling submit_sm_resp pdu for msgid:%s: %s', type(e), msgid, e)
         else:
             if will_be_retried:
@@ -409,7 +409,7 @@ class SMPPClientSMListener(object):
             # - the qosTimer has been cancelled (self.clearQosTimer())
             try:
                 error.raiseException()
-            except Exception, e:
+            except Exception as e:
                 self.log.error("Error in submit_sm_errback (%s): %s", type(e), e)
 
     @defer.inlineCallbacks
@@ -715,7 +715,7 @@ class SMPPClientSMListener(object):
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
-        except Exception, e:
+        except Exception as e:
             # Unknown exception handling
             self.log.critical('Got an unknown exception (%s): %s', type(e), e)
             defer.returnValue(DataHandlerResponse(status=CommandStatus.ESME_RUNKNOWNERR))

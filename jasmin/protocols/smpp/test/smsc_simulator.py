@@ -183,7 +183,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
 
 
 class QoSSMSC_2MPS(HappySMSC):
-    "A throttled SMSC that only accept 2 Messages per second"
+    """A throttled SMSC that only accept 2 Messages per second"""
     last_submit_at = None
 
     def handleSubmit(self, reqPDU):

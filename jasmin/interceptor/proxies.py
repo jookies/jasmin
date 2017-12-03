@@ -3,14 +3,17 @@ from jasmin.tools.proxies import JasminPBProxy
 from jasmin.routing.Routables import Routable
 from jasmin.routing.jasminApi import InterceptorScript
 
+
 class InvalidRoutableObject(Exception):
-    'Raised when routable arg is not an instance of Routable'
+    """Raised when routable arg is not an instance of Routable"""
+
 
 class InvalidScriptObject(Exception):
-    'Raised when script arg is not an instance of InterceptorScript'
+    """Raised when script arg is not an instance of InterceptorScript"""
+
 
 class InterceptorPBProxy(JasminPBProxy):
-    'This is a proxy to InterceptorPB perspective broker'
+    """This is a proxy to InterceptorPB perspective broker"""
 
     @ConnectedPB
     def run_script(self, script, routable):

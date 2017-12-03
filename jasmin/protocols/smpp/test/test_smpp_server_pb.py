@@ -64,9 +64,9 @@ class AuthenticatedTestCases(SMPPServerPBProxyTestCase):
     def test_connect_failure(self):
         try:
             yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Authentication error test_anyuser')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -77,9 +77,9 @@ class AuthenticatedTestCases(SMPPServerPBProxyTestCase):
     def test_connect_non_anonymous(self):
         try:
             yield self.connect('127.0.0.1', self.pbPort)
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Anonymous connection is not authorized !')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")

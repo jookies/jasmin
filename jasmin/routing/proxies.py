@@ -1,8 +1,9 @@
 from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy
 
+
 class RouterPBProxy(JasminPBProxy):
-    'This is a proxy to RouterPB perspective broker'
+    """This is a proxy to RouterPB perspective broker"""
 
     @ConnectedPB
     def version_release(self):

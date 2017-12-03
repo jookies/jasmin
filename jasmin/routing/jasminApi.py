@@ -131,7 +131,7 @@ class MtMessagingCredential(CredentialGeneric):
             'content': re.compile(r'.*'),
         }
 
-        self.defaults = {'source_address': None,}
+        self.defaults = {'source_address': None, }
 
         self.quotas = {
             'balance': None,
@@ -147,11 +147,11 @@ class MtMessagingCredential(CredentialGeneric):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a positive number' % (key, value))
         elif (key == 'early_decrement_balance_percent' and value is not None and
-                (value < 1 or value > 100)):
+                  (value < 1 or value > 100)):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be None or a number in 1..100' % (key, value))
         elif (key == 'submit_sm_count' and value is not None and
-                (value < 0 or not isinstance(value, int))):
+                  (value < 0 or not isinstance(value, int))):
             raise jasminApiCredentialError(
                 '%s is not a valid value (%s), it must be a positive int' % (key, value))
         elif key in ['http_throughput', 'smpps_throughput'] and value is not None and (value < 0):
@@ -168,7 +168,7 @@ class SmppsCredential(CredentialGeneric):
         if not isinstance(default_authorizations, bool):
             default_authorizations = False
 
-        self.authorizations = {'bind': default_authorizations,}
+        self.authorizations = {'bind': default_authorizations, }
 
         self.quotas = {'max_bindings': None}
 
@@ -331,6 +331,7 @@ class Connector(jasminApiGeneric):
     def __str__(self):
         return self._str
 
+
 class HttpConnector(Connector):
     """This is a HTTP Client connector used to throw router SMS MOs"""
 
@@ -346,13 +347,13 @@ class HttpConnector(Connector):
             raise jasminApiInvalidParamError('HttpConnector method syntax is invalid, must be GET or POST')
         # Validate baseurl
         regex = re.compile(
-            #r'^(?:http|ftp)s?://' # http:// or https://
-            r'^(?:http)s?://' # http:// or https://
-            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' # domain...
-            r'localhost|' # localhost...
-            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|' # ...or ipv4
-            r'\[?[A-F0-9]*:[A-F0-9:]+\]?)' # ...or ipv6
-            r'(?::\d+)?' # optional port
+            # r'^(?:http|ftp)s?://' # http:// or https://
+            r'^(?:http)s?://'  # http:// or https://
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+            r'localhost|'  # localhost...
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|'  # ...or ipv4
+            r'\[?[A-F0-9]*:[A-F0-9:]+\]?)'  # ...or ipv6
+            r'(?::\d+)?'  # optional port
             r'(?:/?|[/?]\S+)$', re.IGNORECASE
         )
         if regex.match(baseurl) == None:

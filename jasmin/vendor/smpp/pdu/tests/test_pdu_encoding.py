@@ -73,14 +73,14 @@ class EncoderTest(unittest.TestCase):
         try:
             decoded = self.decode(decodeFunc, hexdumpValue)
             self.assertTrue(False, 'Decode did not throw exception. Result was: %s' % str(decoded))
-        except PDUParseError, e:
+        except PDUParseError as e:
             self.assertEquals(status, e.status)
 
     def do_decode_corrupt_data_error_test(self, decodeFunc, status, hexdumpValue):
         try:
             decoded = self.decode(decodeFunc, hexdumpValue)
             self.assertTrue(False, 'Decode did not throw exception. Result was: %s' % str(decoded))
-        except PDUCorruptError, e:
+        except PDUCorruptError as e:
             self.assertEquals(status, e.status)
 
 class EmptyEncoderTest(EncoderTest):

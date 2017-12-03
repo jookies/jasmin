@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 
 from twisted.trial.unittest import TestCase
 from jasmin.routing.InterceptionTables import *
@@ -7,8 +7,8 @@ from jasmin.routing.Filters import *
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
 
-class InterceptionTableTests(object):
 
+class InterceptionTableTests(object):
     def test_standard(self):
         interception_t = self._interceptionTable()
         interception_t.add(self.interceptor2, 2)
@@ -77,6 +77,7 @@ class InterceptionTableTests(object):
         allInterceptors = interception_t.getAll()
         self.assertEqual(len(allInterceptors), 1)
 
+
 class MTInterceptionTableTestCase(InterceptionTableTests, TestCase):
     _interceptionTable = MTInterceptionTable
 
@@ -111,6 +112,7 @@ class MTInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.routable_matching_interceptor1 = RoutableSubmitSm(self.PDU_dst_1, self.user1)
         self.routable_matching_interceptor2 = RoutableSubmitSm(self.PDU_dst_2, self.user2)
         self.routable_notmatching_any = RoutableSubmitSm(self.PDU_dst_1, self.user2)
+
 
 class MOInterceptionTableTestCase(InterceptionTableTests, TestCase):
     _interceptionTable = MOInterceptionTable

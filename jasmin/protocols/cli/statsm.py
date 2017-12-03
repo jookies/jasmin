@@ -7,14 +7,16 @@ from .usersm import UserExist
 from .smppccm import ConnectorExist
 from jasmin.vendor.tabulate import tabulate
 
+
 def formatDateTime(dt):
     if dt == 0:
         return 'ND'
     else:
         return dt.strftime("%Y-%m-%d %H:%M:%S")
 
+
 class StatsManager(Manager):
-    "Statistics manager logics"
+    """Statistics manager logics"""
     managerName = 'stats'
 
     @UserExist(uid_key='user')

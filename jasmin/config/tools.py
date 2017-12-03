@@ -4,6 +4,7 @@ A Config file reader
 
 import ConfigParser
 
+
 class ConfigFile(object):
     """
     Config file reader, will expose typed "ex: _getint()" and untyped "ex: _get()" with
@@ -20,7 +21,7 @@ class ConfigFile(object):
             self.config.read(config_file)
 
     def getConfigFile(self):
-        'Return the current config_file'
+        """Return the current config_file"""
 
         return self.config_file
 

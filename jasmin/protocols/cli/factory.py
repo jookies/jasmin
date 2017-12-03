@@ -10,6 +10,7 @@ from twisted.conch.insults import insults
 from twisted.test import proto_helpers
 from hashlib import md5
 
+
 class JCliTelnetTransport(TelnetTransport):
     def connectionLost(self, reason):
         'Overrides TelnetTransport.connectionLost() to prevent errbacks'
@@ -18,6 +19,7 @@ class JCliTelnetTransport(TelnetTransport):
                 self.protocol.connectionLost(reason)
             finally:
                 del self.protocol
+
 
 class CmdFactory(ServerFactory):
     def __init__(self):
@@ -32,6 +34,7 @@ class CmdFactory(ServerFactory):
         self.protocol = lambda: JCliTelnetTransport(TelnetBootstrapProtocol,
                                                     insults.ServerProtocol,
                                                     CmdProtocol)
+
 
 class JCliFactory(ServerFactory):
     def __init__(self, config, SMPPClientManagerPB, RouterPB, SMPPServerFactory,
@@ -58,7 +61,6 @@ class JCliFactory(ServerFactory):
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
 
-
         # Init protocol
         self.protocol = lambda: JCliTelnetTransport(TelnetBootstrapProtocol,
                                                     insults.ServerProtocol,
@@ -78,13 +80,13 @@ class JCliFactory(ServerFactory):
         proto.makeConnection(tr)
 
         if (self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None
-                and self.loadConfigProfileWithCreds['password'] is not None):
+            and self.loadConfigProfileWithCreds['password'] is not None):
             self.log.info(
                 "OnStart loading configuration default profile with username: '%s'",
                 self.loadConfigProfileWithCreds['username'])
 
             if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
-                    md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
+                        md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
                 self.log.error(
                     "Authentication error, cannot load configuration profile with provided username: '%s'",
                     self.loadConfigProfileWithCreds['username'])

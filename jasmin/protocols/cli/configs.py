@@ -9,8 +9,9 @@ import logging
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class JCliConfig(ConfigFile):
-    "Config handler for 'jcli' section"
+    """Config handler for 'jcli' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
