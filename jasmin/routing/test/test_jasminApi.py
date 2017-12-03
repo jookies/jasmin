@@ -1,12 +1,12 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 
 import re
 from twisted.trial.unittest import TestCase
 from jasmin.routing import jasminApi
 from jasmin.routing.jasminApi import *
 
-class GroupTestCase(TestCase):
 
+class GroupTestCase(TestCase):
     def test_normal(self):
         g = Group('GID')
 
@@ -28,8 +28,8 @@ class GroupTestCase(TestCase):
         g.enable()
         self.assertEqual(g.enabled, True)
 
-class UserTestCase(TestCase):
 
+class UserTestCase(TestCase):
     def setUp(self):
         TestCase.setUp(self)
 
@@ -50,19 +50,19 @@ class UserTestCase(TestCase):
     def test_user_password(self):
         # Password length is 0
         self.assertRaises(jasminApiInvalidParamError,
-            User,
-            'UID',
-            self.group,
-            'foo',
-            '')
+                          User,
+                          'UID',
+                          self.group,
+                          'foo',
+                          '')
 
         # Password length is >8
         self.assertRaises(jasminApiInvalidParamError,
-            User,
-            'UID',
-            self.group,
-            'foo',
-            '123456789')
+                          User,
+                          'UID',
+                          self.group,
+                          'foo',
+                          '123456789')
 
     def test_is_enabled_by_default(self):
         u = User('UID', self.group, 'foo', 'bar')
@@ -79,8 +79,8 @@ class UserTestCase(TestCase):
         u.enable()
         self.assertEqual(u.enabled, True)
 
-class UserAndCredentialsTestCase(TestCase):
 
+class UserAndCredentialsTestCase(TestCase):
     def setUp(self):
         TestCase.setUp(self)
         # Define a GID group with custom messaging credentials
@@ -113,6 +113,7 @@ class UserAndCredentialsTestCase(TestCase):
         self.assertEqual(u.mt_credential.getAuthorization('http_send'), False)
         self.assertEqual(u.mt_credential.getValueFilter('source_address'), re.compile(r'^216.*'))
 
+
 class MtMessagingCredentialTestCase(TestCase):
     def test_normal_noargs(self):
         mc = MtMessagingCredential()
@@ -138,7 +139,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertEqual(mc.getQuota('early_decrement_balance_percent'), None)
 
     def test_normal_defaultsargs(self):
-        mc = MtMessagingCredential(default_authorizations = False)
+        mc = MtMessagingCredential(default_authorizations=False)
 
         self.assertEqual(mc.getAuthorization('http_send'), False)
         self.assertEqual(mc.getAuthorization('smpps_send'), False)
@@ -220,7 +221,7 @@ class MtMessagingCredentialTestCase(TestCase):
 
     def test_invalid_default_authorization(self):
         "Setting an incorrect default_authorizations would fallback to False as a default_authorizations"
-        mc = MtMessagingCredential(default_authorizations = 'True')
+        mc = MtMessagingCredential(default_authorizations='True')
 
         self.assertEqual(mc.getAuthorization('http_send'), False)
         self.assertEqual(mc.getAuthorization('http_long_content'), False)
@@ -280,6 +281,7 @@ class MtMessagingCredentialTestCase(TestCase):
         self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'balance', 'A')
         self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'submit_sm_count', 0.2)
 
+
 class SmppsCredentialTestCase(TestCase):
     def test_normal_noargs(self):
         sc = SmppsCredential()
@@ -288,7 +290,7 @@ class SmppsCredentialTestCase(TestCase):
         self.assertEqual(sc.getQuota('max_bindings'), None)
 
     def test_normal_defaultsargs(self):
-        sc = SmppsCredential(default_authorizations = False)
+        sc = SmppsCredential(default_authorizations=False)
 
         self.assertEqual(sc.getAuthorization('bind'), False)
         self.assertEqual(sc.getQuota('max_bindings'), None)
@@ -319,7 +321,7 @@ class SmppsCredentialTestCase(TestCase):
 
     def test_invalid_default_authorization(self):
         "Setting an incorrect default_authorizations would fallback to False as a default_authorizations"
-        sc = SmppsCredential(default_authorizations = 'True')
+        sc = SmppsCredential(default_authorizations='True')
 
         self.assertEqual(sc.getAuthorization('bind'), False)
 
@@ -352,6 +354,7 @@ class SmppsCredentialTestCase(TestCase):
         self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'max_bindings', 'A')
         self.assertRaises(jasminApiCredentialError, sc.updateQuota, 'max_bindings', 0.2)
 
+
 class HttpConnectorTestCase(TestCase):
     def test_normal(self):
         c = HttpConnector('CID', 'http://127.0.0.1/api/receive-mo')
@@ -361,13 +364,13 @@ class HttpConnectorTestCase(TestCase):
         self.assertEqual(c.baseurl, 'http://127.0.0.1/api/receive-mo')
         self.assertEqual(c.method, 'GET')
         self.assertEqual(str(c), '%s:\ncid = %s\nbaseurl = %s\nmethod = %s' % ('HttpConnector',
-                                                                  c.cid,
-                                                                  c.baseurl,
-                                                                  c.method))
+                                                                               c.cid,
+                                                                               c.baseurl,
+                                                                               c.method))
         self.assertEqual(repr(c), '<%s (cid=%s, baseurl=%s, method=%s)>' % ('HttpConnector',
-                                                               c.cid,
-                                                               c.baseurl,
-                                                               c.method))
+                                                                            c.cid,
+                                                                            c.baseurl,
+                                                                            c.method))
 
     def test_set_method(self):
         c = HttpConnector('CID', 'http://127.0.0.1/api/receive-mo', 'POST')
@@ -381,6 +384,7 @@ class HttpConnectorTestCase(TestCase):
         # Invalid method
         self.assertRaises(jasminApiInvalidParamError, HttpConnector, 'CID', 'http://127.0.0.1/api/receive-mo', 'PAST')
 
+
 class SmppConnectorTestCase(TestCase):
     def test_normal(self):
         c = SmppClientConnector('CID')
@@ -389,15 +393,17 @@ class SmppConnectorTestCase(TestCase):
         self.assertEqual(c._str, 'smppc Connector')
         self.assertEqual(c._repr, '<smppc Connector>')
 
+
 class SmppServerSystemIdTestCase(TestCase):
     def test_normal(self):
-        c = SmppServerSystemIdConnector(system_id = 'nathalie')
+        c = SmppServerSystemIdConnector(system_id='nathalie')
 
         self.assertEqual(c.type, 'smpps')
         self.assertEqual(c._str, 'smpps Connector')
         self.assertEqual(c._repr, '<smpps Connector>')
         self.assertEqual(c.cid, 'nathalie')
         self.assertEqual(c.cid, c.system_id)
+
 
 class MOInterceptorScriptTestCase(TestCase):
     def test_normal(self):
@@ -407,6 +413,7 @@ class MOInterceptorScriptTestCase(TestCase):
         self.assertEqual(i.pyCode, 'somecode')
         self.assertEqual(i._repr, '<MOIS (pyCode=%s ..)>' % (i.pyCode[:10].replace('\n', '')))
         self.assertEqual(i._str, 'MOInterceptorScript:\n%s' % (i.pyCode))
+
 
 class MTInterceptorScriptTestCase(TestCase):
     def test_normal(self):

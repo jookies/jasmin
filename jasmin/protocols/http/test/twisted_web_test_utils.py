@@ -8,6 +8,7 @@ from twisted.web import server, http_headers
 from twisted.web.test.test_web import DummyRequest
 from twisted.web.http import Request
 
+
 class SmartDummyRequest(DummyRequest):
     def __init__(self, method, url, args=None, json_data=None, headers=None):
         DummyRequest.__init__(self, url.split('/'))

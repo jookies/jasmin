@@ -11,6 +11,7 @@ class InvalidRoutingTableParameterError(Exception):
     validating inputs
     """
 
+
 class RoutingTable(object):
     """Generic Routing table
     """
@@ -29,24 +30,29 @@ class RoutingTable(object):
         if self.type == 'mo':
             if not isinstance(route.connector, list):
                 if route.connector.type not in ['http', 'smpps']:
-                    raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MO Route" % (route.connector.cid, route.connector.type))
+                    raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MO Route" % (
+                    route.connector.cid, route.connector.type))
             else:
                 for connector in route.connector:
                     if connector.type not in ['http', 'smpps']:
-                        raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MO Route" % (connector.cid, connector.type))
+                        raise InvalidRoutingTableParameterError(
+                            "connector '%s' type '%s' is not valid for MO Route" % (connector.cid, connector.type))
         elif self.type == 'mt':
             if not isinstance(route.connector, list):
                 if route.connector.type not in ['smppc']:
-                    raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MT Route" % (route.connector.cid, route.connector.type))
+                    raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MT Route" % (
+                    route.connector.cid, route.connector.type))
             else:
                 for connector in route.connector:
                     if connector.type not in ['smppc']:
-                        raise InvalidRoutingTableParameterError("connector '%s' type '%s' is not valid for MT Route" % (connector.cid, connector.type))
+                        raise InvalidRoutingTableParameterError(
+                            "connector '%s' type '%s' is not valid for MT Route" % (connector.cid, connector.type))
 
         if order < 0:
             raise InvalidRoutingTableParameterError("order must be 0 (default route) or greater")
         if order != 0 and route.type != self.type:
-            raise InvalidRoutingTableParameterError("route must be of type '%s', '%s' was given" % (self.type, route.type))
+            raise InvalidRoutingTableParameterError(
+                "route must be of type '%s', '%s' was given" % (self.type, route.type))
         if order == 0 and route.type != 'default':
             raise InvalidRoutingTableParameterError("Route with order=0 must be a DefaultRoute")
 
@@ -84,10 +90,12 @@ class RoutingTable(object):
 
         return None
 
+
 class MTRoutingTable(RoutingTable):
-    "MT Routing table"
+    """MT Routing table"""
     type = 'mt'
 
+
 class MORoutingTable(RoutingTable):
-    "MO Routing table"
+    """MO Routing table"""
     type = 'mo'

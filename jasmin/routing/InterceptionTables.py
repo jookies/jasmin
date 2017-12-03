@@ -5,10 +5,12 @@ More info: http://docs.jasminsms.com/en/latest/interception/index.html
 from jasmin.routing.Interceptors import Interceptor
 from jasmin.routing.Routables import Routable
 
+
 class InvalidInterceptionTableParameterError(Exception):
     """Raised when a parameter is not an instance of a desired class (used for
     validating inputs
     """
+
 
 class InterceptionTable(object):
     """Generic Interception table
@@ -75,10 +77,12 @@ class InterceptionTable(object):
 
         return None
 
+
 class MTInterceptionTable(InterceptionTable):
-    "MT Interception table"
+    """MT Interception table"""
     type = 'mt'
 
+
 class MOInterceptionTable(InterceptionTable):
-    "MO Interception table"
+    """MO Interception table"""
     type = 'mo'

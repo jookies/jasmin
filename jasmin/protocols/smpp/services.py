@@ -6,6 +6,7 @@ from .configs import SMPPClientServiceConfig
 
 LOG_CATEGORY = "jasmin-service-smpp"
 
+
 class SMPPClientService(service.Service):
     def __init__(self, SMPPClientConfig, config):
         self.startCounter = 0

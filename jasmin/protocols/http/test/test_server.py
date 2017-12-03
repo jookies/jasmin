@@ -365,7 +365,7 @@ class SendTestCases(HTTPApiTestCases):
                          "Error \"content and hex-content cannot be used both in same request.\"")
 
         # Assert correct encoding
-        del(params['content'])
+        del (params['content'])
         params['hex-content'] = ''
         response = yield self.web.get("send", params)
 

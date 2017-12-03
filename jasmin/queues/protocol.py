@@ -1,5 +1,6 @@
 from txamqp.protocol import AMQClient
 
+
 class AmqpProtocol(AMQClient):
     def connectionMade(self):
         """Called when a connection has been made."""

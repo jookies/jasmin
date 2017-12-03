@@ -220,7 +220,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         # Some hebrew data
-        del(self.params['content'])
+        del (self.params['content'])
         self.params['hex-content'] = '05d905d005dc05dc05dc05dc05dc05dc05dc05d4'
         self.params['coding'] = '8'
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
@@ -259,7 +259,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertNotEqual(None, self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time'])
         schedule_delivery_time = self.SMSCPort.factory.lastClient.submitRecords[0].params['schedule_delivery_time']
         self.assertEqual(schedule_delivery_time,
-                                SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
+                         SMPPRelativeTime(years=0, months=0, days=0, hours=0, minutes=1, seconds=0))
 
 
 class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
@@ -1640,6 +1640,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 yield waitFor(1)
 
             yield r.hmset(k, v)
+
         self.dlrlookup.redisClient.hmset = mock.MagicMock(wraps=mocked_hmset)
 
         # Ask for DLR

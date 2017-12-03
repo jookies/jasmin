@@ -28,6 +28,7 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 class deliverSmThrowerTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self):
@@ -72,6 +73,7 @@ class deliverSmThrowerTestCase(unittest.TestCase):
     def tearDown(self):
         yield self.amqpBroker.disconnect()
         yield self.deliverSmThrower.stopService()
+
 
 class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     routingKey = 'deliver_sm_thrower.http'
@@ -308,6 +310,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
 
+
 class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
     routingKey = 'deliver_sm_thrower.smpps'
 
@@ -363,10 +366,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
-            self.testDeliverSMPdu,
-            '1',
-            'src',
-            routedConnector)
+                                                 self.testDeliverSMPdu,
+                                                 '1',
+                                                 'src',
+                                                 routedConnector)
 
         yield waitFor(1)
 
@@ -388,10 +391,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
-            self.testDeliverSMPdu,
-            '1',
-            'src',
-            routedConnector)
+                                                 self.testDeliverSMPdu,
+                                                 '1',
+                                                 'src',
+                                                 routedConnector)
 
         yield waitFor(3)
 
@@ -416,10 +419,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
-            self.testDeliverSMPdu,
-            '1',
-            'src',
-            routedConnector)
+                                                 self.testDeliverSMPdu,
+                                                 '1',
+                                                 'src',
+                                                 routedConnector)
 
         yield waitFor(3)
 
@@ -446,10 +449,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
-            self.testDeliverSMPdu,
-            '1',
-            'src',
-            routedConnector)
+                                                 self.testDeliverSMPdu,
+                                                 '1',
+                                                 'src',
+                                                 routedConnector)
 
         yield waitFor(1)
 

@@ -51,7 +51,7 @@ FalseBoolCastMap = ['false', '0', 'f', 'n', 'no']
 
 
 def castToBuiltCorrectCredType(cred, section, key, value, update=False):
-    'Will cast value to the correct type depending on the cred class, section and key'
+    """Will cast value to the correct type depending on the cred class, section and key"""
     keep_original_value = None
 
     if cred == 'MtMessagingCredential':
@@ -122,6 +122,7 @@ def castToBuiltCorrectCredType(cred, section, key, value, update=False):
 
 def UserBuild(fCallback):
     """Parse args and try to build a jasmin.routing.jasminApi.User instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -132,9 +133,9 @@ def UserBuild(fCallback):
         # Initiate jasmin.routing.jasminApi.User with sessBuffer content
         if cmd == 'ok':
             if ('uid' not in self.sessBuffer or
-                    'group' not in self.sessBuffer or
-                    'username' not in self.sessBuffer or
-                    'password' not in self.sessBuffer):
+                        'group' not in self.sessBuffer or
+                        'username' not in self.sessBuffer or
+                        'password' not in self.sessBuffer):
                 return self.protocol.sendData(
                     'You must set User id (uid), group (gid), username and password before saving !')
 
@@ -153,7 +154,7 @@ def UserBuild(fCallback):
                 UserInstance = User(**user)
                 # Hand the instance to fCallback
                 return fCallback(self, UserInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -226,15 +227,19 @@ def UserBuild(fCallback):
                         self.sessBuffer[UserKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
 
 class UserExist(object):
     """Check if user uid exist before passing it to fCallback"""
+
     def __init__(self, uid_key):
         self.uid_key = uid_key
+
     def __call__(self, fCallback):
         uid_key = self.uid_key
+
         def exist_user_and_call(self, *args, **kwargs):
             opts = args[1]
             uid = getattr(opts, uid_key)
@@ -243,12 +248,14 @@ class UserExist(object):
                 return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown User: %s' % uid)
+
         return exist_user_and_call
 
 
 def UserUpdate(fCallback):
     """Get User and log update requests passing to fCallback
     The log will be handed to fCallback when 'ok' is received"""
+
     def log_update_requests_and_call(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -340,6 +347,7 @@ def UserUpdate(fCallback):
                         self.sessBuffer[UserKey] = arg
 
             return self.protocol.sendData()
+
     return log_update_requests_and_call
 
 
@@ -411,8 +419,8 @@ class UsersManager(PersistableManager):
                     smpps_throughput = 'ND'
                 throughput = '%s/%s' % (http_throughput, smpps_throughput)
                 self.protocol.sendData("#%s %s %s %s %s %s" % (
-                    str(user_prefix+user.uid).ljust(16),
-                    str(group_prefix+user.group.gid).ljust(16),
+                    str(user_prefix + user.uid).ljust(16),
+                    str(group_prefix + user.group.gid).ljust(16),
                     str(user.username).ljust(16),
                     str(balance).ljust(7),
                     str(sms_count).ljust(6),

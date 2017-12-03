@@ -131,13 +131,14 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
         if 'validity-period' in self.request.args and (
-                self.user.mt_credential.getValueFilter('validity_period') is None or
-            not self.user.mt_credential.getValueFilter('validity_period').match(
-                str(self.request.args['validity-period'][0]))):
+                        self.user.mt_credential.getValueFilter('validity_period') is None or
+                    not self.user.mt_credential.getValueFilter('validity_period').match(
+                        str(self.request.args['validity-period'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
         if ('content' in self.request.args and (self.user.mt_credential.getValueFilter('content') is None or
-                not self.user.mt_credential.getValueFilter('content').match(str(self.request.args['content'][0])))):
+                                                    not self.user.mt_credential.getValueFilter('content').match(
+                                                        str(self.request.args['content'][0])))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (content filter mismatch).' % self.user)
 

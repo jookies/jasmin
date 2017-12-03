@@ -3,19 +3,23 @@ Bills are objects containing amounts to be charged on users
 """
 import uuid
 
+
 class InvalidBillKeyError(Exception):
     """Raised when a bill key is not valid
     """
+
 
 class InvalidBillValueError(Exception):
     """Raised when a bill value is not valid
     """
 
+
 def randomUniqueId():
-    "Returns a UUID4 unique message id"
+    """Returns a UUID4 unique message id"""
     msgid = str(uuid.uuid4())
 
     return msgid
+
 
 class Bill(object):
     """This is a generic Bill class, it must be inherited to defined billables
@@ -35,13 +39,13 @@ class Bill(object):
         self.actions = {}
 
     def getAmount(self, key):
-        "Will return a billable amount"
+        """Will return a billable amount"""
         if key not in self.amounts:
             raise InvalidBillKeyError('%s is not a valid amount key.' % key)
         return self.amounts[key]
 
     def getTotalAmounts(self):
-        "Will return a Sum of all amounts"
+        """Will return a Sum of all amounts"""
         total_amount = 0.0
         for key in self.amounts:
             total_amount += self.amounts[key]
@@ -49,7 +53,7 @@ class Bill(object):
         return total_amount
 
     def setAmount(self, key, amount):
-        "Will set a billable amount"
+        """Will set a billable amount"""
         if key not in self.amounts:
             raise InvalidBillKeyError('%s is not a valid amount key.' % key)
         if not isinstance(amount, int) and not isinstance(amount, float):
@@ -57,24 +61,25 @@ class Bill(object):
         self.amounts[key] = amount
 
     def getAction(self, key):
-        "Will return a billable action"
+        """Will return a billable action"""
         if key not in self.actions:
             raise InvalidBillKeyError('%s is not a valid action key.' % key)
         return self.actions[key]
 
     def setAction(self, key, value):
-        "Will set a billable action"
+        """Will set a billable action"""
         if key not in self.actions:
             raise InvalidBillKeyError('%s is not a valid action key.' % key)
         if not isinstance(value, int):
             raise InvalidBillValueError('%s is not a valid value for key %s.' % (value, key))
         self.actions[key] = value
 
+
 class SubmitSmBill(Bill):
-    "This is the bill for user to pay when sending a MT SMS"
+    """This is the bill for user to pay when sending a MT SMS"""
 
     def __init__(self, user):
-        "Defining billables"
+        """Defining billables"""
         Bill.__init__(self, user)
 
         self.amounts['submit_sm'] = 0.0
@@ -91,11 +96,12 @@ class SubmitSmBill(Bill):
 
         return bill
 
+
 class SubmitSmRespBill(Bill):
-    "This is the bill for user to pay when sending a MT SMS"
+    """This is the bill for user to pay when sending a MT SMS"""
 
     def __init__(self, user):
-        "Defining billables"
+        """Defining billables"""
         Bill.__init__(self, user)
 
         self.amounts['submit_sm_resp'] = 0.0

@@ -20,21 +20,21 @@ from jasmin.tools.spread.pb import JasminPBPortalRoot
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
-class Options(usage.Options):
 
+class Options(usage.Options):
     optParameters = [
         ['config', 'c', '%s/etc/jasmin/interceptor.cfg' % ROOT_PATH,
          'Jasmin interceptor configuration file'],
-        ]
+    ]
+
 
 class InterceptorDaemon(object):
-
     def __init__(self, opt):
         self.options = opt
         self.components = {}
 
     def startInterceptorPBService(self):
-        "Start Interceptor PB server"
+        """Start Interceptor PB server"""
 
         InterceptorPBConfigInstance = InterceptorPBConfig(self.options['config'])
         self.components['interceptor-pb-factory'] = InterceptorPB(InterceptorPBConfigInstance)
@@ -57,26 +57,26 @@ class InterceptorDaemon(object):
             interface=InterceptorPBConfigInstance.bind)
 
     def stopInterceptorPBService(self):
-        "Stop Interceptor PB server"
+        """Stop Interceptor PB server"""
         return self.components['interceptor-pb-server'].stopListening()
 
     @defer.inlineCallbacks
     def start(self):
-        "Start Interceptord daemon"
+        """Start Interceptord daemon"""
         syslog.syslog(syslog.LOG_INFO, "Starting InterceptorPB Daemon ...")
 
         ########################################################
         # Start Interceptor PB server
         try:
             yield self.startInterceptorPBService()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start Interceptor: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  Interceptor Started.")
 
     @defer.inlineCallbacks
     def stop(self):
-        "Stop Interceptord daemon"
+        """Stop Interceptord daemon"""
         syslog.syslog(syslog.LOG_INFO, "Stopping Interceptor Daemon ...")
 
         if 'interceptor-pb-server' in self.components:
@@ -86,10 +86,11 @@ class InterceptorDaemon(object):
         reactor.stop()
 
     def sighandler_stop(self, signum, frame):
-        "Handle stop signal cleanly"
+        """Handle stop signal cleanly"""
         syslog.syslog(syslog.LOG_INFO, "Received signal to stop Interceptor Daemon")
 
         return self.stop()
+
 
 if __name__ == '__main__':
     # Must not be executed simultaneously (c.f. #265)
@@ -110,13 +111,13 @@ if __name__ == '__main__':
         in_d.start()
 
         reactor.run()
-    except usage.UsageError, errortext:
-        print '%s: %s' % (sys.argv[0], errortext)
-        print '%s: Try --help for usage details.' % (sys.argv[0])
+    except usage.UsageError as errortext:
+        print('%s: %s' % (sys.argv[0], errortext))
+        print('%s: Try --help for usage details.' % (sys.argv[0]))
     except LockTimeout:
-        print "Lock not acquired ! exiting"
+        print("Lock not acquired ! exiting")
     except AlreadyLocked:
-        print "There's another instance on jasmind running, exiting."
+        print("There's another instance on jasmind running, exiting.")
     finally:
         # Release the lock
         if lock.i_am_locking():

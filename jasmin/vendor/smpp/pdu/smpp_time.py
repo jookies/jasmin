@@ -97,7 +97,7 @@ def parse_relative_time(dtstr):
         # According to spec dsecond should be set to 0
         if dsecond != 0:
             raise ValueError("SMPP v3.4 spec violation: tenths of second value is %s instead of 0"% dsecond)
-    except IndexError, e:
+    except IndexError as e:
         raise ValueError("Error %s : Unable to parse relative Validity Period %s" % e,dtstr)
 
     return SMPPRelativeTime(year,month,day,hour,minute,second)

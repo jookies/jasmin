@@ -20,7 +20,7 @@ class SMPP(object):
             smpp = yield SMPPClientTransceiver(self.config, self.handleMsg).connectAndBind()
             #Wait for disconnect
             yield smpp.getDisconnectedDeferred()
-        except Exception, e:
+        except Exception as e:
             print "ERROR: %s" % str(e)
         finally:
             reactor.stop()

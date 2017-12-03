@@ -2,6 +2,7 @@ from twisted.internet import protocol
 from twisted.spread import pb
 from twisted.python import log
 
+
 class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClientFactory):
     """Reconnecting client factory for PB brokers.
 
@@ -73,7 +74,6 @@ class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClien
                       serviceName, perspectiveName, client)
         d.addCallbacks(self.gotPerspective, self.failedToGetPerspective)
 
-
     # newcred methods
 
     def login(self, *args):
@@ -90,11 +90,10 @@ class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClien
                                  self._credentials.password, self._client)
         d.addCallbacks(self.gotPerspective, self.failedToGetPerspective)
 
-
     # methods to override
 
     def disconnected(self, connector, reason):
-        "Called on connection loss or failure"
+        """Called on connection loss or failure"""
 
     def gotPerspective(self, perspective):
         """The remote avatar or perspective (obtained each time this factory
@@ -118,5 +117,5 @@ class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClien
             # retrying might help here, let clientConnectionLost decide
             return
         # probably authorization
-        self.stopTrying() # logging in harder won't help
+        self.stopTrying()  # logging in harder won't help
         log.err(why)

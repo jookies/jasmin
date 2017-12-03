@@ -807,7 +807,7 @@ class TimeEncoder(PDUNullableFieldEncoder):
         timeStr = self.encoder._decode(bytes)
         try:
             return smpp_time.parse(timeStr)
-        except Exception, e:
+        except Exception as e:
             errStr = str(e)
             raise self.decodeErrorClass(errStr, self.decodeErrorStatus)
 
@@ -911,7 +911,7 @@ class OptionEncoder(IEncoder):
         value = None
         try:
             value = encoder.decode(file)
-        except PDUParseError, e:
+        except PDUParseError as e:
             e.status = pdu_types.CommandStatus.ESME_RINVOPTPARAMVAL
             raise e
 
