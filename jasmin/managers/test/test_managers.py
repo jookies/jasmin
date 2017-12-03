@@ -569,6 +569,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         yield self.start(localConfig.id)
         startRet = yield self.start(localConfig.id)
 
+        print startRet
         self.assertEqual(False, startRet)
 
         yield self.stopall()
