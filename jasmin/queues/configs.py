@@ -25,6 +25,7 @@ class AmqpConfig(ConfigFile):
         self.password = self._get('amqp-broker', 'password', 'guest')
         self.vhost = self._get('amqp-broker', 'vhost', '/')
         self.spec = self._get('amqp-broker', 'spec', '%s/etc/jasmin/resource/amqp0-9-1.xml' % ROOT_PATH)
+        self.heartbeat = self._getint('amqp-broker', 'heartbeat', 0)
 
         # Logging
         self.log_level = logging.getLevelName(self._get('amqp-broker', 'log_level', 'INFO'))
