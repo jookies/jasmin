@@ -44,7 +44,8 @@ def tagfilters_casting(data, context=None):
 
     if context == 'filters':
         for fid, tagfilter in data.iteritems():
-            tagfilter.tag = str(tagfilter.tag)
+            if isinstance(tagfilter, TagFilter):
+                tagfilter.tag = str(tagfilter.tag)
     elif context == 'mtroutes':
         for routes in data.getAll():
             route = routes[routes.keys()[0]]
@@ -131,6 +132,6 @@ MAP = [
      'contexts': {'users', 'smppccs'},
      'operations': [fix_users_and_smppccs_09rc23]},
     {'conditions': ['<=0.9023'],
-     'contexts': {'users', 'smppccs'},
+     'contexts': {'users'},
      'operations': [fix_users_09rc24]},
 ]

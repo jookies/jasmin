@@ -203,7 +203,7 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
             # Convert _ to -
             # Added for compliance with json encoding/decoding constraints on dev env like .Net
             for k, v in message_params.iteritems():
-                del(message_params[k])
+                del (message_params[k])
                 message_params[re.sub('_', '-', k)] = v
 
             # Ignore message if these args are not found

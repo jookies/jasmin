@@ -1,4 +1,4 @@
-#pylint: disable=W0611
+# pylint: disable=W0611
 import cPickle as pickle
 import inspect
 import re
@@ -13,17 +13,19 @@ MTROUTES = ['DefaultRoute', 'StaticMTRoute', 'RandomRoundrobinMTRoute', 'Failove
 # A config map between console-configuration keys and Route keys.
 MTRouteKeyMap = {'order': 'order', 'type': 'type'}
 
+
 class InvalidCidSyntax(Exception):
     pass
 
+
 def validate_typed_connector_id(cid):
-    '''Used to ensure the cid imput is typed to indicate the connector
+    """Used to ensure the cid imput is typed to indicate the connector
     type, some examples:
     - smppc(con_1) would indicate con_1 is a SmppClientConnector
 
     (connector_type, cid) will be return, otherwise a InvalidCidSyntax
     exception will be throwed.
-    '''
+    """
 
     m = re.match(r'(smppc)\(([A-Za-z0-9_-]{3,25})\)', cid, re.I)
     if not m:
@@ -31,9 +33,11 @@ def validate_typed_connector_id(cid):
 
     return m.group(1).lower(), m.group(2)
 
+
 def MTRouteBuild(fCallback):
-    '''Parse args and try to build a route from  one of the routes in
-       jasmin.routing.Routes instance to pass it to fCallback'''
+    """Parse args and try to build a route from  one of the routes in
+       jasmin.routing.Routes instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -59,7 +63,7 @@ def MTRouteBuild(fCallback):
 
                 # Hand the instance to fCallback
                 return fCallback(self, self.sessBuffer['order'], RouteInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -104,7 +108,7 @@ def MTRouteBuild(fCallback):
 
                 if len(RouteClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MTRouteKeyMap.keys()+RouteClassArgs
+                    self.protocol.sessionCompletitions = MTRouteKeyMap.keys() + RouteClassArgs
 
                     return self.protocol.sendData('%s arguments:\n%s' % (
                         self.sessBuffer['route_class'], ', '.join(RouteClassArgs)))
@@ -112,11 +116,11 @@ def MTRouteBuild(fCallback):
                 # DefaultRoute's order is always zero
                 if cmd == 'order':
                     if (arg != '0' and 'type' in self.sessBuffer and
-                            self.sessBuffer['type'] == 'DefaultRoute'):
+                                self.sessBuffer['type'] == 'DefaultRoute'):
                         self.sessBuffer['order'] = 0
                         return self.protocol.sendData('Route order forced to 0 since it is a DefaultRoute')
                     elif (arg == '0' and 'type' in self.sessBuffer and
-                        self.sessBuffer['type'] != 'DefaultRoute'):
+                                  self.sessBuffer['type'] != 'DefaultRoute'):
                         return self.protocol.sendData(
                             'This route order (0) is reserved for DefaultRoute only')
                     elif not arg.isdigit() or int(arg) < 0:
@@ -136,14 +140,15 @@ def MTRouteBuild(fCallback):
                             arg = SmppClientConnector(self.pb['smppcm'].getConnector(cid)['id'])
                         else:
                             raise NotImplementedError("Not implemented yet !")
-                    except Exception, e:
+                    except Exception as e:
                         return self.protocol.sendData(str(e))
 
                 # Validate connectors
                 if cmd == 'connectors':
                     CIDs = arg.split(';')
                     if len(CIDs) == 1:
-                        return self.protocol.sendData('%s option value must contain a minimum of 2 connector IDs separated with ";".' % (cmd))
+                        return self.protocol.sendData(
+                            '%s option value must contain a minimum of 2 connector IDs separated with ";".' % (cmd))
 
                     arg = []
                     for typed_cid in CIDs:
@@ -157,7 +162,7 @@ def MTRouteBuild(fCallback):
                                 arg.append(SmppClientConnector(self.pb['smppcm'].getConnector(cid)['id']))
                             else:
                                 raise NotImplementedError("Not implemented yet !")
-                        except Exception, e:
+                        except Exception as e:
                             return self.protocol.sendData(str(e))
 
                 # Validate rate and convert it to float
@@ -193,14 +198,19 @@ def MTRouteBuild(fCallback):
                 self.sessBuffer[RouteKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
+
 class MTRouteExist(object):
-    'Check if a mt route exist with a given order before passing it to fCallback'
+    """Check if a mt route exist with a given order before passing it to fCallback"""
+
     def __init__(self, order_key):
         self.order_key = order_key
+
     def __call__(self, fCallback):
         order_key = self.order_key
+
         def exist_mtroute_and_call(self, *args, **kwargs):
             opts = args[1]
             order = getattr(opts, order_key)
@@ -212,10 +222,12 @@ class MTRouteExist(object):
                 return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown MT Route: %s' % order)
+
         return exist_mtroute_and_call
 
+
 class MtRouterManager(PersistableManager):
-    "MT Router manager logics"
+    """MT Router manager logics"""
     managerName = 'mtrouter'
 
     def persist(self, arg, opts):
@@ -249,7 +261,7 @@ class MtRouterManager(PersistableManager):
                 'Rate'.ljust(10),
                 'Connector ID(s)'.ljust(48),
                 'Filter(s)'.ljust(64),
-                ), prompt=False)
+            ), prompt=False)
 
             for e in mtroutes:
                 order = e.keys()[0]
@@ -288,7 +300,7 @@ class MtRouterManager(PersistableManager):
                     rate.ljust(10),
                     connectors.ljust(48),
                     filters.ljust(64),
-                    ), prompt=False)
+                ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total MT Routes: %s' % counter)
@@ -306,6 +318,7 @@ class MtRouterManager(PersistableManager):
             self.stopSession()
         else:
             self.protocol.sendData('Failed adding MTRoute, check log for details')
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MT Route: (ok: save, ko: exit)',

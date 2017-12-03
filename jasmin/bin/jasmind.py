@@ -166,12 +166,14 @@ class JasminDaemon(object):
         """Stop SMPP Client Manager PB server"""
         return self.components['smppcm-pb-server'].stopListening()
 
+    @defer.inlineCallbacks
     def startDLRLookupService(self):
         """Start DLRLookup"""
 
         DLRLookupConfigInstance = DLRLookupConfig(self.options['config'])
         self.components['dlrlookup'] = DLRLookup(DLRLookupConfigInstance, self.components['amqp-broker-factory'],
                                                  self.components['rc'])
+        yield self.components['dlrlookup'].subscribe()
 
     def startSMPPServerPBService(self):
         """Start SMPP Server PB server"""
@@ -339,7 +341,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start Interceptor client
                 yield self.startInterceptorPBClient()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot connect to interceptor: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  Interceptor client Started.")
@@ -349,7 +351,7 @@ class JasminDaemon(object):
         # Connect to redis server
         try:
             yield self.startRedisClient()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start RedisClient: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  RedisClient Started.")
@@ -357,9 +359,9 @@ class JasminDaemon(object):
         ########################################################
         # Start AMQP Broker
         try:
-            self.startAMQPBrokerService()
+            yield self.startAMQPBrokerService()
             yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start AMQP Broker: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  AMQP Broker Started.")
@@ -368,7 +370,7 @@ class JasminDaemon(object):
         # Start Router PB server
         try:
             yield self.startRouterPBService()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start RouterPB: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  RouterPB Started.")
@@ -377,7 +379,7 @@ class JasminDaemon(object):
         # Start SMPP Client connector manager and add rc
         try:
             self.startSMPPClientManagerPBService()
-        except Exception, e:
+        except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPClientManagerPB: %s" % e)
         else:
             syslog.syslog(syslog.LOG_INFO, "  SMPPClientManagerPB Started.")
@@ -387,7 +389,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start DLR Lookup
                 self.startDLRLookupService()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRLookup: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  DLRLookup Started.")
@@ -397,7 +399,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start SMPP Server
                 self.startSMPPServerService()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPServer: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
@@ -406,7 +408,7 @@ class JasminDaemon(object):
                 # [optional] Start SMPP Server PB
                 self.startSMPPServerPBService()
                 self.components['smpps-pb-factory'].addSmpps(self.components['smpp-server-factory'])
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start SMPPServerPB: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  SMPPServer Started.")
@@ -416,7 +418,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start deliverSmThrower
                 yield self.startdeliverSmThrowerService()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start deliverSmThrower: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  deliverSmThrower Started.")
@@ -426,7 +428,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start DLRThrower
                 yield self.startDLRThrowerService()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start DLRThrower: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  DLRThrower Started.")
@@ -436,7 +438,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start HTTP Api
                 self.startHTTPApiService()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start HTTPApi: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  HTTPApi Started.")
@@ -446,7 +448,7 @@ class JasminDaemon(object):
             try:
                 # [optional] Start JCli server
                 self.startJCliService()
-            except Exception, e:
+            except Exception as e:
                 syslog.syslog(syslog.LOG_ERR, "  Cannot start jCli: %s" % e)
             else:
                 syslog.syslog(syslog.LOG_INFO, "  jCli Started.")
@@ -530,13 +532,13 @@ if __name__ == '__main__':
         ja_d.start()
 
         reactor.run()
-    except usage.UsageError, errortext:
-        print '%s: %s' % (sys.argv[0], errortext)
-        print '%s: Try --help for usage details.' % (sys.argv[0])
+    except usage.UsageError as errortext:
+        print('%s: %s' % (sys.argv[0], errortext))
+        print('%s: Try --help for usage details.' % (sys.argv[0]))
     except LockTimeout:
-        print "Lock not acquired ! exiting"
+        print("Lock not acquired ! exiting")
     except AlreadyLocked:
-        print "There's another instance on jasmind running, exiting."
+        print("There's another instance on jasmind running, exiting.")
     finally:
         # Release the lock
         if lock is not None and lock.i_am_locking():

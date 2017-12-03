@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611,W0231
+# pylint: disable=W0401,W0611,W0231
 import cPickle as pickle
 import logging
 import re
@@ -43,7 +43,7 @@ class SMPPClientFactory(ClientFactory):
         self.stats.set('created_at', datetime.now())
 
         # Set up a dedicated logger
-        self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE+".%s" % config.id)
+        self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE + ".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
@@ -190,7 +190,6 @@ class SMPPClientFactory(ClientFactory):
 
 
 class CtxFactory(ssl.ClientContextFactory):
-
     def __init__(self, config):
         self.smppConfig = config
 
@@ -221,7 +220,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.stats.set('created_at', datetime.now())
 
         # Set up a dedicated logger
-        self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE+".%s" % config.id)
+        self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE + ".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file, when=self.config.log_rotate)
@@ -400,7 +399,7 @@ class SMPPServerFactory(_SMPPServerFactory):
 
             # QoS throttling
             if (routable.user.mt_credential.getQuota('smpps_throughput') >= 0
-                    and routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0):
+                and routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0):
                 qos_throughput_second = 1 / float(routable.user.mt_credential.getQuota('smpps_throughput'))
                 qos_throughput_ysecond_td = timedelta(microseconds=qos_throughput_second * 1000000)
                 qos_delay = datetime.now() - routable.user.getCnxStatus().smpps['qos_last_submit_sm_at']
@@ -454,6 +453,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU", routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(
+                uid=routable.user.uid,
                 cid=routedConnector.cid,
                 SubmitSmPDU=routable.pdu,
                 submit_sm_bill=bill,
@@ -477,7 +477,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 SubmitSmRoutingError) as e:
             # Known exception handling
             status = e.status
-        except Exception, e:
+        except Exception as e:
             # Unknown exception handling
             self.log.critical('Got an unknown exception: %s', e)
             status = pdu_types.CommandStatus.ESME_RUNKNOWNERR

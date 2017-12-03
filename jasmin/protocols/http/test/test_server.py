@@ -141,6 +141,41 @@ class SendTestCases(HTTPApiTestCases):
     username = 'nathalie'
 
     @defer.inlineCallbacks
+    def test_post_send_json_with_correct_args(self):
+        response = yield self.web.post("send", json_data={'username': self.username,
+                                               'password': 'incorrec',
+                                               'to': '06155423',
+                                               'content': 'anycontent'}, headers={'Content-type': ['application/json']})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+
+    @defer.inlineCallbacks
+    def test_post_send_json_with_extra_args(self):
+        response = yield self.web.post("send", json_data={'username': self.username,
+                                                          'password': 'incorrec',
+                                                          'to': '06155423',
+                                                          'content': 'anycontent',
+                                                          'custom_tlvs': [
+                                                              (0x3000, None, 'COctetString', 'test1234')
+                                                          ]}, headers={'Content-type': ['application/json']})
+        self.assertEqual(response.responseCode, 403)
+        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+
+    @defer.inlineCallbacks
+    def test_post_send_json_with_auth_success(self):
+        response = yield self.web.post("send", json_data={'username': self.username,
+                                                          'password': 'correct',
+                                                          'to': '06155423',
+                                                          'content': 'anycontent',
+                                                          'custom_tlvs': [
+                                                              (0x3000, None, 'COctetString', 'test1234')
+                                                          ]}, headers={'Content-type': ['application/json']})
+        self.assertEqual(response.responseCode, 500)
+        # This is a normal error since SMPPClientManagerPB is not really running
+        self.assertEqual(response.value(),
+                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+
+    @defer.inlineCallbacks
     def test_send_with_correct_args(self):
         response = yield self.web.get("send", {'username': self.username,
                                                'password': 'incorrec',
@@ -330,7 +365,7 @@ class SendTestCases(HTTPApiTestCases):
                          "Error \"content and hex-content cannot be used both in same request.\"")
 
         # Assert correct encoding
-        del(params['content'])
+        del (params['content'])
         params['hex-content'] = ''
         response = yield self.web.get("send", params)
 

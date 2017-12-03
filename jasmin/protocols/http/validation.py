@@ -9,7 +9,7 @@ from jasmin.protocols.validation import AbstractCredentialValidator
 class UrlArgsValidator(object):
     """Will check for arguments syntax errors"""
 
-    def __init__(self, request, fields):
+    def __init__(self, request, fields):  # TODO add if JSON dont do [0]
         self.fields = fields
         self.request = request
 
@@ -32,7 +32,9 @@ class UrlArgsValidator(object):
                 fieldData = self.fields[field]
 
                 if field in args:
-                    if isinstance(args[field][0], int) or isinstance(args[field][0], float):
+                    if isinstance(args[field][0], dict) or isinstance(args[field][0], list):
+                        continue  # Todo check structure of dict/list
+                    elif isinstance(args[field][0], int) or isinstance(args[field][0], float):
                         value = str(args[field][0])
                     else:
                         value = args[field][0]
@@ -129,13 +131,14 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
         if 'validity-period' in self.request.args and (
-                self.user.mt_credential.getValueFilter('validity_period') is None or
-            not self.user.mt_credential.getValueFilter('validity_period').match(
-                str(self.request.args['validity-period'][0]))):
+                        self.user.mt_credential.getValueFilter('validity_period') is None or
+                    not self.user.mt_credential.getValueFilter('validity_period').match(
+                        str(self.request.args['validity-period'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
         if ('content' in self.request.args and (self.user.mt_credential.getValueFilter('content') is None or
-                not self.user.mt_credential.getValueFilter('content').match(str(self.request.args['content'][0])))):
+                                                    not self.user.mt_credential.getValueFilter('content').match(
+                                                        str(self.request.args['content'][0])))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (content filter mismatch).' % self.user)
 

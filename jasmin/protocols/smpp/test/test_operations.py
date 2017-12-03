@@ -9,16 +9,17 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory, UnknownMessag
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, MessageState
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 
+
 class OperationsTest(TestCase):
     def setUp(self):
         self.opFactory = SMPPOperationFactory(SMPPClientConfig(id='test-id'))
 
 
 class SubmitTest(OperationsTest):
-    source_addr         = '20203060'
-    destination_addr    = '06155423'
-    latin1_sm           = '6162636465666768696a6b6c6d6e6f707172737475767778797a'
-    latin1_long_sm      = '6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e'
+    source_addr = '20203060'
+    destination_addr = '06155423'
+    latin1_sm = '6162636465666768696a6b6c6d6e6f707172737475767778797a'
+    latin1_long_sm = '6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e'
 
     def buildSubmitSmTest(self, sm):
         """
@@ -72,7 +73,7 @@ class SubmitTest(OperationsTest):
 
         # Iterating through sliced PDUs
         partedSmPdu = pdu
-        assembledSm= ''
+        assembledSm = ''
         lastSeqNum = 0
         while True:
             assembledSm += partedSmPdu.params['short_message']
@@ -93,8 +94,8 @@ class SubmitTest(OperationsTest):
         # The last seqNum shall be equal to total segments
         self.assertEquals(lastSeqNum, pdu.params['sar_total_segments'])
 
-class DeliveryParsingTest(OperationsTest):
 
+class DeliveryParsingTest(OperationsTest):
     def test_is_delivery_standard(self):
         pdu = DeliverSM(
             source_addr='1234',
@@ -263,31 +264,32 @@ class DeliveryParsingTest(OperationsTest):
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertEquals(isDlr['stat'], 'ACCEPTD')
 
+
 class ReceiptCreationTestCases(OperationsTest):
     message_state_map = {
         'ESME_ROK': {'sm': 'ACCEPTD', 'state': MessageState.ACCEPTED},
-        'UNDELIV':  {'sm': 'UNDELIV', 'state': MessageState.UNDELIVERABLE},
-        'REJECTD':  {'sm': 'REJECTD', 'state': MessageState.REJECTED},
-        'DELIVRD':  {'sm': 'DELIVRD', 'state': MessageState.DELIVERED},
-        'EXPIRED':  {'sm': 'EXPIRED', 'state': MessageState.EXPIRED},
-        'DELETED':  {'sm': 'DELETED', 'state': MessageState.DELETED},
-        'ACCEPTD':  {'sm': 'ACCEPTD', 'state': MessageState.ACCEPTED},
-        'UNKNOWN':  {'sm': 'UNKNOWN', 'state': MessageState.UNKNOWN},
+        'UNDELIV': {'sm': 'UNDELIV', 'state': MessageState.UNDELIVERABLE},
+        'REJECTD': {'sm': 'REJECTD', 'state': MessageState.REJECTED},
+        'DELIVRD': {'sm': 'DELIVRD', 'state': MessageState.DELIVERED},
+        'EXPIRED': {'sm': 'EXPIRED', 'state': MessageState.EXPIRED},
+        'DELETED': {'sm': 'DELETED', 'state': MessageState.DELETED},
+        'ACCEPTD': {'sm': 'ACCEPTD', 'state': MessageState.ACCEPTED},
+        'UNKNOWN': {'sm': 'UNKNOWN', 'state': MessageState.UNKNOWN},
     }
 
     def test_unknown_message_state(self):
         for dlr_pdu in ['deliver_sm', 'data_sm']:
             self.assertRaises(UnknownMessageStatusError, self.opFactory.getReceipt,
-                dlr_pdu,
-                'anyid',
-                'JASMIN',
-                '06155423',
-                'ANY_STATus',
-                '2017-07-19 17:50:12',
-                'UNKNOWN',
-                'UNKNOWN',
-                'UNKNOWN',
-                'UNKNOWN')
+                              dlr_pdu,
+                              'anyid',
+                              'JASMIN',
+                              '06155423',
+                              'ANY_STATus',
+                              '2017-07-19 17:50:12',
+                              'UNKNOWN',
+                              'UNKNOWN',
+                              'UNKNOWN',
+                              'UNKNOWN')
 
     def test_deliver_sm(self):
         for message_state, _test in self.message_state_map.iteritems():

@@ -11,7 +11,6 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM
 
 
 class RoutablePDUTestCase(TestCase):
-
     def setUp(self):
         self.PDU = SubmitSM(
             source_addr='20203060',
@@ -23,7 +22,6 @@ class RoutablePDUTestCase(TestCase):
 
 
 class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
-
     def test_standard(self):
         o = SimpleRoutablePDU(self.connector, self.PDU, self.user, datetime.now())
 
@@ -76,7 +74,6 @@ class SimpleRoutablePDUTestCase(RoutablePDUTestCase):
 
 
 class RoutableSubmitSmTestCase(RoutablePDUTestCase):
-
     def test_standard(self):
         o = RoutableSubmitSm(self.PDU, self.user, datetime.now())
 
@@ -137,7 +134,6 @@ class RoutableSubmitSmTestCase(RoutablePDUTestCase):
 
 
 class RoutableDeliverSmTestCase(RoutablePDUTestCase):
-
     def test_standard(self):
         o = RoutableDeliverSm(self.PDU, self.connector, datetime.now())
 
