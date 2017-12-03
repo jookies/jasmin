@@ -11,7 +11,7 @@ install:
 # Commands to run tests:
 script:
     # Trial tests and coverage:
-    - coverage run `which trial` jasmin.managers.test.test_managers.ClientConnectorTestCases.test_start_sameconnector_twice_with_noreconnecting_on_failure
+    - coverage run `which trial` jasmin
     # Report coverage:
     - coverage report --include=venv/lib/python2.7/site-packages/jasmin/* --fail-under=80
     # Docs building test:
