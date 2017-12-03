@@ -10,6 +10,7 @@ from jasmin.config.tools import ConfigFile
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class InterceptorPBConfig(ConfigFile):
     """Config handler for 'interceptor' section"""
 
@@ -33,6 +34,7 @@ class InterceptorPBConfig(ConfigFile):
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
         self.log_slow_script = self._getint('interceptor', 'log_slow_script', 1)
+
 
 class InterceptorPBClientConfig(ConfigFile):
     """Config handler for 'interceptor-client' section"""

@@ -1,8 +1,9 @@
 from jasmin.tools.singleton import Singleton
 from jasmin.tools.stats import Stats
 
+
 class HttpAPIStatistics(Stats):
-    "HTTP API statistics holder"
+    """HTTP API statistics holder"""
 
     def __init__(self, api_id):
         self.api_id = api_id
@@ -28,13 +29,14 @@ class HttpAPIStatistics(Stats):
     def getStats(self):
         return self._stats
 
+
 class HttpAPIStatsCollector(object):
-    "HTTP API statistics collection holder"
+    """HTTP API statistics collection holder"""
     __metaclass__ = Singleton
     apis = {}
 
     def get(self):
-        "Return a HTTP API's stats object or instanciate a new one"
+        """Return a HTTP API's stats object or instanciate a new one"""
         api_id = 'main'
         if api_id not in self.apis:
             self.apis[api_id] = HttpAPIStatistics(api_id)

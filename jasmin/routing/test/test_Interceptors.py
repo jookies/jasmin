@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Interceptors import *
@@ -6,8 +6,8 @@ from jasmin.routing.Filters import *
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 
-class InterceptorTestCase(TestCase):
 
+class InterceptorTestCase(TestCase):
     def setUp(self):
         self.connector1 = Connector('abc')
         self.connector2 = Connector('def')
@@ -20,6 +20,7 @@ class InterceptorTestCase(TestCase):
         self.simple_filter_mo = [ConnectorFilter(self.connector1)]
         self.simple_filter_mt = [UserFilter(self.user1)]
         self.simple_filter_all = [DestinationAddrFilter(r'.*')]
+
 
 class InterceptorStrTestCase(InterceptorTestCase):
     def test_StaticMTInterceptor(self):
@@ -34,6 +35,7 @@ class InterceptorStrTestCase(InterceptorTestCase):
         s = DefaultInterceptor(self.script1)
         self.assertEqual(str(s), 'DefaultInterceptor/<IS (pyCode=print \'some code here\' ..)>')
 
+
 class AnyStaticInterceptorTestCase(InterceptorTestCase):
     def test_standard(self):
         StaticMTInterceptor(self.simple_filter_mt, self.script1)
@@ -41,19 +43,20 @@ class AnyStaticInterceptorTestCase(InterceptorTestCase):
 
     def test_parameters(self):
         self.assertRaises(InvalidInterceptorParameterError,
-            StaticMTInterceptor, 'anything', self.script1)
+                          StaticMTInterceptor, 'anything', self.script1)
         self.assertRaises(InvalidInterceptorParameterError,
-            StaticMTInterceptor, ['anything in a list'], self.script1)
+                          StaticMTInterceptor, ['anything in a list'], self.script1)
         self.assertRaises(InvalidInterceptorParameterError,
-            StaticMTInterceptor, self.simple_filter_mt, 'anything')
+                          StaticMTInterceptor, self.simple_filter_mt, 'anything')
 
     def test_filter_type_compatibility(self):
         self.assertRaises(InvalidInterceptorFilterError,
-            StaticMTInterceptor, self.invalid_filter, self.script1)
+                          StaticMTInterceptor, self.invalid_filter, self.script1)
         self.assertRaises(InvalidInterceptorFilterError,
-            StaticMOInterceptor, self.simple_filter_mt, self.script1)
+                          StaticMOInterceptor, self.simple_filter_mt, self.script1)
         self.assertRaises(InvalidInterceptorFilterError,
-            StaticMTInterceptor, self.simple_filter_mo, self.script1)
+                          StaticMTInterceptor, self.simple_filter_mo, self.script1)
+
 
 class DefaultInterceptorTestCase(InterceptorTestCase):
     def setUp(self):
@@ -74,8 +77,8 @@ class DefaultInterceptorTestCase(InterceptorTestCase):
         self.assertNotEqual(t, None)
         self.assertEqual(t, self.script1)
 
-class StaticMTInterceptorTestCase(InterceptorTestCase):
 
+class StaticMTInterceptorTestCase(InterceptorTestCase):
     def setUp(self):
         InterceptorTestCase.setUp(self)
 
@@ -98,8 +101,8 @@ class StaticMTInterceptorTestCase(InterceptorTestCase):
         t = o.matchFilters(self.routable_user2)
         self.assertEqual(t, None)
 
-class StaticMOInterceptorTestCase(InterceptorTestCase):
 
+class StaticMOInterceptorTestCase(InterceptorTestCase):
     def setUp(self):
         InterceptorTestCase.setUp(self)
 

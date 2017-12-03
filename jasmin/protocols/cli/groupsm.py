@@ -5,8 +5,10 @@ from jasmin.routing.jasminApi import Group
 # A config map between console-configuration keys and Group keys.
 GroupKeyMap = {'gid': 'gid'}
 
+
 def GroupBuild(fCallback):
-    'Parse args and try to build a jasmin.routing.jasminApi.Group instance to pass it to fCallback'
+    """Parse args and try to build a jasmin.routing.jasminApi.Group instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -26,7 +28,7 @@ def GroupBuild(fCallback):
                 GroupInstance = Group(**group)
                 # Hand the instance to fCallback
                 return fCallback(self, GroupInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -38,14 +40,19 @@ def GroupBuild(fCallback):
             self.sessBuffer[GroupKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
+
 class GroupExist(object):
-    'Check if Group gid exist before passing it to fCallback'
+    """Check if Group gid exist before passing it to fCallback"""
+
     def __init__(self, gid_key):
         self.gid_key = gid_key
+
     def __call__(self, fCallback):
         gid_key = self.gid_key
+
         def exist_group_and_call(self, *args, **kwargs):
             opts = args[1]
             gid = getattr(opts, gid_key)
@@ -54,10 +61,12 @@ class GroupExist(object):
                 return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown Group: %s' % gid)
+
         return exist_group_and_call
 
+
 class GroupsManager(PersistableManager):
-    "Groups manager logics"
+    """Groups manager logics"""
     managerName = 'group'
 
     def persist(self, arg, opts):
@@ -91,7 +100,7 @@ class GroupsManager(PersistableManager):
                 group_prefix = ''
                 if not group.enabled:
                     group_prefix = '!'
-                self.protocol.sendData("#%s" % (str(group_prefix+group.gid).ljust(16)), prompt=False)
+                self.protocol.sendData("#%s" % (str(group_prefix + group.gid).ljust(16)), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Groups: %s' % counter)
@@ -106,6 +115,7 @@ class GroupsManager(PersistableManager):
             self.stopSession()
         else:
             self.protocol.sendData('Failed adding Group, check log for details')
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Group: (ok: save, ko: exit)',

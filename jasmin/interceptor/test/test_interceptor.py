@@ -87,9 +87,9 @@ class AuthenticatedTestCases(IntercentorPBProxyTestCase):
     def test_connect_failure(self):
         try:
             yield self.connect('127.0.0.1', self.ipbPort, 'test_anyuser', 'test_wrongpassword')
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Authentication error test_anyuser')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -100,9 +100,9 @@ class AuthenticatedTestCases(IntercentorPBProxyTestCase):
     def test_connect_non_anonymous(self):
         try:
             yield self.connect('127.0.0.1', self.ipbPort)
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Anonymous connection is not authorized !')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -122,9 +122,9 @@ class RunScriptTestCases(IntercentorPBProxyTestCase):
 
         try:
             yield self.run_script(self.script_generic, 'anything')
-        except InvalidRoutableObject, e:
+        except InvalidRoutableObject as e:
             self.assertEqual(str(e), 'anything')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "InvalidRoutableObject not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "InvalidRoutableObject not raised")
@@ -135,9 +135,9 @@ class RunScriptTestCases(IntercentorPBProxyTestCase):
 
         try:
             yield self.run_script('anything', self.routable_simple)
-        except InvalidScriptObject, e:
+        except InvalidScriptObject as e:
             self.assertEqual(str(e), 'anything')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "InvalidScriptObject not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "InvalidScriptObject not raised")

@@ -3,8 +3,8 @@ from twisted.trial.unittest import TestCase
 from jasmin.vendor.smpp.pdu import smpp_time
 from datetime import datetime
 
-class SMPPTimeTest(TestCase):
 
+class SMPPTimeTest(TestCase):
     def test_pickle_unpickle_datetime_with_tz(self):
         """Related to #267
 

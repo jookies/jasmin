@@ -1,4 +1,4 @@
-#pylint: disable=E0203
+# pylint: disable=E0203
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from twisted.internet.protocol import ClientFactory
@@ -7,6 +7,7 @@ from txamqp.client import TwistedDelegate
 from jasmin.queues.protocol import AmqpProtocol
 
 LOG_CATEGORY = "jasmin-amqp-factory"
+
 
 class AmqpFactory(ClientFactory):
     protocol = AmqpProtocol

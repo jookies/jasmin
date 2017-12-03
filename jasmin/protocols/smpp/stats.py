@@ -3,7 +3,6 @@ from jasmin.tools.stats import Stats
 
 
 class ConnectorStatistics(Stats):
-
     def __init__(self, cid):
         self.cid = cid
 

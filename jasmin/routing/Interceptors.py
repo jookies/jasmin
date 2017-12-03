@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611,W0231
+# pylint: disable=W0401,W0611,W0231
 """
 More info: http://docs.jasminsms.com/en/latest/interception/index.html
 """
@@ -13,8 +13,11 @@ class InvalidInterceptorParameterError(Exception):
 
     Used for validating inputs
     """
+
+
 class InvalidInterceptorFilterError(Exception):
-    "Raised when an interceptor is instanciated with a non-compatible type"
+    """Raised when an interceptor is instanciated with a non-compatible type"""
+
 
 class Interceptor(object):
     """Generic Interceptor:
@@ -36,7 +39,7 @@ class Interceptor(object):
             if not isinstance(_filter, Filter):
                 raise InvalidInterceptorParameterError(
                     "filter must be an instance of Filter, %s found" % type(_filter)
-                    )
+                )
             if not self.type in _filter.usedFor:
                 raise InvalidInterceptorFilterError(
                     "filter types (%s) is not compatible with this interceptor type (%s)" % (
@@ -65,13 +68,14 @@ class Interceptor(object):
                 return None
         return self.getScript()
 
+
 class DefaultInterceptor(Interceptor):
     """This is a default interceptor which can contain one script
     """
     type = 'default'
 
     def __init__(self, script):
-        "DefaultInterceptor can be for MO or MT messages"
+        """DefaultInterceptor can be for MO or MT messages"""
 
         if not isinstance(script, InterceptorScript):
             raise InvalidInterceptorParameterError("script is not an instance of InterceptorScript")
@@ -82,19 +86,23 @@ class DefaultInterceptor(Interceptor):
     def matchFilters(self, routable):
         return self.getScript()
 
+
 class MTInterceptor(Interceptor):
     """Generic MT Interceptor
     """
     type = 'mt'
+
 
 class MOInterceptor(Interceptor):
     """Generic MO Interceptor
     """
     type = 'mo'
 
+
 class StaticMOInterceptor(MOInterceptor):
     """Return one unique interceptor
     """
+
 
 class StaticMTInterceptor(MTInterceptor):
     """Return one unique interceptor

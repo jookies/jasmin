@@ -19,11 +19,13 @@ from .listeners import SMPPClientSMListener
 
 LOG_CATEGORY = "jasmin-pb-client-mgmt"
 
+
 class ConfigProfileLoadingError(Exception):
     """
     Raised for any error occurring while loading a configuration
     profile with perspective_load
     """
+
 
 class SMPPClientManagerPB(pb.Avatar):
     def __init__(self, SMPPClientPBConfig):
@@ -138,7 +140,7 @@ class SMPPClientManagerPB(pb.Avatar):
                 connectors.append({
                     'id': c['id'],
                     'config': c['config'],
-                    'service_status':c['service'].running})
+                    'service_status': c['service'].running})
 
             # Write configuration with datetime stamp
             fh = open(path, 'w')
@@ -151,7 +153,7 @@ class SMPPClientManagerPB(pb.Avatar):
         except IOError:
             self.log.error('Cannot persist to %s', path)
             return False
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while persisting configuration: %s', e)
             return False
 
@@ -199,13 +201,13 @@ class SMPPClientManagerPB(pb.Avatar):
 
             # Set persistance state to True
             self.persisted = True
-        except IOError, e:
+        except IOError as e:
             self.log.error('Cannot load configuration from %s: %s', path, str(e))
             defer.returnValue(False)
-        except ConfigProfileLoadingError, e:
+        except ConfigProfileLoadingError as e:
             self.log.error('Error while loading configuration: %s', e)
             defer.returnValue(False)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Unknown error occurred while loading configuration: %s', e)
             defer.returnValue(False)
 
@@ -263,12 +265,12 @@ class SMPPClientManagerPB(pb.Avatar):
         serviceManager.SMPPClientFactory.msgHandler = smListener.deliver_sm_event_interceptor
 
         self.connectors.append({
-            'id':           c.id,
-            'config':       c,
-            'service':      serviceManager,
+            'id': c.id,
+            'config': c,
+            'service': serviceManager,
             'consumer_tag': None,
-            'submit_sm_q':  None,
-            'sm_listener':  smListener})
+            'submit_sm_q': None,
+            'sm_listener': smListener})
 
         self.log.info('Added a new connector: %s', c.id)
 
@@ -373,7 +375,7 @@ class SMPPClientManagerPB(pb.Avatar):
             # Start a new consumer
             yield self.amqpBroker.chan.basic_consume(queue=submit_sm_queue,
                                                      no_ack=False, consumer_tag=consumerTag)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Error consuming from queue %s: %s', submit_sm_queue, e)
             defer.returnValue(False)
 
@@ -536,7 +538,7 @@ class SMPPClientManagerPB(pb.Avatar):
         return pickle.dumps(connector['config'], self.pickleProtocol)
 
     @defer.inlineCallbacks
-    def perspective_submit_sm(self, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
+    def perspective_submit_sm(self, uid, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
                               pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST',
                               source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
@@ -573,12 +575,14 @@ class SMPPClientManagerPB(pb.Avatar):
         # Publishing a pickled PDU
         self.log.debug('Publishing SubmitSmPDU with routing_key=%s, priority=%s', pubQueueName, priority)
         c = SubmitSmContent(
+            uid=uid,
             body=PickledSubmitSmPDU,
             replyto=responseQueueName,
             submit_sm_bill=submit_sm_bill,
             priority=priority,
             expiration=validity_period,
-            source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi')
+            source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi',
+            destination_cid=cid)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)
 
         if source_connector == 'httpapi' and dlr_url is not None:
@@ -603,7 +607,8 @@ class SMPPClientManagerPB(pb.Avatar):
                     lambda response: self.redisClient.expire(
                         hashKey, connector['config'].dlr_expiry))
         elif (isinstance(source_connector, SMPPServerProtocol) and
-              SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
+                      SubmitSmPDU.params[
+                          'registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
             # requested, then map message-id to the source_connector to permit related deliver_sm
             # messages holding further receipts to be sent back to the right connector

@@ -3,8 +3,9 @@ import re
 from test_jcli import jCliWithoutAuthTestCases
 from test.test_support import unlink
 
+
 class FiltersTestCases(jCliWithoutAuthTestCases):
-    def add_filter(self, finalPrompt, extraCommands = []):
+    def add_filter(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
         commands.append({'command': 'filter -a', 'expect': r'Adding a new Filter\: \(ok\: save, ko\: exit\)'})
@@ -19,8 +20,8 @@ class FiltersTestCases(jCliWithoutAuthTestCases):
 
         return self._test(finalPrompt, commands)
 
-class BasicTestCases(FiltersTestCases):
 
+class BasicTestCases(FiltersTestCases):
     def test_add_with_minimum_args(self):
         extraCommands = [{'command': 'fid filter_1'},
                          {'command': 'type TransparentFilter'}]
@@ -130,8 +131,8 @@ class BasicTestCases(FiltersTestCases):
         commands = [{'command': 'filter -l', 'expect': r'Total Filters: 0'}]
         return self._test(r'jcli : ', commands)
 
-class FilterTypingTestCases(FiltersTestCases):
 
+class FilterTypingTestCases(FiltersTestCases):
     def test_available_filters(self):
         # Go to Filter adding invite
         commands = [{'command': 'filter -a'}]
@@ -185,7 +186,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'uid %s' % uid},]
+                         {'command': 'uid %s' % uid}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -205,7 +206,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'gid %s' % gid},]
+                         {'command': 'gid %s' % gid}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -225,7 +226,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'cid %s' % cid},]
+                         {'command': 'cid %s' % cid}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -245,7 +246,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'source_addr %s' % source_addr},]
+                         {'command': 'source_addr %s' % source_addr}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -265,7 +266,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'destination_addr %s' % destination_addr},]
+                         {'command': 'destination_addr %s' % destination_addr}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -285,7 +286,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'short_message %s' % short_message},]
+                         {'command': 'short_message %s' % short_message}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -307,7 +308,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'dateInterval %s' % dateInterval},]
+                         {'command': 'dateInterval %s' % dateInterval}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -329,7 +330,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'timeInterval %s' % timeInterval},]
+                         {'command': 'timeInterval %s' % timeInterval}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -352,7 +353,7 @@ class FilterTypingTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'pyCode %s' % pyCodeFile},]
+                         {'command': 'pyCode %s' % pyCodeFile}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -387,7 +388,7 @@ else:
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'pyCode %s' % pyCodeFile},]
+                         {'command': 'pyCode %s' % pyCodeFile}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -410,7 +411,7 @@ else:
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'tag %s' % tag},]
+                         {'command': 'tag %s' % tag}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Make asserts
@@ -421,8 +422,8 @@ else:
                         'Total Filters: 1']
         self._test('jcli : ', [{'command': 'filter -l', 'expect': expectedList}])
 
-class FilterPersistenceTestCases(FiltersTestCases):
 
+class FilterPersistenceTestCases(FiltersTestCases):
     def tearDown(self):
         FiltersTestCases.tearDown(self)
 
@@ -468,7 +469,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'uid %s' % uid},]
+                         {'command': 'uid %s' % uid}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -493,7 +494,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'gid %s' % gid},]
+                         {'command': 'gid %s' % gid}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -518,7 +519,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'cid %s' % cid},]
+                         {'command': 'cid %s' % cid}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -543,7 +544,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'source_addr %s' % source_addr},]
+                         {'command': 'source_addr %s' % source_addr}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -568,7 +569,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'destination_addr %s' % destination_addr},]
+                         {'command': 'destination_addr %s' % destination_addr}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -593,7 +594,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'short_message %s' % short_message},]
+                         {'command': 'short_message %s' % short_message}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -620,7 +621,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'dateInterval %s' % dateInterval},]
+                         {'command': 'dateInterval %s' % dateInterval}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -647,7 +648,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'timeInterval %s' % timeInterval},]
+                         {'command': 'timeInterval %s' % timeInterval}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -675,7 +676,7 @@ class FilterPersistenceTestCases(FiltersTestCases):
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'pyCode %s' % pyCodeFile},]
+                         {'command': 'pyCode %s' % pyCodeFile}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -715,7 +716,7 @@ else:
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'pyCode %s' % pyCodeFile},]
+                         {'command': 'pyCode %s' % pyCodeFile}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
@@ -743,7 +744,7 @@ else:
         # Add filter
         extraCommands = [{'command': 'fid filter_id'},
                          {'command': 'type %s' % ftype},
-                         {'command': 'tag %s' % tag},]
+                         {'command': 'tag %s' % tag}, ]
         self.add_filter(r'jcli : ', extraCommands)
 
         # Persist & load
