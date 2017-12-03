@@ -129,7 +129,10 @@ class AmqpFactory(ClientFactory):
         return self.connectDeferred
 
     def buildProtocol(self, addr):
-        p = self.protocol(self.delegate, self.config.vhost, self.config.getSpec())
+        # If heartbeat is 0, it is disabled, otherwise heartbeat is the number
+        # of seconds between each AMQP heartbeat. Defaults to 0
+        p = self.protocol(self.delegate, self.config.vhost, self.config.getSpec(),
+                          heartbeat=self.config.heartbeat)
         p.factory = self  # Tell the protocol about this factory.
 
         self.client = p  # Store the protocol.
