@@ -128,7 +128,8 @@ class Send(Resource):
                 source_addr=None if 'from' not in updated_request.args else updated_request.args['from'][0],
                 destination_addr=updated_request.args['to'][0],
                 short_message=short_message,
-                data_coding=int(updated_request.args['coding'][0]))
+                data_coding=int(updated_request.args['coding'][0]),
+                custom_tlvs=updated_request.args['custom_tlvs'][0])
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
             # Make Credential validation
@@ -428,11 +429,26 @@ class Send(Resource):
                       'dlr-url': {'optional': True, 'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'dlr-level': {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
-                      'dlr-method': {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
-                      'tags': {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
-                      'content': {'optional': True},
-                      'hex-content': {'optional': True}}
+                      'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
+                      'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
+                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
+                      'content'     : {'optional': True},
+                      'hex-content' : {'optional': True},
+                      'custom_tlvs' : {'optional': True}}
+
+            if updated_request.getHeader('content-type') == 'application/json':
+                json_body = updated_request.content.read()
+                json_data = json.loads(json_body)
+                for key, value in json_data.items():
+                    # Make the values look like they came from form encoding all surrounded by [ ]
+                    if isinstance(value, unicode):
+                        value = value.encode()
+
+                    updated_request.args[key.encode()] = [value]
+
+            # If no custom TLVs present, defaujlt to an [] which will be passed down to SubmitSM
+            if 'custom_tlvs' not in updated_request.args:
+                updated_request.args['custom_tlvs'] = [[]]
 
             # Default coding is 0 when not provided
             if 'coding' not in updated_request.args:
