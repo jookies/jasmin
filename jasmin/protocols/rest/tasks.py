@@ -21,7 +21,7 @@ app.config_from_object('jasmin.protocols.rest.config')
 
 class JasminTask(Task):
     def __init__(self):
-        super(JasminTask, self).__init__()
+        Task.__init__(self)
 
         # Shared namespace
         self.worker_tracker = {'last_req_at': datetime.now(), 'last_req_time': 0, 'throughput': 0}
@@ -83,7 +83,7 @@ def httpapi_send(self, batch_id, batch_config, message_params, config):
             elif r.elapsed.total_seconds() < self.worker_tracker['last_req_time']:
                 # We have a slower request, we need to boost the throughput
                 if (current_throughput > 0 and config['throughput'] > 0 and (
-                        current_throughput + (current_throughput * 10 / 100.0)) <= config['throughput']):
+                            current_throughput + (current_throughput * 10 / 100.0)) <= config['throughput']):
                     logger.debug('Smart QoS: Boosting throughput %s/s to +10%%', current_throughput)
                     current_throughput = current_throughput + (current_throughput * 10 / 100.0)
                 elif current_throughput > 0 and config['throughput'] == 0:

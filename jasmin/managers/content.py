@@ -8,21 +8,26 @@ import uuid
 
 from txamqp.content import Content
 
+from pkg_resources import iter_entry_points
+
 
 class InvalidParameterError(Exception):
     """Raised when a parameter is invalid
     """
 
 
-def randomUniqueId():
-    "Returns a UUID4 unique message id"
-    msgid = str(uuid.uuid4())
-
-    return msgid
+# msgid generator is a pluggable method, make the lookup to find an existant
+# plugin or use the default one (randomUniqueId)
+randomUniqueId = lambda pdu_type, uid, source_cid, destination_cid: str(uuid.uuid4())
+for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
+    print("Hooking randomUniqueId() from %s" % entry_point.dist)
+    randomUniqueId = entry_point.load()
+    # Takes the first one from the iteration
+    break
 
 
 class PDU(Content):
-    "A generic SMPP PDU Content"
+    """A generic SMPP PDU Content"""
 
     pickleProtocol = pickle.HIGHEST_PROTOCOL
 
@@ -77,9 +82,8 @@ class DLRContentForHttpapi(Content):
 
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
-        if message_status[:5] != 'ESME_' and message_status not in [
-            'DELIVRD', 'EXPIRED', 'DELETED',
-            'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
+                                                                    'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s" % message_status)
         if dlr_level not in [1, 2, 3]:
             raise InvalidParameterError("Invalid dlr_level: %s" % dlr_level)
@@ -110,9 +114,8 @@ class DLRContentForSmpps(Content):
                  source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
-        if message_status[:5] != 'ESME_' and message_status not in [
-            'DELIVRD', 'EXPIRED', 'DELETED',
-            'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
+        if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
+                                                                    'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD']:
             raise InvalidParameterError("Invalid message_status: %s" % message_status)
 
         properties = {'message-id': msgid, 'headers': {'try-count': 0,
@@ -130,10 +133,10 @@ class DLRContentForSmpps(Content):
 
 
 class SubmitSmContent(PDU):
-    "A SMPP SubmitSm Content"
+    """A SMPP SubmitSm Content"""
 
-    def __init__(self, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
-                 source_connector='httpapi'):
+    def __init__(self, uid, body, replyto, submit_sm_bill, priority=1, expiration=None, msgid=None,
+                 source_connector='httpapi', destination_cid=None):
         props = {}
 
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
@@ -145,7 +148,7 @@ class SubmitSmContent(PDU):
         if source_connector not in ['httpapi', 'smppsapi']:
             raise InvalidParameterError('Invalid source_connector value: %s.' % source_connector)
         if msgid is None:
-            msgid = randomUniqueId()
+            msgid = randomUniqueId('submit_sm', uid, source_connector, destination_cid)
 
         props['priority'] = priority
         props['message-id'] = msgid
@@ -160,7 +163,7 @@ class SubmitSmContent(PDU):
 
 
 class SubmitSmRespContent(PDU):
-    "A SMPP SubmitSmResp Content"
+    """A SMPP SubmitSmResp Content"""
 
     def __init__(self, body, msgid, pickleProtocol=2, prePickle=True):
         props = {'message-id': msgid}
@@ -169,13 +172,13 @@ class SubmitSmRespContent(PDU):
 
 
 class DeliverSmContent(PDU):
-    "A SMPP DeliverSm Content"
+    """A SMPP DeliverSm Content"""
 
     def __init__(self, body, sourceCid, pickleProtocol=2, prePickle=True,
                  concatenated=False, will_be_concatenated=False):
         props = {}
 
-        props['message-id'] = randomUniqueId()
+        props['message-id'] = randomUniqueId('deliver_sm', None, sourceCid, None)
 
         # For routing purpose, connector-id indicates the source connector of the PDU
         props['headers'] = {'try-count': 0,
@@ -187,7 +190,7 @@ class DeliverSmContent(PDU):
 
 
 class SubmitSmRespBillContent(Content):
-    "A Bill Content holding amount to be charged to user (uid)"
+    """A Bill Content holding amount to be charged to user (uid)"""
 
     def __init__(self, bid, uid, amount):
         if not isinstance(amount, float) and not isinstance(amount, int):

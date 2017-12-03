@@ -6,7 +6,6 @@ from test_mxrouterm import MxRouterTestCases
 
 
 class BasicTestCases(MxRouterTestCases):
-
     @defer.inlineCallbacks
     def test_add_with_minimum_args(self):
         extraCommands = [{'command': 'order 0'},
@@ -48,9 +47,10 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector smppc(smpp1)'}]
         yield self.add_mtroute('jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -106,7 +106,8 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector smppc(smpp1)'}]
         yield self.add_mtroute('jcli : ', extraCommands)
 
-        commands = [{'command': 'mtrouter -r %s' % order, 'expect': r'Successfully removed MT Route with order\:%s' % order}]
+        commands = [
+            {'command': 'mtrouter -r %s' % order, 'expect': r'Successfully removed MT Route with order\:%s' % order}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
@@ -126,10 +127,11 @@ class BasicTestCases(MxRouterTestCases):
         yield self.add_mtroute('jcli : ', extraCommands)
 
         # List
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#20    StaticMTRoute           0 \(!\)      smppc\(smpp1\)                                     \<T\>',
-                        '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
-                        'Total MT Routes: 2']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#20    StaticMTRoute           0 \(!\)      smppc\(smpp1\)                                     \<T\>',
+            '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
+            'Total MT Routes: 2']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -151,22 +153,24 @@ class BasicTestCases(MxRouterTestCases):
                          {'command': 'connector smppc(smpp1)'}]
         yield self.add_mtroute('jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
         # Remove
-        commands = [{'command': 'mtrouter -r %s' % order, 'expect': r'Successfully removed MT Route with order\:%s' % order}]
+        commands = [
+            {'command': 'mtrouter -r %s' % order, 'expect': r'Successfully removed MT Route with order\:%s' % order}]
         yield self._test(r'jcli : ', commands)
 
         # List again
         commands = [{'command': 'mtrouter -l', 'expect': r'Total MT Routes: 0'}]
         yield self._test(r'jcli : ', commands)
 
-class MtRouteTypingTestCases(MxRouterTestCases):
 
+class MtRouteTypingTestCases(MxRouterTestCases):
     @defer.inlineCallbacks
     def test_available_mtroutes(self):
         # Go to MTRoute adding invite
@@ -209,9 +213,10 @@ class MtRouteTypingTestCases(MxRouterTestCases):
         # Make asserts
         expectedList = ['%s' % _str_]
         yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s %s ' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), re.escape(typed_cid).ljust(48)),
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#%s %s %s %s ' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), re.escape(typed_cid).ljust(48)),
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -236,9 +241,11 @@ class MtRouteTypingTestCases(MxRouterTestCases):
         # Make asserts
         expectedList = ['%s' % _str_]
         yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s %s   <T>' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), re.escape(typed_cid).ljust(48)),
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#%s %s %s %s   <T>' % (
+            rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), re.escape(typed_cid).ljust(48)),
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -252,7 +259,8 @@ class MtRouteTypingTestCases(MxRouterTestCases):
         typed_cid2 = 'smppc(%s)' % cid2
         rate = '0'
         fid = 'f1'
-        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2), 'NOT RATED']
+        _str_ = ['%s to 2 connectors:' % rtype, '\t- %s' % re.escape(typed_cid1), '\t- %s' % re.escape(typed_cid2),
+                 'NOT RATED']
 
         # Add MTRoute
         extraCommands = [{'command': 'order %s' % rorder},
@@ -265,9 +273,11 @@ class MtRouteTypingTestCases(MxRouterTestCases):
         # Make asserts
         expectedList = _str_
         yield self._test('jcli : ', [{'command': 'mtrouter -s %s' % rorder, 'expect': expectedList}])
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#%s %s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13), (re.escape(typed_cid1)+', '+re.escape(typed_cid2)).ljust(48)),
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#%s %s %s %s     <T>' % (rorder.ljust(5), rtype.ljust(23), '0 \(\!\)'.ljust(13),
+                                      (re.escape(typed_cid1) + ', ' + re.escape(typed_cid2)).ljust(48)),
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -305,7 +315,6 @@ class MtRouteTypingTestCases(MxRouterTestCases):
 
 
 class MtRouteArgsTestCases(MxRouterTestCases):
-
     @defer.inlineCallbacks
     def test_add_defaultroute_with_nonzero_order(self):
         """The route order will be forced to 0 when route type is set to
@@ -317,9 +326,10 @@ class MtRouteArgsTestCases(MxRouterTestCases):
                          {'command': 'connector smppc(smpp1)'}]
         yield self.add_mtroute(r'jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -333,9 +343,10 @@ class MtRouteArgsTestCases(MxRouterTestCases):
                          {'command': 'connector smppc(smpp1)'}]
         yield self.add_mtroute(r'jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#0     DefaultRoute            0 \(!\)      smppc\(smpp1\)',
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -367,7 +378,8 @@ class MtRouteArgsTestCases(MxRouterTestCases):
                     {'command': 'type StaticMTRoute'},
                     {'command': 'connector smppc(smpp1)'},
                     {'command': 'filters cf1', 'expect': 'ConnectorFilter#cf1 is not a valid filter for MTRoute'},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, filters, connector'}]
+                    {'command': 'ok',
+                     'expect': 'You must set these options before saving: type, order, filters, connector'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -379,8 +391,9 @@ class MtRouteArgsTestCases(MxRouterTestCases):
                          {'command': 'filters uf1'}]
         yield self.add_mtroute(r'jcli : ', extraCommands)
 
-        expectedList = ['#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
-                        '#20    StaticMTRoute           0 \(!\)      smppc\(smpp1\)                                     <U \(uid=Any\)>',
-                        'Total MT Routes: 1']
+        expectedList = [
+            '#Order Type                    Rate       Connector ID\(s\)                                  Filter\(s\)',
+            '#20    StaticMTRoute           0 \(!\)      smppc\(smpp1\)                                     <U \(uid=Any\)>',
+            'Total MT Routes: 1']
         commands = [{'command': 'mtrouter -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)

@@ -4,8 +4,8 @@ from test_jcli import jCliWithoutAuthTestCases
 from .test_userm import UserTestCases
 from .test_smppccm import SmppccmTestCases
 
-class BasicTestCases(jCliWithoutAuthTestCases):
 
+class BasicTestCases(jCliWithoutAuthTestCases):
     def test_user(self):
         uid = 'foo'
 
@@ -25,8 +25,9 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         return self._test(r'jcli : ', commands)
 
     def test_smppcs(self):
-        expectedList = ['#Connector id\s+Connected at\s+Bound at\s+Disconnected at\s+Submits\s+Delivers\s+QoS errs\s+Other errs',
-                        'Total connectors: 0']
+        expectedList = [
+            '#Connector id\s+Connected at\s+Bound at\s+Disconnected at\s+Submits\s+Delivers\s+QoS errs\s+Other errs',
+            'Total connectors: 0']
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
@@ -76,10 +77,11 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'stats --smppsapi', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
 
+
 class UserStatsTestCases(UserTestCases):
     def test_users(self):
         extraCommands = [{'command': 'uid test_users'}]
-        self.add_user('jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self.add_user('jcli : ', extraCommands, GID='AnyGroup', Username='AnyUsername')
 
         expectedList = ['#User id\s+SMPP Bound connections\s+SMPP L.A.\s+HTTP requests counter\s+HTTP L.A.',
                         '#test_users\s+0\s+ND\s+0\s+ND',
@@ -89,31 +91,32 @@ class UserStatsTestCases(UserTestCases):
 
     def test_user(self):
         extraCommands = [{'command': 'uid test_user'}]
-        self.add_user('jcli : ', extraCommands, GID = 'AnyGroup', Username = 'AnyUsername')
+        self.add_user('jcli : ', extraCommands, GID='AnyGroup', Username='AnyUsername')
 
         expectedList = [
-                        '#Item                      Type         Value',
-                        '#bind_count                SMPP Server  0',
-                        '#submit_sm_count           SMPP Server  0',
-                        '#submit_sm_request_count   SMPP Server  0',
-                        '#unbind_count              SMPP Server  0',
-                        '#data_sm_count             SMPP Server  0',
-                        '#last_activity_at          SMPP Server  ND',
-                        '#other_submit_error_count  SMPP Server  0',
-                        '#throttling_error_count    SMPP Server  0',
-                        '#bound_connections_count   SMPP Server  {"bind_transmitter": 0, "bind_receiver": 0, "bind_transceiver": 0}',
-                        '#elink_count               SMPP Server  0',
-                        '#qos_last_submit_sm_at     SMPP Server  ND',
-                        '#deliver_sm_count          SMPP Server  0',
-                        '#connects_count            HTTP Api     0',
-                        '#last_activity_at          HTTP Api     ND',
-                        '#rate_request_count        HTTP Api     0',
-                        '#submit_sm_request_count   HTTP Api     0',
-                        '#qos_last_submit_sm_at     HTTP Api     ND',
-                        '#balance_request_count     HTTP Api     0',
-                        ]
+            '#Item                      Type         Value',
+            '#bind_count                SMPP Server  0',
+            '#submit_sm_count           SMPP Server  0',
+            '#submit_sm_request_count   SMPP Server  0',
+            '#unbind_count              SMPP Server  0',
+            '#data_sm_count             SMPP Server  0',
+            '#last_activity_at          SMPP Server  ND',
+            '#other_submit_error_count  SMPP Server  0',
+            '#throttling_error_count    SMPP Server  0',
+            '#bound_connections_count   SMPP Server  {"bind_transmitter": 0, "bind_receiver": 0, "bind_transceiver": 0}',
+            '#elink_count               SMPP Server  0',
+            '#qos_last_submit_sm_at     SMPP Server  ND',
+            '#deliver_sm_count          SMPP Server  0',
+            '#connects_count            HTTP Api     0',
+            '#last_activity_at          HTTP Api     ND',
+            '#rate_request_count        HTTP Api     0',
+            '#submit_sm_request_count   HTTP Api     0',
+            '#qos_last_submit_sm_at     HTTP Api     ND',
+            '#balance_request_count     HTTP Api     0',
+        ]
         commands = [{'command': 'stats --user=test_user', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
+
 
 class SmppcStatsTestCases(SmppccmTestCases):
     @defer.inlineCallbacks
@@ -121,9 +124,10 @@ class SmppcStatsTestCases(SmppccmTestCases):
         extraCommands = [{'command': 'cid test_smppcs'}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        expectedList = ['#Connector id\s+Connected at\s+Bound at\s+Disconnected at\s+Submits\s+Delivers\s+QoS errs\s+Other errs',
-                        '#test_smppcs\s+ND\s+ND\s+ND\s+0/0\s+0/0\s+0\s+0',
-                        'Total connectors: 1']
+        expectedList = [
+            '#Connector id\s+Connected at\s+Bound at\s+Disconnected at\s+Submits\s+Delivers\s+QoS errs\s+Other errs',
+            '#test_smppcs\s+ND\s+ND\s+ND\s+0/0\s+0/0\s+0\s+0',
+            'Total connectors: 1']
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -132,9 +136,10 @@ class SmppcStatsTestCases(SmppccmTestCases):
         extraCommands = [{'command': 'cid test_smppc'}]
         yield self.add_connector(r'jcli : ', extraCommands)
 
-        expectedList = ['#Connector id\s+Connected at\s+Bound at\s+Disconnected at\s+Submits\s+Delivers\s+QoS errs\s+Other errs',
-                        '#test_smppc\s+ND\s+ND\s+ND\s+0/0\s+0/0\s+0\s+0',
-                        'Total connectors: 1']
+        expectedList = [
+            '#Connector id\s+Connected at\s+Bound at\s+Disconnected at\s+Submits\s+Delivers\s+QoS errs\s+Other errs',
+            '#test_smppc\s+ND\s+ND\s+ND\s+0/0\s+0/0\s+0\s+0',
+            'Total connectors: 1']
         commands = [{'command': 'stats --smppcs', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 

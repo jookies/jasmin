@@ -55,7 +55,7 @@ class ConfigurationMigrator(object):
     """Responsible of migrating old saved configuration to recent definition, if any"""
 
     def __init__(self, context, header, data):
-        "Will contain inputs and parse header to get version and date of persisted data"
+        """Will contain inputs and parse header to get version and date of persisted data"""
         self.log = logging.getLogger(LOGGING_HANDLER)
         self.context = context
         self.data = pickle.loads(data)

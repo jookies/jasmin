@@ -1,5 +1,4 @@
-#pylint: disable=W0401,W0611
-import re
+# pylint: disable=W0401,W0611
 import inspect
 import cPickle as pickle
 import time
@@ -37,9 +36,11 @@ MTFILTERS = ['TransparentFilter', 'UserFilter', 'GroupFilter', 'SourceAddrFilter
              'ShortMessageFilter', 'DateIntervalFilter', 'TimeIntervalFilter', 'EvalPyFilter',
              'TagFilter']
 
+
 def FilterBuild(fCallback):
-    '''Parse args and try to build a filter from  one of the filters in
-       jasmin.routing.Filters instance to pass it to fCallback'''
+    """Parse args and try to build a filter from  one of the filters in
+       jasmin.routing.Filters instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -81,7 +82,7 @@ def FilterBuild(fCallback):
 
                 # Hand the instance to fCallback
                 return fCallback(self, self.sessBuffer['fid'], FilterInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -140,7 +141,7 @@ def FilterBuild(fCallback):
 
                 if len(FilterClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = FilterKeyMap.keys()+FilterClassArgs
+                    self.protocol.sessionCompletitions = FilterKeyMap.keys() + FilterClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (self.sessBuffer['filter_class'], ', '.join(FilterClassArgs)))
@@ -168,7 +169,7 @@ def FilterBuild(fCallback):
                         try:
                             # Validate format with regex
                             if ((cmd == 'dateInterval' and re_date.match(l) is None)
-                                    or (cmd == 'timeInterval' and re_time.match(l) is None)):
+                                or (cmd == 'timeInterval' and re_time.match(l) is None)):
                                 raise ValueError('Format error: %s' % l)
 
                             # Validate type
@@ -196,11 +197,11 @@ def FilterBuild(fCallback):
 
                         # Test compilation of the script
                         compile(pyCode, '', 'exec')
-                    except IOError, e:
+                    except IOError as e:
                         return self.protocol.sendData('[IO]: %s' % str(e))
-                    except SyntaxError, e:
+                    except SyntaxError as e:
                         return self.protocol.sendData('[Syntax]: %s' % str(e))
-                    except Exception, e:
+                    except Exception as e:
                         return self.protocol.sendData('[Unknown]: %s' % str(e))
 
                     arg = pyCode
@@ -221,14 +222,19 @@ def FilterBuild(fCallback):
                 self.sessBuffer[FilterKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
+
 class FilterExist(object):
-    'Check if filter fid exist before passing it to fCallback'
+    """Check if filter fid exist before passing it to fCallback"""
+
     def __init__(self, fid_key):
         self.fid_key = fid_key
+
     def __call__(self, fCallback):
         fid_key = self.fid_key
+
         def exist_filter_and_call(self, *args, **kwargs):
             opts = args[1]
             fid = getattr(opts, fid_key)
@@ -238,12 +244,14 @@ class FilterExist(object):
                     return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown Filter: %s' % fid)
+
         return exist_filter_and_call
 
+
 class FiltersManager(PersistableManager):
-    '''FiltersManager does not have a PB like other managers (router, users, groups ...), it is
+    """FiltersManager does not have a PB like other managers (router, users, groups ...), it is
     used to simplify route adding syntax by creating reusable filters, these filters are saved in
-    self.filters'''
+    self.filters"""
     managerName = 'filter'
 
     def __init__(self, protocol):
@@ -257,7 +265,7 @@ class FiltersManager(PersistableManager):
             self._load()
 
             protocol.log.info('%s configuration loaded (default profile)' % (self.managerName))
-        except Exception, e:
+        except Exception as e:
             protocol.log.error('Config loading error: %s' % str(e))
 
     def persist(self, arg, opts):
@@ -271,7 +279,7 @@ class FiltersManager(PersistableManager):
             fh.close()
         except IOError:
             return self.protocol.sendData('Cannot persist to %s' % path)
-        except Exception, e:
+        except Exception as e:
             return self.protocol.sendData('Unknown error occurred while persisting configuration: %s' % e)
 
         self.protocol.sendData(
@@ -302,9 +310,9 @@ class FiltersManager(PersistableManager):
 
             # Apply configuration
             self.filters = cf.getMigratedData()
-        except IOError, e:
+        except IOError as e:
             raise Exception('Cannot load from %s: %s' % (path, str(e)))
-        except Exception, e:
+        except Exception as e:
             raise Exception('Unknown error while loading configuration: %s' % e)
 
     def list(self, arg, opts):
@@ -316,7 +324,7 @@ class FiltersManager(PersistableManager):
                 'Type'.ljust(22),
                 'Routes'.ljust(6),
                 'Description'.ljust(32),
-                ), prompt=False)
+            ), prompt=False)
 
             for fid, _filter in self.filters.iteritems():
                 counter += 1
@@ -330,7 +338,7 @@ class FiltersManager(PersistableManager):
                     str(_filter.__class__.__name__).ljust(22),
                     routes.ljust(6),
                     repr(_filter).ljust(32),
-                    ), prompt=False)
+                ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Filters: %s' % counter)
@@ -343,6 +351,7 @@ class FiltersManager(PersistableManager):
             'Successfully added Filter [%s] with fid:%s' % (FilterInstance.__class__.__name__, fid),
             prompt=False)
         self.stopSession()
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Filter: (ok: save, ko: exit)',

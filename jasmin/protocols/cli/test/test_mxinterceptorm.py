@@ -1,6 +1,6 @@
-import re
 from twisted.internet import defer
 from test_jcli import jCliWithoutAuthTestCases
+
 
 class MxInterceptorTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
@@ -48,10 +48,11 @@ class MxInterceptorTestCases(jCliWithoutAuthTestCases):
             fh.write('print "hello  world"')
 
     @defer.inlineCallbacks
-    def add_mointerceptor(self, finalPrompt, extraCommands = []):
+    def add_mointerceptor(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
-        commands.append({'command': 'mointerceptor -a', 'expect': r'Adding a new MO Interceptor\: \(ok\: save, ko\: exit\)'})
+        commands.append(
+            {'command': 'mointerceptor -a', 'expect': r'Adding a new MO Interceptor\: \(ok\: save, ko\: exit\)'})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
 
@@ -64,10 +65,11 @@ class MxInterceptorTestCases(jCliWithoutAuthTestCases):
         yield self._test(finalPrompt, commands)
 
     @defer.inlineCallbacks
-    def add_mtinterceptor(self, finalPrompt, extraCommands = []):
+    def add_mtinterceptor(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
-        commands.append({'command': 'mtinterceptor -a', 'expect': r'Adding a new MT Interceptor\: \(ok\: save, ko\: exit\)'})
+        commands.append(
+            {'command': 'mtinterceptor -a', 'expect': r'Adding a new MT Interceptor\: \(ok\: save, ko\: exit\)'})
         for extraCommand in extraCommands:
             commands.append(extraCommand)
 

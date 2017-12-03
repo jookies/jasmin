@@ -1,4 +1,4 @@
-#pylint: disable=W0401,W0611
+# pylint: disable=W0401,W0611
 
 from twisted.trial.unittest import TestCase
 from jasmin.routing.RoutingTables import *
@@ -7,8 +7,8 @@ from jasmin.routing.Filters import *
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
 
-class RoutingTableTests(object):
 
+class RoutingTableTests(object):
     def test_standard(self):
         routing_t = self._routingTable()
         routing_t.add(self.route2, 2)
@@ -77,6 +77,7 @@ class RoutingTableTests(object):
         allRoutes = routing_t.getAll()
         self.assertEqual(len(allRoutes), 1)
 
+
 class MTRoutingTableTestCase(RoutingTableTests, TestCase):
     _routingTable = MTRoutingTable
 
@@ -111,6 +112,7 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.routable_matching_route1 = RoutableSubmitSm(self.PDU_dst_1, self.user1)
         self.routable_matching_route2 = RoutableSubmitSm(self.PDU_dst_2, self.user2)
         self.routable_notmatching_any = RoutableSubmitSm(self.PDU_dst_1, self.user2)
+
 
 class MORoutingTableTestCase(RoutingTableTests, TestCase):
     _routingTable = MORoutingTable

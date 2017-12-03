@@ -496,7 +496,7 @@ When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the bel
      - Numeric
      - 8
      - Optional
-     - Default is 0, accepts values all allowed values in SMPP protocol [2]
+     - Default is 0, accepts values all allowed values in SMPP protocol [2]_
    * - **validity**
      - YYYY-MM-DD hh:mm:ss
      - 2013-07-16 00-46:54
