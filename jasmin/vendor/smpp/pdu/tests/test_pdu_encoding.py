@@ -468,6 +468,28 @@ class PDUEncoderTest(EncoderTest):
         )
         self.do_conversion_test(PDUEncoder(), pdu, '00000066000000050000000000000001424d38000101343631323334353637383900010131343034363635333431300000000000000000f2001b48656c6c6f2049276d206120626967672066616e206f6620796f7502020004a037343202030005a034313331')
 
+    def test_DeliverSM_0348(self):
+        pdu = SubmitSM(455569,
+            service_type='',
+            source_addr_ton=AddrTon.ALPHANUMERIC,
+            source_addr_npi=AddrNpi.UNKNOWN,
+            source_addr='0348',
+            dest_addr_ton=AddrTon.INTERNATIONAL,
+            dest_addr_npi=AddrNpi.ISDN,
+            destination_addr='3969809342',
+            esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT, [EsmClassGsmFeatures.UDHI_INDICATOR_SET]),
+            protocol_id=0x7F,
+            priority_flag=PriorityFlag.LEVEL_0,
+            registered_delivery=RegisteredDelivery(RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED),
+            replace_if_present_flag=ReplaceIfPresentFlag.DO_NOT_REPLACE,
+            data_coding=DataCoding(DataCodingScheme.GSM_MESSAGE_CLASS, DataCodingGsmMsg(DataCodingGsmMsgCoding.DATA_8BIT, DataCodingGsmMsgClass.CLASS_2)),
+            sm_default_msg_id=0,
+            short_message=binascii.a2b_hex('027000002815162115150000001BB5B34A2FAB312CFA8ECDD7779158747AC742C463CDD53B41963E49979D95AC'),
+        )
+
+        self.do_conversion_test(PDUEncoder(), pdu, '0000005c00000004000000000006f391000500303334380001013339363938303933343200407f0000000100f6002d027000002815162115150000001bb5b34a2fab312cfa8ecdd7779158747ac742c463cdd53b41963e49979d95ac')
+
+
     def test_EnquireLink_conversion(self):
         pdu = EnquireLink(6, CommandStatus.ESME_ROK)
         self.do_conversion_test(PDUEncoder(), pdu, '00000010000000150000000000000006')
