@@ -48,3 +48,7 @@ venv
 # Twisted
 trial
 _trial_temp.lock
+twistd.log
+
+# Celery
+celerybeat-schedule.db
