@@ -190,6 +190,32 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
                          'NATIONAL')
 
     @defer.inlineCallbacks
+    def test_validity_in_long_message(self):
+        """Related to #623, will check if all parts of long message will get the same validity"""
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+
+        self.params['validity-period'] = 1440  # 1 Day = 24 x 60 minutes = 1440 minutes
+        self.params['content'] = composeMessage({'_'}, 200)  # 2 parts
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+
+        # Send a MT
+        # We should receive a msg id
+        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        msgStatus = c[:7]
+
+        yield self.stopSmppClientConnectors()
+
+        # Run tests
+        self.assertEqual(msgStatus, 'Success')
+        self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
+        for submit_sm in self.SMSCPort.factory.lastClient.submitRecords:
+            timediff = submit_sm.params['validity_period'] - datetime.now()
+            self.assertGreaterEqual(timediff.seconds / 60,
+                                    (self.params['validity-period'] - 1))  # Tolerate one minute of test latency
+            self.assertLess(timediff.seconds / 60, (self.params['validity-period'] + 1))
+
+    @defer.inlineCallbacks
     def test_gsm338_chars_in_smsc_default_data_coding(self):
         """Related to #566"""
         yield self.connect('127.0.0.1', self.pbPort)
