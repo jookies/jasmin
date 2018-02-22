@@ -419,8 +419,8 @@ class UsersManager(PersistableManager):
                     smpps_throughput = 'ND'
                 throughput = '%s/%s' % (http_throughput, smpps_throughput)
                 self.protocol.sendData("#%s %s %s %s %s %s" % (
-                    str(user_prefix + user.uid).ljust(16),
-                    str(group_prefix + user.group.gid).ljust(16),
+                    ('%s%s' % (user_prefix, user.uid)).ljust(16),
+                    ('%s%s' % (group_prefix, user.group.gid)).ljust(16),
                     str(user.username).ljust(16),
                     str(balance).ljust(7),
                     str(sms_count).ljust(6),

@@ -495,8 +495,8 @@ class DLRThrower(Thrower):
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
-        url = message.content.properties['headers']['url']
-        method = message.content.properties['headers']['method']
+        url = message.content.properties['headers']['url'].encode('ascii')
+        method = message.content.properties['headers']['method'].encode('ascii')
         level = message.content.properties['headers']['level']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
@@ -568,9 +568,9 @@ class DLRThrower(Thrower):
 
     @defer.inlineCallbacks
     def smpp_dlr_callback(self, message):
-        msgid = message.content.properties['message-id']
+        msgid = message.content.properties['message-id'].encode('ascii')
         system_id = message.content.properties['headers']['system_id']
-        message_status = message.content.properties['headers']['message_status']
+        message_status = message.content.properties['headers']['message_status'].encode('ascii')
         source_addr = '%s' % message.content.properties['headers']['source_addr']
         destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']

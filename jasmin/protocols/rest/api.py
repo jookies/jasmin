@@ -8,7 +8,7 @@ import requests
 import jasmin
 from .config import *
 from .tasks import httpapi_send
-from datetime import datetime, timedelta
+from datetime import datetime
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 import falcon
@@ -185,6 +185,15 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
 
         Note: Calls Jasmin http api /send resource
         """
+
+        # Authentify user before proceeding
+        status, _ = self.call_jasmin('balance', params={
+            'username': request.context['username'],
+            'password': request.context['password']
+        })
+        if status != 200:
+            raise falcon.HTTPPreconditionFailed('Authentication failed',
+                                                "Authentication failed for user: %s" % request.context['username'])
 
         batch_id = uuid.uuid4()
         params = self.decode_request_data(request)
