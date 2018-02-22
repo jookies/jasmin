@@ -3,6 +3,7 @@ Test cases for AmqpFactory
 These are test cases for only Jasmin's code, smpp.twisted tests are not included here
 """
 
+import cPickle as pickle
 import logging
 import time
 import uuid
@@ -280,6 +281,36 @@ class PublishConsumeTestCase(ConsumeTools):
         yield self.amqp.disconnect()
 
         self.assertEqual(self.consumedMessages, 5000)
+
+    @defer.inlineCallbacks
+    def test_publish_pickled_binary_content(self):
+        """Refs #640
+        As of 12/5/2017 txamqp 0.8 were released and it caused an outage to Jasmin.
+        """
+        yield self.connect()
+
+        yield self.amqp.chan.exchange_declare(exchange='messaging', type='topic')
+
+        # Consume
+        yield self.amqp.named_queue_declare(queue="submit.sm_all")
+        yield self.amqp.chan.queue_bind(queue="submit.sm_all", exchange="messaging", routing_key="submit.sm.*")
+        yield self.amqp.chan.basic_consume(queue="submit.sm_all", no_ack=True, consumer_tag='qtag')
+        queue = yield self.amqp.client.queue('qtag')
+        queue.get().addCallback(self._callback, queue).addErrback(self._errback)
+
+        # Publish a pickled binary content with v2 protocol
+        yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01",
+                                content=Content(pickle.dumps('\x53', 2)))
+
+        # Wait for 2 seconds
+        # (give some time to the consumer to get its work done)
+        yield waitFor(2)
+
+        yield queue.close()
+
+        yield self.amqp.disconnect()
+
+        self.assertEqual(self.consumedMessages, 1)
 
 
 class RejectAndRequeueTestCase(ConsumeTools):

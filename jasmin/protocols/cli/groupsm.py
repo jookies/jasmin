@@ -100,7 +100,7 @@ class GroupsManager(PersistableManager):
                 group_prefix = ''
                 if not group.enabled:
                     group_prefix = '!'
-                self.protocol.sendData("#%s" % (str(group_prefix + group.gid).ljust(16)), prompt=False)
+                self.protocol.sendData("#%s" % (str(group_prefix + str(group.gid)).ljust(16)), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Groups: %s' % counter)

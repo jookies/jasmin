@@ -20,7 +20,7 @@ if "install" in sys.argv:
         pwd.getpwnam('jasmin')
         grp.getgrnam('jasmin')
     except KeyError:
-        print 'WARNING: jasmin user or group not found !'
+        print('WARNING: jasmin user or group not found !')
 
     # 2. Check if system folders are created
     sysdirs = ['%s/etc/jasmin' % ROOT_PATH,
@@ -29,17 +29,17 @@ if "install" in sys.argv:
                '%s/var/log/jasmin' % ROOT_PATH, ]
     for sysdir in sysdirs:
         if not os.path.exists(sysdir):
-            print 'WARNING: %s does not exist !' % sysdir
+            print('WARNING: %s does not exist !' % sysdir)
 
     # 3. Check for permission to write jasmin.cfg in /etc/jasmin/store
     if not os.access('%s/etc/jasmin/store' % ROOT_PATH, os.W_OK):
-        print 'WARNING: %s/etc/jasmin/store must be writeable by the current user (%s)' % (
-            ROOT_PATH, getpass.getuser())
+        print('WARNING: %s/etc/jasmin/store must be writeable by the current user (%s)' % (
+            ROOT_PATH, getpass.getuser()))
 
     # 4. Check if sysdirs are owned by jasmin user
     for sysdir in sysdirs[3:]:
         if os.path.exists(sysdir) and pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
-            print 'WARNING: %s is not owned by jasmin user !' % sysdir
+            print ('WARNING: %s is not owned by jasmin user !' % sysdir)
 
 session = uuid.uuid1()
 install_reqs = parse_requirements('install-requirements', session=session)

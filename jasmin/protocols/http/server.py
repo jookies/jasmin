@@ -15,7 +15,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
+from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.smpp_time import parse
 from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
@@ -29,33 +29,42 @@ LOG_CATEGORY = "jasmin-http-api"
 reactor.suggestThreadPoolSize(30)
 
 
-def update_submit_sm_pdu(routable, config):
+def update_submit_sm_pdu(routable, config, config_update_params=None):
     """Will set pdu parameters from smppclient configuration.
-    Parameters that were locked through the routable.lockPduParam() method will not be updated."""
+    Parameters that were locked through the routable.lockPduParam() method will not be updated.
+    config parameter can be the connector config object or just a simple dict"""
 
-    update_params = [
-        'protocol_id',
-        'replace_if_present_flag',
-        'dest_addr_ton',
-        'source_addr_npi',
-        'dest_addr_npi',
-        'service_type',
-        'source_addr_ton',
-        'sm_default_msg_id',
-    ]
+    if config_update_params is None:
+        # Set default config params to get from the config object
+        config_update_params = [
+            'protocol_id',
+            'replace_if_present_flag',
+            'dest_addr_ton',
+            'source_addr_npi',
+            'dest_addr_npi',
+            'service_type',
+            'source_addr_ton',
+            'sm_default_msg_id',
+        ]
 
-    for param in update_params:
+    for param in config_update_params:
         _pdu = routable.pdu
 
         # Force setting param in main pdu
         if not routable.pduParamIsLocked(param):
-            _pdu.params[param] = getattr(config, param)
+            if isinstance(config, SMPPClientConfig) and hasattr(config, param):
+                _pdu.params[param] = getattr(config, param)
+            elif isinstance(config, dict) and param in config:
+                _pdu.params[param] = config[param]
 
         # Force setting param in sub-pdus (multipart use case)
         while hasattr(_pdu, 'nextPdu'):
             _pdu = _pdu.nextPdu
             if not routable.pduParamIsLocked(param):
-                _pdu.params[param] = getattr(config, param)
+                if isinstance(config, SMPPClientConfig) and hasattr(config, param):
+                    _pdu.params[param] = getattr(config, param)
+                elif isinstance(config, dict) and param in config:
+                    _pdu.params[param] = config[param]
 
     return routable
 
@@ -227,16 +236,19 @@ class Send(Resource):
                 connector_config = pickle.loads(connector_config)
                 routable = update_submit_sm_pdu(routable=routable, config=connector_config)
 
+            # Set a placeholder for any parameter update to be applied on the pdu(s)
+            param_updates = {}
+
             # Set priority
             priority = 0
             if 'priority' in updated_request.args:
                 priority = int(updated_request.args['priority'][0])
-                routable.pdu.params['priority_flag'] = priority_flag_value_map[priority]
+                param_updates['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s", priority)
 
             # Set schedule_delivery_time
             if 'sdt' in updated_request.args:
-                routable.pdu.params['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
+                param_updates['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
                 self.log.debug(
                     "SubmitSmPDU schedule_delivery_time is set to %s (%s)",
                     routable.pdu.params['schedule_delivery_time'],
@@ -245,11 +257,16 @@ class Send(Resource):
             # Set validity_period
             if 'validity-period' in updated_request.args:
                 delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
-                routable.pdu.params['validity_period'] = datetime.today() + delta
+                param_updates['validity_period'] = datetime.today() + delta
                 self.log.debug(
                     "SubmitSmPDU validity_period is set to %s (+%s minutes)",
                     routable.pdu.params['validity_period'],
                     updated_request.args['validity-period'][0])
+
+            # Got any updates to apply on pdu(s) ?
+            if len(param_updates) > 0:
+                routable = update_submit_sm_pdu(routable=routable, config=param_updates,
+                                                config_update_params=param_updates.keys())
 
             # Set DLR bit mask on the last pdu
             _last_pdu = routable.pdu
