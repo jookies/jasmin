@@ -1212,6 +1212,20 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         yield self.user_update_quota(1, 'smpps_credential', 'max_bindings', +5)
         self.assertEqual(self.pbRoot_f.users[0].smpps_credential.getQuota('max_bindings'), 13)
 
+        # Set quotas (the same as update, but value is replaced instead of incremented)
+        r = yield self.user_set_quota(1, 'mt_credential', 'balance', 300)
+        self.assertTrue(r)
+        yield self.user_set_quota(1, 'mt_credential', 'balance', 200)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('balance'), 200)
+        r = yield self.user_set_quota(1, 'mt_credential', 'submit_sm_count', 300)
+        self.assertTrue(r)
+        yield self.user_set_quota(1, 'mt_credential', 'submit_sm_count', 200)
+        self.assertEqual(self.pbRoot_f.users[0].mt_credential.getQuota('submit_sm_count'), 200)
+        r = yield self.user_set_quota(1, 'smpps_credential', 'max_bindings', 10)
+        self.assertTrue(r)
+        yield self.user_set_quota(1, 'smpps_credential', 'max_bindings', 10)
+        self.assertEqual(self.pbRoot_f.users[0].smpps_credential.getQuota('max_bindings'), 10)
+
     @defer.inlineCallbacks
     def test_increase_decrease_quota_invalid_cred(self):
         yield self.connect('127.0.0.1', self.pbPort)
