@@ -795,6 +795,37 @@ class RouterPB(pb.Avatar):
 
             return pickle.dumps(_users)
 
+    def perspective_user_set_quota(self, uid, cred, quota, value):
+        self.log.info('Setting a User (id:%s) quota: %s/%s %s', uid, cred, quota, value)
+
+        # Find user
+        for _user in self.users:
+            if uid == _user.uid:
+                try:
+                    if not hasattr(_user, cred):
+                        raise Exception("Invalid cred: %s", cred)
+                    else:
+                        _cred = getattr(_user, cred)
+
+                    if quota not in _cred.quotas:
+                        raise Exception("Unknown quota: %s", quota)
+
+                    # Update the quota
+                    _cred.setQuota(quota, value)
+
+                except Exception as e:
+                    self.log.error("Error updating user (id:%s): %s", uid, e)
+                    return False
+                else:
+                    # Successful update !
+                    # Set persistance state to False (pending for persistance)
+                    self.persistenceState['users'] = False
+                    return True
+
+        self.log.error("User with id:%s not found, not updating it.", uid)
+
+        return False
+
     def perspective_user_update_quota(self, uid, cred, quota, value):
         self.log.info('Updating a User (id:%s) quota: %s/%s %s', uid, cred, quota, value)
 
