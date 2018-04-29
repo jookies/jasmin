@@ -5,8 +5,15 @@ import pwd
 import sys
 import uuid
 
-from pip.req import parse_requirements
 from setuptools import setup, find_packages
+
+# Quickfix from https://github.com/jookies/jasmin/issues/670
+try:
+    # for pip >= 10
+    from pip._internal.req import parse_requirements
+except ImportError:
+    # for pip <= 9.0.3
+    from pip.req import parse_requirements
 
 # After passing on travis docker-based ci, sudo is no more
 # used, ROOT_PATH is a env variable set in .travis.yml to avoid
