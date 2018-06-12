@@ -77,7 +77,7 @@ class DLRContentForHttpapi(Content):
     """A DLR Content holding information about the origin SubmitSm sent from httpapi and
     receipt acknowledgment details"""
 
-    def __init__(self, message_status, msgid, dlr_url, dlr_level, id_smsc='', sub='',
+    def __init__(self, message_status, msgid, dlr_url, dlr_level, dlr_connector, id_smsc='', sub='',
                  dlvrd='', subdate='', donedate='', err='', text='', method='POST', trycount=0):
 
         # ESME_* statuses are returned from SubmitSmResp
@@ -101,6 +101,7 @@ class DLRContentForHttpapi(Content):
                                                        'subdate': subdate,
                                                        'donedate': donedate,
                                                        'err': err,
+                                                       'connector': dlr_connector,
                                                        'text': text}}
 
         Content.__init__(self, msgid, properties=properties)

@@ -175,10 +175,11 @@ class DLRLookup(object):
                 dlr_level = dlr['level']
                 dlr_method = dlr['method']
                 dlr_expiry = dlr['expiry']
+                dlr_connector = dlr.get('connector', 'unknown')
 
                 if dlr['level'] in [1, 3]:
-                    self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
-                                   msgid, dlr_url, dlr_level)
+                    self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s, connector:%s',
+                                   msgid, dlr_url, dlr_level, dlr_connector)
 
                     # The dlr_url in DLRContentForHttpapi indicates the level
                     # of the actual delivery receipt (1) and not the requested
@@ -189,7 +190,9 @@ class DLRLookup(object):
                                                   routing_key='dlr_thrower.http',
                                                   content=DLRContentForHttpapi(dlr_status,
                                                                                msgid, dlr_url,
-                                                                               dlr_level=1, method=dlr_method))
+                                                                               dlr_level=1,
+                                                                               dlr_connector=dlr_connector,
+                                                                               method=dlr_method))
 
                     # DLR request is removed if:
                     # - If level 1 is requested (SMSC level only)

@@ -317,6 +317,12 @@ The following parameters are sent to the receiving end point (at dlr-url) when t
      - 1
      - Always
      - This is a static value indicating the dlr-level originally requested
+   * - **connector**
+     - SMPP connector ID
+     - demo_cid
+     - Always
+     - The SMPP Connector used to send the message
+
 
 HTTP Parameters for a level 2 or 3 DLR
 ======================================
@@ -350,6 +356,11 @@ The following parameters are sent to the receiving end point (at dlr-url) when D
      - 1
      - Always
      - This is a static value indicating the dlr-level originally requested
+   * - **connector**
+     - SMPP connector ID
+     - demo_cid
+     - Always
+     - The SMPP Connector used to send the message
    * - **subdate**
      - Date & time format: YYMMDDhhmm
      - 1311022338

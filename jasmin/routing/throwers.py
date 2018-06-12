@@ -504,8 +504,12 @@ class DLRThrower(Thrower):
         self.clearRequeueTimer(msgid)
 
         # Build mandatory arguments
-        args = {'id': msgid, 'level': level,
-                'message_status': message.content.properties['headers']['message_status']}
+        args = {
+            'id': msgid,
+            'level': level,
+            'message_status': message.content.properties['headers']['message_status'],
+            'connector': message.content.properties['headers']['connector']
+        }
 
         # Level 2 extra args
         if level in [2, 3]:
