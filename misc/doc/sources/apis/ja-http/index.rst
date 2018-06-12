@@ -318,7 +318,7 @@ The following parameters are sent to the receiving end point (at dlr-url) when t
      - Always
      - This is a static value indicating the dlr-level originally requested
    * - **connector**
-     - SMPP connector ID
+     - SMPP Connector ID
      - demo_cid
      - Always
      - The SMPP Connector used to send the message
@@ -357,7 +357,7 @@ The following parameters are sent to the receiving end point (at dlr-url) when D
      - Always
      - This is a static value indicating the dlr-level originally requested
    * - **connector**
-     - SMPP connector ID
+     - SMPP Connector ID
      - demo_cid
      - Always
      - The SMPP Connector used to send the message
