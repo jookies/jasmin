@@ -131,22 +131,23 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
     def endOutboundTransaction(self, respPDU):
         txn = self.closeOutboundTransaction(respPDU.seqNum)
 
-        # Any status of a SubmitSMResp must be handled as a normal status
-        if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
-            if not isinstance(respPDU, txn.request.requireAck):
-                txn.ackDeferred.errback(
-                    SMPPProtocolError, "Invalid PDU response type [%s] returned for request type [%s]" % (
-                        type(respPDU), type(txn.request)))
+        if txn is not None:
+            # Any status of a SubmitSMResp must be handled as a normal status
+            if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
+                if not isinstance(respPDU, txn.request.requireAck):
+                    txn.ackDeferred.errback(
+                        SMPPProtocolError, "Invalid PDU response type [%s] returned for request type [%s]" % (
+                            type(respPDU), type(txn.request)))
+                    return
+                # Do callback
+                txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
                 return
-            # Do callback
-            txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
-            return
 
-        if isinstance(respPDU, GenericNack):
-            txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
-            return
+            if isinstance(respPDU, GenericNack):
+                txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
+                return
 
-        txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
+            txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
 
     def cancelOutboundTransactions(self, err):
         """Cancels LongSubmitSmTransactions when cancelling OutboundTransactions
