@@ -1190,7 +1190,7 @@ Jasmin provides many Filters offering advanced flexibilities to message routing:
      - Will match the source address of a MO message
    * - **DestinationAddrFilter**
      - All
-     - Will match the source address of a message
+     - Will match the destination address of a message
    * - **ShortMessageFilter**
      - All
      - Will match the content of a message
