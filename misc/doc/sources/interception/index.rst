@@ -393,6 +393,13 @@ intercepted messages will have their sender-id set to **123456789**:
 
 .. _more: :ref:`faq_2_Ppkrtcdeai`
 
+Chaning TON or NPI
+==================
+In order to change the ton or npi value for source or destination address, the according values need to be set and locked, in order to prevent them from getting overwritten by the client connector:
+
+.. literalinclude:: sc_ton_npi.py
+   :language: python
+
 Activate logging
 ================
 

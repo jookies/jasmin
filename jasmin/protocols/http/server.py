@@ -366,7 +366,8 @@ class Send(Resource):
                 pickled=False,
                 dlr_url=dlr_url,
                 dlr_level=dlr_level,
-                dlr_method=dlr_method)
+                dlr_method=dlr_method,
+                dlr_connector=routedConnector.cid)
 
             # Build final response
             if not c.result:
