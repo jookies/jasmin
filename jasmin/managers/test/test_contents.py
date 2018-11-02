@@ -121,10 +121,11 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 1
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level)
+        dlr_connector = 'test_cid'
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, dlr_connector)
 
         self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 12)
+        self.assertEquals(len(c['headers']), 13)
         self.assertEquals(c['headers']['try-count'], 0)
         self.assertEquals(c['headers']['url'], dlr_url)
         self.assertEquals(c['headers']['level'], dlr_level)
@@ -137,16 +138,18 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         self.assertEquals(c['headers']['err'], '')
         self.assertEquals(c['headers']['text'], '')
         self.assertEquals(c['headers']['method'], 'POST')
+        self.assertEquals(c['headers']['connector'], dlr_connector)
 
     def test_normal_level2(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 2
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc='abc', sub='3',
+        dlr_connector = 'test_cid'
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, dlr_connector, id_smsc='abc', sub='3',
                                  dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text')
 
         self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 12)
+        self.assertEquals(len(c['headers']), 13)
         self.assertEquals(c['headers']['try-count'], 0)
         self.assertEquals(c['headers']['url'], dlr_url)
         self.assertEquals(c['headers']['level'], dlr_level)
@@ -159,16 +162,18 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         self.assertEquals(c['headers']['err'], '')
         self.assertEquals(c['headers']['text'], 'Any text')
         self.assertEquals(c['headers']['method'], 'POST')
+        self.assertEquals(c['headers']['connector'], dlr_connector)
 
     def test_normal_level3(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 3
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, id_smsc='abc', sub='3',
+        dlr_connector = 'test_cid'
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, dlr_connector, id_smsc='abc', sub='3',
                                  dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text')
 
         self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 12)
+        self.assertEquals(len(c['headers']), 13)
         self.assertEquals(c['headers']['try-count'], 0)
         self.assertEquals(c['headers']['url'], dlr_url)
         self.assertEquals(c['headers']['level'], dlr_level)
@@ -181,44 +186,48 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         self.assertEquals(c['headers']['err'], '')
         self.assertEquals(c['headers']['text'], 'Any text')
         self.assertEquals(c['headers']['method'], 'POST')
+        self.assertEquals(c['headers']['connector'], dlr_connector)
 
     def test_message_status(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
         dlr_level = 1
+        dlr_connector = 'test_cid'
 
         validStatuses = ['DELIVRD', 'EXPIRED', 'DELETED',
                          'UNDELIV', 'ACCEPTD', 'UNKNOWN', 'REJECTD', 'ESME_ANYTHING']
 
         for status in validStatuses:
-            c = DLRContentForHttpapi(status, msgid, dlr_url, dlr_level)
+            c = DLRContentForHttpapi(status, msgid, dlr_url, dlr_level, dlr_connector)
 
             self.assertEquals(c['headers']['message_status'], status)
 
-        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'anystatus', msgid, dlr_url, dlr_level)
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'anystatus', msgid, dlr_url, dlr_level, dlr_connector)
 
     def test_level(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
+        dlr_connector = 'test_cid'
 
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1)
         self.assertEquals(c['headers']['level'], 1)
-        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 45)
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 45, dlr_connector)
 
     def test_method(self):
         msgid = 'msgid'
         dlr_url = 'http://dlr_url'
+        dlr_connector = 'test_cid'
 
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1)
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, dlr_connector)
         self.assertEquals(c['headers']['method'], 'POST')
 
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method='GET')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, dlr_connector, method='GET')
         self.assertEquals(c['headers']['method'], 'GET')
 
-        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, method='POST')
+        c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, dlr_connector, method='POST')
         self.assertEquals(c['headers']['method'], 'POST')
 
-        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1,
+        self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1, dlr_connector,
                           method='ANY METHOD')
 
 
