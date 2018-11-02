@@ -167,7 +167,7 @@ class RouterPB(pb.Avatar):
         # Routing
         route = self.getMORoutingTable().getRouteFor(routable)
         if route is None:
-            self.log.debug("No route matched this DeliverSmPDU with scid:%s and msgid:%s", scid, msgid)
+            self.log.info("No route matched this DeliverSmPDU with scid:%s and msgid:%s", scid, msgid)
             yield self.rejectMessage(message)
         else:
             # Get connector from selected route
