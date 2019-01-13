@@ -1,7 +1,8 @@
 from test_jcli import jCliWithoutAuthTestCases
 
+
 class GroupTestCases(jCliWithoutAuthTestCases):
-    def add_group(self, finalPrompt, extraCommands = []):
+    def add_group(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
         commands.append({'command': 'group -a', 'expect': r'Adding a new Group\: \(ok\: save, ko\: exit\)'})
@@ -16,8 +17,8 @@ class GroupTestCases(jCliWithoutAuthTestCases):
 
         return self._test(finalPrompt, commands)
 
-class BasicTestCases(GroupTestCases):
 
+class BasicTestCases(GroupTestCases):
     def test_list(self):
         commands = [{'command': 'group -l', 'expect': r'Total Groups: 0'}]
         self._test(r'jcli : ', commands)
@@ -28,12 +29,12 @@ class BasicTestCases(GroupTestCases):
 
     def test_add_with_empty_gid(self):
         extraCommands = [{'command': 'gid '},
-                         {'command': 'ok', 'expect': r'Error: Group gid syntax is invalid'},]
+                         {'command': 'ok', 'expect': r'Error: Group gid syntax is invalid'}, ]
         self.add_group(r'> ', extraCommands)
 
     def test_add_with_invalid_gid(self):
         extraCommands = [{'command': 'gid With Space'},
-                         {'command': 'ok', 'expect': r'Error: Group gid syntax is invalid'},]
+                         {'command': 'ok', 'expect': r'Error: Group gid syntax is invalid'}, ]
         self.add_group(r'> ', extraCommands)
 
     def test_add_without_minimum_args(self):
@@ -41,7 +42,8 @@ class BasicTestCases(GroupTestCases):
         self.add_group(r'> ', extraCommands)
 
     def test_add_invalid_key(self):
-        extraCommands = [{'command': 'gid group_2'}, {'command': 'anykey anyvalue', 'expect': r'Unknown Group key: anykey'}]
+        extraCommands = [{'command': 'gid group_2'},
+                         {'command': 'anykey anyvalue', 'expect': r'Unknown Group key: anykey'}]
         self.add_group(r'jcli : ', extraCommands)
 
     def test_cancel_add(self):

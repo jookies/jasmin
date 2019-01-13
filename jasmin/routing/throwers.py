@@ -14,6 +14,7 @@ from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
+from jasmin.vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
 
 
 class MessageAcknowledgementError(Exception):
@@ -270,8 +271,7 @@ class deliverSmThrower(Thrower):
             args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
-            args['coding'] = data_coding_default_name_map[
-                str(RoutedDeliverSmContent.params['data_coding'].schemeData)]
+            args['coding'] = ord(DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])[0])
         if ('validity_period' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
@@ -314,7 +314,7 @@ class deliverSmThrower(Thrower):
                 if content.strip() != 'ACK/Jasmin':
                     raise MessageAcknowledgementError(
                         'Destination end did not acknowledge receipt of the message.')
-            except Exception, e:
+            except Exception as e:
                 self.log.error('Throwing message [msgid:%s] to (%s %s/%s)[cid:%s] (%s), %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl, type(e), e)
 
@@ -412,7 +412,7 @@ class deliverSmThrower(Thrower):
                     r = yield self.smpps.deliverer_send_request(dc.cid, pdu)
                     if not r:
                         raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % dc.cid)
-            except Exception, e:
+            except Exception as e:
                 self.log.error('Throwing SMPP/DELIVER_SM [msgid:%s] to (%s %s/%s)[cid:%s], %s: %s.',
                                msgid, route_type, counter, len(dcs), dc.cid, type(e), e)
 
@@ -495,8 +495,8 @@ class DLRThrower(Thrower):
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
-        url = message.content.properties['headers']['url']
-        method = message.content.properties['headers']['method']
+        url = message.content.properties['headers']['url'].encode('ascii')
+        method = message.content.properties['headers']['method'].encode('ascii')
         level = message.content.properties['headers']['level']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
@@ -546,7 +546,7 @@ class DLRThrower(Thrower):
 
             # Everything is okay ? then:
             yield self.ackMessage(message)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.', msgid, baseurl, e)
 
             # List of errors after which, no further retrying shall be made
@@ -568,9 +568,9 @@ class DLRThrower(Thrower):
 
     @defer.inlineCallbacks
     def smpp_dlr_callback(self, message):
-        msgid = message.content.properties['message-id']
+        msgid = message.content.properties['message-id'].encode('ascii')
         system_id = message.content.properties['headers']['system_id']
-        message_status = message.content.properties['headers']['message_status']
+        message_status = message.content.properties['headers']['message_status'].encode('ascii')
         source_addr = '%s' % message.content.properties['headers']['source_addr']
         destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
@@ -620,7 +620,7 @@ class DLRThrower(Thrower):
                 r = yield self.smpps.deliverer_send_request(system_id, pdu)
                 if not r:
                     raise DeliveringFailed('Delivering failed, check %s smpps logs for more details' % system_id)
-        except Exception, e:
+        except Exception as e:
             self.log.error('Throwing SMPP/DLR [msgid:%s] to (%s): %r.', msgid, system_id, e)
 
             # List of exceptions after which, no further retrying shall be made

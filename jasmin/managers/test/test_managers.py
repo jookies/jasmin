@@ -170,9 +170,9 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
     def test_connect_failure(self):
         try:
             yield self.connect('127.0.0.1', self.pbPort, 'test_anyuser', 'test_wrongpassword')
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Authentication error test_anyuser')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -183,9 +183,9 @@ class AuthenticatedTestCases(SMPPClientPBProxyTestCase):
     def test_connect_non_anonymous(self):
         try:
             yield self.connect('127.0.0.1', self.pbPort)
-        except ConnectError, e:
+        except ConnectError as e:
             self.assertEqual(str(e), 'Anonymous connection is not authorized !')
-        except Exception, e:
+        except Exception as e:
             self.assertTrue(False, "ConnectError not raised, got instead a %s" % type(e))
         else:
             self.assertTrue(False, "ConnectError not raised")
@@ -262,6 +262,9 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
 
         # Stop (to avoid 'Reactor was unclean' error)
         yield self.stop(self.defaultConfig.id)
+
+        # Give a grace time for stopping
+        yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def test_add_persist_and_load_default(self):
@@ -403,6 +406,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         self.assertEqual(0, len(listRet))
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
     @defer.inlineCallbacks
     def test_list(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -428,11 +434,17 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         yield self.stopall()
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
     @defer.inlineCallbacks
     def test_start_nonexistentconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
 
         startRet = yield self.start('anything')
+
+        # Give a grace time for stopping
+        yield waitFor(0.2)
 
         self.assertEqual(False, startRet)
 
@@ -441,6 +453,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         yield self.connect('127.0.0.1', self.pbPort)
 
         stopRet = yield self.stop('anything')
+
+        # Give a grace time for stopping
+        yield waitFor(0.2)
 
         self.assertEqual(False, stopRet)
 
@@ -455,6 +470,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         yield self.stopall()
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
     @defer.inlineCallbacks
     def test_add_start_remove_add(self):
         """Resolving issue/bug #1
@@ -463,6 +481,7 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         yield self.add(self.defaultConfig)
         yield self.start(self.defaultConfig.id)
+        yield waitFor(0.2)
         yield self.remove(self.defaultConfig.id)
         addRet = yield self.add(self.defaultConfig)
 
@@ -470,21 +489,28 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         yield self.stopall()
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
     @defer.inlineCallbacks
     def test_start_stop_iteration(self):
         """Resolving issue/bug #5
         """
         yield self.connect('127.0.0.1', self.pbPort)
 
+        self.defaultConfig.reconnectOnConnectionFailure = False
         yield self.add(self.defaultConfig)
 
         i = 0
         while i < 150:
             yield self.start(self.defaultConfig.id)
+            yield waitFor(0.1)
             yield self.stop(self.defaultConfig.id)
+            yield waitFor(0.1)
             i += 1
 
-        yield self.stopall()
+        # Give a grace time for stopping
+        yield waitFor(2)
 
     @defer.inlineCallbacks
     def test_startconnector_with_noretry_on_con_failure(self):
@@ -525,6 +551,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         yield self.stopall()
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
     @defer.inlineCallbacks
     def test_start_sameconnector_twice_with_noreconnecting_on_failure(self):
         """It was discovered that starting the connector twice would lead
@@ -544,6 +573,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         yield self.stopall()
 
+        # Give a grace time for stopping
+        yield waitFor(0.2)
+
     @defer.inlineCallbacks
     def test_stopconnector(self):
         yield self.connect('127.0.0.1', self.pbPort)
@@ -553,6 +585,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         stopRet = yield self.stop(self.defaultConfig.id)
 
         self.assertEqual(True, stopRet)
+
+        # Give a grace time for stopping
+        yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def test_stop_unstartedconnector(self):
@@ -578,9 +613,13 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
         self.assertEqual(1, ssRet)
 
         yield self.stop(self.defaultConfig.id)
+        # Give a grace time for stopping
+        yield waitFor(0.2)
 
         ssRet = yield self.service_status(self.defaultConfig.id)
         self.assertEqual(0, ssRet)
+
+        yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def test_connector_details(self):
@@ -600,6 +639,9 @@ class ClientConnectorTestCases(SMPPClientPBProxyTestCase):
 
         ssRet = yield self.connector_details(self.defaultConfig.id)
         self.assertEqual(1, ssRet['start_count'])
+
+        # Give a grace time for stopping
+        yield waitFor(0.2)
 
     @defer.inlineCallbacks
     def test_connector_config(self):
@@ -1127,3 +1169,6 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         self.assertEqual(None, ssRet)
 
         yield self.stop(localConfig.id)
+
+        # Give a grace time for stopping
+        yield waitFor(0.2)

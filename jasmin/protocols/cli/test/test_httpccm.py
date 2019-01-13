@@ -1,7 +1,8 @@
 from test_jcli import jCliWithoutAuthTestCases
 
+
 class HttpccTestCases(jCliWithoutAuthTestCases):
-    def add_httpcc(self, finalPrompt, extraCommands = []):
+    def add_httpcc(self, finalPrompt, extraCommands=[]):
         sessionTerminated = False
         commands = []
         commands.append({'command': 'httpccm -a', 'expect': r'Adding a new Httpcc\: \(ok\: save, ko\: exit\)'})
@@ -16,8 +17,8 @@ class HttpccTestCases(jCliWithoutAuthTestCases):
 
         return self._test(finalPrompt, commands)
 
-class BasicTestCases(HttpccTestCases):
 
+class BasicTestCases(HttpccTestCases):
     def test_add_with_minimum_args(self):
         extraCommands = [{'command': 'cid httpcc_1'},
                          {'command': 'method GET'},
@@ -125,8 +126,8 @@ class BasicTestCases(HttpccTestCases):
         commands = [{'command': 'httpccm -l', 'expect': r'Total Httpccs: 0'}]
         return self._test(r'jcli : ', commands)
 
-class HttpccArgsTestCases(HttpccTestCases):
 
+class HttpccArgsTestCases(HttpccTestCases):
     def test_url(self):
         # URL validation test
         commands = [{'command': 'httpccm -a'},
@@ -195,8 +196,8 @@ class HttpccArgsTestCases(HttpccTestCases):
                     ]
         self._test(r'jcli : ', commands)
 
-class HttpccStrTestCases(HttpccTestCases):
 
+class HttpccStrTestCases(HttpccTestCases):
     def test_str(self):
         extraCommands = [{'command': 'cid httpcc_id'},
                          {'command': 'method GET'},

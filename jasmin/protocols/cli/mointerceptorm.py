@@ -1,4 +1,4 @@
-#pylint: disable=W0611
+# pylint: disable=W0611
 import re
 import inspect
 import cPickle as pickle
@@ -12,11 +12,13 @@ MOINTERCEPTORS = ['DefaultInterceptor', 'StaticMOInterceptor']
 # A config map between console-configuration keys and Interceptor keys.
 MOInterceptorKeyMap = {'order': 'order', 'type': 'type'}
 
+
 class InvalidScriptSyntax(Exception):
     pass
 
+
 def validate_typed_script(script):
-    'Will ensure the script exists and compilable'
+    """Will ensure the script exists and compilable"""
 
     m = re.match(r'(python2)\((.*)\)', script, re.I)
     if not m:
@@ -27,9 +29,11 @@ def validate_typed_script(script):
 
     return language, script_path
 
+
 def MOInterceptorBuild(fCallback):
-    '''Parse args and try to build an interceptor from  one of the interceptors in
-       jasmin.routing.Interceptors instance to pass it to fCallback'''
+    """Parse args and try to build an interceptor from  one of the interceptors in
+       jasmin.routing.Interceptors instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -43,7 +47,7 @@ def MOInterceptorBuild(fCallback):
             # as these 2 options are not user-typed
             if len(self.sessBuffer) - 2 < len(self.protocol.sessionCompletitions):
                 return self.protocol.sendData('You must set these options before saving: %s' % ', '.join(
-                        self.protocol.sessionCompletitions))
+                    self.protocol.sessionCompletitions))
 
             interceptor = {}
             for key, value in self.sessBuffer.iteritems():
@@ -55,7 +59,7 @@ def MOInterceptorBuild(fCallback):
 
                 # Hand the instance to fCallback
                 return fCallback(self, self.sessBuffer['order'], InterceptorInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -101,7 +105,7 @@ def MOInterceptorBuild(fCallback):
 
                 if len(InterceptorClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MOInterceptorKeyMap.keys()+InterceptorClassArgs
+                    self.protocol.sessionCompletitions = MOInterceptorKeyMap.keys() + InterceptorClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (
@@ -110,12 +114,12 @@ def MOInterceptorBuild(fCallback):
                 # DefaultInterceptor's order is always zero
                 if cmd == 'order':
                     if (arg != '0' and 'type' in self.sessBuffer
-                            and self.sessBuffer['type'] == 'DefaultInterceptor'):
+                        and self.sessBuffer['type'] == 'DefaultInterceptor'):
                         self.sessBuffer['order'] = 0
                         return self.protocol.sendData(
                             'Interceptor order forced to 0 since it is a DefaultInterceptor')
                     elif (arg == '0' and 'type' in self.sessBuffer and
-                        self.sessBuffer['type'] != 'DefaultInterceptor'):
+                                  self.sessBuffer['type'] != 'DefaultInterceptor'):
                         return self.protocol.sendData(
                             'This interceptor order (0) is reserved for DefaultInterceptor only')
                     elif not arg.isdigit() or int(arg) < 0:
@@ -137,11 +141,11 @@ def MOInterceptorBuild(fCallback):
                             compile(pyCode, '', 'exec')
                         else:
                             raise NotImplementedError("Not implemented yet !")
-                    except IOError, e:
+                    except IOError as e:
                         return self.protocol.sendData('[IO]: %s' % str(e))
-                    except SyntaxError, e:
+                    except SyntaxError as e:
                         return self.protocol.sendData('[Syntax]: %s' % str(e))
-                    except Exception, e:
+                    except Exception as e:
                         return self.protocol.sendData('%s' % str(e))
                     else:
                         arg = MOInterceptorScript(pyCode)
@@ -174,14 +178,19 @@ def MOInterceptorBuild(fCallback):
                 self.sessBuffer[InterceptorKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
+
 class MOInterceptorExist:
-    'Check if a mo interceptor exist with a given order before passing it to fCallback'
+    """Check if a mo interceptor exist with a given order before passing it to fCallback"""
+
     def __init__(self, order_key):
         self.order_key = order_key
+
     def __call__(self, fCallback):
         order_key = self.order_key
+
         def exist_mointerceptor_and_call(self, *args, **kwargs):
             opts = args[1]
             order = getattr(opts, order_key)
@@ -193,10 +202,12 @@ class MOInterceptorExist:
                 return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown MO Interceptor: %s' % order)
+
         return exist_mointerceptor_and_call
 
+
 class MoInterceptorManager(PersistableManager):
-    "MO Interceptor manager logics"
+    """MO Interceptor manager logics"""
     managerName = 'mointerceptor'
 
     def persist(self, arg, opts):
@@ -229,7 +240,7 @@ class MoInterceptorManager(PersistableManager):
                 'Type'.ljust(20),
                 'Script'.ljust(47),
                 'Filter(s)'.ljust(64),
-                ), prompt=False)
+            ), prompt=False)
 
             for e in mointerceptors:
                 order = e.keys()[0]
@@ -248,7 +259,7 @@ class MoInterceptorManager(PersistableManager):
                     str(mointerceptor.__class__.__name__).ljust(20),
                     repr(mointerceptor.script).ljust(47),
                     filters.ljust(64),
-                    ), prompt=False)
+                ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total MO Interceptors: %s' % counter)
@@ -266,6 +277,7 @@ class MoInterceptorManager(PersistableManager):
             self.stopSession()
         else:
             self.protocol.sendData('Failed adding MOInterceptor, check log for details')
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Interceptor: (ok: save, ko: exit)',

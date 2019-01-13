@@ -26,13 +26,14 @@ def waitFor(seconds):
     reactor.callLater(seconds, waitDeferred.callback, None)
     yield waitDeferred
 
+
 class ProvisionWithoutInterceptorPB(object):
     script = 'Default script that generates a syntax error !'
 
     @defer.inlineCallbacks
     def setUp(self):
         if hasattr(self, 'ipb_client'):
-            yield HappySMSCTestCase.setUp(self, interceptorpb_client = self.ipb_client)
+            yield HappySMSCTestCase.setUp(self, interceptorpb_client=self.ipb_client)
         else:
             yield HappySMSCTestCase.setUp(self)
 
@@ -57,7 +58,7 @@ class ProvisionWithoutInterceptorPB(object):
 
         # Now we'll create the connector
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)
-        c1Config = SMPPClientConfig(id=self.c1.cid, port = self.SMSCPort.getHost().port)
+        c1Config = SMPPClientConfig(id=self.c1.cid, port=self.SMSCPort.getHost().port)
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # And start it !
@@ -80,9 +81,10 @@ class ProvisionWithoutInterceptorPB(object):
 
         yield HappySMSCTestCase.tearDown(self)
 
+
 class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
     @defer.inlineCallbacks
-    def setUp(self, authentication = False):
+    def setUp(self, authentication=False):
         "This will launch InterceptorPB and provide a client connected to it."
         # Launch a client in a disconnected state
         # it will be connected on demand through the self.ipb_connect() method
@@ -111,7 +113,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
         self.pbInterceptor_port = self.pbInterceptor_server.getHost().port
 
     @defer.inlineCallbacks
-    def ipb_connect(self, config = None):
+    def ipb_connect(self, config=None):
         if config is None:
             # Default test config (username is None for anonymous connection)
             config = InterceptorPBClientConfig()
@@ -140,8 +142,8 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
             self.ipb_client.disconnect()
         yield self.pbInterceptor_server.stopListening()
 
-class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, RouterPBProxy, HappySMSCTestCase):
 
+class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, RouterPBProxy, HappySMSCTestCase):
     @defer.inlineCallbacks
     def test_send_interceptorpb_not_set(self):
         _ic = self.stats_http.get('interceptor_count')
@@ -156,7 +158,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -164,7 +166,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, 'Error "InterceptorPB not set !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_interceptorpb_not_set(self):
@@ -180,7 +182,7 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -188,7 +190,8 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, '"InterceptorPB not set !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
+
 
 class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, HappySMSCTestCase):
     update_message_sript = "routable.pdu.params['short_message'] = 'Intercepted message'"
@@ -212,7 +215,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -220,7 +223,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, 'Error "InterceptorPB not connected !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_syntax_error(self):
@@ -239,7 +242,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -247,7 +250,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_success(self):
@@ -270,7 +273,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -280,8 +283,9 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, None)
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual('Intercepted message', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
-        self.assertEqual(_ic+1, self.stats_http.get('interceptor_count'))
+        self.assertEqual('Intercepted message',
+                         self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
+        self.assertEqual(_ic + 1, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
@@ -305,7 +309,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -315,7 +319,8 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, None)
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual('[\'123\', \'456\']', self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
+        self.assertEqual('[\'123\', \'456\']',
+                         self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
 
     @defer.inlineCallbacks
     def test_send_and_lock_param(self):
@@ -338,7 +343,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -371,7 +376,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -382,7 +387,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_HTTP_300_from_script(self):
@@ -405,7 +410,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -416,7 +421,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '300')
         self.assertEqual(lastResponse, 'Error "Interception specific error code 300"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_send_ESME_RINVESMCLASS_from_script(self):
@@ -441,7 +446,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -452,7 +457,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '520')
         self.assertEqual(lastResponse, 'Error "Interception specific error code 520"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_interceptorpb_not_connected(self):
@@ -468,7 +473,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -476,7 +481,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '503')
         self.assertEqual(lastResponse, '"InterceptorPB not connected !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_syntax_error(self):
@@ -495,7 +500,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -503,7 +508,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_success(self):
@@ -526,13 +531,13 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
         # Asserts
         self.assertEqual(lastErrorStatus, None)
-        self.assertEqual(_ic+1, self.stats_http.get('interceptor_count'))
+        self.assertEqual(_ic + 1, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
@@ -556,7 +561,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -567,7 +572,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '400')
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_HTTP_300_from_script(self):
@@ -590,7 +595,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -601,7 +606,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '300')
         self.assertEqual(lastResponse, '"Interception specific error code 300"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_rate_ESME_RINVESMCLASS_from_script(self):
@@ -626,7 +631,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 
@@ -637,7 +642,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(lastErrorStatus, '520')
         self.assertEqual(lastResponse, '"Interception specific error code 520"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
-        self.assertEqual(_iec+1, self.stats_http.get('interceptor_error_count'))
+        self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
 
     @defer.inlineCallbacks
     def test_tagging(self):
@@ -666,7 +671,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         lastResponse = None
         try:
             yield getPage(url)
-        except Exception, e:
+        except Exception as e:
             lastErrorStatus = e.status
             lastResponse = e.response
 

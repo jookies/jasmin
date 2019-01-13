@@ -51,21 +51,18 @@ class DLRLookup(object):
 
         self.log.info('Started %s #%s.', self.__class__.__name__, self.pid)
 
-        # Subscribe to dlr.* queues
+    @defer.inlineCallbacks
+    def subscribe(self):
+        """Subscribe to dlr.* queues"""
+
         consumerTag = 'DLRLookup-%s' % self.pid
         queueName = 'DLRLookup-%s' % self.pid  # A local queue to this object
         routing_key = 'dlr.*'
-        self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic').addCallback(
-            lambda _: self.amqpBroker.named_queue_declare(queue=queueName).addCallback(
-                lambda _: self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging",
-                                                          routing_key=routing_key).addCallback(
-                    lambda _: self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False,
-                                                                 consumer_tag=consumerTag).addCallback(
-                        lambda _: self.amqpBroker.client.queue(consumerTag).addCallback(self.setup_callbacks)
-                    )
-                )
-            )
-        )
+        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+        yield self.amqpBroker.named_queue_declare(queue=queueName)
+        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routing_key)
+        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+        self.amqpBroker.client.queue(consumerTag).addCallback(self.setup_callbacks)
 
     @defer.inlineCallbacks
     def rejectAndRequeueMessage(self, message, delay=True):

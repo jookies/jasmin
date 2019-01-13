@@ -11,8 +11,9 @@ from jasmin.config.tools import ConfigFile
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
 
+
 class RouterPBConfig(ConfigFile):
-    "Config handler for 'router' section"
+    """Config handler for 'router' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -39,8 +40,9 @@ class RouterPBConfig(ConfigFile):
             'router', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('router', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
+
 class deliverSmThrowerConfig(ConfigFile):
-    "Config handler for 'deliversm-thrower' section"
+    """Config handler for 'deliversm-thrower' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
@@ -58,8 +60,9 @@ class deliverSmThrowerConfig(ConfigFile):
             'deliversm-thrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('deliversm-thrower', 'log_date_format', '%Y-%m-%d %H:%M:%S')
 
+
 class DLRThrowerConfig(ConfigFile):
-    "Config handler for 'dlr-thrower' section"
+    """Config handler for 'dlr-thrower' section"""
 
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)

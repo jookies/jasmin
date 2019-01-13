@@ -1,5 +1,6 @@
 def Session(fCallback):
-    'Validate args before passing to session handler'
+    """Validate args before passing to session handler"""
+
     def filter_cmd_and_call(self, *args, **kwargs):
         cmd = args[0]
 
@@ -11,7 +12,9 @@ def Session(fCallback):
             return self.protocol.sendData('Exit session before quitting')
 
         return fCallback(self, *args, **kwargs)
+
     return filter_cmd_and_call
+
 
 class Manager(object):
     # A prompt to display when inside an interactive session
@@ -19,7 +22,7 @@ class Manager(object):
     managerName = 'Undefined'
 
     def startSession(self, sessionHandler, annoucement=None, completitions=None, sessionContext=None):
-        'Switch prompt and hand user inputs directly to sessionHandler'
+        """Switch prompt and hand user inputs directly to sessionHandler"""
 
         self.protocol.sessionLineCallback = sessionHandler
         self.backupPrompt = self.protocol.prompt
@@ -39,7 +42,7 @@ class Manager(object):
             self.protocol.sendData(annoucement)
 
     def stopSession(self):
-        'Reset prompt and disable sessionHandler'
+        """Reset prompt and disable sessionHandler"""
 
         self.protocol.sessionLineCallback = None
         self.protocol.prompt = self.backupPrompt
@@ -55,18 +58,19 @@ class Manager(object):
         self.protocol.sendData()
 
     def handle_TAB(self):
-        'Tab completition is disabled inside a session'
+        """Tab completition is disabled inside a session"""
         self.lineBuffer = ''
 
     def __init__(self, protocol, pb):
         self.protocol = protocol
         self.pb = pb
 
+
 class PersistableManager(Manager):
     def persist(self, arg, opts):
-        'Must be implemeted by manager to persist current configuration to disk'
+        """Must be implemeted by manager to persist current configuration to disk"""
         raise NotImplementedError
 
     def load(self, arg, opts):
-        'Must be implemeted by manager to reload  current configuration to disk'
+        """Must be implemeted by manager to reload  current configuration to disk"""
         raise NotImplementedError

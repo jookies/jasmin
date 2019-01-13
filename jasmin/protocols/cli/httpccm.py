@@ -16,9 +16,11 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 # Persist and Load are using CONFIG_STORE_PATH for persisting/loading httpc connectors
 CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
 
+
 def HttpccBuild(fCallback):
-    '''Parse args and try to build a filter from  one of the filters in
-       jasmin.routing.Filters instance to pass it to fCallback'''
+    """Parse args and try to build a filter from  one of the filters in
+       jasmin.routing.Filters instance to pass it to fCallback"""
+
     def parse_args_and_call_with_instance(self, *args, **kwargs):
         cmd = args[0]
         arg = args[1]
@@ -40,7 +42,7 @@ def HttpccBuild(fCallback):
                 HttpccInstance = HttpConnector(**httpcc)
                 # Hand the instance to fCallback
                 return fCallback(self, httpcc['cid'], HttpccInstance)
-            except Exception, e:
+            except Exception as e:
                 return self.protocol.sendData('Error: %s' % str(e))
         else:
             # Unknown key
@@ -52,14 +54,19 @@ def HttpccBuild(fCallback):
             self.sessBuffer[HttpccKey] = arg
 
             return self.protocol.sendData()
+
     return parse_args_and_call_with_instance
 
+
 class HttpccExist(object):
-    'Check if httpcc cid exist before passing it to fCallback'
+    """Check if httpcc cid exist before passing it to fCallback"""
+
     def __init__(self, cid_key):
         self.cid_key = cid_key
+
     def __call__(self, fCallback):
         cid_key = self.cid_key
+
         def exist_httpcc_and_call(self, *args, **kwargs):
             opts = args[1]
             cid = getattr(opts, cid_key)
@@ -69,12 +76,14 @@ class HttpccExist(object):
                     return fCallback(self, *args, **kwargs)
 
             return self.protocol.sendData('Unknown Httpcc: %s' % cid)
+
         return exist_httpcc_and_call
 
+
 class HttpccManager(PersistableManager):
-    '''HttpccManager does not have a PB like other managers (router, users, groups ...), it is
+    """HttpccManager does not have a PB like other managers (router, users, groups ...), it is
     used to simplify route adding syntax by creating reusable httpccs, these httpccs are saved in
-    self.httpccs'''
+    self.httpccs"""
     managerName = 'httpcc'
 
     def __init__(self, protocol):
@@ -88,7 +97,7 @@ class HttpccManager(PersistableManager):
             self._load()
 
             protocol.log.info('%s configuration loaded (default profile)' % (self.managerName))
-        except Exception, e:
+        except Exception as e:
             protocol.log.error('Config loading error: %s' % str(e))
 
     def persist(self, arg, opts):
@@ -102,7 +111,7 @@ class HttpccManager(PersistableManager):
             fh.close()
         except IOError:
             return self.protocol.sendData('Cannot persist to %s' % path)
-        except Exception, e:
+        except Exception as e:
             return self.protocol.sendData('Unknown error occurred while persisting configuration: %s' % e)
 
         self.protocol.sendData(
@@ -133,9 +142,9 @@ class HttpccManager(PersistableManager):
 
             # Apply configuration
             self.httpccs = cf.getMigratedData()
-        except IOError, e:
+        except IOError as e:
             raise Exception('Cannot load from %s: %s' % (path, str(e)))
-        except Exception, e:
+        except Exception as e:
             raise Exception('Unknown error while loading configuration: %s' % e)
 
     def list(self, arg, opts):
@@ -147,7 +156,7 @@ class HttpccManager(PersistableManager):
                 'Type'.ljust(22),
                 'Method'.ljust(6),
                 'URL'.ljust(64),
-                ), prompt=False)
+            ), prompt=False)
             for cid, _httpcc in self.httpccs.iteritems():
                 counter += 1
                 self.protocol.sendData("#%s %s %s %s" % (
@@ -155,7 +164,7 @@ class HttpccManager(PersistableManager):
                     str(_httpcc.__class__.__name__).ljust(22),
                     _httpcc.method.upper().ljust(6),
                     _httpcc.baseurl.ljust(64),
-                    ), prompt=False)
+                ), prompt=False)
                 self.protocol.sendData(prompt=False)
 
         self.protocol.sendData('Total Httpccs: %s' % counter)
@@ -168,6 +177,7 @@ class HttpccManager(PersistableManager):
             'Successfully added Httpcc [%s] with cid:%s' % (HttpccInstance.__class__.__name__, cid),
             prompt=False)
         self.stopSession()
+
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Httpcc: (ok: save, ko: exit)',

@@ -95,6 +95,7 @@ class Filter(object):
 class TransparentFilter(Filter):
     """This filter will match any routable
     """
+
     def __init__(self):
         Filter.__init__(self)
         self._repr = '<T>'

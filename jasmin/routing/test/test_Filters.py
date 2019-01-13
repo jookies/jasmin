@@ -5,8 +5,8 @@ from jasmin.routing.jasminApi import *
 from jasmin.vendor.smpp.pdu.operations import SubmitSM
 from jasmin.routing.Filters import *
 
-class FilterTestCase(TestCase):
 
+class FilterTestCase(TestCase):
     def setUp(self):
         self.connector = Connector('abc')
         self.PDU = SubmitSM(
@@ -17,6 +17,7 @@ class FilterTestCase(TestCase):
         self.group = Group(100)
         self.user = User(1, self.group, 'username', 'password')
         self.routable = SimpleRoutablePDU(self.connector, self.PDU, self.user)
+
 
 class TransparentFilterTestCase(FilterTestCase):
     _filter = TransparentFilter
@@ -30,6 +31,7 @@ class TransparentFilterTestCase(FilterTestCase):
 
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
+
 
 class ConnectorFilterTestCase(FilterTestCase):
     _filter = ConnectorFilter
@@ -45,6 +47,7 @@ class ConnectorFilterTestCase(FilterTestCase):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
 
+
 class UserFilterTestCase(FilterTestCase):
     _filter = UserFilter
 
@@ -58,6 +61,7 @@ class UserFilterTestCase(FilterTestCase):
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
+
 
 class GroupFilterTestCase(FilterTestCase):
     _filter = GroupFilter
@@ -73,6 +77,7 @@ class GroupFilterTestCase(FilterTestCase):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(InvalidFilterParameterError, self._filter, object)
 
+
 class SourceAddrFilterTestCase(FilterTestCase):
     _filter = SourceAddrFilter
 
@@ -87,6 +92,7 @@ class SourceAddrFilterTestCase(FilterTestCase):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
 
+
 class DestinationAddrFilterTestCase(FilterTestCase):
     _filter = DestinationAddrFilter
 
@@ -100,6 +106,7 @@ class DestinationAddrFilterTestCase(FilterTestCase):
     def test_invalid_parameter(self):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
+
 
 class ShortMessageFilterTestCase(FilterTestCase):
     _filter = ShortMessageFilter
@@ -129,13 +136,14 @@ class ShortMessageFilterTestCase(FilterTestCase):
         self.assertRaises(InvalidFilterParameterError, self.f.match, object)
         self.assertRaises(TypeError, self._filter, object)
 
+
 class DateIntervalFilterTestCase(FilterTestCase):
     _filter = DateIntervalFilter
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        threeDaysEarlier = datetime.date.today() - datetime.timedelta(days = 3)
-        threeDaysLater = datetime.date.today() + datetime.timedelta(days = 3)
+        threeDaysEarlier = datetime.date.today() - datetime.timedelta(days=3)
+        threeDaysLater = datetime.date.today() + datetime.timedelta(days=3)
         self.f = self._filter([threeDaysEarlier, threeDaysLater])
 
     def test_standard(self):
@@ -148,10 +156,11 @@ class DateIntervalFilterTestCase(FilterTestCase):
         self.assertRaises(InvalidFilterParameterError, self._filter, [])
         self.assertRaises(InvalidFilterParameterError, self._filter, [1, 2])
 
-        yesterday = datetime.date.today() - datetime.timedelta(days = 1)
-        tomorrow = datetime.date.today() + datetime.timedelta(days = 1)
+        yesterday = datetime.date.today() - datetime.timedelta(days=1)
+        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
         self.assertRaises(InvalidFilterParameterError, self._filter, [yesterday])
         self.assertRaises(InvalidFilterParameterError, self._filter, [tomorrow])
+
 
 class TimeIntervalFilterTestCase(FilterTestCase):
     _filter = TimeIntervalFilter
@@ -159,7 +168,7 @@ class TimeIntervalFilterTestCase(FilterTestCase):
     def setUp(self):
         FilterTestCase.setUp(self)
         # Redefine routable with a fixed datetime
-        routableDatetime = datetime.datetime(year = 2012, month = 1, day = 1, hour = 6, minute = 0, second = 0)
+        routableDatetime = datetime.datetime(year=2012, month=1, day=1, hour=6, minute=0, second=0)
         self.routable = SimpleRoutablePDU(self.connector, self.PDU, self.user, routableDatetime)
 
         threeHoursEarlier = datetime.time(hour=3, minute=0)
@@ -182,9 +191,10 @@ class TimeIntervalFilterTestCase(FilterTestCase):
         self.assertRaises(InvalidFilterParameterError, self._filter, [threeHoursLater])
 
         # We dont accept complete datetime, we need just a time with no date
-        yesterday_time = datetime.datetime.now() - datetime.timedelta(days = 1)
-        tomorrow_time = datetime.datetime.now() + datetime.timedelta(days = 1)
+        yesterday_time = datetime.datetime.now() - datetime.timedelta(days=1)
+        tomorrow_time = datetime.datetime.now() + datetime.timedelta(days=1)
         self.assertRaises(InvalidFilterParameterError, self._filter, [yesterday_time, tomorrow_time])
+
 
 class EvalPyFilterTestCase(FilterTestCase):
     """
@@ -232,6 +242,7 @@ else:
         # After match
         unpickledFilter = pickle.loads(pickle.dumps(self.f, pickle.HIGHEST_PROTOCOL))
         self.assertTrue(unpickledFilter.pyCode == self.f.pyCode)
+
 
 class TagFilterTestCase(FilterTestCase):
     _filter = TagFilter

@@ -15,7 +15,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
 from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
+from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.vendor.smpp.pdu.smpp_time import parse
 from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
@@ -29,33 +29,42 @@ LOG_CATEGORY = "jasmin-http-api"
 reactor.suggestThreadPoolSize(30)
 
 
-def update_submit_sm_pdu(routable, config):
+def update_submit_sm_pdu(routable, config, config_update_params=None):
     """Will set pdu parameters from smppclient configuration.
-    Parameters that were locked through the routable.lockPduParam() method will not be updated."""
+    Parameters that were locked through the routable.lockPduParam() method will not be updated.
+    config parameter can be the connector config object or just a simple dict"""
 
-    update_params = [
-        'protocol_id',
-        'replace_if_present_flag',
-        'dest_addr_ton',
-        'source_addr_npi',
-        'dest_addr_npi',
-        'service_type',
-        'source_addr_ton',
-        'sm_default_msg_id',
-    ]
+    if config_update_params is None:
+        # Set default config params to get from the config object
+        config_update_params = [
+            'protocol_id',
+            'replace_if_present_flag',
+            'dest_addr_ton',
+            'source_addr_npi',
+            'dest_addr_npi',
+            'service_type',
+            'source_addr_ton',
+            'sm_default_msg_id',
+        ]
 
-    for param in update_params:
+    for param in config_update_params:
         _pdu = routable.pdu
 
         # Force setting param in main pdu
         if not routable.pduParamIsLocked(param):
-            _pdu.params[param] = getattr(config, param)
+            if isinstance(config, SMPPClientConfig) and hasattr(config, param):
+                _pdu.params[param] = getattr(config, param)
+            elif isinstance(config, dict) and param in config:
+                _pdu.params[param] = config[param]
 
         # Force setting param in sub-pdus (multipart use case)
         while hasattr(_pdu, 'nextPdu'):
             _pdu = _pdu.nextPdu
             if not routable.pduParamIsLocked(param):
-                _pdu.params[param] = getattr(config, param)
+                if isinstance(config, SMPPClientConfig) and hasattr(config, param):
+                    _pdu.params[param] = getattr(config, param)
+                elif isinstance(config, dict) and param in config:
+                    _pdu.params[param] = config[param]
 
     return routable
 
@@ -128,7 +137,8 @@ class Send(Resource):
                 source_addr=None if 'from' not in updated_request.args else updated_request.args['from'][0],
                 destination_addr=updated_request.args['to'][0],
                 short_message=short_message,
-                data_coding=int(updated_request.args['coding'][0]))
+                data_coding=int(updated_request.args['coding'][0]),
+                custom_tlvs=updated_request.args['custom_tlvs'][0])
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
             # Make Credential validation
@@ -139,7 +149,7 @@ class Send(Resource):
             SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
 
             # Prepare for interception then routing
-            routedConnector = None # init
+            routedConnector = None  # init
             routable = RoutableSubmitSm(SubmitSmPDU, user)
             self.log.debug("Built Routable %s for SubmitSmPDU: %s", routable, SubmitSmPDU)
 
@@ -226,16 +236,19 @@ class Send(Resource):
                 connector_config = pickle.loads(connector_config)
                 routable = update_submit_sm_pdu(routable=routable, config=connector_config)
 
+            # Set a placeholder for any parameter update to be applied on the pdu(s)
+            param_updates = {}
+
             # Set priority
             priority = 0
             if 'priority' in updated_request.args:
                 priority = int(updated_request.args['priority'][0])
-                routable.pdu.params['priority_flag'] = priority_flag_value_map[priority]
+                param_updates['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s", priority)
 
-	    # Set schedule_delivery_time
+            # Set schedule_delivery_time
             if 'sdt' in updated_request.args:
-                routable.pdu.params['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
+                param_updates['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
                 self.log.debug(
                     "SubmitSmPDU schedule_delivery_time is set to %s (%s)",
                     routable.pdu.params['schedule_delivery_time'],
@@ -244,11 +257,16 @@ class Send(Resource):
             # Set validity_period
             if 'validity-period' in updated_request.args:
                 delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
-                routable.pdu.params['validity_period'] = datetime.today() + delta
+                param_updates['validity_period'] = datetime.today() + delta
                 self.log.debug(
                     "SubmitSmPDU validity_period is set to %s (+%s minutes)",
                     routable.pdu.params['validity_period'],
                     updated_request.args['validity-period'][0])
+
+            # Got any updates to apply on pdu(s) ?
+            if len(param_updates) > 0:
+                routable = update_submit_sm_pdu(routable=routable, config=param_updates,
+                                                config_update_params=param_updates.keys())
 
             # Set DLR bit mask on the last pdu
             _last_pdu = routable.pdu
@@ -286,7 +304,8 @@ class Send(Resource):
                 dlr_method = None
 
             # QoS throttling
-            if user.mt_credential.getQuota('http_throughput') >= 0 and user.getCnxStatus().httpapi['qos_last_submit_sm_at'] != 0:
+            if user.mt_credential.getQuota('http_throughput') >= 0 and user.getCnxStatus().httpapi[
+                'qos_last_submit_sm_at'] != 0:
                 qos_throughput_second = 1 / float(user.mt_credential.getQuota('http_throughput'))
                 qos_throughput_ysecond_td = timedelta(microseconds=qos_throughput_second * 1000000)
                 qos_delay = datetime.now() - user.getCnxStatus().httpapi['qos_last_submit_sm_at']
@@ -339,6 +358,7 @@ class Send(Resource):
             # Send SubmitSmPDU through smpp client manager PB server
             self.log.debug("Connector '%s' is set to be a route for this SubmitSmPDU", routedConnector.cid)
             c = self.SMPPClientManagerPB.perspective_submit_sm(
+                uid=user.uid,
                 cid=routedConnector.cid,
                 SubmitSmPDU=routable.pdu,
                 submit_sm_bill=bill,
@@ -358,7 +378,7 @@ class Send(Resource):
                 self.stats.set('last_success_at', datetime.now())
                 self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, c.result)
                 response = {'return': c.result, 'status': 200}
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error: %s", e)
 
             if hasattr(e, 'code'):
@@ -409,27 +429,43 @@ class Send(Resource):
 
         try:
             # Validation (must have almost the same params as /rate service)
-            fields = {'to'          : {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
-                      'from'        : {'optional': True},
-                      'coding'      : {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    : {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    : {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
+            fields = {'to': {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
+                      'from': {'optional': True},
+                      'coding': {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username': {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
+                      'password': {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
-                      'sdt'         : {'optional': True, 'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
+                      'priority': {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
+                      'sdt': {'optional': True,
+                              'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period' : {'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'dlr'         : {'optional': False, 'pattern': re.compile(r'^(yes|no)$')},
-                      'dlr-url'     : {'optional': True, 'pattern': re.compile(r'^(http|https)\://.*$')},
+                      'validity-period': {'optional': True, 'pattern': re.compile(r'^\d+$')},
+                      'dlr': {'optional': False, 'pattern': re.compile(r'^(yes|no)$')},
+                      'dlr-url': {'optional': True, 'pattern': re.compile(r'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
                       'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
                       'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
                       'content'     : {'optional': True},
-                      'hex-content' : {'optional': True}}
+                      'hex-content' : {'optional': True},
+                      'custom_tlvs' : {'optional': True}}
+
+            if updated_request.getHeader('content-type') == 'application/json':
+                json_body = updated_request.content.read()
+                json_data = json.loads(json_body)
+                for key, value in json_data.items():
+                    # Make the values look like they came from form encoding all surrounded by [ ]
+                    if isinstance(value, unicode):
+                        value = value.encode()
+
+                    updated_request.args[key.encode()] = [value]
+
+            # If no custom TLVs present, defaujlt to an [] which will be passed down to SubmitSM
+            if 'custom_tlvs' not in updated_request.args:
+                updated_request.args['custom_tlvs'] = [[]]
 
             # Default coding is 0 when not provided
             if 'coding' not in updated_request.args:
@@ -468,7 +504,7 @@ class Send(Resource):
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, updated_request=updated_request)
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error: %s", e)
 
             if hasattr(e, 'code'):
@@ -621,7 +657,7 @@ class Rate(Resource):
                     'unit_rate': bill.getTotalAmounts(),
                     'submit_sm_count': submit_sm_count},
                 'status': 200}
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error: %s", e)
 
             if hasattr(e, 'code'):
@@ -658,20 +694,20 @@ class Rate(Resource):
 
         try:
             # Validation (must be almost the same params as /send service)
-            fields = {'to'          : {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
-                      'from'        : {'optional': True},
-                      'coding'      : {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username'    : {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    : {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
+            fields = {'to': {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
+                      'from': {'optional': True},
+                      'coding': {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      'username': {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
+                      'password': {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority'    : {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
+                      'priority': {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period' :{'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
-                      'content'     : {'optional': True},
-                      'hex-content' : {'optional': True},
+                      'validity-period': {'optional': True, 'pattern': re.compile(r'^\d+$')},
+                      'tags': {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
+                      'content': {'optional': True},
+                      'hex-content': {'optional': True},
                       }
 
             # Default coding is 0 when not provided
@@ -693,7 +729,7 @@ class Rate(Resource):
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, request=request)
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error: %s", e)
 
             if hasattr(e, 'code'):
@@ -741,8 +777,8 @@ class Balance(Resource):
 
         try:
             # Validation
-            fields = {'username'    : {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
-                      'password'    : {'optional': False, 'pattern': re.compile(r'^.{1,8}$')}}
+            fields = {'username': {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
+                      'password': {'optional': False, 'pattern': re.compile(r'^.{1,8}$')}}
 
             # Make validation
             v = UrlArgsValidator(request, fields)
@@ -781,7 +817,7 @@ class Balance(Resource):
             if sms_count is None:
                 sms_count = 'ND'
             response = {'return': {'balance': balance, 'sms_count': sms_count}, 'status': 200}
-        except Exception, e:
+        except Exception as e:
             self.log.error("Error: %s", e)
 
             if hasattr(e, 'code'):
@@ -822,7 +858,6 @@ class Ping(Resource):
 
 
 class HTTPApi(Resource):
-
     def __init__(self, RouterPB, SMPPClientManagerPB, config, interceptor=None):
         Resource.__init__(self)
 
