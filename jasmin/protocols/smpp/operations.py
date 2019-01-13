@@ -257,31 +257,34 @@ class SMPPOperationFactory(object):
             if message_status == 'ESME_ROK':
                 message_state = MessageState.ACCEPTED
                 sm_message_stat = 'ACCEPTD'
-                err = 0
+                err = 6
             else:
                 message_state = MessageState.UNDELIVERABLE
                 sm_message_stat = 'UNDELIV'
-                err = 10
+                err = 5
         elif message_status == 'UNDELIV':
             message_state = MessageState.UNDELIVERABLE
-            err = 10
+            err = 5
         elif message_status == 'REJECTD':
             message_state = MessageState.REJECTED
-            err = 20
+            err = 8
         elif message_status == 'DELIVRD':
-            err = 0
+            err = 2
             message_state = MessageState.DELIVERED
         elif message_status == 'EXPIRED':
-            err = 30
+            err = 3
             message_state = MessageState.EXPIRED
         elif message_status == 'DELETED':
-            err = 40
+            err = 4
             message_state = MessageState.DELETED
         elif message_status == 'ACCEPTD':
-            err = 0
+            err = 6
             message_state = MessageState.ACCEPTED
+        elif message_status == 'ENROUTE':
+            err = 1
+            message_state = MessageState.ENROUTE
         elif message_status == 'UNKNOWN':
-            err = 50
+            err = 7
             message_state = MessageState.UNKNOWN
         else:
             raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)

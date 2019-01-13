@@ -29,7 +29,7 @@ SMPPClientConfigKeyMap = {
 
 # Keys to be kept in string type, as requested in #64 and #105
 SMPPClientConfigStringKeys = [
-    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL']
+    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL', 'source_addr']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']
