@@ -539,7 +539,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
     @defer.inlineCallbacks
     def perspective_submit_sm(self, uid, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
-                              pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST',
+                              pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST', dlr_connector=None,
                               source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
         """
@@ -602,6 +602,7 @@ class SMPPClientManagerPB(pb.Avatar):
                               'url': dlr_url,
                               'level': dlr_level,
                               'method': dlr_method,
+                              'connector': dlr_connector,
                               'expiry': connector['config'].dlr_expiry}
                 self.redisClient.hmset(hashKey, hashValues).addCallback(
                     lambda response: self.redisClient.expire(

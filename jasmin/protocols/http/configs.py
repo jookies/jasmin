@@ -28,6 +28,7 @@ class HTTPApiConfig(ConfigFile):
         self.log_format = self._get(
             'http-api', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('http-api', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+        self.log_privacy = self._getbool('http-api', 'log_privacy', False)
 
         # Long message splitting
         self.long_content_max_parts = self._get('http-api', 'long_content_max_parts', 5)

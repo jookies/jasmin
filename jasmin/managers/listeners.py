@@ -304,9 +304,16 @@ class SMPPClientSMListener(object):
                 else:
                     short_message = r.request.params['short_message']
 
+                # Do not log text for privacy reasons
+                # Added in #691
+                if self.config.log_privacy:
+                    logged_content = '** %s byte content **' % len(short_message)
+                else:
+                    logged_content = '%r' % short_message
+
                 self.log.info(
                     "SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] \
-[from:%s] [to:%s] [content:%r]",
+[from:%s] [to:%s] [content:%s]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.params['message_id'],
@@ -318,7 +325,7 @@ class SMPPClientSMListener(object):
                     else amqpMessage.content.properties['headers']['expiration'],
                     r.request.params['source_addr'],
                     r.request.params['destination_addr'],
-                    short_message)
+                    logged_content)
             else:
                 # Message must be retried ?
                 if str(r.response.status) in self.config.submit_error_retrial:
@@ -333,10 +340,17 @@ class SMPPClientSMListener(object):
                         # Prevent this list from over-growing
                         del self.submit_retrials[msgid]
 
+                # Do not log text for privacy reasons
+                # Added in #691
+                if self.config.log_privacy:
+                    logged_content = '** %s byte content **' % len(r.request.params['short_message'])
+                else:
+                    logged_content = '%r' % r.request.params['short_message']
+
                 # Log the message
                 self.log.info(
                     "SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] \
-[from:%s] [to:%s] [content:%r]",
+[from:%s] [to:%s] [content:%s]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.status,
@@ -348,7 +362,7 @@ class SMPPClientSMListener(object):
                     else amqpMessage.content.properties['headers']['expiration'],
                     r.request.params['source_addr'],
                     r.request.params['destination_addr'],
-                    r.request.params['short_message'])
+                    logged_content)
 
             # It is a final submit_sm_resp !
             if not will_be_retried:
@@ -648,9 +662,16 @@ class SMPPClientSMListener(object):
                     if 'validity_period' in routable.pdu.params:
                         validity_period = routable.pdu.params['validity_period']
 
+                    # Do not log text for privacy reasons
+                    # Added in #691
+                    if self.config.log_privacy:
+                        logged_content = '** %s byte content **' % len(message_content)
+                    else:
+                        logged_content = '%r' % message_content
+
                     self.log.info(
                         "SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] \
-[content:%r]",
+[content:%s]",
                         self.SMPPClientFactory.config.id,
                         msgid,
                         routable.pdu.status,
@@ -658,7 +679,7 @@ class SMPPClientSMListener(object):
                         validity_period,
                         routable.pdu.params['source_addr'],
                         routable.pdu.params['destination_addr'],
-                        message_content)
+                        logged_content)
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -706,12 +727,19 @@ class SMPPClientSMListener(object):
                                                           cid=self.SMPPClientFactory.config.id,
                                                           dlr_details=routable.pdu.dlr))
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
-            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%r]",
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config.log_privacy:
+                logged_content = '** %s byte content **' % len(message_content)
+            else:
+                logged_content = '%r' % message_content
+
+            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%s]",
                           self.SMPPClientFactory.config.id,
                           e.status,
                           routable.pdu.params['source_addr'],
                           routable.pdu.params['destination_addr'],
-                          message_content)
+                          logged_content)
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
