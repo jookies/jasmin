@@ -75,6 +75,7 @@ class SMPPClientSMListenerConfig(ConfigFile):
         self.log_rotate = self._get('sm-listener', 'log_rotate', 'midnight')
         self.log_format = self._get('sm-listener', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('sm-listener', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+        self.log_privacy = self._getbool('sm-listener', 'log_privacy', False)
 
 
 class DLRLookupConfig(ConfigFile):
@@ -96,3 +97,4 @@ class DLRLookupConfig(ConfigFile):
         self.log_rotate = self._get('dlr', 'log_rotate', 'midnight')
         self.log_format = self._get('dlr', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('dlr', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+        self.log_privacy = self._getbool('dlr', 'log_privacy', False)

@@ -171,6 +171,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'proto_id None',
                         'dlr_msgid 0',
                         'con_loss_delay 10',
+                        'logprivacy no',
                         'bind_ton 0',
                         'pdu_red_to 10',
                         'src_ton 2']
@@ -251,6 +252,7 @@ class BasicTestCases(HappySMSCTestCase):
                         'proto_id None',
                         'dlr_msgid 0',
                         'con_loss_delay 10',
+                        'logprivacy no',
                         'bind_ton 0',
                         'pdu_red_to 10',
                         'src_ton 2']

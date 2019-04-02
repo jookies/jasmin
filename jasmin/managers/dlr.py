@@ -407,9 +407,16 @@ class DLRLookup(object):
         else:
             yield self.ackMessage(message)
 
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config.log_privacy:
+                logged_content = '** %s byte content **' % len(pdu_dlr_text)
+            else:
+                logged_content = '%r' % pdu_dlr_text
+
             self.log.info(
                 "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] \
-[err:%s] [content:%r]",
+[err:%s] [content:%s]",
                 pdu_cid,
                 msgid,
                 pdu_dlr_status,
@@ -418,7 +425,7 @@ class DLRLookup(object):
                 pdu_dlr_sub,
                 pdu_dlr_dlvrd,
                 pdu_dlr_err,
-                pdu_dlr_text)
+                logged_content)
 
 
 class DLRLookupSingleton(object):

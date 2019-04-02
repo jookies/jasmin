@@ -91,6 +91,7 @@ class Send(Resource):
         self.stats = stats
         self.log = log
         self.interceptorpb_client = interceptorpb_client
+        self.config = HTTPApiConfig
 
         # opFactory is initiated with a dummy SMPPClientConfig used for building SubmitSm only
         self.opFactory = SMPPOperationFactory(long_content_max_parts=HTTPApiConfig.long_content_max_parts,
@@ -395,6 +396,13 @@ class Send(Resource):
 
             # Success return
             if response['status'] == 200 and routedConnector is not None:
+                # Do not log text for privacy reasons
+                # Added in #691
+                if self.config.log_privacy:
+                    logged_content = '** %s byte content **' % len(short_message)
+                else:
+                    logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', short_message)
+
                 self.log.info(
                     'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]',
                     user.uid,
@@ -404,7 +412,7 @@ class Send(Resource):
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
                     updated_request.args['to'][0],
-                    re.sub(r'[^\x20-\x7E]+', '.', short_message))
+                    logged_content)
                 _return = 'Success "%s"' % response['return']
 
             updated_request.write(_return)
