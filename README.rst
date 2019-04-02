@@ -3,7 +3,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|codacy| |landscape| |ci| |docker| |docs|
+|ci| |docker| |docs|
 
 Introduction
 ************
@@ -68,16 +68,6 @@ Credits
 * SMPP PDU parsing based on smpp.pdu: https://github.com/mozes/smpp.pdu
 * SMPP 3.4 Client based on smpp.twisted: https://github.com/mozes/smpp.twisted
 * GSMP 3.38 based on Python messaging: https://github.com/pmarti/python-messaging
-
-.. |codacy| image:: https://www.codacy.com/project/badge/33dd57d6bade41fc9804b834695c0816
-    :alt: Codacy code health
-    :scale: 100%
-    :target: https://www.codacy.com/app/support_3/jasmin
-
-.. |landscape| image:: https://landscape.io/github/jookies/jasmin/master/landscape.svg?style=flat
-    :alt: Landscape code health
-    :scale: 100%
-    :target: https://landscape.io/github/jookies/jasmin/master
 
 .. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png
     :alt: Build status
