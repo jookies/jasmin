@@ -1,0 +1,3 @@
+python:
+    extra_requirements:
+        - sphinxjp.themes.basicstrap>=0.4.3
