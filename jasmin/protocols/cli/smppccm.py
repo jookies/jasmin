@@ -15,7 +15,7 @@ from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, r
 SMPPClientConfigKeyMap = {
     'cid': 'id', 'host': 'host', 'port': 'port', 'username': 'username', 'logrotate': 'log_rotate',
     'password': 'password', 'systype': 'systemType', 'logfile': 'log_file', 'loglevel': 'log_level',
-    'bind_to': 'sessionInitTimerSecs', 'elink_interval': 'enquireLinkTimerSecs',
+    'logprivacy': 'log_privacy', 'bind_to': 'sessionInitTimerSecs', 'elink_interval': 'enquireLinkTimerSecs',
     'res_to': 'responseTimerSecs', 'con_loss_retry': 'reconnectOnConnectionLoss', 'bind_npi': 'addressNpi',
     'con_loss_delay': 'reconnectOnConnectionLossDelay', 'con_fail_delay': 'reconnectOnConnectionFailureDelay',
     'pdu_red_to': 'pduReadTimerSecs', 'bind': 'bindOperation', 'bind_ton': 'addressTon',
@@ -29,7 +29,7 @@ SMPPClientConfigKeyMap = {
 
 # Keys to be kept in string type, as requested in #64 and #105
 SMPPClientConfigStringKeys = [
-    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL']
+    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL', 'source_addr']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']

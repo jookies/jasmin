@@ -944,6 +944,9 @@ Adding a new SMPP Client connector requires knowledge of the parameters detailed
    * - **loglevel**
      - Logging numeric level: 10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICCAL
      - 20
+   * - **logprivacy**
+     - Don't log message contents if **True**
+     - False
    * - **host**
      - Server that runs SMSC
      - 127.0.0.1
@@ -1190,7 +1193,7 @@ Jasmin provides many Filters offering advanced flexibilities to message routing:
      - Will match the source address of a MO message
    * - **DestinationAddrFilter**
      - All
-     - Will match the source address of a message
+     - Will match the destination address of a MT message
    * - **ShortMessageFilter**
      - All
      - Will match the content of a message

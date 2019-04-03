@@ -508,10 +508,11 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Args assertions
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(len(callArgs), 3)
+        self.assertEqual(len(callArgs), 4)
         self.assertTrue('id' in callArgs)
         self.assertTrue('message_status' in callArgs)
         self.assertTrue('level' in callArgs)
+        self.assertTrue('connector' in callArgs)
         self.assertEqual(callArgs['level'][0], '1')
         for k, v in callArgs.iteritems():
             self.assertNotEqual(v[0], '')
@@ -551,7 +552,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Args assertions
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(len(callArgs), 10)
+        self.assertEqual(len(callArgs), 11)
         self.assertTrue('id' in callArgs)
         self.assertTrue('message_status' in callArgs)
         self.assertTrue('level' in callArgs)
@@ -562,6 +563,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertTrue('id_smsc' in callArgs)
         self.assertTrue('dlvrd' in callArgs)
         self.assertTrue('subdate' in callArgs)
+        self.assertTrue('connector' in callArgs)
         self.assertEqual(callArgs['level'][0], '2')
         for k, v in callArgs.iteritems():
             self.assertNotEqual(v[0], '')
@@ -601,16 +603,17 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 2)
         # Args assertions for first call (level1)
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(len(callArgs), 3)
+        self.assertEqual(len(callArgs), 4)
         self.assertTrue('id' in callArgs)
         self.assertTrue('message_status' in callArgs)
         self.assertTrue('level' in callArgs)
+        self.assertTrue('connector' in callArgs)
         self.assertEqual(callArgs['level'][0], '1')
         for k, v in callArgs.iteritems():
             self.assertNotEqual(v[0], '')
         # Args assertions for second call (level2)
         callArgs = self.AckServerResource.render_POST.call_args_list[1][0][0].args
-        self.assertEqual(len(callArgs), 10)
+        self.assertEqual(len(callArgs), 11)
         self.assertTrue('id' in callArgs)
         self.assertTrue('message_status' in callArgs)
         self.assertTrue('level' in callArgs)
@@ -621,6 +624,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertTrue('id_smsc' in callArgs)
         self.assertTrue('dlvrd' in callArgs)
         self.assertTrue('subdate' in callArgs)
+        self.assertTrue('connector' in callArgs)
         self.assertEqual(callArgs['level'][0], '2')
         for k, v in callArgs.iteritems():
             self.assertNotEqual(v[0], '')

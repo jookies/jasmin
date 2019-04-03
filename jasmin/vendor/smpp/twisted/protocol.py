@@ -466,37 +466,44 @@ class SMPPProtocolBase( protocol.Protocol ):
     def closeOutboundTransaction(self, seqNum):
         self.log.debug("Outbound transaction finished with message id %s" % seqNum)
 
-        txn = self.outTxns[seqNum]
-        #Remove txn
-        del self.outTxns[seqNum]
-        #Cancel response timer
-        if txn.timer.active():
-            txn.timer.cancel()
-        return txn
+        if seqNum in self.outTxns:
+            txn = self.outTxns[seqNum]
+            #Remove txn
+            del self.outTxns[seqNum]
+            #Cancel response timer
+            if txn.timer.active():
+                txn.timer.cancel()
+            return txn
+        else:
+            self.log.critical('Cannot close outbound transaction: trx id [%s] not found !', seqNum)
+            return None
 
     def endOutboundTransaction(self, respPDU):
         txn = self.closeOutboundTransaction(respPDU.seqNum)
 
-        if respPDU.status == CommandStatus.ESME_ROK:
-            if not isinstance(respPDU, txn.request.requireAck):
-                txn.ackDeferred.errback(SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (type(respPDU), type(txn.request))))
+        if txn is not None:
+            if respPDU.status == CommandStatus.ESME_ROK:
+                if not isinstance(respPDU, txn.request.requireAck):
+                    txn.ackDeferred.errback(SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (type(respPDU), type(txn.request))))
+                    return
+                #Do callback
+                txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
                 return
-            #Do callback
-            txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
-            return
 
-        if isinstance(respPDU, GenericNack):
-            txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
-            return
+            if isinstance(respPDU, GenericNack):
+                txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
+                return
 
-        errCode = respPDU.status
-        txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
+            errCode = respPDU.status
+            txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
 
     def endOutboundTransactionErr(self, reqPDU, error):
         self.log.error(error)
         txn = self.closeOutboundTransaction(reqPDU.seqNum)
-        #Do errback
-        txn.ackDeferred.errback(error)
+
+        if txn is not None:
+            #Do errback
+            txn.ackDeferred.errback(error)
 
     def cancelOutboundTransactions(self, error):
         for txn in self.outTxns.values():

@@ -90,3 +90,10 @@ The problem occurs when the upstream connector returns the same message id but i
 **Solution:**
 
 Use the **dlr_msgid** parameter as shown in :ref:`smppccm_manager` to indicate the encoding strategy of the upstream partner/connector.
+
+.. _faq_1_Hthmcilffpr:
+
+How to hide message content in log files for privacy reasons ?
+**************************************************************
+
+Starting from v0.9.28 it is possible to hide the message content in log files, this is done by tweaking the **log_privacy** parameter in the :ref:`smppccm_manager` and **log_privacy** in jasmin.cfg and dlrlookupd.cfg.

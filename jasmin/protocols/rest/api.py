@@ -96,12 +96,12 @@ class RateResource(JasminRestApi, JasminHttpApiProxy):
         Note: This method will indicate the rate of the message once sent
         """
 
-        request_args = dict(
-            self.decode_request_data(request).items() + {
-                'username': request.context['username'],
-                'password': request.context['password']
-            }.items()
-        )
+        request_args = {}
+        request_args.update(dict({
+            'username': request.context['username'],
+            'password': request.context['password']
+        }.items()))
+        request_args.update(request.params)
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net

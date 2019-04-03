@@ -483,6 +483,14 @@ class SMPPServerFactory(_SMPPServerFactory):
             status = pdu_types.CommandStatus.ESME_RUNKNOWNERR
         else:
             self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, message_id)
+
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config.log_privacy:
+                logged_content = '** %s byte content **' % len(routable.pdu.params['short_message'])
+            else:
+                logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message'])
+
             self.log.info(
                 'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]',
                 routable.user.uid,
@@ -491,7 +499,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 priority,
                 routable.pdu.params['source_addr'],
                 routable.pdu.params['destination_addr'],
-                re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message']))
+                logged_content)
             status = pdu_types.CommandStatus.ESME_ROK
         finally:
             if message_id is not None:
