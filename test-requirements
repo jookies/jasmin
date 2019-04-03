@@ -4,6 +4,6 @@
 testfixtures>=3.0.0
 coverage>=4.0.3
 sphinx>=1.1.0
-sphinxjp.themes.basicstrap>=0.4.3
+sphinx-rtd-theme>=0.4.3
 mock>=1.0.0
 pylint>=1.4.4
