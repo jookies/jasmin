@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sphinx_readable_theme
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -29,7 +30,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Jasmin SMS Gateway'
-copyright = u'2014-2016, Jasmin'
+copyright = u'2014-2019, Jasmin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -79,7 +80,8 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+extensions += ['sphinxjp.themes.basicstrap']
+html_theme = 'basicstrap'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -237,7 +239,7 @@ texinfo_documents = [
 epub_title = u'jasmin sms gateway'
 epub_author = u'Jookies LTD'
 epub_publisher = u'Jookies LTD'
-epub_copyright = u'2014-2016, Jookies LTD'
+epub_copyright = u'2014-2019, Jookies LTD'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
