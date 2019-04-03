@@ -64,7 +64,7 @@ setup(
     install_requires=parse_requirements('install-requirements'),
     tests_require=parse_requirements('test-requirements'),
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Framework :: Twisted',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
