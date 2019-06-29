@@ -435,8 +435,12 @@ class SMPPClientSMListener(object):
         # @TODO: longDeliverSm part expiry must be configurable
         yield self.redisClient.expire(hashKey, 300)
 
+        increment_key = "incr" + hashKey
+        increment_value = yield self.redisClient.incr(increment_key)
+        yield self.redisClient.expire(increment_key, 300)
+
         # This is the last part
-        if segment_seqnum == total_segments:
+        if increment_value == total_segments:
             hvals = yield self.redisClient.hvals(hashKey)
             if len(hvals) != total_segments:
                 self.log.warn(
