@@ -11,3 +11,6 @@ lockfile>=0.10.0
 celery>=4.0.0
 redis>=2.10
 requests>=2.13.0
+
+# For REST API
+mimeparse>=0.1.3
