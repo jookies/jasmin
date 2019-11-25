@@ -30,7 +30,7 @@ before_install:
     - source venv/bin/activate
     - mkdir -p $ROOT_PATH/var/log/jasmin
     - mkdir -p $ROOT_PATH/etc/init.d
-    - ln -s `pwd`/jasmin/misc/config $ROOT_PATH/etc/jasmin
+    - ln -s `pwd`/misc/config $ROOT_PATH/etc/jasmin
     # DEBUG
     - ls -l $ROOT_PATH/etc
     - ls -l $ROOT_PATH/etc/jasmin
