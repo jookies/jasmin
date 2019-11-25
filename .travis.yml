@@ -29,9 +29,7 @@ before_install:
     - virtualenv venv
     - source venv/bin/activate
     - mkdir -p $ROOT_PATH/var/log/jasmin
-    - mkdir -p $ROOT_PATH/etc/jasmin/resource
-    - mkdir -p $ROOT_PATH/etc/jasmin/init-script
-    - mkdir -p $ROOT_PATH/etc/jasmin/store
+    - ln -s `pwd`/jasmin/misc/config $ROOT_PATH/etc/jasmin
     - mkdir -p $ROOT_PATH/etc/init.d
     - chmod -R 777 $ROOT_PATH/var/log/jasmin $ROOT_PATH/etc/jasmin/store
 addons:
