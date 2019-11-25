@@ -249,7 +249,8 @@ class SMPPOperationFactory(object):
 
     def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date,
                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
-        "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
+        """Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"""
+        #@todo: get the real err from original dlr received in jasmin.managers.dlr.DLRLookup.deliver_sm_dlr_callback
 
         sm_message_stat = message_status
         # Prepare message_state
@@ -269,7 +270,7 @@ class SMPPOperationFactory(object):
             message_state = MessageState.REJECTED
             err = 8
         elif message_status == 'DELIVRD':
-            err = 2
+            err = 0
             message_state = MessageState.DELIVERED
         elif message_status == 'EXPIRED':
             err = 3
