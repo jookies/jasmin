@@ -1,6 +1,6 @@
 import unittest
 from twisted.internet import defer
-from test_jcli import jCliWithoutAuthTestCases
+from .test_jcli import jCliWithoutAuthTestCases
 from .test_userm import UserTestCases
 from .test_smppccm import SmppccmTestCases
 

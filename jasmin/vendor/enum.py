@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from six import string_types
 
 # enum.py
 # Part of enum, a package providing enumerated types for Python.
@@ -222,7 +223,7 @@ class Enum(object):
 
     def __contains__(self, value):
         is_member = False
-        if isinstance(value, basestring):
+        if isinstance(value, string_types):
             is_member = (value in self._keys)
         else:
             is_member = (value in self._values)

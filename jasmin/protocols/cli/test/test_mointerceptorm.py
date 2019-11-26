@@ -1,6 +1,6 @@
 import re
 from twisted.internet import defer
-from test_mxinterceptorm import MxInterceptorTestCases
+from .test_mxinterceptorm import MxInterceptorTestCases
 
 
 class BasicTestCases(MxInterceptorTestCases):

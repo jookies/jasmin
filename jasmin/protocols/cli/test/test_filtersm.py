@@ -1,6 +1,6 @@
 import os
 import re
-from test_jcli import jCliWithoutAuthTestCases
+from .test_jcli import jCliWithoutAuthTestCases
 from test.test_support import unlink
 
 

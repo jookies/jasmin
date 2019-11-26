@@ -1,6 +1,6 @@
 import mock
 from twisted.internet import defer, reactor
-from test_jcli import jCliWithoutAuthTestCases
+from .test_jcli import jCliWithoutAuthTestCases
 from jasmin.protocols.smpp.test.smsc_simulator import *
 
 

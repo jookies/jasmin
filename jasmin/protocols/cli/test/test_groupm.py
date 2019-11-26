@@ -1,4 +1,4 @@
-from test_jcli import jCliWithoutAuthTestCases
+from .test_jcli import jCliWithoutAuthTestCases
 
 
 class GroupTestCases(jCliWithoutAuthTestCases):

@@ -1,6 +1,6 @@
 import re
 from hashlib import md5
-from test_jcli import jCliWithoutAuthTestCases
+from .test_jcli import jCliWithoutAuthTestCases
 from jasmin.routing.jasminApi import MtMessagingCredential, SmppsCredential
 
 

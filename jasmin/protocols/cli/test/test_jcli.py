@@ -15,7 +15,7 @@ from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.router import RouterPB
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.tools.cred.portal import SmppsRealm
-from test_cmdprotocol import ProtocolTestCases
+from .test_cmdprotocol import ProtocolTestCases
 
 
 class jCliTestCases(ProtocolTestCases):

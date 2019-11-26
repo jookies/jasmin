@@ -4,6 +4,7 @@ Licensed under Python Software Foundation license: http://www.opensource.org/lic
 
 """
 
+from six import string_types
 from operator import itemgetter as _itemgetter
 from keyword import iskeyword as _iskeyword
 import sys as _sys
@@ -35,7 +36,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
 
     # Parse and validate the field names.  Validation serves two purposes,
     # generating informative error messages and preventing template injection attacks.
-    if isinstance(field_names, basestring):
+    if isinstance(field_names, string_types):
         field_names = field_names.replace(',', ' ').split() # names separated by whitespace and/or commas
     field_names = tuple(map(str, field_names))
     if rename:
@@ -117,10 +118,6 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
         pass
 
     return result
-
-
-
-
 
 
 if __name__ == '__main__':

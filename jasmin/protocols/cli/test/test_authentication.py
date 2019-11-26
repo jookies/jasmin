@@ -1,6 +1,6 @@
 import random
 import jasmin
-from test_jcli import jCliWithAuthTestCases
+from .test_jcli import jCliWithAuthTestCases
 from hashlib import md5
 
 

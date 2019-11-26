@@ -2,7 +2,7 @@ import re
 
 from twisted.internet import defer
 
-from test_mxrouterm import MxRouterTestCases
+from .test_mxrouterm import MxRouterTestCases
 
 
 class BasicTestCases(MxRouterTestCases):
