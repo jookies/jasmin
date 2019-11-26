@@ -2,7 +2,7 @@
 Test cases for smpp server
 """
 
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import copy
 from datetime import timedelta
 

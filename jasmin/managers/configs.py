@@ -3,7 +3,7 @@ Config file handlers for 'client-management' and 'sm-listener' section in jasmin
 """
 
 import ast
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import logging
 import os
 

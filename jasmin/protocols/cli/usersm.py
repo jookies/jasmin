@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import re
 from hashlib import md5
 from jasmin.protocols.cli.managers import PersistableManager, Session

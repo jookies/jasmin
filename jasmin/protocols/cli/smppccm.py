@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import logging
 
 from twisted.internet import defer, reactor

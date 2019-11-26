@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import re
 import logging
 from dateutil.parser import parse as date_parse

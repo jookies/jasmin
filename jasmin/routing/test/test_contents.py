@@ -2,7 +2,7 @@
 Test cases for amqp contents
 """
 
-import cPickle as pickle
+from six.moves import cPickle as pickle
 from twisted.trial.unittest import TestCase
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.jasminApi import HttpConnector, SmppServerSystemIdConnector

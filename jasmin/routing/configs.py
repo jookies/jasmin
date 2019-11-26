@@ -2,7 +2,7 @@
 Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' section in jasmin.cfg
 """
 
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import logging
 import os
 

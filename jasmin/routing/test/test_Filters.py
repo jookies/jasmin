@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU
 from jasmin.routing.jasminApi import *

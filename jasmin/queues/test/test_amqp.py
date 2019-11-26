@@ -3,7 +3,7 @@ Test cases for AmqpFactory
 These are test cases for only Jasmin's code, smpp.twisted tests are not included here
 """
 
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import logging
 import time
 import uuid

@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 
 from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy

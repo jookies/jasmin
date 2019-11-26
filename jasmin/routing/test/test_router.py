@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import glob
 import os
 import string

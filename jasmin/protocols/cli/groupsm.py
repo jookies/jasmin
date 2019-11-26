@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import Group
 

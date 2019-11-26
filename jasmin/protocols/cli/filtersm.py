@@ -1,6 +1,6 @@
 # pylint: disable=W0401,W0611
 import inspect
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import time
 import jasmin
 import os

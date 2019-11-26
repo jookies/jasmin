@@ -1,5 +1,5 @@
 # pylint: disable=W0611
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import inspect
 import re
 

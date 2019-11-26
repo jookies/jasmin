@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import json
 from jasmin.protocols.cli.managers import Manager
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector

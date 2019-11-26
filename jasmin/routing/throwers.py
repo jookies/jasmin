@@ -1,5 +1,5 @@
 import binascii
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import logging
 import urllib
 from logging.handlers import TimedRotatingFileHandler

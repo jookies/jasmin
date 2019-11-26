@@ -1,7 +1,7 @@
 # pylint: disable=W0611
 import re
 import inspect
-import cPickle as pickle
+from six.moves import cPickle as pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import MTInterceptorScript

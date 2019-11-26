@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 import logging
 from logging.handlers import TimedRotatingFileHandler
 

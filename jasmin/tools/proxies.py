@@ -1,4 +1,4 @@
-import cPickle as pickle
+from six.moves import cPickle as pickle
 from twisted.internet import defer, reactor
 from twisted.spread.pb import RemoteReference
 from twisted.cred.credentials import UsernamePassword, Anonymous
