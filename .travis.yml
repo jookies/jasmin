@@ -2,6 +2,7 @@ sudo: false
 language: python
 python:
     - '2.7'
+    - '3.8'
 env:
     - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.9.32
 # Command to install dependencies
