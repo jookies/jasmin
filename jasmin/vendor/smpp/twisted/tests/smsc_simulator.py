@@ -13,7 +13,10 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-import logging, struct, StringIO, binascii
+from six import StringIO
+import logging
+import struct
+import binascii
 from twisted.internet.protocol import Protocol, Factory
 from twisted.internet import reactor, protocol
 from jasmin.vendor.smpp.pdu.operations import *

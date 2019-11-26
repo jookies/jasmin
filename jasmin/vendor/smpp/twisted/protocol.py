@@ -14,7 +14,10 @@ Copyright 2009-2010 Mozes, Inc.
    limitations under the License.
 """
 
-import struct, logging, StringIO, binascii
+from six import StringIO
+import struct
+import logging
+import binascii
 from jasmin.vendor.enum import Enum
 
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple

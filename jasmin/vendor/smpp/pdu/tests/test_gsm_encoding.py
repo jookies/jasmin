@@ -13,8 +13,8 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
+from six import StringIO
 import unittest
-import StringIO
 import binascii
 from jasmin.vendor.smpp.pdu.gsm_encoding import *
 from jasmin.vendor.smpp.pdu.gsm_types import *

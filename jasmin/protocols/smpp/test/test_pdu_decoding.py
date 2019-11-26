@@ -1,4 +1,4 @@
-import StringIO
+from six import StringIO
 import binascii
 import unittest
 
