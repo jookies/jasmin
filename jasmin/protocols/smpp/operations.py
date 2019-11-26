@@ -53,11 +53,6 @@ class UnknownMessageStatusError(Exception):
     """
 
 
-class UnknownMessageErrValue(Exception):
-    """Raised when Dlr's err value is not correct
-    """
-
-
 class SMPPOperationFactory(object):
     lastLongMsgRefNum = 0
 
@@ -256,9 +251,6 @@ class SMPPOperationFactory(object):
                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         """Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"""
 
-        if not isinstance(err, int):
-            raise UnknownMessageErrValue('Unknown err value: %s' % err)
-
         sm_message_stat = message_status
         # Prepare message_state
         if message_status[:5] == 'ESME_':
@@ -289,7 +281,7 @@ class SMPPOperationFactory(object):
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%s" % (
                 msgid,
                 parser.parse(sub_date).strftime("%y%m%d%H%M"),
                 datetime.datetime.now().strftime("%y%m%d%H%M"),
