@@ -43,7 +43,7 @@ _trial_temp
 .idea
 
 # Python
-venv
+venv*
 
 # Twisted
 trial

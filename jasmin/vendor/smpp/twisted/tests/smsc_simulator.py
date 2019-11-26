@@ -20,33 +20,33 @@ from jasmin.vendor.smpp.pdu.operations import *
 from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
 from jasmin.vendor.smpp.pdu.pdu_types import *
 
-LOG_CATEGORY="smpp.twisted.tests.smsc_simulator"
+LOG_CATEGORY = "smpp.twisted.tests.smsc_simulator"
 
-class BlackHoleSMSC( protocol.Protocol ):
 
+class BlackHoleSMSC(protocol.Protocol):
     responseMap = {}
 
-    def __init__( self ):
+    def __init__(self):
         self.log = logging.getLogger(LOG_CATEGORY)
         self.recvBuffer = ""
         self.lastSeqNum = 0
         self.encoder = PDUEncoder()
 
-    def dataReceived( self, data ):
+    def dataReceived(self, data):
         self.recvBuffer = self.recvBuffer + data
 
-        while len( self.recvBuffer ) > 3:
-            ( length, ) = struct.unpack( '!L', self.recvBuffer[:4] )
-            if len( self.recvBuffer ) < length:
+        while len(self.recvBuffer) > 3:
+            (length,) = struct.unpack('!L', self.recvBuffer[:4])
+            if len(self.recvBuffer) < length:
                 break
             message = self.recvBuffer[:length]
             self.recvBuffer = self.recvBuffer[length:]
-            self.rawMessageReceived( message )
+            self.rawMessageReceived(message)
 
-    def rawMessageReceived( self, message ):
-        return self.PDUReceived( self.encoder.decode( StringIO.StringIO(message) ) )
+    def rawMessageReceived(self, message):
+        return self.PDUReceived(self.encoder.decode(StringIO.StringIO(message)))
 
-    def PDUReceived( self, pdu ):
+    def PDUReceived(self, pdu):
         if pdu.__class__ in self.responseMap:
             self.responseMap[pdu.__class__](pdu)
 
@@ -64,7 +64,8 @@ class BlackHoleSMSC( protocol.Protocol ):
         # self.log.debug("Sending PDU: %s" % pdu)
         encoded = self.encoder.encode(pdu)
         # self.log.debug("Sending data [%s]" % binascii.b2a_hex(encoded))
-        self.transport.write( encoded )
+        self.transport.write(encoded)
+
 
 class HappySMSC(BlackHoleSMSC):
 
@@ -86,15 +87,17 @@ class HappySMSC(BlackHoleSMSC):
     def handleData(self, reqPDU):
         self.sendSuccessResponse(reqPDU)
 
+
 class AlertNotificationSMSC(HappySMSC):
 
     def handleData(self, reqPDU):
         HappySMSC.handleData(self, reqPDU)
         self.sendPDU(AlertNotification())
 
+
 class EnquireLinkEchoSMSC(HappySMSC):
 
-    def __init__( self ):
+    def __init__(self):
         HappySMSC.__init__(self)
         self.responseMap[EnquireLink] = self.echoEnquireLink
 
@@ -102,10 +105,12 @@ class EnquireLinkEchoSMSC(HappySMSC):
         self.sendSuccessResponse(reqPDU)
         self.sendPDU(EnquireLink())
 
+
 class NoResponseOnSubmitSMSC(HappySMSC):
 
     def handleSubmit(self, reqPDU):
         pass
+
 
 class GenericNackNoSeqNumOnSubmitSMSC(HappySMSC):
 
@@ -113,31 +118,36 @@ class GenericNackNoSeqNumOnSubmitSMSC(HappySMSC):
         respPDU = GenericNack(status=CommandStatus.ESME_RINVCMDLEN)
         self.sendPDU(respPDU)
 
+
 class GenericNackWithSeqNumOnSubmitSMSC(HappySMSC):
 
     def handleSubmit(self, reqPDU):
         respPDU = GenericNack(seqNum=reqPDU.seqNum, status=CommandStatus.ESME_RINVCMDID)
         self.sendPDU(respPDU)
 
+
 class ErrorOnSubmitSMSC(HappySMSC):
 
     def handleSubmit(self, reqPDU):
         self.sendResponse(reqPDU, CommandStatus.ESME_RINVESMCLASS)
+
 
 class UnbindOnSubmitSMSC(HappySMSC):
 
     def handleSubmit(self, reqPDU):
         self.sendPDU(Unbind())
 
+
 class UnbindNoResponseSMSC(HappySMSC):
 
-    def __init__( self ):
+    def __init__(self):
         HappySMSC.__init__(self)
         del self.responseMap[Unbind]
 
+
 class BindErrorSMSC(BlackHoleSMSC):
 
-    def __init__( self ):
+    def __init__(self):
         BlackHoleSMSC.__init__(self)
         self.responseMap = {
             BindTransmitter: self.bindError,
@@ -148,9 +158,10 @@ class BindErrorSMSC(BlackHoleSMSC):
     def bindError(self, reqPDU):
         self.sendResponse(reqPDU, CommandStatus.ESME_RBINDFAIL)
 
+
 class BindErrorGenericNackSMSC(BlackHoleSMSC):
 
-    def __init__( self ):
+    def __init__(self):
         BlackHoleSMSC.__init__(self)
         self.responseMap = {
             BindTransmitter: self.bindError,
@@ -163,9 +174,10 @@ class BindErrorGenericNackSMSC(BlackHoleSMSC):
         respPDU.status = CommandStatus.ESME_RINVCMDID
         self.sendPDU(respPDU)
 
+
 class CommandLengthTooShortSMSC(BlackHoleSMSC):
 
-    def __init__( self ):
+    def __init__(self):
         BlackHoleSMSC.__init__(self)
         self.responseMap = {
             BindTransmitter: self.sendInvalidCommandLengthPDUAfterBind,
@@ -178,16 +190,17 @@ class CommandLengthTooShortSMSC(BlackHoleSMSC):
         unbind = Unbind()
         encoded = self.encoder.encode(unbind)
         hexEncoded = binascii.b2a_hex(encoded)
-        #Overwrite the command length (first octet)
+        # Overwrite the command length (first octet)
         badCmdLenHex = '0000000f'
         badHexEncoded = badCmdLenHex + hexEncoded[len(badCmdLenHex):]
         self.log.debug("Sending PDU with cmd len too small [%s]" % badHexEncoded)
         badEncoded = binascii.a2b_hex(badHexEncoded)
         self.transport.write(badEncoded)
 
+
 class CommandLengthTooLongSMSC(BlackHoleSMSC):
 
-    def __init__( self ):
+    def __init__(self):
         BlackHoleSMSC.__init__(self)
         self.responseMap = {
             BindTransmitter: self.sendInvalidCommandLengthPDUAfterBind,
@@ -200,16 +213,17 @@ class CommandLengthTooLongSMSC(BlackHoleSMSC):
         unbind = Unbind()
         encoded = self.encoder.encode(unbind)
         hexEncoded = binascii.b2a_hex(encoded)
-        #Overwrite the command length (first octet)
+        # Overwrite the command length (first octet)
         badCmdLenHex = '0000ffff'
         badHexEncoded = badCmdLenHex + hexEncoded[len(badCmdLenHex):]
         self.log.debug("Sending PDU with cmd len too large [%s]" % badHexEncoded)
         badEncoded = binascii.a2b_hex(badHexEncoded)
         self.transport.write(badEncoded)
 
+
 class InvalidCommandIdSMSC(BlackHoleSMSC):
 
-    def __init__( self ):
+    def __init__(self):
         BlackHoleSMSC.__init__(self)
         self.responseMap = {
             BindTransmitter: self.sendInvalidCommandIdAfterBind,
@@ -222,17 +236,18 @@ class InvalidCommandIdSMSC(BlackHoleSMSC):
         unbind = Unbind()
         encoded = self.encoder.encode(unbind)
         hexEncoded = binascii.b2a_hex(encoded)
-        #Overwrite the command id (second octet)
+        # Overwrite the command id (second octet)
         badCmdIdHex = 'f0000009'
         badHexEncoded = hexEncoded[:8] + badCmdIdHex + hexEncoded[8 + len(badCmdIdHex):]
         self.log.debug("Sending PDU with invalid cmd id [%s]" % badHexEncoded)
         badEncoded = binascii.a2b_hex(badHexEncoded)
         self.transport.write(badEncoded)
 
+
 class NonFatalParseErrorSMSC(BlackHoleSMSC):
     seqNum = 2654
 
-    def __init__( self ):
+    def __init__(self):
         BlackHoleSMSC.__init__(self)
         self.responseMap = {
             BindTransmitter: self.sendInvalidMessageAfterBind,
@@ -244,18 +259,19 @@ class NonFatalParseErrorSMSC(BlackHoleSMSC):
         self.sendSuccessResponse(reqPDU)
 
         pdu = QuerySM(seqNum=self.seqNum,
-            source_addr_ton=AddrTon.ABBREVIATED,
-            source_addr='1234'
-        )
+                      source_addr_ton=AddrTon.ABBREVIATED,
+                      source_addr='1234'
+                      )
         encoded = self.encoder.encode(pdu)
         hexEncoded = binascii.b2a_hex(encoded)
-        #Overwrite the source_addr_ton param (18th octet)
+        # Overwrite the source_addr_ton param (18th octet)
         badSrcAddrTonHex = '07'
-        badIdx = 17*2
+        badIdx = 17 * 2
         badHexEncoded = hexEncoded[:badIdx] + badSrcAddrTonHex + hexEncoded[(badIdx + len(badSrcAddrTonHex)):]
         self.log.debug("Sending PDU with invalid source_addr_ton [%s]" % badHexEncoded)
         badEncoded = binascii.a2b_hex(badHexEncoded)
         self.transport.write(badEncoded)
+
 
 class DeliverSMBeforeBoundSMSC(BlackHoleSMSC):
 
@@ -267,9 +283,10 @@ class DeliverSMBeforeBoundSMSC(BlackHoleSMSC):
         )
         self.sendPDU(pdu)
 
+
 class OutbindSMSC(HappySMSC):
 
-    def __init__( self ):
+    def __init__(self):
         HappySMSC.__init__(self)
         self.responseMap[BindReceiver] = self.sendDeliverSM
 
@@ -286,9 +303,10 @@ class OutbindSMSC(HappySMSC):
         )
         self.sendPDU(pdu)
 
+
 class DeliverSMSMSC(HappySMSC):
 
-    def __init__( self ):
+    def __init__(self):
         HappySMSC.__init__(self)
         self.responseMap[BindReceiver] = self.sendDeliverSM
         self.responseMap[BindTransceiver] = self.sendDeliverSM
@@ -303,15 +321,17 @@ class DeliverSMSMSC(HappySMSC):
         )
         self.sendPDU(pdu)
 
+
 class DeliverSMAndUnbindSMSC(DeliverSMSMSC):
 
     def sendDeliverSM(self, reqPDU):
         DeliverSMSMSC.sendDeliverSM(self, reqPDU)
         self.sendPDU(Unbind())
 
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    factory          = Factory()
+    factory = Factory()
     factory.protocol = BlackHoleSMSC
     reactor.listenTCP(8007, factory)
     reactor.run()
