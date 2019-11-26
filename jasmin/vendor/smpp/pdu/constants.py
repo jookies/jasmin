@@ -18,272 +18,272 @@ Copyright 2009-2010 Mozes, Inc.
 Updated code parts are marked with "Jasmin update" comment
 """
 command_status_value_map = {
-    0x00000000L: {
+    0x00000000: {
         'name': 'ESME_ROK',
         'description': 'No error',
     },
-    0x00000001L: {
+    0x00000001: {
         'name': 'ESME_RINVMSGLEN',
         'description': 'Message Length is invalid',
     },
-    0x00000002L: {
+    0x00000002: {
         'name': 'ESME_RINVCMDLEN',
         'description': 'Command Length is invalid',
     },
-    0x00000003L: {
+    0x00000003: {
         'name': 'ESME_RINVCMDID',
         'description': 'Invalid Command ID',
     },
-    0x00000004L: {
+    0x00000004: {
         'name': 'ESME_RINVBNDSTS',
         'description': 'Invalid BIND Status for given command',
     },
-    0x00000005L: {
+    0x00000005: {
         'name': 'ESME_RALYBND',
         'description': 'ESME Already in Bound State',
     },
-    0x00000006L: {
+    0x00000006: {
         'name': 'ESME_RINVPRTFLG',
         'description': 'Invalid Priority Flag',
     },
-    0x00000007L: {
+    0x00000007: {
         'name': 'ESME_RINVREGDLVFLG',
         'description': 'Invalid Registered Delivery Flag',
     },
-    0x00000008L: {
+    0x00000008: {
         'name': 'ESME_RSYSERR',
         'description': 'System Error',
     },
-    0x0000000AL: {
+    0x0000000A: {
         'name': 'ESME_RINVSRCADR',
         'description': 'Invalid Source Address',
     },
-    0x0000000BL: {
+    0x0000000B: {
         'name': 'ESME_RINVDSTADR',
         'description': 'Invalid Dest Addr',
     },
-    0x0000000CL: {
+    0x0000000C: {
         'name': 'ESME_RINVMSGID',
         'description': 'Message ID is invalid',
     },
-    0x0000000DL: {
+    0x0000000D: {
         'name': 'ESME_RBINDFAIL',
         'description': 'Bind Failed',
     },
-    0x0000000EL: {
+    0x0000000E: {
         'name': 'ESME_RINVPASWD',
         'description': 'Invalid Password',
     },
-    0x0000000FL: {
+    0x0000000F: {
         'name': 'ESME_RINVSYSID',
         'description': 'Invalid System ID',
     },
-    0x00000011L: {
+    0x00000011: {
         'name': 'ESME_RCANCELFAIL',
         'description': 'Cancel SM Failed',
     },
-    0x00000013L: {
+    0x00000013: {
         'name': 'ESME_RREPLACEFAIL',
         'description': 'Replace SM Failed',
     },
-    0x00000014L: {
+    0x00000014: {
         'name': 'ESME_RMSGQFUL',
         'description': 'Message Queue Full',
     },
-    0x00000015L: {
+    0x00000015: {
         'name': 'ESME_RINVSERTYP',
         'description': 'Invalid Service Type',
     },
-    0x00000033L: {
+    0x00000033: {
         'name': 'ESME_RINVNUMDESTS',
         'description': 'Invalid number of destinations',
     },
-    0x00000034L: {
+    0x00000034: {
         'name': 'ESME_RINVDLNAME',
         'description': 'Invalid Distribution List Name',
     },
-    0x00000040L: {
+    0x00000040: {
         'name': 'ESME_RINVDESTFLAG',
         'description': 'Destination flag is invalid (submit_multi)',
     },
-    0x00000042L: {
+    0x00000042: {
         'name': 'ESME_RINVSUBREP',
         'description': 'Invalid submit with replace request (i.e.  submit_sm with replace_if_present_flag set)',
     },
-    0x00000043L: {
+    0x00000043: {
         'name': 'ESME_RINVESMCLASS',
         'description': 'Invalid esm_class field data',
     },
-    0x00000044L: {
+    0x00000044: {
         'name': 'ESME_RCNTSUBDL',
         'description': 'Cannot Submit to Distribution List',
     },
-    0x00000045L: {
+    0x00000045: {
         'name': 'ESME_RSUBMITFAIL',
         'description': 'submit_sm or submit_multi failed',
     },
-    0x00000048L: {
+    0x00000048: {
         'name': 'ESME_RINVSRCTON',
         'description': 'Invalid Source address TON',
     },
-    0x00000049L: {
+    0x00000049: {
         'name': 'ESME_RINVSRCNPI',
         'description': 'Invalid Source address NPI',
     },
-    0x00000050L: {
+    0x00000050: {
         'name': 'ESME_RINVDSTTON',
         'description': 'Invalid Destination address TON',
     },
-    0x00000051L: {
+    0x00000051: {
         'name': 'ESME_RINVDSTNPI',
         'description': 'Invalid Destination address NPI',
     },
-    0x00000053L: {
+    0x00000053: {
         'name': 'ESME_RINVSYSTYP',
         'description': 'Invalid system_type field',
     },
-    0x00000054L: {
+    0x00000054: {
         'name': 'ESME_RINVREPFLAG',
         'description': 'Invalid replace_if_present flag',
     },
-    0x00000055L: {
+    0x00000055: {
         'name': 'ESME_RINVNUMMSGS',
         'description': 'Invalid number of messages',
     },
-    0x00000058L: {
+    0x00000058: {
         'name': 'ESME_RTHROTTLED',
         'description': 'Throttling error (ESME has exceeded allowed message limits',
     },
-    0x00000061L: {
+    0x00000061: {
         'name': 'ESME_RINVSCHED',
         'description': 'Invalid Scheduled Delivery Time',
     },
-    0x00000062L: {
+    0x00000062: {
         'name': 'ESME_RINVEXPIRY',
         'description': 'Invalid message validity period (Expiry time)',
     },
-    0x00000063L: {
+    0x00000063: {
         'name': 'ESME_RINVDFTMSGID',
         'description': 'Predefined Message Invalid or Not Found',
     },
-    0x00000064L: {
+    0x00000064: {
         'name': 'ESME_RX_T_APPN',
         'description': 'ESME Receiver Temporary App Error Code',
     },
-    0x00000065L: {
+    0x00000065: {
         'name': 'ESME_RX_P_APPN',
         'description': 'ESME Receiver Permanent App Error Code',
     },
-    0x00000066L: {
+    0x00000066: {
         'name': 'ESME_RX_R_APPN',
         'description': 'ESME Receiver Reject Message Error Code',
     },
-    0x00000067L: {
+    0x00000067: {
         'name': 'ESME_RQUERYFAIL',
         'description': 'query_sm request failed',
     },
-    0x000000C0L: {
+    0x000000C0: {
         'name': 'ESME_RINVOPTPARSTREAM',
         'description': 'Error in the optional part of the PDU Body',
     },
-    0x000000C1L: {
+    0x000000C1: {
         'name': 'ESME_ROPTPARNOTALLWD',
         'description': 'Optional Parameter not allowed',
     },
-    0x000000C2L: {
+    0x000000C2: {
         'name': 'ESME_RINVPARLEN',
         'description': 'Invalid Parameter Length',
     },
-    0x000000C3L: {
+    0x000000C3: {
         'name': 'ESME_RMISSINGOPTPARAM',
         'description': 'Expected Optional Parameter missing',
     },
-    0x000000C4L: {
+    0x000000C4: {
         'name': 'ESME_RINVOPTPARAMVAL',
         'description': 'Invalid Optional Parameter Value',
     },
-    0x000000FEL: {
+    0x000000FE: {
         'name': 'ESME_RDELIVERYFAILURE',
         'description': 'Delivery Failure (used for data_sm_resp)',
     },
-    0x000000FFL: {
+    0x000000FF: {
         'name': 'ESME_RUNKNOWNERR',
         'description': 'Unknown Error',
     },
     # Jasmin update:
-    0x00000100L: {
+    0x00000100: {
         'name': 'ESME_RSERTYPUNAUTH',
         'description': 'ESME Not authorised to use specified service_type',
     },
-    0x00000101L: {
+    0x00000101: {
         'name': 'ESME_RPROHIBITED',
         'description': 'ESME Prohibited from using specified operation',
     },
-    0x00000102L: {
+    0x00000102: {
         'name': 'ESME_RSERTYPUNAVAIL',
         'description': 'Specified service_type is unavailable',
     },
-    0x00000103L: {
+    0x00000103: {
         'name': 'ESME_RSERTYPDENIED',
         'description': 'Specified service_type is denied',
     },
-    0x00000104L: {
+    0x00000104: {
         'name': 'ESME_RINVDCS',
         'description': 'Invalid Data Coding Scheme',
     },
-    0x00000105L: {
+    0x00000105: {
         'name': 'ESME_RINVSRCADDRSUBUNIT',
         'description': 'Source Address Sub unit is Invalid',
     },
-    0x00000106L: {
+    0x00000106: {
         'name': 'ESME_RINVDSTADDRSUBUNIT',
         'description': 'Destination Address Sub unit is Invalid',
     },
-    0x00000107L: {
+    0x00000107: {
         'name': 'ESME_RINVBCASTFREQINT',
         'description': 'Broadcast Frequency Interval is invalid',
     },
-    0x00000108L: {
+    0x00000108: {
         'name': 'ESME_RINVBCASTALIAS_NAME',
         'description': 'Broadcast Alias Name is invalid',
     },
-    0x00000109L: {
+    0x00000109: {
         'name': 'ESME_RINVBCASTAREAFMT',
         'description': 'Broadcast Area Format is invalid',
     },
-    0x0000010aL: {
+    0x0000010a: {
         'name': 'ESME_RINVNUMBCAST_AREAS',
         'description': 'Number of Broadcast Areas is invalid',
     },
-    0x0000010bL: {
+    0x0000010b: {
         'name': 'ESME_RINVBCASTCNTTYPE',
         'description': 'Broadcast Content Type is invalid',
     },
-    0x0000010cL: {
+    0x0000010c: {
         'name': 'ESME_RINVBCASTMSGCLASS',
         'description': 'Broadcast Message Class is invalid',
     },
-    0x0000010dL: {
+    0x0000010d: {
         'name': 'ESME_RBCASTFAIL',
         'description': 'broadcast_sm operation failed',
     },
-    0x0000010eL: {
+    0x0000010e: {
         'name': 'ESME_RBCASTQUERYFAIL',
         'description': 'query_broadcast_sm operation failed',
     },
-    0x0000010fL: {
+    0x0000010f: {
         'name': 'ESME_RBCASTCANCELFAIL',
         'description': 'cancel_broadcast_sm operation failed',
     },
-    0x00000110L: {
+    0x00000110: {
         'name': 'ESME_RINVBCAST_REP',
         'description': 'Number of Repeated Broadcasts is invalid',
     },
-    0x00000111L: {
+    0x00000111: {
         'name': 'ESME_RINVBCASTSRVGRP',
         'description': 'Broadcast Service Group is invalid',
     },
-    0x00000112L: {
+    0x00000112: {
         'name': 'ESME_RINVBCASTCHANIND',
         'description': 'Broadcast Channel Indicator is invalid',
     },

@@ -43,7 +43,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
         names = list(field_names)
         seen = set()
         for i, name in enumerate(names):
-            if (not min(c.isalnum() or c=='_' for c in name) or _iskeyword(name)
+            if (not min(c.isalnum() or c == '_' for c in name) or _iskeyword(name)
                 or not name or name[0].isdigit() or name.startswith('_')
                 or name in seen):
                     names[i] = '_%d' % i
@@ -103,7 +103,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
     namespace = dict(_itemgetter=_itemgetter, __name__='namedtuple_%s' % typename,
                      _property=property, _tuple=tuple)
     try:
-        exec(template) in namespace
+        exec(template, namespace)
     except SyntaxError as e:
         raise SyntaxError(e.message + ':\n' + template)
     result = namespace[typename]
