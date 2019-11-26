@@ -71,7 +71,7 @@ class SMStringEncoder(object):
                 
     def decodeUDH(self, udhBytes):
         if udhBytes is not None:
-            return self.userDataHeaderEncoder.decode(StringIO.StringIO(udhBytes))
+            return self.userDataHeaderEncoder.decode(StringIO(udhBytes))
         return None
             
     def splitSM(self, pdu):

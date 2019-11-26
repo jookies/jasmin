@@ -21,7 +21,7 @@ class SmartDummyRequest(DummyRequest):
             self.addArg(k, v)
 
         if json_data is not None:
-            self.content = StringIO.StringIO(json.dumps(json_data))
+            self.content = StringIO(json.dumps(json_data))
         else:
             self.content = None
 

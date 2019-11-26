@@ -47,7 +47,7 @@ class BlackHoleSMSC(protocol.Protocol):
             self.rawMessageReceived(message)
 
     def rawMessageReceived(self, message):
-        return self.PDUReceived(self.encoder.decode(StringIO.StringIO(message)))
+        return self.PDUReceived(self.encoder.decode(StringIO(message)))
 
     def PDUReceived(self, pdu):
         if pdu.__class__ in self.responseMap:

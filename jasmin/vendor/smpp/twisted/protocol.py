@@ -180,7 +180,7 @@ class SMPPProtocolBase( protocol.Protocol ):
 
     def getHeader(self, message):
         try:
-            return self.encoder.decodeHeader(StringIO.StringIO(message[:self.encoder.HEADER_LEN]))
+            return self.encoder.decodeHeader(StringIO(message[:self.encoder.HEADER_LEN]))
         except:
             return {}
 
@@ -195,7 +195,7 @@ class SMPPProtocolBase( protocol.Protocol ):
         """
         pdu = None
         try:
-            pdu = self.encoder.decode(StringIO.StringIO(message))
+            pdu = self.encoder.decode(StringIO(message))
         except PDUCorruptError as e:
             self.log.exception(e)
             self.log.critical("Received corrupt PDU %s" % _safelylogOutPdu(message))

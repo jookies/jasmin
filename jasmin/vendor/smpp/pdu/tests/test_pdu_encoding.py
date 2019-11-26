@@ -37,7 +37,7 @@ class EncoderTest(unittest.TestCase):
                     print "Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i])
 
         self.assertEquals(hexdumpValue, hexEncoded)
-        file = StringIO.StringIO(encoded)
+        file = StringIO(encoded)
         decoded = encoder.decode(file)
         self.assertEquals(value, decoded)
 
@@ -62,12 +62,12 @@ class EncoderTest(unittest.TestCase):
     def do_null_encode_test(self, encoder, nullDecodeVal, hexdumpValue):
         encoded = encoder.encode(None)
         self.assertEquals(hexdumpValue, binascii.b2a_hex(encoded))
-        file = StringIO.StringIO(encoded)
+        file = StringIO(encoded)
         decoded = encoder.decode(file)
         self.assertEquals(nullDecodeVal, decoded)
 
     def decode(self, decodeFunc, hexdumpValue):
-        return decodeFunc(StringIO.StringIO(binascii.a2b_hex(hexdumpValue)))
+        return decodeFunc(StringIO(binascii.a2b_hex(hexdumpValue)))
 
     def do_decode_parse_error_test(self, decodeFunc, status, hexdumpValue):
         try:
