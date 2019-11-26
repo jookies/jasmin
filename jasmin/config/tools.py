@@ -2,7 +2,7 @@
 A Config file reader
 """
 
-import ConfigParser
+from six.moves import configparser as ConfigParser
 
 
 class ConfigFile(object):
