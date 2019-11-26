@@ -259,7 +259,8 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         self.assertEquals(c['headers']['source_addr_npi'], AddrNpi.ISDN)
         self.assertEquals(c['headers']['dest_addr_ton'], AddrTon.NATIONAL)
         self.assertEquals(c['headers']['dest_addr_npi'], AddrNpi.ISDN)
-        self.assertEquals(c['headers']['err'], None)
+        # Default value of err is 99
+        self.assertEquals(c['headers']['err'], 99)
 
     def test_normal_with_err(self):
         message_status = 'DELIVRD'
