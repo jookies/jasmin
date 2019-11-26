@@ -5,7 +5,7 @@ Test cases for jasmin.protocols.smpp.operations module.
 import binascii
 from twisted.trial.unittest import TestCase
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.operations import SMPPOperationFactory, UnknownMessageStatusError
+from jasmin.protocols.smpp.operations import SMPPOperationFactory, UnknownMessageStatusError, UnknownMessageErrValue
 from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, MessageState
 from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 
@@ -285,6 +285,22 @@ class ReceiptCreationTestCases(OperationsTest):
                               'JASMIN',
                               '06155423',
                               'ANY_STATus',
+                              1,
+                              '2017-07-19 17:50:12',
+                              'UNKNOWN',
+                              'UNKNOWN',
+                              'UNKNOWN',
+                              'UNKNOWN')
+
+    def test_incorrect_err_value(self):
+        for dlr_pdu in ['deliver_sm', 'data_sm']:
+            self.assertRaises(UnknownMessageErrValue, self.opFactory.getReceipt,
+                              dlr_pdu,
+                              'anyid',
+                              'JASMIN',
+                              '06155423',
+                              'ANY_STATus',
+                              'WRONG_VALUE',
                               '2017-07-19 17:50:12',
                               'UNKNOWN',
                               'UNKNOWN',
@@ -299,6 +315,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'JASMIN',
                 '06155423',
                 message_state,
+                1,
                 '2017-07-19 17:50:12',
                 'UNKNOWN',
                 'UNKNOWN',
@@ -315,6 +332,7 @@ class ReceiptCreationTestCases(OperationsTest):
             'JASMIN',
             '06155423',
             'ESME_RTHROTTLED',
+            3,
             '2017-07-19 17:50:12',
             'UNKNOWN',
             'UNKNOWN',
@@ -332,6 +350,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'JASMIN',
                 '06155423',
                 message_state,
+                2,
                 '2017-07-19 17:50:12',
                 'UNKNOWN',
                 'UNKNOWN',
@@ -347,6 +366,7 @@ class ReceiptCreationTestCases(OperationsTest):
             'JASMIN',
             '06155423',
             'ESME_RTHROTTLED',
+            2,
             '2017-07-19 17:50:12',
             'UNKNOWN',
             'UNKNOWN',

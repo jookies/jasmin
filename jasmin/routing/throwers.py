@@ -575,6 +575,7 @@ class DLRThrower(Thrower):
         msgid = message.content.properties['message-id'].encode('ascii')
         system_id = message.content.properties['headers']['system_id']
         message_status = message.content.properties['headers']['message_status'].encode('ascii')
+        err = message.content.properties['headers']['err']
         source_addr = '%s' % message.content.properties['headers']['source_addr']
         destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
@@ -606,6 +607,7 @@ class DLRThrower(Thrower):
                                             source_addr=source_addr,
                                             destination_addr=destination_addr,
                                             message_status=message_status,
+                                            err=err,
                                             sub_date=sub_date,
                                             source_addr_ton=source_addr_ton,
                                             source_addr_npi=source_addr_npi,

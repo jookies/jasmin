@@ -53,6 +53,11 @@ class UnknownMessageStatusError(Exception):
     """
 
 
+class UnknownMessageErrValue(Exception):
+    """Raised when Dlr's err value is not correct
+    """
+
+
 class SMPPOperationFactory(object):
     lastLongMsgRefNum = 0
 
@@ -247,10 +252,12 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date,
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, err, sub_date,
                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         """Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"""
-        #@todo: get the real err from original dlr received in jasmin.managers.dlr.DLRLookup.deliver_sm_dlr_callback
+
+        if not isinstance(err, int):
+            raise UnknownMessageErrValue('Unknown err value: %s' % err)
 
         sm_message_stat = message_status
         # Prepare message_state
@@ -258,37 +265,27 @@ class SMPPOperationFactory(object):
             if message_status == 'ESME_ROK':
                 message_state = MessageState.ACCEPTED
                 sm_message_stat = 'ACCEPTD'
-                err = 6
             else:
                 message_state = MessageState.UNDELIVERABLE
                 sm_message_stat = 'UNDELIV'
-                err = 5
         elif message_status == 'UNDELIV':
             message_state = MessageState.UNDELIVERABLE
-            err = 5
         elif message_status == 'REJECTD':
             message_state = MessageState.REJECTED
-            err = 8
         elif message_status == 'DELIVRD':
-            err = 0
             message_state = MessageState.DELIVERED
         elif message_status == 'EXPIRED':
-            err = 3
             message_state = MessageState.EXPIRED
         elif message_status == 'DELETED':
-            err = 4
             message_state = MessageState.DELETED
         elif message_status == 'ACCEPTD':
-            err = 6
             message_state = MessageState.ACCEPTED
         elif message_status == 'ENROUTE':
-            err = 1
             message_state = MessageState.ENROUTE
         elif message_status == 'UNKNOWN':
-            err = 7
             message_state = MessageState.UNKNOWN
         else:
-            raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)
+            raise UnknownMessageStatusError('Unknown message_status: %s' % message_status)
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':

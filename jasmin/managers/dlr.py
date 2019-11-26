@@ -377,7 +377,8 @@ class DLRLookup(object):
                                                                              submit_sm_queue_id, system_id,
                                                                              source_addr, destination_addr, sub_date,
                                                                              source_addr_ton, source_addr_npi,
-                                                                             dest_addr_ton, dest_addr_npi))
+                                                                             dest_addr_ton, dest_addr_npi,
+                                                                             err=pdu_dlr_err))
 
                     if pdu_dlr_status in final_states:
                         self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
