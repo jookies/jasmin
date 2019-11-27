@@ -232,7 +232,7 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
 
 
 class DLRContentForSmppsTestCase(ContentTestCase):
-    def test_normal(self):
+    def test_normal_without_err(self):
         message_status = 'DELIVRD'
         msgid = 'msgid'
         system_id = 'username'
@@ -248,7 +248,7 @@ class DLRContentForSmppsTestCase(ContentTestCase):
                                source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
 
         self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 10)
+        self.assertEquals(len(c['headers']), 11)
         self.assertEquals(c['headers']['try-count'], 0)
         self.assertEquals(c['headers']['message_status'], message_status)
         self.assertEquals(c['headers']['system_id'], system_id)
@@ -259,6 +259,27 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         self.assertEquals(c['headers']['source_addr_npi'], AddrNpi.ISDN)
         self.assertEquals(c['headers']['dest_addr_ton'], AddrTon.NATIONAL)
         self.assertEquals(c['headers']['dest_addr_npi'], AddrNpi.ISDN)
+        # Default value of err is 99
+        self.assertEquals(c['headers']['err'], 99)
+
+    def test_normal_with_err(self):
+        message_status = 'DELIVRD'
+        msgid = 'msgid'
+        system_id = 'username'
+        source_addr = '999'
+        destination_addr = '111'
+        sub_date = datetime.now()
+        source_addr_ton = AddrTon.NATIONAL
+        source_addr_npi = AddrNpi.ISDN
+        dest_addr_ton = AddrTon.NATIONAL
+        dest_addr_npi = AddrNpi.ISDN
+        err = 56
+
+        c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date,
+                               source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi, err=err)
+
+        self.assertEquals(len(c['headers']), 11)
+        self.assertEquals(c['headers']['err'], err)
 
     def test_message_status(self):
         msgid = 'msgid'
