@@ -1,3 +1,4 @@
+import six
 import binascii
 from six.moves import cPickle as pickle
 import logging
@@ -13,7 +14,7 @@ from txamqp.queue import Closed
 from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
+from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map
 from jasmin.vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
 
 
@@ -575,6 +576,7 @@ class DLRThrower(Thrower):
         msgid = message.content.properties['message-id'].encode('ascii')
         system_id = message.content.properties['headers']['system_id']
         message_status = message.content.properties['headers']['message_status'].encode('ascii')
+        err = message.content.properties['headers']['err']
         source_addr = '%s' % message.content.properties['headers']['source_addr']
         destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
@@ -583,6 +585,10 @@ class DLRThrower(Thrower):
         dest_addr_ton = message.content.properties['headers']['dest_addr_ton']
         dest_addr_npi = message.content.properties['headers']['dest_addr_npi']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
+
+        if isinstance(err, six.string_types):
+            # If err is string then encode it to ascii
+            err = err.encode('ascii')
 
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
@@ -606,6 +612,7 @@ class DLRThrower(Thrower):
                                             source_addr=source_addr,
                                             destination_addr=destination_addr,
                                             message_status=message_status,
+                                            err=err,
                                             sub_date=sub_date,
                                             source_addr_ton=source_addr_ton,
                                             source_addr_npi=source_addr_npi,
