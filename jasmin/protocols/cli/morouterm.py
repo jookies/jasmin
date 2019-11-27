@@ -55,7 +55,7 @@ def MORouteBuild(fCallback):
                     self.protocol.sessionCompletitions))
 
             route = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['order', 'type', 'route_class', 'route_args']:
                     route[key] = value
             try:

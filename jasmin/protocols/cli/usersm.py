@@ -148,7 +148,7 @@ def UserBuild(fCallback):
                     UserKeyMap['smpps_cred']['class']]()
 
             user = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 user[key] = value
             try:
                 UserInstance = User(**user)
@@ -475,17 +475,17 @@ class UsersManager(PersistableManager):
         # user object must be allways found through the above iteration since it is secured by
         # the @UserExist annotation on update() method
 
-        for key, value in updateLog.iteritems():
+        for key, value in updateLog.items():
             if key[:1] == '_':
                 # When key is prefixed by '_' it must be treated exceptionnally since the value
                 # is holding advanced update log of a sub-User object
                 subUserObject = getattr(user, key[1:])
-                for update in value.iteritems():
+                for update in value.items():
                     section = update[0]
                     if update[1] is None:
                         continue
 
-                    for SectionKey, SectionValue in update[1].iteritems():
+                    for SectionKey, SectionValue in update[1].items():
                         if str(SectionValue)[:1] in ['+', '-']:
                             if str(SectionValue)[:1] == '+':
                                 # Decode the value and its type
@@ -533,7 +533,7 @@ class UsersManager(PersistableManager):
     def show(self, arg, opts):
         user = self.pb['router'].getUser(opts.show)
 
-        for key, value in UserKeyMap.iteritems():
+        for key, value in UserKeyMap.items():
             if key == 'password':
                 # Dont show password
                 pass
@@ -543,10 +543,10 @@ class UsersManager(PersistableManager):
                 self.protocol.sendData('%s %s' % (key, getattr(user, value)), prompt=False)
             elif isinstance(value, dict) and 'class' in value:
                 if value['class'] == 'MtMessagingCredential':
-                    for section, sectionData in value.iteritems():
+                    for section, sectionData in value.items():
                         if section in ['class', 'keyMapValue']:
                             continue
-                        for SectionShortKey, SectionLongKey in value[section].iteritems():
+                        for SectionShortKey, SectionLongKey in value[section].items():
                             try:
                                 sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
                             except jasminApiCredentialError:
@@ -559,10 +559,10 @@ class UsersManager(PersistableManager):
                             self.protocol.sendData('%s %s %s %s' % (
                                 key, section.lower(), SectionShortKey, sectionValue), prompt=False)
                 if value['class'] == 'SmppsCredential':
-                    for section, sectionData in value.iteritems():
+                    for section, sectionData in value.items():
                         if section in ['class', 'keyMapValue']:
                             continue
-                        for SectionShortKey, SectionLongKey in value[section].iteritems():
+                        for SectionShortKey, SectionLongKey in value[section].items():
                             sectionValue = getattr(user.smpps_credential, 'get%s' % section)(SectionLongKey)
                             if section == 'ValueFilter':
                                 sectionValue = sectionValue.pattern

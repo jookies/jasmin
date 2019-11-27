@@ -293,7 +293,7 @@ class ReceiptCreationTestCases(OperationsTest):
                               'UNKNOWN')
 
     def test_deliver_sm(self):
-        for message_state, _test in self.message_state_map.iteritems():
+        for message_state, _test in self.message_state_map.items():
             pdu = self.opFactory.getReceipt(
                 'deliver_sm',
                 'anyid',
@@ -328,7 +328,7 @@ class ReceiptCreationTestCases(OperationsTest):
         self.assertTrue('stat:UNDELIV' in pdu.params['short_message'])
 
     def test_data_sm(self):
-        for message_state, _test in self.message_state_map.iteritems():
+        for message_state, _test in self.message_state_map.items():
             pdu = self.opFactory.getReceipt(
                 'data_sm',
                 'anyid',

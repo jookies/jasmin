@@ -67,7 +67,7 @@ class DLR(Content):
             properties['headers']['smpp_msgid'] = str(smpp_msgid).upper().lstrip('0')
         elif pdu_type_s in ['deliver_sm', 'data_sm']:
             properties['headers']['cid'] = cid
-            for k, v in dlr_details.iteritems():
+            for k, v in dlr_details.items():
                 properties['headers']['dlr_%s' % k] = v
 
         Content.__init__(self, status_s, properties=properties)

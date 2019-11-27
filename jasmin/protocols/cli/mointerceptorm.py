@@ -50,7 +50,7 @@ def MOInterceptorBuild(fCallback):
                     self.protocol.sessionCompletitions))
 
             interceptor = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['order', 'type', 'interceptor_class', 'interceptor_args']:
                     interceptor[key] = value
             try:

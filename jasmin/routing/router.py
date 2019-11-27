@@ -683,7 +683,7 @@ class RouterPB(pb.Avatar):
         return True
 
     def perspective_is_persisted(self):
-        for _, v in self.persistenceState.iteritems():
+        for _, v in self.persistenceState.items():
             if not v:
                 return False
 

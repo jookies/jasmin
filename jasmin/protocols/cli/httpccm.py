@@ -36,7 +36,7 @@ def HttpccBuild(fCallback):
                         self.protocol.sessionCompletitions))
 
             httpcc = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 httpcc[key] = value
             try:
                 HttpccInstance = HttpConnector(**httpcc)
@@ -157,7 +157,7 @@ class HttpccManager(PersistableManager):
                 'Method'.ljust(6),
                 'URL'.ljust(64),
             ), prompt=False)
-            for cid, _httpcc in self.httpccs.iteritems():
+            for cid, _httpcc in self.httpccs.items():
                 counter += 1
                 self.protocol.sendData("#%s %s %s %s" % (
                     str(cid).ljust(16),

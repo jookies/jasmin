@@ -105,7 +105,7 @@ class RateResource(JasminRestApi, JasminHttpApiProxy):
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
-        for k, v in request_args.iteritems():
+        for k, v in request_args.items():
             del (request_args[k])
             request_args[re.sub('_', '-', k)] = v
 
@@ -135,7 +135,7 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
-        for k, v in request_args.iteritems():
+        for k, v in request_args.items():
             del (request_args[k])
             request_args[re.sub('_', '-', k)] = v
 
@@ -211,7 +211,7 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
 
             # Convert _ to -
             # Added for compliance with json encoding/decoding constraints on dev env like .Net
-            for k, v in message_params.iteritems():
+            for k, v in message_params.items():
                 del (message_params[k])
                 message_params[re.sub('_', '-', k)] = v
 

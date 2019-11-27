@@ -22,7 +22,7 @@ def GroupBuild(fCallback):
                 return self.protocol.sendData('You must set Group id (gid) before saving !')
 
             group = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 group[key] = value
             try:
                 GroupInstance = Group(**group)

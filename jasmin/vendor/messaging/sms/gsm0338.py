@@ -195,11 +195,11 @@ QUESTION_MARK = chr(0x3f)
 
 # unicode -> default GSM 03.38
 def_regular_encode_dict = \
-    dict((u, g) for g, u in def_regular_decode_dict.iteritems())
+    dict((u, g) for g, u in def_regular_decode_dict.items())
 
 # unicode -> default escaped GSM 03.38 characters
 def_escape_encode_dict = \
-    dict((u, g) for g, u in def_escape_decode_dict.iteritems())
+    dict((u, g) for g, u in def_escape_decode_dict.items())
 
 
 def encode(input_, errors='strict'):

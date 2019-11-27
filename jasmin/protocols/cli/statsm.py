@@ -27,7 +27,7 @@ class StatsManager(Manager):
 
         user = self.pb['router'].getUser(opts.user)
         # SMPP Server stats
-        for k, v in user.getCnxStatus().smpps.iteritems():
+        for k, v in user.getCnxStatus().smpps.items():
             if isinstance(v, dict):
                 v = json.dumps(v)
 
@@ -42,7 +42,7 @@ class StatsManager(Manager):
             table.append(row)
 
         # HTTP API stats
-        for k, v in user.getCnxStatus().httpapi.iteritems():
+        for k, v in user.getCnxStatus().httpapi.items():
             if isinstance(v, dict):
                 v = json.dumps(v)
 
@@ -86,7 +86,7 @@ class StatsManager(Manager):
         headers = ["#Item", "Value"]
 
         table = []
-        for k, v in sc.get(opts.smppc).getStats().iteritems():
+        for k, v in sc.get(opts.smppc).getStats().items():
             if isinstance(v, dict):
                 v = json.dumps(v)
 
@@ -135,7 +135,7 @@ class StatsManager(Manager):
         headers = ["#Item", "Value"]
 
         table = []
-        for k, v in sc.get().getStats().iteritems():
+        for k, v in sc.get().getStats().items():
             if isinstance(v, dict):
                 v = json.dumps(v)
 
@@ -159,7 +159,7 @@ class StatsManager(Manager):
         headers = ["#Item", "Value"]
 
         table = []
-        for k, v in sc.get('smpps_01').getStats().iteritems():
+        for k, v in sc.get('smpps_01').getStats().items():
             row = []
             row.append('#%s' % k)
             if k[-3:] == '_at':

@@ -94,7 +94,7 @@ class JCliSMPPClientConfig(SMPPClientConfig):
 
     def getAll(self):
         r = {}
-        for key, value in SMPPClientConfigKeyMap.iteritems():
+        for key, value in SMPPClientConfigKeyMap.items():
             if hasattr(self, value):
                 r[key] = castOutputToBuiltInType(key, getattr(self, value))
             else:
@@ -120,7 +120,7 @@ def SMPPClientConfigBuild(fCallback):
                 return self.protocol.sendData('You must set at least connector id (cid) before saving !')
 
             connector = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 connector[key] = value
             try:
                 SMPPClientConfigInstance = JCliSMPPClientConfig(**connector)
@@ -292,7 +292,7 @@ class SmppCCManager(PersistableManager):
     def update_session(self, updateLog):
         connector = self.pb['smppcm'].getConnector(self.sessionContext['cid'])
         connectorDetails = self.pb['smppcm'].getConnectorDetails(self.sessionContext['cid'])
-        for key, value in updateLog.iteritems():
+        for key, value in updateLog.items():
             connector['config'].set(key, value)
 
         if connector['config'].PendingRestart and connectorDetails['service_status'] == 1:
@@ -342,7 +342,7 @@ class SmppCCManager(PersistableManager):
     @ConnectorExist(cid_key='show')
     def show(self, arg, opts):
         connector = self.pb['smppcm'].getConnector(opts.show)
-        for k, v in connector['config'].getAll().iteritems():
+        for k, v in connector['config'].getAll().items():
             self.protocol.sendData('%s %s' % (k, v), prompt=False)
         self.protocol.sendData()
 

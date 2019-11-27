@@ -404,7 +404,7 @@ class JCliProtocol(CmdProtocol):
     def do_persist(self, arg, opts):
         """Persist current configuration profile to disk in PROFILE"""
 
-        for _, manager in self.managers.iteritems():
+        for _, manager in self.managers.items():
             if manager is not None and isinstance(manager, PersistableManager):
                 manager.persist(arg, opts)
         self.sendData()
@@ -414,7 +414,7 @@ class JCliProtocol(CmdProtocol):
     def do_load(self, arg, opts):
         """Load configuration PROFILE profile from disk"""
 
-        for _, manager in self.managers.iteritems():
+        for _, manager in self.managers.items():
             if manager is not None and isinstance(manager, PersistableManager):
                 manager.load(arg, opts)
         self.sendData()

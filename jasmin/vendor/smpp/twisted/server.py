@@ -50,7 +50,7 @@ class SMPPServerFactory(ServerFactory):
         if self.bound_connections.has_key(system_id):
             bind_counts = self.bound_connections[system_id].getBindingCountByType()
             bound_connections_count = []
-            for key, value in bind_counts.iteritems():
+            for key, value in bind_counts.items():
                 bound_connections_count.append("%s: %d" % (key, value))
             bound_connections_str = ', '.join(bound_connections_count)
             return bound_connections_str
@@ -171,7 +171,7 @@ class SMPPBindManager(object):
 
     def getBindingCountByType(self):
         ret = {}
-        for key, value in self._binds.iteritems():
+        for key, value in self._binds.items():
             ret[key] = len(value)
         return ret
 

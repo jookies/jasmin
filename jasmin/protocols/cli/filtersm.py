@@ -58,7 +58,7 @@ def FilterBuild(fCallback):
                         self.protocol.sessionCompletitions))
 
             _filter = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['fid', 'type', 'filter_class', 'filter_args']:
                     _filter[key] = value
             try:
@@ -326,7 +326,7 @@ class FiltersManager(PersistableManager):
                 'Description'.ljust(32),
             ), prompt=False)
 
-            for fid, _filter in self.filters.iteritems():
+            for fid, _filter in self.filters.items():
                 counter += 1
                 routes = ''
                 if _filter.__class__.__name__ in MOFILTERS:

@@ -617,7 +617,7 @@ class RedisProtocol(LineReceiver, policies.TimeoutMixin):
         HMSET replaces old values with new values.
         """
         items = []
-        for pair in mapping.iteritems():
+        for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("MSET", *items)
 
@@ -627,7 +627,7 @@ class RedisProtocol(LineReceiver, policies.TimeoutMixin):
         operation if none of the keys already exist
         """
         items = []
-        for pair in mapping.iteritems():
+        for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("MSETNX", *items)
 
@@ -1125,7 +1125,7 @@ class RedisProtocol(LineReceiver, policies.TimeoutMixin):
         Set the hash fields to their respective values.
         """
         items = []
-        for pair in mapping.iteritems():
+        for pair in mapping.items():
             items.extend(pair)
         return self.execute_command("HMSET", key, *items)
 
