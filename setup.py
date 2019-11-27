@@ -3,10 +3,13 @@ import grp
 import os
 import pwd
 import sys
-import uuid
 
-from pip.req import parse_requirements
 from setuptools import setup, find_packages
+
+def parse_requirements(filename):
+    """load requirements from a pip requirements file"""
+    lineiter = (line.strip() for line in open(filename))
+    return [line for line in lineiter if line and (not line.startswith("#") and not line.startswith('-'))]
 
 # After passing on travis docker-based ci, sudo is no more
 # used, ROOT_PATH is a env variable set in .travis.yml to avoid
@@ -41,10 +44,6 @@ if "install" in sys.argv:
         if os.path.exists(sysdir) and pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
             print ('WARNING: %s is not owned by jasmin user !' % sysdir)
 
-session = uuid.uuid1()
-install_reqs = parse_requirements('install-requirements', session=session)
-test_reqs = parse_requirements('test-requirements', session=session)
-
 # Dynamically calculate the version based on jasmin.RELEASE.
 release = __import__('jasmin').get_release()
 
@@ -62,10 +61,10 @@ setup(
     packages=find_packages(),
     scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py', 'jasmin/bin/dlrd.py', 'jasmin/bin/dlrlookupd.py'],
     include_package_data=True,
-    install_requires=[str(ir.req) for ir in install_reqs],
-    tests_require=[str(ir.req) for ir in test_reqs],
+    install_requires=parse_requirements('install-requirements'),
+    tests_require=parse_requirements('test-requirements'),
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Framework :: Twisted',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',

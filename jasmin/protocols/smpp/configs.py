@@ -56,6 +56,9 @@ class SMPPClientConfig(object):
         self.log_level = kwargs.get('log_level', logging.INFO)
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = kwargs.get('log_dateformat', '%Y-%m-%d %H:%M:%S')
+        self.log_privacy = kwargs.get('log_privacy', False)
+        if not isinstance(self.log_privacy, bool):
+            raise TypeMismatch('log_privacy must be a boolean')
 
         # Timeout for response to bind request
         self.sessionInitTimerSecs = kwargs.get('sessionInitTimerSecs', 30)
@@ -226,6 +229,7 @@ class SMPPServerConfig(ConfigFile):
         self.log_format = self._get(
             'smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('smpp-server', 'log_date_format', '%Y-%m-%d %H:%M:%S')
+        self.log_privacy = self._getbool('smpp-server', 'log_privacy', False)
 
         # Timeout for response to bind request
         self.sessionInitTimerSecs = self._getint('smpp-server', 'sessionInitTimerSecs', 30)

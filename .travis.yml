@@ -3,7 +3,7 @@ language: python
 python:
     - '2.7'
 env:
-    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.9.27
+    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.9.32
 # Command to install dependencies
 install:
     - python setup.py sdist
@@ -29,10 +29,8 @@ before_install:
     - virtualenv venv
     - source venv/bin/activate
     - mkdir -p $ROOT_PATH/var/log/jasmin
-    - mkdir -p $ROOT_PATH/etc/jasmin/resource
-    - mkdir -p $ROOT_PATH/etc/jasmin/init-script
-    - mkdir -p $ROOT_PATH/etc/jasmin/store
     - mkdir -p $ROOT_PATH/etc/init.d
+    - ln -s `pwd`/misc/config $ROOT_PATH/etc/jasmin
     - chmod -R 777 $ROOT_PATH/var/log/jasmin $ROOT_PATH/etc/jasmin/store
 addons:
   apt:
@@ -43,6 +41,10 @@ addons:
     - libffi-dev
     - libssl-dev
     - bc
+    # Travis-ci migrated to Ubuntu Xenial as the default env.
+    # As described here https://blog.travis-ci.com/2019-04-15-xenial-default-build-environment
+    # Rabbitmq is no more provided out of the box, installed it manually:
+    - rabbitmq-server
 notifications:
   slack:
     secure: guCY7vL67vUhvNYLzInV/EIPMZ7ciq+/s0UlfmKvGYrjIMwXdgfshgKXdHF194eQ9+f0dF8ea1P1/aGqCE4Q4ULPZ555FbftNy/bVLfUPn01+odorAux3rVNq4ezX2QlQc06DpVS2r7U+grM+MQtNdRjoZIuAeipp3YRhyyuIr8=

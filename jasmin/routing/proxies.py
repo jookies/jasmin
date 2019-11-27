@@ -54,6 +54,10 @@ class RouterPBProxy(JasminPBProxy):
         return self.pb.callRemote('user_get_all', gid)
 
     @ConnectedPB
+    def user_set_quota(self, uid, cred, quota, value):
+        return self.pb.callRemote('user_set_quota', uid, cred, quota, value)
+
+    @ConnectedPB
     def user_update_quota(self, uid, cred, quota, value):
         return self.pb.callRemote('user_update_quota', uid, cred, quota, value)
 

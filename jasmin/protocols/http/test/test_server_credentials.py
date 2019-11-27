@@ -55,6 +55,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
                                     port=self.SMSCPort.getHost().port,
                                     bindOperation='transceiver',
                                     submit_sm_throughput=0,
+                                    log_level=logging.DEBUG,
                                     )
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 

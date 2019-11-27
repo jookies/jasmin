@@ -79,9 +79,9 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.TimeoutLeafServer = reactor.listenTCP(0, server.Site(self.TimeoutLeafServerResource))
 
     @defer.inlineCallbacks
-    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, id_smsc='', sub='',
+    def publishDLRContentForHttpapi(self, message_status, msgid, dlr_url, dlr_level, dlr_connector='unknown', id_smsc='', sub='',
                                     dlvrd='', subdate='', donedate='', err='', text='', method='POST', trycount=0):
-        content = DLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc, sub, dlvrd, subdate,
+        content = DLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, dlr_connector, id_smsc, sub, dlvrd, subdate,
                                        donedate, err, text, method, trycount)
         yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr_thrower.http', content=content)
 
@@ -160,9 +160,10 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
 
         dlr_url = 'http://127.0.0.1:%s/dlr' % self.AckServer.getHost().port
         dlr_level = 1
+        dlr_connector = 'test_cid'
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, method='GET')
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, dlr_connector, method='GET')
 
         yield waitFor(1)
 
@@ -172,6 +173,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.assertEqual(callArgs['message_status'][0], message_status)
         self.assertEqual(callArgs['id'][0], msgid)
         self.assertEqual(callArgs['level'][0], str(dlr_level))
+        self.assertEqual(callArgs['connector'][0], dlr_connector)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_dlr_level2(self):
@@ -179,9 +181,10 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
 
         dlr_url = 'http://127.0.0.1:%s/dlr' % self.AckServer.getHost().port
         dlr_level = 2
+        dlr_connector = 'test_cid'
         msgid = 'anything'
         message_status = 'DELIVRD'
-        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, id_smsc='abc', sub='3',
+        self.publishDLRContentForHttpapi(message_status, msgid, dlr_url, dlr_level, dlr_connector, id_smsc='abc', sub='3',
                                          dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text',
                                          method='GET')
 
@@ -200,6 +203,7 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         self.assertEqual(callArgs['donedate'][0], 'anydate')
         self.assertEqual(callArgs['err'][0], '')
         self.assertEqual(callArgs['text'][0], 'Any text')
+        self.assertEqual(callArgs['connector'][0], dlr_connector)
 
 
 class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):
@@ -256,9 +260,9 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
         self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
         self.assertEqual(received_pdu_1.params['short_message'],
-                         'id:MSGID submit date:%s done date:%s stat:ACCEPTD err:006' % (
-                             sub_date.strftime("%Y%m%d%H%M"),
-                             sub_date.strftime("%Y%m%d%H%M"),
+                         'id:MSGID submit date:%s done date:%s stat:ACCEPTD err:99' % (
+                             sub_date.strftime("%y%m%d%H%M"),
+                             sub_date.strftime("%y%m%d%H%M"),
                          ))
 
         # Unbind & Disconnect

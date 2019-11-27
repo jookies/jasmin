@@ -175,10 +175,11 @@ class DLRLookup(object):
                 dlr_level = dlr['level']
                 dlr_method = dlr['method']
                 dlr_expiry = dlr['expiry']
+                dlr_connector = dlr.get('connector', 'unknown')
 
                 if dlr['level'] in [1, 3]:
-                    self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s',
-                                   msgid, dlr_url, dlr_level)
+                    self.log.debug('Got DLR information for msgid[%s], url:%s, level:%s, connector:%s',
+                                   msgid, dlr_url, dlr_level, dlr_connector)
 
                     # The dlr_url in DLRContentForHttpapi indicates the level
                     # of the actual delivery receipt (1) and not the requested
@@ -189,7 +190,9 @@ class DLRLookup(object):
                                                   routing_key='dlr_thrower.http',
                                                   content=DLRContentForHttpapi(dlr_status,
                                                                                msgid, dlr_url,
-                                                                               dlr_level=1, method=dlr_method))
+                                                                               dlr_level=1,
+                                                                               dlr_connector=dlr_connector,
+                                                                               method=dlr_method))
 
                     # DLR request is removed if:
                     # - If level 1 is requested (SMSC level only)
@@ -329,7 +332,9 @@ class DLRLookup(object):
                                                   routing_key='dlr_thrower.http',
                                                   content=DLRContentForHttpapi(pdu_dlr_status,
                                                                                submit_sm_queue_id,
-                                                                               dlr_url, dlr_level=2, id_smsc=msgid,
+                                                                               dlr_url, dlr_level=2,
+                                                                               dlr_connector=pdu_dlr_id,
+                                                                               id_smsc=msgid,
                                                                                sub=pdu_dlr_sub,
                                                                                dlvrd=pdu_dlr_dlvrd,
                                                                                subdate=pdu_dlr_sdate,
@@ -372,7 +377,8 @@ class DLRLookup(object):
                                                                              submit_sm_queue_id, system_id,
                                                                              source_addr, destination_addr, sub_date,
                                                                              source_addr_ton, source_addr_npi,
-                                                                             dest_addr_ton, dest_addr_npi))
+                                                                             dest_addr_ton, dest_addr_npi,
+                                                                             err=pdu_dlr_err))
 
                     if pdu_dlr_status in final_states:
                         self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
@@ -402,9 +408,16 @@ class DLRLookup(object):
         else:
             yield self.ackMessage(message)
 
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config.log_privacy:
+                logged_content = '** %s byte content **' % len(pdu_dlr_text)
+            else:
+                logged_content = '%r' % pdu_dlr_text
+
             self.log.info(
                 "DLR [cid:%s] [smpp-msgid:%s] [status:%s] [submit date:%s] [done date:%s] [sub/dlvrd messages:%s/%s] \
-[err:%s] [content:%r]",
+[err:%s] [content:%s]",
                 pdu_cid,
                 msgid,
                 pdu_dlr_status,
@@ -413,7 +426,7 @@ class DLRLookup(object):
                 pdu_dlr_sub,
                 pdu_dlr_dlvrd,
                 pdu_dlr_err,
-                pdu_dlr_text)
+                logged_content)
 
 
 class DLRLookupSingleton(object):

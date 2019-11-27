@@ -77,7 +77,7 @@ class DLRContentForHttpapi(Content):
     """A DLR Content holding information about the origin SubmitSm sent from httpapi and
     receipt acknowledgment details"""
 
-    def __init__(self, message_status, msgid, dlr_url, dlr_level, id_smsc='', sub='',
+    def __init__(self, message_status, msgid, dlr_url, dlr_level, dlr_connector='unknown', id_smsc='', sub='',
                  dlvrd='', subdate='', donedate='', err='', text='', method='POST', trycount=0):
 
         # ESME_* statuses are returned from SubmitSmResp
@@ -101,6 +101,7 @@ class DLRContentForHttpapi(Content):
                                                        'subdate': subdate,
                                                        'donedate': donedate,
                                                        'err': err,
+                                                       'connector': dlr_connector,
                                                        'text': text}}
 
         Content.__init__(self, msgid, properties=properties)
@@ -111,7 +112,7 @@ class DLRContentForSmpps(Content):
     receipt acknowledgment details"""
 
     def __init__(self, message_status, msgid, system_id, source_addr, destination_addr, sub_date,
-                 source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
+                 source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi, err=99):
         # ESME_* statuses are returned from SubmitSmResp
         # Others are returned from DeliverSm, values must be the same as Table B-2
         if message_status[:5] != 'ESME_' and message_status not in ['DELIVRD', 'EXPIRED', 'DELETED',
@@ -120,6 +121,7 @@ class DLRContentForSmpps(Content):
 
         properties = {'message-id': msgid, 'headers': {'try-count': 0,
                                                        'message_status': message_status,
+                                                       'err': err,
                                                        'system_id': system_id,
                                                        'source_addr': source_addr,
                                                        'destination_addr': destination_addr,

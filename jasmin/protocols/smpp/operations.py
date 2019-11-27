@@ -247,9 +247,9 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date,
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, err, sub_date,
                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
-        "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
+        """Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"""
 
         sm_message_stat = message_status
         # Prepare message_state
@@ -257,44 +257,34 @@ class SMPPOperationFactory(object):
             if message_status == 'ESME_ROK':
                 message_state = MessageState.ACCEPTED
                 sm_message_stat = 'ACCEPTD'
-                err = 6
             else:
                 message_state = MessageState.UNDELIVERABLE
                 sm_message_stat = 'UNDELIV'
-                err = 5
         elif message_status == 'UNDELIV':
             message_state = MessageState.UNDELIVERABLE
-            err = 5
         elif message_status == 'REJECTD':
             message_state = MessageState.REJECTED
-            err = 8
         elif message_status == 'DELIVRD':
-            err = 2
             message_state = MessageState.DELIVERED
         elif message_status == 'EXPIRED':
-            err = 3
             message_state = MessageState.EXPIRED
         elif message_status == 'DELETED':
-            err = 4
             message_state = MessageState.DELETED
         elif message_status == 'ACCEPTD':
-            err = 6
             message_state = MessageState.ACCEPTED
         elif message_status == 'ENROUTE':
-            err = 1
             message_state = MessageState.ENROUTE
         elif message_status == 'UNKNOWN':
-            err = 7
             message_state = MessageState.UNKNOWN
         else:
-            raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)
+            raise UnknownMessageStatusError('Unknown message_status: %s' % message_status)
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%s" % (
                 msgid,
-                parser.parse(sub_date).strftime("%Y%m%d%H%M"),
-                datetime.datetime.now().strftime("%Y%m%d%H%M"),
+                parser.parse(sub_date).strftime("%y%m%d%H%M"),
+                datetime.datetime.now().strftime("%y%m%d%H%M"),
                 sm_message_stat,
                 err,
             )
