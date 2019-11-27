@@ -12,11 +12,13 @@ class _JellyableAvatarMixin(object):
     sending to a peer.
     """
 
-    def _cb_login(self, interface, avatar, logout):
+    def _cb_login(self, result):
         """
         Ensure that the avatar to be returned to the client is jellyable and
         set up disconnection notification to call the realm's logout object.
         """
+        (interface, avatar, logout) = result
+
         if not IJellyable.providedBy(avatar):
             avatar = AsReferenceable(avatar, "perspective")
 
@@ -85,8 +87,8 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
 
     def checkPassword(self, md5password):
         md = md5()
-        md.update(md5password.encode('ascii'))
-        md.update(self.challenge.encode('ascii'))
+        md.update(md5password)
+        md.update(self.challenge)
         correct = md.digest()
         return self.response == correct
 

@@ -8,7 +8,7 @@ class CompiledNode(object):
 
     def get(self, pyCode):
         """Return a compiled pyCode object or instanciate a new one"""
-        pyCodeHash = pyCode.encode('hex')
+        pyCodeHash = hash(pyCode)
         if pyCodeHash not in self.nodes:
             self.nodes[pyCodeHash] = compile(pyCode, '', 'exec')
 

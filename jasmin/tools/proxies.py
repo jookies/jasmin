@@ -57,7 +57,7 @@ class JasminPBProxy(object):
                 self.pbClientFactory.startLogin(
                     UsernamePassword(
                         username,
-                        password))
+                        password.encode('ascii')))
 
             reactor.connectTCP(host, port, self.pbClientFactory)
         else:
