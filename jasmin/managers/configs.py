@@ -2,6 +2,7 @@
 Config file handlers for 'client-management' and 'sm-listener' section in jasmin.cfg
 """
 
+import binascii
 import ast
 from six.moves import cPickle as pickle
 import logging
@@ -28,8 +29,8 @@ class SMPPClientPBConfig(ConfigFile):
 
         self.authentication = self._getbool('client-management', 'authentication', True)
         self.admin_username = self._get('client-management', 'admin_username', 'cmadmin')
-        self.admin_password = self._get(
-            'client-management', 'admin_password', "e1c5136acafb7016bc965597c992eb82").decode('hex')
+        self.admin_password = binascii.unhexlify(self._get('client-management', 'admin_password',
+                                                           "e1c5136acafb7016bc965597c992eb82"))
 
         self.log_level = logging.getLevelName(self._get('client-management', 'log_level', 'INFO'))
         self.log_file = self._get(

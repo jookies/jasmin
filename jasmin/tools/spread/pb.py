@@ -1,5 +1,5 @@
 from hashlib import md5
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.spread.pb import challenge, IJellyable, AsReferenceable, IPerspective
 from twisted.cred.credentials import IUsernameHashedPassword, Anonymous
 from twisted.spread.flavors import IPBRoot, Referenceable
@@ -12,7 +12,7 @@ class _JellyableAvatarMixin(object):
     sending to a peer.
     """
 
-    def _cb_login(self, (interface, avatar, logout)):
+    def _cb_login(self, interface, avatar, logout):
         """
         Ensure that the avatar to be returned to the client is jellyable and
         set up disconnection notification to call the realm's logout object.
@@ -56,6 +56,7 @@ class _JellyableAvatarMixin(object):
             return False, 'Unknown authentication error: %s' % err
 
 
+@implementer(IUsernameHashedPassword)
 class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
     """
     Called with response to verify received password (self.response) with
@@ -65,7 +66,6 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
     where the checker is holding md5 digest passwords (no plaintext passwords on server
     side).
     """
-    implements(IUsernameHashedPassword)
 
     def __init__(self, portal, broker, username, _challenge):
         self.portal = portal
@@ -85,8 +85,8 @@ class _PortalAuthVerifier(Referenceable, _JellyableAvatarMixin):
 
     def checkPassword(self, md5password):
         md = md5()
-        md.update(md5password)
-        md.update(self.challenge)
+        md.update(md5password.encode('ascii'))
+        md.update(self.challenge.encode('ascii'))
         correct = md.digest()
         return self.response == correct
 
@@ -127,8 +127,8 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
         return d
 
 
+@implementer(IPBRoot)
 class JasminPBPortalRoot(object):
-    implements(IPBRoot)
 
     def __init__(self, portal):
         self.portal = portal

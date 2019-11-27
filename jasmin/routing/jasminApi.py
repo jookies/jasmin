@@ -278,7 +278,7 @@ class User(jasminApiGeneric):
         if password is not None and not password_crypted:
             if len(password) == 0 or len(password) > 8:
                 raise jasminApiInvalidParamError('Invalid password length !')
-            self.password = md5(password).digest()
+            self.password = md5(password.encode('ascii')).digest()
         else:
             # Password is already encrypted:
             self.password = password

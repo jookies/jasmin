@@ -74,7 +74,7 @@ class JasminPBProxy(object):
                 yield self.pbClientFactory.login(
                     UsernamePassword(
                         username,
-                        password)).addCallback(self._connected)
+                        password.encode('ascii'))).addCallback(self._connected)
 
     def disconnect(self):
         self.isConnected = False

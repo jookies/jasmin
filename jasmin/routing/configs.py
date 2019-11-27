@@ -2,6 +2,7 @@
 Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' section in jasmin.cfg
 """
 
+import binascii
 from six.moves import cPickle as pickle
 import logging
 import os
@@ -27,8 +28,8 @@ class RouterPBConfig(ConfigFile):
 
         self.authentication = self._getbool('router', 'authentication', True)
         self.admin_username = self._get('router', 'admin_username', 'radmin')
-        self.admin_password = self._get(
-            'router', 'admin_password', "82a606ca5a0deea2b5777756788af5c8").decode('hex')
+        self.admin_password = binascii.unhexlify(self._get('router', 'admin_password',
+                                                           "82a606ca5a0deea2b5777756788af5c8"))
 
         self.pickle_protocol = self._getint('router', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
 

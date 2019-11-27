@@ -2,6 +2,7 @@
 Config file handlers for 'interceptor' section in interceptor.cfg
 """
 
+import binascii
 import logging
 import os
 
@@ -22,8 +23,8 @@ class InterceptorPBConfig(ConfigFile):
 
         self.authentication = self._getbool('interceptor', 'authentication', True)
         self.admin_username = self._get('interceptor', 'admin_username', 'iadmin')
-        self.admin_password = self._get(
-            'interceptor', 'admin_password', "dd8b84cdb60655fed3b9b2d668c5bd9e").decode('hex')
+        self.admin_password = binascii.unhexlify(self._get('interceptor', 'admin_password',
+                                                           "dd8b84cdb60655fed3b9b2d668c5bd9e"))
 
         # Logging
         self.log_level = logging.getLevelName(self._get('interceptor', 'log_level', 'INFO'))

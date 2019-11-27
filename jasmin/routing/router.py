@@ -287,7 +287,7 @@ class RouterPB(pb.Avatar):
         """
         # Find user having correct username/password
         for _user in self.users:
-            if _user.username == username and _user.password == md5(password).digest():
+            if _user.username == username and _user.password == md5(password.encode('ascii')).digest():
                 self.log.debug('authenticateUser [username:%s] returned a User', username)
 
                 # Check if user's group is enabled
