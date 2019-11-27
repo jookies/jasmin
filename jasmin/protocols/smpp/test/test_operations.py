@@ -292,21 +292,6 @@ class ReceiptCreationTestCases(OperationsTest):
                               'UNKNOWN',
                               'UNKNOWN')
 
-    def test_incorrect_err_value(self):
-        for dlr_pdu in ['deliver_sm', 'data_sm']:
-            self.assertRaises(UnknownMessageErrValue, self.opFactory.getReceipt,
-                              dlr_pdu,
-                              'anyid',
-                              'JASMIN',
-                              '06155423',
-                              'ANY_STATus',
-                              'WRONG_VALUE',
-                              '2017-07-19 17:50:12',
-                              'UNKNOWN',
-                              'UNKNOWN',
-                              'UNKNOWN',
-                              'UNKNOWN')
-
     def test_deliver_sm(self):
         for message_state, _test in self.message_state_map.iteritems():
             pdu = self.opFactory.getReceipt(
