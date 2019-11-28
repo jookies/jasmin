@@ -30,7 +30,6 @@ from jasmin.vendor.smpp.pdu.constants import command_status_name_map
 from twisted.internet import protocol, defer, reactor
 from twisted.internet.defer import inlineCallbacks
 from twisted.cred import error
-import exceptions
 
 
 LOG_CATEGORY="smpp.twisted.protocol"
@@ -55,7 +54,7 @@ SMPPOutboundTxnResult = namedtuple('SMPPOutboundTxnResult', 'smpp, request, resp
 def _safelylogOutPdu(content):
     try:
         return binascii.b2a_hex(content)
-    except exceptions.UnicodeEncodeError:
+    except UnicodeEncodeError:
         return "Couldn't log out the pdu content due to non-ascii characters."
 
 
