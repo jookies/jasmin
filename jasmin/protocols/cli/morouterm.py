@@ -301,7 +301,7 @@ class MoRouterManager(PersistableManager):
     @MORouteBuild
     def add_session(self, order, RouteInstance):
         st = self.pb['router'].perspective_moroute_add(
-            pickle.dumps(RouteInstance, pickle.HIGHEST_PROTOCOL), order)
+            pickle.dumps(RouteInstance, 2), order)
 
         if st:
             self.protocol.sendData(

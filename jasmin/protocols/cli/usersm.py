@@ -435,7 +435,7 @@ class UsersManager(PersistableManager):
     @Session
     @UserBuild
     def add_session(self, UserInstance):
-        st = self.pb['router'].perspective_user_add(pickle.dumps(UserInstance, pickle.HIGHEST_PROTOCOL))
+        st = self.pb['router'].perspective_user_add(pickle.dumps(UserInstance, 2))
 
         if st:
             self.protocol.sendData(

@@ -268,7 +268,7 @@ class MoInterceptorManager(PersistableManager):
     @MOInterceptorBuild
     def add_session(self, order, InterceptorInstance):
         st = self.pb['router'].perspective_mointerceptor_add(
-            pickle.dumps(InterceptorInstance, pickle.HIGHEST_PROTOCOL), order)
+            pickle.dumps(InterceptorInstance, 2), order)
 
         if st:
             self.protocol.sendData('Successfully added MOInterceptor [%s] with order:%s' % (

@@ -108,7 +108,7 @@ class GroupsManager(PersistableManager):
     @Session
     @GroupBuild
     def add_session(self, GroupInstance):
-        st = self.pb['router'].perspective_group_add(pickle.dumps(GroupInstance, pickle.HIGHEST_PROTOCOL))
+        st = self.pb['router'].perspective_group_add(pickle.dumps(GroupInstance, 2))
 
         if st:
             self.protocol.sendData('Successfully added Group [%s]' % (GroupInstance.gid), prompt=False)

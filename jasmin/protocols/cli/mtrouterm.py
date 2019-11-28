@@ -309,7 +309,7 @@ class MtRouterManager(PersistableManager):
     @MTRouteBuild
     def add_session(self, order, RouteInstance):
         st = self.pb['router'].perspective_mtroute_add(
-            pickle.dumps(RouteInstance, pickle.HIGHEST_PROTOCOL), order)
+            pickle.dumps(RouteInstance, 2), order)
 
         if st:
             self.protocol.sendData(

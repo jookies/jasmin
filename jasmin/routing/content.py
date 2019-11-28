@@ -4,7 +4,7 @@ from txamqp.content import Content
 
 
 class PDU(Content):
-    pickleProtocol = pickle.HIGHEST_PROTOCOL
+    pickleProtocol = 2
 
     def pickle(self, data):
         return pickle.dumps(data, self.pickleProtocol)

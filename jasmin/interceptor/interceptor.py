@@ -67,7 +67,7 @@ class InterceptorPB(pb.Avatar):
                 self.log.warn('Execution delay [%ss] for script [%s].', delay, pyCode)
 
             if glo['smpp_status'] is None and glo['http_status'] is None:
-                return pickle.dumps(glo['routable'], pickle.HIGHEST_PROTOCOL)
+                return pickle.dumps(glo['routable'], 2)
             else:
                 # If we have one of the statuses set to non-zero value
                 #  then both of them must be non-zero to avoid misbehaviour

@@ -38,7 +38,7 @@ class SMPPClientPBConfig(ConfigFile):
         self.log_rotate = self._get('client-management', 'log_rotate', 'W6')
         self.log_format = self._get('client-management', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('client-management', 'log_date_format', '%Y-%m-%d %H:%M:%S')
-        self.pickle_protocol = self._getint('client-management', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
+        self.pickle_protocol = self._getint('client-management', 'pickle_protocol', 2)
 
 
 class SMPPClientSMListenerConfig(ConfigFile):

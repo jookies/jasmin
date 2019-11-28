@@ -233,14 +233,14 @@ else:
         """
 
         # Before match
-        unpickledFilter = pickle.loads(pickle.dumps(self.f, pickle.HIGHEST_PROTOCOL))
+        unpickledFilter = pickle.loads(pickle.dumps(self.f, 2))
         self.assertTrue(unpickledFilter.pyCode == self.f.pyCode)
 
         # Call the match() method to get the .node defined
         self.f.match(self.routable)
 
         # After match
-        unpickledFilter = pickle.loads(pickle.dumps(self.f, pickle.HIGHEST_PROTOCOL))
+        unpickledFilter = pickle.loads(pickle.dumps(self.f, 2))
         self.assertTrue(unpickledFilter.pyCode == self.f.pyCode)
 
 

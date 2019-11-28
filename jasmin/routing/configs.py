@@ -31,7 +31,7 @@ class RouterPBConfig(ConfigFile):
         self.admin_password = binascii.unhexlify(self._get('router', 'admin_password',
                                                            "82a606ca5a0deea2b5777756788af5c8"))
 
-        self.pickle_protocol = self._getint('router', 'pickle_protocol', pickle.HIGHEST_PROTOCOL)
+        self.pickle_protocol = self._getint('router', 'pickle_protocol', 2)
 
         # Logging
         self.log_level = logging.getLevelName(self._get('router', 'log_level', 'INFO'))
