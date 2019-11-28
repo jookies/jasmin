@@ -29,9 +29,10 @@ for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
 class PDU(Content):
     """A generic SMPP PDU Content"""
 
-    pickleProtocol = pickle.HIGHEST_PROTOCOL
+    pickleProtocol = pickle.DEFAULT_PROTOCOL
 
-    def __init__(self, body="", children=None, properties=None, pickleProtocol=2, prePickle=False):
+    def __init__(self, body="", children=None, properties=None, pickleProtocol=pickle.DEFAULT_PROTOCOL,
+                 prePickle=False):
         self.pickleProtocol = pickleProtocol
 
         if prePickle is True:
@@ -167,7 +168,7 @@ class SubmitSmContent(PDU):
 class SubmitSmRespContent(PDU):
     """A SMPP SubmitSmResp Content"""
 
-    def __init__(self, body, msgid, pickleProtocol=2, prePickle=True):
+    def __init__(self, body, msgid, pickleProtocol=pickle.DEFAULT_PROTOCOL, prePickle=True):
         props = {'message-id': msgid}
 
         PDU.__init__(self, body, properties=props, pickleProtocol=pickleProtocol, prePickle=prePickle)
@@ -176,7 +177,7 @@ class SubmitSmRespContent(PDU):
 class DeliverSmContent(PDU):
     """A SMPP DeliverSm Content"""
 
-    def __init__(self, body, sourceCid, pickleProtocol=2, prePickle=True,
+    def __init__(self, body, sourceCid, pickleProtocol=pickle.DEFAULT_PROTOCOL, prePickle=True,
                  concatenated=False, will_be_concatenated=False):
         props = {}
 
