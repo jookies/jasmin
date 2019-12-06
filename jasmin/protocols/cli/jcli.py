@@ -136,7 +136,8 @@ class JCliProtocol(CmdProtocol):
 
         # Authentication check against configured admin
         if (self.authentication['username'] == self.factory.config.admin_username and
-                    md5(self.authentication['password']).digest() == self.factory.config.admin_password):
+                    md5(self.authentication['password'].encode(
+                        'ascii')).digest() == self.factory.config.admin_password):
             # Authenticated user
             self.authentication['auth'] = True
             self.prompt = self.oldPrompt

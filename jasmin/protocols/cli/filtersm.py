@@ -141,7 +141,7 @@ def FilterBuild(fCallback):
 
                 if len(FilterClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = FilterKeyMap.keys() + FilterClassArgs
+                    self.protocol.sessionCompletitions = list(FilterKeyMap) + FilterClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (self.sessBuffer['filter_class'], ', '.join(FilterClassArgs)))
@@ -301,12 +301,14 @@ class FiltersManager(PersistableManager):
 
         try:
             # Load configuration from file
-            fh = open(path, 'r')
+            fh = open(path, mode='rb')
             lines = fh.readlines()
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context='filters', header=lines[0], data=''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='filters',
+                                       header=lines[0].decode('ascii'),
+                                       data=b''.join(lines[1:]))
 
             # Apply configuration
             self.filters = cf.getMigratedData()
@@ -355,7 +357,7 @@ class FiltersManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Filter: (ok: save, ko: exit)',
-                                 completitions=FilterKeyMap.keys())
+                                 completitions=list(FilterKeyMap))
 
     @FilterExist(fid_key='remove')
     def remove(self, arg, opts):

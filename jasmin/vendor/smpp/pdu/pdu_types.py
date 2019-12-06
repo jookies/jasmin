@@ -20,17 +20,17 @@ from jasmin.vendor.enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu import constants
 
-CommandId = Enum(*constants.command_id_name_map.keys())
+CommandId = Enum(*list(constants.command_id_name_map))
 
-CommandStatus = Enum(*constants.command_status_name_map.keys())
+CommandStatus = Enum(*list(constants.command_status_name_map))
 
-Tag = Enum(*constants.tag_name_map.keys())
+Tag = Enum(*list(constants.tag_name_map))
 
 Option = namedtuple('Option', 'tag, value')
 
-EsmClassMode = Enum(*constants.esm_class_mode_name_map.keys())
-EsmClassType = Enum(*constants.esm_class_type_name_map.keys())
-EsmClassGsmFeatures = Enum(*constants.esm_class_gsm_features_name_map.keys())
+EsmClassMode = Enum(*list(constants.esm_class_mode_name_map))
+EsmClassType = Enum(*list(constants.esm_class_type_name_map))
+EsmClassGsmFeatures = Enum(*list(constants.esm_class_gsm_features_name_map))
 
 EsmClassBase = namedtuple('EsmClass', 'mode, type, gsmFeatures')
 
@@ -42,8 +42,8 @@ class EsmClass(EsmClassBase):
     def __repr__(self):
         return 'EsmClass[mode: %s, type: %s, gsmFeatures: %s]' % (self.mode, self.type, self.gsmFeatures)
 
-RegisteredDeliveryReceipt = Enum(*constants.registered_delivery_receipt_name_map.keys())
-RegisteredDeliverySmeOriginatedAcks = Enum(*constants.registered_delivery_sme_originated_acks_name_map.keys())
+RegisteredDeliveryReceipt = Enum(*list(constants.registered_delivery_receipt_name_map))
+RegisteredDeliverySmeOriginatedAcks = Enum(*list(constants.registered_delivery_sme_originated_acks_name_map))
 
 RegisteredDeliveryBase = namedtuple('RegisteredDelivery', 'receipt, smeOriginatedAcks, intermediateNotification')
 
@@ -55,15 +55,15 @@ class RegisteredDelivery(RegisteredDeliveryBase):
     def __repr__(self):
         return 'RegisteredDelivery[receipt: %s, smeOriginatedAcks: %s, intermediateNotification: %s]' % (self.receipt, self.smeOriginatedAcks, self.intermediateNotification)
 
-AddrTon = Enum(*constants.addr_ton_name_map.keys())
-AddrNpi = Enum(*constants.addr_npi_name_map.keys())
-PriorityFlag = Enum(*constants.priority_flag_name_map.keys())
-ReplaceIfPresentFlag = Enum(*constants.replace_if_present_flap_name_map.keys())
+AddrTon = Enum(*list(constants.addr_ton_name_map))
+AddrNpi = Enum(*list(constants.addr_npi_name_map))
+PriorityFlag = Enum(*list(constants.priority_flag_name_map))
+ReplaceIfPresentFlag = Enum(*list(constants.replace_if_present_flap_name_map))
 
-DataCodingScheme = Enum('RAW', 'DEFAULT', *constants.data_coding_scheme_name_map.keys())
-DataCodingDefault = Enum(*constants.data_coding_default_name_map.keys())
-DataCodingGsmMsgCoding = Enum(*constants.data_coding_gsm_message_coding_name_map.keys())
-DataCodingGsmMsgClass = Enum(*constants.data_coding_gsm_message_class_name_map.keys())
+DataCodingScheme = Enum('RAW', 'DEFAULT', *list(constants.data_coding_scheme_name_map))
+DataCodingDefault = Enum(*list(constants.data_coding_default_name_map))
+DataCodingGsmMsgCoding = Enum(*list(constants.data_coding_gsm_message_coding_name_map))
+DataCodingGsmMsgClass = Enum(*list(constants.data_coding_gsm_message_class_name_map))
 
 DataCodingGsmMsgBase = namedtuple('DataCodingGsmMsg', 'msgCoding, msgClass')
 
@@ -95,10 +95,10 @@ class DataCoding(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-DestFlag = Enum(*constants.dest_flag_name_map.keys())
-MessageState = Enum(*constants.message_state_name_map.keys())
-CallbackNumDigitModeIndicator = Enum(*constants.callback_num_digit_mode_indicator_name_map.keys())
-SubaddressTypeTag = Enum(*constants.subaddress_type_tag_name_map.keys())
+DestFlag = Enum(*list(constants.dest_flag_name_map))
+MessageState = Enum(*list(constants.message_state_name_map))
+CallbackNumDigitModeIndicator = Enum(*list(constants.callback_num_digit_mode_indicator_name_map))
+SubaddressTypeTag = Enum(*list(constants.subaddress_type_tag_name_map))
 
 CallbackNumBase = namedtuple('CallbackNum', 'digitModeIndicator, ton, npi, digits')
 class CallbackNum(CallbackNumBase):
@@ -118,17 +118,17 @@ class Subaddress(SubaddressBase):
     def __repr__(self):
         return 'Subaddress[typeTag: %s, value: %s]' % (self.typeTag, self.value)
 
-AddrSubunit = Enum(*constants.addr_subunit_name_map.keys())
-NetworkType = Enum(*constants.network_type_name_map.keys())
-BearerType = Enum(*constants.bearer_type_name_map.keys())
-PayloadType = Enum(*constants.payload_type_name_map.keys())
-PrivacyIndicator = Enum(*constants.privacy_indicator_name_map.keys())
-LanguageIndicator = Enum(*constants.language_indicator_name_map.keys())
-DisplayTime = Enum(*constants.display_time_name_map.keys())
-MsAvailabilityStatus = Enum(*constants.ms_availability_status_name_map.keys())
-NetworkErrorCode = Enum(*constants.network_error_code_name_map.keys())
-DeliveryFailureReason = Enum(*constants.delivery_failure_reason_name_map.keys())
-MoreMessagesToSend = Enum(*constants.more_messages_to_send_name_map.keys())
+AddrSubunit = Enum(*list(constants.addr_subunit_name_map))
+NetworkType = Enum(*list(constants.network_type_name_map))
+BearerType = Enum(*list(constants.bearer_type_name_map))
+PayloadType = Enum(*list(constants.payload_type_name_map))
+PrivacyIndicator = Enum(*list(constants.privacy_indicator_name_map))
+LanguageIndicator = Enum(*list(constants.language_indicator_name_map))
+DisplayTime = Enum(*list(constants.display_time_name_map))
+MsAvailabilityStatus = Enum(*list(constants.ms_availability_status_name_map))
+NetworkErrorCode = Enum(*list(constants.network_error_code_name_map))
+DeliveryFailureReason = Enum(*list(constants.delivery_failure_reason_name_map))
+MoreMessagesToSend = Enum(*list(constants.more_messages_to_send_name_map))
 
 class PDU(object):
     commandId = None
@@ -155,7 +155,7 @@ class PDU(object):
         for mParam in self.mandatoryParams:
             if mParam in self.params:
                 r += "\n%s: %r" % (mParam, self.params[mParam])
-        for oParam in self.params.keys():
+        for oParam in list(self.params):
             if oParam not in self.mandatoryParams:
                 r += "\n%s: %r" % (oParam, self.params[oParam])                
         r += '\n]'

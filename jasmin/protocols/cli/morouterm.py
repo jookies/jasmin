@@ -112,7 +112,7 @@ def MORouteBuild(fCallback):
 
                 if len(RouteClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MORouteKeyMap.keys() + RouteClassArgs
+                    self.protocol.sessionCompletitions = list(MORouteKeyMap) + RouteClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (self.sessBuffer['route_class'], ', '.join(RouteClassArgs)))
@@ -266,7 +266,7 @@ class MoRouterManager(PersistableManager):
             ), prompt=False)
 
             for e in moroutes:
-                order = e.keys()[0]
+                order = list(e)[0]
                 moroute = e[order]
                 counter += 1
 
@@ -314,7 +314,7 @@ class MoRouterManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Route: (ok: save, ko: exit)',
-                                 completitions=MORouteKeyMap.keys())
+                                 completitions=list(MORouteKeyMap))
 
     @MORouteExist(order_key='remove')
     def remove(self, arg, opts):

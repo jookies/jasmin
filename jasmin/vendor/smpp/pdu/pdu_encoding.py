@@ -399,7 +399,7 @@ class EsmClassEncoder(Int1Encoder):
         modeName = constants.esm_class_mode_value_map[modeVal]
         typeName = constants.esm_class_type_value_map[typeVal]
         gsmFeatureNames = [constants.esm_class_gsm_features_value_map[fVal] for fVal in
-                           constants.esm_class_gsm_features_value_map.keys() if fVal & gsmFeaturesVal]
+                           list(constants.esm_class_gsm_features_value_map) if fVal & gsmFeaturesVal]
 
         mode = getattr(pdu_types.EsmClassMode, modeName)
         type = getattr(pdu_types.EsmClassType, typeName)
@@ -448,7 +448,7 @@ class RegisteredDeliveryEncoder(Int1Encoder):
 
         receiptName = constants.registered_delivery_receipt_value_map[receiptVal]
         smeOriginatedAckNames = [constants.registered_delivery_sme_originated_acks_value_map[aVal] for aVal in
-                                 constants.registered_delivery_sme_originated_acks_value_map.keys() if
+                                 list(constants.registered_delivery_sme_originated_acks_value_map) if
                                  aVal & smeOriginatedAcksVal]
 
         receipt = getattr(pdu_types.RegisteredDeliveryReceipt, receiptName)

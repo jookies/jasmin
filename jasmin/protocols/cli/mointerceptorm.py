@@ -105,7 +105,7 @@ def MOInterceptorBuild(fCallback):
 
                 if len(InterceptorClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MOInterceptorKeyMap.keys() + InterceptorClassArgs
+                    self.protocol.sessionCompletitions = list(MOInterceptorKeyMap) + InterceptorClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (
@@ -243,7 +243,7 @@ class MoInterceptorManager(PersistableManager):
             ), prompt=False)
 
             for e in mointerceptors:
-                order = e.keys()[0]
+                order = list(e)[0]
                 mointerceptor = e[order]
                 counter += 1
 
@@ -281,7 +281,7 @@ class MoInterceptorManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Interceptor: (ok: save, ko: exit)',
-                                 completitions=MOInterceptorKeyMap.keys())
+                                 completitions=list(MOInterceptorKeyMap))
 
     @MOInterceptorExist(order_key='remove')
     def remove(self, arg, opts):

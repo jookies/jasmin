@@ -99,9 +99,9 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.proto.makeConnection(self.tr)
         # Test for greeting
         receivedLines = self.getBuffer(True)
-        self.assertRegexpMatches(receivedLines[0], r'Welcome to Jasmin %s console' % jasmin.get_release())
-        self.assertRegexpMatches(receivedLines[3], r'Type help or \? to list commands\.')
-        self.assertRegexpMatches(receivedLines[9], r'Session ref: ')
+        self.assertRegexpMatches(receivedLines[0], ('Welcome to Jasmin %s console' % jasmin.get_release()).encode('ascii'))
+        self.assertRegexpMatches(receivedLines[3], ('Type help or \? to list commands\.').encode('ascii'))
+        self.assertRegexpMatches(receivedLines[9], ('Session ref: ').encode('ascii'))
 
 
 class BasicTestCases(jCliWithoutAuthTestCases):

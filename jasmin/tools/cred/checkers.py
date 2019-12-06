@@ -1,12 +1,12 @@
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.cred import checkers, credentials, error as credError
 from twisted.internet import defer
 
 
+@implementer(checkers.ICredentialsChecker)
 class RouterAuthChecker(object):
     """Will authenticate users with router_factory.authenticateUser()"""
 
-    implements(checkers.ICredentialsChecker)
     credentialInterfaces = (credentials.IUsernamePassword,)
 
     def __init__(self, router_factory):

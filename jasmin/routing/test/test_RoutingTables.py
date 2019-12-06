@@ -29,10 +29,10 @@ class RoutingTableTests(object):
         routing_t.add(self.route1, 1)
         routing_t.add(self.route3, 3)
 
-        self.assertEqual(routing_t.getAll()[0].keys()[0], 3)
-        self.assertEqual(routing_t.getAll()[1].keys()[0], 2)
-        self.assertEqual(routing_t.getAll()[2].keys()[0], 1)
-        self.assertEqual(routing_t.getAll()[3].keys()[0], 0)
+        self.assertEqual(list(routing_t.getAll()[0])[0], 3)
+        self.assertEqual(list(routing_t.getAll()[1])[0], 2)
+        self.assertEqual(list(routing_t.getAll()[2])[0], 1)
+        self.assertEqual(list(routing_t.getAll()[3])[0], 0)
 
     def test_routing_table_replace_route(self):
         routing_t = self._routingTable()

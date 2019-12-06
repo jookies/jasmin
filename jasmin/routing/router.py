@@ -380,7 +380,7 @@ class RouterPB(pb.Avatar):
         mointerceptors = self.mo_interception_table.getAll()
 
         for e in mointerceptors:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMOInterceptor [order:%s] returned a MOInterceptor', order)
                 return e[order]
 
@@ -391,7 +391,7 @@ class RouterPB(pb.Avatar):
         mtinterceptors = self.mt_interception_table.getAll()
 
         for e in mtinterceptors:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMTInterceptor [order:%s] returned a MTInterceptor', order)
                 return e[order]
 
@@ -402,7 +402,7 @@ class RouterPB(pb.Avatar):
         moroutes = self.mo_routing_table.getAll()
 
         for e in moroutes:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMORoute [order:%s] returned a MORoute', order)
                 return e[order]
 
@@ -413,7 +413,7 @@ class RouterPB(pb.Avatar):
         mtroutes = self.mt_routing_table.getAll()
 
         for e in mtroutes:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMTRoute [order:%s] returned a MTRoute', order)
                 return e[order]
 

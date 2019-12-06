@@ -86,7 +86,8 @@ class JCliFactory(ServerFactory):
                 self.loadConfigProfileWithCreds['username'])
 
             if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
-                        md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
+                        md5(self.loadConfigProfileWithCreds['password'].encode(
+                            'ascii')).digest() != self.config.admin_password):
                 self.log.error(
                     "Authentication error, cannot load configuration profile with provided username: '%s'",
                     self.loadConfigProfileWithCreds['username'])

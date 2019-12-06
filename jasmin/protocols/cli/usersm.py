@@ -175,7 +175,7 @@ def UserBuild(fCallback):
                 value = _r.group(3)
 
                 # Validate section
-                possible_values = subKeyMap.keys()
+                possible_values = list(subKeyMap)
                 possible_values.remove('class')
                 possible_values.remove('keyMapValue')
                 valid_section = False
@@ -189,9 +189,9 @@ def UserBuild(fCallback):
                         section, ', '.join(possible_values)))
 
                 # Validate key
-                if key not in subKeyMap[section].keys():
+                if key not in list(subKeyMap[section]):
                     return self.protocol.sendData('Error: invalid key: %s, possible keys: %s' % (
-                        key, ', '.join(subKeyMap[section].keys())))
+                        key, ', '.join(list(subKeyMap[section]))))
                 SectionKey = subKeyMap[section][key]
 
                 try:
@@ -292,7 +292,7 @@ def UserUpdate(fCallback):
                 value = _r.group(3)
 
                 # Validate section
-                possible_values = subKeyMap.keys()
+                possible_values = list(subKeyMap)
                 possible_values.remove('class')
                 possible_values.remove('keyMapValue')
                 valid_section = False
@@ -306,9 +306,9 @@ def UserUpdate(fCallback):
                         section, ', '.join(possible_values)))
 
                 # Validate key
-                if key not in subKeyMap[section].keys():
+                if key not in list(subKeyMap[section]):
                     return self.protocol.sendData('Error: invalid key: %s, possible keys: %s' % (
-                        key, ', '.join(subKeyMap[section].keys())))
+                        key, ', '.join(list(subKeyMap[section]))))
                 SectionKey = subKeyMap[section][key]
 
                 try:
@@ -448,7 +448,7 @@ class UsersManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new User: (ok: save, ko: exit)',
-                                 completitions=UserKeyMap.keys())
+                                 completitions=list(UserKeyMap))
 
     @UserExist(uid_key='enable')
     def enable(self, arg, opts):
@@ -506,7 +506,7 @@ class UsersManager(PersistableManager):
                                     prompt=False)
             else:
                 if key == 'password':
-                    setattr(user, key, md5(value).digest())
+                    setattr(user, key, md5(value.encode('ascii')).digest())
                 else:
                     setattr(user, key, value)
 
@@ -517,7 +517,7 @@ class UsersManager(PersistableManager):
     def update(self, arg, opts):
         return self.startSession(self.update_session,
                                  annoucement='Updating User id [%s]: (ok: save, ko: exit)' % opts.update,
-                                 completitions=UserKeyMap.keys(),
+                                 completitions=list(UserKeyMap),
                                  sessionContext={'uid': opts.update})
 
     @UserExist(uid_key='remove')

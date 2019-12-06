@@ -119,7 +119,7 @@ class GroupsManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Group: (ok: save, ko: exit)',
-                                 completitions=GroupKeyMap.keys())
+                                 completitions=list(GroupKeyMap))
 
     @GroupExist(gid_key='enable')
     def enable(self, arg, opts):

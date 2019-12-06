@@ -17,7 +17,7 @@ class ProtocolTestCases(unittest.TestCase):
 
     @defer.inlineCallbacks
     def sendCommand(self, command, wait=None):
-        self.proto.dataReceived('%s\r\n' % command)
+        self.proto.dataReceived(('%s\r\n' % command).encode('ascii'))
 
         # Wait before getting recv buffer
         if wait is not None:
@@ -38,12 +38,11 @@ class ProtocolTestCases(unittest.TestCase):
 
             # Get buffer and assert for `expect`
             receivedLines = self.getBuffer(True)
-            # print receivedLines
 
             # First line is the command itself
             # 'noecho' is used when there's no echo back from the server while typing (e.g. password input)
             if 'noecho' not in cmd:
-                self.assertEqual(receivedLines[0], cmd['command'])
+                self.assertEqual(receivedLines[0].decode('ascii'), cmd['command'])
 
             # Assert reply
             if 'expect' in cmd:
@@ -53,7 +52,7 @@ class ProtocolTestCases(unittest.TestCase):
                     receivedContent = ''
                     for line in range(len(receivedLines)):
                         if line % 3 == 0:
-                            receivedContent += receivedLines[line]
+                            receivedContent += receivedLines[line].decode('ascii')
                     self.assertRegexpMatches(receivedContent, cmd['expect'])
                 elif isinstance(cmd['expect'], list):
                     self.assertGreaterEqual(len(receivedLines), 3 + (len(cmd['expect']) * 3),
@@ -61,12 +60,12 @@ class ProtocolTestCases(unittest.TestCase):
 
                     offset = 0
                     for e in cmd['expect']:
-                        self.assertRegexpMatches(receivedLines[3 + offset], e)
+                        self.assertRegexpMatches(receivedLines[3 + offset].decode('ascii'), e)
                         offset += 3
 
         # Assert for final prompt
         if receivedLines is not None and finalPrompt is not None:
-            self.assertRegexpMatches(receivedLines[len(receivedLines) - 1], finalPrompt)
+            self.assertRegexpMatches(receivedLines[len(receivedLines) - 1].decode('ascii'), finalPrompt)
 
 
 class CmdProtocolTestCases(ProtocolTestCases):

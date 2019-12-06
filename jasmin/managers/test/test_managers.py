@@ -70,7 +70,7 @@ class SMPPClientPBTestCase(unittest.TestCase):
             p.registerChecker(AllowAnonymousAccess())
         else:
             c = InMemoryUsernamePasswordDatabaseDontUse()
-            c.addUser('test_user', md5('test_password'.encode('utf-8')).digest())
+            c.addUser('test_user', md5('test_password'.encode('ascii')).digest())
             p.registerChecker(c)
         jPBPortalRoot = JasminPBPortalRoot(p)
         self.PBServer = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))

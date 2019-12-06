@@ -256,7 +256,7 @@ _table_formats = {"simple":
                               padding=0, with_header_hide=None)}
 
 
-tabulate_formats = list(sorted(_table_formats.keys()))
+tabulate_formats = list(sorted(list(_table_formats)))
 
 
 _invisible_codes = re.compile(r"\x1b\[\d*m|\x1b\[\d*\;\d*\;\d*m")  # ANSI color codes
@@ -577,11 +577,11 @@ def _normalize_tabular_data(tabular_data, headers):
         # dict-like and pandas.DataFrame?
         if hasattr(tabular_data.values, "__call__"):
             # likely a conventional dict
-            keys = tabular_data.keys()
+            keys = list(tabular_data)
             rows = list(izip_longest(*tabular_data.values()))  # columns have to be transposed
         elif hasattr(tabular_data, "index"):
             # values is a property, has .index => it's likely a pandas.DataFrame (pandas 0.11.0)
-            keys = tabular_data.keys()
+            keys = list(tabular_data)
             vals = tabular_data.values  # values matrix doesn't need to be transposed
             names = tabular_data.index
             rows = [[v]+list(row) for v,row in zip(names, vals)]
@@ -612,11 +612,11 @@ def _normalize_tabular_data(tabular_data, headers):
             keys = [] # storage for set
             if headers == "firstrow":
                 firstdict = rows[0] if len(rows) > 0 else {}
-                keys.extend(firstdict.keys())
+                keys.extend(list(firstdict))
                 uniq_keys.update(keys)
                 rows = rows[1:]
             for row in rows:
-                for k in row.keys():
+                for k in list(row):
                     #Save unique items in input order
                     if k not in uniq_keys:
                         keys.append(k)

@@ -110,7 +110,7 @@ def create_http_method_map(resource):
                 method_map[method] = responder
 
     # Attach a resource for unsupported HTTP methods
-    allowed_methods = sorted(list(method_map.keys()))
+    allowed_methods = sorted(list(list(method_map)))
 
     if 'OPTIONS' not in method_map:
         # OPTIONS itself is intentionally excluded from the Allow header

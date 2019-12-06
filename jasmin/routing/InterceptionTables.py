@@ -51,7 +51,7 @@ class InterceptionTable(object):
 
     def remove(self, order):
         for r in self.table:
-            if r.keys()[0] == order:
+            if list(r)[0] == order:
                 self.table.remove(r)
                 return True
 

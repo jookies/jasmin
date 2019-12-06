@@ -284,7 +284,7 @@ class SmppCCManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new connector: (ok: save, ko: exit)',
-                                 completitions=SMPPClientConfigKeyMap.keys())
+                                 completitions=list(SMPPClientConfigKeyMap))
 
     @Session
     @SMPPClientConfigUpdate
@@ -326,7 +326,7 @@ class SmppCCManager(PersistableManager):
         return self.startSession(
             self.update_session,
             annoucement='Updating connector id [%s]: (ok: save, ko: exit)' % opts.update,
-            completitions=SMPPClientConfigKeyMap.keys(),
+            completitions=list(SMPPClientConfigKeyMap),
             sessionContext={'cid': opts.update})
 
     @ConnectorExist(cid_key='remove')

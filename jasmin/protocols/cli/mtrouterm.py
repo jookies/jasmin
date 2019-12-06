@@ -108,7 +108,7 @@ def MTRouteBuild(fCallback):
 
                 if len(RouteClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MTRouteKeyMap.keys() + RouteClassArgs
+                    self.protocol.sessionCompletitions = list(MTRouteKeyMap) + RouteClassArgs
 
                     return self.protocol.sendData('%s arguments:\n%s' % (
                         self.sessBuffer['route_class'], ', '.join(RouteClassArgs)))
@@ -264,7 +264,7 @@ class MtRouterManager(PersistableManager):
             ), prompt=False)
 
             for e in mtroutes:
-                order = e.keys()[0]
+                order = list(e)[0]
                 mtroute = e[order]
                 counter += 1
 
@@ -322,7 +322,7 @@ class MtRouterManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MT Route: (ok: save, ko: exit)',
-                                 completitions=MTRouteKeyMap.keys())
+                                 completitions=list(MTRouteKeyMap))
 
     @MTRouteExist(order_key='remove')
     def remove(self, arg, opts):

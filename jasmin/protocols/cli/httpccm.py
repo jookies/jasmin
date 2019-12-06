@@ -133,12 +133,14 @@ class HttpccManager(PersistableManager):
 
         try:
             # Load configuration from file
-            fh = open(path, 'r')
+            fh = open(path, 'rb')
             lines = fh.readlines()
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context='httpcs', header=lines[0], data=''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='httpcs',
+                                       header=lines[0].decode('ascii'),
+                                       data=b''.join(lines[1:]))
 
             # Apply configuration
             self.httpccs = cf.getMigratedData()
@@ -181,7 +183,7 @@ class HttpccManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Httpcc: (ok: save, ko: exit)',
-                                 completitions=HttpccKeyMap.keys())
+                                 completitions=list(HttpccKeyMap))
 
     @HttpccExist(cid_key='remove')
     def remove(self, arg, opts):

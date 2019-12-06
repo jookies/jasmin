@@ -267,7 +267,7 @@ class Send(Resource):
             # Got any updates to apply on pdu(s) ?
             if len(param_updates) > 0:
                 routable = update_submit_sm_pdu(routable=routable, config=param_updates,
-                                                config_update_params=param_updates.keys())
+                                                config_update_params=list(param_updates))
 
             # Set DLR bit mask on the last pdu
             _last_pdu = routable.pdu

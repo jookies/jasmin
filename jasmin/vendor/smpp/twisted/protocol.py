@@ -785,7 +785,7 @@ class SMPPServerProtocol(SMPPProtocolBase):
         try:
             iface, auth_avatar, logout = yield self.factory.login(system_id, password, self.transport.getPeer().host)
         except error.UnauthorizedLogin:
-            if system_id not in self.factory.config.systems.keys():
+            if system_id not in list(self.factory.config.systems):
                 self.log.warning('SMPP Bind request failed for system_id: "%s", System ID not configured' % system_id)
                 self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVSYSID, system_id)
             else:

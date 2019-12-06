@@ -17,7 +17,7 @@ from jasmin.vendor.enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu import gsm_constants
 
-InformationElementIdentifier = Enum(*gsm_constants.information_element_identifier_name_map.keys())
+InformationElementIdentifier = Enum(*list(gsm_constants.information_element_identifier_name_map))
 
 InformationElement = namedtuple('InformationElement', 'identifier, data')
 

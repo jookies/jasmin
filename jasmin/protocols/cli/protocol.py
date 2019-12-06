@@ -123,7 +123,11 @@ class CmdProtocol(recvline.HistoricRecvLine):
                 '[sref:%s] Parsed line returns: cmd=None, agr=None, line=%s', self.sessionRef, line)
             return None, None, line
         elif line[0] == '?':
-            line = 'help ' + line[1:]
+            line = 'help ' + (line[1:]).decode('ascii')
+
+        # Binary to str
+        # Py2 > Py3 migration (Refs #171)
+        line = line.decode('ascii')
 
         i, n = 0, len(line)
         while i < n and line[i] in self.identchars:

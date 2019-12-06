@@ -105,7 +105,7 @@ def MTInterceptorBuild(fCallback):
 
                 if len(InterceptorClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MTInterceptorKeyMap.keys() + InterceptorClassArgs
+                    self.protocol.sessionCompletitions = list(MTInterceptorKeyMap) + InterceptorClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (
@@ -243,7 +243,7 @@ class MtInterceptorManager(PersistableManager):
             ), prompt=False)
 
             for e in mtinterceptors:
-                order = e.keys()[0]
+                order = list(e)[0]
                 mtinterceptor = e[order]
                 counter += 1
 
@@ -281,7 +281,7 @@ class MtInterceptorManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MT Interceptor: (ok: save, ko: exit)',
-                                 completitions=MTInterceptorKeyMap.keys())
+                                 completitions=list(MTInterceptorKeyMap))
 
     @MTInterceptorExist(order_key='remove')
     def remove(self, arg, opts):

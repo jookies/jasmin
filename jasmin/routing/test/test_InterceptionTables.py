@@ -29,10 +29,10 @@ class InterceptionTableTests(object):
         interception_t.add(self.interceptor1, 1)
         interception_t.add(self.interceptor3, 3)
 
-        self.assertEqual(interception_t.getAll()[0].keys()[0], 3)
-        self.assertEqual(interception_t.getAll()[1].keys()[0], 2)
-        self.assertEqual(interception_t.getAll()[2].keys()[0], 1)
-        self.assertEqual(interception_t.getAll()[3].keys()[0], 0)
+        self.assertEqual(list(interception_t.getAll()[0])[0], 3)
+        self.assertEqual(list(interception_t.getAll()[1])[0], 2)
+        self.assertEqual(list(interception_t.getAll()[2])[0], 1)
+        self.assertEqual(list(interception_t.getAll()[3])[0], 0)
 
     def test_interception_table_replace_interceptor(self):
         interception_t = self._interceptionTable()

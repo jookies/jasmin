@@ -48,7 +48,7 @@ def tagfilters_casting(data, context=None):
                 tagfilter.tag = str(tagfilter.tag)
     elif context == 'mtroutes':
         for routes in data.getAll():
-            route = routes[routes.keys()[0]]
+            route = routes[list(routes)[0]]
             for filter in route.filters:
                 if isinstance(filter, TagFilter):
                     # Cast tags to str
