@@ -78,7 +78,7 @@ class jCliWithAuthTestCases(jCliTestCases):
         self.proto.makeConnection(self.tr)
         # Test for greeting
         receivedLines = self.getBuffer(True)
-        self.assertRegexpMatches(receivedLines[0], r'Authentication required.')
+        self.assertRegexpMatches(receivedLines[0][18:].decode('ascii'), r'Authentication required.')
 
 
 class jCliWithoutAuthTestCases(jCliTestCases):
