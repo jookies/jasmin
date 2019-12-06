@@ -71,7 +71,7 @@ class HttpccExist(object):
             opts = args[1]
             cid = getattr(opts, cid_key)
 
-            for httpcc_id in self.httpccs.iterkeys():
+            for httpcc_id in self.httpccs.keys():
                 if cid == httpcc_id:
                     return fCallback(self, *args, **kwargs)
 

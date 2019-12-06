@@ -26,7 +26,7 @@ class BasicTestCases(HttpccTestCases):
         return self.add_httpcc(r'jcli : ', extraCommands)
 
     def test_add_without_minimum_args(self):
-        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: url, method, cid'}]
+        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: cid, url, method'}]
         return self.add_httpcc(r'> ', extraCommands)
 
     def test_add_invalid_key(self):
