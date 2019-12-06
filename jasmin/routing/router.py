@@ -434,9 +434,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current Groups configuration to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.groups, self.pickleProtocol))
                 fh.close()
 
@@ -449,9 +450,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current Users configuration to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
                 fh.close()
 
@@ -465,9 +467,10 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MORoutingTable to [%s] profile in %s', profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
                 fh.close()
 
@@ -479,9 +482,10 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MTRoutingTable to [%s] profile in %s', profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
                 fh.close()
 
@@ -494,9 +498,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current MOInterceptionTable to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mo_interception_table, self.pickleProtocol))
                 fh.close()
 
@@ -509,9 +514,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current MTInterceptionTable to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mt_interception_table, self.pickleProtocol))
                 fh.close()
 
@@ -536,12 +542,12 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context='groups', header=lines[0], data=''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='groups', header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Remove current configuration
                 self.log.info('Removing current Groups (%d)', len(self.groups))
@@ -561,12 +567,12 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context='users', header=lines[0], data=''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='users', header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Remove current configuration
                 self.log.info('Removing current Users (%d)', len(self.users))
@@ -588,13 +594,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='mointerceptors',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MO Interceptors
                 self.mo_interception_table = cf.getMigratedData()
@@ -611,13 +617,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='mtinterceptors',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MT Interceptors
                 self.mt_interception_table = cf.getMigratedData()
@@ -634,13 +640,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='moroutes',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MO Routes
                 self.mo_routing_table = cf.getMigratedData()
@@ -657,13 +663,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='mtroutes',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MT Routes
                 self.mt_routing_table = cf.getMigratedData()

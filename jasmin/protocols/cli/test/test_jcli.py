@@ -124,7 +124,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
                         'smppccm             SMPP connector management',
                         'httpccm             HTTP client connector management',
                         'stats               Stats management',
-                        '',
+                        r'^$',
                         'Control commands:',
                         '=================',
                         'quit                Disconnect from console',
@@ -136,31 +136,33 @@ class BasicTestCases(jCliWithoutAuthTestCases):
 class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_persist(self):
-        expectedList = [r'mtrouter configuration persisted \(profile:jcli-prod\)',
-                        r'smppcc configuration persisted \(profile\:jcli-prod\)',
-                        r'group configuration persisted \(profile\:jcli-prod\)',
-                        r'user configuration persisted \(profile\:jcli-prod\)',
-                        r'httpcc configuration persisted \(profile\:jcli-prod\)',
-                        r'mointerceptor configuration persisted \(profile\:jcli-prod\)',
-                        r'filter configuration persisted \(profile\:jcli-prod\)',
-                        r'mtinterceptor configuration persisted \(profile\:jcli-prod\)',
-                        r'morouter configuration persisted \(profile\:jcli-prod\)',
-                        ]
+        expectedList = [
+            r'user configuration persisted \(profile\:jcli-prod\)',
+            r'group configuration persisted \(profile\:jcli-prod\)',
+            r'mointerceptor configuration persisted \(profile\:jcli-prod\)',
+            r'mtinterceptor configuration persisted \(profile\:jcli-prod\)',
+            r'morouter configuration persisted \(profile\:jcli-prod\)',
+            r'mtrouter configuration persisted \(profile:jcli-prod\)',
+            r'smppcc configuration persisted \(profile\:jcli-prod\)',
+            r'filter configuration persisted \(profile\:jcli-prod\)',
+            r'httpcc configuration persisted \(profile\:jcli-prod\)',
+        ]
         commands = [{'command': 'persist', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
     def test_persist_profile(self):
-        expectedList = [r'mtrouter configuration persisted \(profile:testprofile\)',
-                        r'smppcc configuration persisted \(profile\:testprofile\)',
-                        r'group configuration persisted \(profile\:testprofile\)',
-                        r'user configuration persisted \(profile\:testprofile\)',
-                        r'httpcc configuration persisted \(profile\:testprofile\)',
-                        r'mointerceptor configuration persisted \(profile\:testprofile\)',
-                        r'filter configuration persisted \(profile\:testprofile\)',
-                        r'mtinterceptor configuration persisted \(profile\:testprofile\)',
-                        r'morouter configuration persisted \(profile\:testprofile\)',
-                        ]
+        expectedList = [
+            r'user configuration persisted \(profile\:testprofile\)',
+            r'group configuration persisted \(profile\:testprofile\)',
+            r'mointerceptor configuration persisted \(profile\:testprofile\)',
+            r'mtinterceptor configuration persisted \(profile\:testprofile\)',
+            r'morouter configuration persisted \(profile\:testprofile\)',
+            r'mtrouter configuration persisted \(profile:testprofile\)',
+            r'smppcc configuration persisted \(profile\:testprofile\)',
+            r'filter configuration persisted \(profile\:testprofile\)',
+            r'httpcc configuration persisted \(profile\:testprofile\)',
+        ]
         commands = [{'command': 'persist -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -170,16 +172,17 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'persist'}]
         yield self._test(r'jcli : ', commands)
 
-        expectedList = [r'mtrouter configuration loaded \(profile\:jcli-prod\)',
-                        r'smppcc configuration loaded \(profile\:jcli-prod\)',
-                        r'group configuration loaded \(profile\:jcli-prod\)',
-                        r'user configuration loaded \(profile\:jcli-prod\)',
-                        r'httpcc configuration loaded \(profile\:jcli-prod\)',
-                        r'mointerceptor configuration loaded \(profile\:jcli-prod\)',
-                        r'filter configuration loaded \(profile\:jcli-prod\)',
-                        r'mtinterceptor configuration loaded \(profile\:jcli-prod\)',
-                        r'morouter configuration loaded \(profile\:jcli-prod\)',
-                        ]
+        expectedList = [
+            r'user configuration loaded \(profile\:jcli-prod\)',
+            r'group configuration loaded \(profile\:jcli-prod\)',
+            r'mointerceptor configuration loaded \(profile\:jcli-prod\)',
+            r'mtinterceptor configuration loaded \(profile\:jcli-prod\)',
+            r'morouter configuration loaded \(profile\:jcli-prod\)',
+            r'mtrouter configuration loaded \(profile\:jcli-prod\)',
+            r'smppcc configuration loaded \(profile\:jcli-prod\)',
+            r'filter configuration loaded \(profile\:jcli-prod\)',
+            r'httpcc configuration loaded \(profile\:jcli-prod\)',
+        ]
         commands = [{'command': 'load', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -189,31 +192,33 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
         commands = [{'command': 'persist -p testprofile'}]
         yield self._test(r'jcli : ', commands)
 
-        expectedList = [r'mtrouter configuration loaded \(profile\:testprofile\)',
-                        r'smppcc configuration loaded \(profile\:testprofile\)',
-                        r'group configuration loaded \(profile\:testprofile\)',
-                        r'user configuration loaded \(profile\:testprofile\)',
-                        r'httpcc configuration loaded \(profile\:testprofile\)',
-                        r'mointerceptor configuration loaded \(profile\:testprofile\)',
-                        r'filter configuration loaded \(profile\:testprofile\)',
-                        r'mtinterceptor configuration loaded \(profile\:testprofile\)',
-                        r'morouter configuration loaded \(profile\:testprofile\)',
-                        ]
+        expectedList = [
+            r'user configuration loaded \(profile\:testprofile\)',
+            r'group configuration loaded \(profile\:testprofile\)',
+            r'mointerceptor configuration loaded \(profile\:testprofile\)',
+            r'mtinterceptor configuration loaded \(profile\:testprofile\)',
+            r'morouter configuration loaded \(profile\:testprofile\)',
+            r'mtrouter configuration loaded \(profile:testprofile\)',
+            r'smppcc configuration loaded \(profile\:testprofile\)',
+            r'filter configuration loaded \(profile\:testprofile\)',
+            r'httpcc configuration loaded \(profile\:testprofile\)',
+        ]
         commands = [{'command': 'load -p testprofile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
     @defer.inlineCallbacks
     def test_load_unknown_profile(self):
-        expectedList = [r'Failed to load mtrouter configuration \(profile\:any_profile\)',
-                        r'Failed to load smppcc configuration \(profile\:any_profile\)',
-                        r'Failed to load group configuration \(profile\:any_profile\)',
-                        r'Failed to load user configuration \(profile\:any_profile\)',
-                        r'Failed to load httpcc configuration \(profile\:any_profile\)',
-                        r'Failed to load mointerceptor configuration \(profile\:any_profile\)',
-                        r'Failed to load filter configuration \(profile\:any_profile\)',
-                        r'Failed to load mtinterceptor configuration \(profile\:any_profile\)',
-                        r'Failed to load morouter configuration \(profile\:any_profile\)',
-                        ]
+        expectedList = [
+            r'Failed to load user configuration \(profile\:any_profile\)',
+            r'Failed to load group configuration \(profile\:any_profile\)',
+            r'Failed to load mointerceptor configuration \(profile\:any_profile\)',
+            r'Failed to load mtinterceptor configuration \(profile\:any_profile\)',
+            r'Failed to load morouter configuration \(profile\:any_profile\)',
+            r'Failed to load mtrouter configuration \(profile\:any_profile\)',
+            r'Failed to load smppcc configuration \(profile\:any_profile\)',
+            r'Failed to load filter configuration \(profile\:any_profile\)',
+            r'Failed to load httpcc configuration \(profile\:any_profile\)',
+        ]
         commands = [{'command': 'load -p any_profile', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
 
@@ -323,22 +328,22 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
 
         # Assert Group
         yield self.sendCommand('group -l')
-        self.assertEqual(self.getBuffer(True)[9], 'Total Groups: 1')
+        self.assertEqual(self.getBuffer(True)[9].decode('ascii'), 'Total Groups: 1')
         # Assert User
         yield self.sendCommand('user -l')
-        self.assertEqual(self.getBuffer(True)[9], 'Total Users: 1')
+        self.assertEqual(self.getBuffer(True)[9].decode('ascii'), 'Total Users: 1')
         # Assert HTTP Connector
         yield self.sendCommand('httpccm -l')
-        self.assertEqual(self.getBuffer(True)[9], 'Total Httpccs: 1')
+        self.assertEqual(self.getBuffer(True)[9].decode('ascii'), 'Total Httpccs: 1')
         # Assert SMPP Connector
         yield self.sendCommand('smppccm -l')
-        self.assertEqual(self.getBuffer(True)[9], 'Total connectors: 1')
+        self.assertEqual(self.getBuffer(True)[9].decode('ascii'), 'Total connectors: 1')
         # Assert Filters
         yield self.sendCommand('filter -l')
-        self.assertEqual(self.getBuffer(True)[12], 'Total Filters: 2')
+        self.assertEqual(self.getBuffer(True)[12].decode('ascii'), 'Total Filters: 2')
         # Assert MO Routes
         yield self.sendCommand('morouter -l')
-        self.assertEqual(self.getBuffer(True)[15], 'Total MO Routes: 3')
+        self.assertEqual(self.getBuffer(True)[15].decode('ascii'), 'Total MO Routes: 3')
         # Assert MT Routes
         yield self.sendCommand('mtrouter -l')
-        self.assertEqual(self.getBuffer(True)[12], 'Total MT Routes: 2')
+        self.assertEqual(self.getBuffer(True)[12].decode('ascii'), 'Total MT Routes: 2')

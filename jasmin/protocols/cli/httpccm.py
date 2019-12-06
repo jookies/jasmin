@@ -105,8 +105,8 @@ class HttpccManager(PersistableManager):
 
         try:
             # Write configuration with datetime stamp
-            fh = open(path, 'w')
-            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+            fh = open(path, 'wb')
+            fh.write(('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
             fh.write(pickle.dumps(self.httpccs, 2))
             fh.close()
         except IOError:

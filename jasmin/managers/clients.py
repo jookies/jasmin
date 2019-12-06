@@ -143,8 +143,8 @@ class SMPPClientManagerPB(pb.Avatar):
                     'service_status': c['service'].running})
 
             # Write configuration with datetime stamp
-            fh = open(path, 'w')
-            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+            fh = open(path, 'wb')
+            fh.write(('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
             fh.write(pickle.dumps(connectors, self.pickleProtocol))
             fh.close()
 
@@ -166,12 +166,12 @@ class SMPPClientManagerPB(pb.Avatar):
 
         try:
             # Load configuration from file
-            fh = open(path, 'r')
+            fh = open(path, 'rb')
             lines = fh.readlines()
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context='smppccs', header=lines[0], data=''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='smppccs', header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
             # Remove current configuration
             CIDs = []

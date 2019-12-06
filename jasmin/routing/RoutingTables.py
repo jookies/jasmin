@@ -60,7 +60,7 @@ class RoutingTable(object):
         self.remove(order)
 
         self.table.append({order: route})
-        self.table.sort(reverse=True)
+        self.table = sorted(self.table, key=lambda x: sorted(x.keys()), reverse=True)
 
     def remove(self, order):
         for r in self.table:
