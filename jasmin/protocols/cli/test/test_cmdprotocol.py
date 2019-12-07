@@ -77,8 +77,8 @@ class CmdProtocolTestCases(ProtocolTestCases):
         self.proto.makeConnection(self.tr)
         # Test for greeting
         receivedLines = self.getBuffer(True)
-        self.assertRegexpMatches(receivedLines[0], r'Welcome !')
-        self.assertRegexpMatches(receivedLines[3], r'Session ref: ')
+        self.assertRegexpMatches(receivedLines[0][15:].decode('ascii'), r'Welcome !')
+        self.assertRegexpMatches(receivedLines[3].decode('ascii'), r'Session ref: ')
 
 
 class BasicTestCase(CmdProtocolTestCases):
@@ -89,7 +89,7 @@ class BasicTestCase(CmdProtocolTestCases):
     def test_help(self):
         expectedList = ['Available commands:',
                         '===================',
-                        '',
+                        '^$',
                         'Control commands:',
                         '=================',
                         'quit                Disconnect from console',
