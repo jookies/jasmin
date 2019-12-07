@@ -16,7 +16,7 @@ class BasicTestCases(MxRouterTestCases):
 
     @defer.inlineCallbacks
     def test_add_without_minimum_args(self):
-        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: type, order'}]
+        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: order, type'}]
         yield self.add_mtroute(r'> ', extraCommands)
 
     @defer.inlineCallbacks
@@ -183,7 +183,7 @@ class MtRouteTypingTestCases(MxRouterTestCases):
         receivedLines = self.getBuffer(True)
 
         filters = []
-        results = re.findall(' (\w+)Route', receivedLines[3])
+        results = re.findall(' (\w+)Route', receivedLines[3].decode('ascii'))
         filters.extend('%sRoute' % item for item in results[:])
 
         # Any new filter must be added here
@@ -368,7 +368,7 @@ class MtRouteArgsTestCases(MxRouterTestCases):
         commands = [{'command': 'mtrouter -a'},
                     {'command': 'type DefaultRoute'},
                     {'command': 'connector smppc(http1)', 'expect': 'Unknown smppc cid: http1'},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, connector'}]
+                    {'command': 'ok', 'expect': 'You must set these options before saving: order, type, connector'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -379,7 +379,7 @@ class MtRouteArgsTestCases(MxRouterTestCases):
                     {'command': 'connector smppc(smpp1)'},
                     {'command': 'filters cf1', 'expect': 'ConnectorFilter#cf1 is not a valid filter for MTRoute'},
                     {'command': 'ok',
-                     'expect': 'You must set these options before saving: type, order, filters, connector'}]
+                     'expect': 'You must set these options before saving: order, type, filters, connector'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks

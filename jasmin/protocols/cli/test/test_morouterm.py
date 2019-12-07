@@ -22,7 +22,7 @@ class BasicTestCases(MxRouterTestCases):
 
     @defer.inlineCallbacks
     def test_add_without_minimum_args(self):
-        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: type, order'}]
+        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: order, type'}]
         yield self.add_moroute(r'> ', extraCommands)
 
     @defer.inlineCallbacks
@@ -216,7 +216,7 @@ class MoRouteTypingTestCases(MxRouterTestCases):
         receivedLines = self.getBuffer(True)
 
         filters = []
-        results = re.findall(' (\w+)Route', receivedLines[3])
+        results = re.findall(' (\w+)Route', receivedLines[3].decode('ascii'))
         for item in results[:]:
             filters.append('%sRoute_http' % item)
             filters.append('%sRoute_smpps' % item)
@@ -542,7 +542,7 @@ class MoRouteArgsTestCases(MxRouterTestCases):
         commands = [{'command': 'morouter -a'},
                     {'command': 'type DefaultRoute'},
                     {'command': 'connector http(smpp1)', 'expect': 'Unknown http cid: smpp1'},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, connector'}]
+                    {'command': 'ok', 'expect': 'You must set these options before saving: order, type, connector'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -553,7 +553,7 @@ class MoRouteArgsTestCases(MxRouterTestCases):
                     {'command': 'connector http(http1)'},
                     {'command': 'filters uf1', 'expect': 'UserFilter#uf1 is not a valid filter for MORoute'},
                     {'command': 'ok',
-                     'expect': 'You must set these options before saving: type, order, filters, connector'}]
+                     'expect': 'You must set these options before saving: order, type, filters, connector'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
