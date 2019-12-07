@@ -27,6 +27,8 @@ class ProtocolTestCases(unittest.TestCase):
 
     @defer.inlineCallbacks
     def _test(self, finalPrompt, commands):
+        #print(len(commands), commands)
+        #print('#########################')
         receivedLines = None
 
         for cmd in commands:
@@ -38,6 +40,8 @@ class ProtocolTestCases(unittest.TestCase):
 
             # Get buffer and assert for `expect`
             receivedLines = self.getBuffer(True)
+            #print('*********')
+            #print('%s: %s' % (cmd['command'], receivedLines))
 
             # First line is the command itself
             # 'noecho' is used when there's no echo back from the server while typing (e.g. password input)

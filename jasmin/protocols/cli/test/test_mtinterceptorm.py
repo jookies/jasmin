@@ -13,7 +13,7 @@ class BasicTestCases(MxInterceptorTestCases):
 
     @defer.inlineCallbacks
     def test_add_without_minimum_args(self):
-        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: type, order'}]
+        extraCommands = [{'command': 'ok', 'expect': r'You must set these options before saving: order, type'}]
         yield self.add_mtinterceptor(r'> ', extraCommands)
 
     @defer.inlineCallbacks
@@ -43,7 +43,7 @@ class BasicTestCases(MxInterceptorTestCases):
         yield self.add_mtinterceptor('jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
-                        '#0     DefaultInterceptor   <MTIS \(pyCode=print "hello  world" ..\)>',
+                        '#0     DefaultInterceptor   <MTIS \(pyCode=print\("hello  world"\) ..\)>',
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -66,7 +66,7 @@ class BasicTestCases(MxInterceptorTestCases):
         yield self.add_mtinterceptor('jcli : ', extraCommands)
 
         commands = [{'command': 'mtinterceptor -s %s' % order,
-                     'expect': 'DefaultInterceptor/<MTIS \(pyCode=print "hello  world" ..\)>'},
+                     'expect': 'DefaultInterceptor/<MTIS \(pyCode=print\("hello  world"\) ..\)>'},
                     ]
         yield self._test(r'jcli : ', commands)
 
@@ -118,8 +118,8 @@ class BasicTestCases(MxInterceptorTestCases):
 
         # List
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
-                        '#20    StaticMTInterceptor  <MTIS \(pyCode=print "hello  world" ..\)>         <T>',
-                        '#0     DefaultInterceptor   <MTIS \(pyCode=print "hello  world" ..\)>',
+                        '#20    StaticMTInterceptor  <MTIS \(pyCode=print\("hello  world"\) ..\)>        <T>',
+                        '#0     DefaultInterceptor   <MTIS \(pyCode=print\("hello  world"\) ..\)>',
                         'Total MT Interceptors: 2']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -143,7 +143,7 @@ class BasicTestCases(MxInterceptorTestCases):
         yield self.add_mtinterceptor('jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
-                        '#0     DefaultInterceptor   <MTIS \(pyCode=print "hello  world" ..\)>',
+                        '#0     DefaultInterceptor   <MTIS \(pyCode=print\("hello  world"\) ..\)>',
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -171,7 +171,7 @@ class MtInterceptorTypingTestCases(MxInterceptorTestCases):
         receivedLines = self.getBuffer(True)
 
         filters = []
-        results = re.findall(' (\w+)Interceptor', receivedLines[3])
+        results = re.findall(' (\w+)Interceptor', receivedLines[3].decode('ascii'))
         for item in results[:]:
             filters.append('%sInterceptor' % item)
 
@@ -190,7 +190,7 @@ class MtInterceptorTypingTestCases(MxInterceptorTestCases):
         itype = 'DefaultInterceptor'
         script = self.valid_script
         typed_script = 'python2(%s)' % script
-        _str_ = '%s/<MTIS \(pyCode=print "hello  world" ..\)>' % (itype)
+        _str_ = '%s/<MTIS \(pyCode=print\("hello  world"\) ..\)>' % (itype)
 
         # Add MTInterceptor
         extraCommands = [{'command': 'order %s' % iorder},
@@ -203,7 +203,7 @@ class MtInterceptorTypingTestCases(MxInterceptorTestCases):
         yield self._test('jcli : ', [{'command': 'mtinterceptor -s %s' % iorder, 'expect': expectedList}])
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
                         '#%s %s %s ' % (
-                        iorder.ljust(5), itype.ljust(20), '<MTIS \(pyCode=print "hello  world" ..\)>'.ljust(47)),
+                        iorder.ljust(5), itype.ljust(20), '<MTIS \(pyCode=print\("hello  world"\) ..\)>'.ljust(47)),
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -214,7 +214,7 @@ class MtInterceptorTypingTestCases(MxInterceptorTestCases):
         itype = 'StaticMTInterceptor'
         script = self.valid_script
         typed_script = 'python2(%s)' % script
-        _str_ = '%s/<MTIS \(pyCode=print "hello  world" ..\)>' % (itype)
+        _str_ = '%s/<MTIS \(pyCode=print\("hello  world"\) ..\)>' % (itype)
 
         # Add MTInterceptor
         extraCommands = [{'command': 'order %s' % iorder},
@@ -228,7 +228,7 @@ class MtInterceptorTypingTestCases(MxInterceptorTestCases):
         yield self._test('jcli : ', [{'command': 'mtinterceptor -s %s' % iorder, 'expect': expectedList}])
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
                         '#%s %s %s ' % (
-                        iorder.ljust(5), itype.ljust(20), '<MTIS \(pyCode=print "hello  world" ..\)>'.ljust(47)),
+                        iorder.ljust(5), itype.ljust(20), '<MTIS \(pyCode=print\("hello  world"\) ..\)>'.ljust(47)),
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -246,7 +246,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
         yield self.add_mtinterceptor(r'jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
-                        '#0     DefaultInterceptor   <MTIS \(pyCode=print "hello  world" ..\)>',
+                        '#0     DefaultInterceptor   <MTIS \(pyCode=print\("hello  world"\) ..\)>',
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -261,7 +261,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
         yield self.add_mtinterceptor(r'jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
-                        '#0     DefaultInterceptor   <MTIS \(pyCode=print "hello  world" ..\)>',
+                        '#0     DefaultInterceptor   <MTIS \(pyCode=print\("hello  world"\) ..\)>',
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -284,7 +284,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
                     {'command': 'type DefaultInterceptor'},
                     {'command': 'script python2(%s)' % self.invalid_syntax,
                      'expect': '\[Syntax\]: invalid syntax \(, line 1\)'},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, script'}]
+                    {'command': 'ok', 'expect': 'You must set these options before saving: order, type, script'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -293,7 +293,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
                     {'command': 'type DefaultInterceptor'},
                     {'command': 'script python2(%s)' % self.file_not_found,
                      'expect': '\[IO\]: \[Errno 2\] No such file or directory: \'\/file\/not\/found\''},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, script'}]
+                    {'command': 'ok', 'expect': 'You must set these options before saving: order, type, script'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -302,7 +302,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
                     {'command': 'type DefaultInterceptor'},
                     {'command': 'script php(%s)' % self.valid_script,
                      'expect': 'Invalid syntax for script, must be python2\(\/path\/to\/script\).'},
-                    {'command': 'ok', 'expect': 'You must set these options before saving: type, order, script'}]
+                    {'command': 'ok', 'expect': 'You must set these options before saving: order, type, script'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -313,7 +313,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
                     {'command': 'script python2(%s)' % self.valid_script},
                     {'command': 'filters cf1', 'expect': 'ConnectorFilter#cf1 is not a valid filter for MTInterceptor'},
                     {'command': 'ok',
-                     'expect': 'You must set these options before saving: type, order, filters, script'}]
+                     'expect': 'You must set these options before saving: order, type, filters, script'}]
         yield self._test(r'> ', commands)
 
     @defer.inlineCallbacks
@@ -325,7 +325,7 @@ class MtInterceptorArgsTestCases(MxInterceptorTestCases):
         yield self.add_mtinterceptor(r'jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
-                        '#20    StaticMTInterceptor  <MTIS \(pyCode=print "hello  world" ..\)>         <U \(uid=Any\)>',
+                        '#20    StaticMTInterceptor  <MTIS \(pyCode=print\("hello  world"\) ..\)>        <U \(uid=Any\)>',
                         'Total MT Interceptors: 1']
         commands = [{'command': 'mtinterceptor -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)

@@ -45,7 +45,7 @@ class MxInterceptorTestCases(jCliWithoutAuthTestCases):
         with open(self.invalid_syntax, 'w') as fh:
             fh.write('Something to throw a syntax error')
         with open(self.valid_script, 'w') as fh:
-            fh.write('print "hello  world"')
+            fh.write('print("hello  world")')
 
     @defer.inlineCallbacks
     def add_mointerceptor(self, finalPrompt, extraCommands=[]):
