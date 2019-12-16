@@ -853,4 +853,5 @@ class SMSCTestCases(HappySMSCTestCase):
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.pduRecords))
         self.assertEqual('ALPHANUMERIC', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_ton']))
         self.assertEqual('NATIONAL', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_npi']))
-        self.assertEqual('^34.*{6}$', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['address_range']))
+        self.assertEqual('^34.*{6}$', self.SMSCPort.factory.lastClient.pduRecords[
+            0].params['address_range'].decode('ascii'))
