@@ -14,7 +14,7 @@ Copyright 2009-2010 Mozes, Inc.
    limitations under the License.
 """
 
-from six import StringIO
+from six import BytesIO
 import struct
 import logging
 import binascii
@@ -31,8 +31,7 @@ from twisted.internet import protocol, defer, reactor
 from twisted.internet.defer import inlineCallbacks
 from twisted.cred import error
 
-
-LOG_CATEGORY="smpp.twisted.protocol"
+LOG_CATEGORY = "smpp.twisted.protocol"
 
 SMPPSessionStates = Enum(
     'NONE',
@@ -51,6 +50,7 @@ SMPPSessionStates = Enum(
 SMPPOutboundTxn = namedtuple('SMPPOutboundTxn', 'request, timer, ackDeferred')
 SMPPOutboundTxnResult = namedtuple('SMPPOutboundTxnResult', 'smpp, request, response')
 
+
 def _safelylogOutPdu(content):
     try:
         return binascii.b2a_hex(content)
@@ -64,12 +64,13 @@ class DataHandlerResponse(object):
         self.status = status
         self.params = params
 
-class SMPPProtocolBase( protocol.Protocol ):
+
+class SMPPProtocolBase(protocol.Protocol):
     """Short Message Peer to Peer Protocol v3.4 implementing ESME (client)"""
     version = 0x34
 
-    def __init__( self ):
-        self.recvBuffer = ""
+    def __init__(self):
+        self.recvBuffer = b""
         self.connectionCorrupted = False
         self.pduReadTimer = None
         self.enquireLinkTimer = None
@@ -93,13 +94,13 @@ class SMPPProtocolBase( protocol.Protocol ):
         """
         protocol.Protocol.connectionMade(self)
         self.port = self.transport.getHost().port
-        #Start the inactivity timer the connection is dropped if we receive no data
+        # Start the inactivity timer the connection is dropped if we receive no data
         self.activateInactivityTimer()
         self.sessionState = SMPPSessionStates.OPEN
         self.log.warning("SMPP connection established from %s to port %s", self.transport.getPeer().host, self.port)
 
-    def connectionLost( self, reason ):
-        protocol.Protocol.connectionLost( self, reason )
+    def connectionLost(self, reason):
+        protocol.Protocol.connectionLost(self, reason)
         self.log.warning("SMPP %s disconnected from port %s: %s", self.transport.getPeer().host, self.port, reason)
 
         self.sessionState = SMPPSessionStates.NONE
@@ -109,7 +110,7 @@ class SMPPProtocolBase( protocol.Protocol ):
 
         self.disconnectedDeferred.callback(None)
 
-    def dataReceived( self, data ):
+    def dataReceived(self, data):
         """ Looks for a full PDU (protocol data unit) and passes it from
         rawMessageReceived.
         """
@@ -179,7 +180,7 @@ class SMPPProtocolBase( protocol.Protocol ):
 
     def getHeader(self, message):
         try:
-            return self.encoder.decodeHeader(StringIO(message[:self.encoder.HEADER_LEN]))
+            return self.encoder.decodeHeader(BytesIO(message[:self.encoder.HEADER_LEN]))
         except:
             return {}
 
@@ -187,14 +188,14 @@ class SMPPProtocolBase( protocol.Protocol ):
         self.log.critical('PDU read timed out. Buffer is now considered corrupt')
         self.corruptDataRecvd()
 
-    def rawMessageReceived( self, message ):
+    def rawMessageReceived(self, message):
         """Called once a PDU (protocol data unit) boundary is identified.
 
         Creates an SMPP PDU class from the data and calls PDUReceived dispatcher
         """
         pdu = None
         try:
-            pdu = self.encoder.decode(StringIO(message))
+            pdu = self.encoder.decode(BytesIO(message))
         except PDUCorruptError as e:
             self.log.exception(e)
             self.log.critical("Received corrupt PDU %s" % _safelylogOutPdu(message))
@@ -209,7 +210,7 @@ class SMPPProtocolBase( protocol.Protocol ):
         else:
             self.PDUReceived(pdu)
 
-    def PDUReceived( self, pdu ):
+    def PDUReceived(self, pdu):
         """Dispatches incoming PDUs
         """
         if self.log.isEnabledFor(logging.DEBUG):
@@ -220,7 +221,7 @@ class SMPPProtocolBase( protocol.Protocol ):
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("Receiving data [%s]" % _safelylogOutPdu(encoded))
 
-        #Signal SMPP operation
+        # Signal SMPP operation
         self.onSMPPOperation()
 
         if isinstance(pdu, PDURequest):
@@ -243,13 +244,13 @@ class SMPPProtocolBase( protocol.Protocol ):
         self.sendResponse(reqPDU)
 
     def onPDURequest_unbind(self, reqPDU):
-        #Allow no more outbound data requests
-        #Accept no more inbound requests
+        # Allow no more outbound data requests
+        # Accept no more inbound requests
         self.sessionState = SMPPSessionStates.UNBIND_RECEIVED
         self.cancelEnquireLinkTimer()
-        #Cancel outbound requests
+        # Cancel outbound requests
         self.cancelOutboundTransactions(SMPPClientSessionStateError('Unbind received'))
-        #Wait for inbound requests to finish then ack and disconnect
+        # Wait for inbound requests to finish then ack and disconnect
         self.finishInboundTxns().addCallback(lambda r: (self.sendResponse(reqPDU) or True) and self.disconnect())
 
     def sendResponse(self, reqPDU, status=CommandStatus.ESME_ROK, **params):
@@ -306,13 +307,15 @@ class SMPPProtocolBase( protocol.Protocol ):
             try:
                 error.raiseException()
             except SMPPProtocolError as validation_error:
-                self.log.info("Application raised error '%s', forwarding to client. Inbound PDU was [%s], hex[%s]" % (validation_error, reqPDU, _safelylogOutPdu(self.encoder.encode(reqPDU))))
+                self.log.info("Application raised error '%s', forwarding to client. Inbound PDU was [%s], hex[%s]" % (
+                validation_error, reqPDU, _safelylogOutPdu(self.encoder.encode(reqPDU))))
                 # Jasmin update: validation_error have attribute named commandStatusName
-                #return_cmd_status = validation_error.commandStatusName
+                # return_cmd_status = validation_error.commandStatusName
                 return_cmd_status = validation_error.status
                 shutdown = False
         else:
-            self.log.critical('Exception raised handling inbound PDU [%s] hex[%s]: %s' % (reqPDU, _safelylogOutPdu(self.encoder.encode(reqPDU)), error))
+            self.log.critical('Exception raised handling inbound PDU [%s] hex[%s]: %s' % (
+            reqPDU, _safelylogOutPdu(self.encoder.encode(reqPDU)), error))
             return_cmd_status = CommandStatus.ESME_RX_T_APPN
             shutdown = True
 
@@ -360,7 +363,7 @@ class SMPPProtocolBase( protocol.Protocol ):
         if self.log.isEnabledFor(logging.DEBUG):
             self.log.debug("Sending data [%s]" % _safelylogOutPdu(encoded))
 
-        self.transport.write( encoded )
+        self.transport.write(encoded)
         self.onSMPPOperation()
 
     def sendBindRequest(self, pdu):
@@ -372,7 +375,7 @@ class SMPPProtocolBase( protocol.Protocol ):
     def doSendRequest(self, pdu, timeout):
         if self.connectionCorrupted:
             raise SMPPClientConnectionCorruptedError()
-        if not isinstance( pdu, PDURequest ) or pdu.requireAck is None:
+        if not isinstance(pdu, PDURequest) or pdu.requireAck is None:
             raise SMPPClientError("Invalid PDU to send: %s" % pdu)
 
         pdu.seqNum = self.claimSeqNum()
@@ -422,7 +425,8 @@ class SMPPProtocolBase( protocol.Protocol ):
         self.shutdown()
 
     def isBound(self):
-        return self.sessionState in (SMPPSessionStates.BOUND_TX, SMPPSessionStates.BOUND_RX, SMPPSessionStates.BOUND_TRX)
+        return self.sessionState in (
+        SMPPSessionStates.BOUND_TX, SMPPSessionStates.BOUND_RX, SMPPSessionStates.BOUND_TRX)
 
     def shutdown(self):
         """ Unbind if appropriate and disconnect """
@@ -438,7 +442,8 @@ class SMPPProtocolBase( protocol.Protocol ):
 
     def startInboundTransaction(self, reqPDU):
         if reqPDU.seqNum in self.inTxns:
-            raise SMPPProtocolError('Duplicate message id [%s] received.  Already in progess.' % reqPDU.seqNum, CommandStatus.ESME_RUNKNOWNERR)
+            raise SMPPProtocolError('Duplicate message id [%s] received.  Already in progess.' % reqPDU.seqNum,
+                                    CommandStatus.ESME_RUNKNOWNERR)
         txnDeferred = defer.Deferred()
         self.inTxns[reqPDU.seqNum] = txnDeferred
         self.log.debug("Inbound transaction started with message id %s" % reqPDU.seqNum)
@@ -456,11 +461,11 @@ class SMPPProtocolBase( protocol.Protocol ):
         if reqPDU.seqNum in self.outTxns:
             raise ValueError('Seq number [%s] is already in progess.' % reqPDU.seqNum)
 
-        #Create callback deferred
+        # Create callback deferred
         ackDeferred = defer.Deferred()
-        #Create response timer
+        # Create response timer
         timer = self.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
-        #Save transaction
+        # Save transaction
         self.outTxns[reqPDU.seqNum] = SMPPOutboundTxn(reqPDU, timer, ackDeferred)
         self.log.debug("Outbound transaction started with message id %s" % reqPDU.seqNum)
         return ackDeferred
@@ -470,9 +475,9 @@ class SMPPProtocolBase( protocol.Protocol ):
 
         if seqNum in self.outTxns:
             txn = self.outTxns[seqNum]
-            #Remove txn
+            # Remove txn
             del self.outTxns[seqNum]
-            #Cancel response timer
+            # Cancel response timer
             if txn.timer.active():
                 txn.timer.cancel()
             return txn
@@ -486,9 +491,11 @@ class SMPPProtocolBase( protocol.Protocol ):
         if txn is not None:
             if respPDU.status == CommandStatus.ESME_ROK:
                 if not isinstance(respPDU, txn.request.requireAck):
-                    txn.ackDeferred.errback(SMPPProtocolError("Invalid PDU response type [%s] returned for request type [%s]" % (type(respPDU), type(txn.request))))
+                    txn.ackDeferred.errback(SMPPProtocolError(
+                        "Invalid PDU response type [%s] returned for request type [%s]" % (
+                        type(respPDU), type(txn.request))))
                     return
-                #Do callback
+                # Do callback
                 txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
                 return
 
@@ -504,7 +511,7 @@ class SMPPProtocolBase( protocol.Protocol ):
         txn = self.closeOutboundTransaction(reqPDU.seqNum)
 
         if txn is not None:
-            #Do errback
+            # Do errback
             txn.ackDeferred.errback(error)
 
     def cancelOutboundTransactions(self, error):
@@ -534,7 +541,8 @@ class SMPPProtocolBase( protocol.Protocol ):
 
     def unbindAfterInProgressTxnsFinished(self, result, unbindDeferred):
         self.log.warning('Issuing unbind request')
-        self.sendBindRequest(Unbind()).addCallbacks(self.unbindSucceeded, self.unbindFailed).chainDeferred(unbindDeferred)
+        self.sendBindRequest(Unbind()).addCallbacks(self.unbindSucceeded, self.unbindFailed).chainDeferred(
+            unbindDeferred)
 
     ############################################################################
     # Public command functions
@@ -545,21 +553,22 @@ class SMPPProtocolBase( protocol.Protocol ):
         Result is a Deferred object
         """
         if not self.isBound():
-            return defer.fail(SMPPClientSessionStateError('unbind called with illegal session state: %s' % self.sessionState))
+            return defer.fail(
+                SMPPClientSessionStateError('unbind called with illegal session state: %s' % self.sessionState))
 
         self.cancelEnquireLinkTimer()
 
         self.log.info('Waiting for in-progress transactions to finish...')
 
-        #Signal that
+        # Signal that
         #   - no new data requests should be sent
         #   - no new incoming data requests should be accepted
         self.sessionState = SMPPSessionStates.UNBIND_PENDING
 
         unbindDeferred = defer.Deferred()
-        #Wait for any in-progress txns to finish
+        # Wait for any in-progress txns to finish
         self.finishTxns().addCallback(self.unbindAfterInProgressTxnsFinished, unbindDeferred)
-        #Result is the deferred for the unbind txn
+        # Result is the deferred for the unbind txn
         return unbindDeferred
 
     def unbindAndDisconnect(self):
@@ -584,13 +593,13 @@ class SMPPProtocolBase( protocol.Protocol ):
         """
         return self.disconnectedDeferred
 
-    def sendDataRequest( self, pdu ):
+    def sendDataRequest(self, pdu):
         """Send a SMPP Request Message
 
         Argument is an SMPP PDUDataRequest (protocol data unit).
         Result is a Deferred object
         """
-        if not isinstance( pdu, PDUDataRequest ):
+        if not isinstance(pdu, PDUDataRequest):
             return defer.fail(SMPPClientError("Invalid PDU passed to sendDataRequest(): %s" % pdu))
         if not self.isBound():
             return defer.fail(SMPPClientSessionStateError('Not bound'))
@@ -605,15 +614,17 @@ class SMPPClientProtocol(SMPPProtocolBase):
 
         self.alertNotificationHandler = None
 
-    def PDUReceived( self, pdu ):
+    def PDUReceived(self, pdu):
         """Dispatches incoming PDUs
         """
-        self.log.info("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (pdu.id, pdu.seqNum, pdu.status))
+        self.log.info("SMPP Client received PDU [command: %s, sequence_number: %s, command_status: %s]" % (
+        pdu.id, pdu.seqNum, pdu.status))
         SMPPProtocolBase.PDUReceived(self, pdu)
 
     def bind(self, pdu, pendingState, boundState):
         if self.sessionState != SMPPSessionStates.OPEN:
-            return defer.fail(SMPPClientSessionStateError('bind called with illegal session state: %s' % self.sessionState))
+            return defer.fail(
+                SMPPClientSessionStateError('bind called with illegal session state: %s' % self.sessionState))
 
         bindDeferred = self.sendBindRequest(pdu)
         bindDeferred.addCallback(self.bindSucceeded, boundState)
@@ -624,13 +635,13 @@ class SMPPClientProtocol(SMPPProtocolBase):
     def doBindAsReceiver(self):
         self.log.warning('Requesting bind as receiver')
         pdu = BindReceiver(
-            system_id = self.config().username,
-            password = self.config().password,
-            system_type = self.config().systemType,
-            address_range = self.config().addressRange,
-            addr_ton = self.config().addressTon,
-            addr_npi = self.config().addressNpi,
-            interface_version = self.version
+            system_id=self.config().username,
+            password=self.config().password,
+            system_type=self.config().systemType,
+            address_range=self.config().addressRange,
+            addr_ton=self.config().addressTon,
+            addr_npi=self.config().addressNpi,
+            interface_version=self.version
         )
         return self.bind(pdu, SMPPSessionStates.BIND_RX_PENDING, SMPPSessionStates.BOUND_RX)
 
@@ -686,13 +697,13 @@ class SMPPClientProtocol(SMPPProtocolBase):
         """
         self.log.warning('Requesting bind as transmitter')
         pdu = BindTransmitter(
-            system_id = self.config().username,
-            password = self.config().password,
-            system_type = self.config().systemType,
-            address_range = self.config().addressRange,
-            addr_ton = self.config().addressTon,
-            addr_npi = self.config().addressNpi,
-            interface_version = self.version
+            system_id=self.config().username,
+            password=self.config().password,
+            system_type=self.config().systemType,
+            address_range=self.config().addressRange,
+            addr_ton=self.config().addressTon,
+            addr_npi=self.config().addressNpi,
+            interface_version=self.version
         )
         return self.bind(pdu, SMPPSessionStates.BIND_TX_PENDING, SMPPSessionStates.BOUND_TX)
 
@@ -712,13 +723,13 @@ class SMPPClientProtocol(SMPPProtocolBase):
         self.setDataRequestHandler(dataRequestHandler)
         self.log.warning('Requesting bind as transceiver')
         pdu = BindTransceiver(
-            system_id = self.config().username,
-            password = self.config().password,
-            system_type = self.config().systemType,
-            address_range = self.config().addressRange,
-            addr_ton = self.config().addressTon,
-            addr_npi = self.config().addressNpi,
-            interface_version = self.version
+            system_id=self.config().username,
+            password=self.config().password,
+            system_type=self.config().systemType,
+            address_range=self.config().addressRange,
+            addr_ton=self.config().addressTon,
+            addr_npi=self.config().addressNpi,
+            interface_version=self.version
         )
         return self.bind(pdu, SMPPSessionStates.BIND_TRX_PENDING, SMPPSessionStates.BOUND_TRX)
 
@@ -740,7 +751,7 @@ class SMPPServerProtocol(SMPPProtocolBase):
 
         # Jasmin update: dataRequestHandler is set from factory instead of config()
         # Divert received messages to the handler defined in the config
-        #self.dataRequestHandler = lambda *args, **kwargs: self.config().msgHandler(self.system_id, *args, **kwargs)
+        # self.dataRequestHandler = lambda *args, **kwargs: self.config().msgHandler(self.system_id, *args, **kwargs)
 
         self.system_id = None
         self.log = logging.getLogger(LOG_CATEGORY)
@@ -755,10 +766,12 @@ class SMPPServerProtocol(SMPPProtocolBase):
         self.factory.removeConnection(self)
         SMPPProtocolBase.connectionLost(self, reason)
 
-    def PDUReceived( self, pdu ):
+    def PDUReceived(self, pdu):
         """Dispatches incoming PDUs
         """
-        self.log.debug("SMPP Server received PDU to system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (self.system_id, pdu.id, pdu.seqNum, pdu.status))
+        self.log.debug(
+            "SMPP Server received PDU to system '%s' [command: %s, sequence_number: %s, command_status: %s]" % (
+            self.system_id, pdu.id, pdu.seqNum, pdu.status))
         SMPPProtocolBase.PDUReceived(self, pdu)
 
     def onPDURequest_enquire_link(self, reqPDU):
@@ -813,7 +826,8 @@ class SMPPServerProtocol(SMPPProtocolBase):
 
         self.factory.addBoundConnection(self)
         bound_cnxns = self.factory.getBoundConnections(system_id)
-        self.log.info('Bind request succeeded for %s. %d active binds' % (system_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
+        self.log.info('Bind request succeeded for %s. %d active binds' % (
+        system_id, bound_cnxns.getBindingCount() if bound_cnxns else 0))
         self.sendResponse(reqPDU, system_id=system_id)
 
     def sendErrorResponse(self, reqPDU, status, system_id):

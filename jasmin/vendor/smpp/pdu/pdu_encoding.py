@@ -18,7 +18,6 @@ Copyright 2009-2010 Mozes, Inc.
 Updated code parts are marked with "Jasmin update" comment
 """
 import binascii
-import string
 import struct
 
 from jasmin.vendor.smpp.pdu import constants, pdu_types, operations
@@ -222,16 +221,16 @@ class COctetStringEncoder(PDUNullableFieldEncoder):
         if self.maxSize is not None:
             if length + 1 > self.maxSize:
                 raise ValueError("COctetString is longer than allowed maximum size (%d): %s" % (self.maxSize, asciiVal))
-        encoded = struct.pack("%ds" % length, asciiVal) + '\0'
+        encoded = struct.pack("%ds" % length, asciiVal) + b'\0'
         assert len(encoded) == length + 1
         return encoded
 
     def _read(self, file):
-        result = ''
+        result = b''
         while True:
             c = self.read(file, 1)
             result += c
-            if c == '\0':
+            if c == b'\0':
                 break
         return result
 
@@ -894,11 +893,11 @@ class OptionEncoder(IEncoder):
         encoder = self.options[option.tag]
         encodedValue = encoder.encode(option.value)
         length = len(encodedValue)
-        return string.join([
+        return ''.join([
             TagEncoder().encode(option.tag),
             Int2Encoder().encode(length),
             encodedValue,
-        ], '')
+        ])
 
     def decode(self, file):
         # Jasmin update: bypass vendor specific tags
@@ -1068,10 +1067,11 @@ class PDUEncoder(IEncoder):
         if len(pdu.optionalParams) > 0:
             optionalParams = self.decodeOptionalParams(pdu.optionalParams, file, bodyLength - mParamsLen)
 
-        pdu.params = dict(mandatoryParams.items() + optionalParams.items())
+        pdu.params.update(mandatoryParams)
+        pdu.params.update(optionalParams)
 
     def encodeBody(self, pdu):
-        body = ''
+        body = b''
 
         # Some PDU responses have no defined body when the status is not 0
         #    c.f. 4.1.2. "BIND_TRANSMITTER_RESP"
@@ -1110,7 +1110,7 @@ class PDUEncoder(IEncoder):
         if 'vendor_specific_bypass' in params:
             del params['vendor_specific_bypass']
 
-        result = ''
+        result = b''
         for paramName in optionalParams:
             if paramName in params:
                 tag = getattr(pdu_types.Tag, paramName)
@@ -1121,7 +1121,7 @@ class PDUEncoder(IEncoder):
     def encodeRawParams(self, tlvs):
         # Jasmin update:
         # Do not encode vendor_specific_bypass parameter:
-        result = ''
+        result = b''
         for tlv in tlvs:
             if len(tlv) != 4:
                 continue
@@ -1166,7 +1166,7 @@ class PDUEncoder(IEncoder):
         return optionalParams
 
     def encodeRequiredParams(self, paramList, encoderMap, params):
-        return string.join([encoderMap[paramName].encode(params[paramName]) for paramName in paramList], '')
+        return b''.join([encoderMap[paramName].encode(params[paramName]) for paramName in paramList])
 
     def decodeRequiredParams(self, paramList, encoderMap, file):
         params = {}

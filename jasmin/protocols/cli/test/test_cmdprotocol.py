@@ -86,10 +86,12 @@ class CmdProtocolTestCases(ProtocolTestCases):
 
 
 class BasicTestCase(CmdProtocolTestCases):
+    @defer.inlineCallbacks
     def test_quit(self):
         commands = [{'command': 'quit'}]
-        return self._test(None, commands)
+        yield self._test(None, commands)
 
+    @defer.inlineCallbacks
     def test_help(self):
         expectedList = ['Available commands:',
                         '===================',
@@ -99,4 +101,4 @@ class BasicTestCase(CmdProtocolTestCases):
                         'quit                Disconnect from console',
                         'help                List available commands with "help" or detailed help with "help cmd".']
         commands = [{'command': 'help', 'expect': expectedList}]
-        return self._test('>>> ', commands)
+        yield self._test('>>> ', commands)

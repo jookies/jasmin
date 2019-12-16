@@ -13,7 +13,7 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from six import StringIO
+from six import BytesIO
 import logging
 import struct
 import binascii
@@ -31,7 +31,7 @@ class BlackHoleSMSC(protocol.Protocol):
 
     def __init__(self):
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.recvBuffer = ""
+        self.recvBuffer = b""
         self.lastSeqNum = 0
         self.encoder = PDUEncoder()
 
@@ -47,7 +47,9 @@ class BlackHoleSMSC(protocol.Protocol):
             self.rawMessageReceived(message)
 
     def rawMessageReceived(self, message):
-        return self.PDUReceived(self.encoder.decode(StringIO(message)))
+        return self.PDUReceived(
+            self.encoder.decode(
+                BytesIO(message)))
 
     def PDUReceived(self, pdu):
         if pdu.__class__ in self.responseMap:
