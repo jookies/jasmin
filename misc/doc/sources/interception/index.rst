@@ -415,3 +415,12 @@ Ask for DLR for all submit_sm pdus, no matter the downstream user choice, can be
 
 .. literalinclude:: sc_enforce_dlr.py
    :language: python
+
+Set custom message_id
+=============
+
+Get message_id from external URL and set it for  in interceptor MT.
+
+.. literalinclude:: sc_custom_message_id.py
+   :language: python
+
