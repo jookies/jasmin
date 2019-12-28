@@ -540,7 +540,7 @@ class SMPPClientManagerPB(pb.Avatar):
     @defer.inlineCallbacks
     def perspective_submit_sm(self, uid, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
                               pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST', dlr_connector=None,
-                              source_connector='httpapi'):
+                              source_connector='httpapi', msgid=None):
         """This will enqueue a submit_sm to a connector
         """
         connector = self.getConnector(cid)
@@ -581,6 +581,7 @@ class SMPPClientManagerPB(pb.Avatar):
             submit_sm_bill=submit_sm_bill,
             priority=priority,
             expiration=validity_period,
+            msgid=msgid,
             source_connector='httpapi' if source_connector == 'httpapi' else 'smppsapi',
             destination_cid=cid)
         yield self.amqpBroker.publish(exchange='messaging', routing_key=pubQueueName, content=c)

@@ -356,6 +356,10 @@ class SMPPServerFactory(_SMPPServerFactory):
             else:
                 routable = kw['routable']
 
+            # Passing message_id from MT interceptor script
+            if 'message_id' in routable.pdu.params:
+                message_id = str(routable.pdu.params['message_id'])
+
             system_id = kw['system_id']
             proto = kw['proto']
 
@@ -459,6 +463,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 submit_sm_bill=bill,
                 priority=priority,
                 pickled=False,
+                msgid=message_id,
                 source_connector=proto)
 
             if not hasattr(c, 'result'):

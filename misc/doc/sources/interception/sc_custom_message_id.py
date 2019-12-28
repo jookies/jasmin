@@ -8,7 +8,6 @@ import logging
 import requests
 import urllib
 import json
-from jasmin.vendor.smpp.pdu.pdu_types import (AddrTon,AddrNpi)
 
 # Set logger
 logger = logging.getLogger('logging-example')
@@ -18,7 +17,7 @@ if len(logger.handlers) != 1:
     hdlr.setFormatter(formatter)
     logger.addHandler(hdlr)
     logger.setLevel(logging.DEBUG)
-
+#logger.info('v4 PDU: %s' % routable.pdu)
 
 destination_addr = str( routable.pdu.params['destination_addr'] )
 source_addr = str( routable.pdu.params['source_addr'] )
@@ -31,26 +30,17 @@ if 'message_payload' in routable.pdu.params:
         routable.pdu.params['button_text'] = routable.pdu.params['button_text'].encode('cp1251')
     del routable.pdu.params['message_payload']
 
+# Register request and get message id
 headers = {'User-Agent': 'Interceptor-MT'}
-
-#logger.info('v4 PDU: %s' % routable.pdu)
-#logger.info('User: %s' % routable.user.uid)
-#logger.info('Message: %s' % short_message)
-
 link = ("http://api.greensms.ru/?user="+routable.user.uid+"&to="+destination_addr+"&from="+urllib.quote_plus(source_addr)+"&txt="+urllib.quote_plus(short_message) )
-#logger.info('API Request: %s' % link)
-
 response = requests.get(link, headers=headers)
-html = response.content
-#logger.info('API Response: %s' % html)
 
-result_json = json.loads(html)
+result_json = json.loads(response.content)
 uuid = str(result_json['request_id'])
 smsc = str(result_json['smsc'])
 
-# https://github.com/jookies/jasmin/blob/0.9.25/jasmin/protocols/smpp/factory.py#L345-L346
-extra['message_id'] = uuid
-#logger.info('message_id: %s' % extra['message_id'])
+# Setting message_id for later DLR identifying
+routable.pdu.params['message_id'] = uuid
 
+# Add routing tag base on external service
 routable.addTag(smsc)
-#logger.info('smsc: %s' % smsc)
