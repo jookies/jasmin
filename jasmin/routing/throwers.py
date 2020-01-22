@@ -291,7 +291,10 @@ class deliverSmThrower(Thrower):
                 baseurl = dc.baseurl
                 _method = dc.method.upper()
                 if _method == 'GET':
-                    baseurl += '?%s' % encodedArgs
+                    if '?' in baseurl:
+                        baseurl += '&%s' % encodedArgs
+                    else:
+                        baseurl += '?%s' % encodedArgs
                 else:
                     postdata = encodedArgs
 
@@ -527,7 +530,10 @@ class DLRThrower(Thrower):
             postdata = None
             baseurl = url
             if method == 'GET':
-                baseurl += '?%s' % encodedArgs
+                if '?' in baseurl:
+                    baseurl += '&%s' % encodedArgs
+                else:
+                    baseurl += '?%s' % encodedArgs
             else:
                 postdata = encodedArgs
 
