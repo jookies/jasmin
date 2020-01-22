@@ -154,11 +154,11 @@ class PDU(object):
         r = "PDU [command: %s, sequence_number: %s, command_status: %s" % (self.id, self.seqNum, self.status)
         for mParam in self.mandatoryParams:
             if mParam in self.params:
-                r += "\n%s: %r" % (mParam, self.params[mParam])
+                r += " %s: %r" % (mParam, self.params[mParam])
         for oParam in self.params.keys():
             if oParam not in self.mandatoryParams:
-                r += "\n%s: %r" % (oParam, self.params[oParam])                
-        r += '\n]'
+                r += " %s: %r" % (oParam, self.params[oParam])                
+        r += ']'
         return r
         
     def __eq__(self, pdu):
