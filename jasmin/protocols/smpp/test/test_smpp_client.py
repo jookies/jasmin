@@ -1348,6 +1348,7 @@ class LongSubmitSmGenericNackTestCase(SimulatorTestCase):
             destination_addr=self.destination_addr,
             short_message=self.concatenated2Msgs,
         )
+        yield smpp.sendDataRequest(SubmitSmPDU)
         yield self.assertFailure(smpp.sendDataRequest(SubmitSmPDU), SMPPClientConnectionCorruptedError)
 
         # Unbind & Disconnect
