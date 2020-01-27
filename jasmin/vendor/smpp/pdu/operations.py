@@ -264,6 +264,7 @@ class DeliverSM(PDUDataRequest):
         'network_error_code',
         'message_state',
         'receipted_message_id',
+        'additional_status_info_text'
     ]
 
 class DataSMResp(PDUResponse):
