@@ -107,6 +107,7 @@ if __name__ == '__main__':
         in_d = InterceptorDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, in_d.sighandler_stop)
+        signal.signal(signal.SIGTERM, in_d.sighandler_stop)
         # Start InterceptorDaemon
         in_d.start()
 
