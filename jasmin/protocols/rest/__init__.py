@@ -7,6 +7,8 @@ import sys
 from .api import PingResource, BalanceResource, RateResource, SendResource, SendBatchResource
 from .config import *
 
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
+
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 import falcon
 
@@ -15,7 +17,7 @@ logger = logging.getLogger('jasmin-restapi')
 if len(logger.handlers) == 0:
     logger.setLevel(log_level)
     handler = logging.handlers.TimedRotatingFileHandler(filename=log_file, when=log_rotate)
-    handler.setFormatter(logging.Formatter(log_format, log_date_format))
+    handler.setFormatter(WhiteSpaceStrippingFormatter(log_format, log_date_format))
     logger.addHandler(handler)
 
 

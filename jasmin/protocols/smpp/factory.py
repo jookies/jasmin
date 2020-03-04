@@ -4,6 +4,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 
 from OpenSSL import SSL
 from twisted.internet import defer, reactor, ssl
@@ -48,7 +49,7 @@ class SMPPClientFactory(ClientFactory):
             self.log.setLevel(config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
             handler = TimedRotatingFileHandler(filename=self.config.log_file, when=_when)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = WhiteSpaceStrippingFormatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False
@@ -224,7 +225,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file, when=self.config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = WhiteSpaceStrippingFormatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False

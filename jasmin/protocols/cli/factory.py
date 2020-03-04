@@ -1,6 +1,7 @@
 import re
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 from twisted.internet import reactor, defer
 from twisted.internet.protocol import ServerFactory
 from jasmin.protocols.cli.jcli import JCliProtocol
@@ -57,7 +58,7 @@ class JCliFactory(ServerFactory):
             self.log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
                                                when=self.config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = WhiteSpaceStrippingFormatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
 

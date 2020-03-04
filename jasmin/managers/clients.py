@@ -3,6 +3,7 @@ import datetime
 import logging
 import time
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 
 from twisted.internet import defer
 from twisted.spread import pb
@@ -48,7 +49,7 @@ class SMPPClientManagerPB(pb.Avatar):
             self.log.setLevel(self.config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
                                                when=self.config.log_rotate)
-            formatter = logging.Formatter(self.config.log_format,
+            formatter = WhiteSpaceStrippingFormatter(self.config.log_format,
                                           self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

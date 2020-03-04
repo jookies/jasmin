@@ -5,6 +5,7 @@ import re
 import binascii
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 
 from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
@@ -879,7 +880,7 @@ class HTTPApi(Resource):
         if len(log.handlers) != 1:
             log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=config.log_file, when=config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = WhiteSpaceStrippingFormatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             log.addHandler(handler)
             log.propagate = False

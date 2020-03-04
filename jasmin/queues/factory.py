@@ -1,6 +1,7 @@
 # pylint: disable=E0203
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor
 from txamqp.client import TwistedDelegate
@@ -32,7 +33,7 @@ class AmqpFactory(ClientFactory):
             self.log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=self.config.log_file,
                                                when=self.config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = WhiteSpaceStrippingFormatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False

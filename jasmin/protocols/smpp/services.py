@@ -1,5 +1,6 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 from jasmin.protocols.smpp.factory import SMPPClientFactory
 from twisted.application import service
 from .configs import SMPPClientServiceConfig
@@ -23,7 +24,7 @@ class SMPPClientService(service.Service):
             handler = TimedRotatingFileHandler(
                 filename=self.SMPPClientServiceConfig.log_file,
                 when=self.SMPPClientServiceConfig.log_rotate)
-            formatter = logging.Formatter(self.SMPPClientServiceConfig.log_format,
+            formatter = WhiteSpaceStrippingFormatter(self.SMPPClientServiceConfig.log_format,
                                           self.SMPPClientServiceConfig.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

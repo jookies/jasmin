@@ -1,5 +1,6 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
 import jasmin.vendor.txredisapi as redis
 from twisted.internet import reactor
 from twisted.internet import defer
@@ -46,7 +47,7 @@ class RedisForJasminFactory(redis.RedisFactory):
             self.log.setLevel(config.log_level)
             handler = TimedRotatingFileHandler(filename=config.log_file,
                                                when=config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = WhiteSpaceStrippingFormatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
         else:
             handler = logging.NullHandler()

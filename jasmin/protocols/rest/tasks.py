@@ -5,6 +5,8 @@ from celery import Celery, Task
 from celery.task import task
 from datetime import datetime, timedelta
 
+from jasmin.tools.formatters import WhiteSpaceStrippingFormatter
+
 from .config import *
 
 # @TODO: make configuration loadable from /etc/jasmin/restapi.conf
@@ -12,7 +14,7 @@ logger = logging.getLogger('jasmin-restapi')
 if len(logger.handlers) == 0:
     logger.setLevel(log_level)
     handler = logging.handlers.TimedRotatingFileHandler(filename=log_file, when=log_rotate)
-    handler.setFormatter(logging.Formatter(log_format, log_date_format))
+    handler.setFormatter(WhiteSpaceStrippingFormatter(log_format, log_date_format))
     logger.addHandler(handler)
 
 app = Celery(__name__)
