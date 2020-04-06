@@ -300,7 +300,7 @@ class PublishConsumeTestCase(ConsumeTools):
 
         # Publish a pickled binary content with v2 protocol
         yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01",
-                                content=Content(pickle.dumps('\x53', 2)))
+                                content=Content(pickle.dumps('\x53', pickle.HIGHEST_PROTOCOL)))
 
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)

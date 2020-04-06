@@ -29,7 +29,7 @@ for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
 class PDU(Content):
     """A generic SMPP PDU Content"""
 
-    pickleProtocol = 2
+    pickleProtocol = pickle.HIGHEST_PROTOCOL
 
     def __init__(self, body="", children=None, properties=None, pickleProtocol=2,
                  prePickle=False):

@@ -76,12 +76,12 @@ class RouterPBTestCases(TestCase):
         # This is normally done through jcli API (or any other high level API to come)
         # Using perspective_user_add() is just a shortcut for testing purposes
         if user.group not in self.routerpb_factory.groups:
-            self.routerpb_factory.perspective_group_add(pickle.dumps(user.group, 2))
-        self.routerpb_factory.perspective_user_add(pickle.dumps(user, 2))
+            self.routerpb_factory.perspective_group_add(pickle.dumps(user.group, pickle.HIGHEST_PROTOCOL))
+        self.routerpb_factory.perspective_user_add(pickle.dumps(user, pickle.HIGHEST_PROTOCOL))
 
         # provision route
         if defaultroute is not None:
-            self.routerpb_factory.perspective_mtroute_add(pickle.dumps(defaultroute, 2), 0)
+            self.routerpb_factory.perspective_mtroute_add(pickle.dumps(defaultroute, pickle.HIGHEST_PROTOCOL), 0)
 
 
 class SMPPServerTestCases(RouterPBTestCases):

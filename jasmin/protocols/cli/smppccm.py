@@ -272,7 +272,7 @@ class SmppCCManager(PersistableManager):
     @defer.inlineCallbacks
     def add_session(self, SMPPClientConfigInstance):
         st = yield self.pb['smppcm'].perspective_connector_add(
-            pickle.dumps(SMPPClientConfigInstance, 2))
+            pickle.dumps(SMPPClientConfigInstance, pickle.HIGHEST_PROTOCOL))
 
         if st:
             self.protocol.sendData(

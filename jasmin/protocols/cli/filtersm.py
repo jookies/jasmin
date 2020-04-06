@@ -275,7 +275,7 @@ class FiltersManager(PersistableManager):
             # Write configuration with datetime stamp
             fh = open(path, 'wb')
             fh.write(('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
-            fh.write(pickle.dumps(self.filters, 2))
+            fh.write(pickle.dumps(self.filters, pickle.HIGHEST_PROTOCOL))
             fh.close()
         except IOError:
             return self.protocol.sendData('Cannot persist to %s' % path)

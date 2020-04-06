@@ -17,7 +17,7 @@ class SMPPTimeTest(TestCase):
         tz = smpp_time.FixedOffset(72, 'Paris')
 
         # Pickle then unpickle
-        pickled_tz = pickle.dumps(tz, 2)
+        pickled_tz = pickle.dumps(tz, pickle.HIGHEST_PROTOCOL)
         unpickled_tz = pickle.loads(pickled_tz)
 
         # Asserts

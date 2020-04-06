@@ -23,6 +23,6 @@ class SMPPServerPBProxy(JasminPBProxy):
     @ConnectedPB
     def deliverer_send_request(self, system_id, pdu):
         # TODO: pickle may get swaped with msgpack in future ...
-        pdu = pickle.dumps(pdu, 2)
+        pdu = pickle.dumps(pdu, pickle.HIGHEST_PROTOCOL)
 
         return self.pb.callRemote('deliverer_send_request', system_id, pdu)

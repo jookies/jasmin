@@ -39,7 +39,7 @@ class JasminPBProxy:
 
     pb = None
     isConnected = False
-    pickleProtocol = 2
+    pickleProtocol = pickle.HIGHEST_PROTOCOL
 
     @defer.inlineCallbacks
     def connect(self, host, port, username=None, password=None, retry=False):
