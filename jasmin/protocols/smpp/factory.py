@@ -1,5 +1,5 @@
 # pylint: disable=W0401,W0611,W0231
-from six.moves import cPickle as pickle
+import pickle
 import logging
 import re
 from datetime import datetime, timedelta

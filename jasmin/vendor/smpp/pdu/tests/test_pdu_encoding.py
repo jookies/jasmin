@@ -13,7 +13,7 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from six import StringIO
+from io import StringIO
 import unittest
 import binascii
 from datetime import datetime

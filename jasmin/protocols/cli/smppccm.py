@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 import logging
 
 from twisted.internet import defer, reactor
@@ -196,7 +196,7 @@ def SMPPClientConfigUpdate(fCallback):
     return log_update_requests_and_call
 
 
-class ConnectorExist(object):
+class ConnectorExist:
     """Check if connector cid exist before passing it to fCallback"""
 
     def __init__(self, cid_key):

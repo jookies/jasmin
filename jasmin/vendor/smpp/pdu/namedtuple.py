@@ -4,7 +4,6 @@ Licensed under Python Software Foundation license: http://www.opensource.org/lic
 
 """
 
-from six import string_types
 from operator import itemgetter as _itemgetter
 from keyword import iskeyword as _iskeyword
 import sys as _sys
@@ -36,7 +35,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
 
     # Parse and validate the field names.  Validation serves two purposes,
     # generating informative error messages and preventing template injection attacks.
-    if isinstance(field_names, string_types):
+    if isinstance(field_names, str):
         field_names = field_names.replace(',', ' ').split() # names separated by whitespace and/or commas
     field_names = tuple(map(str, field_names))
     if rename:
@@ -105,7 +104,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
     try:
         exec(template, namespace)
     except SyntaxError as e:
-        raise SyntaxError(e.message + ':\n' + template)
+        raise SyntaxError(e.msg + ':\n' + template)
     result = namespace[typename]
 
     # For pickling to work, the __module__ variable needs to be set to the frame
@@ -122,7 +121,7 @@ def namedtuple(typename, field_names, verbose=False, rename=False):
 
 if __name__ == '__main__':
     # verify that instances can be pickled
-    from six.moves import cPickle as pickle
+    import pickle
     Point = namedtuple('Point', 'x, y', True)
     p = Point(x=10, y=20)
     assert p == pickle.loads(pickle.dumps(p, -1))

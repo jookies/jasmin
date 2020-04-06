@@ -33,8 +33,6 @@ except AttributeError:
 from wsgiref.validate import InputWrapper
 
 import mimeparse
-import six
-from six.moves import http_cookies
 
 from falcon import errors
 from falcon import request_helpers as helpers
@@ -58,7 +56,7 @@ strptime = datetime.strptime
 now = datetime.now
 
 
-class Request(object):
+class Request:
     """Represents a client's HTTP request.
 
     Note:
@@ -338,10 +336,9 @@ class Request(object):
         # Normalize path
         path = env['PATH_INFO']
         if path:
-            if six.PY3:
-                # PEP 3333 specifies that PATH_INFO variable are always
-                # "bytes tunneled as latin-1" and must be encoded back
-                path = path.encode('latin1').decode('utf-8', 'replace')
+            # PEP 3333 specifies that PATH_INFO variable are always
+            # "bytes tunneled as latin-1" and must be encoded back
+            path = path.encode('latin1').decode('utf-8', 'replace')
 
             if (self.options.strip_url_path_trailing_slash and
                     len(path) != 1 and path.endswith('/')):
@@ -1249,14 +1246,7 @@ class Request(object):
             format(now(), self.method, self.path, query_string_formatted)
         )
 
-        if six.PY3:
-            self._wsgierrors.write(log_line + message + '\n')
-        else:
-            if isinstance(message, unicode):
-                message = message.encode('utf-8')
-
-            self._wsgierrors.write(log_line.encode('utf-8'))
-            self._wsgierrors.write(message + '\n')
+        self._wsgierrors.write(log_line + message + '\n')
 
     # ------------------------------------------------------------------------
     # Helpers
@@ -1332,7 +1322,7 @@ class Request(object):
 
 
 # PERF: To avoid typos and improve storage space and speed over a dict.
-class RequestOptions(object):
+class RequestOptions:
     """Defines a set of configurable request options.
 
     An instance of this class is exposed via :any:`API.req_options` for

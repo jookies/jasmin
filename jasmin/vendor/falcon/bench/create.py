@@ -102,7 +102,7 @@ def cherrypy(body, headers):
     # Disable logging
     cherrypy.config.update({'environment': 'embedded'})
 
-    class HelloResource(object):
+    class HelloResource:
 
         exposed = True
 
@@ -113,7 +113,7 @@ def cherrypy(body, headers):
 
             return body
 
-    class Root(object):
+    class Root:
         pass
 
     root = Root()

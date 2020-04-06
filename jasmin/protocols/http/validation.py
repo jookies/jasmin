@@ -6,7 +6,7 @@ from jasmin.protocols.http.errors import UrlArgsValidationError, CredentialValid
 from jasmin.protocols.validation import AbstractCredentialValidator
 
 
-class UrlArgsValidator(object):
+class UrlArgsValidator:
     """Will check for arguments syntax errors"""
 
     def __init__(self, request, fields):  # TODO add if JSON dont do [0]

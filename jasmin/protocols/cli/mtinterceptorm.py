@@ -1,7 +1,7 @@
 # pylint: disable=W0611
 import re
 import inspect
-from six.moves import cPickle as pickle
+import pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import MTInterceptorScript
@@ -182,7 +182,7 @@ def MTInterceptorBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class MTInterceptorExist(object):
+class MTInterceptorExist:
     """Check if a mt interceptor exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):

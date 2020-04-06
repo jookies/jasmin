@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 import re
 from hashlib import md5
 from jasmin.protocols.cli.managers import PersistableManager, Session
@@ -231,7 +231,7 @@ def UserBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class UserExist(object):
+class UserExist:
     """Check if user uid exist before passing it to fCallback"""
 
     def __init__(self, uid_key):

@@ -14,7 +14,7 @@ Copyright 2009-2010 Mozes, Inc.
    limitations under the License.
 """
 
-from six import BytesIO
+from io import BytesIO
 import struct
 import logging
 import binascii
@@ -58,7 +58,7 @@ def _safelylogOutPdu(content):
         return "Couldn't log out the pdu content due to non-ascii characters."
 
 
-class DataHandlerResponse(object):
+class DataHandlerResponse:
 
     def __init__(self, status, **params):
         self.status = status

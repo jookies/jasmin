@@ -23,7 +23,7 @@ class DLRMapNotFound(Exception):
     """Raised if no dlr is found in Redis db"""
 
 
-class DLRLookup(object):
+class DLRLookup:
     """
     Will consume dlr pdus (submit_sm, deliver_sm or data_sm), lookup for matching dlr maps in redis db
     and publish dlr for later throwing (http or smpp)
@@ -429,7 +429,7 @@ class DLRLookup(object):
                 logged_content)
 
 
-class DLRLookupSingleton(object):
+class DLRLookupSingleton:
     """Used to launch only one DLRLookup object"""
     __metaclass__ = Singleton
     objects = {}

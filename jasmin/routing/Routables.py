@@ -30,7 +30,7 @@ class InvalidLockError(Exception):
     """
 
 
-class Routable(object):
+class Routable:
     """Generic Routable:
 
     Routable represents a PDU and optionnaly its owner and source Connector, it can be

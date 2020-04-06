@@ -16,7 +16,7 @@
 
 import re
 
-import six
+
 
 from falcon import HTTP_METHODS, responders
 
@@ -54,7 +54,7 @@ def compile_uri_template(template):
         tuple: (template_field_names, template_regex)
     """
 
-    if not isinstance(template, six.string_types):
+    if not isinstance(template, str):
         raise TypeError('uri_template is not a string')
 
     if not template.startswith('/'):

@@ -3,7 +3,7 @@ Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' sec
 """
 
 import binascii
-from six.moves import cPickle as pickle
+import pickle
 import logging
 import os
 

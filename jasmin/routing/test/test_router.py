@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from six.moves import cPickle as pickle
+import pickle
 import glob
 import os
 import string
@@ -1339,7 +1339,7 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
         yield self.SMSCPort.stopListening()
 
 
-class SubmitSmTestCaseTools(object):
+class SubmitSmTestCaseTools:
     """
     Factorized methods for child classes testing SubmitSm and DeliverSm routing scenarios
     """

@@ -4,7 +4,7 @@ from twisted.internet import defer
 
 
 @implementer(checkers.ICredentialsChecker)
-class RouterAuthChecker(object):
+class RouterAuthChecker:
     """Will authenticate users with router_factory.authenticateUser()"""
 
     credentialInterfaces = (credentials.IUsernamePassword,)

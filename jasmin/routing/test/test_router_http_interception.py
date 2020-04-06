@@ -27,7 +27,7 @@ def waitFor(seconds):
     yield waitDeferred
 
 
-class ProvisionWithoutInterceptorPB(object):
+class ProvisionWithoutInterceptorPB:
     script = 'Default script that generates a syntax error !'
 
     @defer.inlineCallbacks

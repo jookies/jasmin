@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from six.moves import cPickle as pickle
+import pickle
 import copy
 import json
 import urllib

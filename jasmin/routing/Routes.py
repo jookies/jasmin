@@ -23,7 +23,7 @@ class InvalidRouteFilterError(Exception):
     """
 
 
-class Route(object):
+class Route:
     """Generic Route:
 
     Route contain a triplet of [Filter(s), Connector, Rate]
@@ -183,7 +183,7 @@ class StaticMTRoute(MTRoute):
     """
 
 
-class RoundrobinRoute(object):
+class RoundrobinRoute:
     """Generic RoundrobinRoute
     """
 
@@ -255,7 +255,7 @@ class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
         self._str = "%s %s" % (self._str, rate_str)
 
 
-class FailoverRoute(object):
+class FailoverRoute:
     """Generic FailoverRoute"""
 
     def __init__(self, filters, connectors):

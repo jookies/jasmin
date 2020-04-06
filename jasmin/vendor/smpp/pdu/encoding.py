@@ -16,7 +16,7 @@ Copyright 2009-2010 Mozes, Inc.
 from jasmin.vendor.smpp.pdu import pdu_types
 from jasmin.vendor.smpp.pdu.error import PDUCorruptError
 
-class IEncoder(object):
+class IEncoder:
 
     def encode(self, value):
         """Takes an object representing the type and returns a byte string"""

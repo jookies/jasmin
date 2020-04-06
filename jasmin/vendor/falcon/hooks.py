@@ -16,7 +16,7 @@
 
 from functools import wraps
 
-import six
+
 
 from falcon import HTTP_METHODS
 from falcon.util.misc import get_argnames
@@ -48,7 +48,7 @@ def before(action):
     """
 
     def _before(responder_or_resource):
-        if isinstance(responder_or_resource, six.class_types):
+        if isinstance(responder_or_resource, type):
             resource = responder_or_resource
 
             for method in HTTP_METHODS:
@@ -97,7 +97,7 @@ def after(action):
     """
 
     def _after(responder_or_resource):
-        if isinstance(responder_or_resource, six.class_types):
+        if isinstance(responder_or_resource, type):
             resource = responder_or_resource
 
             for method in HTTP_METHODS:

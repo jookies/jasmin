@@ -32,7 +32,7 @@ class Options(usage.Options):
     ]
 
 
-class DlrDaemon(object):
+class DlrDaemon:
     def __init__(self, opt):
         self.options = opt
         self.components = {}

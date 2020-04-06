@@ -58,7 +58,7 @@ class CtxFactory(ssl.ClientContextFactory):
             ctx.use_certificate_file(self.smppConfig.SSLCertificateFile)
         return ctx
 
-class SMPPClientBase(object):
+class SMPPClientBase:
     msgHandler = None
     
     def __init__(self, config):

@@ -23,7 +23,7 @@ class TokenNotFound(Exception):
     """Raised when authentication token is not found"""
 
 
-class JsonResponserMiddleware(object):
+class JsonResponserMiddleware:
     """Encodes response to json and set content_type accordingly"""
 
     def process_response(self, request, response, resource):
@@ -40,7 +40,7 @@ class JsonResponserMiddleware(object):
             response.set_header('Powered-By', 'Jasmin %s' % jasmin.get_release())
 
 
-class LoggingMiddleware(object):
+class LoggingMiddleware:
     """Logging api calls"""
 
     def process_response(self, request, response, resource):
@@ -54,7 +54,7 @@ class LoggingMiddleware(object):
                 request.method, request.relative_uri))
 
 
-class ContentTypeFilter(object):
+class ContentTypeFilter:
     """Enforces client uses json media type"""
 
     def process_request(self, request, response):
@@ -65,7 +65,7 @@ class ContentTypeFilter(object):
                 'http://docs.jasminsms.com/en/latest/apis/rest/index.html')
 
 
-class AuthenticationFilter(object):
+class AuthenticationFilter:
     """Extract username/password from Auth token and make it accessible from context"""
 
     def _token_decode(self, request, token):

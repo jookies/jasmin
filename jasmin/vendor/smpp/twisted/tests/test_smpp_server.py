@@ -227,7 +227,7 @@ class SMPPServerBaseTest(TestCase):
         self.service_calls.append((system_id, smpp, pdu))
         return pdu_types.CommandStatus.ESME_ROK
 
-    class SmppRealm(object):
+    class SmppRealm:
         implements(IRealm)
 
         def requestAvatar(self, avatarId, mind, *interfaces):

@@ -14,7 +14,7 @@ Copyright 2009-2010 Mozes, Inc.
    limitations under the License.
 """
 
-class SMPPConfig(object):
+class SMPPConfig:
     
     def __init__(self, **kwargs):
         self.sessionInitTimerSecs = kwargs.get('sessionInitTimerSecs', 30)

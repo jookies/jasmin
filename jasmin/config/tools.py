@@ -2,10 +2,10 @@
 A Config file reader
 """
 
-from six.moves import configparser as ConfigParser
+import configparser as ConfigParser
 
 
-class ConfigFile(object):
+class ConfigFile:
     """
     Config file reader, will expose typed "ex: _getint()" and untyped "ex: _get()" with
     default fallback values to be returned if a configuration directive is not found or

@@ -13,7 +13,7 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from six import StringIO
+from io import StringIO
 import struct
 from jasmin.vendor.smpp.pdu.operations import DeliverSM, DataSM
 from jasmin.vendor.smpp.pdu.pdu_types import *
@@ -23,7 +23,7 @@ from jasmin.vendor.smpp.pdu.gsm_encoding import UserDataHeaderEncoder
 
 ShortMessageString = namedtuple('ShortMessageString', 'bytes, unicode, udh')
 
-class SMStringEncoder(object):
+class SMStringEncoder:
     userDataHeaderEncoder = UserDataHeaderEncoder()
         
     def decodeSM(self, pdu):

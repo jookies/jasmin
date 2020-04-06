@@ -10,7 +10,7 @@ class KeyNotIncrementable(Exception):
     """
 
 
-class Stats(object):
+class Stats:
     def set(self, key, value):
         if key not in self._stats:
             raise KeyNotFound(key)

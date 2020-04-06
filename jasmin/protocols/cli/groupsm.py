@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import Group
 
@@ -44,7 +44,7 @@ def GroupBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class GroupExist(object):
+class GroupExist:
     """Check if Group gid exist before passing it to fCallback"""
 
     def __init__(self, gid_key):

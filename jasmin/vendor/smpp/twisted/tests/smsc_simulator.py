@@ -13,7 +13,7 @@ Copyright 2009-2010 Mozes, Inc.
    See the License for the specific language governing permissions and
    limitations under the License.
 """
-from six import BytesIO
+from io import BytesIO
 import logging
 import struct
 import binascii

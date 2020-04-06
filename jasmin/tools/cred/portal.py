@@ -4,7 +4,7 @@ from twisted.cred import portal
 
 
 @implementer(portal.IRealm)
-class JasminPBRealm(object):
+class JasminPBRealm:
 
     def __init__(self, PBFactory):
         self.PBFactory = PBFactory
@@ -18,7 +18,7 @@ class JasminPBRealm(object):
 
 
 @implementer(portal.IRealm)
-class SmppsRealm(object):
+class SmppsRealm:
 
     def __init__(self, smpps_id, router_factory):
         self.smpps_id = smpps_id

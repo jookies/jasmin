@@ -33,7 +33,7 @@ class Options(usage.Options):
     ]
 
 
-class DlrlookupDaemon(object):
+class DlrlookupDaemon:
     def __init__(self, opt):
         self.options = opt
         self.components = {}

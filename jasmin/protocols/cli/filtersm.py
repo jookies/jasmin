@@ -1,6 +1,6 @@
 # pylint: disable=W0401,W0611
 import inspect
-from six.moves import cPickle as pickle
+import pickle
 import time
 import jasmin
 import os
@@ -226,7 +226,7 @@ def FilterBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class FilterExist(object):
+class FilterExist:
     """Check if filter fid exist before passing it to fCallback"""
 
     def __init__(self, fid_key):

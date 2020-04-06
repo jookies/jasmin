@@ -8,7 +8,7 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
 
 
-class RoutingTableTests(object):
+class RoutingTableTests:
     def test_standard(self):
         routing_t = self._routingTable()
         routing_t.add(self.route2, 2)

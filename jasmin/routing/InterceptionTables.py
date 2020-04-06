@@ -12,7 +12,7 @@ class InvalidInterceptionTableParameterError(Exception):
     """
 
 
-class InterceptionTable(object):
+class InterceptionTable:
     """Generic Interception table
     """
     type = 'generic'

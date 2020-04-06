@@ -1,0 +1,16 @@
+version: '3'
+services:
+  jasmin:
+      build:
+          context: ./
+          dockerfile: ./docker/Dockerfile
+      container_name: jasmin
+      env_file: .env
+
+  jasmin-alpine:
+    build:
+        context: ./
+        dockerfile: ./docker/Dockerfile.alpine
+    container_name: jasmin-alpine
+    env_file: .env
+

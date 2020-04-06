@@ -1,34 +1,36 @@
-FROM python:3-buster
+FROM rabbitmq:alpine
 
 MAINTAINER Jookies LTD <jasmin@jookies.net>
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
-RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
+RUN addgroup -S jasmin && adduser -S -g jasmin jasmin
 
 ENV JASMIN_VERSION 0.9.32
 
 # Install requirements
-RUN apt-get update && apt-get install -y \
+RUN apk --update add \
+    gcc \
+    musl-dev \
     libffi-dev \
-    libssl-dev \
-    rabbitmq-server \
-    redis-server \
+    openssl-dev \
+    python3-dev \
+    py3-pip \
+    redis \
     supervisor \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+    openrc
 
 # Install Jasmin SMS gateway
 RUN mkdir -p /etc/jasmin/resource \
     /etc/jasmin/store \
     /var/log/jasmin \
   && chown jasmin:jasmin /etc/jasmin/store \
-    /var/log/jasmin 
-
+    /var/log/jasmin
+    
 WORKDIR /build
 
 COPY . .
 
-RUN pip install .
+RUN pip3 install .
 
 WORKDIR /usr/jasmin
 
@@ -38,7 +40,14 @@ RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
 EXPOSE 2775 8990 1401
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
-COPY docker/docker-entrypoint.sh /
+COPY docker/docker-entrypoint-alpine.sh /
+
+RUN rc-service --list
+
+RUN which rabbitmq-server
+
+RUN rc-update add rabbitmq-server
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
 # Notes:

@@ -18,7 +18,7 @@ class jasminApiCredentialError(Exception):
     """
 
 
-class jasminApiGeneric(object):
+class jasminApiGeneric:
     pass
 
 
@@ -238,7 +238,7 @@ class CnxStatus(jasminApiGeneric):
         }
 
 
-class UserStats(object):
+class UserStats:
     """User statistics singleton holder"""
     __metaclass__ = Singleton
     users = {}

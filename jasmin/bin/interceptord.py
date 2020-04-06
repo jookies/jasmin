@@ -28,7 +28,7 @@ class Options(usage.Options):
     ]
 
 
-class InterceptorDaemon(object):
+class InterceptorDaemon:
     def __init__(self, opt):
         self.options = opt
         self.components = {}

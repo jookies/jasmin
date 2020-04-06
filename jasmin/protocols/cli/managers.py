@@ -16,7 +16,7 @@ def Session(fCallback):
     return filter_cmd_and_call
 
 
-class Manager(object):
+class Manager:
     # A prompt to display when inside an interactive session
     trxPrompt = '> '
     managerName = 'Undefined'

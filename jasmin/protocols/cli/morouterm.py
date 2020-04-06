@@ -1,5 +1,5 @@
 # pylint: disable=W0611
-from six.moves import cPickle as pickle
+import pickle
 import inspect
 import re
 
@@ -205,7 +205,7 @@ def MORouteBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class MORouteExist(object):
+class MORouteExist:
     """Check if a mo route exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):

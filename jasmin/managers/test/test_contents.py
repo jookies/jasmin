@@ -2,7 +2,7 @@
 Test cases for amqp contents
 """
 
-from six.moves import cPickle as pickle
+import pickle
 from datetime import datetime
 
 from twisted.trial.unittest import TestCase

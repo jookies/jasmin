@@ -6,7 +6,7 @@ from twisted.spread.flavors import IPBRoot, Referenceable
 from twisted.cred.error import UnhandledCredentials, UnauthorizedLogin
 
 
-class _JellyableAvatarMixin(object):
+class _JellyableAvatarMixin:
     """
     Helper class for code which deals with avatars which PB must be capable of
     sending to a peer.
@@ -130,7 +130,7 @@ class _PortalWrapper(Referenceable, _JellyableAvatarMixin):
 
 
 @implementer(IPBRoot)
-class JasminPBPortalRoot(object):
+class JasminPBPortalRoot:
 
     def __init__(self, portal):
         self.portal = portal

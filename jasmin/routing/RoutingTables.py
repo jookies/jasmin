@@ -12,7 +12,7 @@ class InvalidRoutingTableParameterError(Exception):
     """
 
 
-class RoutingTable(object):
+class RoutingTable:
     """Generic Routing table
     """
     type = 'generic'

@@ -96,7 +96,7 @@ def list_or_args(command, keys, args):
 _NUM_FIRST_CHARS = frozenset(string.digits + "+-.")
 
 
-class MultiBulkStorage(object):
+class MultiBulkStorage:
     def __init__(self, parent=None):
         self.items = None
         self.pending = None
@@ -1477,7 +1477,7 @@ class SubscriberProtocol(RedisProtocol):
         return self.execute_command("PUNSUBSCRIBE", *patterns)
 
 
-class ConnectionHandler(object):
+class ConnectionHandler:
     def __init__(self, factory):
         self._factory = factory
         self._connected = factory.deferred
@@ -1588,7 +1588,7 @@ ShardedMethods = frozenset([
 _findhash = re.compile(r'.+\{(.*)\}.*')
 
 
-class HashRing(object):
+class HashRing:
     """Consistent hash for redis API"""
     def __init__(self, nodes=[], replicas=160):
         self.nodes = []
@@ -1640,7 +1640,7 @@ class HashRing(object):
         return self.get_node(key)
 
 
-class ShardedConnectionHandler(object):
+class ShardedConnectionHandler:
     def __init__(self, connections):
         if isinstance(connections, defer.DeferredList):
             self._ring = None

@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 import json
 import logging
 import re

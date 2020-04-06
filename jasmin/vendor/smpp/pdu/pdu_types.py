@@ -76,7 +76,7 @@ class DataCodingGsmMsg(DataCodingGsmMsgBase):
         return 'DataCodingGsmMsg[msgCoding: %s, msgClass: %s]' % (self.msgCoding, self.msgClass)
 
 
-class DataCoding(object):
+class DataCoding:
     
     def __init__(self, scheme=DataCodingScheme.DEFAULT, schemeData=DataCodingDefault.SMSC_DEFAULT_ALPHABET):
         self.scheme = scheme
@@ -130,7 +130,7 @@ NetworkErrorCode = Enum(*list(constants.network_error_code_name_map))
 DeliveryFailureReason = Enum(*list(constants.delivery_failure_reason_name_map))
 MoreMessagesToSend = Enum(*list(constants.more_messages_to_send_name_map))
 
-class PDU(object):
+class PDU:
     commandId = None
     mandatoryParams = []
     optionalParams = []

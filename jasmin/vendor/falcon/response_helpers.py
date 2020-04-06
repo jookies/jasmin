@@ -14,7 +14,7 @@
 
 """Utilities for the Response class."""
 
-import six
+
 
 
 def header_property(name, doc, transform=None):
@@ -38,12 +38,8 @@ def header_property(name, doc, transform=None):
             return None
 
     if transform is None:
-        if six.PY2:
-            def fset(self, value):
-                self._headers[normalized_name] = str(value)
-        else:
-            def fset(self, value):
-                self._headers[normalized_name] = value
+        def fset(self, value):
+            self._headers[normalized_name] = value
     else:
         def fset(self, value):
             self._headers[normalized_name] = transform(value)
@@ -69,22 +65,13 @@ def format_range(value):
     else:
         result = 'bytes %s-%s/%s' % (value[0], value[1], value[2])
 
-    if six.PY2:
-        # NOTE(kgriffs): In case one of the values was a unicode
-        # string, convert back to str
-        result = str(result)
-
     return result
 
 
-if six.PY2:
-    def format_header_value_list(iterable):
-        """Joins an iterable of strings with commas."""
-        return str(', '.join(iterable))
-else:
-    def format_header_value_list(iterable):
-        """Joins an iterable of strings with commas."""
-        return ', '.join(iterable)
+
+def format_header_value_list(iterable):
+    """Joins an iterable of strings with commas."""
+    return ', '.join(iterable)
 
 
 def is_ascii_encodable(s):

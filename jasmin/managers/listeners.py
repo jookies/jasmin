@@ -1,5 +1,5 @@
 # pylint: disable=W0401,W0611
-from six.moves import cPickle as pickle
+import pickle
 import logging
 import struct
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 LOG_CATEGORY = "jasmin-sm-listener"
 
 
-class SMPPClientSMListener(object):
+class SMPPClientSMListener:
     """
     This is a listener object instantiated for every new SMPP connection, it is responsible of handling
     SubmitSm, DeliverSm and SubmitSm PDUs for a given SMPP connection

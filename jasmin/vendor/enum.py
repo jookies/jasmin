@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from six import string_types
 
 # enum.py
 # Part of enum, a package providing enumerated types for Python.
@@ -120,7 +119,7 @@ def _comparator(func):
     comparator_wrapper.__doc__ = getattr(float, func.__name__).__doc__
     return comparator_wrapper
 
-class EnumValue(object):
+class EnumValue:
     """ A specific value of an enumerated type. """
 
     def __init__(self, enumtype, index, key):
@@ -175,7 +174,7 @@ class EnumValue(object):
         return (self >= other)
 
 
-class Enum(object):
+class Enum:
     """ Enumerated type. """
 
     def __init__(self, *keys, **kwargs):
@@ -223,7 +222,7 @@ class Enum(object):
 
     def __contains__(self, value):
         is_member = False
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             is_member = (value in self._keys)
         else:
             is_member = (value in self._values)

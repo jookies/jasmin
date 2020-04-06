@@ -1,4 +1,4 @@
-class AbstractCredentialValidator(object):
+class AbstractCredentialValidator:
     """An abstract CredentialValidator, when inherited it must validate self.user credentials
     agains self.action"""
 

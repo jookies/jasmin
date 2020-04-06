@@ -19,7 +19,7 @@ class InvalidInterceptorFilterError(Exception):
     """Raised when an interceptor is instanciated with a non-compatible type"""
 
 
-class Interceptor(object):
+class Interceptor:
     """Generic Interceptor:
 
     Interceptor contain a couple of [Filter(s), InterceptorScript]

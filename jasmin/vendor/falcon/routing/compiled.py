@@ -22,7 +22,7 @@ _FIELD_REGEX = re.compile('{([^}]*)}')
 _TAB_STR = ' ' * 4
 
 
-class CompiledRouter(object):
+class CompiledRouter:
     """Fast URI router which compiles its routing logic to Python code.
 
     Generally you do not need to use this router class directly, as an
@@ -279,7 +279,7 @@ class CompiledRouter(object):
         return scope['find']
 
 
-class CompiledRouterNode(object):
+class CompiledRouterNode:
     """Represents a single URI segment in a URI."""
 
     def __init__(self, raw_segment,

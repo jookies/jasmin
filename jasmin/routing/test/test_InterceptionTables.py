@@ -8,7 +8,7 @@ from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
 
 
-class InterceptionTableTests(object):
+class InterceptionTableTests:
     def test_standard(self):
         interception_t = self._interceptionTable()
         interception_t.add(self.interceptor2, 2)

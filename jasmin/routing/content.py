@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 
 from txamqp.content import Content
 

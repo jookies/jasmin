@@ -1,5 +1,5 @@
 # pylint: disable=W0611
-from six.moves import cPickle as pickle
+import pickle
 import inspect
 import re
 
@@ -202,7 +202,7 @@ def MTRouteBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class MTRouteExist(object):
+class MTRouteExist:
     """Check if a mt route exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):

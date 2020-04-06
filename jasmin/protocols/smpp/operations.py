@@ -53,7 +53,7 @@ class UnknownMessageStatusError(Exception):
     """
 
 
-class SMPPOperationFactory(object):
+class SMPPOperationFactory:
     lastLongMsgRefNum = 0
 
     def __init__(self, config=None, long_content_max_parts=5, long_content_split='sar'):

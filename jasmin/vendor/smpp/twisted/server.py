@@ -140,7 +140,7 @@ class SMPPServerFactory(ServerFactory):
         self.config.systems.pop(system_id)
         return deferred_res
 
-class SMPPBindManager(object):
+class SMPPBindManager:
 
     def __init__(self, system_id):
         self.system_id = system_id

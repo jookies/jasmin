@@ -28,7 +28,7 @@ from jasmin.vendor.smpp.pdu.pdu_types import CommandId
 
 # Jasmin update:
 
-class IEncoder(object):
+class IEncoder:
     def encode(self, value):
         """Takes an object representing the type and returns a byte string"""
         raise NotImplementedError()

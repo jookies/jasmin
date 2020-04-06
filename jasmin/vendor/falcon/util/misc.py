@@ -29,7 +29,7 @@ import functools
 import inspect
 import warnings
 
-import six
+
 
 from falcon import status_codes
 
@@ -238,14 +238,6 @@ def get_bound_method(obj, method_name):
     """
 
     method = getattr(obj, method_name, None)
-    if method is not None:
-        # NOTE(kgriffs): Ensure it is a bound method
-        if six.get_method_self(method) is None:
-            # NOTE(kgriffs): In Python 3 this code is unreachable
-            # because the above will raise AttributeError on its
-            # own.
-            msg = '{0} must be a bound method'.format(method)
-            raise AttributeError(msg)
 
     return method
 
@@ -294,22 +286,13 @@ def get_argnames(func):
         arguments.
     """
 
-    if six.PY2:
-        func_object = _get_func_if_nested(func)
-        spec = _get_argspec(func_object)
+    sig = inspect.signature(func)
 
-        # NOTE(kgriffs): inspect.signature does not include 'self',
-        # so remove it under PY2 if it is present.
-        args = [arg for arg in spec.args if arg != 'self']
-
-    else:
-        sig = inspect.signature(func)
-
-        args = [
-            param.name
-            for param in sig.parameters.values()
-            if param.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
-        ]
+    args = [
+        param.name
+        for param in sig.parameters.values()
+        if param.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+    ]
 
     return args
 

@@ -63,7 +63,7 @@ class Options(usage.Options):
     ]
 
 
-class JasminDaemon(object):
+class JasminDaemon:
     def __init__(self, opt):
         self.options = opt
         self.components = {}

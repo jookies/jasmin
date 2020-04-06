@@ -1,6 +1,5 @@
-import six
 import binascii
-from six.moves import cPickle as pickle
+import pickle
 import logging
 import urllib
 from logging.handlers import TimedRotatingFileHandler
@@ -586,7 +585,7 @@ class DLRThrower(Thrower):
         dest_addr_npi = message.content.properties['headers']['dest_addr_npi']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
-        if isinstance(err, six.string_types):
+        if isinstance(err, str):
             # If err is string then encode it to ascii
             err = err.encode('ascii')
 

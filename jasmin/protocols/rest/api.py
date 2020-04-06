@@ -14,7 +14,7 @@ sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 import falcon
 
 
-class JasminHttpApiProxy(object):
+class JasminHttpApiProxy:
     """Provides a WS caller for old Jasmin http api"""
 
     def call_jasmin(self, url, params=None):
@@ -29,7 +29,7 @@ class JasminHttpApiProxy(object):
             return r.status_code, r.content.strip('"')
 
 
-class JasminRestApi(object):
+class JasminRestApi:
     """Parent class for all rest api resources"""
 
     def build_response_from_proxy_result(self, response, result):

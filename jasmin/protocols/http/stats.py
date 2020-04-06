@@ -30,7 +30,7 @@ class HttpAPIStatistics(Stats):
         return self._stats
 
 
-class HttpAPIStatsCollector(object):
+class HttpAPIStatsCollector:
     """HTTP API statistics collection holder"""
     __metaclass__ = Singleton
     apis = {}

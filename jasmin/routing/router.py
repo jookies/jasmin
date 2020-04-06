@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 import logging
 import time
 from copy import copy

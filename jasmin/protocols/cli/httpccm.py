@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 import time
 import jasmin
 import os
@@ -58,7 +58,7 @@ def HttpccBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class HttpccExist(object):
+class HttpccExist:
     """Check if httpcc cid exist before passing it to fCallback"""
 
     def __init__(self, cid_key):

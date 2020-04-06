@@ -2,7 +2,7 @@
 Multiple classes extending of txamqp.content.Content
 """
 
-from six.moves import cPickle as pickle
+import pickle
 import datetime
 import uuid
 

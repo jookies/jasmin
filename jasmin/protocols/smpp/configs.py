@@ -32,7 +32,7 @@ class UnknownValue(Exception):
     """
 
 
-class SMPPClientConfig(object):
+class SMPPClientConfig:
     def __init__(self, **kwargs):
         #####################
         # Generic configuration block

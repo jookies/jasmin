@@ -1,4 +1,4 @@
-from six.moves import cPickle as pickle
+import pickle
 import re
 import logging
 from dateutil.parser import parse as date_parse
@@ -51,7 +51,7 @@ def version_is_valid(version, condition):
         return False
 
 
-class ConfigurationMigrator(object):
+class ConfigurationMigrator:
     """Responsible of migrating old saved configuration to recent definition, if any"""
 
     def __init__(self, context, header, data):

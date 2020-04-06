@@ -13,7 +13,7 @@ def rand_string(min, max):
 body = rand_string(10240, 10240)
 
 
-class TestController(object):
+class TestController:
     def __init__(self, account_id):
         self.account_id = account_id
 
@@ -26,13 +26,13 @@ class TestController(object):
         return body
 
 
-class HelloController(object):
+class HelloController:
     @expose()
     def _lookup(self, account_id, *remainder):
         return TestController(account_id), remainder
 
 
-class RootController(object):
+class RootController:
 
     @expose(content_type='text/plain')
     def index(self):
