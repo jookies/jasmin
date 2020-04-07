@@ -34,6 +34,7 @@ jobs:
         make html
     - name: Test with pytest
       run: |
+        mkdir -p /etc/jasmin/resource /etc/jasmin/store /var/log/jasmin
         pip install pytest-cov
         pip install .
         pytest --cov=jasmin tests/
