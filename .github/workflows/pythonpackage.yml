@@ -34,4 +34,6 @@ jobs:
         make html
     - name: Test with pytest
       run: |
-        coverage run `which trial` jasmin
+        pip install pytest-cov
+        pip install .
+        pytest --cov=jasmin tests/
