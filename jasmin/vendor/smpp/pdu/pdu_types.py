@@ -20,7 +20,7 @@ from jasmin.vendor.enum import Enum
 from jasmin.vendor.smpp.pdu.namedtuple import namedtuple
 from jasmin.vendor.smpp.pdu import constants
 
-CommandId = Enum(*list(constants.command_id_name_map))
+CommandId = Enum(*list(constants.command_id_name_map.keys()))
 
 CommandStatus = Enum(*list(constants.command_status_name_map))
 
