@@ -31,7 +31,7 @@ class PDU(Content):
 
     pickleProtocol = pickle.HIGHEST_PROTOCOL
 
-    def __init__(self, body="", children=None, properties=None, pickleProtocol=2,
+    def __init__(self, body="", children=None, properties=None, pickleProtocol=pickle.HIGHEST_PROTOCOL,
                  prePickle=False):
         self.pickleProtocol = pickleProtocol
 
@@ -168,7 +168,7 @@ class SubmitSmContent(PDU):
 class SubmitSmRespContent(PDU):
     """A SMPP SubmitSmResp Content"""
 
-    def __init__(self, body, msgid, pickleProtocol=2, prePickle=True):
+    def __init__(self, body, msgid, pickleProtocol=pickle.HIGHEST_PROTOCOL, prePickle=True):
         props = {'message-id': msgid}
 
         PDU.__init__(self, body, properties=props, pickleProtocol=pickleProtocol, prePickle=prePickle)
@@ -177,7 +177,7 @@ class SubmitSmRespContent(PDU):
 class DeliverSmContent(PDU):
     """A SMPP DeliverSm Content"""
 
-    def __init__(self, body, sourceCid, pickleProtocol=2, prePickle=True,
+    def __init__(self, body, sourceCid, pickleProtocol=pickle.HIGHEST_PROTOCOL, prePickle=True,
                  concatenated=False, will_be_concatenated=False):
         props = {}
 

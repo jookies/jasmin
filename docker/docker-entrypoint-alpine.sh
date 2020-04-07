@@ -1,12 +1,8 @@
 #!/bin/bash
 set -e
 
-echo 'Starting RabbitMQ'
-rc-service rabbitmq-server start
-echo 'Starting Redis'
-rc-service redis-server start
-echo 'Starting supervisor'
-rc-service supervisor start
+# echo 'Starting RabbitMQ'
+# rc-service /opt/rabbitmq/sbin/rabbitmq-server start
 
 echo 'Cleaning lock files'
 rm -f /tmp/*.lock

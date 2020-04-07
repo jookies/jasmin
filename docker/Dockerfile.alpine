@@ -5,8 +5,6 @@ MAINTAINER Jookies LTD <jasmin@jookies.net>
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN addgroup -S jasmin && adduser -S -g jasmin jasmin
 
-ENV JASMIN_VERSION 0.9.32
-
 # Install requirements
 RUN apk --update add \
     gcc \
@@ -40,13 +38,11 @@ RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
 EXPOSE 2775 8990 1401
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
-COPY docker/docker-entrypoint-alpine.sh /
+COPY docker/docker-entrypoint-alpine.sh /docker-entrypoint.sh
+
+RUN rc-update add /opt/rabbitmq/sbin/rabbitmq-server
 
 RUN rc-service --list
-
-RUN which rabbitmq-server
-
-RUN rc-update add rabbitmq-server
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
