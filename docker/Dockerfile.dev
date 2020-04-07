@@ -26,12 +26,13 @@ WORKDIR /usr/jasmin
 
 COPY . .
 
-RUN pip install test-requirements
+RUN pip install -r test-requirements
+
+RUN pip install .
 
 # Change binding host for jcli
 RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
 
-EXPOSE 2775 8990 1401
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
 COPY docker/docker-entrypoint.sh /
