@@ -12,10 +12,10 @@ import txamqp.spec
 
 @inlineCallbacks
 def gotConnection(conn, username, password):
-    print "Connected to broker."
+    print("Connected to broker.")
     yield conn.authenticate(username, password)
 
-    print "Authenticated. Ready to receive messages"
+    print("Authenticated. Ready to receive messages")
     chan = yield conn.channel(1)
     yield chan.channel_open()
 
@@ -36,15 +36,15 @@ def gotConnection(conn, username, password):
         pdu = pickle.loads(msg.content.body)
 
     	if msg.routing_key[:15] == 'submit.sm.resp.':
-    		print 'SubmitSMResp: status: %s, msgid: %s' % (pdu.status,
+    		print('SubmitSMResp: status: %s, msgid: %s' % (pdu.status,)
     			props['message-id'])
         elif msg.routing_key[:10] == 'submit.sm.':
-        	print 'SubmitSM: from %s to %s, content: %s, msgid: %s' % (pdu.params['source_addr'],
+        	print('SubmitSM: from %s to %s, content: %s, msgid: %s' % (pdu.params['source_addr'],)
         		pdu.params['destination_addr'],
         		pdu.params['short_message'],
         		props['message-id'])
     	else:
-    		print 'unknown route'
+    		print('unknown route')
 
     # A clean way to tear down and stop
     yield chan.basic_cancel("someTag")

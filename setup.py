@@ -42,7 +42,7 @@ if "install" in sys.argv:
     # 4. Check if sysdirs are owned by jasmin user
     for sysdir in sysdirs[3:]:
         if os.path.exists(sysdir) and pwd.getpwuid(os.stat(sysdir).st_uid).pw_name != 'jasmin':
-            print ('WARNING: %s is not owned by jasmin user !' % sysdir)
+            print('WARNING: %s is not owned by jasmin user !' % sysdir)
 
 # Dynamically calculate the version based on jasmin.RELEASE.
 release = __import__('jasmin').get_release()

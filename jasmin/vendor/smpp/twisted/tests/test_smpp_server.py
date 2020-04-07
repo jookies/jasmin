@@ -409,7 +409,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         self.proto.dataReceived(self.encoder.encode(pdu))
         expected_pdu = operations.QuerySMResp(message_id='tests', error_code=0, final_date=None, message_state=pdu_types.MessageState.ACCEPTED ,seqNum=23)
         # Does not work as application using library must reply correctly.
-        print self.tr.value()
+        print(self.tr.value())
         self.assertEqual(self.tr.value(), self.encoder.encode(expected_pdu))
         system_id, smpp, pdu_notified = self.service_calls.pop()
         self.assertEqual(system_id, self.proto.system_id)
@@ -472,7 +472,7 @@ class SMPPServerTestCase(SMPPServerBaseTest):
         pdu = operations.SubmitSM(source_addr='t1', destination_addr='1208230', short_message='HELLO', seqNum=1)
         self.proto.dataReceived(self.encoder.encode(pdu))
         unbind_d = self.proto.unbind()
-        print self.tr.value()
+        print(self.tr.value())
 
         pdu2 = operations.SubmitSM(source_addr='t1', destination_addr='1208230', short_message='HELLO2', seqNum=2)
         self.proto.dataReceived(self.encoder.encode(pdu))

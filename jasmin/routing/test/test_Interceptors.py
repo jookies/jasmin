@@ -11,7 +11,7 @@ class InterceptorTestCase(TestCase):
     def setUp(self):
         self.connector1 = Connector('abc')
         self.connector2 = Connector('def')
-        self.script1 = InterceptorScript("print 'some code here'")
+        self.script1 = InterceptorScript("print('some code here'"))
         self.group100 = Group(100)
         self.user1 = User(1, self.group100, 'username', 'password')
         self.user2 = User(2, self.group100, 'username', 'password')
@@ -25,15 +25,15 @@ class InterceptorTestCase(TestCase):
 class InterceptorStrTestCase(InterceptorTestCase):
     def test_StaticMTInterceptor(self):
         s = StaticMTInterceptor(self.simple_filter_mt, self.script1)
-        self.assertEqual(str(s), 'StaticMTInterceptor/<IS (pyCode=print \'some code here\' ..)>')
+        self.assertEqual(str(s), 'StaticMTInterceptor/<IS (pyCode=print(\'some code here\' ..)>'))
 
     def test_StaticMOInterceptor(self):
         s = StaticMOInterceptor(self.simple_filter_mo, self.script1)
-        self.assertEqual(str(s), 'StaticMOInterceptor/<IS (pyCode=print \'some code here\' ..)>')
+        self.assertEqual(str(s), 'StaticMOInterceptor/<IS (pyCode=print(\'some code here\' ..)>'))
 
     def test_DefaultInterceptor(self):
         s = DefaultInterceptor(self.script1)
-        self.assertEqual(str(s), 'DefaultInterceptor/<IS (pyCode=print \'some code here\' ..)>')
+        self.assertEqual(str(s), 'DefaultInterceptor/<IS (pyCode=print(\'some code here\' ..)>'))
 
 
 class AnyStaticInterceptorTestCase(InterceptorTestCase):

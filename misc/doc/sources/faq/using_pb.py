@@ -45,7 +45,7 @@ def runScenario():
         # Provision RouterPBProxy with MT routes
         yield proxy_router.mtroute_add(DefaultRoute(SmppClientConnector('abc')), 0)
         routes = yield proxy_router.mtroute_get_all()
-        print "Configured routes: \n\t%s" % pickle.loads(routes)
+        print("Configured routes: \n\t%s" % pickle.loads(routes))
 
         # Provisiong router with users
         g1 = Group(1)
@@ -53,14 +53,14 @@ def runScenario():
         yield proxy_router.group_add(g1)
         yield proxy_router.user_add(u1)
         users = yield proxy_router.user_get_all()
-        print "Users: \n\t%s" % pickle.loads(users)
+        print("Users: \n\t%s" % pickle.loads(users))
 
         ## Last, tear down
         ##################
         # Stop connector
         yield proxy_smpp.stop('abc')
     except Exception, e:
-        print "ERROR RUNNING SCENARIO: %s" % str(e)
+        print("ERROR RUNNING SCENARIO: %s" % str(e))
     finally:
         reactor.stop()
 

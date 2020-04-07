@@ -218,7 +218,7 @@ def encode(input_, errors='strict'):
                 result.append('\x1b')
                 result.append(def_escape_encode_dict[c])
             else:
-                print repr(c)
+                print(repr(c))
                 if errors == 'strict':
                     raise UnicodeError("Invalid GSM character")
                 elif errors == 'replace':

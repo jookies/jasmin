@@ -28,13 +28,13 @@ class EncoderTest(unittest.TestCase):
         encoded = encoder.encode(value)
         hexEncoded = binascii.b2a_hex(encoded)
         if hexdumpValue != hexEncoded:
-            print "\nHex Value:\n%s" % hexdumpValue
-            print "Hex Encoded:\n%s" % hexEncoded
+            print("\nHex Value:\n%s" % hexdumpValue)
+            print("Hex Encoded:\n%s" % hexEncoded)
             chars1 = list(hexdumpValue)
             chars2 = list(hexEncoded)
             for i in range(0, len(hexEncoded)):
                 if chars1[i] != chars2[i]:
-                    print "Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i])
+                    print("Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i]))
 
         self.assertEquals(hexdumpValue, hexEncoded)
         file = StringIO(encoded)
@@ -45,13 +45,13 @@ class EncoderTest(unittest.TestCase):
         encoded = encoder.encode(value)
         hexEncoded = binascii.b2a_hex(encoded)
         if hexdumpValue != hexEncoded:
-            print "\nHex Value:\n%s" % hexdumpValue
-            print "Hex Encoded:\n%s" % hexEncoded
+            print("\nHex Value:\n%s" % hexdumpValue)
+            print("Hex Encoded:\n%s" % hexEncoded)
             chars1 = list(hexdumpValue)
             chars2 = list(hexEncoded)
             for i in range(0, len(hexEncoded)):
                 if chars1[i] != chars2[i]:
-                    print "Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i])
+                    print("Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i]))
 
         self.assertEquals(hexdumpValue, hexEncoded)
 

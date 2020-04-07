@@ -25,13 +25,13 @@ class EncoderTest(unittest.TestCase):
         encoded = encoder.encode(value)
         hexEncoded = binascii.b2a_hex(encoded)
         if hexdumpValue != hexEncoded:
-            print "\nHex Value:\n%s" % hexdumpValue
-            print "Hex Encoded:\n%s" % hexEncoded
+            print("\nHex Value:\n%s" % hexdumpValue)
+            print("Hex Encoded:\n%s" % hexEncoded)
             chars1 = list(hexdumpValue)
             chars2 = list(hexEncoded)
             for i in range(0, len(hexEncoded)):
                 if chars1[i] != chars2[i]:
-                    print "Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i])
+                    print("Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i]))
             
         self.assertEquals(hexdumpValue, hexEncoded)
         file = StringIO(encoded)
@@ -47,7 +47,7 @@ class EncoderTest(unittest.TestCase):
         
     def decode(self, decodeFunc, hexdumpValue):
         bytes = binascii.a2b_hex(hexdumpValue)
-        # print "hex: %s, num bytes %s" % (hexdumpValue, len(bytes))
+        # print("hex: %s, num bytes %s" % (hexdumpValue, len(bytes)))
         file = StringIO(bytes)
         error = None
         decoded = None
@@ -55,7 +55,7 @@ class EncoderTest(unittest.TestCase):
             decoded = decodeFunc(file)
         except Exception as e:
             error = e
-        # print "file index: %s" % file.tell()
+        # print("file index: %s" % file.tell())
         self.assertEquals(len(bytes), file.tell())
         if error:
             raise error

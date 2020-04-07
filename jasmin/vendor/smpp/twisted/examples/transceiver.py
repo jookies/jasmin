@@ -21,7 +21,7 @@ class SMPP:
             #Wait for disconnect
             yield smpp.getDisconnectedDeferred()
         except Exception as e:
-            print "ERROR: %s" % str(e)
+            print("ERROR: %s" % str(e))
         finally:
             reactor.stop()
     
@@ -29,7 +29,7 @@ class SMPP:
         """
         NOTE: you can return a Deferred here
         """
-        print "Received pdu %s" % pdu
+        print("Received pdu %s" % pdu)
     
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
