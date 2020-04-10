@@ -30,7 +30,6 @@ jobs:
         ./misc/pylint/run.sh
     - name: Test with pytest
       run: |
-        mkdir -p /etc/jasmin/resource /etc/jasmin/store /var/log/jasmin
         pip install -r requirements-test.txt
         pip install coveralls
         coverage run --source=jasmin -m twisted.trial tests
