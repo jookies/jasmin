@@ -28,10 +28,6 @@ jobs:
         pip install pylint
         # stop the build if there are Python syntax errors or undefined names
         ./misc/pylint/run.sh
-    - name: Test Doc Build
-      run: |
-        cd misc/doc
-        make html
     - name: Test with pytest
       run: |
         mkdir -p /etc/jasmin/resource /etc/jasmin/store /var/log/jasmin
@@ -39,3 +35,7 @@ jobs:
         pip install coveralls
         coverage run --source=jasmin -m twisted.trial tests
         coveralls
+    - name: Test Doc Build
+      run: |
+        cd misc/doc
+        make html

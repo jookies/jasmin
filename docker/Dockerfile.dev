@@ -26,7 +26,8 @@ WORKDIR /usr/jasmin
 
 COPY . .
 
-RUN pip install -r test-requirements
+RUN pip install -r requirements.txt
+RUN pip install -r requirements-test.txt
 
 RUN pip install .
 
