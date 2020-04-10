@@ -7,7 +7,7 @@ from jasmin.routing.Routables import (SimpleRoutablePDU, RoutableSubmitSm,
                                       InvalidTagError, TagNotFoundError,
                                       InvalidLockError)
 from jasmin.routing.jasminApi import *
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from smpp.pdu.operations import SubmitSM
 
 
 class RoutablePDUTestCase(TestCase):

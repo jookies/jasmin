@@ -4,7 +4,7 @@ from twisted.trial.unittest import TestCase
 from jasmin.routing.Interceptors import *
 from jasmin.routing.Filters import *
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from smpp.pdu.operations import SubmitSM, DeliverSM
 
 
 class InterceptorTestCase(TestCase):

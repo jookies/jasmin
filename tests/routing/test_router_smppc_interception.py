@@ -20,7 +20,7 @@ from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from jasmin.vendor.smpp.pdu import pdu_types
+from smpp.pdu import pdu_types
 
 
 @defer.inlineCallbacks

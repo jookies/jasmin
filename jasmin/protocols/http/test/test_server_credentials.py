@@ -15,7 +15,7 @@ from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.test.test_router import HappySMSCTestCase
-from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
+from smpp.pdu.smpp_time import SMPPRelativeTime
 
 
 @defer.inlineCallbacks

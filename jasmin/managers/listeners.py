@@ -16,9 +16,9 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
-from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
+from smpp.pdu.operations import SubmitSM, DeliverSM
+from smpp.pdu.pdu_types import CommandStatus
+from smpp.twisted.protocol import DataHandlerResponse
 
 LOG_CATEGORY = "jasmin-sm-listener"
 

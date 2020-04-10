@@ -38,7 +38,7 @@ from txamqp.protocol import AMQClient
 from txamqp.client import TwistedDelegate
 import txamqp.spec
 
-from jasmin.vendor.smpp.pdu.pdu_types import DataCoding
+from smpp.pdu.pdu_types import DataCoding
 
 import MySQLdb as mdb
 

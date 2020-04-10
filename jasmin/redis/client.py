@@ -1,6 +1,6 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
-import jasmin.vendor.txredisapi as redis
+import txredisapi as redis
 from twisted.internet import reactor
 from twisted.internet import defer
 from jasmin.redis.configs import RedisForJasminConfig

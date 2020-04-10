@@ -22,10 +22,10 @@ from jasmin.routing.test.test_router import (HappySMSCTestCase, SubmitSmTestCase
                                              composeMessage, SMPPClientManagerPBTestCase,
                                              LastClientFactory, id_generator)
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
-from jasmin.vendor.smpp.pdu.smpp_time import FixedOffset
-from jasmin.vendor.smpp.pdu.smpp_time import SMPPRelativeTime
+from smpp.pdu import pdu_types
+from smpp.pdu.pdu_types import AddrTon, AddrNpi
+from smpp.pdu.smpp_time import FixedOffset
+from smpp.pdu.smpp_time import SMPPRelativeTime
 
 
 @defer.inlineCallbacks

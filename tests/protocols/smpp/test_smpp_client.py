@@ -19,9 +19,9 @@ from jasmin.protocols.smpp.protocol import *
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from jasmin.protocols.smpp.test.smsc_simulator import *
 from jasmin.routing.test.codepages import GSM0338, ISO8859_1
-from jasmin.vendor.smpp.pdu.error import *
-from jasmin.vendor.smpp.pdu.operations import *
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
+from smpp.pdu.error import *
+from smpp.pdu.operations import *
+from smpp.pdu.pdu_types import CommandStatus
 
 
 @defer.inlineCallbacks

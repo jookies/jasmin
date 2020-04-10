@@ -21,7 +21,7 @@ from jasmin.routing.router import RouterPB
 from jasmin.routing.test.test_router import id_generator
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.tools.cred.portal import SmppsRealm
-from jasmin.vendor.smpp.pdu.error import SMPPTransactionError
+from smpp.pdu.error import SMPPTransactionError
 
 
 @defer.inlineCallbacks

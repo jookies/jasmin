@@ -6,10 +6,10 @@ from twisted.internet import defer, reactor
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.protocol import str2num
 from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
-from jasmin.vendor.smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
-from jasmin.vendor.smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
-from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
-from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
+from smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
+from smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
+from smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
+from smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
 
 # A config map between console-configuration keys and SMPPClientConfig keys.
 SMPPClientConfigKeyMap = {

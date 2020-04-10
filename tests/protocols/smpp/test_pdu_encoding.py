@@ -3,10 +3,10 @@
 import unittest
 from datetime import datetime
 
-from jasmin.vendor.smpp.pdu.operations import *
-from jasmin.vendor.smpp.pdu.pdu_encoding import *
-from jasmin.vendor.smpp.pdu.pdu_types import *
-from jasmin.vendor.smpp.pdu.tests.test_pdu_encoding import EncoderTest
+from smpp.pdu.operations import *
+from smpp.pdu.pdu_encoding import *
+from smpp.pdu.pdu_types import *
+from smpp.pdu.tests.test_pdu_encoding import EncoderTest
 
 
 class IntegerEncoderTest(EncoderTest):

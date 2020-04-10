@@ -3,10 +3,10 @@ import copy
 from datetime import datetime
 from twisted.internet import defer
 from jasmin.protocols.smpp.test.test_smpp_server import SMPPClientTestCases
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from smpp.twisted.protocol import SMPPSessionStates
+from smpp.pdu import pdu_types
+from smpp.pdu.constants import priority_flag_value_map
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 
 
 class AuthorizationsTestCases(SMPPClientTestCases):

@@ -17,8 +17,8 @@ from jasmin.routing.test.http_server import TimeoutLeafServer, AckServer, NoAckS
 from jasmin.routing.test.test_router import SubmitSmTestCaseTools
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
-from jasmin.vendor.smpp.pdu.operations import DeliverSM
-from jasmin.vendor.smpp.pdu.pdu_types import *
+from smpp.pdu.operations import DeliverSM
+from smpp.pdu.pdu_types import *
 
 
 @defer.inlineCallbacks

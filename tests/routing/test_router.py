@@ -40,7 +40,7 @@ from jasmin.routing.throwers import DLRThrower
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.proxies import ConnectError
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from jasmin.vendor.smpp.pdu.pdu_types import (AddrTon, AddrNpi)
+from smpp.pdu.pdu_types import (AddrTon, AddrNpi)
 
 
 @defer.inlineCallbacks

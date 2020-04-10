@@ -2,7 +2,7 @@ import pickle
 from twisted.trial.unittest import TestCase
 from jasmin.routing.Routables import SimpleRoutablePDU
 from jasmin.routing.jasminApi import *
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from smpp.pdu.operations import SubmitSM
 from jasmin.routing.Filters import *
 
 

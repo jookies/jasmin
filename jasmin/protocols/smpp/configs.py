@@ -3,7 +3,7 @@ import os
 import re
 
 from jasmin.config.tools import ConfigFile
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
+from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               RegisteredDelivery, RegisteredDeliveryReceipt,
                                               AddrTon, AddrNpi,
                                               PriorityFlag, ReplaceIfPresentFlag)
@@ -105,7 +105,7 @@ class SMPPClientConfig:
         if len(self.username) > 15:
             raise TypeMismatch('username is longer than allowed size (15)')
         self.password = kwargs.get('password', 'password')
-        if len(self.password) > 8:
+        if len(self.password) > 16:
             raise TypeMismatch('password is longer than allowed size (8)')
         self.systemType = kwargs.get('systemType', '')
 

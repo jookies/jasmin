@@ -1,6 +1,6 @@
 import pickle
 from twisted.trial.unittest import TestCase
-from jasmin.vendor.smpp.pdu import smpp_time
+from smpp.pdu import smpp_time
 from datetime import datetime
 
 

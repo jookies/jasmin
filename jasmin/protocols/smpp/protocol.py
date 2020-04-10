@@ -8,12 +8,12 @@ from datetime import datetime
 from twisted.cred import error
 from twisted.internet import defer, reactor
 
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
-from jasmin.vendor.smpp.pdu.operations import *
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
-from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
-from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
-from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
+from smpp.pdu.constants import data_coding_default_value_map
+from smpp.pdu.operations import *
+from smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
+from smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
+from smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
+from smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
                                                  SMPPOutboundTxnResult)
 from .error import *
 

@@ -2,8 +2,8 @@ from io import BytesIO
 import binascii
 import unittest
 
-from jasmin.vendor.smpp.pdu.pdu_encoding import PDUEncoder
-from jasmin.vendor.smpp.pdu.sm_encoding import SMStringEncoder
+from smpp.pdu.pdu_encoding import PDUEncoder
+from smpp.pdu.sm_encoding import SMStringEncoder
 
 
 class PDUDecoderTest(unittest.TestCase):

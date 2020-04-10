@@ -15,7 +15,7 @@ from jasmin.routing.jasminApi import *
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.proxies import ConnectError
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from smpp.pdu.operations import SubmitSM, DeliverSM
 
 
 class InterceptorPBTestCase(unittest.TestCase):

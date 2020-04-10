@@ -12,7 +12,7 @@ from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent,
                                      DLRContentForHttpapi, DLRContentForSmpps,
                                      DLR, InvalidParameterError)
 from jasmin.routing.jasminApi import *
-from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
+from smpp.pdu.pdu_types import AddrTon, AddrNpi
 
 
 class ContentTestCase(TestCase):

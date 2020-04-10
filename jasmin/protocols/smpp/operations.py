@@ -9,8 +9,8 @@ import struct
 import dateutil.parser as parser
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
+from smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
+from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
 gsm_chars = (u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"

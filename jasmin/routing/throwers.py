@@ -13,8 +13,8 @@ from txamqp.queue import Closed
 from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
-from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map
-from jasmin.vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
+from smpp.pdu.constants import priority_flag_name_map
+from smpp.pdu.pdu_encoding import DataCodingEncoder
 
 
 class MessageAcknowledgementError(Exception):

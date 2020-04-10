@@ -1,6 +1,6 @@
-from jasmin.vendor.smpp.pdu import constants
-from jasmin.vendor.smpp.pdu.error import *
-from jasmin.vendor.smpp.pdu import pdu_types
+from smpp.pdu import constants
+from smpp.pdu.error import *
+from smpp.pdu import pdu_types
 
 
 class LongSubmitSmTransactionError(SMPPError):

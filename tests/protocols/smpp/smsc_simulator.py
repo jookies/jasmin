@@ -1,7 +1,7 @@
 import random
 from datetime import datetime, timedelta
 
-from jasmin.vendor.smpp.twisted.tests.smsc_simulator import *
+from smpp.twisted.tests.smsc_simulator import *
 
 LOG_CATEGORY = "jasmin.smpp.tests.smsc_simulator"
 

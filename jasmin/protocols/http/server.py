@@ -13,10 +13,10 @@ from twisted.web.server import NOT_DONE_YET
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from smpp.pdu.constants import priority_flag_value_map
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.vendor.smpp.pdu.smpp_time import parse
+from smpp.pdu.smpp_time import parse
 from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)

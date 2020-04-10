@@ -17,8 +17,8 @@ from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, LastCl
                                              SubmitSmTestCaseTools, id_generator)
 from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
-from jasmin.vendor.smpp.pdu import pdu_types
-from jasmin.vendor.smpp.pdu.operations import DataSM
+from smpp.pdu import pdu_types
+from smpp.pdu.operations import DataSM
 
 
 @defer.inlineCallbacks

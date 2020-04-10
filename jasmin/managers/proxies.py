@@ -1,6 +1,6 @@
 from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.routing.Bills import SubmitSmBill
 

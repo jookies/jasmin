@@ -1,0 +1,25 @@
+pyasn1>=0.1.7
+txAMQP>=0.7.0
+pyOpenSSL>=0.13
+twisted>=13.0.0
+pyparsing>=2.0.0
+python-dateutil>=2.0
+service_identity>=14.0.0
+lockfile>=0.10.0
+
+falcon~=2.0.0
+txredisapi~=1.4.7
+tabulate~=0.8.7
+
+smpp.pdu @ git+https://github.com/DomAmato/smpp.pdu.git@master
+smpp.twisted @ git+https://github.com/DomAmato/smpp.twisted.git@master
+messaging @ git+https://github.com/DomAmato/python-messaging.git@master
+
+
+# Added in 0.9rc16:
+celery>=4.0.0
+redis>=2.10
+requests>=2.13.0
+
+# For REST API
+mimeparse>=0.1.3

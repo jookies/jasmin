@@ -4,8 +4,8 @@ SMPP validators
 
 from jasmin.protocols.validation import AbstractCredentialValidator
 from jasmin.protocols.smpp.error import *
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from smpp.pdu.constants import priority_flag_value_map
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 
 
 class SmppsCredentialValidator(AbstractCredentialValidator):

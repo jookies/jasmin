@@ -11,8 +11,8 @@ import jasmin
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.protocols.smpp.services import SMPPClientService
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt
+from smpp.twisted.protocol import SMPPSessionStates
 from .configs import SMPPClientSMListenerConfig
 from .content import SubmitSmContent
 from .listeners import SMPPClientSMListener

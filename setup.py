@@ -61,8 +61,8 @@ setup(
     packages=find_packages(),
     scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py', 'jasmin/bin/dlrd.py', 'jasmin/bin/dlrlookupd.py'],
     include_package_data=True,
-    install_requires=parse_requirements('install-requirements'),
-    tests_require=parse_requirements('test-requirements'),
+    install_requires=open('requirements.txt').read().split(),
+    tests_require=open('requirements-test.txt').read().split(),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: Twisted',

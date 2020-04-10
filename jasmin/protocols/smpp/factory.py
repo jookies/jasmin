@@ -10,9 +10,9 @@ from twisted.internet import defer, reactor, ssl
 from twisted.internet.protocol import ClientFactory
 
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
-from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
-from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
+from smpp.twisted.protocol import DataHandlerResponse
+from smpp.twisted.server import SMPPBindManager as _SMPPBindManager
+from smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from .error import *
 from .protocol import SMPPClientProtocol, SMPPServerProtocol
 from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector

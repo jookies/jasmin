@@ -4,7 +4,7 @@ from twisted.trial.unittest import TestCase
 from jasmin.routing.RoutingTables import *
 from jasmin.routing.Routes import *
 from jasmin.routing.Filters import *
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
+from smpp.pdu.operations import SubmitSM, DeliverSM
 from jasmin.routing.Routables import RoutableSubmitSm, RoutableDeliverSm
 
 

@@ -1,4 +1,4 @@
-from jasmin.vendor.smpp.pdu.pdu_types import AddrTon, AddrNpi
+from smpp.pdu.pdu_types import AddrTon, AddrNpi
 
 routable.pdu.params['source_addr_ton'] = AddrTon.ALPHANUMERIC;;
 routable.lockPduParam('source_addr_ton');

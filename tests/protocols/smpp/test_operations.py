@@ -6,8 +6,8 @@ import binascii
 from twisted.trial.unittest import TestCase
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory, UnknownMessageStatusError
-from jasmin.vendor.smpp.pdu.pdu_types import CommandId, CommandStatus, MessageState
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
+from smpp.pdu.pdu_types import CommandId, CommandStatus, MessageState
+from smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 
 
 class OperationsTest(TestCase):

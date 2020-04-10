@@ -14,7 +14,7 @@ from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.test.codepages import (IA5_ASCII, ISO8859_1,
                                            CYRILLIC, ISO_8859_8)
 from jasmin.routing.test.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
-from jasmin.vendor.smpp.pdu.pdu_types import EsmClassGsmFeatures
+from smpp.pdu.pdu_types import EsmClassGsmFeatures
 
 
 def composeMessage(characters, length):

@@ -5,8 +5,8 @@ import copy
 import random
 import string
 from twisted.internet import reactor, defer
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
-from jasmin.vendor.smpp.pdu import pdu_types, pdu_encoding
+from smpp.twisted.protocol import SMPPSessionStates
+from smpp.pdu import pdu_types, pdu_encoding
 from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, HappySMSCTestCase,
                                              SubmitSmTestCaseTools, LastClientFactory,
                                              id_generator)
@@ -17,7 +17,7 @@ from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.routing.jasminApi import *
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
+from smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from twisted.cred import portal
 from twisted.test import proto_helpers
