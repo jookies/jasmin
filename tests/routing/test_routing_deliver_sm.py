@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.web import server
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 from jasmin.routing.Filters import TransparentFilter
 from jasmin.routing.Routes import DefaultRoute, FailoverMORoute
 from jasmin.routing.configs import deliverSmThrowerConfig

@@ -4,13 +4,14 @@ import glob
 import os
 import string
 import urllib
+import random
 
 import mock
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import defer
 from twisted.spread import pb
-from twisted.trial import unittest
+from twisted.trial.unittest import TestCase
 from twisted.web import server
 from twisted.web.client import getPage
 
@@ -22,7 +23,7 @@ from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.redis.client import ConnectionWithConfiguration
@@ -65,7 +66,7 @@ def id_generator(size=12, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
 
-class RouterPBTestCase(unittest.TestCase):
+class RouterPBTestCase(TestCase):
     def setUp(self, authentication=False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we

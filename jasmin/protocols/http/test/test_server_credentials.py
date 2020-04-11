@@ -10,7 +10,7 @@ from twisted.internet import defer
 from twisted.web.client import getPage
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.proxies import RouterPBProxy

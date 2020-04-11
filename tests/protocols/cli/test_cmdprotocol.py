@@ -1,10 +1,10 @@
 from jasmin.protocols.cli.factory import CmdFactory
-from twisted.trial import unittest
+from twisted.trial.unittest import TestCase
 from twisted.test import proto_helpers
 from twisted.internet import reactor, defer
 
 
-class ProtocolTestCases(unittest.TestCase):
+class ProtocolTestCases(TestCase):
     def getBuffer(self, clear=False, split=True):
         b = self.tr.value()
 

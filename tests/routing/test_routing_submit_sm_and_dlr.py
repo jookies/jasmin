@@ -10,7 +10,7 @@ from twisted.internet import defer
 from twisted.web import server
 from twisted.web.client import getPage
 
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.routing.Filters import TransparentFilter

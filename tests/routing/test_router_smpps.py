@@ -21,7 +21,7 @@ from smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from twisted.cred import portal
 from twisted.test import proto_helpers
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 
 
 @defer.inlineCallbacks

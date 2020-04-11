@@ -1,7 +1,7 @@
 import mock
 from twisted.internet import defer, reactor
 from .test_jcli import jCliWithoutAuthTestCases
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 
 
 @defer.inlineCallbacks

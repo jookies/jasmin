@@ -6,7 +6,7 @@ from smpp.pdu.pdu_encoding import PDUEncoder
 from smpp.pdu.sm_encoding import SMStringEncoder
 
 
-class PDUDecoderTest(unittest.TestCase):
+class PDUDecoderTest(TestCase):
     def getPDU(self, hexStr):
         return PDUEncoder().decode(BytesIO(binascii.a2b_hex(hexStr)))
 

@@ -9,7 +9,7 @@ import jasmin
 from jasmin.protocols.smpp.configs import SMPPServerPBConfig
 from jasmin.protocols.smpp.pb import SMPPServerPB
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 from jasmin.protocols.smpp.test.test_smpp_server import SMPPServerTestCases
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.proxies import ConnectError

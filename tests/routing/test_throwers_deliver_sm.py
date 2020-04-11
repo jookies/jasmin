@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import mock
 from twisted.internet import reactor, defer
-from twisted.trial import unittest
+from twisted.trial.unittest import TestCase
 from twisted.web import server
 
 from jasmin.queues.configs import AmqpConfig
@@ -29,7 +29,7 @@ def waitFor(seconds):
     yield waitDeferred
 
 
-class deliverSmThrowerTestCase(unittest.TestCase):
+class deliverSmThrowerTestCase(TestCase):
     @defer.inlineCallbacks
     def setUp(self):
         # Initiating config objects without any filename

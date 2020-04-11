@@ -12,7 +12,7 @@ from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import defer
 from twisted.spread import pb
-from twisted.trial import unittest
+from twisted.trial.unittest import TestCase
 
 import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
@@ -20,7 +20,7 @@ from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from jasmin.protocols.smpp.test.smsc_simulator import *
+from tests.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill
@@ -41,7 +41,7 @@ def waitFor(seconds):
     yield waitDeferred
 
 
-class SMPPClientPBTestCase(unittest.TestCase):
+class SMPPClientPBTestCase(TestCase):
     @defer.inlineCallbacks
     def setUp(self, authentication=False):
         # Initiating config objects without any filename

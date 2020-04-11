@@ -5,7 +5,7 @@ from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import reactor, defer
 from twisted.spread import pb
-from twisted.trial import unittest
+from twisted.trial.unittest import TestCase
 
 from jasmin.interceptor.configs import InterceptorPBConfig
 from jasmin.interceptor.interceptor import InterceptorPB
@@ -18,7 +18,7 @@ from jasmin.tools.spread.pb import JasminPBPortalRoot
 from smpp.pdu.operations import SubmitSM, DeliverSM
 
 
-class InterceptorPBTestCase(unittest.TestCase):
+class InterceptorPBTestCase(TestCase):
     def setUp(self, authentication = False):
         # Initiating config objects without any filename
         # will lead to setting defaults and that's what we
