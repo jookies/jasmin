@@ -2,7 +2,7 @@
 
 import copy
 import string
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import binascii
 
 import mock
@@ -43,7 +43,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['validity-period'] = 1440  # 1 Day = 24 x 60 minutes = 1440 minutes
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -66,7 +66,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -87,7 +87,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -108,7 +108,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -129,7 +129,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -150,7 +150,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -172,7 +172,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['content'] = composeMessage({'_'}, 200)
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -197,7 +197,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         self.params['validity-period'] = 1440  # 1 Day = 24 x 60 minutes = 1440 minutes
         self.params['content'] = composeMessage({'_'}, 200)  # 2 parts
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -224,7 +224,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Some gsm338 chars
         self.params['content'] = '@$ΔßÉ'
         self.params['coding'] = '0'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -249,7 +249,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         del (self.params['content'])
         self.params['hex-content'] = '05d905d005dc05dc05dc05dc05dc05dc05dc05d4'
         self.params['coding'] = '8'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -270,7 +270,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['sdt'] = '000000000100000R'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -303,7 +303,7 @@ class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTes
             0.0)
         yield self.prepareRoutingsAndStartConnector(route=route, c1=c1)
 
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -344,7 +344,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -377,7 +377,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -416,7 +416,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -458,7 +458,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         self.params['dlr-method'] = 'GET'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -489,7 +489,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -527,7 +527,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -578,7 +578,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -642,7 +642,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
         self.params['dlr-method'] = 'GET'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -682,7 +682,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         self.params['dlr-method'] = 'GET'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -717,7 +717,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         yield self.prepareRoutingsAndStartConnector()
 
         self.params['content'] = ''
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
         # Send a MT
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
@@ -740,7 +740,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['dlr-level'] = 3
         self.params['dlr-method'] = 'GET'
         self.params['content'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(200))
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -812,7 +812,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['dlr-level'] = 2
         self.params['dlr-method'] = 'GET'
         self.params['content'] = 'somecontent'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send SubmitSmPDU
         yield getPage(baseurl, method=self.method, postdata=self.postdata)
@@ -859,7 +859,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         self.params['content'] = composeMessage({'_'}, 200)
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -892,7 +892,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -931,7 +931,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -973,7 +973,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
         self.params['dlr-method'] = 'GET'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -1007,7 +1007,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
         self.params['dlr-method'] = 'GET'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -1047,7 +1047,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
         self.params['dlr-method'] = 'GET'
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id
@@ -1108,7 +1108,7 @@ class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMS
         yield self.prepareRoutingsAndStartConnector(reconnectOnConnectionLoss=False)
 
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         # We should receive a msg id

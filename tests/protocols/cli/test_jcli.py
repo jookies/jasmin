@@ -78,7 +78,7 @@ class jCliWithAuthTestCases(jCliTestCases):
         self.proto.makeConnection(self.tr)
         # Test for greeting
         receivedLines = self.getBuffer(True)
-        self.assertRegexpMatches(receivedLines[0][18:].decode('ascii'), r'Authentication required.')
+        self.assertRegex(receivedLines[0][18:].decode('ascii'), r'Authentication required.')
 
 
 class jCliWithoutAuthTestCases(jCliTestCases):
@@ -99,9 +99,9 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.proto.makeConnection(self.tr)
         # Test for greeting
         receivedLines = self.getBuffer(True)
-        self.assertRegexpMatches(receivedLines[0], ('Welcome to Jasmin %s console' % jasmin.get_release()).encode('ascii'))
-        self.assertRegexpMatches(receivedLines[3], ('Type help or \? to list commands\.').encode('ascii'))
-        self.assertRegexpMatches(receivedLines[9], ('Session ref: ').encode('ascii'))
+        self.assertRegex(receivedLines[0], ('Welcome to Jasmin %s console' % jasmin.get_release()).encode('ascii'))
+        self.assertRegex(receivedLines[3], ('Type help or \? to list commands\.').encode('ascii'))
+        self.assertRegex(receivedLines[9], ('Session ref: ').encode('ascii'))
 
 
 class BasicTestCases(jCliWithoutAuthTestCases):

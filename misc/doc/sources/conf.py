@@ -28,8 +28,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Jasmin SMS Gateway'
-copyright = u'2014-2019, Jasmin'
+project = 'Jasmin SMS Gateway'
+copyright = '2014-2019, Jasmin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -172,8 +172,8 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'jasmin.tex', u'Jasmin Documentation',
-   u'Jookies LTD', 'manual'),
+  ('index', 'jasmin.tex', 'Jasmin Documentation',
+   'Jookies LTD', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -202,8 +202,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'jasmin', u'Jasmin Documentation',
-     [u'Jookies LTD'], 1)
+    ('index', 'jasmin', 'Jasmin Documentation',
+     ['Jookies LTD'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -216,8 +216,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'jasmin', u'Jasmin Documentation',
-   u'Jookies LTD', 'jasmin', 'Jasmin SMS gateway documentation.',
+  ('index', 'jasmin', 'Jasmin Documentation',
+   'Jookies LTD', 'jasmin', 'Jasmin SMS gateway documentation.',
    'Miscellaneous'),
 ]
 
@@ -234,10 +234,10 @@ texinfo_documents = [
 # -- Options for Epub output ---------------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'jasmin sms gateway'
-epub_author = u'Jookies LTD'
-epub_publisher = u'Jookies LTD'
-epub_copyright = u'2014-2019, Jookies LTD'
+epub_title = 'jasmin sms gateway'
+epub_author = 'Jookies LTD'
+epub_publisher = 'Jookies LTD'
+epub_copyright = '2014-2019, Jookies LTD'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
@@ -278,4 +278,4 @@ epub_copyright = u'2014-2019, Jookies LTD'
 intersphinx_mapping = {'http://docs.python.org/': None}
 
 # Jasmin vars
-author = u'Jookies LTD'
+author = 'Jookies LTD'

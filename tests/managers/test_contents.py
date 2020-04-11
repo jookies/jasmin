@@ -26,20 +26,20 @@ class SubmitSmContentTestCase(ContentTestCase):
     def test_normal(self):
         c = SubmitSmContent(1, self.body, self.replyto, self.bill, 1, self.expiration)
 
-        self.assertEquals(c.body, self.body)
-        self.assertEquals(c['reply-to'], self.replyto)
-        self.assertEquals(c['priority'], 1)
-        self.assertEquals(c['headers']['expiration'], self.expiration)
-        self.assertEquals(c['headers']['submit_sm_bill'], self.bill)
-        self.assertEquals(c['headers']['source_connector'], 'httpapi')
-        self.assertNotEquals(c['message-id'], None)
+        self.assertEqual(c.body, self.body)
+        self.assertEqual(c['reply-to'], self.replyto)
+        self.assertEqual(c['priority'], 1)
+        self.assertEqual(c['headers']['expiration'], self.expiration)
+        self.assertEqual(c['headers']['submit_sm_bill'], self.bill)
+        self.assertEqual(c['headers']['source_connector'], 'httpapi')
+        self.assertNotEqual(c['message-id'], None)
         self.assertTrue('created_at' in c['headers'])
 
     def test_minimal_arguments(self):
         c = SubmitSmContent(1, self.body, self.replyto, self.bill)
 
-        self.assertEquals(c['priority'], 1)
-        self.assertNotEquals(c['message-id'], None)
+        self.assertEqual(c['priority'], 1)
+        self.assertNotEqual(c['message-id'], None)
 
     def test_unique_messageid(self):
         counter = 0
@@ -52,7 +52,7 @@ class SubmitSmContentTestCase(ContentTestCase):
                 counter += 1
 
             c = SubmitSmContent(1, self.body, self.replyto, self.bill)
-            self.assertEquals(msgIds.count(c['message-id']), 0,
+            self.assertEqual(msgIds.count(c['message-id']), 0,
                               "Collision detected at position %s/%s" % (counter, maxCounter))
             msgIds.append(c['message-id'])
 
@@ -65,16 +65,16 @@ class SubmitSmRespContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
         c = SubmitSmRespContent(self.body, 1, prePickle=False)
 
-        self.assertEquals(c.body, self.body)
-        self.assertEquals(c['message-id'], 1)
+        self.assertEqual(c.body, self.body)
+        self.assertEqual(c['message-id'], 1)
         self.assertTrue('created_at' in c['headers'])
 
     def test_normal_pickling(self):
         c = SubmitSmRespContent(self.body, 1)
 
-        self.assertNotEquals(c.body, self.body)
-        self.assertEquals(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
-        self.assertEquals(c['message-id'], 1)
+        self.assertNotEqual(c.body, self.body)
+        self.assertEqual(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
+        self.assertEqual(c['message-id'], 1)
         self.assertTrue('created_at' in c['headers'])
 
 
@@ -124,21 +124,21 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         dlr_connector = 'test_cid'
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, dlr_connector)
 
-        self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 13)
-        self.assertEquals(c['headers']['try-count'], 0)
-        self.assertEquals(c['headers']['url'], dlr_url)
-        self.assertEquals(c['headers']['level'], dlr_level)
-        self.assertEquals(c['headers']['message_status'], 'DELIVRD')
-        self.assertEquals(c['headers']['id_smsc'], '')
-        self.assertEquals(c['headers']['sub'], '')
-        self.assertEquals(c['headers']['dlvrd'], '')
-        self.assertEquals(c['headers']['subdate'], '')
-        self.assertEquals(c['headers']['donedate'], '')
-        self.assertEquals(c['headers']['err'], '')
-        self.assertEquals(c['headers']['text'], '')
-        self.assertEquals(c['headers']['method'], 'POST')
-        self.assertEquals(c['headers']['connector'], dlr_connector)
+        self.assertEqual(c.body, msgid)
+        self.assertEqual(len(c['headers']), 13)
+        self.assertEqual(c['headers']['try-count'], 0)
+        self.assertEqual(c['headers']['url'], dlr_url)
+        self.assertEqual(c['headers']['level'], dlr_level)
+        self.assertEqual(c['headers']['message_status'], 'DELIVRD')
+        self.assertEqual(c['headers']['id_smsc'], '')
+        self.assertEqual(c['headers']['sub'], '')
+        self.assertEqual(c['headers']['dlvrd'], '')
+        self.assertEqual(c['headers']['subdate'], '')
+        self.assertEqual(c['headers']['donedate'], '')
+        self.assertEqual(c['headers']['err'], '')
+        self.assertEqual(c['headers']['text'], '')
+        self.assertEqual(c['headers']['method'], 'POST')
+        self.assertEqual(c['headers']['connector'], dlr_connector)
 
     def test_normal_level2(self):
         msgid = 'msgid'
@@ -148,21 +148,21 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, dlr_connector, id_smsc='abc', sub='3',
                                  dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text')
 
-        self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 13)
-        self.assertEquals(c['headers']['try-count'], 0)
-        self.assertEquals(c['headers']['url'], dlr_url)
-        self.assertEquals(c['headers']['level'], dlr_level)
-        self.assertEquals(c['headers']['message_status'], 'DELIVRD')
-        self.assertEquals(c['headers']['id_smsc'], 'abc')
-        self.assertEquals(c['headers']['sub'], '3')
-        self.assertEquals(c['headers']['dlvrd'], '3')
-        self.assertEquals(c['headers']['subdate'], 'anydate')
-        self.assertEquals(c['headers']['donedate'], 'anydate')
-        self.assertEquals(c['headers']['err'], '')
-        self.assertEquals(c['headers']['text'], 'Any text')
-        self.assertEquals(c['headers']['method'], 'POST')
-        self.assertEquals(c['headers']['connector'], dlr_connector)
+        self.assertEqual(c.body, msgid)
+        self.assertEqual(len(c['headers']), 13)
+        self.assertEqual(c['headers']['try-count'], 0)
+        self.assertEqual(c['headers']['url'], dlr_url)
+        self.assertEqual(c['headers']['level'], dlr_level)
+        self.assertEqual(c['headers']['message_status'], 'DELIVRD')
+        self.assertEqual(c['headers']['id_smsc'], 'abc')
+        self.assertEqual(c['headers']['sub'], '3')
+        self.assertEqual(c['headers']['dlvrd'], '3')
+        self.assertEqual(c['headers']['subdate'], 'anydate')
+        self.assertEqual(c['headers']['donedate'], 'anydate')
+        self.assertEqual(c['headers']['err'], '')
+        self.assertEqual(c['headers']['text'], 'Any text')
+        self.assertEqual(c['headers']['method'], 'POST')
+        self.assertEqual(c['headers']['connector'], dlr_connector)
 
     def test_normal_level3(self):
         msgid = 'msgid'
@@ -172,21 +172,21 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, dlr_level, dlr_connector, id_smsc='abc', sub='3',
                                  dlvrd='3', subdate='anydate', donedate='anydate', err='', text='Any text')
 
-        self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 13)
-        self.assertEquals(c['headers']['try-count'], 0)
-        self.assertEquals(c['headers']['url'], dlr_url)
-        self.assertEquals(c['headers']['level'], dlr_level)
-        self.assertEquals(c['headers']['message_status'], 'DELIVRD')
-        self.assertEquals(c['headers']['id_smsc'], 'abc')
-        self.assertEquals(c['headers']['sub'], '3')
-        self.assertEquals(c['headers']['dlvrd'], '3')
-        self.assertEquals(c['headers']['subdate'], 'anydate')
-        self.assertEquals(c['headers']['donedate'], 'anydate')
-        self.assertEquals(c['headers']['err'], '')
-        self.assertEquals(c['headers']['text'], 'Any text')
-        self.assertEquals(c['headers']['method'], 'POST')
-        self.assertEquals(c['headers']['connector'], dlr_connector)
+        self.assertEqual(c.body, msgid)
+        self.assertEqual(len(c['headers']), 13)
+        self.assertEqual(c['headers']['try-count'], 0)
+        self.assertEqual(c['headers']['url'], dlr_url)
+        self.assertEqual(c['headers']['level'], dlr_level)
+        self.assertEqual(c['headers']['message_status'], 'DELIVRD')
+        self.assertEqual(c['headers']['id_smsc'], 'abc')
+        self.assertEqual(c['headers']['sub'], '3')
+        self.assertEqual(c['headers']['dlvrd'], '3')
+        self.assertEqual(c['headers']['subdate'], 'anydate')
+        self.assertEqual(c['headers']['donedate'], 'anydate')
+        self.assertEqual(c['headers']['err'], '')
+        self.assertEqual(c['headers']['text'], 'Any text')
+        self.assertEqual(c['headers']['method'], 'POST')
+        self.assertEqual(c['headers']['connector'], dlr_connector)
 
     def test_message_status(self):
         msgid = 'msgid'
@@ -200,7 +200,7 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         for status in validStatuses:
             c = DLRContentForHttpapi(status, msgid, dlr_url, dlr_level, dlr_connector)
 
-            self.assertEquals(c['headers']['message_status'], status)
+            self.assertEqual(c['headers']['message_status'], status)
 
         self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'anystatus', msgid, dlr_url, dlr_level, dlr_connector)
 
@@ -210,7 +210,7 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         dlr_connector = 'test_cid'
 
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1)
-        self.assertEquals(c['headers']['level'], 1)
+        self.assertEqual(c['headers']['level'], 1)
         self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 45, dlr_connector)
 
     def test_method(self):
@@ -219,13 +219,13 @@ class DLRContentForHttpapiTestCase(ContentTestCase):
         dlr_connector = 'test_cid'
 
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, dlr_connector)
-        self.assertEquals(c['headers']['method'], 'POST')
+        self.assertEqual(c['headers']['method'], 'POST')
 
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, dlr_connector, method='GET')
-        self.assertEquals(c['headers']['method'], 'GET')
+        self.assertEqual(c['headers']['method'], 'GET')
 
         c = DLRContentForHttpapi('DELIVRD', msgid, dlr_url, 1, dlr_connector, method='POST')
-        self.assertEquals(c['headers']['method'], 'POST')
+        self.assertEqual(c['headers']['method'], 'POST')
 
         self.assertRaises(InvalidParameterError, DLRContentForHttpapi, 'DELIVRD', msgid, dlr_url, 1, dlr_connector,
                           method='ANY METHOD')
@@ -247,20 +247,20 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date,
                                source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
 
-        self.assertEquals(c.body, msgid)
-        self.assertEquals(len(c['headers']), 11)
-        self.assertEquals(c['headers']['try-count'], 0)
-        self.assertEquals(c['headers']['message_status'], message_status)
-        self.assertEquals(c['headers']['system_id'], system_id)
-        self.assertEquals(c['headers']['source_addr'], source_addr)
-        self.assertEquals(c['headers']['destination_addr'], destination_addr)
-        self.assertEquals(c['headers']['sub_date'], str(sub_date))
-        self.assertEquals(c['headers']['source_addr_ton'], AddrTon.NATIONAL)
-        self.assertEquals(c['headers']['source_addr_npi'], AddrNpi.ISDN)
-        self.assertEquals(c['headers']['dest_addr_ton'], AddrTon.NATIONAL)
-        self.assertEquals(c['headers']['dest_addr_npi'], AddrNpi.ISDN)
+        self.assertEqual(c.body, msgid)
+        self.assertEqual(len(c['headers']), 11)
+        self.assertEqual(c['headers']['try-count'], 0)
+        self.assertEqual(c['headers']['message_status'], message_status)
+        self.assertEqual(c['headers']['system_id'], system_id)
+        self.assertEqual(c['headers']['source_addr'], source_addr)
+        self.assertEqual(c['headers']['destination_addr'], destination_addr)
+        self.assertEqual(c['headers']['sub_date'], str(sub_date))
+        self.assertEqual(c['headers']['source_addr_ton'], AddrTon.NATIONAL)
+        self.assertEqual(c['headers']['source_addr_npi'], AddrNpi.ISDN)
+        self.assertEqual(c['headers']['dest_addr_ton'], AddrTon.NATIONAL)
+        self.assertEqual(c['headers']['dest_addr_npi'], AddrNpi.ISDN)
         # Default value of err is 99
-        self.assertEquals(c['headers']['err'], 99)
+        self.assertEqual(c['headers']['err'], 99)
 
     def test_normal_with_err(self):
         message_status = 'DELIVRD'
@@ -278,8 +278,8 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         c = DLRContentForSmpps(message_status, msgid, system_id, source_addr, destination_addr, sub_date,
                                source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi, err=err)
 
-        self.assertEquals(len(c['headers']), 11)
-        self.assertEquals(c['headers']['err'], err)
+        self.assertEqual(len(c['headers']), 11)
+        self.assertEqual(c['headers']['err'], err)
 
     def test_message_status(self):
         msgid = 'msgid'
@@ -299,7 +299,7 @@ class DLRContentForSmppsTestCase(ContentTestCase):
             c = DLRContentForSmpps(status, msgid, system_id, source_addr, destination_addr, sub_date,
                                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi)
 
-            self.assertEquals(c['headers']['message_status'], status)
+            self.assertEqual(c['headers']['message_status'], status)
 
         self.assertRaises(InvalidParameterError, DLRContentForSmpps,
                           'anystatus', msgid, system_id, source_addr, destination_addr, sub_date,
@@ -310,26 +310,26 @@ class DeliverSmContentTestCase(ContentTestCase):
     def test_normal_nopickling(self):
         c = DeliverSmContent(self.body, 'connector1', prePickle=False)
 
-        self.assertEquals(c.body, self.body)
-        self.assertEquals(c['headers']['connector-id'], 'connector1')
-        self.assertEquals(c['headers']['concatenated'], False)
+        self.assertEqual(c.body, self.body)
+        self.assertEqual(c['headers']['connector-id'], 'connector1')
+        self.assertEqual(c['headers']['concatenated'], False)
         self.assertFalse(c['message-id'] == None)
         self.assertTrue('created_at' in c['headers'])
 
     def test_normal_pickling(self):
         c = DeliverSmContent(self.body, 'connector1')
 
-        self.assertNotEquals(c.body, self.body)
-        self.assertEquals(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
-        self.assertEquals(c['headers']['connector-id'], 'connector1')
-        self.assertEquals(c['headers']['concatenated'], False)
+        self.assertNotEqual(c.body, self.body)
+        self.assertEqual(c.body, pickle.dumps(self.body, pickle.HIGHEST_PROTOCOL))
+        self.assertEqual(c['headers']['connector-id'], 'connector1')
+        self.assertEqual(c['headers']['concatenated'], False)
         self.assertFalse(c['message-id'] == None)
         self.assertTrue('created_at' in c['headers'])
 
     def test_headers_concatenated(self):
         c = DeliverSmContent(self.body, 'connector1', prePickle=False, concatenated=True)
 
-        self.assertEquals(c['headers']['concatenated'], True)
+        self.assertEqual(c['headers']['concatenated'], True)
         self.assertFalse(c['message-id'] == None)
         self.assertTrue('created_at' in c['headers'])
 
@@ -338,9 +338,9 @@ class SubmitSmRespBillContentTestCase(ContentTestCase):
     def test_normal(self):
         c = SubmitSmRespBillContent('bid', 'uid', 1.2)
 
-        self.assertEquals(c['headers']['user-id'], 'uid')
-        self.assertEquals(c['headers']['amount'], str(1.2))
-        self.assertEquals(c['message-id'], 'bid')
+        self.assertEqual(c['headers']['user-id'], 'uid')
+        self.assertEqual(c['headers']['amount'], str(1.2))
+        self.assertEqual(c['message-id'], 'bid')
 
     def test_amount_type(self):
         self.assertRaises(InvalidParameterError, SubmitSmRespBillContent, 'bid', 'uid', 'a')

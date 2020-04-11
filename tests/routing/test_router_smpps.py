@@ -326,10 +326,10 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
 
         # Run tests
         # Assert quotas were not updated
-        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 1)
+        self.assertEqual(assertionUser.mt_credential.updateQuota.call_count, 1)
         callArgs = assertionUser.mt_credential.updateQuota.call_args_list
-        self.assertEquals(callArgs[0][0][0], 'submit_sm_count')
-        self.assertEquals(callArgs[0][0][1], -1)
+        self.assertEqual(callArgs[0][0][0], 'submit_sm_count')
+        self.assertEqual(callArgs[0][0][1], -1)
         # Assert quotas after SMS is sent
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 2.0)
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), 9)
@@ -357,7 +357,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
 
         # Run tests
         # Assert quotas were not updated
-        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 0)
+        self.assertEqual(assertionUser.mt_credential.updateQuota.call_count, 0)
         # Assert quotas after SMS is sent
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 2.0)
         self.assertEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), None)
@@ -387,11 +387,11 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         # Run tests
         # Assert quotas were updated
         callArgs = assertionUser.mt_credential.updateQuota.call_args_list
-        self.assertEquals(callArgs[0][0][0], 'balance')
-        self.assertEquals(callArgs[0][0][1], -1)
-        self.assertEquals(callArgs[1][0][0], 'submit_sm_count')
-        self.assertEquals(callArgs[1][0][1], -1)
-        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 2)
+        self.assertEqual(callArgs[0][0][0], 'balance')
+        self.assertEqual(callArgs[0][0][1], -1)
+        self.assertEqual(callArgs[1][0][0], 'submit_sm_count')
+        self.assertEqual(callArgs[1][0][1], -1)
+        self.assertEqual(assertionUser.mt_credential.updateQuota.call_count, 2)
         # Assert quotas after SMS is sent
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 1.0)
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), 9)
@@ -425,13 +425,13 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         # Run tests
         # Assert quotas were updated
         callArgs = assertionUser.mt_credential.updateQuota.call_args_list
-        self.assertEquals(callArgs[0][0][0], 'balance')
-        self.assertEquals(callArgs[0][0][1], -0.1)
-        self.assertEquals(callArgs[1][0][0], 'submit_sm_count')
-        self.assertEquals(callArgs[1][0][1], -1)
-        self.assertEquals(callArgs[2][0][0], 'balance')
-        self.assertEquals(callArgs[2][0][1], -0.9)
-        self.assertEquals(assertionUser.mt_credential.updateQuota.call_count, 3)
+        self.assertEqual(callArgs[0][0][0], 'balance')
+        self.assertEqual(callArgs[0][0][1], -0.1)
+        self.assertEqual(callArgs[1][0][0], 'submit_sm_count')
+        self.assertEqual(callArgs[1][0][1], -1)
+        self.assertEqual(callArgs[2][0][0], 'balance')
+        self.assertEqual(callArgs[2][0][1], -0.9)
+        self.assertEqual(assertionUser.mt_credential.updateQuota.call_count, 3)
         # Assert quotas after SMS is sent
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('balance'), 1.0)
         self.assertAlmostEqual(assertionUser.mt_credential.getQuota('submit_sm_count'), 9)

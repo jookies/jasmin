@@ -3,7 +3,7 @@
 import pickle
 import copy
 import json
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 import mock
 from twisted.internet import defer
@@ -123,7 +123,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['validity-period'] = validity_period
         if destination_address is not None:
             self.params['to'] = destination_address
-        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.parse.urlencode(self.params))
 
         # Send a MT
         # We should receive a msg id
@@ -148,7 +148,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Set baseurl
         params = {'username': self.params['username'],
                   'password': self.params['password'], }
-        baseurl = 'http://127.0.0.1:%s/balance?%s' % (1401, urllib.urlencode(params))
+        baseurl = 'http://127.0.0.1:%s/balance?%s' % (1401, urllib.parse.urlencode(params))
 
         # Send a balance check request
         try:
@@ -180,7 +180,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['from'] = source_address
         if destination_address is not None:
             self.params['to'] = destination_address
-        baseurl = 'http://127.0.0.1:%s/rate?%s' % (1401, urllib.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:%s/rate?%s' % (1401, urllib.parse.urlencode(self.params))
 
         # Send a MT
         # We should receive a msg id
@@ -257,7 +257,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
     def test_default_rate(self):
         # User have default authorization to check route rate
         response_text, response_code = yield self.run_rate_test()
-        self.assertEqual(json.loads(response_text), {u'submit_sm_count': 1, u'unit_rate': 0.0})
+        self.assertEqual(json.loads(response_text), {'submit_sm_count': 1, 'unit_rate': 0.0})
         self.assertEqual(response_code, 'Success')
 
     @defer.inlineCallbacks
@@ -277,7 +277,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
 
         # User authorized
         response_text, response_code = yield self.run_rate_test()
-        self.assertEqual(json.loads(response_text), {u'submit_sm_count': 1, u'unit_rate': 0.0})
+        self.assertEqual(json.loads(response_text), {'submit_sm_count': 1, 'unit_rate': 0.0})
         self.assertEqual(response_code, 'Success')
 
     @defer.inlineCallbacks
@@ -993,7 +993,7 @@ class QuotasTestCases(CredentialsTestCases):
 
         # Set content
         self.params['content'] = 'Any Content'
-        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.parse.urlencode(self.params))
 
         # Send a bunch of MT messages
         # We should receive a msg id for success and error when throughput is exceeded

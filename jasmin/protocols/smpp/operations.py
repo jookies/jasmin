@@ -13,10 +13,10 @@ from smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
-gsm_chars = (u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"
-             u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà")
-gsm_chars_ext = (u"````````````````````^```````````````````{}`````\\````````````[~]`"
-                 u"|````````````````````````````````````€``````````````````````````")
+gsm_chars = ("@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"
+             "?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà")
+gsm_chars_ext = ("````````````````````^```````````````````{}`````\\````````````[~]`"
+                 "|````````````````````````````````````€``````````````````````````")
 
 
 def gsm_encode(plaintext):

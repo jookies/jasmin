@@ -156,7 +156,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         self.cancelLongSubmitSmTransactions(err)
 
     def cancelLongSubmitSmTransactions(self, err):
-        for item in self.longSubmitSmTxns.values():
+        for item in list(self.longSubmitSmTxns.values()):
             reqPDU = item['txn'].request
 
             self.log.exception(err)

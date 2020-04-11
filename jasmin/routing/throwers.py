@@ -1,7 +1,7 @@
 import binascii
 import pickle
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.application.service import Service
@@ -286,7 +286,7 @@ class deliverSmThrower(Thrower):
 
             try:
                 # Throw the message to http endpoint
-                encodedArgs = urllib.urlencode(args)
+                encodedArgs = urllib.parse.urlencode(args)
                 postdata = None
                 baseurl = dc.baseurl
                 _method = dc.method.upper()
@@ -523,7 +523,7 @@ class DLRThrower(Thrower):
 
         try:
             # Throw the message to http endpoint
-            encodedArgs = urllib.urlencode(args)
+            encodedArgs = urllib.parse.urlencode(args)
             postdata = None
             baseurl = url
             if method == 'GET':

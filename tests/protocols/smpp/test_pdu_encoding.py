@@ -51,7 +51,7 @@ class COctetStringEncoderTest(EncoderTest):
 
     def test_ascii_required(self):
         encoder = COctetStringEncoder()
-        self.assertRaises(ValueError, encoder.encode, u'\x9b\xa2\x7c')
+        self.assertRaises(ValueError, encoder.encode, '\x9b\xa2\x7c')
 
     def test_requireNull(self):
         encoder = COctetStringEncoder(decodeNull=True, requireNull=True)
@@ -607,24 +607,24 @@ class PDUEncoderTest(EncoderTest):
     def test_SubmitSMResp_error_has_no_body(self):
         pdu = SubmitSMResp(1234, status=CommandStatus.ESME_RMSGQFUL)
         self.assertTrue(len(SubmitSMResp.mandatoryParams) > 0)
-        self.assertEquals(0, len(pdu.params))
+        self.assertEqual(0, len(pdu.params))
         self.do_conversion_test(PDUEncoder(), pdu, '000000108000000400000014000004d2')
 
     def test_BindReceiverResp_error_has_no_body(self):
         pdu = BindReceiverResp(3456, status=CommandStatus.ESME_RINVPASWD)
         self.assertTrue(len(BindReceiverResp.mandatoryParams) > 0)
-        self.assertEquals(0, len(pdu.params))
+        self.assertEqual(0, len(pdu.params))
         self.do_conversion_test(PDUEncoder(), pdu, '00000010800000010000000e00000d80')
 
     def test_BindTransmitterResp_error_has_no_body(self):
         pdu = BindTransmitterResp(3456, status=CommandStatus.ESME_RINVPASWD)
         self.assertTrue(len(BindTransmitterResp.mandatoryParams) > 0)
-        self.assertEquals(0, len(pdu.params))
+        self.assertEqual(0, len(pdu.params))
         self.do_conversion_test(PDUEncoder(), pdu, '00000010800000020000000e00000d80')
 
     def test_BindTransceiverResp_error_has_no_body(self):
         pdu = BindTransceiverResp(3456, status=CommandStatus.ESME_RINVPASWD)
-        self.assertEquals(0, len(pdu.params))
+        self.assertEqual(0, len(pdu.params))
         self.do_conversion_test(PDUEncoder(), pdu, '00000010800000090000000e00000d80')
 
     def test_BindTransceiverResp_error_has_no_body_status_set_later(self):
@@ -635,7 +635,7 @@ class PDUEncoderTest(EncoderTest):
         self.do_encode_test(PDUEncoder(), pdu, hex)
         # It will decode with no params set
         pduExpected = BindTransceiverResp(3456, status=CommandStatus.ESME_RINVPASWD)
-        self.assertEquals(0, len(pduExpected.params))
+        self.assertEqual(0, len(pduExpected.params))
         self.do_decode_test(PDUEncoder(), pduExpected, hex)
 
 

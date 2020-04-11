@@ -16,7 +16,7 @@ from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from test_router import HappySMSCTestCase, id_generator
+from .test_router import HappySMSCTestCase, id_generator
 
 
 @defer.inlineCallbacks

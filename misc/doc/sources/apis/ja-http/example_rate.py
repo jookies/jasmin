@@ -1,12 +1,12 @@
 # Python example
 # http://jasminsms.com
-import urllib2
-import urllib
+import urllib.request, urllib.error, urllib.parse
+import urllib.request, urllib.parse, urllib.error
 import json
 
 # Check message rate price
 params = {'username':'foo', 'password':'bar', 'to': '06222172'}
-response = urllib2.urlopen("http://127.0.0.1:1401/rate?%s" % urllib.urlencode(params)).read()
+response = urllib.request.urlopen("http://127.0.0.1:1401/rate?%s" % urllib.parse.urlencode(params)).read()
 response = json.loads(response)
 
 print('Unit rate price:', response['unit_rate'])

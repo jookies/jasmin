@@ -239,7 +239,7 @@ class FilterExist:
             opts = args[1]
             fid = getattr(opts, fid_key)
 
-            for filter_id in self.filters.keys():
+            for filter_id in list(self.filters.keys()):
                 if fid == filter_id:
                     return fCallback(self, *args, **kwargs)
 

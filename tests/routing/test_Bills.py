@@ -18,7 +18,7 @@ class SubmitSmBillTestCase(BillsTestCase):
         self.assertEqual(b.getAmount('submit_sm'), 0.0)
         self.assertEqual(b.getAmount('submit_sm_resp'), 0.0)
         self.assertEqual(b.getAction('decrement_submit_sm_count'), 0)
-        self.assertNotEquals(b.bid, None)
+        self.assertNotEqual(b.bid, None)
         self.assertEqual(b.user, self.user)
 
     def test_typing(self):
@@ -51,8 +51,8 @@ class SubmitSmBillTestCase(BillsTestCase):
         self.assertRaises(InvalidBillKeyError, c.getAmount, 'submit_sm')
         self.assertEqual(c.getAmount('submit_sm_resp'), 2.0)
         self.assertRaises(InvalidBillKeyError, c.getAction, 'decrement_submit_sm_count')
-        self.assertNotEquals(c.bid, None)
-        self.assertNotEquals(b.bid, c.bid)
+        self.assertNotEqual(c.bid, None)
+        self.assertNotEqual(b.bid, c.bid)
         self.assertEqual(b.user, c.user)
 
 
@@ -61,7 +61,7 @@ class SubmitSmRespBillTestCase(BillsTestCase):
         b = SubmitSmRespBill(self.user)
 
         self.assertEqual(b.getAmount('submit_sm_resp'), 0.0)
-        self.assertNotEquals(b.bid, None)
+        self.assertNotEqual(b.bid, None)
         self.assertEqual(b.user, self.user)
 
     def test_typing(self):

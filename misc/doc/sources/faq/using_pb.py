@@ -11,7 +11,7 @@ The jasmin SMS gateway shall be already running and having
 a pb listening on 8989.
 """
 
-import cPickle as pickle
+import pickle as pickle
 from twisted.internet import reactor, defer
 from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.routing.proxies import RouterPBProxy
@@ -59,7 +59,7 @@ def runScenario():
         ##################
         # Stop connector
         yield proxy_smpp.stop('abc')
-    except Exception, e:
+    except Exception as e:
         print("ERROR RUNNING SCENARIO: %s" % str(e))
     finally:
         reactor.stop()

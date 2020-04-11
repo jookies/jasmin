@@ -87,11 +87,11 @@ class DataTestCase(RedisTestCase):
 
         # Get desired keys
         g = yield self.redisClient.hmget('h_test', ['key_a', 'key_b', 'anything'])
-        self.assertEqual(g, [u'value_a', u'value_b', None])
+        self.assertEqual(g, ['value_a', 'value_b', None])
 
         # Get all keys
         g = yield self.redisClient.hgetall('h_test')
-        self.assertEqual(g, {u'key_a': u'value_a', u'key_b': u'value_b'})
+        self.assertEqual(g, {'key_a': 'value_a', 'key_b': 'value_b'})
 
         # Get incorrect redis key
         g = yield self.redisClient.hgetall('incorrect')
@@ -107,7 +107,7 @@ class DataTestCase(RedisTestCase):
 
         # Get desired keys
         g = yield self.redisClient.hgetall('h_test')
-        self.assertEqual(g, {u'key_a': u'value_a', u'key_b': u'value_b'})
+        self.assertEqual(g, {'key_a': 'value_a', 'key_b': 'value_b'})
 
         # Wait 6 seconds
         yield waitFor(6)

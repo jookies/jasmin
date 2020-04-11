@@ -71,7 +71,7 @@ class InterceptionTable:
             raise InvalidInterceptionTableParameterError("routable is not an instance of Routable")
 
         for r in self.table:
-            interceptor = r.values()[0]
+            interceptor = list(r.values())[0]
             if interceptor.matchFilters(routable):
                 return interceptor
 

@@ -3,7 +3,7 @@ import pickle
 import glob
 import os
 import string
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import random
 
 import mock
@@ -1468,7 +1468,7 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
         # Send a MT
         c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
         msgStatus = c[:7]
@@ -1500,7 +1500,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
             self.pbRoot_f.bill_request_submit_sm_resp_callback)
 
         self.params['content'] = composeMessage({'_'}, 200)
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         yield getPage(baseurl, method=self.method, postdata=self.postdata)
@@ -1512,7 +1512,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
 
         # Run tests
         # Unrated route will not callback, nothing to bill
-        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 0)
+        self.assertEqual(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 0)
 
     @defer.inlineCallbacks
     def test_rated_route(self):
@@ -1524,7 +1524,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield self.prepareRoutingsAndStartConnector(route_rate=1.0, user=user)
 
         self.params['content'] = composeMessage({'_'}, 10)
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
         yield getPage(baseurl, method=self.method, postdata=self.postdata)
@@ -1536,4 +1536,4 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
 
         # Run tests
         # Rated route will callback with a bill
-        self.assertEquals(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 1)
+        self.assertEqual(self.pbRoot_f.bill_request_submit_sm_resp_callback.call_count, 1)

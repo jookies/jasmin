@@ -238,9 +238,8 @@ class CnxStatus(jasminApiGeneric):
         }
 
 
-class UserStats:
+class UserStats(metaclass=Singleton):
     """User statistics singleton holder"""
-    __metaclass__ = Singleton
     users = {}
 
     def get(self, uid):

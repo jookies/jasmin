@@ -84,7 +84,7 @@ class RoutingTable:
             raise InvalidRoutingTableParameterError("routable is not an instance of Routable")
 
         for r in self.table:
-            route = r.values()[0]
+            route = list(r.values())[0]
             if route.matchFilters(routable):
                 return route
 

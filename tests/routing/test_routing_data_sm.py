@@ -148,7 +148,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Run tests
         # Test callback in router
-        self.assertEquals(self.pbRoot_f.deliver_sm_callback.call_count, 1)
+        self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Assert received args
@@ -185,7 +185,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Run tests
         # Test callback in router
-        self.assertEquals(self.pbRoot_f.deliver_sm_callback.call_count, 1)
+        self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
 

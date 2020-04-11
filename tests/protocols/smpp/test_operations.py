@@ -36,10 +36,10 @@ class SubmitTest(OperationsTest):
             short_message=sm,
         )
 
-        self.assertEquals(pdu.id, CommandId.submit_sm)
-        self.assertEquals(pdu.status, CommandStatus.ESME_ROK)
-        self.assertEquals(pdu.params['destination_addr'], self.destination_addr)
-        self.assertEquals(pdu.params['source_addr'], self.source_addr)
+        self.assertEqual(pdu.id, CommandId.submit_sm)
+        self.assertEqual(pdu.status, CommandStatus.ESME_ROK)
+        self.assertEqual(pdu.params['destination_addr'], self.destination_addr)
+        self.assertEqual(pdu.params['source_addr'], self.source_addr)
 
         return pdu
 
@@ -53,7 +53,7 @@ class SubmitTest(OperationsTest):
         pdu = self.buildSubmitSmTest(sm)
 
         # SM shall not be altered since it is not sliced (not too long)
-        self.assertEquals(pdu.params['short_message'], sm)
+        self.assertEqual(pdu.params['short_message'], sm)
 
     def test_encode_latin1_long(self):
         """
@@ -89,10 +89,10 @@ class SubmitTest(OperationsTest):
                 break
 
         # Assembled SM shall be equal to the original SM
-        self.assertEquals(assembledSm, sm)
+        self.assertEqual(assembledSm, sm)
 
         # The last seqNum shall be equal to total segments
-        self.assertEquals(lastSeqNum, pdu.params['sar_total_segments'])
+        self.assertEqual(lastSeqNum, pdu.params['sar_total_segments'])
 
 
 class DeliveryParsingTest(OperationsTest):
@@ -105,14 +105,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], '1891273321')
-        self.assertEquals(isDlr['sub'], '001')
-        self.assertEquals(isDlr['dlvrd'], '001')
-        self.assertEquals(isDlr['sdate'], '1305050826')
-        self.assertEquals(isDlr['ddate'], '1305050826')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], '000')
-        self.assertEquals(isDlr['text'], 'DLVRD TO MOBILE')
+        self.assertEqual(isDlr['id'], '1891273321')
+        self.assertEqual(isDlr['sub'], '001')
+        self.assertEqual(isDlr['dlvrd'], '001')
+        self.assertEqual(isDlr['sdate'], '1305050826')
+        self.assertEqual(isDlr['ddate'], '1305050826')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], '000')
+        self.assertEqual(isDlr['text'], 'DLVRD TO MOBILE')
 
     def test_is_delivery_empty_text(self):
         pdu = DeliverSM(
@@ -123,14 +123,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], '1891273321')
-        self.assertEquals(isDlr['sub'], '001')
-        self.assertEquals(isDlr['dlvrd'], '001')
-        self.assertEquals(isDlr['sdate'], '1305050826')
-        self.assertEquals(isDlr['ddate'], '1305050826')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], '000')
-        self.assertEquals(isDlr['text'], '')
+        self.assertEqual(isDlr['id'], '1891273321')
+        self.assertEqual(isDlr['sub'], '001')
+        self.assertEqual(isDlr['dlvrd'], '001')
+        self.assertEqual(isDlr['sdate'], '1305050826')
+        self.assertEqual(isDlr['ddate'], '1305050826')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], '000')
+        self.assertEqual(isDlr['text'], '')
 
     def test_is_delivery_clickatell_70(self):
         """Related to #70
@@ -144,14 +144,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], 'a29f6845555647139e5c8f3b817f2c9a')
-        self.assertEquals(isDlr['sub'], '001')
-        self.assertEquals(isDlr['dlvrd'], '001')
-        self.assertEquals(isDlr['sdate'], '141023215253')
-        self.assertEquals(isDlr['ddate'], '141023215259')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], '000')
-        self.assertEquals(isDlr['text'], 'HOLA')
+        self.assertEqual(isDlr['id'], 'a29f6845555647139e5c8f3b817f2c9a')
+        self.assertEqual(isDlr['sub'], '001')
+        self.assertEqual(isDlr['dlvrd'], '001')
+        self.assertEqual(isDlr['sdate'], '141023215253')
+        self.assertEqual(isDlr['ddate'], '141023215259')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], '000')
+        self.assertEqual(isDlr['text'], 'HOLA')
 
     def test_is_delivery_jasmin_153(self):
         """Related to #153
@@ -165,14 +165,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], '4a38dc46-5125-4969-90be-72104c340d5c')
-        self.assertEquals(isDlr['sub'], '001')
-        self.assertEquals(isDlr['dlvrd'], '001')
-        self.assertEquals(isDlr['sdate'], '150519232657')
-        self.assertEquals(isDlr['ddate'], '150519232657')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], '000')
-        self.assertEquals(isDlr['text'], '-')
+        self.assertEqual(isDlr['id'], '4a38dc46-5125-4969-90be-72104c340d5c')
+        self.assertEqual(isDlr['sub'], '001')
+        self.assertEqual(isDlr['dlvrd'], '001')
+        self.assertEqual(isDlr['sdate'], '150519232657')
+        self.assertEqual(isDlr['ddate'], '150519232657')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], '000')
+        self.assertEqual(isDlr['text'], '-')
 
     def test_is_delivery_jasmin_195(self):
         """Related to #195
@@ -186,14 +186,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], 'c87c2273-7edb-4bc7-8d3a-7f57f21b625e')
-        self.assertEquals(isDlr['sub'], 'ND')
-        self.assertEquals(isDlr['dlvrd'], 'ND')
-        self.assertEquals(isDlr['sdate'], '201506201641')
-        self.assertEquals(isDlr['ddate'], '201506201641')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], '000')
-        self.assertEquals(isDlr['text'], '')
+        self.assertEqual(isDlr['id'], 'c87c2273-7edb-4bc7-8d3a-7f57f21b625e')
+        self.assertEqual(isDlr['sub'], 'ND')
+        self.assertEqual(isDlr['dlvrd'], 'ND')
+        self.assertEqual(isDlr['sdate'], '201506201641')
+        self.assertEqual(isDlr['ddate'], '201506201641')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], '000')
+        self.assertEqual(isDlr['text'], '')
 
     def test_is_delivery_mmg_deliver_sm_224(self):
         """Related to #224, this is a Sicap's MMG deliver_sm receipt"""
@@ -207,14 +207,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], '362d9701')
-        self.assertEquals(isDlr['sub'], 'ND')
-        self.assertEquals(isDlr['dlvrd'], 'ND')
-        self.assertEquals(isDlr['sdate'], 'ND')
-        self.assertEquals(isDlr['ddate'], 'ND')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], 'ND')
-        self.assertEquals(isDlr['text'], '')
+        self.assertEqual(isDlr['id'], '362d9701')
+        self.assertEqual(isDlr['sub'], 'ND')
+        self.assertEqual(isDlr['dlvrd'], 'ND')
+        self.assertEqual(isDlr['sdate'], 'ND')
+        self.assertEqual(isDlr['ddate'], 'ND')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], 'ND')
+        self.assertEqual(isDlr['text'], '')
 
     def test_is_delivery_mmg_data_sm_92(self):
         """Related to #92, this is a Sicap's MMG data_sm receipt"""
@@ -227,14 +227,14 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEquals(isDlr['id'], '362d9701')
-        self.assertEquals(isDlr['sub'], 'ND')
-        self.assertEquals(isDlr['dlvrd'], 'ND')
-        self.assertEquals(isDlr['sdate'], 'ND')
-        self.assertEquals(isDlr['ddate'], 'ND')
-        self.assertEquals(isDlr['stat'], 'DELIVRD')
-        self.assertEquals(isDlr['err'], 'ND')
-        self.assertEquals(isDlr['text'], '')
+        self.assertEqual(isDlr['id'], '362d9701')
+        self.assertEqual(isDlr['sub'], 'ND')
+        self.assertEqual(isDlr['dlvrd'], 'ND')
+        self.assertEqual(isDlr['sdate'], 'ND')
+        self.assertEqual(isDlr['ddate'], 'ND')
+        self.assertEqual(isDlr['stat'], 'DELIVRD')
+        self.assertEqual(isDlr['err'], 'ND')
+        self.assertEqual(isDlr['text'], '')
 
     def test_take_msgid_from_tlv_first(self):
         """Related to #427
@@ -248,7 +248,7 @@ class DeliveryParsingTest(OperationsTest):
         )
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
-        self.assertEquals(isDlr['id'], '6000')
+        self.assertEqual(isDlr['id'], '6000')
 
     def test_take_message_state_from_tlv_first(self):
         """Related to #427
@@ -262,7 +262,7 @@ class DeliveryParsingTest(OperationsTest):
         )
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
-        self.assertEquals(isDlr['stat'], 'ACCEPTD')
+        self.assertEqual(isDlr['stat'], 'ACCEPTD')
 
 
 class ReceiptCreationTestCases(OperationsTest):
@@ -307,7 +307,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'UNKNOWN',
                 'UNKNOWN')
 
-            self.assertEquals(pdu.params['message_state'], _test['state'])
+            self.assertEqual(pdu.params['message_state'], _test['state'])
             self.assertTrue('stat:%s' % _test['sm'] in pdu.params['short_message'])
 
         # Test other ESME_* states:
@@ -324,7 +324,7 @@ class ReceiptCreationTestCases(OperationsTest):
             'UNKNOWN',
             'UNKNOWN')
 
-        self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)
+        self.assertEqual(pdu.params['message_state'], MessageState.UNDELIVERABLE)
         self.assertTrue('stat:UNDELIV' in pdu.params['short_message'])
 
     def test_data_sm(self):
@@ -342,7 +342,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'UNKNOWN',
                 'UNKNOWN')
 
-            self.assertEquals(pdu.params['message_state'], _test['state'])
+            self.assertEqual(pdu.params['message_state'], _test['state'])
 
         # Test other ESME_* states:
         pdu = self.opFactory.getReceipt(
@@ -358,4 +358,4 @@ class ReceiptCreationTestCases(OperationsTest):
             'UNKNOWN',
             'UNKNOWN')
 
-        self.assertEquals(pdu.params['message_state'], MessageState.UNDELIVERABLE)
+        self.assertEqual(pdu.params['message_state'], MessageState.UNDELIVERABLE)

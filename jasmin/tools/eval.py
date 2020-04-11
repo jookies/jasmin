@@ -1,9 +1,8 @@
 from jasmin.tools.singleton import Singleton
 
 
-class CompiledNode:
+class CompiledNode(metaclass=Singleton):
     """A compiled code holder singleton"""
-    __metaclass__ = Singleton
     nodes = {}
 
     def get(self, pyCode):

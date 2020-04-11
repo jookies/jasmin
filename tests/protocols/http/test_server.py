@@ -15,7 +15,7 @@ from jasmin.routing.Routes import DefaultRoute, StaticMTRoute
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.router import RouterPB
-from twisted_web_test_utils import DummySite
+from .twisted_web_test_utils import DummySite
 
 
 class HTTPApiTestCases(TestCase):
@@ -434,7 +434,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'password': 'incorrec',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(json.loads(response.value()), u'Authentication failure for username:%s' % 'nathalie')
+        self.assertEqual(json.loads(response.value()), 'Authentication failure for username:%s' % 'nathalie')
 
     @defer.inlineCallbacks
     def test_rate_with_incorrect_args(self):
@@ -443,7 +443,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'content': 'hello',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(json.loads(response.value()), u'Mandatory argument [password] is not found.')
+        self.assertEqual(json.loads(response.value()), 'Mandatory argument [password] is not found.')
 
     @defer.inlineCallbacks
     def test_rate_with_auth_success(self):
@@ -451,7 +451,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 1, u'unit_rate': 0.0})
+        self.assertEqual(json.loads(response.value()), {'submit_sm_count': 1, 'unit_rate': 0.0})
 
     @defer.inlineCallbacks
     def test_rate_rated_route_unlimited_balance(self):
@@ -459,7 +459,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 1, u'unit_rate': 0.0})
+        self.assertEqual(json.loads(response.value()), {'submit_sm_count': 1, 'unit_rate': 0.0})
 
     @defer.inlineCallbacks
     def test_rate_rated_route_unlimited_balance_long_content(self):
@@ -468,7 +468,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'to': '06155423',
                                                'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 2, u'unit_rate': 0.0})
+        self.assertEqual(json.loads(response.value()), {'submit_sm_count': 2, 'unit_rate': 0.0})
 
     @defer.inlineCallbacks
     def test_rate_rated_route_defined_balance(self):
@@ -476,7 +476,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 1, u'unit_rate': 1.5})
+        self.assertEqual(json.loads(response.value()), {'submit_sm_count': 1, 'unit_rate': 1.5})
 
     @defer.inlineCallbacks
     def test_rate_rated_route_defined_balance_long_content(self):
@@ -485,7 +485,7 @@ class RateTestCases(HTTPApiTestCases):
                                                'to': '06155423',
                                                'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'submit_sm_count': 2, u'unit_rate': 1.5})
+        self.assertEqual(json.loads(response.value()), {'submit_sm_count': 2, 'unit_rate': 1.5})
 
     @defer.inlineCallbacks
     def test_rate_with_tags(self):
@@ -527,35 +527,35 @@ class BalanceTestCases(HTTPApiTestCases):
         response = yield self.web.get("balance", {'username': 'nathalie',
                                                   'password': 'incorrec'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(json.loads(response.value()), u'Authentication failure for username:%s' % 'nathalie')
+        self.assertEqual(json.loads(response.value()), 'Authentication failure for username:%s' % 'nathalie')
 
     @defer.inlineCallbacks
     def test_balance_with_incorrect_args(self):
         response = yield self.web.get("balance", {'username': 'nathalie',
                                                   'passwd': 'correct'})
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(json.loads(response.value()), u'Mandatory argument [password] is not found.')
+        self.assertEqual(json.loads(response.value()), 'Mandatory argument [password] is not found.')
 
     @defer.inlineCallbacks
     def test_balance_with_auth_success_unlimited_quotas(self):
         response = yield self.web.get("balance", {'username': 'nathalie',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'balance': u'ND', u'sms_count': u'ND'})
+        self.assertEqual(json.loads(response.value()), {'balance': 'ND', 'sms_count': 'ND'})
 
     @defer.inlineCallbacks
     def test_balance_with_auth_success_defined_quotas_u2(self):
         response = yield self.web.get("balance", {'username': 'user2',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'balance': 100.2, u'sms_count': 30})
+        self.assertEqual(json.loads(response.value()), {'balance': 100.2, 'sms_count': 30})
 
     @defer.inlineCallbacks
     def test_balance_with_auth_success_defined_quotas_u3(self):
         response = yield self.web.get("balance", {'username': 'user3',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(json.loads(response.value()), {u'balance': 10, u'sms_count': u'ND'})
+        self.assertEqual(json.loads(response.value()), {'balance': 10, 'sms_count': 'ND'})
 
 
 class UserStatsTestCases(HTTPApiTestCases):

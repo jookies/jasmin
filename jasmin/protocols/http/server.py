@@ -467,7 +467,7 @@ class Send(Resource):
                 json_data = json.loads(json_body)
                 for key, value in json_data.items():
                     # Make the values look like they came from form encoding all surrounded by [ ]
-                    if isinstance(value, unicode):
+                    if isinstance(value, str):
                         value = value.encode()
 
                     updated_request.args[key.encode()] = [value]

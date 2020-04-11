@@ -57,19 +57,19 @@ class ProtocolTestCases(TestCase):
                     for line in range(len(receivedLines)):
                         if line % 3 == 0:
                             receivedContent += receivedLines[line].decode('ascii')
-                    self.assertRegexpMatches(receivedContent, cmd['expect'])
+                    self.assertRegex(receivedContent, cmd['expect'])
                 elif isinstance(cmd['expect'], list):
                     self.assertGreaterEqual(len(receivedLines), 3 + (len(cmd['expect']) * 3),
                                             'Got no return from command %s: %s' % (cmd['command'], receivedLines))
 
                     offset = 0
                     for e in cmd['expect']:
-                        self.assertRegexpMatches(receivedLines[3 + offset].decode('ascii'), e)
+                        self.assertRegex(receivedLines[3 + offset].decode('ascii'), e)
                         offset += 3
 
         # Assert for final prompt
         if receivedLines is not None and finalPrompt is not None:
-            self.assertRegexpMatches(receivedLines[len(receivedLines) - 1].decode('ascii'), finalPrompt)
+            self.assertRegex(receivedLines[len(receivedLines) - 1].decode('ascii'), finalPrompt)
 
 
 class CmdProtocolTestCases(ProtocolTestCases):
@@ -81,8 +81,8 @@ class CmdProtocolTestCases(ProtocolTestCases):
         self.proto.makeConnection(self.tr)
         # Test for greeting
         receivedLines = self.getBuffer(True)
-        self.assertRegexpMatches(receivedLines[0][15:].decode('ascii'), r'Welcome !')
-        self.assertRegexpMatches(receivedLines[3].decode('ascii'), r'Session ref: ')
+        self.assertRegex(receivedLines[0][15:].decode('ascii'), r'Welcome !')
+        self.assertRegex(receivedLines[3].decode('ascii'), r'Session ref: ')
 
 
 class BasicTestCase(CmdProtocolTestCases):

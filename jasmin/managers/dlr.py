@@ -429,9 +429,8 @@ class DLRLookup:
                 logged_content)
 
 
-class DLRLookupSingleton:
+class DLRLookupSingleton(metaclass=Singleton):
     """Used to launch only one DLRLookup object"""
-    __metaclass__ = Singleton
     objects = {}
 
     def get(self, config, amqpBroker, redisClient):

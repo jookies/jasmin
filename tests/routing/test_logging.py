@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*- 
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from twisted.internet import reactor
 from twisted.web.client import getPage
 from twisted.internet import defer
@@ -24,7 +24,7 @@ class LoggingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
         if datacoding is not None:
             self.params['coding'] = datacoding
         # Prepare baseurl
-        baseurl = 'http://127.0.0.1:%s/send?%s' % (port, urllib.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:%s/send?%s' % (port, urllib.parse.urlencode(self.params))
 
         # Send a MT
         # We should receive a msg id
