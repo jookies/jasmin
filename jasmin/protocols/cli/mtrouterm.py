@@ -274,9 +274,9 @@ class MtRouterManager(PersistableManager):
                     for c in mtroute.connector:
                         if connectors != '':
                             connectors += ', '
-                        connectors += '%s(%s)' % (c.type, c.cid)
+                        connectors += '%s(%s)' % (c._type, c.cid)
                 else:
-                    connectors = '%s(%s)' % (mtroute.connector.type, mtroute.connector.cid)
+                    connectors = '%s(%s)' % (mtroute.connector._type, mtroute.connector.cid)
 
                 filters = ''
                 # Prepare display for filters

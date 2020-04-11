@@ -15,7 +15,7 @@ class InvalidInterceptionTableParameterError(Exception):
 class InterceptionTable:
     """Generic Interception table
     """
-    type = 'generic'
+    _type = 'generic'
 
     def __init__(self):
         self.table = []
@@ -27,19 +27,19 @@ class InterceptionTable:
             raise InvalidInterceptionTableParameterError("order is not an integer")
 
         # Ensure script type is correct for given interceptor
-        if self.type == 'mo' and interceptor.script.type != 'moi':
+        if self._type == 'mo' and interceptor.script._type != 'moi':
             raise InvalidInterceptionTableParameterError("Script type '%s' is not valid for MO Interceptor",
-                                                         interceptor.script.type)
-        elif self.type == 'mt' and interceptor.script.type != 'mti':
+                                                         interceptor.script._type)
+        elif self._type == 'mt' and interceptor.script._type != 'mti':
             raise InvalidInterceptionTableParameterError("Script type '%s' is not valid for MT Interceptor",
-                                                         interceptor.script.type)
+                                                         interceptor.script._type)
 
         if order < 0:
             raise InvalidInterceptionTableParameterError("order must be 0 (default interceptor) or greater")
-        if order != 0 and interceptor.type != self.type:
+        if order != 0 and interceptor._type != self._type:
             raise InvalidInterceptionTableParameterError("interceptor must be of type '%s', '%s' was given",
-                                                         self.type, interceptor.type)
-        if order == 0 and interceptor.type != 'default':
+                                                         self._type, interceptor._type)
+        if order == 0 and interceptor._type != 'default':
             raise InvalidInterceptionTableParameterError(
                 "interceptor with order=0 must be a DefaultInterceptor")
 
@@ -80,9 +80,9 @@ class InterceptionTable:
 
 class MTInterceptionTable(InterceptionTable):
     """MT Interception table"""
-    type = 'mt'
+    _type = 'mt'
 
 
 class MOInterceptionTable(InterceptionTable):
     """MO Interception table"""
-    type = 'mo'
+    _type = 'mo'

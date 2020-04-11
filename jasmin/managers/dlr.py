@@ -437,6 +437,6 @@ class DLRLookupSingleton(metaclass=Singleton):
         """Return a DLRLookup object or instanciate a new one"""
         name = 'singleton'
         if name not in self.objects:
-            self.objects[name] = DLRLookup(name, config, amqpBroker, redisClient)
+            self.objects[name] = DLRLookup(config, amqpBroker, redisClient)
 
         return self.objects[name]

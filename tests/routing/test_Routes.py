@@ -298,16 +298,16 @@ class getBillForTestCase(RouteTestCase):
 
     def test_all_routes(self):
         for route_class in self.test_routes:
-            if globals()[route_class].type not in ['default', 'mt']:
+            if globals()[route_class]._type not in ['default', 'mt']:
                 continue
 
             # Init user
             user1 = copy.copy(self.user1)
 
             # unrated route intialization
-            if globals()[route_class].type == 'default':
+            if globals()[route_class]._type == 'default':
                 r = globals()[route_class](self.connector1, 0.0)
-            elif globals()[route_class].type == 'mt' and route_class[:6] not in ['Random', 'Failov']:
+            elif globals()[route_class]._type == 'mt' and route_class[:6] not in ['Random', 'Failov']:
                 r = globals()[route_class](self.simple_filter_all, self.connector1, 0.0)
             else:
                 r = globals()[route_class](self.simple_filter_all, [self.connector1, self.connector2], 0.0)
@@ -325,9 +325,9 @@ class getBillForTestCase(RouteTestCase):
             self.assertEqual(r.getBillFor(user1).getTotalAmounts(), 0)
 
             # rated route intialization
-            if globals()[route_class].type == 'default':
+            if globals()[route_class]._type == 'default':
                 r = globals()[route_class](self.connector1, 2.0)
-            elif globals()[route_class].type == 'mt' and route_class[:6] not in ['Random', 'Failov']:
+            elif globals()[route_class]._type == 'mt' and route_class[:6] not in ['Random', 'Failov']:
                 r = globals()[route_class](self.simple_filter_all, self.connector1, 2.0)
             else:
                 r = globals()[route_class](self.simple_filter_all, [self.connector1, self.connector2], 2.0)

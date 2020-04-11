@@ -235,11 +235,11 @@ class deliverSmThrower(Thrower):
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
 
-        if dcs[0].type != 'http':
+        if dcs[0]._type != 'http':
             self.log.error(
                 'Rejecting message [msgid:%s] because destination connector is not http (type were %s)',
                 msgid,
-                dcs[0].type)
+                dcs[0]._type)
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
@@ -371,11 +371,11 @@ class deliverSmThrower(Thrower):
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
 
-        if dcs[0].type != 'smpps':
+        if dcs[0]._type != 'smpps':
             self.log.error(
                 'Rejecting message [msgid:%s] because destination connector is not smpps (type were %s)',
                 msgid,
-                dcs[0].type)
+                dcs[0]._type)
             yield self.rejectMessage(message)
             defer.returnValue(None)
 

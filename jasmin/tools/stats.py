@@ -11,6 +11,8 @@ class KeyNotIncrementable(Exception):
 
 
 class Stats:
+    _stats = {}
+    
     def set(self, key, value):
         if key not in self._stats:
             raise KeyNotFound(key)

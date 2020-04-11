@@ -8,6 +8,9 @@ class ConnectorStatistics(Stats):
 
         self.init()
 
+    def init(self):
+        raise NotImplementedError('Child class does not implement init')
+
 
 class ClientConnectorStatistics(ConnectorStatistics):
     """One client connector statistics holder"""

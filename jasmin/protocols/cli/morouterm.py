@@ -276,9 +276,9 @@ class MoRouterManager(PersistableManager):
                     for c in moroute.connector:
                         if connectors != '':
                             connectors += ', '
-                        connectors += '%s(%s)' % (c.type, c.cid)
+                        connectors += '%s(%s)' % (c._type, c.cid)
                 else:
-                    connectors = '%s(%s)' % (moroute.connector.type, moroute.connector.cid)
+                    connectors = '%s(%s)' % (moroute.connector._type, moroute.connector.cid)
 
                 filters = ''
                 # Prepare display for filters

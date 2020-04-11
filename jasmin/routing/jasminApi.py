@@ -315,14 +315,14 @@ class Connector(jasminApiGeneric):
     This is a generic connector, it's used through its implementations
     """
 
-    type = 'generic'
+    _type = 'generic'
     _str = 'Generic Connector'
     _repr = '<Generic Connector>'
 
     def __init__(self, cid):
         self.cid = cid
-        self._str = '%s Connector' % self.type
-        self._repr = '<%s Connector>' % self.type
+        self._str = '%s Connector' % self._type
+        self._repr = '<%s Connector>' % self._type
 
     def __repr__(self):
         return self._repr
@@ -334,7 +334,7 @@ class Connector(jasminApiGeneric):
 class HttpConnector(Connector):
     """This is a HTTP Client connector used to throw router SMS MOs"""
 
-    type = 'http'
+    _type = 'http'
 
     def __init__(self, cid, baseurl, method='GET'):
         # Validate cid
@@ -377,7 +377,7 @@ class HttpConnector(Connector):
 class SmppClientConnector(Connector):
     """This is a SMPP Client connector"""
 
-    type = 'smppc'
+    _type = 'smppc'
 
     def __init__(self, cid):
         Connector.__init__(self, cid)
@@ -387,7 +387,7 @@ class SmppServerSystemIdConnector(Connector):
     """This is a SMPP Server connector mapped to a system_id, it is used to deliver Messages
     through the SMPP server to a bound system_id (receiver or transceiver)"""
 
-    type = 'smpps'
+    _type = 'smpps'
 
     def __init__(self, system_id):
         Connector.__init__(self, system_id)
@@ -398,7 +398,7 @@ class SmppServerSystemIdConnector(Connector):
 class InterceptorScript(jasminApiGeneric):
     """This is a generic script for message interception"""
 
-    type = 'generic'
+    _type = 'generic'
 
     def __init__(self, pyCode):
         self.pyCode = pyCode
@@ -416,7 +416,7 @@ class InterceptorScript(jasminApiGeneric):
 class MOInterceptorScript(InterceptorScript):
     """This is a script for MO message interception"""
 
-    type = 'moi'
+    _type = 'moi'
 
     def __init__(self, pyCode):
         InterceptorScript.__init__(self, pyCode)
@@ -428,7 +428,7 @@ class MOInterceptorScript(InterceptorScript):
 class MTInterceptorScript(InterceptorScript):
     """This is a script for MT message interception"""
 
-    type = 'mti'
+    _type = 'mti'
 
     def __init__(self, pyCode):
         InterceptorScript.__init__(self, pyCode)

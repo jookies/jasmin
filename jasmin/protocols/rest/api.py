@@ -11,6 +11,7 @@ from .tasks import httpapi_send
 from datetime import datetime
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
+from falcon import HTTPInternalServerError, HTTPPreconditionFailed, API
 import falcon
 
 
@@ -21,10 +22,10 @@ class JasminHttpApiProxy:
         try:
             r = requests.get('%s/%s' % (old_api_uri, url), params=params)
         except requests.exceptions.ConnectionError as e:
-            raise falcon.HTTPInternalServerError('Jasmin httpapi connection error',
+            raise HTTPInternalServerError('Jasmin httpapi connection error',
                                                  'Could not connect to Jasmin http api (%s): %s' % (old_api_uri, e))
         except Exception as e:
-            raise falcon.HTTPInternalServerError('Jasmin httpapi unknown error', str(e))
+            raise HTTPInternalServerError('Jasmin httpapi unknown error', str(e))
         else:
             return r.status_code, r.content.strip('"')
 
@@ -52,7 +53,7 @@ class JasminRestApi:
             request_data = request.stream.read()
             params = json.loads(request_data)
         except Exception as e:
-            raise falcon.HTTPPreconditionFailed('Cannot parse JSON data',
+            raise HTTPPreconditionFailed('Cannot parse JSON data',
                                                 'Got unparseable json data: %s' % request_data)
         else:
             return params
@@ -164,13 +165,13 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
                 schedule_at = datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
 
                 if schedule_at < datetime.now():
-                    raise falcon.HTTPPreconditionFailed('Cannot schedule batch in past date',
+                    raise HTTPPreconditionFailed('Cannot schedule batch in past date',
                                                         "Invalid past date given: %s" % schedule_at)
             except ValueError:
                 # Do we have Seconds format ?
                 m = re.match("^(\d+)s$", val)
                 if not m:
-                    raise falcon.HTTPPreconditionFailed('Cannot parse scheduled_at value',
+                    raise HTTPPreconditionFailed('Cannot parse scheduled_at value',
                                                         ("Got unknown format: %s, correct formats are "
                                                          "'YYYY-MM-DD mm:hh:ss' or number of seconds, "
                                                          "c.f. http://docs.jasminsms.com/en/latest/apis/rest") % val)
@@ -192,7 +193,7 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
             'password': request.context['password']
         })
         if status != 200:
-            raise falcon.HTTPPreconditionFailed('Authentication failed',
+            raise HTTPPreconditionFailed('Authentication failed',
                                                 "Authentication failed for user: %s" % request.context['username'])
 
         batch_id = uuid.uuid4()

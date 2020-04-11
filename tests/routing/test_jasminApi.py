@@ -359,7 +359,7 @@ class HttpConnectorTestCase(TestCase):
     def test_normal(self):
         c = HttpConnector('CID', 'http://127.0.0.1/api/receive-mo')
 
-        self.assertEqual(c.type, 'http')
+        self.assertEqual(c._type, 'http')
         self.assertEqual(c.cid, 'CID')
         self.assertEqual(c.baseurl, 'http://127.0.0.1/api/receive-mo')
         self.assertEqual(c.method, 'GET')
@@ -389,7 +389,7 @@ class SmppConnectorTestCase(TestCase):
     def test_normal(self):
         c = SmppClientConnector('CID')
 
-        self.assertEqual(c.type, 'smppc')
+        self.assertEqual(c._type, 'smppc')
         self.assertEqual(c._str, 'smppc Connector')
         self.assertEqual(c._repr, '<smppc Connector>')
 
@@ -398,7 +398,7 @@ class SmppServerSystemIdTestCase(TestCase):
     def test_normal(self):
         c = SmppServerSystemIdConnector(system_id='nathalie')
 
-        self.assertEqual(c.type, 'smpps')
+        self.assertEqual(c._type, 'smpps')
         self.assertEqual(c._str, 'smpps Connector')
         self.assertEqual(c._repr, '<smpps Connector>')
         self.assertEqual(c.cid, 'nathalie')
@@ -409,7 +409,7 @@ class MOInterceptorScriptTestCase(TestCase):
     def test_normal(self):
         i = MOInterceptorScript('somecode')
 
-        self.assertEqual(i.type, 'moi')
+        self.assertEqual(i._type, 'moi')
         self.assertEqual(i.pyCode, 'somecode')
         self.assertEqual(i._repr, '<MOIS (pyCode=%s ..)>' % (i.pyCode[:10].replace('\n', '')))
         self.assertEqual(i._str, 'MOInterceptorScript:\n%s' % (i.pyCode))
@@ -419,7 +419,7 @@ class MTInterceptorScriptTestCase(TestCase):
     def test_normal(self):
         i = MTInterceptorScript('somecode')
 
-        self.assertEqual(i.type, 'mti')
+        self.assertEqual(i._type, 'mti')
         self.assertEqual(i.pyCode, 'somecode')
         self.assertEqual(i._repr, '<MTIS (pyCode=%s ..)>' % (i.pyCode[:10].replace('\n', '')))
         self.assertEqual(i._str, 'MTInterceptorScript:\n%s' % (i.pyCode))

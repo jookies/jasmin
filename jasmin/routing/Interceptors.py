@@ -25,7 +25,7 @@ class Interceptor:
     Interceptor contain a couple of [Filter(s), InterceptorScript]
     When more than one Filter is given, matching these filters will use the AND operator
     """
-    type = 'generic'
+    _type = 'generic'
     _str = 'generic'
     filters = []
     script = None
@@ -40,10 +40,10 @@ class Interceptor:
                 raise InvalidInterceptorParameterError(
                     "filter must be an instance of Filter, %s found" % type(_filter)
                 )
-            if not self.type in _filter.usedFor:
+            if not self._type in _filter.usedFor:
                 raise InvalidInterceptorFilterError(
                     "filter types (%s) is not compatible with this interceptor type (%s)" % (
-                        _filter.usedFor, self.type
+                        _filter.usedFor, self._type
                     ))
 
         self.filters = filters
@@ -72,7 +72,7 @@ class Interceptor:
 class DefaultInterceptor(Interceptor):
     """This is a default interceptor which can contain one script
     """
-    type = 'default'
+    _type = 'default'
 
     def __init__(self, script):
         """DefaultInterceptor can be for MO or MT messages"""
@@ -90,13 +90,13 @@ class DefaultInterceptor(Interceptor):
 class MTInterceptor(Interceptor):
     """Generic MT Interceptor
     """
-    type = 'mt'
+    _type = 'mt'
 
 
 class MOInterceptor(Interceptor):
     """Generic MO Interceptor
     """
-    type = 'mo'
+    _type = 'mo'
 
 
 class StaticMOInterceptor(MOInterceptor):

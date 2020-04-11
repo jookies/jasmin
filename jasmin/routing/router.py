@@ -184,16 +184,16 @@ class RouterPB(pb.Avatar):
             # Smpps will not route any concatenated content, it must instead route
             # multiparted messages
             # Only http connector needs concatenated content
-            if concatenated and routedConnectors[0].type != 'http':
+            if concatenated and routedConnectors[0]._type != 'http':
                 self.log.debug(
                     "DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s",
-                    msgid, routedConnectors[0].type)
+                    msgid, routedConnectors[0]._type)
                 yield self.rejectMessage(message)
 
             # Http will not route any multipart messages, it must instead route
             # concatenated messages
             # Only smpps connector needs multipart content
-            elif will_be_concatenated and routedConnectors[0].type == 'http':
+            elif will_be_concatenated and routedConnectors[0]._type == 'http':
                 self.log.debug(
                     "DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts",
                     msgid)
@@ -202,18 +202,18 @@ class RouterPB(pb.Avatar):
             else:
                 if len(routedConnectors) == 1:
                     self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU",
-                                   routedConnectors[0].cid, routedConnectors[0].type)
+                                   routedConnectors[0].cid, routedConnectors[0]._type)
                 else:
                     self.log.debug("%s %s connectors (failover route) are set to be a route for this DeliverSmPDU",
-                                   len(routedConnectors), routedConnectors[0].type)
+                                   len(routedConnectors), routedConnectors[0]._type)
                 yield self.ackMessage(message)
 
                 # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
                 content = RoutedDeliverSmContent(routable.pdu, msgid, scid, routedConnectors, route_type)
                 self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s",
-                               msgid, routedConnectors[0].type)
+                               msgid, routedConnectors[0]._type)
                 yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' %
-                                                                                routedConnectors[0].type,
+                                                                                routedConnectors[0]._type,
                                               content=content)
 
     def deliver_sm_errback(self, error):

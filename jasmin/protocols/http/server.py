@@ -17,11 +17,11 @@ from smpp.pdu.constants import priority_flag_value_map
 from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from smpp.pdu.smpp_time import parse
-from .errors import (AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
+from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
-from .stats import HttpAPIStatsCollector
-from .validation import UrlArgsValidator, HttpAPICredentialValidator
+from jasmin.protocols.http.stats import HttpAPIStatsCollector
+from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 
 LOG_CATEGORY = "jasmin-http-api"
 
@@ -380,13 +380,12 @@ class Send(Resource):
                 self.stats.set('last_success_at', datetime.now())
                 self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, c.result)
                 response = {'return': c.result, 'status': 200}
+        except HttpApiError as e:
+            self.log.error("Error: %s", e)
+            response = {'return': e.message, 'status': e.code}
         except Exception as e:
             self.log.error("Error: %s", e)
-
-            if hasattr(e, 'code'):
-                response = {'return': e.message, 'status': e.code}
-            else:
-                response = {'return': "Unknown error: %s" % e, 'status': 500}
+            response = {'return': "Unknown error: %s" % e, 'status': 500}
         finally:
             self.log.debug("Returning %s to %s.", response, updated_request.getClientIP())
             updated_request.setResponseCode(response['status'])
@@ -513,13 +512,17 @@ class Send(Resource):
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, updated_request=updated_request)
+        except HttpApiError as e:
+            self.log.error("Error: %s", e)
+            response = {'return': e.message, 'status': e.code}
+            
+            self.log.debug("Returning %s to %s.", response, updated_request.getClientIP())
+            updated_request.setResponseCode(response['status'])
+
+            return 'Error "%s"' % response['return']
         except Exception as e:
             self.log.error("Error: %s", e)
-
-            if hasattr(e, 'code'):
-                response = {'return': e.message, 'status': e.code}
-            else:
-                response = {'return': "Unknown error: %s" % e, 'status': 500}
+            response = {'return': "Unknown error: %s" % e, 'status': 500}
 
             self.log.debug("Returning %s to %s.", response, updated_request.getClientIP())
             updated_request.setResponseCode(response['status'])
@@ -666,13 +669,12 @@ class Rate(Resource):
                     'unit_rate': bill.getTotalAmounts(),
                     'submit_sm_count': submit_sm_count},
                 'status': 200}
+        except HttpApiError as e:
+            self.log.error("Error: %s", e)
+            response = {'return': e.message, 'status': e.code}
         except Exception as e:
             self.log.error("Error: %s", e)
-
-            if hasattr(e, 'code'):
-                response = {'return': e.message, 'status': e.code}
-            else:
-                response = {'return': "Unknown error: %s" % e, 'status': 500}
+            response = {'return': "Unknown error: %s" % e, 'status': 500}
         finally:
             self.log.debug("Returning %s to %s.", response, request.getClientIP())
 
@@ -738,13 +740,23 @@ class Rate(Resource):
 
             # Continue routing in a separate thread
             reactor.callFromThread(self.route_routable, request=request)
+        except HttpApiError as e:
+            self.log.error("Error: %s", e)
+            response = {'return': e.message, 'status': e.code}
+
+            self.log.debug("Returning %s to %s.", response, request.getClientIP())
+
+            # Return message
+            if response['return'] is None:
+                response['return'] = 'System error'
+                request.setResponseCode(500)
+            else:
+                request.setResponseCode(response['status'])
+            return json.dumps(response['return'])
+            
         except Exception as e:
             self.log.error("Error: %s", e)
-
-            if hasattr(e, 'code'):
-                response = {'return': e.message, 'status': e.code}
-            else:
-                response = {'return': "Unknown error: %s" % e, 'status': 500}
+            response = {'return': "Unknown error: %s" % e, 'status': 500}
 
             self.log.debug("Returning %s to %s.", response, request.getClientIP())
 
@@ -826,13 +838,12 @@ class Balance(Resource):
             if sms_count is None:
                 sms_count = 'ND'
             response = {'return': {'balance': balance, 'sms_count': sms_count}, 'status': 200}
+        except HttpApiError as e:
+            self.log.error("Error: %s", e)
+            response = {'return': e.message, 'status': e.code}
         except Exception as e:
             self.log.error("Error: %s", e)
-
-            if hasattr(e, 'code'):
-                response = {'return': e.message, 'status': e.code}
-            else:
-                response = {'return': "Unknown error: %s" % e, 'status': 500}
+            response = {'return': "Unknown error: %s" % e, 'status': 500}
         finally:
             self.log.debug("Returning %s to %s.", response, request.getClientIP())
 
