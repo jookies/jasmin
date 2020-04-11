@@ -26,8 +26,10 @@ jobs:
     - name: Lint
       run: |
         pip install pylint
+        pylint -rn --errors-only ./tests 
+        pylint -rn --errors-only ./jasmin 
         # stop the build if there are Python syntax errors or undefined names
-        ./misc/pylint/run.sh
+        # ./misc/pylint/run.sh
     - name: Test with pytest
       run: |
         pip install -r requirements-test.txt
