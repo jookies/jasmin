@@ -1,6 +1,6 @@
 testfixtures>=3.0.0
-coverage>=4.0.3
 sphinx>=1.1.0
 sphinx-rtd-theme>=0.4.3
-mock==2.0.0
-pylint>=1.4.4
+mock
+pylint
+coverage

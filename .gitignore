@@ -1,5 +1,5 @@
-*.py[cod]
-*~
+*.pyc
+__pycache__
 
 # Jasmin
 misc/config/store

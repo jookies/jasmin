@@ -32,7 +32,7 @@ jobs:
       run: |
         pip install -r requirements-test.txt
         pip install coveralls
-        coverage run --source=jasmin -m twisted.trial ./tests
+        coverage run --source=jasmin -m twisted.trial tests
         coveralls
     - name: Test Doc Build
       run: |
