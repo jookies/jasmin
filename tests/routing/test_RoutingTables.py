@@ -40,7 +40,7 @@ class RoutingTableTests:
         routing_t.add(self.route2, 2)
         routing_t.add(self.route3, 2)
 
-        self.assertEqual(routing_t.getAll()[0].values()[0], self.route3)
+        self.assertEqual(list(routing_t.getAll()[0].values())[0], self.route3)
 
     def test_remove_route(self):
         routing_t = self._routingTable()

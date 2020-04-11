@@ -40,7 +40,7 @@ class InterceptionTableTests:
         interception_t.add(self.interceptor2, 2)
         interception_t.add(self.interceptor3, 2)
 
-        self.assertEqual(interception_t.getAll()[0].values()[0], self.interceptor3)
+        self.assertEqual(list(interception_t.getAll()[0].values())[0], self.interceptor3)
 
     def test_remove_interceptor(self):
         interception_t = self._interceptionTable()
