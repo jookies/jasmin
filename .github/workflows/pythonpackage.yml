@@ -8,7 +8,7 @@ on: [push, pull_request]
 jobs:
   build:
     env: 
-      ROOT_PATH : ./
+      ROOT_PATH : ../
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,8 +27,7 @@ jobs:
         sudo mkdir -p $ROOT_PATH/var/log/jasmin
         sudo mkdir -p $ROOT_PATH/etc/jasmin/resource
         sudo mkdir -p $ROOT_PATH/etc/jasmin/store
-        sudo ln -s `pwd`/misc/config $ROOT_PATH/etc/jasmin
-        sudo ln -s `pwd`misc/config/resource $ROOT_PATH/etc/jasmin/resource
+        sudo cp -R misc/config $ROOT_PATH/etc/jasmin
         sudo chmod -R 777 $ROOT_PATH/var/log/jasmin $ROOT_PATH/etc/jasmin/store
     # - name: Lint
     #   run: |
