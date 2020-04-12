@@ -4,6 +4,7 @@ These are test cases for only Jasmin's code, smpp.twisted tests are not included
 """
 
 import copy
+import random
 
 import mock
 from testfixtures import LogCapture
@@ -17,8 +18,8 @@ from jasmin.protocols.smpp.factory import SMPPClientFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.protocol import *
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
-from tests.smsc_simulator import *
-from jasmin.routing.test.codepages import GSM0338, ISO8859_1
+from tests.protocols.smpp.smsc_simulator import *
+from tests.routing.codepages import GSM0338, ISO8859_1
 from smpp.pdu.error import *
 from smpp.pdu.operations import *
 from smpp.pdu.pdu_types import CommandStatus

@@ -7,7 +7,7 @@ import string
 from twisted.internet import reactor, defer
 from smpp.twisted.protocol import SMPPSessionStates
 from smpp.pdu import pdu_types, pdu_encoding
-from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, HappySMSCTestCase,
+from tests.routing.test_router import (SMPPClientManagerPBTestCase, HappySMSCTestCase,
                                              SubmitSmTestCaseTools, LastClientFactory,
                                              id_generator)
 from jasmin.routing.proxies import RouterPBProxy
@@ -21,7 +21,7 @@ from smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from twisted.cred import portal
 from twisted.test import proto_helpers
-from tests.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import *
 
 
 @defer.inlineCallbacks

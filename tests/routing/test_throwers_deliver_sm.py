@@ -13,9 +13,9 @@ from jasmin.routing.configs import deliverSmThrowerConfig
 from jasmin.routing.content import RoutedDeliverSmContent
 from jasmin.routing.jasminApi import HttpConnector, SmppServerSystemIdConnector
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.http_server import TimeoutLeafServer, AckServer, NoAckServer, Error404Server
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from tests.routing.http_server import TimeoutLeafServer, AckServer, NoAckServer, Error404Server
+from tests.routing.test_router import SubmitSmTestCaseTools
+from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
 from smpp.pdu.operations import DeliverSM
 from smpp.pdu.pdu_types import *

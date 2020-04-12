@@ -36,7 +36,7 @@ from smpp.pdu.operations import (
 from smpp.pdu.pdu_encoding import PDUEncoder
 from smpp.pdu.pdu_types import CommandStatus, PDURequest, AddrTon
 
-LOG_CATEGORY = "smpp.twisted.tests.smsc_simulator"
+LOG_CATEGORY = "tests.smsc_simulator"
 
 
 class BlackHoleSMSC(Protocol):

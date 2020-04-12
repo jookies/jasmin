@@ -5,12 +5,14 @@ import os
 import time
 from hashlib import md5
 from random import randint
+from datetime import datetime, timedelta
 
 import mock
 from testfixtures import LogCapture
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from twisted.internet import defer
+from twisted.internet import defer, reactor
+from twisted.internet.protocol import Factory
 from twisted.spread import pb
 from twisted.trial.unittest import TestCase
 
@@ -20,7 +22,7 @@ from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from tests.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill

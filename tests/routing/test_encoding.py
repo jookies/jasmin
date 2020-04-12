@@ -11,9 +11,9 @@ from twisted.web.client import getPage
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.codepages import (IA5_ASCII, ISO8859_1,
+from tests.routing.codepages import (IA5_ASCII, ISO8859_1,
                                            CYRILLIC, ISO_8859_8)
-from jasmin.routing.test.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
+from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
 from smpp.pdu.pdu_types import EsmClassGsmFeatures
 
 

@@ -2,7 +2,7 @@ import mock
 import copy
 from datetime import datetime
 from twisted.internet import defer
-from jasmin.protocols.smpp.test.test_smpp_server import SMPPClientTestCases
+from tests.protocols.smpp.test_smpp_server import SMPPClientTestCases
 from smpp.twisted.protocol import SMPPSessionStates
 from smpp.pdu import pdu_types
 from smpp.pdu.constants import priority_flag_value_map

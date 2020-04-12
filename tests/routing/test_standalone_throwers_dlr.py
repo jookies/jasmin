@@ -12,8 +12,8 @@ from jasmin.protocols.smpp.configs import SMPPServerPBConfig, SMPPServerPBClient
 from jasmin.protocols.smpp.pb import SMPPServerPB
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from tests.routing.test_router import SubmitSmTestCaseTools
+from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from smpp.pdu import pdu_types

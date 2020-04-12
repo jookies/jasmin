@@ -1,6 +1,6 @@
 from io import BytesIO
 import binascii
-import unittest
+from twisted.trial.unittest import TestCase
 
 from smpp.pdu.pdu_encoding import PDUEncoder
 from smpp.pdu.sm_encoding import SMStringEncoder

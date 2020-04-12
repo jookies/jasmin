@@ -1,7 +1,8 @@
 import random
 from datetime import datetime, timedelta
 
-from smpp.twisted.tests.smsc_simulator import *
+from tests.smsc_simulator import *
+from smpp.pdu.pdu_types import MessageState
 
 LOG_CATEGORY = "jasmin.smpp.tests.smsc_simulator"
 
@@ -198,11 +199,3 @@ class QoSSMSC_2MPS(HappySMSC):
         else:
             self.last_submit_at = datetime.now()
             self.sendResponse(reqPDU, CommandStatus.ESME_ROK)
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    factory = Factory()
-    factory.protocol = BlackHoleSMSC
-    reactor.listenTCP(8007, factory)
-    reactor.run()

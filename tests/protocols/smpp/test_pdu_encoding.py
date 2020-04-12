@@ -1,14 +1,74 @@
 # -*- coding: utf-8 -*-
 
-import unittest
+from twisted.trial.unittest import TestCase
+import binascii
+from io import BytesIO
 from datetime import datetime
 
 from smpp.pdu.operations import *
 from smpp.pdu.pdu_encoding import *
 from smpp.pdu.pdu_types import *
-from smpp.pdu.tests.test_pdu_encoding import EncoderTest
 
+class EncoderTest(TestCase):
 
+    def do_conversion_test(self, encoder, value, hexdumpValue):
+        encoded = encoder.encode(value)
+        hexEncoded = binascii.b2a_hex(encoded)
+        if hexdumpValue != hexEncoded:
+            print("\nHex Value:\n%s" % hexdumpValue)
+            print("Hex Encoded:\n%s" % hexEncoded)
+            chars1 = list(hexdumpValue)
+            chars2 = list(hexEncoded)
+            for i in range(0, len(hexEncoded)):
+                if chars1[i] != chars2[i]:
+                    print("Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i]))
+
+        self.assertEqual(hexdumpValue.encode(), hexEncoded)
+        file = BytesIO(encoded)
+        decoded = encoder.decode(file)
+        self.assertEqual(value, decoded)
+
+    def do_encode_test(self, encoder, value, hexdumpValue):
+        encoded = encoder.encode(value)
+        hexEncoded = binascii.b2a_hex(encoded)
+        if hexdumpValue != hexEncoded:
+            print("\nHex Value:\n%s" % hexdumpValue)
+            print("Hex Encoded:\n%s" % hexEncoded)
+            chars1 = list(hexdumpValue)
+            chars2 = list(hexEncoded)
+            for i in range(0, len(hexEncoded)):
+                if chars1[i] != chars2[i]:
+                    print("Letter %d diff [%s] [%s]" % (i, chars1[i], chars2[i]))
+
+        self.assertEqual(hexdumpValue.encode(), hexEncoded)
+
+    def do_decode_test(self, encoder, value, hexdumpValue):
+        decoded = self.decode(encoder.decode, hexdumpValue)
+        self.assertEqual(value, decoded)
+
+    def do_null_encode_test(self, encoder, nullDecodeVal, hexdumpValue):
+        encoded = encoder.encode(None)
+        self.assertEqual(hexdumpValue.encode(), binascii.b2a_hex(encoded))
+        file = BytesIO(encoded)
+        decoded = encoder.decode(file)
+        self.assertEqual(nullDecodeVal, decoded)
+
+    def decode(self, decodeFunc, hexdumpValue):
+        return decodeFunc(BytesIO(binascii.a2b_hex(hexdumpValue)))
+
+    def do_decode_parse_error_test(self, decodeFunc, status, hexdumpValue):
+        try:
+            decoded = self.decode(decodeFunc, hexdumpValue)
+            self.assertTrue(False, 'Decode did not throw exception. Result was: %s' % str(decoded))
+        except PDUParseError as e:
+            self.assertEqual(status, e.status)
+
+    def do_decode_corrupt_data_error_test(self, decodeFunc, status, hexdumpValue):
+        try:
+            decoded = self.decode(decodeFunc, hexdumpValue)
+            self.assertTrue(False, 'Decode did not throw exception. Result was: %s' % str(decoded))
+        except PDUCorruptError as e:
+            self.assertEqual(status, e.status)
 class IntegerEncoderTest(EncoderTest):
     def test_int4(self):
         self.do_conversion_test(Int4Encoder(), 0x800001FF, '800001ff')

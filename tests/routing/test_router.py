@@ -9,7 +9,8 @@ import random
 import mock
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from twisted.internet import defer
+from twisted.internet import defer, reactor
+from twisted.internet.protocol import Factory
 from twisted.spread import pb
 from twisted.trial.unittest import TestCase
 from twisted.web import server
@@ -23,7 +24,7 @@ from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from tests.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import *
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.redis.client import ConnectionWithConfiguration
@@ -36,7 +37,7 @@ from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.router import RouterPB
-from jasmin.routing.test.http_server import AckServer
+from tests.routing.http_server import AckServer
 from jasmin.routing.throwers import DLRThrower
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.proxies import ConnectError

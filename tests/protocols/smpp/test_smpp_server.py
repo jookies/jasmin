@@ -18,7 +18,7 @@ from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.router import RouterPB
-from jasmin.routing.test.test_router import id_generator
+from tests.routing.test_router import id_generator
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.tools.cred.portal import SmppsRealm
 from smpp.pdu.error import SMPPTransactionError

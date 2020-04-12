@@ -2,28 +2,29 @@
 
 import copy
 import string
+from datetime import datetime
+import random
 import urllib.request, urllib.parse, urllib.error
 import binascii
 
 import mock
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.web import server
 from twisted.web.client import getPage
 
-from tests.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import NoResponseOnSubmitSMSCRecorder
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.routing.Filters import TransparentFilter
 from jasmin.routing.Routes import FailoverMTRoute
 from jasmin.routing.jasminApi import SmppClientConnector
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.http_server import AckServer
-from jasmin.routing.test.test_router import (HappySMSCTestCase, SubmitSmTestCaseTools,
+from tests.routing.http_server import AckServer
+from tests.routing.test_router import (HappySMSCTestCase, SubmitSmTestCaseTools,
                                              composeMessage, SMPPClientManagerPBTestCase,
                                              LastClientFactory, id_generator)
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
-from smpp.pdu import pdu_types
-from smpp.pdu.pdu_types import AddrTon, AddrNpi
+from tests.routing.test_router_smpps import SMPPClientTestCases
+from smpp.pdu.pdu_types import AddrTon, AddrNpi, RegisteredDelivery, RegisteredDeliveryReceipt, CommandId, CommandStatus
 from smpp.pdu.smpp_time import FixedOffset
 from smpp.pdu.smpp_time import SMPPRelativeTime
 
@@ -1183,7 +1184,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
-        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu_1.id, CommandId.submit_sm_resp)
 
         # Trigger receipts with non final states
         x = self.smpps_factory.lastProto.sendPDU.call_count
@@ -1200,9 +1201,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             # smpps response #x was a deliver_sm with stat = msg_stat
             self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
             response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
+            self.assertEqual(response_pdu_x.id, CommandId.deliver_sm)
             self.assertEqual(response_pdu_x.seqNum, x - 1)
-            self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
+            self.assertEqual(response_pdu_x.status, CommandStatus.ESME_ROK)
             self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
             self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
             self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
@@ -1228,9 +1229,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 # smpps response #x was a deliver_sm with stat = msg_stat
                 self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
                 response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
+                self.assertEqual(response_pdu_x.id, CommandId.deliver_sm)
                 self.assertEqual(response_pdu_x.seqNum, x - 1)
-                self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
+                self.assertEqual(response_pdu_x.status, CommandStatus.ESME_ROK)
                 self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
                 self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
                 self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
@@ -1249,7 +1250,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[x_value_when_fstate_triggered][0][0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_as_data_sm(self):
@@ -1283,7 +1284,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
-        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu_1.id, CommandId.submit_sm_resp)
 
         # Trigger receipts with non final states
         x = self.smpps_factory.lastProto.sendPDU.call_count
@@ -1300,9 +1301,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             # smpps response #x was a deliver_sm with stat = msg_stat
             self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
             response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-            self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
+            self.assertEqual(response_pdu_x.id, CommandId.deliver_sm)
             self.assertEqual(response_pdu_x.seqNum, x - 1)
-            self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
+            self.assertEqual(response_pdu_x.status, CommandStatus.ESME_ROK)
             self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
             self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
             self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
@@ -1328,9 +1329,9 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 # smpps response #x was a deliver_sm with stat = msg_stat
                 self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, x, 'No receipt received !')
                 response_pdu_x = self.smpps_factory.lastProto.sendPDU.call_args_list[x - 1][0][0]
-                self.assertEqual(response_pdu_x.id, pdu_types.CommandId.deliver_sm)
+                self.assertEqual(response_pdu_x.id, CommandId.deliver_sm)
                 self.assertEqual(response_pdu_x.seqNum, x - 1)
-                self.assertEqual(response_pdu_x.status, pdu_types.CommandStatus.ESME_ROK)
+                self.assertEqual(response_pdu_x.status, CommandStatus.ESME_ROK)
                 self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
                 self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
                 self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
@@ -1349,7 +1350,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[x_value_when_fstate_triggered][0][0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_for_unknown_message(self):
@@ -1381,7 +1382,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
-        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu_1.id, CommandId.submit_sm_resp)
 
         # Trigger receipt with an unknown id
         yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='DELIVRD', _id='77unknown_id77')
@@ -1397,7 +1398,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # smpps last response was a unbind_resp, and there were no further deliver_sm
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 2)
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_for_long_destination_addr(self):
@@ -1439,7 +1440,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_with_correct_ton_npi(self):
@@ -1488,7 +1489,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_data_sm_with_correct_ton_npi(self):
@@ -1537,7 +1538,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_with_SAR_prefix(self):
@@ -1568,7 +1569,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
-        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu_1.id, CommandId.submit_sm_resp)
 
         # Trigger receipt with an unknown id
         yield self.SMSCPort.factory.lastClient.trigger_DLR(stat='UNDELIV')
@@ -1586,7 +1587,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         last_pdu = \
             self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
                 0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_receipt_with_leading_zeros(self):
@@ -1617,7 +1618,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         self.assertEqual(self.smpps_factory.lastProto.sendPDU.call_count, 1)
         # smpps response #1 was a submit_sm_resp with ESME_ROK
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
-        self.assertEqual(response_pdu_1.id, pdu_types.CommandId.submit_sm_resp)
+        self.assertEqual(response_pdu_1.id, CommandId.submit_sm_resp)
 
         # Trigger receipt with an unknown id
         yield self.SMSCPort.factory.lastClient.trigger_DLR(_id='4062581461565934000241')
@@ -1635,7 +1636,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         last_pdu = \
             self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
                 0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_quick_dlr(self):
@@ -1811,7 +1812,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         # smpps response #2 was a deliver_sm: dlr mapping were done correctly !
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(response_pdu_2.id, CommandId.deliver_sm)
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
 
         # Unbind & Disconnect
@@ -1823,7 +1824,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         last_pdu = \
             self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
                 0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)
 
     @defer.inlineCallbacks
     def test_msg_id_hex_then_dec(self):
@@ -1868,7 +1869,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         response_pdu_1 = self.smpps_factory.lastProto.sendPDU.call_args_list[0][0][0]
         # smpps response #2 was a deliver_sm: dlr mapping were done correctly !
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
-        self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(response_pdu_2.id, CommandId.deliver_sm)
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
 
         # Unbind & Disconnect
@@ -1880,4 +1881,4 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         last_pdu = \
             self.smpps_factory.lastProto.sendPDU.call_args_list[self.smpps_factory.lastProto.sendPDU.call_count - 1][0][
                 0]
-        self.assertEqual(last_pdu.id, pdu_types.CommandId.unbind_resp)
+        self.assertEqual(last_pdu.id, CommandId.unbind_resp)

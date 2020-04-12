@@ -2,15 +2,15 @@ from hashlib import md5
 
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.spread import pb
 
 import jasmin
 from jasmin.protocols.smpp.configs import SMPPServerPBConfig
 from jasmin.protocols.smpp.pb import SMPPServerPB
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
-from tests.smsc_simulator import *
-from jasmin.protocols.smpp.test.test_smpp_server import SMPPServerTestCases
+from tests.protocols.smpp.smsc_simulator import *
+from tests.protocols.smpp.test_smpp_server import SMPPServerTestCases
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.proxies import ConnectError
 from jasmin.tools.spread.pb import JasminPBPortalRoot

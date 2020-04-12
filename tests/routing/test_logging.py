@@ -5,9 +5,9 @@ from twisted.web.client import getPage
 from twisted.internet import defer
 from testfixtures import LogCapture
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
-from jasmin.routing.test.test_encoding import composeMessage
-from jasmin.routing.test.codepages import GSM0338
+from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
+from tests.routing.test_encoding import composeMessage
+from tests.routing.codepages import GSM0338
 
 
 class LoggingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):

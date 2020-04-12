@@ -1,6 +1,6 @@
 from twisted.internet import defer, reactor
 from datetime import datetime, timedelta
-from jasmin.protocols.http.test.test_server import HTTPApiTestCases
+from tests.protocols.http.test_server import HTTPApiTestCases
 
 
 @defer.inlineCallbacks

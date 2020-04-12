@@ -10,9 +10,9 @@ from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.configs import DLRThrowerConfig
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.http_server import TimeoutLeafServer, AckServer, NoAckServer, Error404Server
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from tests.routing.http_server import TimeoutLeafServer, AckServer, NoAckServer, Error404Server
+from tests.routing.test_router import SubmitSmTestCaseTools
+from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import DLRThrower
 from smpp.pdu import pdu_types
 

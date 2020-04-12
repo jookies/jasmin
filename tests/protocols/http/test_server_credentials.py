@@ -3,18 +3,19 @@
 import pickle
 import copy
 import json
+from datetime import datetime
 import urllib.request, urllib.parse, urllib.error
 
 import mock
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.web.client import getPage
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from tests.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import *
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.routing.jasminApi import User, Group, SmppClientConnector
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router import HappySMSCTestCase
+from tests.routing.test_router import HappySMSCTestCase
 from smpp.pdu.smpp_time import SMPPRelativeTime
 
 

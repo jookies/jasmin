@@ -2,22 +2,23 @@ import copy
 import string
 
 import mock
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.web import server
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from tests.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import *
 from jasmin.routing.Filters import TransparentFilter
 from jasmin.routing.Routes import DefaultRoute, FailoverMORoute
 from jasmin.routing.configs import deliverSmThrowerConfig
 from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.http_server import AckServer
-from jasmin.routing.test.test_router import (SMPPClientManagerPBTestCase, LastClientFactory,
+from tests.routing.http_server import AckServer
+from tests.routing.test_router import (SMPPClientManagerPBTestCase, LastClientFactory,
                                              SubmitSmTestCaseTools, id_generator)
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
-from smpp.pdu import pdu_types
+from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
+                                              MoreMessagesToSend, MessageState, AddrTon, AddrNpi, CommandId)
 from smpp.pdu.operations import DeliverSM
 
 
@@ -458,7 +459,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
         # the received pdu must be our self.DeliverSmPDU
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.id, CommandId.deliver_sm)
 
         # Unbind and disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
@@ -483,7 +484,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
         # the received pdu must be our self.DeliverSmPDU
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_1.params['source_addr'], self.DeliverSmPDU.params['source_addr'])
         self.assertEqual(received_pdu_1.params['destination_addr'], self.DeliverSmPDU.params['destination_addr'])
         self.assertEqual(received_pdu_1.params['short_message'], self.DeliverSmPDU.params['short_message'])
@@ -514,7 +515,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # the received pdus are ordered the same way they were sent
         for i in range(10):
             received_pdu = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[i][0][0]
-            self.assertEqual(received_pdu.id, pdu_types.CommandId.deliver_sm)
+            self.assertEqual(received_pdu.id, CommandId.deliver_sm)
             self.assertEqual(received_pdu.seqNum, i + 1)
 
         # Unbind and disconnect
@@ -559,7 +560,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # First received pdu
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.seqNum, 1)
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_1.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_1.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_1.params['short_message'], pdu_part1.params['short_message'])
@@ -567,7 +568,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # Second received pdu
         received_pdu_2 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[1][0][0]
         self.assertEqual(received_pdu_2.seqNum, 2)
-        self.assertEqual(received_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_2.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_2.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_2.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_2.params['short_message'], pdu_part2.params['short_message'])
@@ -577,7 +578,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # Third received pdu
         received_pdu_3 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[2][0][0]
         self.assertEqual(received_pdu_3.seqNum, 3)
-        self.assertEqual(received_pdu_3.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_3.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_3.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_3.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_3.params['short_message'], pdu_part3.params['short_message'])
@@ -641,7 +642,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # First received pdu
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.seqNum, 1)
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_1.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_1.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_1.params['esm_class'], basePdu.params['esm_class'])
@@ -649,7 +650,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # Second received pdu
         received_pdu_2 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[1][0][0]
         self.assertEqual(received_pdu_2.seqNum, 2)
-        self.assertEqual(received_pdu_2.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_2.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_2.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_2.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_2.params['esm_class'], basePdu.params['esm_class'])
@@ -657,7 +658,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         # Third received pdu
         received_pdu_3 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[2][0][0]
         self.assertEqual(received_pdu_3.seqNum, 3)
-        self.assertEqual(received_pdu_3.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_3.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_3.params['source_addr'], basePdu.params['source_addr'])
         self.assertEqual(received_pdu_3.params['destination_addr'], basePdu.params['destination_addr'])
         self.assertEqual(received_pdu_3.params['esm_class'], basePdu.params['esm_class'])
@@ -689,7 +690,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
         # the received pdu must be our DeliverSmPDU
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.id, CommandId.deliver_sm)
         self.assertEqual(received_pdu_1.params['network_error_code'], DeliverSmPDU.params['network_error_code'])
 
         # Unbind and disconnect

@@ -15,8 +15,8 @@ from jasmin.routing.Routes import StaticMORoute
 from jasmin.routing.configs import deliverSmThrowerConfig
 from jasmin.routing.jasminApi import *
 from jasmin.routing.proxies import RouterPBProxy
-from jasmin.routing.test.test_router import SubmitSmTestCaseTools
-from jasmin.routing.test.test_router_smpps import SMPPClientTestCases
+from tests.routing.test_router import SubmitSmTestCaseTools
+from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
