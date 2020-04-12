@@ -8,7 +8,7 @@ on: [push, pull_request]
 jobs:
   build:
     env: 
-      ROOT_PATH : ~/jasmin
+      ROOT_PATH : ./
     runs-on: ubuntu-latest
     strategy:
       matrix:
