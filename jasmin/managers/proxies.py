@@ -82,7 +82,7 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
 
         # Set the message priority
         if SubmitSmPDU.params['priority_flag'] is not None:
-            priority_flag = SubmitSmPDU.params['priority_flag'].index
+            priority_flag = SubmitSmPDU.params['priority_flag']._value_
         else:
             priority_flag = 0
 

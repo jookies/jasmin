@@ -441,7 +441,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
             priority = 0
             if routable.pdu.params['priority_flag'] is not None:
-                priority = routable.pdu.params['priority_flag'].index
+                priority = routable.pdu.params['priority_flag']._value_
 
             if self.SMPPClientManagerPB is None:
                 self.log.error(

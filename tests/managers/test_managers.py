@@ -1039,11 +1039,11 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         # Build a long submit_sm
         assertionKey = str(randint(10, 99)) * 100 + 'EOF'  # 203 chars
         config = SMPPClientConfig(id='defaultId')
-        opFactory = SMPPOperationFactory(config, long_content_split=long_content_split)
+        opFactory = SMPPOperationFactory(config, long_content_split=long_content_split.encode())
         SubmitSmPDU = opFactory.SubmitSM(
             source_addr='1423',
             destination_addr='06155423',
-            short_message=assertionKey,
+            short_message=assertionKey.encode(),
         )
 
         # Send submit_sm
@@ -1125,7 +1125,7 @@ class ClientConnectorDeliverSmTestCases(SMSCSimulatorDeliverSM):
         yield waitFor(2)
 
         # Assertions
-        self.assertTrue(self.receivedDeliverSm is not None)
+        self.assertIsNotNone(self.receivedDeliverSm)
         self.assertIsInstance(self.receivedDeliverSm, RoutableDeliverSm)
 
 
@@ -1142,7 +1142,7 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.start(self.defaultConfig.id)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual('BOUND_TRX', ssRet)
+        self.assertEqual(SMPPSessionStates.BOUND_TRX, ssRet)
 
         yield self.stop(self.defaultConfig.id)
 
