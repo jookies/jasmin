@@ -8,7 +8,7 @@ import pickle
 import logging
 import os
 
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 

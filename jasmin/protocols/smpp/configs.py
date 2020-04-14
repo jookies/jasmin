@@ -2,7 +2,7 @@ import logging
 import os
 import re
 
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               RegisteredDelivery, RegisteredDeliveryReceipt,
                                               AddrTon, AddrNpi,

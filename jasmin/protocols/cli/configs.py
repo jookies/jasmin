@@ -5,7 +5,7 @@ Config file handler for 'jcli' section in jasmin.cfg
 import os
 import logging
 import binascii
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')

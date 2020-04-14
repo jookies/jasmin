@@ -4,7 +4,7 @@ Config file handler for 'http-api' section in jasmin.cfg
 
 import logging
 import os
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
