@@ -187,7 +187,7 @@ class RoundrobinRoute:
     """Generic RoundrobinRoute
     """
 
-    _type = None 
+    _type = None
 
     def __init__(self, filters, connectors):
         if not isinstance(connectors, list):
@@ -231,12 +231,14 @@ class RandomRoundrobinMORoute(RoundrobinRoute, MORoute):
     """Return one route taken randomly from a pool of
     routes
     """
+    _type = 'mo'
 
 
 class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
     """Return one route taken randomly from a pool of
     routes
     """
+    _type = 'mt'
 
     def __init__(self, filters, connectors, rate):
         "Overriding RoundrobinRoute's __init__ to add rate parameter as it is only used for MT Routes"
@@ -261,7 +263,7 @@ class FailoverRoute:
     """Generic FailoverRoute"""
 
     _type = None
-    
+
     def __init__(self, filters, connectors):
         if not isinstance(connectors, list):
             raise InvalidRouteParameterError("connectors must be a list")
@@ -308,6 +310,7 @@ class FailoverRoute:
 class FailoverMORoute(FailoverRoute, MORoute):
     """Returned connector from getConnector method is iterated through the list of available connectors
     """
+    _type = 'mo'
 
     def __init__(self, filters, connectors):
         FailoverRoute.__init__(self, filters, connectors)
@@ -337,6 +340,8 @@ class FailoverMORoute(FailoverRoute, MORoute):
 class FailoverMTRoute(FailoverRoute, MTRoute):
     """Returned connector from getConnector method is iterated through the list of available connectors
     """
+
+    _type = 'mt'
 
     def __init__(self, filters, connectors, rate):
         """Overriding FailoverRoute's __init__ to add rate parameter as it is only used for MT Routes"""

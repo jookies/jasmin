@@ -101,8 +101,8 @@ class BasicTestCases(HappySMSCTestCase):
     @defer.inlineCallbacks
     def test_add_long_password(self):
         extraCommands = [{'command': 'cid operator_3'},
-                         {'command': 'password 123456789'},
-                         {'command': 'ok', 'expect': r'Error\: password is longer than allowed size \(8\)',
+                         {'command': 'password 123456789012345678'},
+                         {'command': 'ok', 'expect': r'Error\: password is longer than allowed size \(16\)',
                           'wait': self.wait}]
         yield self.add_connector(r'> ', extraCommands)
 

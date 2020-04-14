@@ -2,6 +2,7 @@
 import pickle
 import logging
 import re
+from enum import Enum
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 
@@ -186,6 +187,8 @@ class SMPPClientFactory(ClientFactory):
         if self.smpp is None:
             return None
         else:
+            if isinstance(self.smpp.sessionState, Enum):
+                return self.smpp.sessionState._name_
             return self.smpp.sessionState
 
 

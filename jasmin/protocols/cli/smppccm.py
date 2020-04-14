@@ -1,5 +1,6 @@
 import pickle
 import logging
+from enum import Enum
 
 from twisted.internet import defer, reactor
 
@@ -40,14 +41,16 @@ def castOutputToBuiltInType(key, value):
 
     if isinstance(value, bool):
         return 'yes' if value else 'no'
+    if isinstance(value, Enum):
+        value = value._name_
     if key in ['bind_npi', 'dst_npi', 'src_npi']:
-        return addr_npi_name_map[str(value)]
+        return addr_npi_name_map[value]
     if key in ['bind_ton', 'dst_ton', 'src_ton']:
-        return addr_ton_name_map[str(value)]
+        return addr_ton_name_map[value]
     if key == 'ripf':
-        return replace_if_present_flap_name_map[str(value)]
+        return replace_if_present_flap_name_map[value]
     if key == 'priority':
-        return priority_flag_name_map[str(value)]
+        return priority_flag_name_map[value]
     else:
         return value
 
@@ -96,7 +99,10 @@ class JCliSMPPClientConfig(SMPPClientConfig):
         r = {}
         for key, value in SMPPClientConfigKeyMap.items():
             if hasattr(self, value):
-                r[key] = castOutputToBuiltInType(key, getattr(self, value))
+                if isinstance(getattr(self, value), Enum):
+                    r[key] = castOutputToBuiltInType(key, getattr(self, value)._name_)
+                else:
+                    r[key] = castOutputToBuiltInType(key, getattr(self, value))
             else:
                 # Related to #192
                 r[key] = 'Unknown (object is from an old Jasmin release !)'

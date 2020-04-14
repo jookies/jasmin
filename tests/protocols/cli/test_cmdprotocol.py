@@ -27,8 +27,8 @@ class ProtocolTestCases(TestCase):
 
     @defer.inlineCallbacks
     def _test(self, finalPrompt, commands):
-        #print(len(commands), commands)
-        #print('#########################')
+        # print(f'Total commands: {len(commands)}')
+        # print('#########################')
         receivedLines = None
 
         for cmd in commands:
@@ -40,8 +40,8 @@ class ProtocolTestCases(TestCase):
 
             # Get buffer and assert for `expect`
             receivedLines = self.getBuffer(True)
-            #print('*********')
-            #print('%s: %s' % (cmd['command'], receivedLines))
+            # print('*********')
+            # print('Command: %s\nReceived: %s' % (cmd['command'], receivedLines))
 
             # First line is the command itself
             # 'noecho' is used when there's no echo back from the server while typing (e.g. password input)
@@ -50,6 +50,7 @@ class ProtocolTestCases(TestCase):
 
             # Assert reply
             if 'expect' in cmd:
+                # print(f"Expects: {cmd['expect']}")
                 if isinstance(cmd['expect'], str):
                     self.assertGreaterEqual(len(receivedLines), 4,
                                             'Got no return from command %s: %s' % (cmd['command'], receivedLines))
@@ -64,6 +65,8 @@ class ProtocolTestCases(TestCase):
 
                     offset = 0
                     for e in cmd['expect']:
+                        # print(f'Got:\t\t{receivedLines[3 + offset].decode("ascii")}')
+                        # print(f'Expects:\t{e}')
                         self.assertRegex(receivedLines[3 + offset].decode('ascii'), e)
                         offset += 3
 
