@@ -40,10 +40,10 @@ jobs:
         sudo chmod -R 777 $ROOT_PATH/var/log/jasmin 
         sudo chmod -R 777 $ROOT_PATH/etc/jasmin/store
         sudo cp -R misc/config $ROOT_PATH/etc/jasmin
-        pip install -r requirements-test.txt
-        pip install coveralls
+        sudo pip install -r requirements-test.txt
+        sudo pip install coveralls
         sudo coverage run --source=jasmin -m twisted.trial tests
-        coveralls
+        sudo coveralls
     - name: Test Doc Build
       run: |
         cd misc/doc
