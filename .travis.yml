@@ -5,15 +5,15 @@ python:
     - '3.7'
     - '3.8'
 env:
-    - ROOT_PATH=~/jasmin JASMIN_RELEASE=1.0.0
+    - ROOT_PATH=~/jasmin 
+    - JASMIN_RELEASE=1.0.0
 # Command to install dependencies
 install:
-    - python setup.py sdist
-    - pip install "dist/jasmin-$JASMIN_RELEASE.tar.gz" --no-binary jasmin
+    - pip install requirements.txt
 # Commands to run tests:
 script:
     # Trial tests and coverage:
-    - coverage run `which trial` jasmin
+    - coverage run --source=jasmin -m twisted.trial tests
     # Report coverage:
     - coverage report --include=venv/lib/python2.7/site-packages/jasmin/* --fail-under=80
     # Docs building test:
@@ -25,7 +25,7 @@ services:
     - redis-server
 before_script:
     # Test requirements:
-    - pip install -r test-requirements
+    - pip install -r requirements-test.txt
     - chmod +x ./misc/pylint/run.sh
 before_install:
     - virtualenv venv
@@ -47,12 +47,12 @@ addons:
     # As described here https://blog.travis-ci.com/2019-04-15-xenial-default-build-environment
     # Rabbitmq is no more provided out of the box, installed it manually:
     - rabbitmq-server
-notifications:
-  slack:
-    secure: guCY7vL67vUhvNYLzInV/EIPMZ7ciq+/s0UlfmKvGYrjIMwXdgfshgKXdHF194eQ9+f0dF8ea1P1/aGqCE4Q4ULPZ555FbftNy/bVLfUPn01+odorAux3rVNq4ezX2QlQc06DpVS2r7U+grM+MQtNdRjoZIuAeipp3YRhyyuIr8=
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/4ed32e6d5fb2778d9854
-    on_success: change
-    on_failure: always
-    on_start: never
+# notifications:
+#   slack:
+#     secure: guCY7vL67vUhvNYLzInV/EIPMZ7ciq+/s0UlfmKvGYrjIMwXdgfshgKXdHF194eQ9+f0dF8ea1P1/aGqCE4Q4ULPZ555FbftNy/bVLfUPn01+odorAux3rVNq4ezX2QlQc06DpVS2r7U+grM+MQtNdRjoZIuAeipp3YRhyyuIr8=
+#   webhooks:
+#     urls:
+#       - https://webhooks.gitter.im/e/4ed32e6d5fb2778d9854
+#     on_success: change
+#     on_failure: always
+#     on_start: never
