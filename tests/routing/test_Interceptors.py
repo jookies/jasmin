@@ -25,15 +25,15 @@ class InterceptorTestCase(TestCase):
 class InterceptorStrTestCase(InterceptorTestCase):
     def test_StaticMTInterceptor(self):
         s = StaticMTInterceptor(self.simple_filter_mt, self.script1)
-        self.assertEqual(str(s), 'StaticMTInterceptor/<IS (pyCode=print(\'some code here\' ..))>')
+        self.assertEqual(str(s), 'StaticMTInterceptor/<IS (pyCode=print(\'some code here\') ..)>')
 
     def test_StaticMOInterceptor(self):
         s = StaticMOInterceptor(self.simple_filter_mo, self.script1)
-        self.assertEqual(str(s), 'StaticMOInterceptor/<IS (pyCode=print(\'some code here\' ..)))')
+        self.assertEqual(str(s), 'StaticMOInterceptor/<IS (pyCode=print(\'some code here\') ..)>')
 
     def test_DefaultInterceptor(self):
         s = DefaultInterceptor(self.script1)
-        self.assertEqual(str(s), 'DefaultInterceptor/<IS (pyCode=print(\'some code here\' ..))>')
+        self.assertEqual(str(s), 'DefaultInterceptor/<IS (pyCode=print(\'some code here\') ..)>')
 
 
 class AnyStaticInterceptorTestCase(InterceptorTestCase):

@@ -14,7 +14,7 @@ from twisted.internet.protocol import Factory
 from twisted.spread import pb
 from twisted.trial.unittest import TestCase
 from twisted.web import server
-from twisted.web.client import getPage
+from twisted.web.client import Agent
 
 import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
@@ -1288,7 +1288,9 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         # Incorrect username/password will lead to '403 Forbidden' error
         lastErrorStatus = 200
         try:
-            yield getPage(url_ko)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            yield client.get(url_ko)
         except Exception as e:
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '403')
@@ -1298,7 +1300,9 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         # in smpp client manager log:
         # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: '
         try:
-            yield getPage(url_ok)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            yield client.get(url_ok)
         except Exception as e:
             lastErrorStatus = e.status
         self.assertEqual(lastErrorStatus, '500')
@@ -1309,7 +1313,10 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         yield self.SMPPClientManagerPBProxy.add(c1Config)
 
         # We should receive a msg id
-        c = yield getPage(url_ok)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url_ok)
+        c = yield text_content(response)
         self.assertEqual(c[:7], 'Success')
         # @todo: Should be a real uuid pattern testing
         self.assertApproximates(len(c), 40, 10)
@@ -1471,7 +1478,10 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         self.params['dlr-level'] = 1
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
         # Send a MT
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -1504,7 +1514,9 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
-        yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        yield client.request(self.method, baseurl, data=self.postdata)
 
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
@@ -1528,7 +1540,9 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send a MT
-        yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        yield client.request(self.method, baseurl, data=self.postdata)
 
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)

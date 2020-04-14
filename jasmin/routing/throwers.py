@@ -7,8 +7,10 @@ from logging.handlers import TimedRotatingFileHandler
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.internet import reactor
-from twisted.web.client import getPage
+from twisted.web.client import Agent
 from txamqp.queue import Closed
+from treq.client import HTTPClient
+from treq import text_content
 
 from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
@@ -296,17 +298,21 @@ class deliverSmThrower(Thrower):
                     postdata = encodedArgs
 
                 self.log.debug('Calling %s with args %s using %s method.', dc.baseurl, args, _method)
-                content = yield getPage(
+                agent = Agent(reactor)
+                client = HTTPClient(agent)
+                response = yield client.request(
+                    _method,
                     baseurl,
-                    method=_method,
-                    postdata=postdata,
+                    data=postdata,
                     timeout=self.config.timeout,
                     agent='Jasmin gateway/1.0 deliverSmHttpThrower',
                     headers={'Content-Type': 'application/x-www-form-urlencoded',
                              'Accept': 'text/plain'})
                 self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using http to %s.',
                               msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl)
-
+                
+                content = yield text_content(response)
+                
                 self.log.debug('Destination end replied to message [msgid:%s]: %r',
                                msgid, content)
 
@@ -532,16 +538,20 @@ class DLRThrower(Thrower):
                 postdata = encodedArgs
 
             self.log.debug('Calling %s with args %s using %s method.', baseurl, encodedArgs, method)
-            content = yield getPage(
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            response = yield client.request(
+                method,
                 baseurl,
-                method=method,
-                postdata=postdata,
+                data=postdata,
                 timeout=self.config.timeout,
                 agent='Jasmin gateway/1.0 %s' % self.name,
                 headers={'Content-Type': 'application/x-www-form-urlencoded',
                          'Accept': 'text/plain'})
             self.log.info('Throwed DLR [msgid:%s] to %s.', msgid, baseurl)
 
+            content = yield text_content(response)
+            
             self.log.debug('Destination end replied to message [msgid:%s]: %r', msgid, content)
             # Check for acknowledgement
             if content.strip() != 'ACK/Jasmin':

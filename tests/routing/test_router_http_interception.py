@@ -2,7 +2,9 @@ from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import reactor, defer
 from twisted.spread import pb
-from twisted.web.client import getPage
+from twisted.web.client import Agent
+from treq import text_content
+from treq.client import HTTPClient
 
 from jasmin.interceptor.configs import InterceptorPBConfig, InterceptorPBClientConfig
 from jasmin.interceptor.interceptor import InterceptorPB
@@ -150,20 +152,21 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
-
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
         # We should receive an error since no interceptorpb is set
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '503')
+        self.assertEqual(lastErrorStatus, 503)
         self.assertEqual(lastResponse, 'Error "InterceptorPB not set !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -174,20 +177,22 @@ class HttpAPISubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rou
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since no interceptorpb is set
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '503')
+        self.assertEqual(lastErrorStatus, 503)
         self.assertEqual(lastResponse, '"InterceptorPB not set !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -207,20 +212,22 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '503')
+        self.assertEqual(lastErrorStatus, 503)
         self.assertEqual(lastResponse, 'Error "InterceptorPB not connected !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -234,20 +241,22 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '400')
+        self.assertEqual(lastErrorStatus, 400)
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -265,17 +274,19 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
@@ -301,17 +312,20 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=temporary&username=%s&password=%s&tags=%s' % (
-            self.u1.username, self.u1_password, '123,456')
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'temporary', 
+        'username': self.u1.username, 'password': self.u1_password, 'tags': '123,456' }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
@@ -335,17 +349,19 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=temporary&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'temporary', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
@@ -368,23 +384,25 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '400')
+        self.assertEqual(lastErrorStatus, 400)
         self.assertEqual(lastResponse, 'Error "Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -402,23 +420,25 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '300')
+        self.assertEqual(lastErrorStatus, 300)
         self.assertEqual(lastResponse, 'Error "Interception specific error code 300"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -438,23 +458,25 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '520')
+        self.assertEqual(lastErrorStatus, 520)
         self.assertEqual(lastResponse, 'Error "Interception specific error code 520"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -465,20 +487,22 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         _iec = self.stats_http.get('interceptor_error_count')
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '503')
+        self.assertEqual(lastErrorStatus, 503)
         self.assertEqual(lastResponse, '"InterceptorPB not connected !"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -492,20 +516,22 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '400')
+        self.assertEqual(lastErrorStatus, 400)
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -523,17 +549,19 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Asserts
         self.assertEqual(lastErrorStatus, None)
@@ -553,23 +581,25 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '400')
+        self.assertEqual(lastErrorStatus, 400)
         self.assertEqual(lastResponse, '"Failed running interception script, check log for details"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -587,23 +617,25 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '300')
+        self.assertEqual(lastErrorStatus, 300)
         self.assertEqual(lastResponse, '"Interception specific error code 300"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -623,23 +655,25 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/rate?to=06155423&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/rate'
+        params = {'to': '06155423', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)
 
         # Asserts
-        self.assertEqual(lastErrorStatus, '520')
+        self.assertEqual(lastErrorStatus, 520)
         self.assertEqual(lastResponse, '"Interception specific error code 520"')
         self.assertEqual(_ic, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec + 1, self.stats_http.get('interceptor_error_count'))
@@ -663,17 +697,19 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.ipb_connect()
 
         # Send a SMS MT through http interface
-        url = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            self.u1.username, self.u1_password)
+        url = 'http://127.0.0.1:1401/send'
+        params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
         # We should receive an error since interceptorpb is not connected
         lastErrorStatus = None
         lastResponse = None
-        try:
-            yield getPage(url)
-        except Exception as e:
-            lastErrorStatus = e.status
-            lastResponse = e.response
+        
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url, params=params)
+        
+        lastErrorStatus = response.code
+        lastResponse = yield text_content(response)
 
         # Wait some time for message delivery through smppc
         yield waitFor(2)

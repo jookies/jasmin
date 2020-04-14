@@ -10,7 +10,9 @@ import binascii
 import mock
 from twisted.internet import defer, reactor
 from twisted.web import server
-from twisted.web.client import getPage
+from twisted.web.client import Agent
+from treq import text_content
+from treq.client import HTTPClient
 
 from tests.protocols.smpp.smsc_simulator import NoResponseOnSubmitSMSCRecorder
 from jasmin.redis.client import ConnectionWithConfiguration
@@ -48,7 +50,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -71,7 +76,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -92,7 +100,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -113,7 +124,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -134,7 +148,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -155,7 +172,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -177,7 +197,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -202,7 +225,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -229,7 +255,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -254,7 +283,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -275,7 +307,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -308,7 +343,10 @@ class FailoverMTRouteHttpTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTes
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -349,7 +387,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -382,7 +423,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -421,7 +465,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -463,7 +510,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -494,7 +544,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -532,7 +585,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -583,7 +639,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -647,7 +706,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -687,7 +749,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -720,7 +785,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.params['content'] = ''
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
         # Send a MT
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
 
         yield self.stopSmppClientConnectors()
@@ -745,7 +813,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -816,7 +887,9 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
 
         # Send SubmitSmPDU
-        yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        yield client.request(self.method, baseurl, data=self.postdata)
         yield waitFor(1)
         # Push DLR
         yield self.SMSCPort.factory.lastClient.trigger_DLR()
@@ -864,7 +937,10 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -897,7 +973,10 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -936,7 +1015,10 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -978,7 +1060,10 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -1012,7 +1097,10 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -1052,7 +1140,10 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -1113,7 +1204,10 @@ class SendtoNoResponseOnSubmitSMSCTestCases(RouterPBProxy, NoResponseOnSubmitSMS
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
 

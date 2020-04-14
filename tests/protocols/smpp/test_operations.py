@@ -16,10 +16,10 @@ class OperationsTest(TestCase):
 
 
 class SubmitTest(OperationsTest):
-    source_addr = '20203060'
-    destination_addr = '06155423'
-    latin1_sm = '6162636465666768696a6b6c6d6e6f707172737475767778797a'
-    latin1_long_sm = '6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e'
+    source_addr = b'20203060'
+    destination_addr = b'06155423'
+    latin1_sm = b'6162636465666768696a6b6c6d6e6f707172737475767778797a'
+    latin1_long_sm = b'6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e6162636465666768696a6b6c6d6e6f707172737475767778797a2e'
 
     def buildSubmitSmTest(self, sm):
         """
@@ -73,7 +73,7 @@ class SubmitTest(OperationsTest):
 
         # Iterating through sliced PDUs
         partedSmPdu = pdu
-        assembledSm = ''
+        assembledSm = b''
         lastSeqNum = 0
         while True:
             assembledSm += partedSmPdu.params['short_message']
@@ -207,7 +207,7 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEqual(isDlr['id'], '362d9701')
+        self.assertEqual(isDlr['id'], b'362d9701')
         self.assertEqual(isDlr['sub'], 'ND')
         self.assertEqual(isDlr['dlvrd'], 'ND')
         self.assertEqual(isDlr['sdate'], 'ND')
@@ -227,7 +227,7 @@ class DeliveryParsingTest(OperationsTest):
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
         self.assertTrue(isDlr is not None)
-        self.assertEqual(isDlr['id'], '362d9701')
+        self.assertEqual(isDlr['id'], b'362d9701')
         self.assertEqual(isDlr['sub'], 'ND')
         self.assertEqual(isDlr['dlvrd'], 'ND')
         self.assertEqual(isDlr['sdate'], 'ND')
@@ -248,7 +248,7 @@ class DeliveryParsingTest(OperationsTest):
         )
 
         isDlr = self.opFactory.isDeliveryReceipt(pdu)
-        self.assertEqual(isDlr['id'], '6000')
+        self.assertEqual(isDlr['id'], b'6000')
 
     def test_take_message_state_from_tlv_first(self):
         """Related to #427
@@ -308,7 +308,7 @@ class ReceiptCreationTestCases(OperationsTest):
                 'UNKNOWN')
 
             self.assertEqual(pdu.params['message_state'], _test['state'])
-            self.assertTrue('stat:%s' % _test['sm'] in pdu.params['short_message'])
+            self.assertTrue(('stat:%s' % _test['sm']).encode() in pdu.params['short_message'])
 
         # Test other ESME_* states:
         pdu = self.opFactory.getReceipt(
@@ -325,7 +325,7 @@ class ReceiptCreationTestCases(OperationsTest):
             'UNKNOWN')
 
         self.assertEqual(pdu.params['message_state'], MessageState.UNDELIVERABLE)
-        self.assertTrue('stat:UNDELIV' in pdu.params['short_message'])
+        self.assertTrue(b'stat:UNDELIV' in pdu.params['short_message'])
 
     def test_data_sm(self):
         for message_state, _test in self.message_state_map.items():

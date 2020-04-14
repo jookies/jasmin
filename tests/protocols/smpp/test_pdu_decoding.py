@@ -4,6 +4,7 @@ from twisted.trial.unittest import TestCase
 
 from smpp.pdu.pdu_encoding import PDUEncoder
 from smpp.pdu.sm_encoding import SMStringEncoder
+from smpp.pdu.pdu_types import CommandId, CommandStatus, NetworkType
 
 
 class PDUDecoderTest(TestCase):
@@ -16,7 +17,7 @@ class PDUDecoderTest(TestCase):
         SMStringEncoder().decodeSM(pdu)
 
         # Asserts
-        self.assertEqual('000', pdu.params['network_error_code'])
+        self.assertEqual(b'000', pdu.params['network_error_code'])
 
     def test_any_network_type(self):
         """Related to #120"""
@@ -26,8 +27,8 @@ class PDUDecoderTest(TestCase):
         SMStringEncoder().decodeSM(pdu)
 
         # Asserts
-        self.assertEqual('GSM', str(pdu.params['source_network_type']))
-        self.assertEqual('GSM', str(pdu.params['dest_network_type']))
+        self.assertEqual(NetworkType.GSM, pdu.params['source_network_type'])
+        self.assertEqual(NetworkType.GSM, pdu.params['dest_network_type'])
 
     def test_any_network_error_code(self):
         """Related to #117"""
@@ -37,7 +38,7 @@ class PDUDecoderTest(TestCase):
         SMStringEncoder().decodeSM(pdu)
 
         # Asserts
-        self.assertEqual('\x03\x00\x00', str(pdu.params['network_error_code']))
+        self.assertEqual(b'\x03\x00\x00', pdu.params['network_error_code'])
 
     def test_deliver_sm_with_message_payload(self):
         pduHex = '0000009200000005000000000001693c00000032313635333532303730330000003737383800040000000001000000000424004f69643a30303030343336393439207375626d697420646174653a3135303432313135303820646f6e6520646174653a3135303432313135303820737461743a44454c49565244206572723a30303000001e00063661616435000427000102'
@@ -45,9 +46,9 @@ class PDUDecoderTest(TestCase):
         SMStringEncoder().decodeSM(pdu)
 
         # Asserts
-        self.assertEqual('id:0000436949 submit date:1504211508 done date:1504211508 stat:DELIVRD err:000\x00',
-                          str(pdu.params['message_payload']))
-        self.assertEqual('6aad5', str(pdu.params['receipted_message_id']))
+        self.assertEqual(b'id:0000436949 submit date:1504211508 done date:1504211508 stat:DELIVRD err:000\x00',
+                          pdu.params['message_payload'])
+        self.assertEqual(b'6aad5', pdu.params['receipted_message_id'])
 
     def test_invalid_command_length(self):
         """Related to #124"""
@@ -56,9 +57,9 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('bind_transceiver_resp', str(pdu.id))
+        self.assertEqual(CommandId.bind_transceiver_resp, pdu.id)
         self.assertEqual('1', str(pdu.seqNum))
-        self.assertEqual('ESME_RINVSYSTYP', str(pdu.status))
+        self.assertEqual(CommandStatus.ESME_RINVSYSTYP, pdu.status)
 
     def test_invalid_command_length_2(self):
         """Related to #128"""
@@ -67,9 +68,9 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('submit_sm_resp', str(pdu.id))
+        self.assertEqual(CommandId.submit_sm_resp, pdu.id)
         self.assertEqual('2', str(pdu.seqNum))
-        self.assertEqual('ESME_RINVSRCADR', str(pdu.status))
+        self.assertEqual(CommandStatus.ESME_RINVSRCADR, pdu.status)
 
     def test_unknown_tag_value_0x1454(self):
         """Related to #322"""
@@ -78,9 +79,9 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('deliver_sm', str(pdu.id))
+        self.assertEqual(CommandId.deliver_sm, pdu.id)
         self.assertEqual('50888961', str(pdu.seqNum))
-        self.assertEqual('ESME_ROK', str(pdu.status))
+        self.assertEqual(CommandStatus.ESME_ROK, pdu.status)
 
     def test_unknown_tag_value_0x60D(self):
         """Related to #325 (deliver_sm)"""
@@ -89,9 +90,9 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('deliver_sm', str(pdu.id))
+        self.assertEqual(CommandId.deliver_sm, pdu.id)
         self.assertEqual('1453145654', str(pdu.seqNum))
-        self.assertEqual('ESME_ROK', str(pdu.status))
+        self.assertEqual(CommandStatus.ESME_ROK, pdu.status)
 
     def test_unknown_tag_value_0x2B(self):
         """Related to #325 (deliver_sm) and discussed in
@@ -101,9 +102,9 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('deliver_sm', str(pdu.id))
+        self.assertEqual(CommandId.deliver_sm, pdu.id)
         self.assertEqual('523665415', str(pdu.seqNum))
-        self.assertEqual('ESME_ROK', str(pdu.status))
+        self.assertEqual(CommandStatus.ESME_ROK, pdu.status)
 
     def test_unknown_tag_value_38636(self):
         """Related to #325 (submit_sm)"""
@@ -112,9 +113,9 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('submit_sm', str(pdu.id))
+        self.assertEqual(CommandId.submit_sm, pdu.id)
         self.assertEqual('1414', str(pdu.seqNum))
-        self.assertEqual('ESME_ROK', str(pdu.status))
+        self.assertEqual(CommandStatus.ESME_ROK, pdu.status)
 
     def test_unknown_command_status_34(self):
         """Related to #563"""
@@ -123,8 +124,8 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('submit_sm_resp', str(pdu.id))
-        self.assertEqual('RESERVEDSTATUS_UNKNOWN_STATUS', str(pdu.status))
+        self.assertEqual(CommandId.submit_sm_resp, pdu.id)
+        self.assertEqual(CommandStatus.RESERVEDSTATUS_UNKNOWN_STATUS, pdu.status)
 
     def test_invalid_option_vendor_specific_bypass(self):
         """Related to #577"""
@@ -133,5 +134,5 @@ class PDUDecoderTest(TestCase):
         pdu = self.getPDU(pduHex)
 
         # Asserts
-        self.assertEqual('bind_transceiver_resp', str(pdu.id))
-        self.assertEqual('ESME_ROK', str(pdu.status))
+        self.assertEqual(CommandId.bind_transceiver_resp, pdu.id)
+        self.assertEqual(CommandStatus.ESME_ROK, pdu.status)

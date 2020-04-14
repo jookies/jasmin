@@ -126,7 +126,7 @@ class SMPPOperationFactory:
 
             # Look for patterns and compose return object
             for pattern in patterns:
-                m = re.search(pattern, pdu.params['short_message'])
+                m = re.search(pattern, pdu.params['short_message'].decode())
                 if m:
                     key = list(m.groupdict())[0]
                     if (key not in ['id', 'stat']
@@ -232,7 +232,10 @@ class SMPPOperationFactory:
                     udh.append(struct.pack('!B', msg_ref_num))
                     udh.append(struct.pack('!B', total_segments))
                     udh.append(struct.pack('!B', segment_seqnum))
-                    tmpPdu.params['short_message'] = ''.join(udh) + kwargs['short_message']
+                    if isinstance(kwargs['short_message'], str):
+                        tmpPdu.params['short_message'] = b''.join(udh) + kwargs['short_message'].encode()
+                    else:
+                        tmpPdu.params['short_message'] = b''.join(udh) + kwargs['short_message']
 
                 # - The first PDU is the one we return back
                 # - sar_msg_ref_num takes the seqnum of the initial submit_sm

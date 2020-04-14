@@ -82,12 +82,12 @@ class SimulatorTestCase(TestCase):
 
     def composeMessage(self, characters, length):
         if length <= len(characters):
-            return ''.join(random.sample(characters, length))
+            return ''.join(random.sample(characters, length).encode())
         else:
             s = ''
             while len(s) < length:
                 s += ''.join(random.sample(characters, len(characters)))
-            return s[:length]
+            return s[:length].encode()
 
     def verifyUnbindSuccess(self, smpp, sent, recv):
         self.assertTrue(isinstance(recv, UnbindResp))
@@ -522,7 +522,7 @@ class LongSubmitSmWithSARTestCase(LongSubmitSmTestCase):
         self.assertEqual(nbrParts, smpp.endLongSubmitSmTransaction.call_count)
 
         # Assert the content after concatenation is the same as original
-        concatenatedMsg = ''
+        concatenatedMsg = b''
         for i in range(nbrParts):
             concatenatedMsg += sent[i].params['short_message']
         self.assertEqual(concatenatedMsg, content)
@@ -619,7 +619,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 153)
+        self.runAsserts(smpp, content, int(len(content) / 153))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_7bit(self):
@@ -670,7 +670,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 134)
+        self.runAsserts(smpp, content, int(len(content) / 134))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_8bit(self):
@@ -722,7 +722,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / (67 * 2))
+        self.runAsserts(smpp, content, int(len(content) / (67 * 2)))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):
@@ -800,7 +800,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 153)
+        self.runAsserts(smpp, content, int(len(content) / 153))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_7bit(self):
@@ -851,7 +851,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 134)
+        self.runAsserts(smpp, content, int(len(content) / 134))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_8bit(self):
@@ -903,7 +903,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / (67 * 2))
+        self.runAsserts(smpp, content, int(len(content) / (67 * 2)))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):
@@ -972,7 +972,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 153)
+        self.runAsserts(smpp, content, int(len(content) / 153))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_7bit(self):
@@ -1023,7 +1023,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 134)
+        self.runAsserts(smpp, content, int(len(content) / 134))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_8bit(self):
@@ -1075,7 +1075,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / (67 * 2))
+        self.runAsserts(smpp, content, int(len(content) / (67 * 2)))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):
@@ -1144,7 +1144,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 153)
+        self.runAsserts(smpp, content, int(len(content) / 153))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_7bit(self):
@@ -1195,7 +1195,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / 134)
+        self.runAsserts(smpp, content, int(len(content) / 134))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_8bit(self):
@@ -1247,7 +1247,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
 
         ##############
         # Assertions :
-        self.runAsserts(smpp, content, len(content) / (67 * 2))
+        self.runAsserts(smpp, content, int(len(content) / (67 * 2)))
 
     @defer.inlineCallbacks
     def test_very_long_submit_sm_16bit(self):

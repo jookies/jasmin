@@ -6,7 +6,9 @@ import urllib.request, urllib.parse, urllib.error
 from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.web import server
-from twisted.web.client import getPage
+from twisted.web.client import Agent
+from treq import text_content
+from treq.client import HTTPClient
 
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
@@ -45,8 +47,11 @@ class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
-        msgStatus = c[:7]
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        text = yield text_content(response)
+        msgStatus = text[:7]
 
         # Wait 2 seconds before stopping SmppClientConnectors
         exitDeferred = defer.Deferred()

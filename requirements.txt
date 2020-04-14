@@ -2,6 +2,8 @@ pyasn1~=0.4.8
 txAMQP~=0.8.2
 pyOpenSSL~=19.1.0
 Twisted~=20.3.0
+# install twisted requests since they changed how that all works
+treq~=20.3.0
 pyparsing~=2.4.7
 python-dateutil~=2.8.1
 service_identity~=18.1.0

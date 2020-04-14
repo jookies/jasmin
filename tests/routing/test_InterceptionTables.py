@@ -91,7 +91,7 @@ class MTInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.user2 = User(2, self.group100, 'username', 'password')
 
         self.mt_filter1 = [UserFilter(self.user1)]
-        self.mt_filter2 = [DestinationAddrFilter('^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter(b'^10\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.interceptor1 = StaticMTInterceptor(self.mt_filter1, self.script1)
         self.interceptor2 = StaticMTInterceptor(self.mt_filter2, self.script2)
@@ -124,8 +124,8 @@ class MOInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.script3 = MOInterceptorScript('ghi')
         self.script4 = MOInterceptorScript('jkl')
 
-        self.mt_filter1 = [SourceAddrFilter('^10\d+')]
-        self.mt_filter2 = [DestinationAddrFilter('^90\d+')]
+        self.mt_filter1 = [SourceAddrFilter(b'^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter(b'^90\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.interceptor1 = StaticMOInterceptor(self.mt_filter1, self.script1)
         self.interceptor2 = StaticMOInterceptor(self.mt_filter2, self.script2)

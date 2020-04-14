@@ -83,7 +83,7 @@ class SourceAddrFilterTestCase(FilterTestCase):
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        self.f = self._filter('^\d+0$')
+        self.f = self._filter(b'^\d+0$')
 
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
@@ -98,7 +98,7 @@ class DestinationAddrFilterTestCase(FilterTestCase):
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        self.f = self._filter('^20\d+')
+        self.f = self._filter(b'^20\d+')
 
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
@@ -113,7 +113,7 @@ class ShortMessageFilterTestCase(FilterTestCase):
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        self.f = self._filter('^hello.*$')
+        self.f = self._filter(b'^hello.*$')
 
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))

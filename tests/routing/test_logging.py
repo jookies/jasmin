@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*- 
 import urllib.request, urllib.parse, urllib.error
 from twisted.internet import reactor
-from twisted.web.client import getPage
+from twisted.web.client import Agent
 from twisted.internet import defer
 from testfixtures import LogCapture
 from jasmin.routing.proxies import RouterPBProxy
 from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
 from tests.routing.test_encoding import composeMessage
 from tests.routing.codepages import GSM0338
-
+from treq import text_content
+from treq.client import HTTPClient
 
 class LoggingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
@@ -28,8 +29,11 @@ class LoggingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
 
         # Send a MT
         # We should receive a msg id
-        c = yield getPage(baseurl, method=self.method, postdata=self.postdata)
-        msgStatus = c[:7]
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        text = yield text_content(response)
+        msgStatus = text[:7]
 
         # Wait 2 seconds before stopping SmppClientConnectors
         exitDeferred = defer.Deferred()

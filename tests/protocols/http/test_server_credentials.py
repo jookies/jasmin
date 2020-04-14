@@ -8,7 +8,9 @@ import urllib.request, urllib.parse, urllib.error
 
 import mock
 from twisted.internet import defer, reactor
-from twisted.web.client import getPage
+from twisted.web.client import Agent
+from treq import text_content
+from treq.client import HTTPClient
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from tests.protocols.smpp.smsc_simulator import *
@@ -129,7 +131,10 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Send a MT
         # We should receive a msg id
         try:
-            response_text = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            response = yield client.request(self.method, baseurl, data=self.postdata)
+            response_text = yield text_content(response)
             response_code = 'Success'
         except Exception as error:
             response_text = error.response
@@ -153,7 +158,10 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
 
         # Send a balance check request
         try:
-            response_text = yield getPage(baseurl)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            response = yield client.get(baseurl)
+            response_text = yield text_content(response)
             response_code = 'Success'
         except Exception as error:
             response_text = error.response
@@ -186,7 +194,10 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Send a MT
         # We should receive a msg id
         try:
-            response_text = yield getPage(baseurl)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            response = yield client.get(baseurl)
+            response_text = yield text_content(response)
             response_code = 'Success'
         except Exception as error:
             response_text = error.response
@@ -1003,7 +1014,10 @@ class QuotasTestCases(CredentialsTestCases):
         request_counter = 0
         for x in range(5000):
             try:
-                response_text = yield getPage(baseurl, method=self.method, postdata=self.postdata)
+                agent = Agent(reactor)
+                client = HTTPClient(agent)
+                response = yield client.request(self.method, baseurl, data=self.postdata)
+                response_text = yield text_content(response)
                 response_code = 'Success'
             except Exception as error:
                 response_text = error.response
