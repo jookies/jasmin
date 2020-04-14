@@ -91,7 +91,7 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.user2 = User(2, self.group100, 'username', 'password')
 
         self.mt_filter1 = [UserFilter(self.user1)]
-        self.mt_filter2 = [DestinationAddrFilter('^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter(b'^10\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.route1 = StaticMTRoute(self.mt_filter1, self.connector1, 0.0)
         self.route2 = StaticMTRoute(self.mt_filter2, self.connector2, 0.0)
@@ -123,8 +123,8 @@ class MORoutingTableTestCase(RoutingTableTests, TestCase):
         self.connector3 = HttpConnector('ghi', 'http://127.0.0.1')
         self.connector4 = SmppServerSystemIdConnector('jkl')
 
-        self.mt_filter1 = [SourceAddrFilter('^10\d+')]
-        self.mt_filter2 = [DestinationAddrFilter('^90\d+')]
+        self.mt_filter1 = [SourceAddrFilter(b'^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter(b'^90\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.route1 = StaticMORoute(self.mt_filter1, self.connector1)
         self.route2 = StaticMORoute(self.mt_filter2, self.connector2)

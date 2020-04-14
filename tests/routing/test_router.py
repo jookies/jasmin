@@ -15,6 +15,8 @@ from twisted.spread import pb
 from twisted.trial.unittest import TestCase
 from twisted.web import server
 from twisted.web.client import Agent
+from treq import text_content
+from treq.client import HTTPClient
 
 import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
@@ -1286,26 +1288,25 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
             u1.username, u2_password)
 
         # Incorrect username/password will lead to '403 Forbidden' error
-        lastErrorStatus = 200
-        try:
-            agent = Agent(reactor)
-            client = HTTPClient(agent)
-            yield client.get(url_ko)
-        except Exception as e:
-            lastErrorStatus = e.status
-        self.assertEqual(lastErrorStatus, '403')
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url_ko)
+
+        lastErrorStatus = response.code
+
+        self.assertEqual(lastErrorStatus, 403)
 
         # Since Connector doesnt really exist, the message will not be routed
         # to a queue, a 500 error will be returned, and more details will be written
         # in smpp client manager log:
         # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: '
-        try:
-            agent = Agent(reactor)
-            client = HTTPClient(agent)
-            yield client.get(url_ok)
-        except Exception as e:
-            lastErrorStatus = e.status
-        self.assertEqual(lastErrorStatus, '500')
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(url_ok)
+        
+        lastErrorStatus = response.code
+
+        self.assertEqual(lastErrorStatus, 500)
 
         # Now we'll create the connecter and send an MT to it
         yield self.SMPPClientManagerPBProxy.connect('127.0.0.1', self.CManagerPort)

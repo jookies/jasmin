@@ -11,7 +11,7 @@ from twisted.internet import defer, reactor, ssl
 from twisted.internet.protocol import ClientFactory
 
 from jasmin.routing.Routables import RoutableSubmitSm
-from smpp.twisted.protocol import DataHandlerResponse
+from smpp.twisted.protocol import DataHandlerResponse, SMPPSessionStates
 from smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
 from .error import *
@@ -185,7 +185,7 @@ class SMPPClientFactory(ClientFactory):
 
     def getSessionState(self):
         if self.smpp is None:
-            return None
+            return SMPPSessionStates.NONE
         else:
             if isinstance(self.smpp.sessionState, Enum):
                 return self.smpp.sessionState._name_
@@ -606,11 +606,11 @@ class SMPPBindManager(_SMPPBindManager):
 
         # Update CnxStatus
         self.user.getCnxStatus().smpps['bind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][str(connection.bind_type)] += 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type._name_] += 1
 
     def removeBinding(self, connection):
         _SMPPBindManager.removeBinding(self, connection)
 
         # Update CnxStatus
         self.user.getCnxStatus().smpps['unbind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][str(connection.bind_type)] -= 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type._name_] -= 1

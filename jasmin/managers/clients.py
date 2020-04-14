@@ -104,7 +104,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
         details = {}
         details['id'] = c['id']
-        details['session_state'] = str(c['service'].SMPPClientFactory.getSessionState())
+        details['session_state'] = c['service'].SMPPClientFactory.getSessionState()._name_
         details['service_status'] = c['service'].running
         details['start_count'] = c['service'].startCounter
         details['stop_count'] = c['service'].stopCounter
@@ -501,7 +501,7 @@ class SMPPClientManagerPB(pb.Avatar):
             return False
 
         session_state = connector['service'].SMPPClientFactory.getSessionState()
-        self.log.info('Connector [%s] session state is: %s', cid, str(session_state))
+        self.log.info('Connector [%s] session state is: %s', cid, session_state)
 
         if session_state is None:
             return None
