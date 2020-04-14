@@ -40,11 +40,9 @@ jobs:
         sudo chmod -R 777 $ROOT_PATH/var/log/jasmin 
         sudo chmod -R 777 $ROOT_PATH/etc/jasmin/store
         sudo cp -R misc/config $ROOT_PATH/etc/jasmin
-        touch $ROOT_PATH/var/log/jasmin/router.log
-        touch $ROOT_PATH/var/log/jasmin/amqp-client.log
         pip install -r requirements-test.txt
         pip install coveralls
-        coverage run --source=jasmin -m twisted.trial tests
+        sudo coverage run --source=jasmin -m twisted.trial tests
         coveralls
     - name: Test Doc Build
       run: |
