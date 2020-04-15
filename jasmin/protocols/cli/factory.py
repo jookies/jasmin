@@ -94,8 +94,8 @@ class JCliFactory(ServerFactory):
                 proto.connectionLost(None)
                 defer.returnValue(False)
 
-            proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['username'])
-            proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['password'])
+            proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['username']).encode())
+            proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['password']).encode())
         elif self.config.authentication:
             self.log.error(
                 'Authentication is required and no credentials given, config. profile will not be loaded')
