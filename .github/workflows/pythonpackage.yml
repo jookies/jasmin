@@ -22,8 +22,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        sudo pip install -r requirements.txt
+        python3 -m pip install --upgrade pip
+        sudo pip3 install -r requirements.txt
     # - name: Lint
     #   run: |
     #     pip install pylint
@@ -40,8 +40,8 @@ jobs:
         sudo chmod -R 777 $ROOT_PATH/var/log/jasmin 
         sudo chmod -R 777 $ROOT_PATH/etc/jasmin/store
         sudo cp -R misc/config $ROOT_PATH/etc/jasmin
-        sudo pip install -r requirements-test.txt
-        sudo pip install coveralls
+        sudo pip3 install -r requirements-test.txt
+        sudo pip3 install coveralls
         sudo coverage run --source=jasmin -m twisted.trial tests
         sudo coveralls
     - name: Test Doc Build
