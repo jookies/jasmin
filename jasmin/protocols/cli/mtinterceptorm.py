@@ -132,7 +132,7 @@ def MTInterceptorBuild(fCallback):
                     try:
                         stype, script_path = validate_typed_script(arg)
 
-                        if stype == 'python2':
+                        if stype == 'python3':
                             # Open file and get its content
                             with open(script_path, 'r') as content_file:
                                 pyCode = content_file.read()
