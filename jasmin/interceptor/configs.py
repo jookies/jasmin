@@ -8,8 +8,10 @@ import os
 
 from jasmin.config import ConfigFile
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+RESOURCE_PATH = os.getenv('RESOURCE_PATH', '%s/resource/' % CONFIG_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class InterceptorPBConfig(ConfigFile):
@@ -29,7 +31,7 @@ class InterceptorPBConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('interceptor', 'log_level', 'INFO'))
         self.log_rotate = self._get('interceptor', 'log_rotate', 'W6')
-        self.log_file = self._get('interceptor', 'log_file', '%s/var/log/jasmin/interceptor.log' % ROOT_PATH)
+        self.log_file = self._get('interceptor', 'log_file', '%s/interceptor.log' % LOG_PATH)
         self.log_format = self._get(
             'interceptor', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')

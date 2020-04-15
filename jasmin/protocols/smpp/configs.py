@@ -8,8 +8,8 @@ from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               AddrTon, AddrNpi,
                                               PriorityFlag, ReplaceIfPresentFlag)
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class ConfigUndefinedIdError(Exception):
@@ -51,7 +51,7 @@ class SMPPClientConfig:
             raise TypeMismatch('port must be an integer')
 
         # Logging configuration
-        self.log_file = kwargs.get('log_file', '%s/var/log/jasmin/default-%s.log' % (ROOT_PATH, self.id))
+        self.log_file = kwargs.get('log_file', '%s/default-%s.log' % (LOG_PATH, self.id))
         self.log_rotate = kwargs.get('log_rotate', 'midnight')
         self.log_level = kwargs.get('log_level', logging.INFO)
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -205,7 +205,7 @@ class SMPPClientServiceConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(self._get('service-smppclient', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'service-smppclient', 'log_file', '%s/var/log/jasmin/service-smppclient.log' % ROOT_PATH)
+            'service-smppclient', 'log_file', '%s/service-smppclient.log' % LOG_PATH)
         self.log_rotate = self._get('service-smppclient', 'log_rotate', 'W6')
         self.log_format = self._get(
             'service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -224,7 +224,7 @@ class SMPPServerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'smpp-server', 'log_file', '%s/var/log/jasmin/default-%s.log' % (ROOT_PATH, self.id))
+            'smpp-server', 'log_file', '%s/default-%s.log' % (LOG_PATH, self.id))
         self.log_rotate = self._get('smpp-server', 'log_rotate', 'midnight')
         self.log_format = self._get(
             'smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -271,7 +271,7 @@ class SMPPServerPBConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server-pb', 'log_level', 'INFO'))
         self.log_rotate = self._get('smpp-server-pb', 'log_rotate', 'W6')
-        self.log_file = self._get('smpp-server-pb', 'log_file', '%s/var/log/jasmin/smpp-server-pb.log' % ROOT_PATH)
+        self.log_file = self._get('smpp-server-pb', 'log_file', '%s/smpp-server-pb.log' % LOG_PATH)
         self.log_format = self._get(
             'smpp-server-pb', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('smpp-server-pb', 'log_date_format', '%Y-%m-%d %H:%M:%S')

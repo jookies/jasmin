@@ -277,10 +277,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         url = 'http://127.0.0.1:1401/send'
         params = {'to': '06155423', 'content': 'test', 'username': self.u1.username, 'password': self.u1_password }
 
-        # We should receive an error since interceptorpb is not connected
-        lastErrorStatus = None
-        lastResponse = None
-        
+        # We should receive an error since interceptorpb is not connected        
         agent = Agent(reactor)
         client = HTTPClient(agent)
         response = yield client.get(url, params=params)

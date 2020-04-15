@@ -37,13 +37,13 @@ from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
 
 class Options(usage.Options):
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/jasmin.cfg' % ROOT_PATH,
+        ['config', 'c', '%s/jasmin.cfg' % CONFIG_PATH,
          'Jasmin configuration file'],
         ['username', 'u', None,
          'jCli username used to load configuration profile on startup'],

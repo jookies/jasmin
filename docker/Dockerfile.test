@@ -24,11 +24,7 @@ RUN mkdir -p /etc/jasmin/resource \
 
 WORKDIR /usr/jasmin
 
-COPY jasmin jasmin
-COPY requirements.txt .
-COPY requirements-test.txt .
-COPY setup.py .
-COPY README.rst .
+COPY . .
 
 RUN pip install -r requirements.txt
 RUN pip install -r requirements-test.txt
@@ -54,7 +50,8 @@ VOLUME [${LOG_PATH}, ${CONFIG_PATH}, ${STORE_PATH}]
 COPY docker/docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
+CMD tail -f /dev/null
+# CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
 # Notes:
 # - jasmind is started with native dlr-thrower and dlr-lookup threads instead of standalone processes
 # - restapi (0.9rc16+) is not started in this docker configuration

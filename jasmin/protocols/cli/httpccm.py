@@ -9,12 +9,13 @@ from jasmin.routing.jasminApi import HttpConnector
 # A config map between console-configuration keys and Httpcc keys.
 HttpccKeyMap = {'cid': 'cid', 'url': 'baseurl', 'method': 'method'}
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 # Since HttpccManager does not have any PB, there's no configuration for it
-# Persist and Load are using CONFIG_STORE_PATH for persisting/loading httpc connectors
-CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
+# Persist and Load are using STORE_PATH for persisting/loading httpc connectors
+STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
 
 
 def HttpccBuild(fCallback):
@@ -101,7 +102,7 @@ class HttpccManager(PersistableManager):
             protocol.log.error('Config loading error: %s' % str(e))
 
     def persist(self, arg, opts):
-        path = '%s/%s.httpccs' % (CONFIG_STORE_PATH, opts.profile)
+        path = '%s/%s.httpccs' % (STORE_PATH, opts.profile)
 
         try:
             # Write configuration with datetime stamp
@@ -129,7 +130,7 @@ class HttpccManager(PersistableManager):
                 prompt=False)
 
     def _load(self, profile='jcli-prod'):
-        path = '%s/%s.httpccs' % (CONFIG_STORE_PATH, profile)
+        path = '%s/%s.httpccs' % (STORE_PATH, profile)
 
         try:
             # Load configuration from file

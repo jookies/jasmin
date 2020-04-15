@@ -12,8 +12,10 @@ from jasmin.config import ConfigFile
 
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class SMPPClientPBConfig(ConfigFile):
@@ -22,7 +24,7 @@ class SMPPClientPBConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.store_path = self._get('client-management', 'store_path', '%s/etc/jasmin/store' % ROOT_PATH)
+        self.store_path = self._get('client-management', 'store_path', '%s' % STORE_PATH)
 
         self.bind = self._get('client-management', 'bind', '0.0.0.0')
         self.port = self._getint('client-management', 'port', 8989)
@@ -34,7 +36,7 @@ class SMPPClientPBConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(self._get('client-management', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'client-management', 'log_file', '%s/var/log/jasmin/smppclient-manager.log' % ROOT_PATH)
+            'client-management', 'log_file', '%s/smppclient-manager.log' % LOG_PATH)
         self.log_rotate = self._get('client-management', 'log_rotate', 'W6')
         self.log_format = self._get('client-management', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('client-management', 'log_date_format', '%Y-%m-%d %H:%M:%S')
@@ -72,7 +74,7 @@ class SMPPClientSMListenerConfig(ConfigFile):
             'sm-listener', 'dlr_lookup_max_retries', 2)
 
         self.log_level = logging.getLevelName(self._get('sm-listener', 'log_level', 'INFO'))
-        self.log_file = self._get('sm-listener', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
+        self.log_file = self._get('sm-listener', 'log_file', '%s/messages.log' % LOG_PATH)
         self.log_rotate = self._get('sm-listener', 'log_rotate', 'midnight')
         self.log_format = self._get('sm-listener', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('sm-listener', 'log_date_format', '%Y-%m-%d %H:%M:%S')
@@ -94,7 +96,7 @@ class DLRLookupConfig(ConfigFile):
                                                                     False)
 
         self.log_level = logging.getLevelName(self._get('dlr', 'log_level', 'INFO'))
-        self.log_file = self._get('dlr', 'log_file', '%s/var/log/jasmin/messages.log' % ROOT_PATH)
+        self.log_file = self._get('dlr', 'log_file', '%s/messages.log' % LOG_PATH)
         self.log_rotate = self._get('dlr', 'log_rotate', 'midnight')
         self.log_format = self._get('dlr', 'log_format', DEFAULT_LOGFORMAT)
         self.log_date_format = self._get('dlr', 'log_date_format', '%Y-%m-%d %H:%M:%S')

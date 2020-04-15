@@ -15,10 +15,12 @@ from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 # Since FiltersManager does not have any PB, there's no configuration for it
-# Persist and Load are using CONFIG_STORE_PATH for persisting/loading filters
-CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
+# Persist and Load are using STORE_PATH for persisting/loading filters
+STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
 
 # A config map between console-configuration keys and Filter keys.
 FilterKeyMap = {'fid': 'fid', 'type': 'type'}
@@ -269,7 +271,7 @@ class FiltersManager(PersistableManager):
             protocol.log.error('Config loading error: %s' % str(e))
 
     def persist(self, arg, opts):
-        path = '%s/%s.filters' % (CONFIG_STORE_PATH, opts.profile)
+        path = '%s/%s.filters' % (STORE_PATH, opts.profile)
 
         try:
             # Write configuration with datetime stamp
@@ -297,7 +299,7 @@ class FiltersManager(PersistableManager):
                 prompt=False)
 
     def _load(self, profile='jcli-prod'):
-        path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
+        path = '%s/%s.filters' % (STORE_PATH, profile)
 
         try:
             # Load configuration from file

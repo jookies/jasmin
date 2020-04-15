@@ -7,8 +7,8 @@ import logging
 import binascii
 from jasmin.config import ConfigFile
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class JCliConfig(ConfigFile):
@@ -26,7 +26,7 @@ class JCliConfig(ConfigFile):
                                                            '79e9b0aa3f3e7c53e916f7ac47439bcb'))
 
         self.log_level = logging.getLevelName(self._get('jcli', 'log_level', 'INFO'))
-        self.log_file = self._get('jcli', 'log_file', '%s/var/log/jasmin/jcli.log' % ROOT_PATH)
+        self.log_file = self._get('jcli', 'log_file', '%s/jcli.log' % LOG_PATH)
         self.log_rotate = self._get('jcli', 'log_rotate', 'W6')
         self.log_format = self._get(
             'jcli', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')

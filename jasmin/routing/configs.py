@@ -9,9 +9,10 @@ import os
 
 from jasmin.config import ConfigFile
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
-
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 class RouterPBConfig(ConfigFile):
     """Config handler for 'router' section"""
@@ -19,7 +20,7 @@ class RouterPBConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.store_path = self._get('router', 'store_path', '%s/etc/jasmin/store' % ROOT_PATH)
+        self.store_path = self._get('router', 'store_path', '%s' % STORE_PATH)
 
         self.persistence_timer_secs = self._getint('router', 'persistence_timer_secs', 60)
 
@@ -36,7 +37,7 @@ class RouterPBConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('router', 'log_level', 'INFO'))
         self.log_rotate = self._get('router', 'log_rotate', 'W6')
-        self.log_file = self._get('router', 'log_file', '%s/var/log/jasmin/router.log' % ROOT_PATH)
+        self.log_file = self._get('router', 'log_file', '%s/router.log' % LOG_PATH)
         self.log_format = self._get(
             'router', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('router', 'log_date_format', '%Y-%m-%d %H:%M:%S')
@@ -55,7 +56,7 @@ class deliverSmThrowerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('deliversm-thrower', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'deliversm-thrower', 'log_file', '%s/var/log/jasmin/deliversm-thrower.log' % ROOT_PATH)
+            'deliversm-thrower', 'log_file', '%s/deliversm-thrower.log' % LOG_PATH)
         self.log_rotate = self._get('deliversm-thrower', 'log_rotate', 'W6')
         self.log_format = self._get(
             'deliversm-thrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -78,7 +79,7 @@ class DLRThrowerConfig(ConfigFile):
 
         # Logging
         self.log_level = logging.getLevelName(self._get('dlr-thrower', 'log_level', 'INFO'))
-        self.log_file = self._get('dlr-thrower', 'log_file', '%s/var/log/jasmin/dlr-thrower.log' % ROOT_PATH)
+        self.log_file = self._get('dlr-thrower', 'log_file', '%s/dlr-thrower.log' % LOG_PATH)
         self.log_rotate = self._get('dlr-thrower', 'log_rotate', 'W6')
         self.log_format = self._get(
             'dlr-thrower', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')

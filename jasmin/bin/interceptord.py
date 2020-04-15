@@ -17,13 +17,13 @@ from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
 
 class Options(usage.Options):
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/interceptor.cfg' % ROOT_PATH,
+        ['config', 'c', '%s/interceptor.cfg' % CONFIG_PATH,
          'Jasmin interceptor configuration file'],
     ]
 
