@@ -15,6 +15,7 @@ from twisted.internet import defer, reactor
 from twisted.internet.protocol import Factory
 from twisted.spread import pb
 from twisted.trial.unittest import TestCase
+from smpp.twisted.protocol import SMPPSessionStates
 
 import jasmin
 from jasmin.managers.clients import SMPPClientManagerPB
@@ -1137,7 +1138,7 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.add(self.defaultConfig)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual(None, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE, ssRet)
 
         yield self.start(self.defaultConfig.id)
 
@@ -1163,12 +1164,12 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.add(localConfig)
 
         ssRet = yield self.session_state(localConfig.id)
-        self.assertEqual(None, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE, ssRet)
 
         yield self.start(localConfig.id)
 
         ssRet = yield self.session_state(localConfig.id)
-        self.assertEqual(None, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE, ssRet)
 
         yield self.stop(localConfig.id)
 

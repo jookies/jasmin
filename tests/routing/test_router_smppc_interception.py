@@ -113,7 +113,7 @@ class ProvisionInterceptorPB(ProvisionWithoutInterceptorPB):
             p.registerChecker(AllowAnonymousAccess())
         else:
             c = InMemoryUsernamePasswordDatabaseDontUse()
-            c.addUser('test_user', md5('test_password').digest())
+            c.addUser('test_user', md5('test_password'.encode('ascii')).digest())
             p.registerChecker(c)
         jPBPortalRoot = JasminPBPortalRoot(p)
         self.pbInterceptor_server = reactor.listenTCP(0, pb.PBServerFactory(jPBPortalRoot))

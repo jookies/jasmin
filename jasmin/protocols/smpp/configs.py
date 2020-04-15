@@ -106,7 +106,7 @@ class SMPPClientConfig:
             raise TypeMismatch('username is longer than allowed size (15)')
         self.password = kwargs.get('password', 'password')
         if len(self.password) > 16:
-            raise TypeMismatch('password is longer than allowed size (8)')
+            raise TypeMismatch('password is longer than allowed size (16)')
         self.systemType = kwargs.get('systemType', '')
 
         # Reconnection
@@ -265,8 +265,8 @@ class SMPPServerPBConfig(ConfigFile):
 
         self.authentication = self._getbool('smpp-server-pb', 'authentication', True)
         self.admin_username = self._get('smpp-server-pb', 'admin_username', 'smppsadmin')
-        self.admin_password = self._get(
-            'smpp-server-pb', 'admin_password', "e97ab122faa16beea8682d84f3d2eea4").decode('hex')
+        self.admin_password = bytes.fromhex(self._get(
+            'smpp-server-pb', 'admin_password', "e97ab122faa16beea8682d84f3d2eea4"))
 
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server-pb', 'log_level', 'INFO'))

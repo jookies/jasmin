@@ -188,7 +188,7 @@ class SMPPClientFactory(ClientFactory):
             return SMPPSessionStates.NONE
         else:
             if isinstance(self.smpp.sessionState, Enum):
-                return self.smpp.sessionState._name_
+                return self.smpp.sessionState
             return self.smpp.sessionState
 
 

@@ -39,7 +39,7 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
         p = portal.Portal(JasminPBRealm(SMPPServerPBInstance))
         c = InMemoryUsernamePasswordDatabaseDontUse()
-        c.addUser('smppsadmin', md5('smppspwd').digest())
+        c.addUser('smppsadmin', md5('smppspwd'.encode('ascii')).digest())
         p.registerChecker(c)
         jPBPortalRoot = JasminPBPortalRoot(p)
         self.SMPPServerPBInstanceServer = reactor.listenTCP(SMPPServerPBConfigInstance.port,

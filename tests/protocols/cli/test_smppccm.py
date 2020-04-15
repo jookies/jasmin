@@ -118,7 +118,7 @@ class BasicTestCases(HappySMSCTestCase):
         yield self.add_connector('jcli : ', extraCommands)
 
         expectedList = ['#Connector id                        Service Session          Starts Stops',
-                        '#operator_4                          stopped None             0      0    ',
+                        '#operator_4                          stopped NONE             0      0    ',
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
@@ -310,7 +310,7 @@ class BasicTestCases(HappySMSCTestCase):
 
         # List
         expectedList = ['#Connector id                        Service Session          Starts Stops',
-                        '#operator_12                         stopped None             0      0    ',
+                        '#operator_12                         stopped NONE             0      0    ',
                         'Total connectors: 1']
         commands = [{'command': 'smppccm -l', 'expect': expectedList}]
         yield self._test(r'jcli : ', commands)
