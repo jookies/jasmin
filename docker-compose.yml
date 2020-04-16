@@ -16,7 +16,7 @@ services:
         build:
             context: ./
             dockerfile: ./docker/Dockerfile.test
-        container_name: jasmin
+        container_name: jasmin_test
         volumes:
             - ./jasmin:/usr/jasmin/jasmin
             - ./tests:/usr/jasmin/tests

@@ -31,6 +31,7 @@ RUN pip install -r requirements-test.txt
 RUN pip install -e git+https://github.com/DomAmato/python-messaging.git@master#egg=messaging
 RUN pip install -e git+https://github.com/DomAmato/smpp.pdu.git@master#egg=smpp.pdu
 RUN pip install -e git+https://github.com/DomAmato/smpp.twisted.git@master#egg=smpp.twisted
+RUN pip install -e git+https://github.com/DomAmato/txamqp.git@master#egg=txamqp
 RUN pip install .
 
 ENV ROOT_PATH /
