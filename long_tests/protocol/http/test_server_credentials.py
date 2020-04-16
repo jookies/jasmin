@@ -138,10 +138,8 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
 
         # Wait 5 seconds before stopping SmppClientConnectors
         yield waitFor(5)
-        print('Stopping connectors')
         yield self.stopSmppClientConnectors()
 
-        print('Returning value', (response_text, response_code))
         defer.returnValue((response_text, response_code))
 
     @defer.inlineCallbacks
