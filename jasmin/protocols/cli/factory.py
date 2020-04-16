@@ -105,7 +105,7 @@ class JCliFactory(ServerFactory):
             self.log.info(
                 "OnStart loading configuration default profile without credentials (auth. is not required)")
 
-        proto.dataReceived('load\r\n')
+        proto.dataReceived(b'load\r\n')
 
         # Wait some more time till all configurations are loaded
         pending_load = ['mtrouter', 'morouter', 'filter', 'group', 'smppcc', 'httpcc', 'user']
@@ -122,6 +122,6 @@ class JCliFactory(ServerFactory):
             else:
                 break
 
-        proto.dataReceived('quit\r\n')
+        proto.dataReceived(b'quit\r\n')
         proto.connectionLost(None)
         defer.returnValue(False)

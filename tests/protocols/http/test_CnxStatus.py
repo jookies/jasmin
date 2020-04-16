@@ -17,7 +17,7 @@ class CnxStatusCases(HTTPApiTestCases):
         self.assertEqual(self.u1.getCnxStatus().httpapi['connects_count'], 0)
 
         for i in range(10):
-            yield self.web.get("send", {'username': self.u1.username,
+            yield self.web.post(b'send', {'username': self.u1.username,
                                         'password': 'correct',
                                         'to': '06155423',
                                         'content': 'anycontent'})
@@ -30,7 +30,7 @@ class CnxStatusCases(HTTPApiTestCases):
     def test_last_activity_at(self):
         before_test = self.u1.getCnxStatus().httpapi['last_activity_at']
 
-        yield self.web.get("send", {'username': self.u1.username,
+        yield self.web.post(b'send', {'username': self.u1.username,
                                     'password': 'correct',
                                     'to': '06155423',
                                     'content': 'anycontent'})
@@ -45,7 +45,7 @@ class CnxStatusCases(HTTPApiTestCases):
         before_test = self.u1.getCnxStatus().httpapi['submit_sm_request_count']
 
         for i in range(100):
-            yield self.web.get("send", {'username': self.u1.username,
+            yield self.web.post(b'send', {'username': self.u1.username,
                                         'password': 'correct',
                                         'to': '06155423',
                                         'content': 'anycontent'})

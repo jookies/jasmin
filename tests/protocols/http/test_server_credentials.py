@@ -67,7 +67,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Wait for 'BOUND_TRX' state
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(self.c1.cid)
-            if ssRet[:6] == 'BOUND_':
+            if ssRet in ('BOUND_TRX', 'BOUND_TX', 'BOUND_RX'):
                 break
             else:
                 yield waitFor(0.2)
@@ -130,15 +130,12 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
 
         # Send a MT
         # We should receive a msg id
-        try:
-            agent = Agent(reactor)
-            client = HTTPClient(agent)
-            response = yield client.request(self.method, baseurl, data=self.postdata)
-            response_text = yield text_content(response)
-            response_code = 'Success'
-        except Exception as error:
-            response_text = error.response
-            response_code = str(error)
+        print(f'Sending {self.method} request')
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.request(self.method, baseurl, data=self.postdata)
+        response_text = yield text_content(response)
+        response_code = 'Success'
 
         # Wait 5 seconds before stopping SmppClientConnectors
         yield waitFor(5)

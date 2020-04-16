@@ -11,7 +11,7 @@ from twisted.web.http import Request
 
 class SmartDummyRequest(DummyRequest):
     def __init__(self, method, url, args=None, json_data=None, headers=None):
-        DummyRequest.__init__(self, url.split('/'))
+        DummyRequest.__init__(self, url.split(b'/'))
         self.method = method
         self.requestHeaders = http_headers.Headers(headers or {})
 
@@ -26,18 +26,18 @@ class SmartDummyRequest(DummyRequest):
             self.content = None
 
     def value(self):
-        return "".join(self.written)
+        return b"".join(self.written)
 
 
 class DummySite(server.Site):
     def get(self, url, args=None):
-        return self._request("GET", url, args)
+        return self._request(b"GET", url, args)
 
     def post(self, url, args=None, json_data=None, headers=None):
-        if json is not None:
-            return self._request_json("POST", url, json_data, headers=headers)
+        if json_data is not None:
+            return self._request_json(b"POST", url, json_data, headers=headers)
         else:
-            return self._request("POST", url, args, headers=headers)
+            return self._request(b"POST", url, args, headers=headers)
 
     def _request(self, method, url, args, headers=None):
         request = SmartDummyRequest(method, url, args, headers=headers)
@@ -53,6 +53,10 @@ class DummySite(server.Site):
 
     def _resolveResult(self, request, result):
         if isinstance(result, str):
+            request.write(result.encode())
+            request.finish()
+            return succeed(request)
+        elif isinstance(result, bytes):
             request.write(result)
             request.finish()
             return succeed(request)

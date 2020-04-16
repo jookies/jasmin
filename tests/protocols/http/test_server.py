@@ -46,15 +46,15 @@ class HTTPApiTestCases(TestCase):
 class PingTestCases(HTTPApiTestCases):
     @defer.inlineCallbacks
     def test_basic_ping(self):
-        response = yield self.web.get("ping")
+        response = yield self.web.get(b"ping")
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(response.value(), "Jasmin/PONG")
+        self.assertEqual(response.value(), b"Jasmin/PONG")
 
 
 class AuthenticationTestCases(HTTPApiTestCases):
     @defer.inlineCallbacks
     def test_send_normal(self):
-        response = yield self.web.get("send", {'username': self.u1.username,
+        response = yield self.web.post(b'send', {'username': self.u1.username,
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
@@ -63,78 +63,78 @@ class AuthenticationTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_normal(self):
-        response = yield self.web.get("rate", {'username': self.u1.username,
+        response = yield self.web.get(b"rate", {'username': self.u1.username,
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(response.value(), '{"submit_sm_count": 1, "unit_rate": 0.0}')
+        self.assertEqual(response.value(), b'{"unit_rate": 0.0, "submit_sm_count": 1}')
 
     @defer.inlineCallbacks
     def test_balance_normal(self):
-        response = yield self.web.get("balance", {'username': self.u1.username,
+        response = yield self.web.get(b"balance", {'username': self.u1.username,
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
-        self.assertEqual(response.value(), '{"balance": "ND", "sms_count": "ND"}')
+        self.assertEqual(response.value(), b'{"balance": "ND", "sms_count": "ND"}')
 
     @defer.inlineCallbacks
     def test_send_disabled_user(self):
         self.u1.disable()
 
-        response = yield self.web.get("send", {'username': self.u1.username,
+        response = yield self.web.post(b'send', {'username': self.u1.username,
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.u1.username)
+        self.assertEqual(response.value(), ("Error \"Authentication failure for username:%s\"" % self.u1.username).encode())
 
     @defer.inlineCallbacks
     def test_rate_disabled_user(self):
         self.u1.disable()
 
-        response = yield self.web.get("rate", {'username': self.u1.username,
+        response = yield self.web.get(b"rate", {'username': self.u1.username,
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), '"Authentication failure for username:nathalie"')
+        self.assertEqual(response.value(), b'"Authentication failure for username:nathalie"')
 
     @defer.inlineCallbacks
     def test_balance_disabled_user(self):
         self.u1.disable()
 
-        response = yield self.web.get("balance", {'username': self.u1.username,
+        response = yield self.web.get(b"balance", {'username': self.u1.username,
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), '"Authentication failure for username:nathalie"')
+        self.assertEqual(response.value(), b'"Authentication failure for username:nathalie"')
 
     @defer.inlineCallbacks
     def test_send_disabled_group(self):
         self.g1.disable()
 
-        response = yield self.web.get("send", {'username': self.u1.username,
+        response = yield self.web.post(b'send', {'username': self.u1.username,
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.u1.username)
+        self.assertEqual(response.value(), ("Error \"Authentication failure for username:%s\"" % self.u1.username).encode())
 
     @defer.inlineCallbacks
     def test_rate_disabled_group(self):
         self.g1.disable()
 
-        response = yield self.web.get("rate", {'username': self.u1.username,
+        response = yield self.web.get(b"rate", {'username': self.u1.username,
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), '"Authentication failure for username:nathalie"')
+        self.assertEqual(response.value(), b'"Authentication failure for username:nathalie"')
 
     @defer.inlineCallbacks
     def test_balance_disabled_group(self):
         self.g1.disable()
 
-        response = yield self.web.get("balance", {'username': self.u1.username,
+        response = yield self.web.get(b"balance", {'username': self.u1.username,
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), '"Authentication failure for username:nathalie"')
+        self.assertEqual(response.value(), b'"Authentication failure for username:nathalie"')
 
 
 class SendTestCases(HTTPApiTestCases):
@@ -142,16 +142,16 @@ class SendTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_post_send_json_with_correct_args(self):
-        response = yield self.web.post("send", json_data={'username': self.username,
+        response = yield self.web.post(b'send', json_data={'username': self.username,
                                                'password': 'incorrec',
                                                'to': '06155423',
                                                'content': 'anycontent'}, headers={'Content-type': ['application/json']})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+        self.assertEqual(response.value(), ("Error \"Authentication failure for username:%s\"" % self.username).encode())
 
     @defer.inlineCallbacks
     def test_post_send_json_with_extra_args(self):
-        response = yield self.web.post("send", json_data={'username': self.username,
+        response = yield self.web.post(b'send', json_data={'username': self.username,
                                                           'password': 'incorrec',
                                                           'to': '06155423',
                                                           'content': 'anycontent',
@@ -159,11 +159,11 @@ class SendTestCases(HTTPApiTestCases):
                                                               (0x3000, None, 'COctetString', 'test1234')
                                                           ]}, headers={'Content-type': ['application/json']})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+        self.assertEqual(response.value(), ("Error \"Authentication failure for username:%s\"" % self.username).encode())
 
     @defer.inlineCallbacks
     def test_post_send_json_with_auth_success(self):
-        response = yield self.web.post("send", json_data={'username': self.username,
+        response = yield self.web.post(b'send', json_data={'username': self.username,
                                                           'password': 'correct',
                                                           'to': '06155423',
                                                           'content': 'anycontent',
@@ -173,36 +173,36 @@ class SendTestCases(HTTPApiTestCases):
         self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
         self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                         b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
     @defer.inlineCallbacks
     def test_send_with_correct_args(self):
-        response = yield self.web.get("send", {'username': self.username,
+        response = yield self.web.post(b'send', {'username': self.username,
                                                'password': 'incorrec',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+        self.assertEqual(response.value(), b"Error \"Authentication failure for username:%s\"" % self.username.encode())
 
     @defer.inlineCallbacks
     def test_send_with_incorrect_args(self):
-        response = yield self.web.get("send", {'username': self.username,
+        response = yield self.web.post(b'send', {'username': self.username,
                                                'passwd': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory argument [password] is not found.\"")
+        self.assertEqual(response.value(), b"Error \"Mandatory argument [password] is not found.\"")
 
     @defer.inlineCallbacks
     def test_send_with_auth_success(self):
-        response = yield self.web.get("send", {'username': self.username,
+        response = yield self.web.post(b'send', {'username': self.username,
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
         self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                         b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
     @defer.inlineCallbacks
     def test_send_with_priority(self):
@@ -215,23 +215,23 @@ class SendTestCases(HTTPApiTestCases):
         valid_priorities = {0, 1, 2, 3}
 
         for params['priority'] in valid_priorities:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
             self.assertEqual(response.responseCode, 500)
 
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                             b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Priority definitions
         invalid_priorities = {-1, 'a', 44, 4}
 
         for params['priority'] in invalid_priorities:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(),
-                             'Error "Argument [priority] has an invalid value: [%s]."' % params['priority'])
+                             ('Error "Argument [priority] has an invalid value: [%s]."' % params['priority']).encode())
 
     @defer.inlineCallbacks
     def test_send_with_validity_period(self):
@@ -244,24 +244,24 @@ class SendTestCases(HTTPApiTestCases):
         valid_vps = {0, 1, 2, 3, 4000}
 
         for params['validity-period'] in valid_vps:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 500)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                             b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Validity period definitions
         invalid_vps = {-1, 'a', 1.0}
 
         for params['validity-period'] in invalid_vps:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 400)
             # This is a normal error since SMPPClientManagerPB is not really running
             self.assertEqual(response.value(),
-                             'Error "Argument [validity-period] has an invalid value: [%s]."' % params[
-                                 'validity-period'])
+                             ('Error "Argument [validity-period] has an invalid value: [%s]."' % params[
+                                 'validity-period']).encode())
 
     @defer.inlineCallbacks
     def test_send_with_inurl_dlr(self):
@@ -287,11 +287,11 @@ class SendTestCases(HTTPApiTestCases):
                       'http://www.google.com:99'}
 
         for params['dlr-url'] in valid_urls:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 500)
             self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                             b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # URL definitions
         invalid_urls = {'ftp://127.0.0.1/receipt',
@@ -302,23 +302,23 @@ class SendTestCases(HTTPApiTestCases):
                         'www.google.com:99/'}
 
         for params['dlr-url'] in invalid_urls:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 400)
             self.assertEqual(response.value(),
-                             "Error \"Argument [dlr-url] has an invalid value: [%s].\"" % params['dlr-url'])
+                             b"Error \"Argument [dlr-url] has an invalid value: [%s].\"" % params['dlr-url'].encode())
 
     @defer.inlineCallbacks
     def test_send_without_args(self):
-        response = yield self.web.get("send")
+        response = yield self.web.post(b'send')
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value(), "Error \"Mandatory argument [username] is not found.\"")
+        self.assertEqual(response.value(), b"Error \"Mandatory argument [to] is not found.\"")
 
     @defer.inlineCallbacks
     def test_send_with_some_args(self):
-        response = yield self.web.get("send", {'username': self.username})
+        response = yield self.web.post(b'send', {'to': '06155423', 'username': self.username})
         self.assertEqual(response.responseCode, 400)
-        self.assertEqual(response.value()[:25], "Error \"Mandatory argument")
+        self.assertEqual(response.value(), b'Error \"Mandatory argument [password] is not found.\"')
 
     @defer.inlineCallbacks
     def test_send_with_tags(self):
@@ -330,18 +330,18 @@ class SendTestCases(HTTPApiTestCases):
 
         valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e', 'a-b,2'}
         for params['tags'] in valid_tags:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 500)
             self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                             b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         invalid_tags = {';', '#,.,:', '+++,sh1t,3r='}
         for params['tags'] in invalid_tags:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value()[:23], "Error \"Argument [tags] ")
+            self.assertEqual(response.value(), ('Error "Argument [tags] has an invalid value: [%s]."' % params['tags']).encode())
 
     @defer.inlineCallbacks
     def test_send_hex_content(self):
@@ -350,36 +350,36 @@ class SendTestCases(HTTPApiTestCases):
                   'to': '06155423'}
 
         # Assert having an error if content and hex_content are not present
-        response = yield self.web.get("send", params)
+        response = yield self.web.post(b'send', params)
 
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(response.value(),
-                         "Error \"content or hex-content not present.\"")
+                         b"Error \"content or hex-content not present.\"")
 
         # Assert having an error if content and hex_content are present
-        params['hex-content'] = ''
-        params['content'] = ''
-        response = yield self.web.get("send", params)
+        params['hex-content'] = b''
+        params['content'] = b''
+        response = yield self.web.post(b'send', params)
 
         self.assertEqual(response.value(),
-                         "Error \"content and hex-content cannot be used both in same request.\"")
+                         b"Error \"content and hex-content cannot be used both in same request.\"")
 
         # Assert correct encoding
         del (params['content'])
-        params['hex-content'] = ''
-        response = yield self.web.get("send", params)
+        params['hex-content'] = b''
+        response = yield self.web.post(b'send', params)
 
         self.assertEqual(response.responseCode, 500)
         self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                         b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Assert incorrect encoding
         params['hex-content'] = 'Clear text'
-        response = yield self.web.get("send", params)
+        response = yield self.web.post(b'send', params)
 
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(response.value()[:33],
-                         "Error \"Invalid hex-content data: ")
+                         b"Error \"Invalid hex-content data: ")
 
     @defer.inlineCallbacks
     def test_send_with_sdt(self):
@@ -390,28 +390,28 @@ class SendTestCases(HTTPApiTestCases):
                   'content': 'anycontent'}
 
         # Assert sdt optional
-        response = yield self.web.get("send", params)
+        response = yield self.web.post(b'send', params)
         self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
         self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                         b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Assert valid sdt
         valid_sdt = {'000000000100000R'}
         for params['sdt'] in valid_sdt:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 500)
             self.assertEqual(response.value(),
-                             "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                             b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         # Assert invalid sdt
         invalid_sdt = {'', '000000000100000', '00', '00+', '00R', '00-', '0000000001000000R', '00000000100000R'}
         for params['sdt'] in invalid_sdt:
-            response = yield self.web.get("send", params)
+            response = yield self.web.post(b'send', params)
 
             self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value()[:22], "Error \"Argument [sdt] ")
+            self.assertEqual(response.value()[:22], b"Error \"Argument [sdt] ")
 
 
 class RateTestCases(HTTPApiTestCases):
@@ -430,15 +430,15 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_with_correct_args(self):
-        response = yield self.web.get("rate", {'username': 'nathalie',
+        response = yield self.web.get(b"rate", {'username': 'nathalie',
                                                'password': 'incorrec',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(json.loads(response.value()), 'Authentication failure for username:%s' % 'nathalie')
+        self.assertEqual(json.loads(response.value()), 'Authentication failure for username:nathalie')
 
     @defer.inlineCallbacks
     def test_rate_with_incorrect_args(self):
-        response = yield self.web.get("rate", {'username': 'nathalie',
+        response = yield self.web.get(b"rate", {'username': 'nathalie',
                                                'passwd': 'correct',
                                                'content': 'hello',
                                                'to': '06155423'})
@@ -447,7 +447,7 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_with_auth_success(self):
-        response = yield self.web.get("rate", {'username': 'nathalie',
+        response = yield self.web.get(b"rate", {'username': 'nathalie',
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
@@ -455,7 +455,7 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_rated_route_unlimited_balance(self):
-        response = yield self.web.get("rate", {'username': 'user2',
+        response = yield self.web.get(b"rate", {'username': 'user2',
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
@@ -463,7 +463,7 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_rated_route_unlimited_balance_long_content(self):
-        response = yield self.web.get("rate", {'username': 'user2',
+        response = yield self.web.get(b"rate", {'username': 'user2',
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
@@ -472,7 +472,7 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_rated_route_defined_balance(self):
-        response = yield self.web.get("rate", {'username': 'user3',
+        response = yield self.web.get(b"rate", {'username': 'user3',
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
@@ -480,7 +480,7 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_rated_route_defined_balance_long_content(self):
-        response = yield self.web.get("rate", {'username': 'user3',
+        response = yield self.web.get(b"rate", {'username': 'user3',
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
@@ -497,16 +497,16 @@ class RateTestCases(HTTPApiTestCases):
 
         valid_tags = {'12', '1,2', '1000,2,12123', 'a,b,c', 'A0,22,B4,4e', 'a-b,2'}
         for params['tags'] in valid_tags:
-            response = yield self.web.get("rate", params)
+            response = yield self.web.get(b"rate", params)
 
             self.assertEqual(response.responseCode, 200)
 
         invalid_tags = {';', '#,.,:', '+++,sh1t,3r='}
         for params['tags'] in invalid_tags:
-            response = yield self.web.get("rate", params)
+            response = yield self.web.get(b"rate", params)
 
             self.assertEqual(response.responseCode, 400)
-            self.assertEqual(response.value()[:23], "\"Argument [tags] has an")
+            self.assertEqual(response.value(), ('"Argument [tags] has an invalid value: [%s]."' % params['tags']).encode())
 
 
 class BalanceTestCases(HTTPApiTestCases):
@@ -524,35 +524,35 @@ class BalanceTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_balance_with_correct_args(self):
-        response = yield self.web.get("balance", {'username': 'nathalie',
+        response = yield self.web.get(b"balance", {'username': 'nathalie',
                                                   'password': 'incorrec'})
         self.assertEqual(response.responseCode, 403)
         self.assertEqual(json.loads(response.value()), 'Authentication failure for username:%s' % 'nathalie')
 
     @defer.inlineCallbacks
     def test_balance_with_incorrect_args(self):
-        response = yield self.web.get("balance", {'username': 'nathalie',
+        response = yield self.web.get(b"balance", {'username': 'nathalie',
                                                   'passwd': 'correct'})
         self.assertEqual(response.responseCode, 400)
         self.assertEqual(json.loads(response.value()), 'Mandatory argument [password] is not found.')
 
     @defer.inlineCallbacks
     def test_balance_with_auth_success_unlimited_quotas(self):
-        response = yield self.web.get("balance", {'username': 'nathalie',
+        response = yield self.web.get(b"balance", {'username': 'nathalie',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(json.loads(response.value()), {'balance': 'ND', 'sms_count': 'ND'})
 
     @defer.inlineCallbacks
     def test_balance_with_auth_success_defined_quotas_u2(self):
-        response = yield self.web.get("balance", {'username': 'user2',
+        response = yield self.web.get(b"balance", {'username': 'user2',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(json.loads(response.value()), {'balance': 100.2, 'sms_count': 30})
 
     @defer.inlineCallbacks
     def test_balance_with_auth_success_defined_quotas_u3(self):
-        response = yield self.web.get("balance", {'username': 'user3',
+        response = yield self.web.get(b"balance", {'username': 'user3',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(json.loads(response.value()), {'balance': 10, 'sms_count': 'ND'})
@@ -566,7 +566,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         # Save before
         _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
 
-        response = yield self.web.get("send", {'username': 'nathalie',
+        response = yield self.web.post(b'send', {'username': 'nathalie',
                                                'password': 'incorrec',
                                                'to': '06155423',
                                                'content': 'anycontent'})
@@ -579,7 +579,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         # Save before
         _submit_sm_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['submit_sm_request_count']
 
-        response = yield self.web.get("send", {'username': 'nathalie',
+        response = yield self.web.post(b'send', {'username': 'nathalie',
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
@@ -592,7 +592,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         # Save before
         _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
 
-        response = yield self.web.get("balance", {'username': 'nathalie',
+        response = yield self.web.get(b"balance", {'username': 'nathalie',
                                                   'password': 'incorrec'})
         self.assertNotEqual(response.responseCode, 200)
         self.assertEqual(_balance_request_count + 0,
@@ -603,7 +603,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         # Save before
         _balance_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['balance_request_count']
 
-        response = yield self.web.get("balance", {'username': 'nathalie',
+        response = yield self.web.get(b"balance", {'username': 'nathalie',
                                                   'password': 'correct'})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(_balance_request_count + 1,
@@ -614,7 +614,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         # Save before
         _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
 
-        response = yield self.web.get("rate", {'username': 'nathalie',
+        response = yield self.web.get(b"rate", {'username': 'nathalie',
                                                'password': 'incorrec',
                                                'to': '06155423'})
         self.assertNotEqual(response.responseCode, 200)
@@ -626,7 +626,7 @@ class UserStatsTestCases(HTTPApiTestCases):
         # Save before
         _rate_request_count = self.RouterPB_f.getUser(1).getCnxStatus().httpapi['rate_request_count']
 
-        response = yield self.web.get("rate", {'username': 'nathalie',
+        response = yield self.web.get(b"rate", {'username': 'nathalie',
                                                'password': 'correct',
                                                'to': '06155423'})
         self.assertEqual(response.responseCode, 200)
@@ -660,12 +660,12 @@ class StatsTestCases(HTTPApiTestCases):
         self.assertEqual(stats.get('success_count'), 0)
         self.assertEqual(stats.get('last_success_at'), 0)
 
-        response = yield self.web.get("send", {'username': self.username,
+        response = yield self.web.post(b'send', {'username': self.username,
                                                'password': 'incorrec',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 403)
-        self.assertEqual(response.value(), "Error \"Authentication failure for username:%s\"" % self.username)
+        self.assertEqual(response.value(), ("Error \"Authentication failure for username:%s\"" % self.username).encode())
 
         self.assertTrue(type(stats.get('created_at')) == datetime)
         self.assertEqual(stats.get('request_count'), 1)
@@ -682,14 +682,14 @@ class StatsTestCases(HTTPApiTestCases):
     def test_send_with_auth_success(self):
         stats = HttpAPIStatsCollector().get()
 
-        response = yield self.web.get("send", {'username': self.username,
+        response = yield self.web.post(b'send', {'username': self.username,
                                                'password': 'correct',
                                                'to': '06155423',
                                                'content': 'anycontent'})
         self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
         self.assertEqual(response.value(),
-                         "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
+                         b"Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"")
 
         self.assertTrue(type(stats.get('created_at')) == datetime)
         self.assertEqual(stats.get('request_count'), 1)

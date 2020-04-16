@@ -509,7 +509,7 @@ class SMPPClientManagerPB(pb.Avatar):
             # returning Enum would raise this on the client side:
             # Unpersistable data: instance of class enum.EnumValue deemed insecure
             # So we just return back the string of it
-            return str(session_state)
+            return session_state._name_
 
     def perspective_connector_details(self, cid):
         """This will return the connector details
