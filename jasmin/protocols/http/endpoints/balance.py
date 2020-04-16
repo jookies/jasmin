@@ -5,7 +5,8 @@ import json
 from twisted.web.resource import Resource
 
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
-from jasmin.protocols.http.errors import HttpApiError, AuthenticationError
+from jasmin.protocols.http.errors import HttpApiError
+from jasmin.protocols.http.endpoints import authenticate_user
 
 class Balance(Resource):
     isleaf = True
@@ -34,29 +35,21 @@ class Balance(Resource):
 
         try:
             # Validation
-            fields = {'username': {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
-                      'password': {'optional': False, 'pattern': re.compile(r'^.{1,8}$')}}
+            fields = {b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,15}$')},
+                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,8}$')}}
 
             # Make validation
             v = UrlArgsValidator(request, fields)
             v.validate()
 
             # Authentication
-            user = self.RouterPB.authenticateUser(
-                username=request.args['username'][0],
-                password=request.args['password'][0]
+            user = authenticate_user(
+                request.args[b'username'][0],
+                request.args[b'password'][0],
+                self.RouterPB,
+                self.stats,
+                self.log
             )
-            if user is None:
-                self.stats.inc('auth_error_count')
-
-                self.log.debug(
-                    "Authentication failure for username:%s and password:%s",
-                    request.args['username'][0], request.args['password'][0])
-                self.log.error(
-                    "Authentication failure for username:%s",
-                    request.args['username'][0])
-                raise AuthenticationError(
-                    'Authentication failure for username:%s' % request.args['username'][0])
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1
@@ -89,4 +82,6 @@ class Balance(Resource):
                 request.setResponseCode(500)
             else:
                 request.setResponseCode(response['status'])
+            if isinstance(response['return'], bytes):
+                return json.dumps(response['return'].decode()).encode()
             return json.dumps(response['return']).encode()

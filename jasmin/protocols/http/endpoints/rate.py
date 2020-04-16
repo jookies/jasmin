@@ -12,7 +12,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 from jasmin.protocols.http.errors import HttpApiError, AuthenticationError, InterceptorNotSetError, InterceptorNotConnectedError, InterceptorRunError, RouteNotFoundError
-from jasmin.protocols.http.endpoints import hex2bin
+from jasmin.protocols.http.endpoints import hex2bin, authenticate_user
 
 class Rate(Resource):
     isleaf = True
@@ -33,33 +33,28 @@ class Rate(Resource):
     def route_routable(self, request):
         try:
             # Do we have a hex-content ?
-            if 'hex-content' not in request.args:
+            if b'hex-content' not in request.args:
                 # Convert utf8 to GSM 03.38
-                if request.args['coding'][0] == '0':
-                    short_message = gsm_encode(request.args['content'][0])
+                if request.args[b'coding'][0] == '0':
+                    if isinstance(request.args[b'content'][0], bytes):
+                        short_message = gsm_encode(request.args[b'content'][0].decode())
+                    else:
+                        short_message = gsm_encode(request.args[b'content'][0])
                 else:
                     # Otherwise forward it as is
-                    short_message = request.args['content'][0]
+                    short_message = request.args[b'content'][0]
             else:
                 # Otherwise convert hex to bin
-                short_message = hex2bin(request.args['hex-content'][0])
+                short_message = hex2bin(request.args[b'hex-content'][0])
 
             # Authentication
-            user = self.RouterPB.authenticateUser(
-                username=request.args['username'][0],
-                password=request.args['password'][0]
+            user = authenticate_user(
+                request.args[b'username'][0],
+                request.args[b'password'][0],
+                self.RouterPB,
+                self.stats,
+                self.log
             )
-            if user is None:
-                self.stats.inc('auth_error_count')
-
-                self.log.debug(
-                    "Authentication failure for username:%s and password:%s",
-                    request.args['username'][0], request.args['password'][0])
-                self.log.error(
-                    "Authentication failure for username:%s",
-                    request.args['username'][0])
-                raise AuthenticationError(
-                    'Authentication failure for username:%s' % request.args['username'][0])
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1
@@ -68,10 +63,10 @@ class Rate(Resource):
 
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
-                source_add=None if 'from' not in request.args else request.args['from'][0],
-                destination_addr=request.args['to'][0],
+                source_add=None if b'from' not in request.args else request.args[b'from'][0],
+                destination_addr=request.args[b'to'][0],
                 short_message=short_message,
-                data_coding=int(request.args['coding'][0]),
+                data_coding=int(request.args[b'coding'][0]),
             )
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
@@ -88,10 +83,13 @@ class Rate(Resource):
 
             # Should we tag the routable ?
             tags = []
-            if 'tags' in request.args:
-                tags = request.args['tags'][0].split(',')
+            if b'tags' in request.args:
+                tags = request.args[b'tags'][0].split(b',')
                 for tag in tags:
-                    routable.addTag(tag)
+                    if isinstance(tag, bytes):
+                        routable.addTag(tag.decode())
+                    else:
+                        routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
@@ -167,7 +165,10 @@ class Rate(Resource):
             else:
                 request.setResponseCode(response['status'])
 
-            request.write(json.dumps(response['return']).encode())
+            if isinstance(response['return'], bytes):
+                request.write(json.dumps(response['return'].decode()).encode())
+            else:
+                request.write(json.dumps(response['return']).encode())
             request.finish()
 
     def render_GET(self, request):
@@ -187,29 +188,29 @@ class Rate(Resource):
 
         try:
             # Validation (must be almost the same params as /send service)
-            fields = {'to': {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
-                      'from': {'optional': True},
-                      'coding': {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username': {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
-                      'password': {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
+            fields = {b'to': {'optional': False, 'pattern': re.compile(rb'^\+{0,1}\d+$')},
+                      b'from': {'optional': True},
+                      b'coding': {'optional': True, 'pattern': re.compile(rb'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,15}$')},
+                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority': {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
+                      b'priority': {'optional': True, 'pattern': re.compile(rb'^[0-3]$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period': {'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'tags': {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
-                      'content': {'optional': True},
-                      'hex-content': {'optional': True},
+                      b'validity-period': {'optional': True, 'pattern': re.compile(rb'^\d+$')},
+                      b'tags': {'optional': True, 'pattern': re.compile(rb'^([-a-zA-Z0-9,])*$')},
+                      b'content': {'optional': True},
+                      b'hex-content': {'optional': True},
                       }
 
             # Default coding is 0 when not provided
             if 'coding' not in request.args:
-                request.args['coding'] = ['0']
+                request.args[b'coding'] = [b'0']
 
             # Content is optional, defaults to empty content string
             if 'hex-content' not in request.args and 'content' not in request.args:
-                request.args['content'] = ['']
+                request.args[b'content'] = [b'']
 
             # Make validation
             v = UrlArgsValidator(request, fields)
@@ -234,6 +235,8 @@ class Rate(Resource):
                 request.setResponseCode(500)
             else:
                 request.setResponseCode(response['status'])
+            if isinstance(response['return'], bytes):
+                return json.dumps(response['return'].decode()).encode()
             return json.dumps(response['return']).encode()
             
         except Exception as e:

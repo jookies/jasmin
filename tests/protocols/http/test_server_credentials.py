@@ -78,7 +78,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             side_effect=side_effect)
 
         # Configuration
-        self.method = 'GET'
+        self.method = 'POST'
         self.postdata = None
         self.params = {'to': '06155423',
                        'username': user.username,
@@ -126,21 +126,22 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['validity-period'] = validity_period
         if destination_address is not None:
             self.params['to'] = destination_address
-        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.parse.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
         # We should receive a msg id
-        print(f'Sending {self.method} request')
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.request(self.method, baseurl, data=self.postdata)
+        response = yield client.request(self.method, baseurl, data=self.params)
         response_text = yield text_content(response)
-        response_code = 'Success'
+        response_code = response.code
 
         # Wait 5 seconds before stopping SmppClientConnectors
         yield waitFor(5)
+        print('Stopping connectors')
         yield self.stopSmppClientConnectors()
 
+        print('Returning value', (response_text, response_code))
         defer.returnValue((response_text, response_code))
 
     @defer.inlineCallbacks

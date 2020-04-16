@@ -18,6 +18,10 @@ class SmartDummyRequest(DummyRequest):
         # set args
         args = args or {}
         for k, v in args.items():
+            if isinstance(k, str):
+                k = k.encode()
+            if isinstance(v, str):
+                v = v.encode()
             self.addArg(k, v)
 
         if json_data is not None:

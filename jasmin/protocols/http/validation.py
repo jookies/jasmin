@@ -35,17 +35,20 @@ class UrlArgsValidator:
                     if isinstance(args[field][0], dict) or isinstance(args[field][0], list):
                         continue  # Todo check structure of dict/list
                     elif isinstance(args[field][0], int) or isinstance(args[field][0], float):
-                        value = str(args[field][0])
+                        value = str(args[field][0]).encode()
+                    elif isinstance(args[field][0], str):
+                        value = args[field][0].encode()
                     else:
                         value = args[field][0]
 
                     # Validate known args
+                    # print(f'Validating field {field} of value {value}')
                     if ('pattern' in self.fields[field]
                         and self.fields[field]['pattern'].match(value) is None):
-                        raise UrlArgsValidationError("Argument [%s] has an invalid value: [%s]." % (
+                        raise UrlArgsValidationError(b"Argument [%s] has an invalid value: [%s]." % (
                             field, value))
                 elif not fieldData['optional']:
-                    raise UrlArgsValidationError("Mandatory argument [%s] is not found." % field)
+                    raise UrlArgsValidationError(b"Mandatory argument [%s] is not found." % field)
 
         return True
 
@@ -117,28 +120,28 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
 
         if (self.user.mt_credential.getValueFilter('destination_address') is None or
                 not self.user.mt_credential.getValueFilter('destination_address').match(
-                    str(self.request.args['to'][0]))):
+                    str(self.request.args[b'to'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (destination_address filter mismatch).' % self.user)
         if 'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or
                                                 not self.user.mt_credential.getValueFilter('source_address').match(
-                                                    str(self.request.args['from'][0]))):
+                                                    str(self.request.args[b'from'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (source_address filter mismatch).' % self.user)
         if 'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or
                                                     not self.user.mt_credential.getValueFilter('priority').match(
-                                                        str(self.request.args['priority'][0]))):
+                                                        str(self.request.args[b'priority'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
         if 'validity-period' in self.request.args and (
                         self.user.mt_credential.getValueFilter('validity_period') is None or
                     not self.user.mt_credential.getValueFilter('validity_period').match(
-                        str(self.request.args['validity-period'][0]))):
+                        str(self.request.args[b'validity-period'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
         if ('content' in self.request.args and (self.user.mt_credential.getValueFilter('content') is None or
                                                     not self.user.mt_credential.getValueFilter('content').match(
-                                                        str(self.request.args['content'][0])))):
+                                                        str(self.request.args[b'content'][0])))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (content filter mismatch).' % self.user)
 

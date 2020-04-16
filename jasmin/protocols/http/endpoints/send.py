@@ -19,7 +19,7 @@ from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredential
 from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
-from jasmin.protocols.http.endpoints import hex2bin
+from jasmin.protocols.http.endpoints import hex2bin, authenticate_user
 
 def update_submit_sm_pdu(routable, config, config_update_params=None):
     """Will set pdu parameters from smppclient configuration.
@@ -81,34 +81,28 @@ class Send(Resource):
     def route_routable(self, updated_request):
         try:
             # Do we have a hex-content ?
-            if 'hex-content' not in updated_request.args:
+            if b'hex-content' not in updated_request.args:
                 # Convert utf8 to GSM 03.38
-                if updated_request.args['coding'][0] == '0':
-                    short_message = gsm_encode(updated_request.args['content'][0])
+                if updated_request.args[b'coding'][0] == b'0':
+                    if isinstance(updated_request.args[b'content'][0], bytes):
+                        short_message = gsm_encode(updated_request.args[b'content'][0].decode())
+                    else:
+                        short_message = gsm_encode(updated_request.args[b'content'][0])
                 else:
                     # Otherwise forward it as is
-                    short_message = updated_request.args['content'][0]
+                    short_message = updated_request.args[b'content'][0]
             else:
                 # Otherwise convert hex to bin
-                print(f"Converting Hex: {updated_request.args['hex-content'][0]}")
-                short_message = hex2bin(updated_request.args['hex-content'][0])
-                print(f'Short Message: {short_message}')
+                short_message = hex2bin(updated_request.args[b'hex-content'][0])
 
             # Authentication
-            user = self.RouterPB.authenticateUser(
-                username=updated_request.args['username'][0],
-                password=updated_request.args['password'][0])
-            if user is None:
-                self.stats.inc('auth_error_count')
-
-                self.log.debug(
-                    "Authentication failure for username:%s and password:%s",
-                    updated_request.args['username'][0], updated_request.args['password'][0])
-                self.log.error(
-                    "Authentication failure for username:%s",
-                    updated_request.args['username'][0])
-                raise AuthenticationError(
-                    'Authentication failure for username:%s' % updated_request.args['username'][0])
+            user = authenticate_user(
+                updated_request.args[b'username'][0],
+                updated_request.args[b'password'][0],
+                self.RouterPB,
+                self.stats,
+                self.log
+            )
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1
@@ -117,11 +111,11 @@ class Send(Resource):
 
             # Build SubmitSmPDU
             SubmitSmPDU = self.opFactory.SubmitSM(
-                source_addr=None if 'from' not in updated_request.args else updated_request.args['from'][0],
-                destination_addr=updated_request.args['to'][0],
+                source_addr=None if b'from' not in updated_request.args else updated_request.args[b'from'][0],
+                destination_addr=updated_request.args[b'to'][0],
                 short_message=short_message,
-                data_coding=int(updated_request.args['coding'][0]),
-                custom_tlvs=updated_request.args['custom_tlvs'][0])
+                data_coding=int(updated_request.args[b'coding'][0]),
+                custom_tlvs=updated_request.args[b'custom_tlvs'][0])
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
             # Make Credential validation
@@ -138,10 +132,13 @@ class Send(Resource):
 
             # Should we tag the routable ?
             tags = []
-            if 'tags' in updated_request.args:
-                tags = updated_request.args['tags'][0].split(',')
+            if b'tags' in updated_request.args:
+                tags = updated_request.args[b'tags'][0].split(b',')
                 for tag in tags:
-                    routable.addTag(tag)
+                    if isinstance(tag, bytes):
+                        routable.addTag(tag.decode())
+                    else:
+                        routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
             # Intercept
@@ -224,27 +221,27 @@ class Send(Resource):
 
             # Set priority
             priority = 0
-            if 'priority' in updated_request.args:
-                priority = int(updated_request.args['priority'][0])
+            if b'priority' in updated_request.args:
+                priority = int(updated_request.args[b'priority'][0])
                 param_updates['priority_flag'] = priority_flag_value_map[priority]
             self.log.debug("SubmitSmPDU priority is set to %s", priority)
 
             # Set schedule_delivery_time
-            if 'sdt' in updated_request.args:
-                param_updates['schedule_delivery_time'] = parse(updated_request.args['sdt'][0])
+            if b'sdt' in updated_request.args:
+                param_updates['schedule_delivery_time'] = parse(updated_request.args[b'sdt'][0])
                 self.log.debug(
                     "SubmitSmPDU schedule_delivery_time is set to %s (%s)",
                     routable.pdu.params['schedule_delivery_time'],
-                    updated_request.args['sdt'][0])
+                    updated_request.args[b'sdt'][0])
 
             # Set validity_period
-            if 'validity-period' in updated_request.args:
-                delta = timedelta(minutes=int(updated_request.args['validity-period'][0]))
+            if b'validity-period' in updated_request.args:
+                delta = timedelta(minutes=int(updated_request.args[b'validity-period'][0]))
                 param_updates['validity_period'] = datetime.today() + delta
                 self.log.debug(
                     "SubmitSmPDU validity_period is set to %s (+%s minutes)",
                     routable.pdu.params['validity_period'],
-                    updated_request.args['validity-period'][0])
+                    updated_request.args[b'validity-period'][0])
 
             # Got any updates to apply on pdu(s) ?
             if len(param_updates) > 0:
@@ -261,25 +258,25 @@ class Send(Resource):
             # DLR setting is clearly described in #107
             _last_pdu.params['registered_delivery'] = RegisteredDelivery(
                 RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
-            if updated_request.args['dlr'][0] == 'yes':
+            if updated_request.args[b'dlr'][0] == 'yes':
                 _last_pdu.params['registered_delivery'] = RegisteredDelivery(
                     RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
                 self.log.debug(
                     "SubmitSmPDU registered_delivery is set to %s",
                     str(_last_pdu.params['registered_delivery']))
 
-                dlr_level = int(updated_request.args['dlr-level'][0])
-                if 'dlr-url' in updated_request.args:
-                    dlr_url = updated_request.args['dlr-url'][0]
+                dlr_level = int(updated_request.args[b'dlr-level'][0])
+                if b'dlr-url' in updated_request.args:
+                    dlr_url = updated_request.args[b'dlr-url'][0]
                 else:
                     dlr_url = None
-                if updated_request.args['dlr-level'][0] == '1':
+                if updated_request.args[b'dlr-level'][0] == b'1':
                     dlr_level_text = 'SMS-C'
-                elif updated_request.args['dlr-level'][0] == '2':
+                elif updated_request.args[b'dlr-level'][0] == b'2':
                     dlr_level_text = 'Terminal'
                 else:
                     dlr_level_text = 'All'
-                dlr_method = updated_request.args['dlr-method'][0]
+                dlr_method = updated_request.args[b'dlr-method'][0]
             else:
                 dlr_url = None
                 dlr_level = 0
@@ -383,7 +380,7 @@ class Send(Resource):
                 if self.config.log_privacy:
                     logged_content = '** %s byte content **' % len(short_message)
                 else:
-                    logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', short_message)
+                    logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', short_message)
 
                 self.log.info(
                     'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]',
@@ -393,8 +390,9 @@ class Send(Resource):
                     priority,
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
-                    updated_request.args['to'][0],
+                    updated_request.args[b'to'][0],
                     logged_content)
+
                 _return = 'Success "%s"' % response['return']
 
             updated_request.write(_return.encode())
@@ -420,70 +418,70 @@ class Send(Resource):
 
         try:
             # Validation (must have almost the same params as /rate service)
-            fields = {'to': {'optional': False, 'pattern': re.compile(r'^\+{0,1}\d+$')},
-                      'from': {'optional': True},
-                      'coding': {'optional': True, 'pattern': re.compile(r'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      'username': {'optional': False, 'pattern': re.compile(r'^.{1,15}$')},
-                      'password': {'optional': False, 'pattern': re.compile(r'^.{1,8}$')},
+            fields = {b'to': {'optional': False, 'pattern': re.compile(rb'^\+{0,1}\d+$')},
+                      b'from': {'optional': True},
+                      b'coding': {'optional': True, 'pattern': re.compile(rb'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
+                      b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,15}$')},
+                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,8}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'priority': {'optional': True, 'pattern': re.compile(r'^[0-3]$')},
-                      'sdt': {'optional': True,
-                              'pattern': re.compile(r'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
+                      b'priority': {'optional': True, 'pattern': re.compile(rb'^[0-3]$')},
+                      b'sdt': {'optional': True,
+                              'pattern': re.compile(rb'^\d{2}\d{2}\d{2}\d{2}\d{2}\d{2}\d{1}\d{2}(\+|-|R)$')},
                       # Validity period validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'validity-period': {'optional': True, 'pattern': re.compile(r'^\d+$')},
-                      'dlr': {'optional': False, 'pattern': re.compile(r'^(yes|no)$')},
-                      'dlr-url': {'optional': True, 'pattern': re.compile(r'^(http|https)\://.*$')},
+                      b'validity-period': {'optional': True, 'pattern': re.compile(rb'^\d+$')},
+                      b'dlr': {'optional': False, 'pattern': re.compile(rb'^(yes|no)$')},
+                      b'dlr-url': {'optional': True, 'pattern': re.compile(rb'^(http|https)\://.*$')},
                       # DLR Level validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
-                      'dlr-level'   : {'optional': True, 'pattern': re.compile(r'^[1-3]$')},
-                      'dlr-method'  : {'optional': True, 'pattern': re.compile(r'^(get|post)$', re.IGNORECASE)},
-                      'tags'        : {'optional': True, 'pattern': re.compile(r'^([-a-zA-Z0-9,])*$')},
-                      'content'     : {'optional': True},
-                      'hex-content' : {'optional': True},
-                      'custom_tlvs' : {'optional': True}}
+                      b'dlr-level'   : {'optional': True, 'pattern': re.compile(rb'^[1-3]$')},
+                      b'dlr-method'  : {'optional': True, 'pattern': re.compile(rb'^(get|post)$', re.IGNORECASE)},
+                      b'tags'        : {'optional': True, 'pattern': re.compile(rb'^([-a-zA-Z0-9,])*$')},
+                      b'content'     : {'optional': True},
+                      b'hex-content' : {'optional': True},
+                      b'custom_tlvs' : {'optional': True}}
 
-            if updated_request.getHeader('content-type') == 'application/json':
+            if updated_request.getHeader(b'content-type') == b'application/json':
                 json_body = updated_request.content.read()
                 json_data = json.loads(json_body)
                 for key, value in json_data.items():
                     # Make the values look like they came from form encoding all surrounded by [ ]
-                    if isinstance(value, bytes):
-                        value = value.decode()
+                    if isinstance(value, str):
+                        value = value.encode()
 
-                    if isinstance(key, bytes):
-                        key = key.decode()
+                    if isinstance(key, str):
+                        key = key.encode()
 
                     updated_request.args[key] = [value]
 
             # If no custom TLVs present, defaujlt to an [] which will be passed down to SubmitSM
-            if 'custom_tlvs' not in updated_request.args:
-                updated_request.args['custom_tlvs'] = [[]]
+            if b'custom_tlvs' not in updated_request.args:
+                updated_request.args[b'custom_tlvs'] = [[]]
 
             # Default coding is 0 when not provided
-            if 'coding' not in updated_request.args:
-                updated_request.args['coding'] = ['0']
+            if b'coding' not in updated_request.args:
+                updated_request.args[b'coding'] = [b'0']
 
             # Set default for undefined updated_request.arguments
-            if 'dlr-url' in updated_request.args or 'dlr-level' in updated_request.args:
-                updated_request.args['dlr'] = ['yes']
-            if 'dlr' not in updated_request.args:
+            if b'dlr-url' in updated_request.args or b'dlr-level' in updated_request.args:
+                updated_request.args[b'dlr'] = [b'yes']
+            if b'dlr' not in updated_request.args:
                 # Setting DLR updated_request to 'no'
-                updated_request.args['dlr'] = ['no']
+                updated_request.args[b'dlr'] = [b'no']
 
             # Set default values
-            if updated_request.args['dlr'][0] == 'yes':
-                if 'dlr-level' not in updated_request.args:
+            if updated_request.args[b'dlr'][0] == b'yes':
+                if b'dlr-level' not in updated_request.args:
                     # If DLR is requested and no dlr-level were provided, assume minimum level (1)
-                    updated_request.args['dlr-level'] = [1]
-                if 'dlr-method' not in updated_request.args:
+                    updated_request.args[b'dlr-level'] = [1]
+                if b'dlr-method' not in updated_request.args:
                     # If DLR is requested and no dlr-method were provided, assume default (POST)
-                    updated_request.args['dlr-method'] = ['POST']
+                    updated_request.args[b'dlr-method'] = [b'POST']
 
             # DLR method must be uppercase
-            if 'dlr-method' in updated_request.args:
-                updated_request.args['dlr-method'][0] = updated_request.args['dlr-method'][0].upper()
+            if b'dlr-method' in updated_request.args:
+                updated_request.args[b'dlr-method'][0] = updated_request.args[b'dlr-method'][0].upper()
 
             # Make validation
             v = UrlArgsValidator(updated_request, fields)
@@ -491,9 +489,9 @@ class Send(Resource):
 
             # Check if have content --OR-- hex-content
             # @TODO: make this inside UrlArgsValidator !
-            if 'content' not in request.args and 'hex-content' not in request.args:
+            if b'content' not in request.args and b'hex-content' not in request.args:
                 raise UrlArgsValidationError("content or hex-content not present.")
-            elif 'content' in request.args and 'hex-content' in request.args:
+            elif b'content' in request.args and b'hex-content' in request.args:
                 raise UrlArgsValidationError("content and hex-content cannot be used both in same request.")
 
             # Continue routing in a separate thread
@@ -501,11 +499,11 @@ class Send(Resource):
         except HttpApiError as e:
             self.log.error("Error: %s", e)
             response = {'return': e.message, 'status': e.code}
-            
+
             self.log.debug("Returning %s to %s.", response, updated_request.getClientIP())
             updated_request.setResponseCode(response['status'])
 
-            return b'Error "%s"' % response['return'].encode()
+            return b'Error "%s"' % (response['return'] if isinstance(response['return'], bytes) else response['return'].encode())
         except Exception as e:
             self.log.error("Error: %s", e)
             response = {'return': "Unknown error: %s" % e, 'status': 500}
