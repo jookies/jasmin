@@ -220,7 +220,8 @@ class ConfigurationPersistenceTestCases(SMPPClientPBProxyTestCase):
         # Remove persisted configurations
         filelist = glob.glob("%s/*" % self.SMPPClientPBConfigInstance.store_path)
         for f in filelist:
-            os.remove(f)
+            if os.path.isfile(f):
+                os.remove(f)
 
         yield SMPPClientPBProxyTestCase.tearDown(self)
 

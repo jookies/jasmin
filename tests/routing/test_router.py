@@ -727,7 +727,8 @@ class PersistenceTestCase(RouterPBProxy, RouterPBTestCase):
         # Remove persisted configurations
         filelist = glob.glob("%s/*" % self.RouterPBConfigInstance.store_path)
         for f in filelist:
-            os.remove(f)
+            if os.path.isfile(f):
+                os.remove(f)
 
         yield RouterPBTestCase.tearDown(self)
 
