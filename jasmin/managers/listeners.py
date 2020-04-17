@@ -70,7 +70,7 @@ class SMPPClientSMListener:
             del self.rejectTimers[msgid]
 
     def clearRejectTimers(self):
-        for msgid, timer in self.rejectTimers.items():
+        for msgid, timer in list(self.rejectTimers.items()):
             if timer.active():
                 timer.cancel()
             del self.rejectTimers[msgid]

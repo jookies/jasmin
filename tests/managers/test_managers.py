@@ -23,7 +23,7 @@ from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.proxies import SMPPClientManagerPBProxy
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from tests.protocols.smpp.smsc_simulator import *
+from tests.protocols.smpp.smsc_simulator import HappySMSC, HappySMSCRecorder, DeliverSMSMSC
 from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.Bills import SubmitSmBill
