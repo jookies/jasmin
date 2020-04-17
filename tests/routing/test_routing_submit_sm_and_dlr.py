@@ -72,7 +72,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
-        baseurl = 'http://127.0.0.1:1401/send
+        baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
         # We should receive a msg id

@@ -433,7 +433,7 @@ class SMPPClientManagerPB(pb.Avatar):
         # Reject & requeue any pending message to avoid loosing messages after
         # clearing timers
         if len(connector['sm_listener'].rejectTimers) > 0:
-            for msgid, timer in connector['sm_listener'].rejectTimers.items():
+            for msgid, timer in list(connector['sm_listener'].rejectTimers.items()):
                 if timer.active():
                     func = timer.func
                     kw = timer.kw

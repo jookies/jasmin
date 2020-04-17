@@ -1,8 +1,9 @@
 import random
 from datetime import datetime, timedelta
 
-from tests.smsc_simulator import *
-from smpp.pdu.pdu_types import MessageState
+from tests.smsc_simulator import HappySMSC
+from smpp.pdu.pdu_types import MessageState, CommandStatus
+from smpp.pdu.operations import BindReceiver, BindTransceiver, DeliverSM, DataSM
 
 LOG_CATEGORY = "jasmin.smpp.tests.smsc_simulator"
 
