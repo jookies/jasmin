@@ -711,7 +711,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Take the lastClient (and unique one) and assert received message
         self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 1)
         ReceivedSubmitSmPDU = self.SMSCPort.factory.lastClient.submitRecords[0]
-        self.assertEqual(ReceivedSubmitSmPDU.params['short_message'], assertionKey)
+        self.assertEqual(ReceivedSubmitSmPDU.params['short_message'], assertionKey.encode())
         # @todo: Should be a real uuid pattern testing
         self.assertApproximates(len(msgid), 35, 5)
 
@@ -1138,12 +1138,12 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.add(self.defaultConfig)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual(SMPPSessionStates.NONE, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE._name_, ssRet)
 
         yield self.start(self.defaultConfig.id)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual(SMPPSessionStates.BOUND_TRX, ssRet)
+        self.assertEqual(SMPPSessionStates.BOUND_TRX._name_, ssRet)
 
         yield self.stop(self.defaultConfig.id)
 
@@ -1164,12 +1164,12 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.add(localConfig)
 
         ssRet = yield self.session_state(localConfig.id)
-        self.assertEqual(SMPPSessionStates.NONE, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE._name_, ssRet)
 
         yield self.start(localConfig.id)
 
         ssRet = yield self.session_state(localConfig.id)
-        self.assertEqual(SMPPSessionStates.NONE, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE._name_, ssRet)
 
         yield self.stop(localConfig.id)
 

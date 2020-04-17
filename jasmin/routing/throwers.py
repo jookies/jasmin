@@ -288,14 +288,13 @@ class deliverSmThrower(Thrower):
 
             try:
                 # Throw the message to http endpoint
-                encodedArgs = urllib.parse.urlencode(args)
                 postdata = None
                 baseurl = dc.baseurl
                 _method = dc.method.upper()
                 if _method == 'GET':
-                    baseurl += '?%s' % encodedArgs
+                    baseurl += '?%s' % urllib.parse.urlencode(args)
                 else:
-                    postdata = encodedArgs
+                    postdata = args
 
                 self.log.debug('Calling %s with args %s using %s method.', dc.baseurl, args, _method)
                 agent = Agent(reactor)
@@ -529,15 +528,14 @@ class DLRThrower(Thrower):
 
         try:
             # Throw the message to http endpoint
-            encodedArgs = urllib.parse.urlencode(args)
             postdata = None
             baseurl = url
             if method == 'GET':
-                baseurl += '?%s' % encodedArgs
+                baseurl += '?%s' % urllib.parse.urlencode(args)
             else:
-                postdata = encodedArgs
+                postdata = args
 
-            self.log.debug('Calling %s with args %s using %s method.', baseurl, encodedArgs, method)
+            self.log.debug('Calling %s with args %s using %s method.', baseurl, args, method)
             agent = Agent(reactor)
             client = HTTPClient(agent)
             response = yield client.request(

@@ -132,7 +132,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # We should receive a msg id
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.request(self.method, baseurl, data=self.params)
+        response = yield client.post(baseurl, data=self.params)
         response_text = yield text_content(response)
         response_code = response.code
 
@@ -150,13 +150,13 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Set baseurl
         params = {'username': self.params['username'],
                   'password': self.params['password'], }
-        baseurl = 'http://127.0.0.1:%s/balance?%s' % (1401, urllib.parse.urlencode(params))
+        baseurl = 'http://127.0.0.1:1401/balance'
 
         # Send a balance check request
         try:
             agent = Agent(reactor)
             client = HTTPClient(agent)
-            response = yield client.get(baseurl)
+            response = yield client.get(baseurl, params=self.params)
             response_text = yield text_content(response)
             response_code = 'Success'
         except Exception as error:
@@ -185,14 +185,14 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
             self.params['from'] = source_address
         if destination_address is not None:
             self.params['to'] = destination_address
-        baseurl = 'http://127.0.0.1:%s/rate?%s' % (1401, urllib.parse.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:1401/rate'
 
         # Send a MT
         # We should receive a msg id
         try:
             agent = Agent(reactor)
             client = HTTPClient(agent)
-            response = yield client.get(baseurl)
+            response = yield client.get(baseurl, params=self.params)
             response_text = yield text_content(response)
             response_code = 'Success'
         except Exception as error:
@@ -1001,7 +1001,7 @@ class QuotasTestCases(CredentialsTestCases):
 
         # Set content
         self.params['content'] = 'Any Content'
-        baseurl = 'http://127.0.0.1:%s/send?%s' % (1401, urllib.parse.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a bunch of MT messages
         # We should receive a msg id for success and error when throughput is exceeded
@@ -1012,7 +1012,7 @@ class QuotasTestCases(CredentialsTestCases):
             try:
                 agent = Agent(reactor)
                 client = HTTPClient(agent)
-                response = yield client.request(self.method, baseurl, data=self.postdata)
+                response = yield client.post(baseurl, data=self.params)
                 response_text = yield text_content(response)
                 response_code = 'Success'
             except Exception as error:

@@ -1282,15 +1282,24 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         yield self.mtroute_add(DefaultRoute(c1), 0)
 
         # Send a SMS MT through http interface
-        url_ko = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            u2.username, u1_password)
-        url_ok = 'http://127.0.0.1:1401/send?to=06155423&content=test&username=%s&password=%s' % (
-            u1.username, u2_password)
-
+        url_ko = 'http://127.0.0.1:1401/send'
+        ko_params = {
+            'to': '06155423',
+            'content': 'test',
+            'username': u2.username,
+            'password': u1_password
+        }
+        url_ok = 'http://127.0.0.1:1401/send'
+        ok_params = {
+            'to': '06155423',
+            'content': 'test',
+            'username': u1.username,
+            'password': u2_password
+        }
         # Incorrect username/password will lead to '403 Forbidden' error
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.get(url_ko)
+        response = yield client.post(url_ko, data=ko_params)
 
         lastErrorStatus = response.code
 
@@ -1302,8 +1311,8 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         # 'Trying to enqueue a SUBMIT_SM to a connector with an unknown cid: '
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.get(url_ok)
-        
+        response = yield client.post(url_ok, data=ok_params)
+
         lastErrorStatus = response.code
 
         self.assertEqual(lastErrorStatus, 500)
@@ -1316,7 +1325,7 @@ class SimpleNonConnectedSubmitSmDeliveryTestCases(RouterPBProxy, SMPPClientManag
         # We should receive a msg id
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.get(url_ok)
+        response = yield client.post(url_ok, data=ok_params)
         c = yield text_content(response)
         self.assertEqual(c[:7], 'Success')
         # @todo: Should be a real uuid pattern testing
@@ -1477,11 +1486,12 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send'
+
         # Send a MT
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.request(self.method, baseurl, data=self.postdata)
+        response = yield client.post(baseurl, data=self.params)
         c = yield text_content(response)
         msgStatus = c[:7]
         msgId = c[9:45]
@@ -1512,12 +1522,12 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
             self.pbRoot_f.bill_request_submit_sm_resp_callback)
 
         self.params['content'] = composeMessage({'_'}, 200)
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        yield client.request(self.method, baseurl, data=self.postdata)
+        response = yield client.post(baseurl, data=self.params)
 
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)
@@ -1538,12 +1548,12 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield self.prepareRoutingsAndStartConnector(route_rate=1.0, user=user)
 
         self.params['content'] = composeMessage({'_'}, 10)
-        baseurl = 'http://127.0.0.1:1401/send?%s' % urllib.parse.urlencode(self.params)
+        baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        yield client.request(self.method, baseurl, data=self.postdata)
+        response = yield client.post(baseurl, data=self.params)
 
         # Wait 1 seconds for submit_sm_resp
         yield waitFor(1)

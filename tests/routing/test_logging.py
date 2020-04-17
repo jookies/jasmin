@@ -25,13 +25,13 @@ class LoggingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
         if datacoding is not None:
             self.params['coding'] = datacoding
         # Prepare baseurl
-        baseurl = 'http://127.0.0.1:%s/send?%s' % (port, urllib.parse.urlencode(self.params))
+        baseurl = 'http://127.0.0.1:%s/send' % port
 
         # Send a MT
         # We should receive a msg id
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.request(self.method, baseurl, data=self.postdata)
+        response = yield client.post(baseurl, data=self.params)
         text = yield text_content(response)
         msgStatus = text[:7]
 
