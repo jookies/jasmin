@@ -9,11 +9,11 @@ from twisted.web.server import NOT_DONE_YET
 from smpp.pdu.constants import priority_flag_value_map
 from smpp.pdu.smpp_time import parse
 from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-
+import messaging.sms.gsm0338
 
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
@@ -85,9 +85,9 @@ class Send(Resource):
                 # Convert utf8 to GSM 03.38
                 if updated_request.args[b'coding'][0] == b'0':
                     if isinstance(updated_request.args[b'content'][0], bytes):
-                        short_message = gsm_encode(updated_request.args[b'content'][0].decode())
+                        short_message = updated_request.args[b'content'][0].decode().encode('gsm0338', 'replace')
                     else:
-                        short_message = gsm_encode(updated_request.args[b'content'][0])
+                        short_message = updated_request.args[b'content'][0].encode('gsm0338', 'replace')
                 else:
                     # Otherwise forward it as is
                     short_message = updated_request.args[b'content'][0]
@@ -166,7 +166,7 @@ class Send(Resource):
                         code=r['http_status'],
                         message='Interception specific error code %s' % r['http_status']
                     )
-                elif isinstance(r, str):
+                elif isinstance(r, (str, bytes)):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(r)
                 else:
@@ -380,6 +380,8 @@ class Send(Resource):
                 if self.config.log_privacy:
                     logged_content = '** %s byte content **' % len(short_message)
                 else:
+                    if isinstance(short_message, str):
+                        short_message = short_message.encode()
                     logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', short_message)
 
                 self.log.info(

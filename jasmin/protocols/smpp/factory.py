@@ -14,10 +14,15 @@ from jasmin.routing.Routables import RoutableSubmitSm
 from smpp.twisted.protocol import DataHandlerResponse, SMPPSessionStates
 from smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
-from .error import *
-from .protocol import SMPPClientProtocol, SMPPServerProtocol
-from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
-from .validation import SmppsCredentialValidator
+from smpp.pdu.error import SMPPClientError
+from smpp.pdu.pdu_types import CommandId, CommandStatus, PDURequest
+
+from jasmin.protocols.smpp.error import SubmitSmInvalidArgsError, SubmitSmWithoutDestinationAddrError
+from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector
+from jasmin.protocols.smpp.validation import SmppsCredentialValidator
+
+from jasmin.protocols.http.errors import InterceptorNotSetError, InterceptorNotConnectedError
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"
@@ -187,8 +192,6 @@ class SMPPClientFactory(ClientFactory):
         if self.smpp is None:
             return SMPPSessionStates.NONE
         else:
-            if isinstance(self.smpp.sessionState, Enum):
-                return self.smpp.sessionState
             return self.smpp.sessionState
 
 
@@ -247,13 +250,13 @@ class SMPPServerFactory(_SMPPServerFactory):
         if len(args) != 2:
             self.log.error('(submit_sm_event/%s) Invalid args: %s', system_id, args)
             raise SubmitSmInvalidArgsError()
-        if not isinstance(args[1], pdu_types.PDURequest):
+        if not isinstance(args[1], PDURequest):
             self.log.error(
                 '(submit_sm_event/%s) Received an unknown object when waiting for a PDURequest: %s',
                 system_id,
                 args[1])
             raise SubmitSmInvalidArgsError()
-        if args[1].id != pdu_types.CommandId.submit_sm:
+        if args[1].id != CommandId.submit_sm:
             self.log.error('(submit_sm_event/%s) Received a non submit_sm command id: %s',
                            system_id, args[1].id)
             raise SubmitSmInvalidArgsError()
@@ -483,7 +486,7 @@ class SMPPServerFactory(_SMPPServerFactory):
         except Exception as e:
             # Unknown exception handling
             self.log.critical('Got an unknown exception: %s', e)
-            status = pdu_types.CommandStatus.ESME_RUNKNOWNERR
+            status = CommandStatus.ESME_RUNKNOWNERR
         else:
             self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, message_id)
 
@@ -503,7 +506,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 routable.pdu.params['source_addr'],
                 routable.pdu.params['destination_addr'],
                 logged_content)
-            status = pdu_types.CommandStatus.ESME_ROK
+            status = CommandStatus.ESME_ROK
         finally:
             if message_id is not None:
                 return DataHandlerResponse(status=status, message_id=message_id)

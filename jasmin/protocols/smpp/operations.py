@@ -13,29 +13,6 @@ from smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
-gsm_chars = ("@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"
-             "?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà")
-gsm_chars_ext = ("````````````````````^```````````````````{}`````\\````````````[~]`"
-                 "|````````````````````````````````````€``````````````````````````")
-
-
-def gsm_encode(plaintext):
-    """Will encode plaintext to gsm 338
-    Taken from
-    http://stackoverflow.com/questions/2452861/python-library-for-converting-plain-text-ascii-into-gsm-7-bit-character-set
-    """
-    res = ""
-    for c in plaintext:
-        idx = gsm_chars.find(c)
-        if idx != -1:
-            res += chr(idx)
-            continue
-        idx = gsm_chars_ext.find(c)
-        if idx != -1:
-            res += chr(27) + chr(idx)
-    return res
-
-
 message_state_map = {
     '%s' % MessageState.ACCEPTED: 'ACCEPTD',
     '%s' % MessageState.UNDELIVERABLE: 'UNDELIV',

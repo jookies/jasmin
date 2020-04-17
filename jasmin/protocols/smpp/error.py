@@ -1,5 +1,5 @@
 from smpp.pdu import constants
-from smpp.pdu.error import *
+from smpp.pdu.error import SMPPProtocolError, SMPPError
 from smpp.pdu import pdu_types
 
 

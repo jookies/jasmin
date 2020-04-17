@@ -62,7 +62,7 @@ class UserTestCase(TestCase):
                           'UID',
                           self.group,
                           'foo',
-                          '123456789')
+                          '123456789012345678')
 
     def test_is_enabled_by_default(self):
         u = User('UID', self.group, 'foo', 'bar')

@@ -9,8 +9,13 @@ from twisted.cred import error
 from twisted.internet import defer, reactor
 
 from smpp.pdu.constants import data_coding_default_value_map
-from smpp.pdu.operations import *
-from smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
+from smpp.pdu.error import (SMPPClientConnectionCorruptedError, SMPPRequestTimoutError, 
+    SMPPSessionInitTimoutError, SMPPProtocolError, 
+    SMPPGenericNackTransactionError, SMPPTransactionError, 
+    SMPPClientError)
+from smpp.pdu.operations import SubmitSM, GenericNack
+from smpp.pdu.pdu_types import (CommandId, CommandStatus, DataCoding, 
+        DataCodingDefault, PDURequest, PDUResponse)
 from smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
 from smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,

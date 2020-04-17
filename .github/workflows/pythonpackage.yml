@@ -7,8 +7,6 @@ on: [push, pull_request]
 
 jobs:
   build:
-    env: 
-      ROOT_PATH : ../
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        sudo pip3 install -r requirements.txt
+        pip3 install -r requirements.txt
     # - name: Lint
     #   run: |
     #     pip install pylint
@@ -33,17 +31,19 @@ jobs:
     #     pip install -r requirements-test.txt
     #     pylint -rn --errors-only --rcfile=./.pylintrc ./tests 
     - name: Test with pytest
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        LOG_PATH: ./
+        ROOT_PATH : ./
       run: |
-        sudo mkdir -p $ROOT_PATH/var/log/jasmin
         sudo mkdir -p $ROOT_PATH/etc/jasmin/resource
         sudo mkdir -p $ROOT_PATH/etc/jasmin/store
-        sudo chmod -R 777 $ROOT_PATH/var/log/jasmin 
         sudo chmod -R 777 $ROOT_PATH/etc/jasmin/store
-        sudo cp -R misc/config $ROOT_PATH/etc/jasmin
-        sudo pip3 install -r requirements-test.txt
-        sudo pip3 install coveralls
-        sudo coverage run --source=jasmin -m twisted.trial tests
-        sudo coveralls
+        cp -R misc/config $ROOT_PATH/etc/jasmin
+        pip3 install -r requirements-test.txt
+        pip3 install coveralls
+        coverage run --source=jasmin -m twisted.trial tests
+        coveralls
     - name: Test Doc Build
       run: |
         cd misc/doc

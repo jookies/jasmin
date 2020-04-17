@@ -6,9 +6,10 @@ import pickle
 from twisted.internet import reactor, defer
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+import messaging.sms.gsm0338
 
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.protocols.smpp.operations import SMPPOperationFactory, gsm_encode
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 from jasmin.protocols.http.errors import HttpApiError, AuthenticationError, InterceptorNotSetError, InterceptorNotConnectedError, InterceptorRunError, RouteNotFoundError
@@ -37,9 +38,9 @@ class Rate(Resource):
                 # Convert utf8 to GSM 03.38
                 if request.args[b'coding'][0] == '0':
                     if isinstance(request.args[b'content'][0], bytes):
-                        short_message = gsm_encode(request.args[b'content'][0].decode())
+                        short_message = request.args[b'content'][0].decode().encode('gsm0338', 'replace')
                     else:
-                        short_message = gsm_encode(request.args[b'content'][0])
+                        short_message = request.args[b'content'][0].encode('gsm0338', 'replace')
                 else:
                     # Otherwise forward it as is
                     short_message = request.args[b'content'][0]
@@ -117,7 +118,7 @@ class Rate(Resource):
                         code=r['http_status'],
                         message='Interception specific error code %s' % r['http_status']
                     )
-                elif isinstance(r, str):
+                elif isinstance(r, (str, bytes)):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(r)
                 else:

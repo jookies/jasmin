@@ -134,7 +134,7 @@ class Thrower(Service):
             del self.requeueTimers[msgid]
 
     def clearRequeueTimers(self):
-        for msgid, timer in self.requeueTimers.items():
+        for msgid, timer in list(self.requeueTimers.items()):
             if timer.active():
                 timer.cancel()
             del self.requeueTimers[msgid]
