@@ -105,7 +105,6 @@ class SubmitSmCodingTestCases(CodingTestCases):
     def test_gsm0338_at(self):
         """Testing gsm338 encoding for the @ char"""
         _gsm0338_str = composeMessage('@', 160)
-        print(len(_gsm0338_str))
         yield self.run_test(content=_gsm0338_str)
 
     @defer.inlineCallbacks

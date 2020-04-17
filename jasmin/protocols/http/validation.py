@@ -25,7 +25,8 @@ class UrlArgsValidator:
         for arg in args:
             # Check for unknown args
             if arg not in self.fields:
-                raise UrlArgsValidationError("Argument [%s] is unknown." % arg)
+                # we probably just should drop extraneous args rather than throwing an error...
+                raise UrlArgsValidationError(b"Argument [%s] is unknown." % arg)
 
             # Validate known args and check for mandatory fields
             for field in self.fields:
@@ -120,28 +121,28 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
 
         if (self.user.mt_credential.getValueFilter('destination_address') is None or
                 not self.user.mt_credential.getValueFilter('destination_address').match(
-                    str(self.request.args[b'to'][0]))):
+                    self.request.args[b'to'][0].decode())):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (destination_address filter mismatch).' % self.user)
         if b'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or
                                                 not self.user.mt_credential.getValueFilter('source_address').match(
-                                                    str(self.request.args[b'from'][0]))):
+                                                    self.request.args[b'from'][0].decode())):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (source_address filter mismatch).' % self.user)
         if b'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or
                                                     not self.user.mt_credential.getValueFilter('priority').match(
-                                                        str(self.request.args[b'priority'][0]))):
+                                                        self.request.args[b'priority'][0].decode())):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
         if b'validity-period' in self.request.args and (
                         self.user.mt_credential.getValueFilter('validity_period') is None or
                     not self.user.mt_credential.getValueFilter('validity_period').match(
-                        str(self.request.args[b'validity-period'][0]))):
+                        self.request.args[b'validity-period'][0].decode())):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
-        if (b'content' in self.request.args and (self.user.mt_credential.getValueFilter('content') is None or
-                                                    not self.user.mt_credential.getValueFilter('content').match(
-                                                        str(self.request.args[b'content'][0])))):
+        if (b'content' in self.request.args and 
+                (self.user.mt_credential.getValueFilter('content') is None or
+                not self.user.mt_credential.getValueFilter('content').match(self.request.args[b'content'][0].decode()))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (content filter mismatch).' % self.user)
 

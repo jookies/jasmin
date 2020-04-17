@@ -155,7 +155,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         # Send a balance check request
         agent = Agent(reactor)
         client = HTTPClient(agent)
-        response = yield client.get(baseurl, params=self.params)
+        response = yield client.get(baseurl, params=params)
         response_text = yield text_content(response)
         response_code = response.code
 
@@ -649,7 +649,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 200)
 
-        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], '')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], b'')
 
     @defer.inlineCallbacks
     def test_undefined_source_address(self):
@@ -661,7 +661,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 200)
 
-        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], '')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], b'')
 
     @defer.inlineCallbacks
     def test_defined_source_address(self):
@@ -673,7 +673,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
         self.assertEqual(response_text[:7], 'Success')
         self.assertEqual(response_code, 200)
 
-        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], 'JASMINTEST')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], b'JASMINTEST')
 
 
 class QuotasTestCases(CredentialsTestCases):

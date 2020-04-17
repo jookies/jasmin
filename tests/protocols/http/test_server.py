@@ -686,7 +686,7 @@ class StatsTestCases(HTTPApiTestCases):
                                                b'password': b'correct',
                                                b'to': b'06155423',
                                                b'content': 'anycontent'})
-        print(response.value())
+
         self.assertEqual(response.responseCode, 500)
         # This is a normal error since SMPPClientManagerPB is not really running
         self.assertEqual(response.value(),
