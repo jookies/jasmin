@@ -54,6 +54,8 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
         if (self.user.mt_credential.getValueFilter('priority') is None or
                 not self.user.mt_credential.getValueFilter('priority').match(
                     str(self.submit_sm.params['priority_flag']._value_))):
+            print(self.submit_sm.params['priority_flag']._value_)
+            print(str(self.submit_sm.params['priority_flag']._value_))
             raise FilterError(
                 'Value filter failed for username [%s] (priority filter mismatch).' % self.user,
                 'priority')

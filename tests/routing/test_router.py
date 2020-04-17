@@ -1415,7 +1415,7 @@ class SubmitSmTestCaseTools:
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(self.c1.cid)
             if ssRet[:6] == 'BOUND_':
-                break;
+                break
             else:
                 yield waitFor(0.2)
 
