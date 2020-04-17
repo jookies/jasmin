@@ -72,31 +72,31 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             and not self.user.mt_credential.getAuthorization('http_long_content')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Long content not authorized).' % self.user)
-        if ('dlr-level' in self.request.args
+        if (b'dlr-level' in self.request.args
             and not self.user.mt_credential.getAuthorization('set_dlr_level')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting dlr level not authorized).' % self.user)
-        if ('dlr-method' in self.request.args
+        if (b'dlr-method' in self.request.args
             and not self.user.mt_credential.getAuthorization('http_set_dlr_method')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting dlr method not authorized).' % self.user)
-        if ('from' in self.request.args
+        if (b'from' in self.request.args
             and not self.user.mt_credential.getAuthorization('set_source_address')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting source address not authorized).' % self.user)
-        if ('priority' in self.request.args
+        if (b'priority' in self.request.args
             and not self.user.mt_credential.getAuthorization('set_priority')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting priority not authorized).' % self.user)
-        if ('validity-period' in self.request.args
+        if (b'validity-period' in self.request.args
             and not self.user.mt_credential.getAuthorization('set_validity_period')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting validity period not authorized).' % self.user)
-        if ('hex-content' in self.request.args
+        if (b'hex-content' in self.request.args
             and not self.user.mt_credential.getAuthorization('set_hex_content')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting hex content not authorized).' % self.user)
-        if ('sdt' in self.request.args
+        if (b'sdt' in self.request.args
             and not self.user.mt_credential.getAuthorization('set_schedule_delivery_time')):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Setting schedule delivery time not authorized).' % self.user)
@@ -123,23 +123,23 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
                     str(self.request.args[b'to'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (destination_address filter mismatch).' % self.user)
-        if 'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or
+        if b'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or
                                                 not self.user.mt_credential.getValueFilter('source_address').match(
                                                     str(self.request.args[b'from'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (source_address filter mismatch).' % self.user)
-        if 'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or
+        if b'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or
                                                     not self.user.mt_credential.getValueFilter('priority').match(
                                                         str(self.request.args[b'priority'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
-        if 'validity-period' in self.request.args and (
+        if b'validity-period' in self.request.args and (
                         self.user.mt_credential.getValueFilter('validity_period') is None or
                     not self.user.mt_credential.getValueFilter('validity_period').match(
                         str(self.request.args[b'validity-period'][0]))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
-        if ('content' in self.request.args and (self.user.mt_credential.getValueFilter('content') is None or
+        if (b'content' in self.request.args and (self.user.mt_credential.getValueFilter('content') is None or
                                                     not self.user.mt_credential.getValueFilter('content').match(
                                                         str(self.request.args[b'content'][0])))):
             raise CredentialValidationError(

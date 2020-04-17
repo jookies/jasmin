@@ -153,15 +153,11 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         baseurl = 'http://127.0.0.1:1401/balance'
 
         # Send a balance check request
-        try:
-            agent = Agent(reactor)
-            client = HTTPClient(agent)
-            response = yield client.get(baseurl, params=self.params)
-            response_text = yield text_content(response)
-            response_code = 'Success'
-        except Exception as error:
-            response_text = error.response
-            response_code = str(error)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(baseurl, params=self.params)
+        response_text = yield text_content(response)
+        response_code = response.code
 
         # Wait 5 seconds before stopping SmppClientConnectors
         yield waitFor(5)
@@ -189,15 +185,11 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
 
         # Send a MT
         # We should receive a msg id
-        try:
-            agent = Agent(reactor)
-            client = HTTPClient(agent)
-            response = yield client.get(baseurl, params=self.params)
-            response_text = yield text_content(response)
-            response_code = 'Success'
-        except Exception as error:
-            response_text = error.response
-            response_code = str(error)
+        agent = Agent(reactor)
+        client = HTTPClient(agent)
+        response = yield client.get(baseurl, params=self.params)
+        response_text = yield text_content(response)
+        response_code = response.code
 
         # Wait 5 seconds before stopping SmppClientConnectors
         yield waitFor(5)
@@ -212,7 +204,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User have default authorization to send an sms
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_user_send(self):
@@ -222,7 +214,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User unauthorized
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Cannot send MT messages)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_send(self):
@@ -232,14 +224,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_balance(self):
         # User have default authorization to check balance
         response_text, response_code = yield self.run_balance_test()
         self.assertEqual(json.loads(response_text), {"balance": "ND", "sms_count": "ND"})
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_user_balance(self):
@@ -249,7 +241,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User unauthorized
         response_text, response_code = yield self.run_balance_test()
         self.assertEqual(response_text, '"Authorization failed for user [u1] (Cannot check balance)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_balance(self):
@@ -259,14 +251,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_balance_test()
         self.assertEqual(json.loads(response_text), {"balance": "ND", "sms_count": "ND"})
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_rate(self):
         # User have default authorization to check route rate
         response_text, response_code = yield self.run_rate_test()
         self.assertEqual(json.loads(response_text), {'submit_sm_count': 1, 'unit_rate': 0.0})
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_user_rate(self):
@@ -276,7 +268,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User unauthorized
         response_text, response_code = yield self.run_rate_test()
         self.assertEqual(response_text, '"Authorization failed for user [u1] (Cannot check rate)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_rate(self):
@@ -286,14 +278,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_rate_test()
         self.assertEqual(json.loads(response_text), {'submit_sm_count': 1, 'unit_rate': 0.0})
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_long_content(self):
         # User have default authorization to send long content
         response_text, response_code = yield self.run_send_test(content='X' * 300)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_user_long_content(self):
@@ -303,7 +295,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         user.mt_credential.setAuthorization('http_long_content', False)
         response_text, response_code = yield self.run_send_test(content='X' * 300)
         self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Long content not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_long_content(self):
@@ -313,14 +305,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(content='X' * 300)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_set_dlr_level(self):
         # User have default authorization to set dlr level
         response_text, response_code = yield self.run_send_test(dlr_level=3)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_dlr_level(self):
@@ -331,7 +323,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(dlr_level=3)
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting dlr level not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_set_dlr_level(self):
@@ -341,14 +333,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(dlr_level=3)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_set_dlr_method(self):
         # User have default authorization to set dlr method
         response_text, response_code = yield self.run_send_test(dlr_method='post')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_dlr_method(self):
@@ -359,7 +351,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(dlr_method='post')
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting dlr method not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_set_dlr_method(self):
@@ -369,14 +361,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(dlr_method='post')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_set_source_address(self):
         # User have default authorization to set source address
         response_text, response_code = yield self.run_send_test(source_address='JASMINTEST')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_source_address(self):
@@ -387,7 +379,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(source_address='JASMINTEST')
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting source address not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_set_source_address(self):
@@ -397,14 +389,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, source_address='JASMINTEST')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_set_priority(self):
         # User have default authorization to set message priority
         response_text, response_code = yield self.run_send_test(priority=2)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_priority(self):
@@ -414,7 +406,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User unauthorized
         response_text, response_code = yield self.run_send_test(user=user, priority=2)
         self.assertEqual(response_text, 'Error "Authorization failed for user [u1] (Setting priority not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_user_set_priority(self):
@@ -424,14 +416,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, priority=2)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_set_validity_period(self):
         # User have default authorization to set message validity_period
         response_text, response_code = yield self.run_send_test(validity_period=2)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_validity_period(self):
@@ -442,7 +434,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, validity_period=2)
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting validity period not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_set_validity_period(self):
@@ -452,14 +444,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, validity_period=2)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_set_hex_content(self):
         # User have default authorization to set hex_content instead of content
         response_text, response_code = yield self.run_send_test(hex_content='00', content=None)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_hex_content(self):
@@ -470,7 +462,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, hex_content='00', content=None)
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting hex content not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_set_hex_content(self):
@@ -480,14 +472,14 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, hex_content='00', content=None)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_schedule_delivery_time(self):
         # User have default authorization to set message schedule_delivery_time
         response_text, response_code = yield self.run_send_test(schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_unauthorized_set_schedule_delivery_time(self):
@@ -498,7 +490,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text,
                          'Error "Authorization failed for user [u1] (Setting schedule delivery time not authorized)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_authorized_set_schedule_delivery_time(self):
@@ -508,7 +500,7 @@ class AuthorizationsTestCases(CredentialsTestCases):
         # User authorized
         response_text, response_code = yield self.run_send_test(user=user, schedule_delivery_time='000000000100000R')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
 
 class ValueFiltersTestCases(CredentialsTestCases):
@@ -517,7 +509,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # User have default value filter
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_invalid_destination_address(self):
@@ -528,7 +520,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, destination_address='1200')
         self.assertEqual(response_text,
                          'Error "Value filter failed for user [u1] (destination_address filter mismatch)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_valid_user_destination_address(self):
@@ -538,14 +530,14 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_send_test(user=user, destination_address='1200')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_source_address(self):
         # User have default value filter
         response_text, response_code = yield self.run_send_test(source_address='JasminTest')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_invalid_source_address(self):
@@ -555,7 +547,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user=user, source_address='JasminTest')
         self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (source_address filter mismatch)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_valid_user_source_address(self):
@@ -565,21 +557,21 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_send_test(user=user, source_address='JasminTest')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_priority_success(self):
         # User have default value filter
         response_text, response_code = yield self.run_send_test(priority=3)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_priority_failure(self):
         # User have default value filter
         response_text, response_code = yield self.run_send_test(priority=5)
         self.assertEqual(response_text, 'Error "Argument [priority] has an invalid value: [5]."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_invalid_priority(self):
@@ -589,7 +581,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user=user, priority=3)
         self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (priority filter mismatch)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_valid_priority(self):
@@ -599,7 +591,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_send_test(user=user, priority=3)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_invalid_validity_period(self):
@@ -609,7 +601,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user=user, validity_period=21)
         self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (validity_period filter mismatch)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_valid_validity_period(self):
@@ -619,14 +611,14 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_send_test(user=user, validity_period=21)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_default_content(self):
         # User have default value filter
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
     @defer.inlineCallbacks
     def test_invalid_content(self):
@@ -636,7 +628,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Invalid filter (user-level)
         response_text, response_code = yield self.run_send_test(user=user, content='any content')
         self.assertEqual(response_text, 'Error "Value filter failed for user [u1] (content filter mismatch)."')
-        self.assertEqual(response_code, '400 Bad Request')
+        self.assertEqual(response_code, 400)
 
     @defer.inlineCallbacks
     def test_valid_user_content(self):
@@ -646,7 +638,7 @@ class ValueFiltersTestCases(CredentialsTestCases):
         # Valid filter (user-level) with user-level invalid filter
         response_text, response_code = yield self.run_send_test(user=user, content='any content')
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
 
 class DefaultValuesTestCases(CredentialsTestCases):
@@ -655,7 +647,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
         # User have no default source address
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], '')
 
@@ -667,7 +659,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
         # Default value undefined
         response_text, response_code = yield self.run_send_test(user=user)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], '')
 
@@ -679,7 +671,7 @@ class DefaultValuesTestCases(CredentialsTestCases):
         # Defining default value in user-level
         response_text, response_code = yield self.run_send_test(user=user)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr'], 'JASMINTEST')
 
@@ -694,7 +686,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test()
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after SMS is sent
         t = yield self.user_get_all()
@@ -712,7 +704,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after SMS is sent
         t = yield self.user_get_all()
@@ -729,7 +721,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send long SMS
         response_text, response_code = yield self.run_send_test(user=user, content='X' * 400)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after long SMS is sent
         t = yield self.user_get_all()
@@ -746,7 +738,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after SMS is sent
         t = yield self.user_get_all()
@@ -764,7 +756,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user, default_route=route)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after SMS is sent
         t = yield self.user_get_all()
@@ -783,7 +775,7 @@ class QuotasTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, default_route=route,
                                                                 content='X' * 400)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after long SMS is sent
         t = yield self.user_get_all()
@@ -801,7 +793,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user, default_route=route)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert quotas after SMS is sent
         t = yield self.user_get_all()
@@ -819,7 +811,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user, default_route=route)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_rated_route_insufficient_balance_long_message(self):
@@ -832,7 +824,7 @@ class QuotasTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, default_route=route,
                                                                 content='X' * 400)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_unrated_route_insufficient_submit_sm_count(self):
@@ -843,7 +835,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_rated_route_insufficient_submit_sm_count(self):
@@ -855,7 +847,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user, default_route=route)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_unrated_route_insufficient_submit_sm_count_long_message(self):
@@ -866,7 +858,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user, content='X' * 400)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_rated_route_insufficient_submit_sm_count_long_message(self):
@@ -879,7 +871,7 @@ class QuotasTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, default_route=route,
                                                                 content='X' * 400)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent_insufficient_balance(self):
@@ -894,7 +886,7 @@ class QuotasTestCases(CredentialsTestCases):
         # Send default SMS
         response_text, response_code = yield self.run_send_test(user=user, default_route=route)
         self.assertEqual(response_text, 'Error "Cannot charge submit_sm, check RouterPB log file for details"')
-        self.assertEqual(response_code, '403 Forbidden')
+        self.assertEqual(response_code, 403)
 
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent(self):
@@ -919,7 +911,7 @@ class QuotasTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, default_route=route,
                                                                 side_effect=pre_submit_sm_resp)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert balance after receiving submit_sm_resp
         t = yield self.user_get_all()
@@ -950,7 +942,7 @@ class QuotasTestCases(CredentialsTestCases):
         response_text, response_code = yield self.run_send_test(user=user, default_route=route,
                                                                 side_effect=pre_submit_sm_resp)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert balance after receiving submit_sm_resp
         t = yield self.user_get_all()
@@ -982,7 +974,7 @@ class QuotasTestCases(CredentialsTestCases):
                                                                 side_effect=pre_submit_sm_resp,
                                                                 content='X' * 400)
         self.assertEqual(response_text[:7], 'Success')
-        self.assertEqual(response_code, 'Success')
+        self.assertEqual(response_code, 200)
 
         # Assert balance after receiving submit_sm_resp
         t = yield self.user_get_all()
@@ -1009,18 +1001,14 @@ class QuotasTestCases(CredentialsTestCases):
         throughput_exceeded_errors = 0
         request_counter = 0
         for x in range(5000):
-            try:
-                agent = Agent(reactor)
-                client = HTTPClient(agent)
-                response = yield client.post(baseurl, data=self.params)
-                response_text = yield text_content(response)
-                response_code = 'Success'
-            except Exception as error:
-                response_text = error.response
-                response_code = str(error)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            response = yield client.post(baseurl, data=self.params)
+            response_text = yield text_content(response)
+            response_code = response.code
 
             request_counter += 1
-            if response_code == '403 Forbidden' and response_text == 'Error "User throughput exceeded"':
+            if response_code == 403 and response_text == 'Error "User throughput exceeded"':
                 throughput_exceeded_errors += 1
         end_time = datetime.now()
 

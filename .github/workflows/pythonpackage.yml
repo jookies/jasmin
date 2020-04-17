@@ -34,7 +34,7 @@ jobs:
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         LOG_PATH: .
-        ROOT_PATH : .
+        ROOT_PATH : ''
       run: |
         sudo mkdir -p $ROOT_PATH/etc/jasmin/resource
         sudo mkdir -p $ROOT_PATH/etc/jasmin/store
