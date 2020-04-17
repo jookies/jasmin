@@ -20,9 +20,9 @@ class InvalidScriptSyntax(Exception):
 def validate_typed_script(script):
     """Will ensure the script exists and compilable"""
 
-    m = re.match(r'(python2)\((.*)\)', script, re.I)
+    m = re.match(r'(python3)\((.*)\)', script, re.I)
     if not m:
-        raise InvalidScriptSyntax('Invalid syntax for script, must be python2(/path/to/script).')
+        raise InvalidScriptSyntax('Invalid syntax for script, must be python3(/path/to/script).')
     else:
         language = m.group(1).lower()
         script_path = m.group(2)
@@ -132,7 +132,7 @@ def MOInterceptorBuild(fCallback):
                     try:
                         stype, script_path = validate_typed_script(arg)
 
-                        if stype == 'python2':
+                        if stype == 'python3':
                             # Open file and get its content
                             with open(script_path, 'r') as content_file:
                                 pyCode = content_file.read()

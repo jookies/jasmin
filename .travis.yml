@@ -9,12 +9,12 @@ env:
 # Command to install dependencies
 install:
     - pip install -r requirements.txt
+    - pip install coveralls
 # Commands to run tests:
 script:
     # Trial tests and coverage:
     - coverage run --source=jasmin -m twisted.trial tests
-    # Report coverage:
-    - coverage report --include=venv/lib/python2.7/site-packages/jasmin/* --fail-under=80
+    - coveralls
     # Docs building test:
     - cd misc/doc;make html;cd ../../
     # Pylint code analysis and rating:

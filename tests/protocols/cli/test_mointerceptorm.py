@@ -8,7 +8,7 @@ class BasicTestCases(MxInterceptorTestCases):
     def test_add_with_minimum_arg(self):
         extraCommands = [{'command': 'order 0'},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
     @defer.inlineCallbacks
@@ -20,7 +20,7 @@ class BasicTestCases(MxInterceptorTestCases):
     def test_add_invalid_key(self):
         extraCommands = [{'command': 'order 0'},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script},
+                         {'command': 'script python3(%s)' % self.valid_script},
                          {'command': 'anykey anyvalue', 'expect': r'Unknown Interceptor key: anykey'}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
@@ -39,7 +39,7 @@ class BasicTestCases(MxInterceptorTestCases):
     def test_add_and_list(self):
         extraCommands = [{'command': 'order 0'},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
@@ -62,7 +62,7 @@ class BasicTestCases(MxInterceptorTestCases):
         order = '0'
         extraCommands = [{'command': 'order %s' % order},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         commands = [{'command': 'mointerceptor -s %s' % order,
@@ -75,7 +75,7 @@ class BasicTestCases(MxInterceptorTestCases):
         order = '0'
         extraCommands = [{'command': 'order %s' % order},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         commands = [{'command': 'mointerceptor -u %s' % order, 'expect': 'no such option\: -u'}]
@@ -95,7 +95,7 @@ class BasicTestCases(MxInterceptorTestCases):
         order = '0'
         extraCommands = [{'command': 'order %s' % order},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         commands = [{'command': 'mointerceptor -r %s' % order,
@@ -107,12 +107,12 @@ class BasicTestCases(MxInterceptorTestCases):
         # Add 2 Interceptors:
         extraCommands = [{'command': 'order 0'},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         extraCommands = [{'command': 'order 20'},
                          {'command': 'type StaticMOInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script},
+                         {'command': 'script python3(%s)' % self.valid_script},
                          {'command': 'filters f1'}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
@@ -139,7 +139,7 @@ class BasicTestCases(MxInterceptorTestCases):
         order = '0'
         extraCommands = [{'command': 'order %s' % order},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor('jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
@@ -191,7 +191,7 @@ class MoInterceptorTypingTestCases(MxInterceptorTestCases):
         iorder = '0'
         itype = 'DefaultInterceptor'
         script = self.valid_script
-        typed_script = 'python2(%s)' % script
+        typed_script = 'python3(%s)' % script
         _str_ = '%s/<MOIS \(pyCode=print\("hello  world"\) ..\)>' % (itype)
 
         # Add MOInterceptor
@@ -215,7 +215,7 @@ class MoInterceptorTypingTestCases(MxInterceptorTestCases):
         iorder = '10'
         itype = 'StaticMOInterceptor'
         script = self.valid_script
-        typed_script = 'python2(%s)' % script
+        typed_script = 'python3(%s)' % script
         _str_ = '%s/<MOIS \(pyCode=print\("hello  world"\) ..\)>' % (itype)
 
         # Add MOInterceptor
@@ -244,7 +244,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
         """
         extraCommands = [{'command': 'order 20'},
                          {'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
@@ -259,7 +259,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
         DefaultInterceptor without the need to indicate the order
         """
         extraCommands = [{'command': 'type DefaultInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script}]
+                         {'command': 'script python3(%s)' % self.valid_script}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
         expectedList = ['#Order Type                 Script                                          Filter\(s\)',
@@ -275,7 +275,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
         commands = [{'command': 'mointerceptor -a'},
                     {'command': 'order 0'},
                     {'command': 'type StaticMOInterceptor'},
-                    {'command': 'script python2(%s)' % self.valid_script},
+                    {'command': 'script python3(%s)' % self.valid_script},
                     {'command': 'filters f1'},
                     {'command': 'ok', 'expect': 'Failed adding MOInterceptor, check log for details'}]
         yield self._test(r'> ', commands)
@@ -284,7 +284,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
     def test_add_invalid_script(self):
         commands = [{'command': 'mointerceptor -a'},
                     {'command': 'type DefaultInterceptor'},
-                    {'command': 'script python2(%s)' % self.invalid_syntax,
+                    {'command': 'script python3(%s)' % self.invalid_syntax,
                      'expect': '\[Syntax\]: invalid syntax \(, line 1\)'},
                     {'command': 'ok', 'expect': 'You must set these options before saving: order, type, script'}]
         yield self._test(r'> ', commands)
@@ -293,7 +293,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
     def test_add_unknown_script(self):
         commands = [{'command': 'mointerceptor -a'},
                     {'command': 'type DefaultInterceptor'},
-                    {'command': 'script python2(%s)' % self.file_not_found,
+                    {'command': 'script python3(%s)' % self.file_not_found,
                      'expect': '\[IO\]: \[Errno 2\] No such file or directory: \'\/file\/not\/found\''},
                     {'command': 'ok', 'expect': 'You must set these options before saving: order, type, script'}]
         yield self._test(r'> ', commands)
@@ -303,7 +303,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
         commands = [{'command': 'mointerceptor -a'},
                     {'command': 'type DefaultInterceptor'},
                     {'command': 'script php(%s)' % self.valid_script,
-                     'expect': 'Invalid syntax for script, must be python2\(\/path\/to\/script\).'},
+                     'expect': 'Invalid syntax for script, must be python3\(\/path\/to\/script\).'},
                     {'command': 'ok', 'expect': 'You must set these options before saving: order, type, script'}]
         yield self._test(r'> ', commands)
 
@@ -312,7 +312,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
         commands = [{'command': 'mointerceptor -a'},
                     {'command': 'order 20'},
                     {'command': 'type StaticMOInterceptor'},
-                    {'command': 'script python2(%s)' % self.valid_script},
+                    {'command': 'script python3(%s)' % self.valid_script},
                     {'command': 'filters uf1', 'expect': 'UserFilter#uf1 is not a valid filter for MOInterceptor'},
                     {'command': 'ok',
                      'expect': 'You must set these options before saving: order, type, filters, script'}]
@@ -322,7 +322,7 @@ class MoInterceptorArgsTestCases(MxInterceptorTestCases):
     def test_list_with_filter(self):
         extraCommands = [{'command': 'order 20'},
                          {'command': 'type StaticMOInterceptor'},
-                         {'command': 'script python2(%s)' % self.valid_script},
+                         {'command': 'script python3(%s)' % self.valid_script},
                          {'command': 'filters cf1'}]
         yield self.add_mointerceptor(r'jcli : ', extraCommands)
 
