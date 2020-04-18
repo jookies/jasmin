@@ -557,7 +557,7 @@ class LongSubmitSmWithUDHTestCase(LongSubmitSmTestCase):
         # Assert UDH parameters
         msg_ref_num = sent[0].params['short_message'][3]
         for i in range(nbrParts):
-            self.assertEqual(sent[i].params['short_message'][:3], '\x05\x00\x03')
+            self.assertEqual(sent[i].params['short_message'][:3], b'\x05\x00\x03')
             self.assertEqual(nbrParts, struct.unpack('!B', sent[i].params['short_message'][4])[0])
             self.assertEqual(i + 1, struct.unpack('!B', sent[i].params['short_message'][5])[0])
             self.assertEqual(msg_ref_num, sent[i].params['short_message'][3])

@@ -273,7 +273,7 @@ class SMPPClientSMListener:
                 UDHI_INDICATOR_SET = False
                 if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
                     for gsmFeature in r.request.params['esm_class'].gsmFeatures:
-                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        if gsmFeature == EsmClassGsmFeatures.UDHI_INDICATOR_SET:
                             UDHI_INDICATOR_SET = True
                             break
 
@@ -618,7 +618,7 @@ class SMPPClientSMListener:
                 UDHI_INDICATOR_SET = False
                 if 'esm_class' in routable.pdu.params and hasattr(routable.pdu.params['esm_class'], 'gsmFeatures'):
                     for gsmFeature in routable.pdu.params['esm_class'].gsmFeatures:
-                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        if gsmFeature == EsmClassGsmFeatures.UDHI_INDICATOR_SET:
                             UDHI_INDICATOR_SET = True
                             break
 
