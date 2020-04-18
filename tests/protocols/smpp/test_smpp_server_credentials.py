@@ -92,6 +92,10 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
+                         CommandStatus.ESME_RX_T_APPN)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
+                         CommandId.unbind)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
@@ -149,6 +153,10 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
+                         CommandStatus.ESME_RX_T_APPN)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
+                         CommandId.unbind)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
@@ -205,6 +213,10 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
+                         CommandStatus.ESME_RX_T_APPN)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
+                         CommandId.unbind)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
