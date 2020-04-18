@@ -87,8 +87,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-                         'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt,
+                         RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
 
     @defer.inlineCallbacks
     def test_dlr_level_1(self):
@@ -111,8 +111,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt,
+                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED')
 
     @defer.inlineCallbacks
     def test_dlr_level_2(self):
@@ -135,8 +135,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt,
+                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
 
     @defer.inlineCallbacks
     def test_dlr_level_3(self):
@@ -159,8 +159,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt,
+                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
 
     @defer.inlineCallbacks
     def test_connector_source_addr_ton(self):
@@ -183,8 +183,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
-                         'NATIONAL')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton'],
+                         AddrTon.NATIONAL)
 
     @defer.inlineCallbacks
     def test_connector_source_addr_ton_long_message(self):
@@ -208,10 +208,10 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Run tests
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton']),
-                         'NATIONAL')
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton']),
-                         'NATIONAL')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['source_addr_ton'],
+                         AddrTon.NATIONAL)
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[1].params['source_addr_ton'],
+                         AddrTon.NATIONAL)
 
     @defer.inlineCallbacks
     def test_validity_in_long_message(self):
@@ -267,8 +267,8 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         # '@$ΔßÉ' encoded in gsm338 = '\x00\x02\x10\x1e\x1f'
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message']),
-                         '\x00\x02\x10\x1e\x1f')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'],
+                         b'\x00\x02\x10\x1e\x1f')
 
     @defer.inlineCallbacks
     def test_hex_content(self):
@@ -834,10 +834,10 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Run tests
         # Ensure the only the last pdu has requested a dlr
         self.assertEqual(2, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt),
-                         'NO_SMSC_DELIVERY_RECEIPT_REQUESTED')
-        self.assertEqual(str(self.SMSCPort.factory.lastClient.submitRecords[1].params['registered_delivery'].receipt),
-                         'SMSC_DELIVERY_RECEIPT_REQUESTED')
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt,
+                         RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
+        self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[1].params['registered_delivery'].receipt,
+                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
 
         # Ensure dlr-url were called
         self.assertEqual(msgStatus, 'Success')
