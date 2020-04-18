@@ -4,9 +4,8 @@ from datetime import datetime
 from twisted.internet import defer
 from tests.protocols.smpp.test_smpp_server import SMPPClientTestCases
 from smpp.twisted.protocol import SMPPSessionStates
-from smpp.pdu import pdu_types
 from smpp.pdu.constants import priority_flag_value_map
-from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery, CommandId, CommandStatus
 
 
 class AuthorizationsTestCases(SMPPClientTestCases):
@@ -32,9 +31,13 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_ROK)
+                         CommandStatus.ESME_RX_T_APPN)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
+                         CommandId.unbind)
+        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
+                         CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
     def test_nonauthorized_smpps_send(self):
@@ -58,9 +61,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVSYSID)
+                         CommandStatus.ESME_RINVSYSID)
 
     @defer.inlineCallbacks
     def test_authorized_set_dlr_level(self):
@@ -87,9 +90,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_ROK)
+                         CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
     def test_nonauthorized_set_dlr_level(self):
@@ -116,9 +119,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVSYSID)
+                         CommandStatus.ESME_RINVSYSID)
 
     @defer.inlineCallbacks
     def test_authorized_set_source_address(self):
@@ -144,9 +147,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_ROK)
+                         CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
     def test_nonauthorized_set_source_address(self):
@@ -172,9 +175,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVSYSID)
+                         CommandStatus.ESME_RINVSYSID)
 
     @defer.inlineCallbacks
     def test_authorized_set_priority(self):
@@ -200,9 +203,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_ROK)
+                         CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
     def test_nonauthorized_set_priority(self):
@@ -228,9 +231,9 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVSYSID)
+                         CommandStatus.ESME_RINVSYSID)
 
 
 class FiltersTestCases(SMPPClientTestCases):
@@ -256,9 +259,9 @@ class FiltersTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVDSTADR)
+                         CommandStatus.ESME_RINVDSTADR)
 
     @defer.inlineCallbacks
     def test_filter_source_address(self):
@@ -282,9 +285,9 @@ class FiltersTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVSRCADR)
+                         CommandStatus.ESME_RINVSRCADR)
 
     @defer.inlineCallbacks
     def test_filter_priority(self):
@@ -308,9 +311,9 @@ class FiltersTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RINVPRTFLG)
+                         CommandStatus.ESME_RINVPRTFLG)
 
     @defer.inlineCallbacks
     def test_filter_content(self):
@@ -334,9 +337,9 @@ class FiltersTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RSYSERR)
+                         CommandStatus.ESME_RSYSERR)
 
 
 class QuotasTestCases(SMPPClientTestCases):
@@ -478,9 +481,9 @@ class QuotasTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RSYSERR)
+                         CommandStatus.ESME_RSYSERR)
 
     @defer.inlineCallbacks
     def test_unrated_route_insufficient_submit_sm_count(self):
@@ -508,9 +511,9 @@ class QuotasTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RSYSERR)
+                         CommandStatus.ESME_RSYSERR)
 
     @defer.inlineCallbacks
     def test_rated_route_insufficient_submit_sm_count(self):
@@ -540,9 +543,9 @@ class QuotasTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RSYSERR)
+                         CommandStatus.ESME_RSYSERR)
 
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent_insufficient_balance(self):
@@ -574,9 +577,9 @@ class QuotasTestCases(SMPPClientTestCases):
         # Asserts SMPPClient side
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_count, 2)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
-                         pdu_types.CommandId.submit_sm_resp)
+                         CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         pdu_types.CommandStatus.ESME_RSYSERR)
+                         CommandStatus.ESME_RSYSERR)
 
     @defer.inlineCallbacks
     def test_rated_route_early_decrement_balance_percent(self):

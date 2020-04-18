@@ -16,9 +16,9 @@ script:
     - coverage run --source=jasmin -m twisted.trial tests
     - coveralls
     # Docs building test:
-    - cd misc/doc;make html;cd ../../
+    # - cd misc/doc;make html;cd ../../
     # Pylint code analysis and rating:
-    - ./misc/pylint/run.sh
+    # - ./misc/pylint/run.sh
 services:
     - rabbitmq
     - redis-server

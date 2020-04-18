@@ -9,12 +9,12 @@ from twisted.cred import error
 from twisted.internet import defer, reactor
 
 from smpp.pdu.constants import data_coding_default_value_map
-from smpp.pdu.error import (SMPPClientConnectionCorruptedError, SMPPRequestTimoutError, 
-    SMPPSessionInitTimoutError, SMPPProtocolError, 
-    SMPPGenericNackTransactionError, SMPPTransactionError, 
+from smpp.pdu.error import (SMPPClientConnectionCorruptedError, SMPPRequestTimoutError,
+    SMPPSessionInitTimoutError, SMPPProtocolError,
+    SMPPGenericNackTransactionError, SMPPTransactionError,
     SMPPClientError)
 from smpp.pdu.operations import SubmitSM, GenericNack
-from smpp.pdu.pdu_types import (CommandId, CommandStatus, DataCoding, 
+from smpp.pdu.pdu_types import (CommandId, CommandStatus, DataCoding,
         DataCodingDefault, PDURequest, PDUResponse)
 from smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
 from smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
@@ -524,15 +524,16 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         bind_type = reqPDU.commandId
 
         # Update stats
-        if str(bind_type) == 'bind_transceiver':
+        if bind_type == CommandId.bind_transceiver:
             self.factory.stats.inc('bind_trx_count')
-        elif str(bind_type) == 'bind_receiver':
+        elif bind_type == CommandId.bind_receiver:
             self.factory.stats.inc('bind_rx_count')
-        elif str(bind_type) == 'bind_transmitter':
+        elif bind_type == CommandId.bind_transmitter:
             self.factory.stats.inc('bind_tx_count')
 
         # Check the authentication
-        username, password = reqPDU.params['system_id'], reqPDU.params['password']
+        username = reqPDU.params['system_id'].decode()
+        password = reqPDU.params['password'].decode()
 
         # Authenticate username and password
         try:
@@ -572,11 +573,11 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         self.sendResponse(reqPDU, system_id=self.system_id)
 
         # Update stats
-        if str(bind_type) == 'bind_transceiver':
+        if bind_type == CommandId.bind_transceiver:
             self.factory.stats.inc('bound_trx_count')
-        elif str(bind_type) == 'bind_receiver':
+        elif bind_type == CommandId.bind_receiver:
             self.factory.stats.inc('bound_rx_count')
-        elif str(bind_type) == 'bind_transmitter':
+        elif bind_type == CommandId.bind_transmitter:
             self.factory.stats.inc('bound_tx_count')
 
     def sendDataRequest(self, pdu):
