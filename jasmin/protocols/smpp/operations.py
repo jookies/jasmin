@@ -14,14 +14,13 @@ from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGs
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
 message_state_map = {
-    '%s' % MessageState.ACCEPTED: 'ACCEPTD',
-    '%s' % MessageState.UNDELIVERABLE: 'UNDELIV',
-    '%s' % MessageState.REJECTED: 'REJECTD',
-    '%s' % MessageState.DELIVERED: 'DELIVRD',
-    '%s' % MessageState.EXPIRED: 'EXPIRED',
-    '%s' % MessageState.DELETED: 'DELETED',
-    '%s' % MessageState.ACCEPTED: 'ACCEPTD',
-    '%s' % MessageState.UNKNOWN: 'UNKNOWN',
+    MessageState.ACCEPTED: 'ACCEPTD',
+    MessageState.UNDELIVERABLE: 'UNDELIV',
+    MessageState.REJECTED: 'REJECTD',
+    MessageState.DELIVERED: 'DELIVRD',
+    MessageState.EXPIRED: 'EXPIRED',
+    MessageState.DELETED: 'DELETED',
+    MessageState.UNKNOWN: 'UNKNOWN',
 }
 
 
@@ -79,8 +78,8 @@ class SMPPOperationFactory:
         if 'receipted_message_id' in pdu.params and 'message_state' in pdu.params:
             ret['id'] = pdu.params['receipted_message_id']
 
-            if str(pdu.params['message_state']) in message_state_map:
-                ret['stat'] = message_state_map[str(pdu.params['message_state'])]
+            if pdu.params['message_state'] in message_state_map:
+                ret['stat'] = message_state_map[pdu.params['message_state']]
             else:
                 ret['stat'] = 'UNKNOWN'
 

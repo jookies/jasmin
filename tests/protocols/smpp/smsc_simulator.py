@@ -36,7 +36,7 @@ from smpp.pdu.operations import (
     Outbind
 )
 from smpp.pdu.pdu_encoding import PDUEncoder
-from smpp.pdu.pdu_types import CommandStatus, PDURequest, AddrTon, MessageState
+from smpp.pdu.pdu_types import CommandId, CommandStatus, PDURequest, AddrTon, MessageState
 
 LOG_CATEGORY = "jasmin.smpp.tests.smsc_simulator"
 
@@ -454,7 +454,7 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
         self.pduRecords.append(pdu)
 
     def sendSuccessResponse(self, reqPDU):
-        if str(reqPDU.commandId)[:5] == 'bind_':
+        if reqPDU.commandId in (CommandId.bind_receiver, CommandId.bind_transmitter, CommandId.bind_transceiver):
             self.submitRecords = []
 
         HappySMSC.sendSuccessResponse(self, reqPDU)

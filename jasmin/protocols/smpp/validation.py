@@ -33,7 +33,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
             raise AuthorizationError(
                 'Authorization failed for username [%s] (Setting source address is not authorized).' % self.user)
         if (not self.user.mt_credential.getAuthorization('set_priority') and
-                    str(self.submit_sm.params['priority_flag']) != priority_flag_value_map[0]):
+                    self._convert_to_string('priority_flag') != priority_flag_value_map[0]):
             raise AuthorizationError(
                 'Authorization failed for username [%s] (Setting priority is not authorized).' % self.user)
 

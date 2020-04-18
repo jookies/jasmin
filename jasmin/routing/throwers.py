@@ -11,12 +11,14 @@ from twisted.web.client import Agent
 from txamqp.queue import Closed
 from treq.client import HTTPClient
 from treq import text_content
+from smpp.pdu.constants import priority_flag_name_map
+from smpp.pdu.pdu_encoding import DataCodingEncoder
 
 from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
-from smpp.pdu.constants import priority_flag_name_map
-from smpp.pdu.pdu_encoding import DataCodingEncoder
+from jasmin.protocols.http.errors import HttpApiError
+
 
 
 class MessageAcknowledgementError(Exception):
@@ -270,7 +272,7 @@ class deliverSmThrower(Thrower):
         # Build optional arguments
         if ('priority_flag' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['priority_flag'] is not None):
-            args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
+            args['priority'] = priority_flag_name_map[RoutedDeliverSmContent.params['priority_flag']._name_]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
             args['coding'] = ord(DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])[0])
@@ -312,6 +314,9 @@ class deliverSmThrower(Thrower):
                 
                 content = yield text_content(response)
                 
+                if response.code >= 400:
+                    raise HttpApiError(response.code, content)
+
                 self.log.debug('Destination end replied to message [msgid:%s]: %r',
                                msgid, content)
 
@@ -324,7 +329,7 @@ class deliverSmThrower(Thrower):
                                msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl, type(e), e)
 
                 # List of errors after which, no further retrying shall be made
-                noRetryErrors = ['404 Not Found']
+                noRetryErrors = ['404']
 
                 if route_type == 'simple':
                     # Requeue message for later retry
@@ -550,6 +555,9 @@ class DLRThrower(Thrower):
 
             content = yield text_content(response)
             
+            if response.code >= 400:
+                raise HttpApiError(response.code, content)
+
             self.log.debug('Destination end replied to message [msgid:%s]: %r', msgid, content)
             # Check for acknowledgement
             if content.strip() != 'ACK/Jasmin':
@@ -562,7 +570,7 @@ class DLRThrower(Thrower):
             self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.', msgid, baseurl, e)
 
             # List of errors after which, no further retrying shall be made
-            noRetryErrors = ['404 Not Found']
+            noRetryErrors = ['404']
 
             # Requeue message for later retry
             if (str(e) not in noRetryErrors

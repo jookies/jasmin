@@ -625,8 +625,8 @@ class SMPPClientSMListener:
                 not_class2 = True
                 if 'data_coding' in routable.pdu.params:
                     dcs = routable.pdu.params['data_coding']
-                    if (str(dcs.scheme) == 'GSM_MESSAGE_CLASS') and (dcs.schemeData is not None):
-                        not_class2 = (str(dcs.schemeData.msgClass) != 'CLASS_2')
+                    if (dcs.scheme == DataCodingScheme.GSM_MESSAGE_CLASS) and (dcs.schemeData is not None):
+                        not_class2 = (dcs.schemeData.msgClass != DataCodingGsmMsgClass.CLASS_2)
 
                 splitMethod = None
                 # Is it a part of a long message ?
