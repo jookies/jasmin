@@ -89,7 +89,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Set the route
         if route is None:
-            c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+            c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
             yield self.moroute_add(DefaultRoute(c2_destination), 0)
         else:
             yield self.moroute_add(route, route_order)
@@ -172,8 +172,8 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         source_connector = Connector(id_generator())
         wrong_port = self.AckServer.getHost().port + 1000
         route = FailoverMORoute([TransparentFilter()], [
-            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % wrong_port),
-            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)])
+            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % wrong_port, 'POST'),
+            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')])
         yield self.prepareRoutingsAndStartConnector(source_connector, route)
 
         # Send a data_sm from the SMSC

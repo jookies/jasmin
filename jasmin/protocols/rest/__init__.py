@@ -62,7 +62,7 @@ class ContentTypeFilter:
             raise HTTPUnsupportedMediaType(
                 'Unsupported media type',
                 'This API supports JSON media type only.',
-                'http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+                href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
 
 
 class AuthenticationFilter:

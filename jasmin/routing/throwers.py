@@ -267,7 +267,10 @@ class deliverSmThrower(Thrower):
             defer.returnValue(None)
 
         # Set the binary arg after deciding where to pick the content from
-        args['binary'] = binascii.hexlify(args['content'])
+        if isinstance(args['content'], bytes):
+            args['binary'] = binascii.hexlify(args['content'])
+        else:
+            args['binary'] = binascii.hexlify(args['content'].encode())
 
         # Build optional arguments
         if ('priority_flag' in RoutedDeliverSmContent.params and
@@ -275,7 +278,7 @@ class deliverSmThrower(Thrower):
             args['priority'] = priority_flag_name_map[RoutedDeliverSmContent.params['priority_flag']._name_]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
-            args['coding'] = ord(DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])[0])
+            args['coding'] = DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])
         if ('validity_period' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']

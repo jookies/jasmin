@@ -112,7 +112,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         self.assertEqual(msgStatus, 'Success')
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
         self.assertEqual(self.SMSCPort.factory.lastClient.submitRecords[0].params['registered_delivery'].receipt,
-                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED')
+                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
 
     @defer.inlineCallbacks
     def test_dlr_level_2(self):

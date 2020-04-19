@@ -18,7 +18,7 @@ from tests.routing.test_router import SubmitSmTestCaseTools
 from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.routing.throwers import deliverSmThrower
 from smpp.pdu.operations import DeliverSM
-from smpp.pdu.pdu_types import *
+from smpp.pdu.pdu_types import DataCoding, DataCodingDefault
 
 
 @defer.inlineCallbacks
@@ -106,9 +106,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_with_ack(self):
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_connector test content'
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
@@ -116,18 +116,18 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # No message retries must be made since ACK was received
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
-        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], self.testDeliverSMPdu.params['short_message'])
         self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
         self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_without_ack(self):
-        self.NoAckServerResource.render_GET = mock.Mock(wraps=self.NoAckServerResource.render_GET)
+        self.NoAckServerResource.render_POST = mock.Mock(wraps=self.NoAckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.NoAckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.NoAckServer.getHost().port, 'POST')
         content = 'test_throwing_http_connector test content'
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
@@ -135,46 +135,46 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(4)
 
         # Retries must be made when ACK is not received
-        self.assertTrue(self.NoAckServerResource.render_GET.call_count > 1)
+        self.assertTrue(self.NoAckServerResource.render_POST.call_count > 1)
 
-        callArgs = self.NoAckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs = self.NoAckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], self.testDeliverSMPdu.params['short_message'])
         self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
         self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_timeout_retry(self):
-        self.TimeoutLeafServerResource.render_GET = mock.Mock(wraps=self.TimeoutLeafServerResource.render_GET)
+        self.TimeoutLeafServerResource.render_POST = mock.Mock(wraps=self.TimeoutLeafServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.TimeoutLeafServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.TimeoutLeafServer.getHost().port, 'POST')
 
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
         # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
         yield waitFor(12)
 
-        self.assertEqual(self.TimeoutLeafServerResource.render_GET.call_count, 3)
+        self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 3)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):
         """When receiving a 404 error, no further retries shall be made
         """
-        self.Error404ServerResource.render_GET = mock.Mock(wraps=self.Error404ServerResource.render_GET)
+        self.Error404ServerResource.render_POST = mock.Mock(wraps=self.Error404ServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.Error404Server.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.Error404Server.getHost().port, 'POST')
 
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
         # Wait 1 second
         yield waitFor(1)
 
-        self.assertEqual(self.Error404ServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.Error404ServerResource.render_POST.call_count, 1)
 
     @defer.inlineCallbacks
     def test_throwing_validity_parameter(self):
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_connector test content'
         self.testDeliverSMPdu.params['short_message'] = content
 
@@ -187,9 +187,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # No message retries must be made since ACK was received
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
-        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertTrue('validity' in callArgs)
         self.assertEqual(str(vp), callArgs['validity'][0])
 
@@ -197,9 +197,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     def test_throwing_http_utf16(self):
         """Related to #320
         Send utf16-be content and check it was throwed while preserving the content as is"""
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = "\x06\x2A\x06\x33\x06\x2A"
         self.testDeliverSMPdu.params['short_message'] = content
         self.testDeliverSMPdu.params['data_coding'] = DataCoding(schemeData=DataCodingDefault.UCS2)
@@ -208,7 +208,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # Assert throwed content is equal to original content
-        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], content)
         self.assertEqual(callArgs['coding'][0], '8')
         self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
@@ -217,9 +217,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     def test_throwing_http_utf8(self):
         """Related to #320
         Send utf8 content and check it was throwed while preserving the content as is"""
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = "\xd8\xaa\xd8\xb3\xd8\xaa"
         self.testDeliverSMPdu.params['short_message'] = content
         self.testDeliverSMPdu.params['data_coding'] = DataCoding(schemeData=DataCodingDefault.UCS2)
@@ -228,7 +228,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # Assert throwed content is equal to original content
-        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], content)
         self.assertEqual(callArgs['coding'][0], '8')
         self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
@@ -238,9 +238,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         """Related to #380
         Will throw via http a pdu having 'message_payload' instead of 'short_message' parameter
         """
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_with_message_payload test content'
         del self.testDeliverSMPdu.params['short_message']
         self.testDeliverSMPdu.params['message_payload'] = content
@@ -249,9 +249,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # No message retries must be made since ACK was received
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
-        callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
+        callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs['content'][0], content)
         self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
         self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
@@ -261,9 +261,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         """Related to #380
         Will throw via http a pdu having no priority_flag parameter
         """
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_without_priority test content'
         del self.testDeliverSMPdu.params['priority_flag']
         self.testDeliverSMPdu.params['short_message'] = content
@@ -272,16 +272,16 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # No message retries must be made since ACK was received
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
     @defer.inlineCallbacks
     def test_throwing_http_without_coding(self):
         """Related to #380
         Will throw via http a pdu having no data_coding parameter
         """
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_without_coding test content'
         del self.testDeliverSMPdu.params['data_coding']
         self.testDeliverSMPdu.params['short_message'] = content
@@ -290,16 +290,16 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # No message retries must be made since ACK was received
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
     @defer.inlineCallbacks
     def test_throwing_http_without_validity(self):
         """Related to #380
         Will throw via http a pdu having no validity_period parameter
         """
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_without_priority test content'
         del self.testDeliverSMPdu.params['validity_period']
         self.testDeliverSMPdu.params['short_message'] = content
@@ -308,7 +308,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         yield waitFor(1)
 
         # No message retries must be made since ACK was received
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
 
 class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):

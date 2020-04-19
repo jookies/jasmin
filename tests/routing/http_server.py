@@ -8,10 +8,10 @@ class LeafServer(Resource):
     isLeaf = True
 
     def render_GET(self, request):
-        return 'render_GET'
+        return b'render_GET'
 
     def render_POST(self, request):
-        return 'render_POST'
+        return b'render_POST'
 
 
 class AckServer(LeafServer):
@@ -19,19 +19,19 @@ class AckServer(LeafServer):
 
     def render_GET(self, request):
         self.last_request = request
-        return 'ACK/Jasmin'
+        return b'ACK/Jasmin'
 
     def render_POST(self, request):
         self.last_request = request
-        return 'ACK/Jasmin'
+        return b'ACK/Jasmin'
 
 
 class NoAckServer(LeafServer):
     def render_GET(self, request):
-        return 'Anything'
+        return b'Anything'
 
     def render_POST(self, request):
-        return 'Anything'
+        return b'Anything'
 
 
 class TimeoutLeafServer(Resource):

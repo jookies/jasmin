@@ -10,7 +10,7 @@ from twisted.internet import defer
 from twisted.internet import reactor
 from txamqp.queue import Closed
 from smpp.pdu.operations import SubmitSM, DeliverSM
-from smpp.pdu.pdu_types import CommandStatus
+from smpp.pdu.pdu_types import CommandStatus, DataCodingScheme, DataCodingGsmMsgClass, EsmClassGsmFeatures
 from smpp.twisted.protocol import DataHandlerResponse
 from smpp.pdu.error import SMPPRequestTimoutError
 

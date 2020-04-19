@@ -82,14 +82,14 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, connector, route=None, route_order=1):
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         # Prepare for routing
         connector.port = self.SMSCPort.getHost().port
 
         # Set the route
         if route is None:
-            c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)
+            c2_destination = HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
             yield self.moroute_add(DefaultRoute(c2_destination), 0)
         else:
             yield self.moroute_add(route, route_order)
@@ -118,7 +118,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(connector.cid)
             if ssRet == 'NONE':
-                break;
+                break
             else:
                 yield waitFor(0.2)
 
@@ -151,15 +151,15 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Test callback in router
         self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 8)
-        self.assertEqual(receivedHttpReq['from'], [pdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [pdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [pdu.params['short_message']])
-        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(pdu.params['short_message'])])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'from'], [pdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [pdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [pdu.params['short_message']])
+        self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(pdu.params['short_message'])])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -187,12 +187,12 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Test callback in router
         self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 8)
-        self.assertEqual(receivedHttpReq['content'], [assert_content])
-        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(assert_content)])
+        self.assertEqual(receivedHttpReq[b'content'], [assert_content])
+        self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(assert_content)])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -206,8 +206,8 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         source_connector = Connector(id_generator())
         wrong_port = self.AckServer.getHost().port + 1000
         route = FailoverMORoute([TransparentFilter()], [
-            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % wrong_port),
-            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port)])
+            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % wrong_port, 'POST'),
+            HttpConnector(id_generator(), 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')])
         yield self.prepareRoutingsAndStartConnector(source_connector, route)
 
         # Send a deliver_sm from the SMSC
@@ -222,7 +222,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         # Test callback in router
         self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -246,28 +246,28 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         pdu_part2 = copy.deepcopy(basePdu)
         pdu_part3 = copy.deepcopy(basePdu)
         pdu_part1.params[
-            'short_message'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'short_message'] = b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part1.params['sar_segment_seqnum'] = 1
         pdu_part2.params[
-            'short_message'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'short_message'] = b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part2.params['sar_segment_seqnum'] = 2
-        pdu_part3.params['short_message'] = '__3rd_part_end.'
+        pdu_part3.params['short_message'] = b'__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
         yield self.triggerDeliverSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 8)
-        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [
+        self.assertEqual(receivedHttpReq[b'from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
-        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(
+        self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -303,32 +303,32 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         udh_part3 = copy.deepcopy(baseUdh)
         udh_part1.append(struct.pack('!B', 1))  # segment_seqnum
         pdu_part1.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part1.params['short_message'] = ''.join(
-            udh_part1) + '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part1.params['short_message'] = b''.join(
+            udh_part1) + b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part2.append(struct.pack('!B', 2))  # segment_seqnum
         pdu_part2.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part2.params['short_message'] = ''.join(
-            udh_part2) + '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part2.params['short_message'] = b''.join(
+            udh_part2) + b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part3.append(struct.pack('!B', 3))  # segment_seqnum
         pdu_part3.params['more_messages_to_send'] = MoreMessagesToSend.NO_MORE_MESSAGES
-        pdu_part3.params['short_message'] = ''.join(udh_part3) + '__3rd_part_end.'
+        pdu_part3.params['short_message'] = b''.join(udh_part3) + b'__3rd_part_end.'
         yield self.triggerDeliverSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 8)
-        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [
+        self.assertEqual(receivedHttpReq[b'from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [
             pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params[
                                                                                                 'short_message'][6:]])
-        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(
+        self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(
             pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params[
                                                                                                 'short_message'][6:])])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -352,28 +352,28 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         pdu_part2 = copy.deepcopy(basePdu)
         pdu_part3 = copy.deepcopy(basePdu)
         pdu_part1.params[
-            'short_message'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'short_message'] = b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part1.params['sar_segment_seqnum'] = 1
         pdu_part2.params[
-            'short_message'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'short_message'] = b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part2.params['sar_segment_seqnum'] = 2
-        pdu_part3.params['short_message'] = '__3rd_part_end.'
+        pdu_part3.params['short_message'] = b'__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
         yield self.triggerDeliverSmFromSMSC([pdu_part2, pdu_part1, pdu_part3])
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 8)
-        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [
+        self.assertEqual(receivedHttpReq[b'from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
-        self.assertEqual(receivedHttpReq['binary'], [binascii.hexlify(
+        self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -546,12 +546,12 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         pdu_part2 = copy.deepcopy(basePdu)
         pdu_part3 = copy.deepcopy(basePdu)
         pdu_part1.params[
-            'short_message'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'short_message'] = b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part1.params['sar_segment_seqnum'] = 1
         pdu_part2.params[
-            'short_message'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'short_message'] = b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part2.params['sar_segment_seqnum'] = 2
-        pdu_part3.params['short_message'] = '__3rd_part_end.'
+        pdu_part3.params['short_message'] = b'__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
         yield self.triggerDeliverSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
@@ -626,15 +626,15 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         udh_part3 = copy.deepcopy(baseUdh)
         udh_part1.append(struct.pack('!B', 1))  # segment_seqnum
         pdu_part1.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part1.params['short_message'] = ''.join(
-            udh_part1) + '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part1.params['short_message'] = b''.join(
+            udh_part1) + b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part2.append(struct.pack('!B', 2))  # segment_seqnum
         pdu_part2.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part2.params['short_message'] = ''.join(
-            udh_part2) + '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part2.params['short_message'] = b''.join(
+            udh_part2) + b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part3.append(struct.pack('!B', 3))  # segment_seqnum
         pdu_part3.params['more_messages_to_send'] = MoreMessagesToSend.NO_MORE_MESSAGES
-        pdu_part3.params['short_message'] = ''.join(udh_part3) + '__3rd_part_end.'
+        pdu_part3.params['short_message'] = b''.join(udh_part3) + b'__3rd_part_end.'
         yield self.triggerDeliverSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
         # Run tests
@@ -683,7 +683,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
 
         # Send a deliver_sm from the SMSC
         DeliverSmPDU = copy.deepcopy(self.DeliverSmPDU)
-        DeliverSmPDU.params['network_error_code'] = '\x03\x00\x00'
+        DeliverSmPDU.params['network_error_code'] = b'\x03\x00\x00'
         yield self.triggerDeliverSmFromSMSC([DeliverSmPDU])
 
         # Run tests

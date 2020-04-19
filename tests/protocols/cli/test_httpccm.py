@@ -132,7 +132,7 @@ class HttpccArgsTestCases(HttpccTestCases):
         # URL validation test
         commands = [{'command': 'httpccm -a'},
                     {'command': 'cid httpcc_id'},
-                    {'command': 'method get'},
+                    {'command': 'method GET'},
                     {'command': 'url http://sdsd'},
                     {'command': 'ok', 'expect': r'Error\: HttpConnector url syntax is invalid'},
                     {'command': 'url ftp://127.0.0.1'},
