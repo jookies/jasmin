@@ -82,12 +82,12 @@ class SimulatorTestCase(TestCase):
 
     def composeMessage(self, characters, length):
         if length <= len(characters):
-            return ''.join(random.sample(characters, length).encode())
+            return b''.join(random.sample(characters, length).encode())
         else:
-            s = ''
+            s = b''
             while len(s) < length:
-                s += ''.join(random.sample(characters, len(characters)))
-            return s[:length].encode()
+                s += b''.join(random.sample(characters, len(characters)))
+            return s[:length]
 
     def verifyUnbindSuccess(self, smpp, sent, recv):
         self.assertTrue(isinstance(recv, UnbindResp))
@@ -707,7 +707,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 670)  # 670 = (67*2) * 5
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -733,7 +733,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 3350)  # 3350 = 67 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -888,7 +888,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 670)  # 670 = (67*2) * 5
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -914,7 +914,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 1072)  # 1072 = (67*2) * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -1060,7 +1060,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 1072)  # 536 = (67*2) * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -1086,7 +1086,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 3350)  # 3350 = 67 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -1232,7 +1232,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 1072)  # 1072 = (67*2) * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
@@ -1258,7 +1258,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        UCS2 = {'\x0623', '\x0631', '\x0646', '\x0628'}
+        UCS2 = {b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}
         content = self.composeMessage(UCS2, 3350)  # 3350 = 67 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
