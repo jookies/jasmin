@@ -119,9 +119,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['content'][0], self.testDeliverSMPdu.params['short_message'])
-        self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
-        self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
+        self.assertEqual(callArgs[b'content'][0], self.testDeliverSMPdu.params['short_message'])
+        self.assertEqual(callArgs[b'from'][0], self.testDeliverSMPdu.params['source_addr'])
+        self.assertEqual(callArgs[b'to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_without_ack(self):
@@ -138,9 +138,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertTrue(self.NoAckServerResource.render_POST.call_count > 1)
 
         callArgs = self.NoAckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['content'][0], self.testDeliverSMPdu.params['short_message'])
-        self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
-        self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
+        self.assertEqual(callArgs[b'content'][0], self.testDeliverSMPdu.params['short_message'])
+        self.assertEqual(callArgs[b'from'][0], self.testDeliverSMPdu.params['source_addr'])
+        self.assertEqual(callArgs[b'to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_timeout_retry(self):
@@ -191,7 +191,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertTrue('validity' in callArgs)
-        self.assertEqual(str(vp), callArgs['validity'][0])
+        self.assertEqual(str(vp).encode(), callArgs[b'validity'][0])
 
     @defer.inlineCallbacks
     def test_throwing_http_utf16(self):
@@ -200,7 +200,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
-        content = "\x06\x2A\x06\x33\x06\x2A"
+        content = b"\x06\x2A\x06\x33\x06\x2A"
         self.testDeliverSMPdu.params['short_message'] = content
         self.testDeliverSMPdu.params['data_coding'] = DataCoding(schemeData=DataCodingDefault.UCS2)
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
@@ -209,9 +209,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
         # Assert throwed content is equal to original content
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['content'][0], content)
-        self.assertEqual(callArgs['coding'][0], '8')
-        self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
+        self.assertEqual(callArgs[b'content'][0], content)
+        self.assertEqual(callArgs[b'coding'][0], b'8')
+        self.assertEqual(callArgs[b'binary'][0], binascii.hexlify(content))
 
     @defer.inlineCallbacks
     def test_throwing_http_utf8(self):
@@ -220,7 +220,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
-        content = "\xd8\xaa\xd8\xb3\xd8\xaa"
+        content = b"\xd8\xaa\xd8\xb3\xd8\xaa"
         self.testDeliverSMPdu.params['short_message'] = content
         self.testDeliverSMPdu.params['data_coding'] = DataCoding(schemeData=DataCodingDefault.UCS2)
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
@@ -229,9 +229,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
         # Assert throwed content is equal to original content
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['content'][0], content)
-        self.assertEqual(callArgs['coding'][0], '8')
-        self.assertEqual(callArgs['binary'][0], binascii.hexlify(content))
+        self.assertEqual(callArgs[b'content'][0], content)
+        self.assertEqual(callArgs[b'coding'][0], b'8')
+        self.assertEqual(callArgs[b'binary'][0], binascii.hexlify(content))
 
     @defer.inlineCallbacks
     def test_throwing_http_with_message_payload(self):
@@ -241,7 +241,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
-        content = 'test_throwing_http_with_message_payload test content'
+        content = b'test_throwing_http_with_message_payload test content'
         del self.testDeliverSMPdu.params['short_message']
         self.testDeliverSMPdu.params['message_payload'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
@@ -252,9 +252,9 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['content'][0], content)
-        self.assertEqual(callArgs['from'][0], self.testDeliverSMPdu.params['source_addr'])
-        self.assertEqual(callArgs['to'][0], self.testDeliverSMPdu.params['destination_addr'])
+        self.assertEqual(callArgs[b'content'][0], content)
+        self.assertEqual(callArgs[b'from'][0], self.testDeliverSMPdu.params['source_addr'])
+        self.assertEqual(callArgs[b'to'][0], self.testDeliverSMPdu.params['destination_addr'])
 
     @defer.inlineCallbacks
     def test_throwing_http_without_priority(self):

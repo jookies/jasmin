@@ -12,7 +12,7 @@ from jasmin.managers.content import (SubmitSmContent, SubmitSmRespContent,
                                      DLRContentForHttpapi, DLRContentForSmpps,
                                      DLR, InvalidParameterError)
 from jasmin.routing.jasminApi import *
-from smpp.pdu.pdu_types import AddrTon, AddrNpi
+from smpp.pdu.pdu_types import AddrTon, AddrNpi, CommandId, CommandStatus
 
 
 class ContentTestCase(TestCase):
@@ -80,8 +80,8 @@ class SubmitSmRespContentTestCase(ContentTestCase):
 
 class DLRTestCase(ContentTestCase):
     def test_deliversm_and_datasm(self):
-        for pdu_type in ['deliver_sm', 'data_sm']:
-            c = DLR(pdu_type=pdu_type, msgid=1, status='ESME_ROK', cid='test', dlr_details={'some': 'detail'})
+        for pdu_type in [CommandId.deliver_sm, CommandId.data_sm]:
+            c = DLR(pdu_type=pdu_type, msgid=1, status=CommandStatus.ESME_ROK, cid='test', dlr_details={'some': 'detail'})
 
             self.assertEqual('ESME_ROK', c.body)
             self.assertEqual('1', c.properties['message-id'])

@@ -142,7 +142,7 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
                 'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
         if (b'content' in self.request.args and 
                 (self.user.mt_credential.getValueFilter('content') is None or
-                not self.user.mt_credential.getValueFilter('content').match(self._convert_to_string(b'content')))):
+                not self.user.mt_credential.getValueFilter('content').match(self._convert_to_string(b'content', self.request.args.get(b'coding', [None])[0])))):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (content filter mismatch).' % self.user)
 
@@ -169,10 +169,11 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
         else:
             raise CredentialValidationError('Unknown action [%s].' % self.action)
 
-    def _convert_to_string(self, arg_name):
+    def _convert_to_string(self, arg_name, encoding_type=None):
         value = self.request.args[arg_name][0]
         if isinstance(value, bytes):
-            return value.decode()
+            print(f'Encoding Type is: {encoding_type}')
+            return value.decode(self.encoding_map.get(encoding_type, 'ascii'))
         if isinstance(value, str):
             return value
         return str(value)

@@ -212,12 +212,12 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         pdu_part2 = copy.deepcopy(basePdu)
         pdu_part3 = copy.deepcopy(basePdu)
         pdu_part1.params[
-            'message_payload'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'message_payload'] = b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part1.params['sar_segment_seqnum'] = 1
         pdu_part2.params[
-            'message_payload'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'message_payload'] = b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part2.params['sar_segment_seqnum'] = 2
-        pdu_part3.params['message_payload'] = '__3rd_part_end.'
+        pdu_part3.params['message_payload'] = b'__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
         yield self.triggerDataSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
@@ -268,15 +268,15 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         udh_part3 = copy.deepcopy(baseUdh)
         udh_part1.append(struct.pack('!B', 1))  # segment_seqnum
         pdu_part1.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part1.params['message_payload'] = ''.join(
-            udh_part1) + '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part1.params['message_payload'] = b''.join(
+            udh_part1) + b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part2.append(struct.pack('!B', 2))  # segment_seqnum
         pdu_part2.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part2.params['message_payload'] = ''.join(
-            udh_part2) + '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part2.params['message_payload'] = b''.join(
+            udh_part2) + b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part3.append(struct.pack('!B', 3))  # segment_seqnum
         pdu_part3.params['more_messages_to_send'] = MoreMessagesToSend.NO_MORE_MESSAGES
-        pdu_part3.params['message_payload'] = ''.join(udh_part3) + '__3rd_part_end.'
+        pdu_part3.params['message_payload'] = b''.join(udh_part3) + b'__3rd_part_end.'
         yield self.triggerDataSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
         # Run tests
@@ -315,12 +315,12 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         pdu_part2 = copy.deepcopy(basePdu)
         pdu_part3 = copy.deepcopy(basePdu)
         pdu_part1.params[
-            'message_payload'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'message_payload'] = b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part1.params['sar_segment_seqnum'] = 1
         pdu_part2.params[
-            'message_payload'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'message_payload'] = b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part2.params['sar_segment_seqnum'] = 2
-        pdu_part3.params['message_payload'] = '__3rd_part_end.'
+        pdu_part3.params['message_payload'] = b'__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
         yield self.triggerDataSmFromSMSC([pdu_part2, pdu_part1, pdu_part3])
 
@@ -507,12 +507,12 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
         pdu_part2 = copy.deepcopy(basePdu)
         pdu_part3 = copy.deepcopy(basePdu)
         pdu_part1.params[
-            'message_payload'] = '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'message_payload'] = b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part1.params['sar_segment_seqnum'] = 1
         pdu_part2.params[
-            'message_payload'] = '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+            'message_payload'] = b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         pdu_part2.params['sar_segment_seqnum'] = 2
-        pdu_part3.params['message_payload'] = '__3rd_part_end.'
+        pdu_part3.params['message_payload'] = b'__3rd_part_end.'
         pdu_part3.params['sar_segment_seqnum'] = 3
         yield self.triggerDataSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
@@ -587,15 +587,15 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
         udh_part3 = copy.deepcopy(baseUdh)
         udh_part1.append(struct.pack('!B', 1))  # segment_seqnum
         pdu_part1.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part1.params['message_payload'] = ''.join(
-            udh_part1) + '__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part1.params['message_payload'] = b''.join(
+            udh_part1) + b'__1st_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part2.append(struct.pack('!B', 2))  # segment_seqnum
         pdu_part2.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES
-        pdu_part2.params['message_payload'] = ''.join(
-            udh_part2) + '__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
+        pdu_part2.params['message_payload'] = b''.join(
+            udh_part2) + b'__2nd_part_with_153_char________________________________________________________________________________________________________________________________.'
         udh_part3.append(struct.pack('!B', 3))  # segment_seqnum
         pdu_part3.params['more_messages_to_send'] = MoreMessagesToSend.NO_MORE_MESSAGES
-        pdu_part3.params['message_payload'] = ''.join(udh_part3) + '__3rd_part_end.'
+        pdu_part3.params['message_payload'] = b''.join(udh_part3) + b'__3rd_part_end.'
         yield self.triggerDataSmFromSMSC([pdu_part1, pdu_part2, pdu_part3])
 
         # Run tests

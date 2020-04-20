@@ -7,6 +7,7 @@ import datetime
 import uuid
 
 from txamqp.content import Content
+from smpp.pdu.pdu_types import CommandId, CommandStatus
 
 from pkg_resources import iter_entry_points
 
@@ -50,28 +51,26 @@ class DLR(Content):
     """A DLR is published to dlr.* routes for DLRLookup"""
 
     def __init__(self, pdu_type, msgid, status, smpp_msgid=None, cid=None, dlr_details=None):
-        pdu_type_s = '%s' % pdu_type
-        status_s = '%s' % status
 
-        if pdu_type_s not in ['deliver_sm', 'data_sm', 'submit_sm_resp']:
-            raise InvalidParameterError('Invalid pdu_type: %s' % pdu_type_s)
+        if pdu_type not in (CommandId.deliver_sm, CommandId.data_sm, CommandId.submit_sm_resp):
+            raise InvalidParameterError('Invalid pdu_type: %s' % pdu_type._name_)
 
-        if pdu_type_s == 'submit_sm_resp' and status_s == 'ESME_ROK' and smpp_msgid is None:
+        if pdu_type == CommandId.submit_sm_resp and status == CommandStatus.ESME_ROK and smpp_msgid is None:
             raise InvalidParameterError('submit_sm_resp with ESME_ROK dlr must have smpp_msgid arg defined')
-        elif pdu_type_s in ['deliver_sm', 'data_sm'] and (cid is None or dlr_details is None):
+        elif pdu_type in (CommandId.deliver_sm, CommandId.data_sm) and (cid is None or dlr_details is None):
             raise InvalidParameterError('deliver_sm dlr must have cid and dlr_details args defined')
 
-        properties = {'message-id': str(msgid), 'headers': {'type': pdu_type_s}}
+        properties = {'message-id': str(msgid), 'headers': {'type': pdu_type._name_}}
 
-        if pdu_type_s == 'submit_sm_resp' and smpp_msgid is not None:
+        if pdu_type == CommandId.submit_sm_resp and smpp_msgid is not None:
             # smpp_msgid is used to define mapping between msgid and smpp_msgid (when receiving submit_sm_resp ESME_ROK)
             properties['headers']['smpp_msgid'] = str(smpp_msgid).upper().lstrip('0')
-        elif pdu_type_s in ['deliver_sm', 'data_sm']:
+        elif pdu_type in (CommandId.deliver_sm, CommandId.data_sm):
             properties['headers']['cid'] = cid
             for k, v in dlr_details.items():
                 properties['headers']['dlr_%s' % k] = v
 
-        Content.__init__(self, status_s, properties=properties)
+        Content.__init__(self, status._name_, properties=properties)
 
 
 class DLRContentForHttpapi(Content):
