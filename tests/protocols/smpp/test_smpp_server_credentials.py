@@ -33,10 +33,6 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         CommandStatus.ESME_RX_T_APPN)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
-                         CommandId.unbind)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
@@ -92,10 +88,6 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         CommandStatus.ESME_RX_T_APPN)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
-                         CommandId.unbind)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
@@ -153,10 +145,6 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         CommandStatus.ESME_RX_T_APPN)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
-                         CommandId.unbind)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
@@ -213,10 +201,6 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].id,
                          CommandId.submit_sm_resp)
         self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[0][0][0].status,
-                         CommandStatus.ESME_RX_T_APPN)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].id,
-                         CommandId.unbind)
-        self.assertEqual(self.smppc_factory.lastProto.PDUReceived.call_args_list[1][0][0].status,
                          CommandStatus.ESME_ROK)
 
     @defer.inlineCallbacks
@@ -668,7 +652,7 @@ class QuotasTestCases(SMPPClientTestCases):
             responsePDU = yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
 
             request_counter += 1
-            if str(responsePDU.response.status) == 'ESME_RTHROTTLED':
+            if responsePDU.response.status == CommandStatus.ESME_RTHROTTLED:
                 throughput_exceeded_errors += 1
         end_time = datetime.now()
 

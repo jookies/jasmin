@@ -408,7 +408,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 raise SubmitSmRoutingError()
 
             # QoS throttling
-            if (routable.user.mt_credential.getQuota('smpps_throughput') >= 0
+            if (routable.user.mt_credential.getQuota('smpps_throughput') and routable.user.mt_credential.getQuota('smpps_throughput') >= 0
                 and routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0):
                 qos_throughput_second = 1 / float(routable.user.mt_credential.getQuota('smpps_throughput'))
                 qos_throughput_ysecond_td = timedelta(microseconds=qos_throughput_second * 1000000)
