@@ -172,7 +172,6 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
     def _convert_to_string(self, arg_name, encoding_type=None):
         value = self.request.args[arg_name][0]
         if isinstance(value, bytes):
-            print(f'Encoding Type is: {encoding_type}')
             return value.decode(self.encoding_map.get(encoding_type, 'ascii'))
         if isinstance(value, str):
             return value
