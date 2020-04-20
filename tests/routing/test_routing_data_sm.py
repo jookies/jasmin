@@ -644,7 +644,7 @@ class DataSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTe
 
         # Send a data_sm from the SMSC
         DataSmPDU = copy.deepcopy(self.DataSmPDU)
-        DataSmPDU.params['network_error_code'] = '\x03\x00\x00'
+        DataSmPDU.params['network_error_code'] = b'\x03\x00\x00'
         yield self.triggerDataSmFromSMSC([DataSmPDU])
 
         # Run tests

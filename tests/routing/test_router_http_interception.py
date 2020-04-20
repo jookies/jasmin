@@ -276,7 +276,7 @@ class HttpAPISubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy
         # Asserts
         self.assertEqual(lastErrorStatus, 200)
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.submitRecords))
-        self.assertEqual('Intercepted message',
+        self.assertEqual(b'Intercepted message',
                          self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
         self.assertEqual(_ic + 1, self.stats_http.get('interceptor_count'))
         self.assertEqual(_iec, self.stats_http.get('interceptor_error_count'))

@@ -210,7 +210,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # Assert throwed content is equal to original content
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs[b'content'][0], content)
-        self.assertEqual(callArgs[b'coding'][0], b'8')
+        self.assertEqual(callArgs[b'coding'][0], b'\x08')
         self.assertEqual(callArgs[b'binary'][0], binascii.hexlify(content))
 
     @defer.inlineCallbacks
@@ -230,7 +230,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         # Assert throwed content is equal to original content
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(callArgs[b'content'][0], content)
-        self.assertEqual(callArgs[b'coding'][0], b'8')
+        self.assertEqual(callArgs[b'coding'][0], b'\x08')
         self.assertEqual(callArgs[b'binary'][0], binascii.hexlify(content))
 
     @defer.inlineCallbacks
