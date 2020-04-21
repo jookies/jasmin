@@ -292,7 +292,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
         self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(received_pdu_1.params['short_message'], 'Intercepted message')
+        self.assertEqual(received_pdu_1.params['short_message'], b'Intercepted message')
         # Run tests on upstream smpp client
         self.assertEqual(len(self.SMSCPort.factory.lastClient.pduRecords), 2)
         sent_back_resp = self.SMSCPort.factory.lastClient.pduRecords[1]

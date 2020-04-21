@@ -54,7 +54,7 @@ class SubmitSmTestCases(LoggingTestCases):
         """
         lc = LogCapture("jasmin-sm-listener")
 
-        _gsm0338_str = composeMessage(['A', 'B', 'C'], 160)
+        _gsm0338_str = composeMessage([b'A', b'B', b'C'], 160)
         yield self.run_test(content=_gsm0338_str)
 
         # Assert logging

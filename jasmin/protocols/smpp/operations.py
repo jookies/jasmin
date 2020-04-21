@@ -102,7 +102,10 @@ class SMPPOperationFactory:
 
             # Look for patterns and compose return object
             for pattern in patterns:
-                m = re.search(pattern, pdu.params['short_message'].decode())
+                if isinstance(pdu.params['short_message'], bytes):
+                    m = re.search(pattern, pdu.params['short_message'].decode())
+                else:
+                    m = re.search(pattern, pdu.params['short_message'])
                 if m:
                     key = list(m.groupdict())[0]
                     if (key not in ['id', 'stat']

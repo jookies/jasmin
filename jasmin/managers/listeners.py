@@ -591,7 +591,7 @@ class SMPPClientSMListener:
                     self.log.info(
                         'Interceptor script returned %s smpp_status error.', args[0]['smpp_status'])
                     raise DeliverSmInterceptionError(code=args[0]['smpp_status'])
-                elif isinstance(args[0], str):
+                elif isinstance(args[0], (str, bytes)):
                     smpp.factory.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
                 else:

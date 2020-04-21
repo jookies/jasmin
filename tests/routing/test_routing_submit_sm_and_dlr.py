@@ -278,7 +278,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Some hebrew data
         del (self.params['content'])
         self.params['hex-content'] = b'05d905d005dc05dc05dc05dc05dc05dc05dc05d4'
-        self.params['coding'] = 8
+        self.params['coding'] = b'\x08'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -1577,10 +1577,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         dlr_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         # assert correct ton/npi are transmitted to downstream (reversed from submit_sm)
-        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params['dest_addr_ton'])
-        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params['dest_addr_npi'])
-        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params['source_addr_ton'])
-        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
+        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params[b'dest_addr_ton'])
+        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params[b'dest_addr_npi'])
+        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params[b'source_addr_ton'])
+        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params[b'source_addr_npi'])
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
         self.assertEqual(last_pdu.id, CommandId.unbind_resp)
@@ -1626,10 +1626,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         dlr_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         # assert correct ton/npi are transmitted to downstream (reversed from submit_sm)
-        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params['dest_addr_ton'])
-        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params['dest_addr_npi'])
-        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params['source_addr_ton'])
-        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
+        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params[b'dest_addr_ton'])
+        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params[b'dest_addr_npi'])
+        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params[b'source_addr_ton'])
+        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params[b'source_addr_npi'])
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
         self.assertEqual(last_pdu.id, CommandId.unbind_resp)
