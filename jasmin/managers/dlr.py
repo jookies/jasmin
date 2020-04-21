@@ -4,6 +4,7 @@ from logging.handlers import TimedRotatingFileHandler
 from twisted.internet import defer
 from twisted.internet import reactor
 from txamqp.queue import Closed
+from txredisapi import ConnectionError
 
 from jasmin.managers.content import DLRContentForHttpapi, DLRContentForSmpps
 from jasmin.tools.singleton import Singleton
@@ -156,8 +157,6 @@ class DLRLookup:
         try:
             if self.redisClient is None:
                 raise RedisError('RC undefined !')
-            if self.redisClient.connected != 1:
-                raise RedisError('RC is offline !')
 
             # Check for DLR request from redis 'dlr' key
             # If there's a pending delivery receipt request then serve it
@@ -264,7 +263,7 @@ class DLRLookup:
         except DLRMapError as e:
             self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
             yield self.rejectMessage(message)
-        except RedisError as e:
+        except (RedisError, ConnectionError) as e:
             if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)

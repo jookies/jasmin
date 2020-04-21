@@ -64,7 +64,7 @@ class DLR(Content):
 
         if pdu_type == CommandId.submit_sm_resp and smpp_msgid is not None:
             # smpp_msgid is used to define mapping between msgid and smpp_msgid (when receiving submit_sm_resp ESME_ROK)
-            properties['headers']['smpp_msgid'] = str(smpp_msgid).upper().lstrip('0')
+            properties['headers']['smpp_msgid'] = smpp_msgid.decode().upper().lstrip('0')
         elif pdu_type in (CommandId.deliver_sm, CommandId.data_sm):
             properties['headers']['cid'] = cid
             for k, v in dlr_details.items():

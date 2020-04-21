@@ -109,7 +109,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
-        content = 'test_throwing_http_connector test content'
+        content = b'test_throwing_http_connector test content'
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
@@ -128,7 +128,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.NoAckServerResource.render_POST = mock.Mock(wraps=self.NoAckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.NoAckServer.getHost().port, 'POST')
-        content = 'test_throwing_http_connector test content'
+        content = b'test_throwing_http_connector test content'
         self.testDeliverSMPdu.params['short_message'] = content
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
@@ -175,7 +175,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
-        content = 'test_throwing_http_connector test content'
+        content = b'test_throwing_http_connector test content'
         self.testDeliverSMPdu.params['short_message'] = content
 
         # Set validity_period in deliver_sm and send it
@@ -190,7 +190,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertTrue('validity' in callArgs)
+        self.assertTrue(b'validity' in callArgs)
         self.assertEqual(str(vp).encode(), callArgs[b'validity'][0])
 
     @defer.inlineCallbacks
