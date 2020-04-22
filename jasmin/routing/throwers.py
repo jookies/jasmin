@@ -294,10 +294,16 @@ class deliverSmThrower(Thrower):
             try:
                 # Throw the message to http endpoint
                 postdata = None
+                params = None
                 baseurl = dc.baseurl
-                _method = dc.method.upper()
+                _method = dc._method
+                if isinstance(_method, bytes):
+                    _method = _method.decode().upper()
+                else:
+                    _method = _method.upper()
+
                 if _method == 'GET':
-                    baseurl += '?%s' % urllib.parse.urlencode(args)
+                    params = args
                 else:
                     postdata = args
 
@@ -307,6 +313,7 @@ class deliverSmThrower(Thrower):
                 response = yield client.request(
                     _method,
                     baseurl,
+                    params=params,
                     data=postdata,
                     timeout=self.config.timeout,
                     agent='Jasmin gateway/1.0 deliverSmHttpThrower',
@@ -508,8 +515,8 @@ class DLRThrower(Thrower):
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
-        url = message.content.properties['headers']['url'].encode('ascii')
-        method = message.content.properties['headers']['method'].encode('ascii')
+        url = message.content.properties['headers']['url']
+        method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
@@ -537,9 +544,10 @@ class DLRThrower(Thrower):
         try:
             # Throw the message to http endpoint
             postdata = None
+            params = None
             baseurl = url
             if method == 'GET':
-                baseurl += '?%s' % urllib.parse.urlencode(args)
+                params = args
             else:
                 postdata = args
 
@@ -549,6 +557,7 @@ class DLRThrower(Thrower):
             response = yield client.request(
                 method,
                 baseurl,
+                params=params,
                 data=postdata,
                 timeout=self.config.timeout,
                 agent='Jasmin gateway/1.0 %s' % self.name,

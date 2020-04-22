@@ -170,10 +170,10 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['message_status'][0], message_status)
-        self.assertEqual(callArgs['id'][0], msgid)
-        self.assertEqual(callArgs['level'][0], str(dlr_level))
-        self.assertEqual(callArgs['connector'][0], dlr_connector)
+        self.assertEqual(callArgs[b'message_status'][0], message_status.encode())
+        self.assertEqual(callArgs[b'id'][0], msgid.encode())
+        self.assertEqual(callArgs[b'level'][0], str(dlr_level).encode())
+        self.assertEqual(callArgs[b'connector'][0], dlr_connector.encode())
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_dlr_level2(self):
@@ -193,17 +193,18 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['message_status'][0], message_status)
-        self.assertEqual(callArgs['id'][0], msgid)
-        self.assertEqual(callArgs['level'][0], str(dlr_level))
-        self.assertEqual(callArgs['id_smsc'][0], 'abc')
-        self.assertEqual(callArgs['sub'][0], '3')
-        self.assertEqual(callArgs['dlvrd'][0], '3')
-        self.assertEqual(callArgs['subdate'][0], 'anydate')
-        self.assertEqual(callArgs['donedate'][0], 'anydate')
-        self.assertEqual(callArgs['err'][0], '')
-        self.assertEqual(callArgs['text'][0], 'Any text')
-        self.assertEqual(callArgs['connector'][0], dlr_connector)
+        print(callArgs)
+        self.assertEqual(callArgs[b'message_status'][0], message_status.encode())
+        self.assertEqual(callArgs[b'id'][0], msgid.encode())
+        self.assertEqual(callArgs[b'level'][0], str(dlr_level).encode())
+        self.assertEqual(callArgs[b'id_smsc'][0], b'abc')
+        self.assertEqual(callArgs[b'sub'][0], b'3')
+        self.assertEqual(callArgs[b'dlvrd'][0], b'3')
+        self.assertEqual(callArgs[b'subdate'][0], b'anydate')
+        self.assertEqual(callArgs[b'donedate'][0], b'anydate')
+        self.assertEqual(callArgs[b'err'][0], b'')
+        self.assertEqual(callArgs[b'text'][0], b'Any text')
+        self.assertEqual(callArgs[b'connector'][0], dlr_connector.encode())
 
 
 class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCaseTools):

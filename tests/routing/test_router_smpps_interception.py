@@ -285,7 +285,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         self.assertEqual(response_pdu.status, pdu_types.CommandStatus.ESME_ROK)
         self.assertNotEqual(None, response_pdu.params['message_id'])
         # Message content has been updated
-        self.assertEqual('Intercepted message',
+        self.assertEqual(b'Intercepted message',
                          self.SMSCPort.factory.lastClient.submitRecords[0].params['short_message'])
         self.assertEqual(_ic + 1, self.stats_smpps.get('interceptor_count'))
         self.assertEqual(_iec, self.stats_smpps.get('interceptor_error_count'))
