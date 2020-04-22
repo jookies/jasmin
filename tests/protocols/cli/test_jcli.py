@@ -57,6 +57,8 @@ class jCliTestCases(ProtocolTestCases):
             SMPPClientManagerPB=self.clientManager_f)
 
     def tearDown(self):
+        for q in self.amqpBroker.queues:
+            yield self.amqpBroker.chan.queue_delete(queue=q)
         self.amqpClient.disconnect()
         self.RouterPB_f.cancelPersistenceTimer()
 

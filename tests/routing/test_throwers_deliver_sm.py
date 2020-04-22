@@ -71,6 +71,8 @@ class deliverSmThrowerTestCase(TestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
+        for q in self.amqpBroker.queues:
+            yield self.amqpBroker.chan.queue_delete(queue=q)
         yield self.amqpBroker.disconnect()
         yield self.deliverSmThrower.stopService()
 

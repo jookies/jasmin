@@ -96,6 +96,8 @@ class SMPPClientPBTestCase(TestCase):
     def tearDown(self):
         yield self.RouterPBInstance.cancelPersistenceTimer()
         yield self.PBServer.stopListening()
+        for q in self.amqpBroker.queues:
+            yield self.amqpBroker.chan.queue_delete(queue=q)
         yield self.amqpClient.disconnect()
 
 
