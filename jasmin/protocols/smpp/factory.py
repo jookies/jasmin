@@ -354,7 +354,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                     if 'message_id' in args[0]['extra']:
                         message_id = str(args[0]['extra']['message_id'])
                     raise SubmitSmInterceptionSuccess()
-                elif isinstance(args[0], str):
+                elif isinstance(args[0], (str, bytes)):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
                 else:
