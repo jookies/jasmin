@@ -233,6 +233,10 @@ class SMPPOperationFactory:
                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
         """Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"""
 
+        if isinstance(message_status, bytes):
+            message_status = message_status.decode()
+        if isinstance(msgid, bytes):
+            msgid = msgid.decode()
         sm_message_stat = message_status
         # Prepare message_state
         if message_status[:5] == 'ESME_':

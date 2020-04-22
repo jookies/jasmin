@@ -95,7 +95,11 @@ class AmqpFactory(ClientFactory):
     def clientConnectionLost(self, connector, reason):
         """Connection lost
         """
-        self.log.error("Connection lost. Reason: %s", str(reason))
+        if not 'Connection was closed cleanly.' in str(reason):
+            # dont log an error when the queue closed as expected
+            self.log.error("Connection lost. Reason: %s", str(reason))
+        else:
+            self.log.info("Connection lost. Reason: %s", str(reason))
         self.connected = False
 
         self.client = None
