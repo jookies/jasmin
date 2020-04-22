@@ -499,6 +499,8 @@ class ManualDeliveryReceiptHappySMSC(HappySMSC):
 
         if pdu_type == 'deliver_sm':
             # Send back a deliver_sm with containing a DLR
+            if isinstance(_id, bytes):
+                _id = _id.decode()
             pdu = DeliverSM(
                 source_addr=submitsm_pdu.params['source_addr'],
                 destination_addr=submitsm_pdu.params['destination_addr'],

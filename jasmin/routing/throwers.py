@@ -275,7 +275,7 @@ class deliverSmThrower(Thrower):
         # Build optional arguments
         if ('priority_flag' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['priority_flag'] is not None):
-            args['priority'] = priority_flag_name_map[RoutedDeliverSmContent.params['priority_flag']._name_]
+            args['priority'] = priority_flag_name_map[RoutedDeliverSmContent.params['priority_flag'].name]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
             args['coding'] = DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])

@@ -5,6 +5,7 @@ Multiple classes extending of txamqp.content.Content
 import pickle
 import datetime
 import uuid
+from enum import Enum
 
 from txamqp.content import Content
 from smpp.pdu.pdu_types import CommandId, CommandStatus
@@ -53,14 +54,14 @@ class DLR(Content):
     def __init__(self, pdu_type, msgid, status, smpp_msgid=None, cid=None, dlr_details=None):
 
         if pdu_type not in (CommandId.deliver_sm, CommandId.data_sm, CommandId.submit_sm_resp):
-            raise InvalidParameterError('Invalid pdu_type: %s' % pdu_type._name_)
+            raise InvalidParameterError('Invalid pdu_type: %s' % pdu_type.name)
 
         if pdu_type == CommandId.submit_sm_resp and status == CommandStatus.ESME_ROK and smpp_msgid is None:
             raise InvalidParameterError('submit_sm_resp with ESME_ROK dlr must have smpp_msgid arg defined')
         elif pdu_type in (CommandId.deliver_sm, CommandId.data_sm) and (cid is None or dlr_details is None):
             raise InvalidParameterError('deliver_sm dlr must have cid and dlr_details args defined')
 
-        properties = {'message-id': str(msgid), 'headers': {'type': pdu_type._name_}}
+        properties = {'message-id': msgid, 'headers': {'type': pdu_type.name}}
 
         if pdu_type == CommandId.submit_sm_resp and smpp_msgid is not None:
             # smpp_msgid is used to define mapping between msgid and smpp_msgid (when receiving submit_sm_resp ESME_ROK)
@@ -68,9 +69,14 @@ class DLR(Content):
         elif pdu_type in (CommandId.deliver_sm, CommandId.data_sm):
             properties['headers']['cid'] = cid
             for k, v in dlr_details.items():
-                properties['headers']['dlr_%s' % k] = v
+                if isinstance(v, bytes):
+                    properties['headers']['dlr_%s' % k] = v.decode()
+                else:
+                    properties['headers']['dlr_%s' % k] = v
 
-        Content.__init__(self, status._name_, properties=properties)
+        if isinstance(status, Enum):
+            status = status.name
+        Content.__init__(self, status, properties=properties)
 
 
 class DLRContentForHttpapi(Content):

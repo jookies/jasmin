@@ -52,7 +52,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         elif isinstance(pdu, PDUResponse):
             self.PDUResponseReceived(pdu)
         else:
-            getattr(self, "onPDU_%s" % pdu.commandId._name_)(pdu)
+            getattr(self, "onPDU_%s" % pdu.commandId.name)(pdu)
 
     def connectionMade(self):
         twistedSMPPClientProtocol.connectionMade(self)
@@ -391,7 +391,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         elif isinstance(pdu, PDUResponse):
             self.PDUResponseReceived(pdu)
         else:
-            getattr(self, "onPDU_%s" % pdu.commandId._name_)(pdu)
+            getattr(self, "onPDU_%s" % pdu.commandId.name)(pdu)
 
     def connectionMade(self):
         twistedSMPPServerProtocol.connectionMade(self)

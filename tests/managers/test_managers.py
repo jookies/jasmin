@@ -1141,12 +1141,12 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.add(self.defaultConfig)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual(SMPPSessionStates.NONE._name_, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE.name, ssRet)
 
         yield self.start(self.defaultConfig.id)
 
         ssRet = yield self.session_state(self.defaultConfig.id)
-        self.assertEqual(SMPPSessionStates.BOUND_TRX._name_, ssRet)
+        self.assertEqual(SMPPSessionStates.BOUND_TRX.name, ssRet)
 
         yield self.stop(self.defaultConfig.id)
 
@@ -1167,12 +1167,12 @@ class ClientConnectorStatusTestCases(SMSCSimulator):
         yield self.add(localConfig)
 
         ssRet = yield self.session_state(localConfig.id)
-        self.assertEqual(SMPPSessionStates.NONE._name_, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE.name, ssRet)
 
         yield self.start(localConfig.id)
 
         ssRet = yield self.session_state(localConfig.id)
-        self.assertEqual(SMPPSessionStates.NONE._name_, ssRet)
+        self.assertEqual(SMPPSessionStates.NONE.name, ssRet)
 
         yield self.stop(localConfig.id)
 

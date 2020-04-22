@@ -104,7 +104,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
         details = {}
         details['id'] = c['id']
-        details['session_state'] = c['service'].SMPPClientFactory.getSessionState()._name_
+        details['session_state'] = c['service'].SMPPClientFactory.getSessionState().name
         details['service_status'] = c['service'].running
         details['start_count'] = c['service'].startCounter
         details['stop_count'] = c['service'].stopCounter
@@ -509,7 +509,7 @@ class SMPPClientManagerPB(pb.Avatar):
             # returning Enum would raise this on the client side:
             # Unpersistable data: instance of class enum.EnumValue deemed insecure
             # So we just return back the string of it
-            return session_state._name_
+            return session_state.name
 
     def perspective_connector_details(self, cid):
         """This will return the connector details
@@ -634,7 +634,7 @@ class SMPPClientManagerPB(pb.Avatar):
                               'dest_addr_npi': SubmitSmPDU.params['dest_addr_npi'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'sub_date': datetime.datetime.now(),
-                              'rd_receipt': '%s' % SubmitSmPDU.params['registered_delivery'].receipt,
+                              'rd_receipt': SubmitSmPDU.params['registered_delivery'].receipt,
                               'expiry': source_connector.factory.config.dlr_expiry}
                 self.redisClient.hmset(hashKey, hashValues).addCallback(
                     lambda response: self.redisClient.expire(

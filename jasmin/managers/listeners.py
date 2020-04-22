@@ -489,22 +489,26 @@ class SMPPClientSMListener:
 
         try:
             if isinstance(pdu, DeliverSM):
-                if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
-                    ret = ('%x' % int(pdu.dlr['id'])).upper().lstrip('0')
-                elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
-                    ret = int(str(pdu.dlr['id']), 16)
+                if isinstance(pdu.dlr['id'], bytes):
+                    dlr_id = pdu.dlr['id'].decode()
                 else:
-                    ret = str(pdu.dlr['id']).upper().lstrip('0')
+                    dlr_id = pdu.dlr['id']
+                if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
+                    ret = ('%x' % int(dlr_id)).upper().lstrip('0')
+                elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
+                    ret = int(str(dlr_id), 16)
+                else:
+                    ret = str(dlr_id).upper().lstrip('0')
             else:
                 # TODO: code dlr for submit_sm_resp maybe ? TBC
-                ret = str(pdu.dlr['id']).upper().lstrip('0')
+                ret = str(dlr_id).upper().lstrip('0')
         except Exception as e:
             self.log.error('code_dlr_msgid, cannot code msgid [%s] with dlr_msg_id_bases:%s',
-                           pdu.dlr['id'], self.SMPPClientFactory.config.dlr_msg_id_bases)
+                           dlr_id, self.SMPPClientFactory.config.dlr_msg_id_bases)
             self.log.error('code_dlr_msgid, error details: %s', e)
-            ret = str(pdu.dlr['id']).upper().lstrip('0')
+            ret = str(dlr_id).upper().lstrip('0')
 
-        self.log.debug('code_dlr_msgid: %s coded to %s', pdu.dlr['id'], ret)
+        self.log.debug('code_dlr_msgid: %s coded to %s', dlr_id, ret)
         return ret
 
     def deliver_sm_event_interceptor(self, smpp, pdu):

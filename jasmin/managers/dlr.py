@@ -5,9 +5,11 @@ from twisted.internet import defer
 from twisted.internet import reactor
 from txamqp.queue import Closed
 from txredisapi import ConnectionError
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt
 
 from jasmin.managers.content import DLRContentForHttpapi, DLRContentForSmpps
 from jasmin.tools.singleton import Singleton
+from jasmin.tools import to_enum
 
 LOG_CATEGORY = "dlr"
 
@@ -154,6 +156,9 @@ class DLRLookup:
         msgid = message.content.properties['message-id']
         dlr_status = message.content.body
 
+        if isinstance(dlr_status, bytes):
+            dlr_status = dlr_status.decode()
+
         try:
             if self.redisClient is None:
                 raise RedisError('RC undefined !')
@@ -218,21 +223,21 @@ class DLRLookup:
             elif dlr['sc'] == 'smppsapi':
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
                 system_id = dlr['system_id']
-                source_addr_ton = dlr['source_addr_ton']
-                source_addr_npi = dlr['source_addr_npi']
-                source_addr = str(dlr['source_addr'])
-                dest_addr_ton = dlr['dest_addr_ton']
-                dest_addr_npi = dlr['dest_addr_npi']
-                destination_addr = str(dlr['destination_addr'])
+                source_addr_ton = to_enum(dlr['source_addr_ton'])
+                source_addr_npi = to_enum(dlr['source_addr_npi'])
+                source_addr = dlr['source_addr']
+                dest_addr_ton = to_enum(dlr['dest_addr_ton'])
+                dest_addr_npi = to_enum(dlr['dest_addr_npi'])
+                destination_addr = dlr['destination_addr']
                 sub_date = dlr['sub_date']
-                registered_delivery_receipt = dlr['rd_receipt']
+                registered_delivery_receipt = to_enum(dlr['rd_receipt'])
                 smpps_map_expiry = dlr['expiry']
 
                 # Do we need to forward the receipt to the original sender ?
                 if ((dlr_status == 'ESME_ROK' and registered_delivery_receipt in
-                    ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE', 'SMSC_DELIVERY_RECEIPT_REQUESTED']) or
+                    [RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE, RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED]) or
                         (dlr_status != 'ESME_ROK' and
-                                 registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
+                                 registered_delivery_receipt == RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)):
                     self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
                                    msgid, registered_delivery_receipt, system_id)
 
@@ -293,11 +298,12 @@ class DLRLookup:
         pdu_dlr_dlvrd = message.content.properties['headers']['dlr_dlvrd']
         pdu_dlr_status = message.content.body
 
+        if isinstance(pdu_dlr_status, bytes):
+            pdu_dlr_status = pdu_dlr_status.decode()
+
         try:
             if self.redisClient is None:
                 raise RedisError('RC undefined !')
-            if self.redisClient.connected != 1:
-                raise RedisError('RC is offline !')
 
             q = yield self.redisClient.hgetall("queue-msgid:%s" % msgid)
             if len(q) != 2 or 'msgid' not in q or 'connector_type' not in q:
@@ -347,23 +353,23 @@ class DLRLookup:
             elif connector_type == 'smppsapi':
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
                 system_id = dlr['system_id']
-                source_addr_ton = dlr['source_addr_ton']
-                source_addr_npi = dlr['source_addr_npi']
-                source_addr = str(dlr['source_addr'])
-                dest_addr_ton = dlr['dest_addr_ton']
-                dest_addr_npi = dlr['dest_addr_npi']
-                destination_addr = str(dlr['destination_addr'])
+                source_addr_ton = to_enum(dlr['source_addr_ton'])
+                source_addr_npi = to_enum(dlr['source_addr_npi'])
+                source_addr = dlr['source_addr']
+                dest_addr_ton = to_enum(dlr['dest_addr_ton'])
+                dest_addr_npi = to_enum(dlr['dest_addr_npi'])
+                destination_addr = dlr['destination_addr']
                 sub_date = dlr['sub_date']
-                registered_delivery_receipt = dlr['rd_receipt']
+                registered_delivery_receipt = to_enum(dlr['rd_receipt'])
 
                 success_states = ['ACCEPTD', 'DELIVRD']
                 final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                 # Do we need to forward the receipt to the original sender ?
                 if ((pdu_dlr_status in success_states and
-                             registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
+                             registered_delivery_receipt == RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED) or
                         (pdu_dlr_status not in success_states and
-                                 registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
-                                                                 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
+                                 registered_delivery_receipt in [RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED,
+                                                                 RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE])):
                     self.log.debug(
                         'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
                         submit_sm_queue_id, registered_delivery_receipt, system_id)
@@ -385,7 +391,7 @@ class DLRLookup:
         except DLRMapError as e:
             self.log.error('[msgid:%s] DLRMapError: %s', msgid, e)
             yield self.rejectMessage(message)
-        except RedisError as e:
+        except (RedisError, ConnectionError) as e:
             if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)

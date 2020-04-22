@@ -499,7 +499,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             if self.config.log_privacy:
                 logged_content = '** %s byte content **' % len(routable.pdu.params['short_message'])
             else:
-                logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message'])
+                logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', routable.pdu.params['short_message'])
 
             self.log.info(
                 'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]',
@@ -613,11 +613,11 @@ class SMPPBindManager(_SMPPBindManager):
 
         # Update CnxStatus
         self.user.getCnxStatus().smpps['bind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type._name_] += 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type.name] += 1
 
     def removeBinding(self, connection):
         _SMPPBindManager.removeBinding(self, connection)
 
         # Update CnxStatus
         self.user.getCnxStatus().smpps['unbind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type._name_] -= 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type.name] -= 1

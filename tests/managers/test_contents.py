@@ -83,9 +83,9 @@ class DLRTestCase(ContentTestCase):
         for pdu_type in [CommandId.deliver_sm, CommandId.data_sm]:
             c = DLR(pdu_type=pdu_type, msgid=1, status=CommandStatus.ESME_ROK, cid='test', dlr_details={'some': 'detail'})
 
-            self.assertEqual(CommandStatus.ESME_ROK._name_, c.body)
+            self.assertEqual(CommandStatus.ESME_ROK.name, c.body)
             self.assertEqual('1', c.properties['message-id'])
-            self.assertEqual(pdu_type._name_, c.properties['headers']['type'])
+            self.assertEqual(pdu_type.name, c.properties['headers']['type'])
             self.assertEqual('test', c.properties['headers']['cid'])
             self.assertEqual('detail', c.properties['headers']['dlr_some'])
 
@@ -103,11 +103,11 @@ class DLRTestCase(ContentTestCase):
 
         self.assertEqual('ESME_ROK', c_success.body)
         self.assertEqual('1', c_success.properties['message-id'])
-        self.assertEqual(CommandId.submit_sm_resp._name_, c_success.properties['headers']['type'])
+        self.assertEqual(CommandId.submit_sm_resp.name, c_success.properties['headers']['type'])
         self.assertEqual('2', c_success.properties['headers']['smpp_msgid'])
         self.assertEqual('ESME_RINVPARLEN', c_errored.body)
         self.assertEqual('3', c_errored.properties['message-id'])
-        self.assertEqual(CommandId.submit_sm_resp._name_, c_errored.properties['headers']['type'])
+        self.assertEqual(CommandId.submit_sm_resp.name, c_errored.properties['headers']['type'])
 
         # Exceptions:
         self.assertRaises(InvalidParameterError, DLR, pdu_type=CommandId.submit_sm_resp, msgid=1, status=CommandStatus.ESME_ROK)

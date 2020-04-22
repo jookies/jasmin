@@ -42,7 +42,7 @@ def castOutputToBuiltInType(key, value):
     if isinstance(value, bool):
         return 'yes' if value else 'no'
     if isinstance(value, Enum):
-        value = value._name_
+        value = value.name
     if key in ['bind_npi', 'dst_npi', 'src_npi']:
         return addr_npi_name_map[value]
     if key in ['bind_ton', 'dst_ton', 'src_ton']:
@@ -100,7 +100,7 @@ class JCliSMPPClientConfig(SMPPClientConfig):
         for key, value in SMPPClientConfigKeyMap.items():
             if hasattr(self, value):
                 if isinstance(getattr(self, value), Enum):
-                    r[key] = castOutputToBuiltInType(key, getattr(self, value)._name_)
+                    r[key] = castOutputToBuiltInType(key, getattr(self, value).name)
                 else:
                     r[key] = castOutputToBuiltInType(key, getattr(self, value))
             else:
