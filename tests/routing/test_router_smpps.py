@@ -2,26 +2,27 @@
 import logging
 import mock
 import copy
-import random
-import string
+
 from twisted.internet import reactor, defer
+from twisted.cred import portal
+from twisted.test import proto_helpers
 from smpp.twisted.protocol import SMPPSessionStates
 from smpp.pdu import pdu_types, pdu_encoding
-from smpp.pdu.pdu_types import RegisteredDelivery, RegisteredDeliveryReceipt
-from tests.routing.test_router import (SMPPClientManagerPBTestCase, HappySMSCTestCase,
-                                             SubmitSmTestCaseTools, LastClientFactory,
-                                             id_generator)
+from smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
+from smpp.pdu.pdu_types import RegisteredDelivery, RegisteredDeliveryReceipt, MessageState
+
 from jasmin.routing.proxies import RouterPBProxy
 from jasmin.routing.Routes import DefaultRoute
 from jasmin.protocols.smpp.configs import SMPPServerConfig, SMPPClientConfig
 from jasmin.protocols.smpp.factory import SMPPServerFactory, SMPPClientFactory
+from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.routing.jasminApi import *
-from smpp.pdu.operations import SubmitSM, DeliverSM, DataSM
-from jasmin.protocols.smpp.operations import SMPPOperationFactory
-from twisted.cred import portal
-from twisted.test import proto_helpers
+
+from tests.routing.test_router import (HappySMSCTestCase,
+                                             SubmitSmTestCaseTools, LastClientFactory,
+                                             id_generator)
 from tests.protocols.smpp.smsc_simulator import ErrorOnSubmitSMSC
 
 
@@ -536,7 +537,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         self.assertEqual(response_pdu_2.params['source_addr'], SubmitSmPDU.params['destination_addr'])
         self.assertEqual(response_pdu_2.params['destination_addr'], SubmitSmPDU.params['source_addr'])
         self.assertEqual(response_pdu_2.params['receipted_message_id'], response_pdu_1.params['message_id'])
-        self.assertEqual(str(response_pdu_2.params['message_state']), 'UNDELIVERABLE')
+        self.assertEqual(response_pdu_2.params['message_state'], MessageState.UNDELIVERABLE)
 
     @defer.inlineCallbacks
     def test_receive_nothing_on_delivery_error_when_not_requesting_dlr(self):
@@ -626,7 +627,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         # (2) a deliver_sm
         response_pdu_2 = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         self.assertEqual(response_pdu_2.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(str(response_pdu_2.params['message_state']), 'UNDELIVERABLE')
+        self.assertEqual(response_pdu_2.params['message_state'], MessageState.UNDELIVERABLE)
         # (3) an unbind_resp
         response_pdu_3 = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
         self.assertEqual(response_pdu_3.id, pdu_types.CommandId.unbind_resp)

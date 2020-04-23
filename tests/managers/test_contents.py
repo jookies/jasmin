@@ -97,7 +97,7 @@ class DLRTestCase(ContentTestCase):
 
     def test_submitsmresp(self):
         # Successful submit_sm_resp
-        c_success = DLR(pdu_type=CommandId.submit_sm_resp, msgid=1, status=CommandStatus.ESME_ROK, smpp_msgid=2)
+        c_success = DLR(pdu_type=CommandId.submit_sm_resp, msgid=1, status=CommandStatus.ESME_ROK, smpp_msgid=b'2')
         # Errored submit_sm_resp
         c_errored = DLR(pdu_type=CommandId.submit_sm_resp, msgid=3, status=CommandStatus.ESME_RINVPARLEN)
 
