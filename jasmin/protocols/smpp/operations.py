@@ -5,6 +5,7 @@ import datetime
 import math
 import re
 import struct
+from enum import Enum
 
 import dateutil.parser as parser
 
@@ -283,10 +284,10 @@ class SMPPOperationFactory:
                 receipted_message_id=msgid,
                 short_message=short_message,
                 message_state=message_state,
-                source_addr_ton=getattr(AddrTon, dest_addr_ton),
-                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
-                dest_addr_ton=getattr(AddrTon, source_addr_ton),
-                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
+                source_addr_ton=self.get_enum(AddrTon, dest_addr_ton),
+                source_addr_npi=self.get_enum(AddrNpi, dest_addr_npi),
+                dest_addr_ton=self.get_enum(AddrTon, source_addr_ton),
+                dest_addr_npi=self.get_enum(AddrNpi, source_addr_npi),
             )
         else:
             # Build DataSM pdu
@@ -296,10 +297,16 @@ class SMPPOperationFactory:
                 esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id=msgid,
                 message_state=message_state,
-                source_addr_ton=getattr(AddrTon, dest_addr_ton),
-                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
-                dest_addr_ton=getattr(AddrTon, source_addr_ton),
-                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
+                source_addr_ton=self.get_enum(AddrTon, dest_addr_ton),
+                source_addr_npi=self.get_enum(AddrNpi, dest_addr_npi),
+                dest_addr_ton=self.get_enum(AddrTon, source_addr_ton),
+                dest_addr_npi=self.get_enum(AddrNpi, source_addr_npi),
             )
 
         return pdu
+
+    def get_enum(self, enum_type, value):
+        print(f'Trying to get {enum_type} enum value for: {value}')
+        if isinstance(value, Enum):
+            return value
+        return getattr(enum_type, value.lstrip(str(enum_type) + '.'))

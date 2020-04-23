@@ -405,7 +405,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level2(self):
@@ -447,7 +447,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level3(self):
@@ -490,8 +490,8 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Message ID must be transmitted in the DLR
         callArgs_level1 = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         callArgs_level2 = self.AckServerResource.render_POST.call_args_list[1][0][0].args
-        self.assertEqual(callArgs_level1['id'][0], msgId)
-        self.assertEqual(callArgs_level2['id'][0], msgId)
+        self.assertEqual(callArgs_level1[b'id'][0], msgId.encode())
+        self.assertEqual(callArgs_level2[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level1_GET(self):
@@ -505,7 +505,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -528,7 +528,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_correct_args_dlr_level1(self):
@@ -562,14 +562,15 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Args assertions
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
+        print(f'Call args are {callArgs}')
         self.assertEqual(len(callArgs), 4)
-        self.assertTrue('id' in callArgs)
-        self.assertTrue('message_status' in callArgs)
-        self.assertTrue('level' in callArgs)
-        self.assertTrue('connector' in callArgs)
-        self.assertEqual(callArgs['level'][0], '1')
+        self.assertTrue(b'id' in callArgs)
+        self.assertTrue(b'message_status' in callArgs)
+        self.assertTrue(b'level' in callArgs)
+        self.assertTrue(b'connector' in callArgs)
+        self.assertEqual(callArgs[b'level'][0], b'1')
         for k, v in callArgs.items():
-            self.assertNotEqual(v[0], '')
+            self.assertNotEqual(v[0], b'')
 
     @defer.inlineCallbacks
     def test_correct_args_dlr_level2(self):
@@ -610,20 +611,20 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Args assertions
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(len(callArgs), 11)
-        self.assertTrue('id' in callArgs)
-        self.assertTrue('message_status' in callArgs)
-        self.assertTrue('level' in callArgs)
-        self.assertTrue('donedate' in callArgs)
-        self.assertTrue('sub' in callArgs)
-        self.assertTrue('err' in callArgs)
-        self.assertTrue('text' in callArgs)
-        self.assertTrue('id_smsc' in callArgs)
-        self.assertTrue('dlvrd' in callArgs)
-        self.assertTrue('subdate' in callArgs)
-        self.assertTrue('connector' in callArgs)
-        self.assertEqual(callArgs['level'][0], '2')
+        self.assertTrue(b'id' in callArgs)
+        self.assertTrue(b'message_status' in callArgs)
+        self.assertTrue(b'level' in callArgs)
+        self.assertTrue(b'donedate' in callArgs)
+        self.assertTrue(b'sub' in callArgs)
+        self.assertTrue(b'err' in callArgs)
+        self.assertTrue(b'text' in callArgs)
+        self.assertTrue(b'id_smsc' in callArgs)
+        self.assertTrue(b'dlvrd' in callArgs)
+        self.assertTrue(b'subdate' in callArgs)
+        self.assertTrue(b'connector' in callArgs)
+        self.assertEqual(callArgs[b'level'][0], b'2')
         for k, v in callArgs.items():
-            self.assertNotEqual(v[0], '')
+            self.assertNotEqual(v[0], b'')
 
     @defer.inlineCallbacks
     def test_correct_args_dlr_level3(self):
@@ -664,30 +665,30 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Args assertions for first call (level1)
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         self.assertEqual(len(callArgs), 4)
-        self.assertTrue('id' in callArgs)
-        self.assertTrue('message_status' in callArgs)
-        self.assertTrue('level' in callArgs)
-        self.assertTrue('connector' in callArgs)
-        self.assertEqual(callArgs['level'][0], '1')
+        self.assertTrue(b'id' in callArgs)
+        self.assertTrue(b'message_status' in callArgs)
+        self.assertTrue(b'level' in callArgs)
+        self.assertTrue(b'connector' in callArgs)
+        self.assertEqual(callArgs[b'level'][0], b'1')
         for k, v in callArgs.items():
-            self.assertNotEqual(v[0], '')
+            self.assertNotEqual(v[0], b'')
         # Args assertions for second call (level2)
         callArgs = self.AckServerResource.render_POST.call_args_list[1][0][0].args
         self.assertEqual(len(callArgs), 11)
-        self.assertTrue('id' in callArgs)
-        self.assertTrue('message_status' in callArgs)
-        self.assertTrue('level' in callArgs)
-        self.assertTrue('donedate' in callArgs)
-        self.assertTrue('sub' in callArgs)
-        self.assertTrue('err' in callArgs)
-        self.assertTrue('text' in callArgs)
-        self.assertTrue('id_smsc' in callArgs)
-        self.assertTrue('dlvrd' in callArgs)
-        self.assertTrue('subdate' in callArgs)
-        self.assertTrue('connector' in callArgs)
-        self.assertEqual(callArgs['level'][0], '2')
+        self.assertTrue(b'id' in callArgs)
+        self.assertTrue(b'message_status' in callArgs)
+        self.assertTrue(b'level' in callArgs)
+        self.assertTrue(b'donedate' in callArgs)
+        self.assertTrue(b'sub' in callArgs)
+        self.assertTrue(b'err' in callArgs)
+        self.assertTrue(b'text' in callArgs)
+        self.assertTrue(b'id_smsc' in callArgs)
+        self.assertTrue(b'dlvrd' in callArgs)
+        self.assertTrue(b'subdate' in callArgs)
+        self.assertTrue(b'connector' in callArgs)
+        self.assertEqual(callArgs[b'level'][0], b'2')
         for k, v in callArgs.items():
-            self.assertNotEqual(v[0], '')
+            self.assertNotEqual(v[0], b'')
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level2_GET(self):
@@ -701,7 +702,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -730,7 +731,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level3_GET(self):
@@ -744,7 +745,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -774,8 +775,8 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Message ID must be transmitted in the DLR
         callArgs_level1 = self.AckServerResource.render_GET.call_args_list[0][0][0].args
         callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
-        self.assertEqual(callArgs_level1['id'][0], msgId)
-        self.assertEqual(callArgs_level2['id'][0], msgId)
+        self.assertEqual(callArgs_level1[b'id'][0], msgId.encode())
+        self.assertEqual(callArgs_level2[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_empty_content(self):
@@ -807,7 +808,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         self.params['content'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(200))
         baseurl = 'http://127.0.0.1:1401/send'
 
@@ -846,8 +847,8 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Message ID must be transmitted in the DLR
         callArgs_level1 = self.AckServerResource.render_GET.call_args_list[0][0][0].args
         callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
-        self.assertEqual(callArgs_level1['id'][0], msgId)
-        self.assertEqual(callArgs_level2['id'][0], msgId)
+        self.assertEqual(callArgs_level1[b'id'][0], msgId.encode())
+        self.assertEqual(callArgs_level2[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_quick_dlr(self):
@@ -882,7 +883,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         # Ask for DLR
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         self.params['content'] = 'somecontent'
         baseurl = 'http://127.0.0.1:1401/send'
 
@@ -955,7 +956,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level2(self):
@@ -997,7 +998,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level3(self):
@@ -1040,8 +1041,8 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         # Message ID must be transmitted in the DLR
         callArgs_level1 = self.AckServerResource.render_POST.call_args_list[0][0][0].args
         callArgs_level2 = self.AckServerResource.render_POST.call_args_list[1][0][0].args
-        self.assertEqual(callArgs_level1['id'][0], msgId)
-        self.assertEqual(callArgs_level2['id'][0], msgId)
+        self.assertEqual(callArgs_level1[b'id'][0], msgId.encode())
+        self.assertEqual(callArgs_level2[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level1_GET(self):
@@ -1055,7 +1056,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 1
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -1078,7 +1079,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level2_GET(self):
@@ -1092,7 +1093,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 2
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -1121,7 +1122,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
+        self.assertEqual(callArgs[b'id'][0], msgId.encode())
 
     @defer.inlineCallbacks
     def test_receipt_with_inurl_dlr_level3_GET(self):
@@ -1135,7 +1136,7 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
 
         self.params['dlr-url'] = self.dlr_url
         self.params['dlr-level'] = 3
-        self.params['dlr-method'] = 'POST'
+        self.params['dlr-method'] = 'GET'
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -1165,8 +1166,8 @@ class LongSmHttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, Submit
         # Message ID must be transmitted in the DLR
         callArgs_level1 = self.AckServerResource.render_GET.call_args_list[0][0][0].args
         callArgs_level2 = self.AckServerResource.render_GET.call_args_list[1][0][0].args
-        self.assertEqual(callArgs_level1['id'][0], msgId)
-        self.assertEqual(callArgs_level2['id'][0], msgId)
+        self.assertEqual(callArgs_level1[b'id'][0], msgId.encode())
+        self.assertEqual(callArgs_level2[b'id'][0], msgId.encode())
 
 
 class NoResponseOnSubmitSMSCTestCase(SMPPClientManagerPBTestCase):
@@ -1301,7 +1302,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
             self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
             self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
-            self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
+            self.assertEqual(response_pdu_x.params['message_state'].name, self.formatted_stats[stat])
 
         # Trigger receipts with final states
         # pick up a random final state, there must be only one receipt (the first one) because
@@ -1329,7 +1330,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
                 self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
                 self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
-                self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
+                self.assertEqual(response_pdu_x.params['message_state'].name, self.formatted_stats[stat])
                 final_state_triggered = True
                 x_value_when_fstate_triggered = x
             else:
@@ -1401,7 +1402,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
             self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
             self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
             self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
-            self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
+            self.assertEqual(response_pdu_x.params['message_state'].name, self.formatted_stats[stat])
 
         # Trigger receipts with final states
         # pick up a random final state, there must be only one receipt (the first one) because
@@ -1429,7 +1430,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
                 self.assertEqual(response_pdu_x.params['source_addr'], SubmitSmPDU.params['destination_addr'])
                 self.assertEqual(response_pdu_x.params['destination_addr'], SubmitSmPDU.params['source_addr'])
                 self.assertEqual(response_pdu_x.params['receipted_message_id'], response_pdu_1.params['message_id'])
-                self.assertEqual(str(response_pdu_x.params['message_state']), self.formatted_stats[stat])
+                self.assertEqual(response_pdu_x.params['message_state'].name, self.formatted_stats[stat])
                 final_state_triggered = True
                 x_value_when_fstate_triggered = x
             else:
@@ -1577,10 +1578,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         dlr_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         # assert correct ton/npi are transmitted to downstream (reversed from submit_sm)
-        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params[b'dest_addr_ton'])
-        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params[b'dest_addr_npi'])
-        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params[b'source_addr_ton'])
-        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params[b'source_addr_npi'])
+        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params['dest_addr_ton'])
+        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params['dest_addr_npi'])
+        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params['source_addr_ton'])
+        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
         self.assertEqual(last_pdu.id, CommandId.unbind_resp)
@@ -1626,10 +1627,10 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         # Run tests
         dlr_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[1][0][0]
         # assert correct ton/npi are transmitted to downstream (reversed from submit_sm)
-        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params[b'dest_addr_ton'])
-        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params[b'dest_addr_npi'])
-        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params[b'source_addr_ton'])
-        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params[b'source_addr_npi'])
+        self.assertEqual(AddrTon.NATIONAL, dlr_pdu.params['dest_addr_ton'])
+        self.assertEqual(AddrNpi.ISDN, dlr_pdu.params['dest_addr_npi'])
+        self.assertEqual(AddrTon.INTERNATIONAL, dlr_pdu.params['source_addr_ton'])
+        self.assertEqual(AddrNpi.INTERNET, dlr_pdu.params['source_addr_npi'])
         # smpps last response was a unbind_resp
         last_pdu = self.smpps_factory.lastProto.sendPDU.call_args_list[2][0][0]
         self.assertEqual(last_pdu.id, CommandId.unbind_resp)

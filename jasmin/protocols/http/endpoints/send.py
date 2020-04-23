@@ -258,7 +258,7 @@ class Send(Resource):
             # DLR setting is clearly described in #107
             _last_pdu.params['registered_delivery'] = RegisteredDelivery(
                 RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
-            if updated_request.args[b'dlr'][0] == 'yes':
+            if updated_request.args[b'dlr'][0] == b'yes':
                 _last_pdu.params['registered_delivery'] = RegisteredDelivery(
                     RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
                 self.log.debug(

@@ -61,7 +61,7 @@ class DLR(Content):
         elif pdu_type in (CommandId.deliver_sm, CommandId.data_sm) and (cid is None or dlr_details is None):
             raise InvalidParameterError('deliver_sm dlr must have cid and dlr_details args defined')
 
-        properties = {'message-id': msgid, 'headers': {'type': pdu_type.name}}
+        properties = {'message-id': str(msgid), 'headers': {'type': pdu_type.name}}
 
         if pdu_type == CommandId.submit_sm_resp and smpp_msgid is not None:
             # smpp_msgid is used to define mapping between msgid and smpp_msgid (when receiving submit_sm_resp ESME_ROK)
@@ -132,10 +132,10 @@ class DLRContentForSmpps(Content):
                                                        'source_addr': source_addr,
                                                        'destination_addr': destination_addr,
                                                        'sub_date': str(sub_date),
-                                                       'source_addr_ton': source_addr_ton,
-                                                       'source_addr_npi': source_addr_npi,
-                                                       'dest_addr_ton': dest_addr_ton,
-                                                       'dest_addr_npi': dest_addr_npi}}
+                                                       'source_addr_ton': str(source_addr_ton),
+                                                       'source_addr_npi': str(source_addr_npi),
+                                                       'dest_addr_ton': str(dest_addr_ton),
+                                                       'dest_addr_npi': str(dest_addr_npi)}}
 
         Content.__init__(self, msgid, properties=properties)
 
