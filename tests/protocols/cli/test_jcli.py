@@ -58,10 +58,12 @@ class jCliTestCases(ProtocolTestCases):
 
     @defer.inlineCallbacks
     def tearDown(self):
+        yield self.RouterPB_f.cancelPersistenceTimer()
         for q in self.amqpBroker.queues:
             yield self.amqpBroker.chan.queue_delete(queue=q)
-        self.amqpClient.disconnect()
-        self.RouterPB_f.cancelPersistenceTimer()
+        yield self.amqpBroker.disconnectAndDontRetryToConnect()
+        yield self.amqpBroker.getExitDeferred()
+        
 
 
 class jCliWithAuthTestCases(jCliTestCases):
@@ -106,6 +108,9 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.assertRegex(receivedLines[3], ('Type help or \? to list commands\.').encode('ascii'))
         self.assertRegex(receivedLines[9], ('Session ref: ').encode('ascii'))
 
+    def tearDown(self):
+        jCliTestCases.tearDown(self)
+        self.proto.connectionLost(None)
 
 class BasicTestCases(jCliWithoutAuthTestCases):
     def test_quit(self):

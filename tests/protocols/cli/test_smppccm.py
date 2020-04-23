@@ -56,9 +56,8 @@ class HappySMSCTestCase(SmppccmTestCases):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        SmppccmTestCases.tearDown(self)
-
         yield self.SMSCPort.stopListening()
+        yield SmppccmTestCases.tearDown(self)
 
 
 class BasicTestCases(HappySMSCTestCase):

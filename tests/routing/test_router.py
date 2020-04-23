@@ -101,7 +101,7 @@ class RouterPBTestCase(TestCase):
         yield self.disconnect()
 
         yield self.PBServer.stopListening()
-        self.pbRoot_f.cancelPersistenceTimer()
+        yield self.pbRoot_f.cancelPersistenceTimer()
 
 
 class HttpServerTestCase(RouterPBTestCase):
