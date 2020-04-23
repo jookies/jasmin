@@ -56,6 +56,7 @@ class jCliTestCases(ProtocolTestCases):
             RouterPB=self.RouterPB_f,
             SMPPClientManagerPB=self.clientManager_f)
 
+    @defer.inlineCallbacks
     def tearDown(self):
         for q in self.amqpBroker.queues:
             yield self.amqpBroker.chan.queue_delete(queue=q)
