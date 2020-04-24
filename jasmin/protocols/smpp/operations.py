@@ -306,7 +306,6 @@ class SMPPOperationFactory:
         return pdu
 
     def get_enum(self, enum_type, value):
-        print(f'Trying to get {enum_type} enum value for: {value}')
         if isinstance(value, Enum):
             return value
         return getattr(enum_type, value.lstrip(str(enum_type) + '.'))

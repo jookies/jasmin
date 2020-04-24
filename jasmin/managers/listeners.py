@@ -642,11 +642,11 @@ class SMPPClientSMListener:
                     self.log.debug(
                         'Received SMS-MO part [queue-msgid:%s] using SAR: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)
-                elif UDHI_INDICATOR_SET and not_class2 and message_content[:3] == '\x05\x00\x03':
+                elif UDHI_INDICATOR_SET and not_class2 and message_content[:3] == b'\x05\x00\x03':
                     splitMethod = 'udh'
-                    total_segments = struct.unpack('!B', message_content[4])[0]
-                    segment_seqnum = struct.unpack('!B', message_content[5])[0]
-                    msg_ref_num = struct.unpack('!B', message_content[3])[0]
+                    total_segments = message_content[4]
+                    segment_seqnum = message_content[5]
+                    msg_ref_num = message_content[3]
                     self.log.debug(
                         'Received SMS-MO part [queue-msgid:%s] using UDH: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)

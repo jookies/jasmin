@@ -255,10 +255,10 @@ class DLRContentForSmppsTestCase(ContentTestCase):
         self.assertEqual(c['headers']['source_addr'], source_addr)
         self.assertEqual(c['headers']['destination_addr'], destination_addr)
         self.assertEqual(c['headers']['sub_date'], str(sub_date))
-        self.assertEqual(c['headers']['source_addr_ton'], AddrTon.NATIONAL)
-        self.assertEqual(c['headers']['source_addr_npi'], AddrNpi.ISDN)
-        self.assertEqual(c['headers']['dest_addr_ton'], AddrTon.NATIONAL)
-        self.assertEqual(c['headers']['dest_addr_npi'], AddrNpi.ISDN)
+        self.assertEqual(c['headers']['source_addr_ton'], str(AddrTon.NATIONAL))
+        self.assertEqual(c['headers']['source_addr_npi'], str(AddrNpi.ISDN))
+        self.assertEqual(c['headers']['dest_addr_ton'], str(AddrTon.NATIONAL))
+        self.assertEqual(c['headers']['dest_addr_npi'], str(AddrNpi.ISDN))
         # Default value of err is 99
         self.assertEqual(c['headers']['err'], 99)
 
