@@ -1,3 +1,4 @@
+import os
 from twisted.cred import portal
 from twisted.internet import reactor, defer
 from twisted.test import proto_helpers
@@ -58,10 +59,24 @@ class jCliTestCases(ProtocolTestCases):
 
     @defer.inlineCallbacks
     def tearDown(self):
+        # Delete any previously persisted configuration
+        persistenceFolder = self.RouterPBConfigInstance.store_path
+        for the_file in os.listdir(persistenceFolder):
+            if the_file == '.gitignore':
+                # Dont delete any hidden file
+                continue
+            file_path = os.path.join(persistenceFolder, the_file)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+
         yield self.RouterPB_f.cancelPersistenceTimer()
         yield self.amqpClient.disconnect()
         for q in self.amqpBroker.queues:
-            yield self.amqpBroker.chan.queue_delete(queue=q)
+            try:
+                yield self.amqpBroker.chan.queue_delete(queue=q)
+            except:
+                # Likely the channel is closed so we can't clean up the queues
+                pass
         yield self.amqpBroker.disconnect()
         
 
@@ -109,6 +124,7 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.assertRegex(receivedLines[9], ('Session ref: ').encode('ascii'))
 
     def tearDown(self):
+        print('tearing down jCliWithoutAuthTestCases')
         jCliTestCases.tearDown(self)
         self.proto.connectionLost(None)
 

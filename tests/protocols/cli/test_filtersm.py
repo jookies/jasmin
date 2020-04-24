@@ -20,6 +20,19 @@ class FiltersTestCases(jCliWithoutAuthTestCases):
 
         return self._test(finalPrompt, commands)
 
+    def tearDown(self):
+        self.sendCommand('filter -l')
+        receivedLines = self.getBuffer(True)
+
+        # If a test failed its possible old values persist so we need to remove them
+        for line in receivedLines[6:]:
+            filt = re.search(rb'^#([^\s]+).+$', line)
+            if filt:
+                self.sendCommand((b'filter -r %s' % filt.group(1)).decode())
+        
+        jCliWithoutAuthTestCases.tearDown(self)
+
+
 
 class BasicTestCases(FiltersTestCases):
     @defer.inlineCallbacks
@@ -453,16 +466,6 @@ else:
 class FilterPersistenceTestCases(FiltersTestCases):
     def tearDown(self):
         FiltersTestCases.tearDown(self)
-
-        # Delete any previously persisted configuration
-        persistenceFolder = self.RouterPBConfigInstance.store_path
-        for the_file in os.listdir(persistenceFolder):
-            if the_file == '.gitignore':
-                # Dont delete any hidden file
-                continue
-            file_path = os.path.join(persistenceFolder, the_file)
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
 
     @defer.inlineCallbacks
     def test_TransparentFilter(self):
