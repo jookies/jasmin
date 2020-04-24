@@ -59,10 +59,10 @@ class jCliTestCases(ProtocolTestCases):
     @defer.inlineCallbacks
     def tearDown(self):
         yield self.RouterPB_f.cancelPersistenceTimer()
+        yield self.amqpClient.disconnect()
         for q in self.amqpBroker.queues:
             yield self.amqpBroker.chan.queue_delete(queue=q)
-        yield self.amqpBroker.disconnectAndDontRetryToConnect()
-        yield self.amqpBroker.getExitDeferred()
+        yield self.amqpBroker.disconnect()
         
 
 

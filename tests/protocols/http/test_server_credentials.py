@@ -41,6 +41,10 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
         self.c1 = SmppClientConnector('smpp_c1')
 
     @defer.inlineCallbacks
+    def tearDown(self):
+        yield HappySMSCTestCase.tearDown(self)
+
+    @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, user=None, default_route=None, side_effect=None):
         # Routing stuff
         yield self.group_add(self.group1)

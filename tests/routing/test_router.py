@@ -1356,9 +1356,8 @@ class HappySMSCTestCase(SMPPClientManagerPBTestCase):
 
     @defer.inlineCallbacks
     def tearDown(self):
-        yield SMPPClientManagerPBTestCase.tearDown(self)
-
         yield self.SMSCPort.stopListening()
+        yield SMPPClientManagerPBTestCase.tearDown(self)
 
 
 class SubmitSmTestCaseTools:
