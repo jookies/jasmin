@@ -562,7 +562,6 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Args assertions
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        print(f'Call args are {callArgs}')
         self.assertEqual(len(callArgs), 4)
         self.assertTrue(b'id' in callArgs)
         self.assertTrue(b'message_status' in callArgs)

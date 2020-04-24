@@ -124,7 +124,6 @@ class jCliWithoutAuthTestCases(jCliTestCases):
         self.assertRegex(receivedLines[9], ('Session ref: ').encode('ascii'))
 
     def tearDown(self):
-        print('tearing down jCliWithoutAuthTestCases')
         jCliTestCases.tearDown(self)
         self.proto.connectionLost(None)
 

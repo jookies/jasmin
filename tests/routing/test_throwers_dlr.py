@@ -195,7 +195,6 @@ class HTTPDLRThrowerTestCase(DLRThrowerTestCases):
         # No message retries must be made since ACK was received
         self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
         callArgs = self.AckServerResource.render_GET.call_args_list[0][0][0].args
-        print(callArgs)
         self.assertEqual(callArgs[b'message_status'][0], message_status.encode())
         self.assertEqual(callArgs[b'id'][0], msgid.encode())
         self.assertEqual(callArgs[b'level'][0], str(dlr_level).encode())

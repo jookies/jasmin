@@ -6,10 +6,18 @@ from twisted.internet import defer
 from testfixtures import LogCapture
 from jasmin.routing.proxies import RouterPBProxy
 from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
-from tests.routing.test_encoding import composeMessage
 from tests.routing.codepages import GSM0338
 from treq import text_content
 from treq.client import HTTPClient
+
+def composeMessage(characters, length):
+    if length <= len(characters):
+        return b''.join(random.sample(characters, length))
+    else:
+        s = b''
+        while len(s) < length:
+            s += b''.join(random.sample(characters, len(characters)))
+        return s[:length]
 
 class LoggingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
