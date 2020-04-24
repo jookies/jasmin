@@ -267,7 +267,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
         self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
-        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -328,7 +328,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
         self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(
             pdu_part1.params['short_message'][6:] + pdu_part2.params['short_message'][6:] + pdu_part3.params[
                                                                                                 'short_message'][6:])])
-        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -373,7 +373,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message']])
         self.assertEqual(receivedHttpReq[b'binary'], [binascii.hexlify(
             pdu_part1.params['short_message'] + pdu_part2.params['short_message'] + pdu_part3.params['short_message'])])
-        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)

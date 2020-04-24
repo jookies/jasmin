@@ -462,7 +462,7 @@ class SMPPClientSMListener:
                 return
 
             # Build concat_message_content
-            concat_message_content = ''
+            concat_message_content = b''
             for i in range(total_segments):
                 if splitMethod == 'sar':
                     concat_message_content += pdus[i + 1].params[msg_content_key]

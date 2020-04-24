@@ -82,7 +82,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, connector, route=None, route_order=1):
-        self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
 
         # Prepare for routing
         connector.port = self.SMSCPort.getHost().port
@@ -106,7 +106,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(connector.cid)
             if ssRet == 'BOUND_TRX':
-                break;
+                break
             else:
                 yield waitFor(0.2)
 
@@ -118,7 +118,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         while True:
             ssRet = yield self.SMPPClientManagerPBProxy.session_state(connector.cid)
             if ssRet == 'NONE':
-                break;
+                break
             else:
                 yield waitFor(0.2)
 
@@ -151,14 +151,14 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         # Test callback in router
         self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 7)
-        self.assertEqual(receivedHttpReq['from'], [pdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [pdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [pdu.params['message_payload']])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'from'], [pdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [pdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [pdu.params['message_payload']])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -188,7 +188,7 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
         # Test callback in router
         self.assertEqual(self.pbRoot_f.deliver_sm_callback.call_count, 1)
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -223,16 +223,16 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 7)
-        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [
+        self.assertEqual(receivedHttpReq[b'from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [
             pdu_part1.params['message_payload'] + pdu_part2.params['message_payload'] + pdu_part3.params[
                 'message_payload']])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -281,17 +281,17 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 7)
-        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [
+        self.assertEqual(receivedHttpReq[b'from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [
             pdu_part1.params['message_payload'][6:] + pdu_part2.params['message_payload'][6:] + pdu_part3.params[
                                                                                                     'message_payload'][
                                                                                                 6:]])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
@@ -326,16 +326,16 @@ class DataSmHttpThrowingTestCases(RouterPBProxy, DataSmSMSCTestCase):
 
         # Run tests
         # Destination connector must receive the message one time (no retries)
-        self.assertEqual(self.AckServerResource.render_GET.call_count, 1)
+        self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Assert received args
         receivedHttpReq = self.AckServerResource.last_request.args
         self.assertEqual(len(receivedHttpReq), 7)
-        self.assertEqual(receivedHttpReq['from'], [basePdu.params['source_addr']])
-        self.assertEqual(receivedHttpReq['to'], [basePdu.params['destination_addr']])
-        self.assertEqual(receivedHttpReq['content'], [
+        self.assertEqual(receivedHttpReq[b'from'], [basePdu.params['source_addr']])
+        self.assertEqual(receivedHttpReq[b'to'], [basePdu.params['destination_addr']])
+        self.assertEqual(receivedHttpReq[b'content'], [
             pdu_part1.params['message_payload'] + pdu_part2.params['message_payload'] + pdu_part3.params[
                 'message_payload']])
-        self.assertEqual(receivedHttpReq['origin-connector'], [source_connector.cid])
+        self.assertEqual(receivedHttpReq[b'origin-connector'], [source_connector.cid.encode()])
 
         # Disconnector from SMSC
         yield self.stopConnector(source_connector)
