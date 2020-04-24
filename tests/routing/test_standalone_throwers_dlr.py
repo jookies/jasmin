@@ -16,7 +16,7 @@ from tests.routing.test_router import SubmitSmTestCaseTools
 from tests.routing.test_router_smpps import SMPPClientTestCases
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
-from smpp.pdu import pdu_types
+from smpp.pdu.pdu_types import MessageState, CommandId
 
 
 @defer.inlineCallbacks
@@ -108,16 +108,16 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         self.assertEqual(self.smppc_factory.lastProto.PDUDataRequestReceived.call_count, 1)
         # the received pdu must be a DeliverSM
         received_pdu_1 = self.smppc_factory.lastProto.PDUDataRequestReceived.call_args_list[0][0][0]
-        self.assertEqual(received_pdu_1.id, pdu_types.CommandId.deliver_sm)
-        self.assertEqual(received_pdu_1.params['source_addr'], '000')
-        self.assertEqual(received_pdu_1.params['destination_addr'], '999')
-        self.assertEqual(received_pdu_1.params['receipted_message_id'], 'MSGID')
-        self.assertEqual(str(received_pdu_1.params['message_state']), 'ACCEPTED')
+        self.assertEqual(received_pdu_1.id, CommandId.deliver_sm)
+        self.assertEqual(received_pdu_1.params['source_addr'], b'000')
+        self.assertEqual(received_pdu_1.params['destination_addr'], b'999')
+        self.assertEqual(received_pdu_1.params['receipted_message_id'], b'MSGID')
+        self.assertEqual(received_pdu_1.params['message_state'], MessageState.ACCEPTED)
         self.assertEqual(received_pdu_1.params['short_message'],
-                         'id:MSGID submit date:%s done date:%s stat:ACCEPTD err:99' % (
+                         ('id:MSGID submit date:%s done date:%s stat:ACCEPTD err:99' % (
                              sub_date.strftime("%y%m%d%H%M"),
                              sub_date.strftime("%y%m%d%H%M"),
-                         ))
+                         )).encode())
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()
