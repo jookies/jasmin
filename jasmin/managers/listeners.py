@@ -500,6 +500,10 @@ class SMPPClientSMListener:
                 else:
                     ret = str(dlr_id).upper().lstrip('0')
             else:
+                if isinstance(pdu.dlr['id'], bytes):
+                    dlr_id = pdu.dlr['id'].decode()
+                else:
+                    dlr_id = pdu.dlr['id']
                 # TODO: code dlr for submit_sm_resp maybe ? TBC
                 ret = str(dlr_id).upper().lstrip('0')
         except Exception as e:

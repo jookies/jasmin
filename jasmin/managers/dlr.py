@@ -233,6 +233,12 @@ class DLRLookup:
                 registered_delivery_receipt = to_enum(dlr['rd_receipt'])
                 smpps_map_expiry = dlr['expiry']
 
+                if isinstance(source_addr, int):
+                    source_addr = str(source_addr)
+
+                if isinstance(destination_addr, int):
+                    destination_addr = str(destination_addr)
+
                 # Do we need to forward the receipt to the original sender ?
                 if ((dlr_status == 'ESME_ROK' and registered_delivery_receipt in
                     [RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE, RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED]) or
@@ -361,6 +367,12 @@ class DLRLookup:
                 destination_addr = dlr['destination_addr']
                 sub_date = dlr['sub_date']
                 registered_delivery_receipt = to_enum(dlr['rd_receipt'])
+
+                if isinstance(source_addr, int):
+                    source_addr = str(source_addr)
+
+                if isinstance(destination_addr, int):
+                    destination_addr = str(destination_addr)
 
                 success_states = ['ACCEPTD', 'DELIVRD']
                 final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
