@@ -558,8 +558,8 @@ class LongSubmitSmWithUDHTestCase(LongSubmitSmTestCase):
         msg_ref_num = sent[0].params['short_message'][3]
         for i in range(nbrParts):
             self.assertEqual(sent[i].params['short_message'][:3], b'\x05\x00\x03')
-            self.assertEqual(nbrParts, struct.unpack('!B', sent[i].params['short_message'][4])[0])
-            self.assertEqual(i + 1, struct.unpack('!B', sent[i].params['short_message'][5])[0])
+            self.assertEqual(nbrParts, sent[i].params['short_message'][4])
+            self.assertEqual(i + 1, sent[i].params['short_message'][5])
             self.assertEqual(msg_ref_num, sent[i].params['short_message'][3])
 
         # Assert no LongSubmitSm transactions are still open
@@ -569,7 +569,7 @@ class LongSubmitSmWithUDHTestCase(LongSubmitSmTestCase):
         self.assertEqual(nbrParts, smpp.endLongSubmitSmTransaction.call_count)
 
         # Assert the content after concatenation is the same as original
-        concatenatedMsg = ''
+        concatenatedMsg = b''
         for i in range(nbrParts):
             # Remove UDH (6 bytes)
             concatenatedMsg += sent[i].params['short_message'][6:]
