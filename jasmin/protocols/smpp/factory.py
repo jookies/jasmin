@@ -26,7 +26,7 @@ from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtoco
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector
 from jasmin.protocols.smpp.validation import SmppsCredentialValidator
 
-from jasmin.protocols.http.errors import InterceptorNotSetError, InterceptorNotConnectedError
+from jasmin.protocols.smpp.error import InterceptorNotSetError, InterceptorNotConnectedError
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"

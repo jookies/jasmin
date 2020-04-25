@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 import random
 import binascii
@@ -10,16 +10,16 @@ from twisted.web import server
 from twisted.web.client import Agent
 from treq import text_content
 from treq.client import HTTPClient
+from smpp.pdu.pdu_types import EsmClassGsmFeatures, DataCodingDefault
+import messaging.sms.gsm0338
 
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.proxies import RouterPBProxy
 from tests.routing.codepages import (IA5_ASCII, ISO8859_1,
                                            CYRILLIC, ISO_8859_8)
-from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
-from smpp.pdu.pdu_types import EsmClassGsmFeatures, DataCodingDefault
 
-import messaging.sms.gsm0338 
+from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
 
 
 def composeMessage(characters, length):
@@ -142,9 +142,9 @@ class SubmitSmCodingTestCases(CodingTestCases):
 
     @defer.inlineCallbacks
     def test_JIS(self):
-        # c.f. http://unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/SHIFTJIS.TXT  
+        # c.f. http://unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/SHIFTJIS.TXT
         # .encode('shift_jis')
-        _jisx201_str = composeMessage({b'\x81\x40', b'\x96\xBA', b'\xE0\x62', b'\xEA\xA2'}, 70) 
+        _jisx201_str = composeMessage({b'\x81\x40', b'\x96\xBA', b'\xE0\x62', b'\xEA\xA2'}, 70)
         yield self.run_test(content=_jisx201_str, datacoding=5)
 
     @defer.inlineCallbacks

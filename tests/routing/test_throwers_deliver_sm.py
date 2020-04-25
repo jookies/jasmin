@@ -153,7 +153,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
 
         # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
-        yield waitFor(12)
+        yield waitFor(15)
 
         self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 3)
 
