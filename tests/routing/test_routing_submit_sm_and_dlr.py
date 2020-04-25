@@ -250,7 +250,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
 
         # Some gsm338 chars
         self.params['content'] = '@$ΔßÉ'
-        self.params['coding'] = '0'
+        self.params['coding'] = 0
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT
@@ -278,7 +278,7 @@ class HttpParameterTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseT
         # Some hebrew data
         del (self.params['content'])
         self.params['hex-content'] = b'05d905d005dc05dc05dc05dc05dc05dc05dc05d4'
-        self.params['coding'] = b'\x08'
+        self.params['coding'] = 8
         baseurl = 'http://127.0.0.1:1401/send'
 
         # Send a MT

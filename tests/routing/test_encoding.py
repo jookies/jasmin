@@ -43,7 +43,7 @@ def composeUnicodeMessage(characters, length):
 
 class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
     @defer.inlineCallbacks
-    def run_test(self, content, datacoding=None, port=1401):
+    def run_test(self, content, encoded_content=None, datacoding=None, port=1401):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
@@ -56,6 +56,9 @@ class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
             self.params['coding'] = datacoding
         # Prepare baseurl
         baseurl = 'http://127.0.0.1:%s/send' % port
+
+        if encoded_content is None:
+            encoded_content = content
 
         # Send a MT
         # We should receive a msg id
@@ -100,7 +103,7 @@ class CodingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):
             else:
                 receivedContent += submitSm.params['short_message']
 
-        self.assertEqual(content, receivedContent)
+        self.assertEqual(encoded_content, receivedContent)
 
         # Check for schemeData
         sentDataCoding = datacoding_matrix[datacoding]['schemeData']
@@ -112,8 +115,8 @@ class SubmitSmCodingTestCases(CodingTestCases):
     @defer.inlineCallbacks
     def test_gsm0338_at(self):
         """Testing gsm338 encoding for the @ char"""
-        _gsm0338_str = ('@' * 160).encode('gsm0338')
-        yield self.run_test(content=_gsm0338_str)
+        _gsm0338_str = ('@' * 160)
+        yield self.run_test(content=_gsm0338_str, encoded_content=_gsm0338_str.encode('gsm0338'))
 
     @defer.inlineCallbacks
     def test_IA5_ASCII(self):
@@ -193,8 +196,8 @@ class SubmitSmCodingTestCases(CodingTestCases):
 class LongSubmitSmCodingUsingSARTestCases(CodingTestCases):
     @defer.inlineCallbacks
     def test_gsm0338_at(self):
-        _gsm0338_str = ('@' * 612).encode('gsm0338')  # 612 = 153 * 4
-        yield self.run_test(content=_gsm0338_str)
+        _gsm0338_str = ('@' * 612)  # 612 = 153 * 4
+        yield self.run_test(content=_gsm0338_str, encoded_content=_gsm0338_str.encode('gsm0338'))
 
     @defer.inlineCallbacks
     def test_IA5_ASCII(self):
@@ -289,8 +292,8 @@ class LongSubmitSmCodingUsingUDHTestCases(CodingTestCases):
 
     @defer.inlineCallbacks
     def test_gsm0338_at(self):
-        _gsm0338_str = ('@' * 612).encode('gsm0338')
-        yield self.run_test(content=_gsm0338_str, port=self.httpPort_udh)
+        _gsm0338_str = ('@' * 612)
+        yield self.run_test(content=_gsm0338_str, encoded_content=_gsm0338_str.encode('gsm0338'), port=self.httpPort_udh)
 
     @defer.inlineCallbacks
     def test_IA5_ASCII(self):

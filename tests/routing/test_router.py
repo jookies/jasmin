@@ -1509,8 +1509,8 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        self.assertEqual(callArgs['id'][0], msgId)
-        self.assertEqual(callArgs['message_status'][0], 'ESME_RINVBNDSTS')
+        self.assertEqual(callArgs[b'id'][0], msgId)
+        self.assertEqual(callArgs[b'message_status'][0], 'ESME_RINVBNDSTS')
 
 
 class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTestCaseTools):

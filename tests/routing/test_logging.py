@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*- 
-import urllib.request, urllib.parse, urllib.error
+import random
+
 from twisted.internet import reactor
 from twisted.web.client import Agent
 from twisted.internet import defer
 from testfixtures import LogCapture
 from jasmin.routing.proxies import RouterPBProxy
-from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
-from tests.routing.codepages import GSM0338
 from treq import text_content
 from treq.client import HTTPClient
+
+from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
 
 def composeMessage(characters, length):
     if length <= len(characters):

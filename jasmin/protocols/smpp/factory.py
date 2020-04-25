@@ -499,7 +499,10 @@ class SMPPServerFactory(_SMPPServerFactory):
             if self.config.log_privacy:
                 logged_content = '** %s byte content **' % len(routable.pdu.params['short_message'])
             else:
-                logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', routable.pdu.params['short_message'])
+                if isinstance(routable.pdu.params['short_message'], bytes):
+                    logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', routable.pdu.params['short_message'])
+                else:
+                    logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message'])
 
             self.log.info(
                 'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]',
