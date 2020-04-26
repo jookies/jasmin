@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import random
 import binascii
 import urllib.request, urllib.parse, urllib.error
