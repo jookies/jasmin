@@ -5,7 +5,7 @@ import string
 import urllib.request, urllib.parse, urllib.error
 import random
 
-from unittest.mock import call
+from unittest.mock import Mock, call
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import defer, reactor
