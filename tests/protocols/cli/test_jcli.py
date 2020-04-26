@@ -370,3 +370,5 @@ class LoadingTestCases(jCliWithoutAuthTestCases):
         # Assert MT Routes
         yield self.sendCommand('mtrouter -l')
         self.assertEqual(self.getBuffer(True)[12].decode('ascii'), 'Total MT Routes: 2')
+
+    test_02_check_automatic_load_after_jcli_reboot.skip = 'this is a terrible test, it reqires another test to run and not clean up itself afterwards'
