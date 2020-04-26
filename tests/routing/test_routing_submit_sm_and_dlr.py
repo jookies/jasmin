@@ -5,7 +5,7 @@ import random
 import urllib.request, urllib.parse, urllib.error
 import binascii
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock
 from twisted.internet import defer, reactor
 from twisted.web import server
 from twisted.web.client import Agent
@@ -875,7 +875,7 @@ class HttpDlrCallbackingTestCases(RouterPBProxy, HappySMSCTestCase, SubmitSmTest
 
             yield r.hmset(k, v)
 
-        self.dlrlookup.redisClient.hmset = mock.MagicMock(wraps=mocked_hmset)
+        self.dlrlookup.redisClient.hmset = MagicMock(wraps=mocked_hmset)
 
         # Ask for DLR
         self.params['dlr-url'] = self.dlr_url
@@ -1764,7 +1764,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
 
             yield r.hmset(k, v)
 
-        self.dlrlookup.redisClient.hmset = mock.MagicMock(wraps=mocked_hmset)
+        self.dlrlookup.redisClient.hmset = MagicMock(wraps=mocked_hmset)
 
         # Ask for DLR
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)

@@ -5,7 +5,7 @@ import string
 import urllib.request, urllib.parse, urllib.error
 import random
 
-from unittest.mock import Mock
+from unittest.mock import call
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import defer, reactor
@@ -1186,7 +1186,7 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         # assert for 2 calls to persist: 1.users and 2.groups
         self.assertEqual(self.pbRoot_f.perspective_persist.call_count, 2)
         self.assertEqual(self.pbRoot_f.perspective_persist.call_args_list,
-                         [mock.call(scope='groups'), mock.call(scope='users')])
+                         [call(scope='groups'), call(scope='users')])
 
     @defer.inlineCallbacks
     def test_increase_decrease_quota(self):
