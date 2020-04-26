@@ -1,6 +1,3 @@
-# -*- test-case-name: jasmin.test.test_operations -*-
-# -*- coding: utf-8 -*-
-
 import datetime
 import math
 import re
