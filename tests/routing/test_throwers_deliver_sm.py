@@ -2,7 +2,7 @@ import binascii
 import copy
 from datetime import datetime, timedelta
 
-import mock
+from unittest.mock import Mock
 from twisted.internet import reactor, defer
 from twisted.trial.unittest import TestCase
 from twisted.web import server
@@ -73,8 +73,8 @@ class deliverSmThrowerTestCase(TestCase):
     def tearDown(self):
         for q in self.amqpBroker.queues:
             yield self.amqpBroker.chan.queue_delete(queue=q)
-        yield self.amqpBroker.disconnect()
         yield self.deliverSmThrower.stopService()
+        yield self.amqpBroker.disconnect()
 
 
 class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
@@ -108,7 +108,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_with_ack(self):
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = b'test_throwing_http_connector test content'
@@ -127,7 +127,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_without_ack(self):
-        self.NoAckServerResource.render_POST = mock.Mock(wraps=self.NoAckServerResource.render_POST)
+        self.NoAckServerResource.render_POST = Mock(wraps=self.NoAckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.NoAckServer.getHost().port, 'POST')
         content = b'test_throwing_http_connector test content'
@@ -146,7 +146,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_timeout_retry(self):
-        self.TimeoutLeafServerResource.render_POST = mock.Mock(wraps=self.TimeoutLeafServerResource.render_POST)
+        self.TimeoutLeafServerResource.render_POST = Mock(wraps=self.TimeoutLeafServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.TimeoutLeafServer.getHost().port, 'POST')
 
@@ -161,7 +161,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     def test_throwing_http_connector_404_error_noretry(self):
         """When receiving a 404 error, no further retries shall be made
         """
-        self.Error404ServerResource.render_POST = mock.Mock(wraps=self.Error404ServerResource.render_POST)
+        self.Error404ServerResource.render_POST = Mock(wraps=self.Error404ServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.Error404Server.getHost().port, 'POST')
 
@@ -174,7 +174,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
 
     @defer.inlineCallbacks
     def test_throwing_validity_parameter(self):
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = b'test_throwing_http_connector test content'
@@ -199,7 +199,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     def test_throwing_http_utf16(self):
         """Related to #320
         Send utf16-be content and check it was throwed while preserving the content as is"""
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = b"\x06\x2A\x06\x33\x06\x2A"
@@ -219,7 +219,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     def test_throwing_http_utf8(self):
         """Related to #320
         Send utf8 content and check it was throwed while preserving the content as is"""
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = b"\xd8\xaa\xd8\xb3\xd8\xaa"
@@ -240,7 +240,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         """Related to #380
         Will throw via http a pdu having 'message_payload' instead of 'short_message' parameter
         """
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = b'test_throwing_http_with_message_payload test content'
@@ -263,7 +263,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         """Related to #380
         Will throw via http a pdu having no priority_flag parameter
         """
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_without_priority test content'
@@ -281,7 +281,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         """Related to #380
         Will throw via http a pdu having no data_coding parameter
         """
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_without_coding test content'
@@ -299,7 +299,7 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
         """Related to #380
         Will throw via http a pdu having no validity_period parameter
         """
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.AckServer.getHost().port, 'POST')
         content = 'test_throwing_http_without_priority test content'
@@ -357,9 +357,9 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
     @defer.inlineCallbacks
     def test_throwing_smpps_to_bound_connection(self):
-        self.deliverSmThrower.ackMessage = mock.Mock(wraps=self.deliverSmThrower.ackMessage)
-        self.deliverSmThrower.rejectMessage = mock.Mock(wraps=self.deliverSmThrower.rejectMessage)
-        self.deliverSmThrower.smpp_deliver_sm_callback = mock.Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
+        self.deliverSmThrower.ackMessage = Mock(wraps=self.deliverSmThrower.ackMessage)
+        self.deliverSmThrower.rejectMessage = Mock(wraps=self.deliverSmThrower.rejectMessage)
+        self.deliverSmThrower.smpp_deliver_sm_callback = Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
 
         # Bind
         yield self.connect('127.0.0.1', self.pbPort)
@@ -386,10 +386,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
     @defer.inlineCallbacks
     def test_throwing_smpps_to_not_bound_connection(self):
-        self.deliverSmThrower.ackMessage = mock.Mock(wraps=self.deliverSmThrower.ackMessage)
-        self.deliverSmThrower.rejectMessage = mock.Mock(wraps=self.deliverSmThrower.rejectMessage)
-        self.deliverSmThrower.rejectAndRequeueMessage = mock.Mock(wraps=self.deliverSmThrower.rejectAndRequeueMessage)
-        self.deliverSmThrower.smpp_deliver_sm_callback = mock.Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
+        self.deliverSmThrower.ackMessage = Mock(wraps=self.deliverSmThrower.ackMessage)
+        self.deliverSmThrower.rejectMessage = Mock(wraps=self.deliverSmThrower.rejectMessage)
+        self.deliverSmThrower.rejectAndRequeueMessage = Mock(wraps=self.deliverSmThrower.rejectAndRequeueMessage)
+        self.deliverSmThrower.smpp_deliver_sm_callback = Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
 
         routedConnector = SmppServerSystemIdConnector('username')
         yield self.publishRoutedDeliverSmContent(self.routingKey,
@@ -408,10 +408,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
     @defer.inlineCallbacks
     def test_throwing_smpps_with_no_deliverers(self):
-        self.deliverSmThrower.ackMessage = mock.Mock(wraps=self.deliverSmThrower.ackMessage)
-        self.deliverSmThrower.rejectMessage = mock.Mock(wraps=self.deliverSmThrower.rejectMessage)
-        self.deliverSmThrower.rejectAndRequeueMessage = mock.Mock(wraps=self.deliverSmThrower.rejectAndRequeueMessage)
-        self.deliverSmThrower.smpp_deliver_sm_callback = mock.Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
+        self.deliverSmThrower.ackMessage = Mock(wraps=self.deliverSmThrower.ackMessage)
+        self.deliverSmThrower.rejectMessage = Mock(wraps=self.deliverSmThrower.rejectMessage)
+        self.deliverSmThrower.rejectAndRequeueMessage = Mock(wraps=self.deliverSmThrower.rejectAndRequeueMessage)
+        self.deliverSmThrower.smpp_deliver_sm_callback = Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
 
         # Bind (as a transmitter so we get no deliverers for DLR)
         yield self.connect('127.0.0.1', self.pbPort)
@@ -440,10 +440,10 @@ class SMPPDeliverSmThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSm
 
     @defer.inlineCallbacks
     def test_throwing_smpps_without_smppsFactory(self):
-        self.deliverSmThrower.ackMessage = mock.Mock(wraps=self.deliverSmThrower.ackMessage)
-        self.deliverSmThrower.rejectMessage = mock.Mock(wraps=self.deliverSmThrower.rejectMessage)
-        self.deliverSmThrower.rejectAndRequeueMessage = mock.Mock(wraps=self.deliverSmThrower.rejectAndRequeueMessage)
-        self.deliverSmThrower.smpp_deliver_sm_callback = mock.Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
+        self.deliverSmThrower.ackMessage = Mock(wraps=self.deliverSmThrower.ackMessage)
+        self.deliverSmThrower.rejectMessage = Mock(wraps=self.deliverSmThrower.rejectMessage)
+        self.deliverSmThrower.rejectAndRequeueMessage = Mock(wraps=self.deliverSmThrower.rejectAndRequeueMessage)
+        self.deliverSmThrower.smpp_deliver_sm_callback = Mock(wraps=self.deliverSmThrower.smpp_deliver_sm_callback)
 
         # Remove smpps from self.DLRThrower
         self.deliverSmThrower.smpps = None

@@ -1,4 +1,3 @@
-import mock
 from twisted.internet import defer, reactor
 from twisted.internet.protocol import Factory
 from .test_jcli import jCliWithoutAuthTestCases

@@ -6,7 +6,7 @@ These are test cases for only Jasmin's code, smpp.twisted tests are not included
 import copy
 import random
 
-import mock
+from unittest.mock import Mock
 from testfixtures import LogCapture
 from twisted.internet import defer
 from twisted.internet.protocol import Factory
@@ -116,8 +116,8 @@ class BindTransmitterTestCase(BindTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Session state check
         self.assertEqual(SMPPSessionStates.BOUND_TX, smpp.sessionState)
@@ -144,8 +144,8 @@ class BindReceiverTestCase(BindTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Session state check
         self.assertEqual(SMPPSessionStates.BOUND_RX, smpp.sessionState)
@@ -171,8 +171,8 @@ class BindTransceiverTestCase(BindTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Session state check
         self.assertEqual(SMPPSessionStates.BOUND_TRX, smpp.sessionState)
@@ -309,13 +309,13 @@ class ReconnectionOnConnectionFailureTestCase(SimulatorTestCase):
     @defer.inlineCallbacks
     def test_reconnect_on_connection_failure(self):
         client = SMPPClientFactory(self.config)
-        client.reConnect = mock.Mock(wraps=client.reConnect)
+        client.reConnect = Mock(wraps=client.reConnect)
         # Connect and bind
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Unbind & Disconnect
         yield client.disconnect()
@@ -344,7 +344,7 @@ class ReconnectionOnAuthenticationFailureTestCase(SimulatorTestCase):
     @defer.inlineCallbacks
     def test_reconnect_on_authentication_failure(self):
         client = SMPPClientFactory(self.config)
-        client.reConnect = mock.Mock(wraps=client.reConnect)
+        client.reConnect = Mock(wraps=client.reConnect)
         # Connect and bind
         yield client.connectAndBind()
 
@@ -376,8 +376,8 @@ class SubmitSmTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -415,8 +415,8 @@ class SubmitSmTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -454,8 +454,8 @@ class SubmitSmTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Send submit_sm with no source_addr defined
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -479,10 +479,10 @@ class LongSubmitSmTestCase(SimulatorTestCase):
         self.long_content_max_parts = self.opFactory.long_content_max_parts
 
     def prepareMocks(self, smpp):
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
-        smpp.startLongSubmitSmTransaction = mock.Mock(wraps=smpp.startLongSubmitSmTransaction)
-        smpp.endLongSubmitSmTransaction = mock.Mock(wraps=smpp.endLongSubmitSmTransaction)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
+        smpp.startLongSubmitSmTransaction = Mock(wraps=smpp.startLongSubmitSmTransaction)
+        smpp.endLongSubmitSmTransaction = Mock(wraps=smpp.endLongSubmitSmTransaction)
 
 
 class LongSubmitSmWithSARTestCase(LongSubmitSmTestCase):
@@ -1287,9 +1287,9 @@ class LongSubmitSmErrorOnSubmitSmTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
-        smpp.startLongSubmitSmTransaction = mock.Mock(wraps=smpp.startLongSubmitSmTransaction)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
+        smpp.startLongSubmitSmTransaction = Mock(wraps=smpp.startLongSubmitSmTransaction)
 
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -1338,10 +1338,10 @@ class LongSubmitSmGenericNackTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
-        smpp.startLongSubmitSmTransaction = mock.Mock(wraps=smpp.startLongSubmitSmTransaction)
-        smpp.cancelLongSubmitSmTransactions = mock.Mock(wraps=smpp.cancelLongSubmitSmTransactions)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
+        smpp.startLongSubmitSmTransaction = Mock(wraps=smpp.startLongSubmitSmTransaction)
+        smpp.cancelLongSubmitSmTransactions = Mock(wraps=smpp.cancelLongSubmitSmTransactions)
 
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -1378,8 +1378,8 @@ class SubmitSmIncorrectlyBoundTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(
@@ -1405,8 +1405,8 @@ class DeliverSmAckTestCase(SimulatorTestCase):
         yield client.connectAndBind()
         smpp = client.smpp
 
-        smpp.PDUReceived = mock.Mock(wraps=smpp.PDUReceived)
-        smpp.sendPDU = mock.Mock(wraps=smpp.sendPDU)
+        smpp.PDUReceived = Mock(wraps=smpp.PDUReceived)
+        smpp.sendPDU = Mock(wraps=smpp.sendPDU)
 
         # Send submit_sm
         SubmitSmPDU = self.opFactory.SubmitSM(

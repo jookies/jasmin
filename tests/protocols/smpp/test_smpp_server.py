@@ -6,7 +6,7 @@ import pickle
 import copy
 from datetime import timedelta
 
-import mock
+from unittest.mock import Mock
 from twisted.cred import portal
 from twisted.trial.unittest import TestCase
 
@@ -296,8 +296,8 @@ class MessagingTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smpps_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smpps_factory.lastProto.PDUReceived)
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smpps_factory.lastProto.PDUReceived = Mock(wraps=self.smpps_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPServer > SMPPClient
         yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
@@ -364,8 +364,8 @@ class MessagingTestCases(SMPPClientTestCases):
         self.assertEqual(smppc2_factory.smpp.sessionState, SMPPSessionStates.BOUND_RX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
-        smppc2_factory.lastProto.PDUReceived = mock.Mock(wraps=smppc2_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        smppc2_factory.lastProto.PDUReceived = Mock(wraps=smppc2_factory.lastProto.PDUReceived)
 
         # SMPPServer > SMPPClient
         yield self.smpps_factory.lastProto.sendDataRequest(self.DeliverSmPDU)
@@ -487,7 +487,7 @@ class UserCnxStatusTestCases(SMPPClientTestCases):
         self.assertEqual(self.user.getCnxStatus().smpps['unbind_count'], _unbind_count + 0)
         self.assertApproximates(datetime.now(),
                                 self.user.getCnxStatus().smpps['last_activity_at'],
-                                timedelta(seconds=0.1))
+                                timedelta(seconds=0.15))
 
         # Unbind & Disconnect
         yield self.smppc_factory.smpp.unbindAndDisconnect()

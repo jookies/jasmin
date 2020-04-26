@@ -1,7 +1,7 @@
 import copy
 import string
 
-import mock
+from unittest.mock import Mock
 from twisted.internet import defer, reactor
 from twisted.web import server
 
@@ -82,7 +82,7 @@ class DeliverSmHttpThrowingTestCases(RouterPBProxy, DeliverSmSMSCTestCase):
 
     @defer.inlineCallbacks
     def prepareRoutingsAndStartConnector(self, connector, route=None, route_order=1):
-        self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
+        self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
 
         # Prepare for routing
         connector.port = self.SMSCPort.getHost().port
@@ -449,7 +449,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -474,7 +474,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -502,7 +502,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send 10 deliver_sm from the SMSC
@@ -531,7 +531,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -599,7 +599,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Build a UDH
@@ -678,7 +678,7 @@ class DeliverSmSmppThrowingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitS
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC

@@ -1,4 +1,4 @@
-import mock
+from unittest.mock import Mock
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import reactor, defer
@@ -129,7 +129,7 @@ class SmppsSubmitSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Route
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -174,7 +174,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -214,7 +214,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -262,7 +262,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -313,7 +313,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -361,7 +361,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -411,7 +411,7 @@ class SmppsSubmitSmInterceptionTestCases(ProvisionInterceptorPB, RouterPBProxy, 
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)

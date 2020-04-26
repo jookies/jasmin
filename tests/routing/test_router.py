@@ -5,7 +5,7 @@ import string
 import urllib.request, urllib.parse, urllib.error
 import random
 
-import mock
+from unittest.mock import Mock
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import defer, reactor
@@ -80,9 +80,9 @@ class RouterPBTestCase(TestCase):
 
         # Mock callbacks
         # will be used for assertions
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = Mock(
             wraps=self.pbRoot_f.bill_request_submit_sm_resp_callback)
-        self.pbRoot_f.deliver_sm_callback = mock.Mock(wraps=self.pbRoot_f.deliver_sm_callback)
+        self.pbRoot_f.deliver_sm_callback = Mock(wraps=self.pbRoot_f.deliver_sm_callback)
 
         p = portal.Portal(JasminPBRealm(self.pbRoot_f))
         if not authentication:
@@ -1160,7 +1160,7 @@ class QuotasUpdatedPersistenceTestCases(PersistenceTestCase):
         yield self.connect('127.0.0.1', self.pbPort)
 
         # Mock perspective_persist for later assertions
-        self.pbRoot_f.perspective_persist = mock.Mock(self.pbRoot_f.perspective_persist)
+        self.pbRoot_f.perspective_persist = Mock(self.pbRoot_f.perspective_persist)
         # Reset persistence_timer_secs to shorten the test time
         self.pbRoot_f.config.persistence_timer_secs = 0.1
         self.pbRoot_f.activatePersistenceTimer()
@@ -1431,8 +1431,8 @@ class SubmitSmTestCaseTools:
             # Send a SMS MT through http interface and set delivery receipt callback in url
             self.dlr_url = 'http://127.0.0.1:%d/receipt' % (self.AckServer.getHost().port)
 
-            self.AckServerResource.render_POST = mock.Mock(wraps=self.AckServerResource.render_POST)
-            self.AckServerResource.render_GET = mock.Mock(wraps=self.AckServerResource.render_GET)
+            self.AckServerResource.render_POST = Mock(wraps=self.AckServerResource.render_POST)
+            self.AckServerResource.render_GET = Mock(wraps=self.AckServerResource.render_GET)
 
     @defer.inlineCallbacks
     def stopSmppClientConnectors(self):
@@ -1519,7 +1519,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield self.prepareRoutingsAndStartConnector()
 
         # Mock callback
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = mock.Mock(
+        self.pbRoot_f.bill_request_submit_sm_resp_callback = Mock(
             self.pbRoot_f.bill_request_submit_sm_resp_callback)
 
         self.params['content'] = composeMessage({'_'}, 200)

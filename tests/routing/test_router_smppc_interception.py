@@ -1,4 +1,4 @@
-import mock
+from unittest.mock import Mock
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import defer, reactor
@@ -164,7 +164,7 @@ class SmppcDeliverSmNoInterceptorPBTestCases(ProvisionWithoutInterceptorPB, Rout
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -204,7 +204,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -239,7 +239,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -282,7 +282,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -328,7 +328,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -371,7 +371,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -416,7 +416,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC
@@ -464,7 +464,7 @@ class SmppcDeliverSmInterceptorPBTestCases(ProvisionInterceptorPB, RouterPBProxy
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         # Send a deliver_sm from the SMSC

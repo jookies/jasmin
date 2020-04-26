@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 import urllib.request, urllib.parse, urllib.error
 
-import mock
+from unittest.mock import Mock
 from twisted.internet import defer, reactor
 from twisted.web.client import Agent
 from treq import text_content
@@ -76,7 +76,7 @@ class CredentialsTestCases(RouterPBProxy, HappySMSCTestCase):
                 yield waitFor(0.2)
 
         # Install mock
-        self.SMSCPort.factory.lastClient.sendSubmitSmResponse = mock.Mock(
+        self.SMSCPort.factory.lastClient.sendSubmitSmResponse = Mock(
             wraps=self.SMSCPort.factory.lastClient.sendSubmitSmResponse,
             side_effect=side_effect)
 

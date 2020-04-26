@@ -7,7 +7,7 @@ from hashlib import md5
 from random import randint
 from datetime import datetime, timedelta
 
-import mock
+from unittest.mock import Mock
 from testfixtures import LogCapture
 from twisted.cred import portal
 from twisted.cred.checkers import AllowAnonymousAccess, InMemoryUsernamePasswordDatabaseDontUse
@@ -671,7 +671,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)
 
-        self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
+        self.SMSCPort.factory.buildProtocol = Mock(wraps=self.SMSCPort.factory.buildProtocol)
 
         config = SMPPClientConfig(id='defaultId')
         opFactory = SMPPOperationFactory(config)
@@ -942,7 +942,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)
 
-        self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
+        self.SMSCPort.factory.buildProtocol = Mock(wraps=self.SMSCPort.factory.buildProtocol)
 
         config = SMPPClientConfig(id='defaultId')
         opFactory = SMPPOperationFactory(config)
@@ -1022,7 +1022,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
     def setUp(self):
         yield SMSCSimulatorRecorder.setUp(self)
 
-        self.SMSCPort.factory.buildProtocol = mock.Mock(wraps=self.SMSCPort.factory.buildProtocol)
+        self.SMSCPort.factory.buildProtocol = Mock(wraps=self.SMSCPort.factory.buildProtocol)
 
         self.SubmitSmBill = SubmitSmBill(User('test_user', Group('test_group'), 'test_username', 'pwd'))
 

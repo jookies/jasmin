@@ -1,4 +1,4 @@
-import mock
+from unittest.mock import Mock
 import copy
 from datetime import datetime
 from twisted.internet import defer
@@ -19,7 +19,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -45,7 +45,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -71,7 +71,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -100,7 +100,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -129,7 +129,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -157,7 +157,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -185,7 +185,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -213,7 +213,7 @@ class AuthorizationsTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -243,7 +243,7 @@ class FiltersTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -269,7 +269,7 @@ class FiltersTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -295,7 +295,7 @@ class FiltersTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -321,7 +321,7 @@ class FiltersTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -462,7 +462,7 @@ class QuotasTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -492,7 +492,7 @@ class QuotasTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -524,7 +524,7 @@ class QuotasTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -559,7 +559,7 @@ class QuotasTestCases(SMPPClientTestCases):
         self.assertEqual(self.smppc_factory.smpp.sessionState, SMPPSessionStates.BOUND_TRX)
 
         # Install mockers
-        self.smppc_factory.lastProto.PDUReceived = mock.Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
+        self.smppc_factory.lastProto.PDUReceived = Mock(wraps=self.smppc_factory.lastProto.PDUReceived)
 
         # SMPPClient > SMPPServer
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)

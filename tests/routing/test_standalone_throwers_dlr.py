@@ -1,7 +1,7 @@
 import datetime
 from hashlib import md5
 
-import mock
+from unittest.mock import Mock
 from twisted.cred import portal
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import reactor, defer
@@ -86,9 +86,9 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
     def test_throwing_smpps_to_bound_connection_as_deliver_sm(self):
         self.DLRThrower.config.dlr_pdu = 'deliver_sm'
 
-        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
-        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
-        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+        self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.smpp_dlr_callback = Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         # Bind
         yield self.connect('127.0.0.1', self.pbPort)
@@ -96,7 +96,7 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smppc_factory.lastProto.PDUDataRequestReceived = mock.Mock(
+        self.smppc_factory.lastProto.PDUDataRequestReceived = Mock(
             wraps=self.smppc_factory.lastProto.PDUDataRequestReceived)
 
         sub_date = datetime.datetime.now()
@@ -125,9 +125,9 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
     @defer.inlineCallbacks
     def test_throwing_smpps_to_bound_connection(self):
-        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
-        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
-        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+        self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.smpp_dlr_callback = Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         # Bind
         yield self.connect('127.0.0.1', self.pbPort)
@@ -149,10 +149,10 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
     @defer.inlineCallbacks
     def test_throwing_smpps_to_not_bound_connection(self):
-        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
-        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
-        self.DLRThrower.rejectAndRequeueMessage = mock.Mock(wraps=self.DLRThrower.rejectAndRequeueMessage)
-        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+        self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.rejectAndRequeueMessage = Mock(wraps=self.DLRThrower.rejectAndRequeueMessage)
+        self.DLRThrower.smpp_dlr_callback = Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username', '999', '000')
 
@@ -166,10 +166,10 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
     @defer.inlineCallbacks
     def test_throwing_smpps_with_no_deliverers(self):
-        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
-        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
-        self.DLRThrower.rejectAndRequeueMessage = mock.Mock(wraps=self.DLRThrower.rejectAndRequeueMessage)
-        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+        self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.rejectAndRequeueMessage = Mock(wraps=self.DLRThrower.rejectAndRequeueMessage)
+        self.DLRThrower.smpp_dlr_callback = Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         # Bind (as a transmitter so we get no deliverers for DLR)
         yield self.connect('127.0.0.1', self.pbPort)
@@ -193,10 +193,10 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
 
     @defer.inlineCallbacks
     def test_throwing_smpps_without_smppsFactory(self):
-        self.DLRThrower.ackMessage = mock.Mock(wraps=self.DLRThrower.ackMessage)
-        self.DLRThrower.rejectMessage = mock.Mock(wraps=self.DLRThrower.rejectMessage)
-        self.DLRThrower.rejectAndRequeueMessage = mock.Mock(wraps=self.DLRThrower.rejectAndRequeueMessage)
-        self.DLRThrower.smpp_dlr_callback = mock.Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+        self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.rejectAndRequeueMessage = Mock(wraps=self.DLRThrower.rejectAndRequeueMessage)
+        self.DLRThrower.smpp_dlr_callback = Mock(wraps=self.DLRThrower.smpp_dlr_callback)
 
         # Remove smpps from self.DLRThrower
         self.DLRThrower.smpps = None

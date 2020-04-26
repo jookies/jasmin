@@ -1,5 +1,5 @@
 import logging
-import mock
+from unittest.mock import Mock
 import copy
 
 from twisted.internet import reactor, defer
@@ -70,7 +70,7 @@ class SmppServerTestCases(HappySMSCTestCase):
         _portal.registerChecker(RouterAuthChecker(self.pbRoot_f))
 
         # Install mocks
-        self.clientManager_f.perspective_submit_sm = mock.Mock(wraps=self.clientManager_f.perspective_submit_sm)
+        self.clientManager_f.perspective_submit_sm = Mock(wraps=self.clientManager_f.perspective_submit_sm)
 
         # SMPPServerFactory init
         self.smpps_factory = LastProtoSMPPServerFactory(self.smpps_config,
@@ -89,7 +89,7 @@ class SmppServerTestCases(HappySMSCTestCase):
         self.DLRThrower.addSmpps(self.smpps_factory)
 
         # Install mocks
-        self.smpps_proto.sendPDU = mock.Mock(wraps=self.smpps_proto.sendPDU)
+        self.smpps_proto.sendPDU = Mock(wraps=self.smpps_proto.sendPDU)
 
         # PDUs used for tests
         self.SubmitSmPDU = SubmitSM(
@@ -314,7 +314,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         assertionUser = self.pbRoot_f.getUser(user.uid)
 
         # Mock user's updateQuota callback
-        assertionUser.mt_credential.updateQuota = mock.Mock(wraps=assertionUser.mt_credential.updateQuota)
+        assertionUser.mt_credential.updateQuota = Mock(wraps=assertionUser.mt_credential.updateQuota)
 
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(self.u1)
@@ -345,7 +345,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         assertionUser = self.pbRoot_f.getUser(user.uid)
 
         # Mock user's updateQuota callback
-        assertionUser.mt_credential.updateQuota = mock.Mock(wraps=assertionUser.mt_credential.updateQuota)
+        assertionUser.mt_credential.updateQuota = Mock(wraps=assertionUser.mt_credential.updateQuota)
 
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(self.u1)
@@ -374,7 +374,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         assertionUser = self.pbRoot_f.getUser(user.uid)
 
         # Mock user's updateQuota callback
-        assertionUser.mt_credential.updateQuota = mock.Mock(wraps=assertionUser.mt_credential.updateQuota)
+        assertionUser.mt_credential.updateQuota = Mock(wraps=assertionUser.mt_credential.updateQuota)
 
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(user)
@@ -412,7 +412,7 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, SmppServerTestC
         assertionUser = self.pbRoot_f.getUser(user.uid)
 
         # Mock user's updateQuota callback
-        assertionUser.mt_credential.updateQuota = mock.Mock(wraps=assertionUser.mt_credential.updateQuota)
+        assertionUser.mt_credential.updateQuota = Mock(wraps=assertionUser.mt_credential.updateQuota)
 
         # Bind and send a SMS MT through smpps interface
         self._bind_smpps(user)
@@ -472,7 +472,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -505,7 +505,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -547,7 +547,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -600,7 +600,7 @@ class SubmitSmRespDeliveryTestCases(RouterPBProxy, SMPPClientTestCases,
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)

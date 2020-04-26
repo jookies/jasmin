@@ -5,7 +5,7 @@ import random
 import urllib.request, urllib.parse, urllib.error
 import binascii
 
-import mock
+from unittest.mock import Mock
 from twisted.internet import defer, reactor
 from twisted.web import server
 from twisted.web.client import Agent
@@ -1261,7 +1261,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1361,7 +1361,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1459,7 +1459,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1504,7 +1504,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1547,7 +1547,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1596,7 +1596,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         SubmitSmPDU = copy.deepcopy(self.SubmitSmPDU)
@@ -1643,7 +1643,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Tell the SMSCPort to response with the defined MsgId
         self.SMSCPort.factory.lastClient.nextResponseMsgId = 'SAR-234802311309-2024752f-2-1'
@@ -1692,7 +1692,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Tell the SMSCPort to response with the defined MsgId
         self.SMSCPort.factory.lastClient.nextResponseMsgId = '04062581461565934000241'
@@ -1743,7 +1743,7 @@ class SmppsDlrCallbackingTestCases(SmppsDlrCallbacking):
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Make a new connection to redis
         # It is used to wrap DLRLookup's redis client and slowdown calls to hmset
@@ -1805,7 +1805,7 @@ class SmppsMessagingTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface with validity period set
         validity_period = datetime(2015, 7, 29, 15, 21, 54, tzinfo=FixedOffset(24, 'Paris'))
@@ -1844,7 +1844,7 @@ class FailoverMTRouteSmppTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmT
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Send a SMS MT through smpps interface
         yield self.smppc_factory.lastProto.sendDataRequest(self.SubmitSmPDU)
@@ -1879,7 +1879,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Tell the SMSCPort to response with the defined MsgId
         self.SMSCPort.factory.lastClient.nextResponseMsgId = msgid_dec
@@ -1936,7 +1936,7 @@ class DlrMsgIdBaseTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCase
         yield self.smppc_factory.connectAndBind()
 
         # Install mocks
-        self.smpps_factory.lastProto.sendPDU = mock.Mock(wraps=self.smpps_factory.lastProto.sendPDU)
+        self.smpps_factory.lastProto.sendPDU = Mock(wraps=self.smpps_factory.lastProto.sendPDU)
 
         # Tell the SMSCPort to response with the defined MsgId
         self.SMSCPort.factory.lastClient.nextResponseMsgId = msgid_hex
