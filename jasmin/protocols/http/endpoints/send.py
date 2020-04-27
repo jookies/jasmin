@@ -88,7 +88,7 @@ class Send(Resource):
                         short_message = updated_request.args[b'content'][0].decode().encode('gsm0338', 'replace')
                     else:
                         short_message = updated_request.args[b'content'][0].encode('gsm0338', 'replace')
-                    updated_request.args[b'content'] = short_message
+                    updated_request.args[b'content'][0] = short_message
                 else:
                     # Otherwise forward it as is
                     short_message = updated_request.args[b'content'][0]

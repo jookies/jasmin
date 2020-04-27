@@ -41,7 +41,7 @@ class Rate(Resource):
                         short_message = request.args[b'content'][0].decode().encode('gsm0338', 'replace')
                     else:
                         short_message = request.args[b'content'][0].encode('gsm0338', 'replace')
-                    request.args[b'content'] = short_message
+                    request.args[b'content'][0] = short_message
                 else:
                     # Otherwise forward it as is
                     short_message = request.args[b'content'][0]
