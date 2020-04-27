@@ -296,13 +296,13 @@ class deliverSmThrower(Thrower):
                 postdata = None
                 params = None
                 baseurl = dc.baseurl
-                method = dc.method
-                if isinstance(method, bytes):
-                    method = method.decode().upper()
+                _method = dc.method
+                if isinstance(_method, bytes):
+                    _method = _method.decode().upper()
                 else:
-                    method = method.upper()
+                    _method = _method.upper()
 
-                if method == 'GET':
+                if _method == 'GET':
                     params = args
                 else:
                     postdata = args
@@ -311,7 +311,7 @@ class deliverSmThrower(Thrower):
                 agent = Agent(reactor)
                 client = HTTPClient(agent)
                 response = yield client.request(
-                    method,
+                    _method,
                     baseurl,
                     params=params,
                     data=postdata,
