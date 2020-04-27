@@ -281,7 +281,7 @@ class SMPPClientSMListener:
                 splitMethod = None
                 if 'sar_msg_ref_num' in r.request.params:
                     splitMethod = 'sar'
-                elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == '\x05\x00\x03':
+                elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == b'\x05\x00\x03':
                     splitMethod = 'udh'
 
                 # Concatenate short_message

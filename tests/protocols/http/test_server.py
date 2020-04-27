@@ -463,10 +463,11 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_rated_route_unlimited_balance_long_content(self):
+        content = 'A' * 200
         response = yield self.web.get(b"rate", {b'username': 'user2',
                                                b'password': b'correct',
                                                b'to': b'06155423',
-                                               b'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
+                                               b'content': content})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(json.loads(response.value()), {'submit_sm_count': 2, 'unit_rate': 0.0})
 
@@ -480,10 +481,11 @@ class RateTestCases(HTTPApiTestCases):
 
     @defer.inlineCallbacks
     def test_rate_rated_route_defined_balance_long_content(self):
+        content = 'A' * 200
         response = yield self.web.get(b"rate", {b'username': 'user3',
                                                b'password': b'correct',
                                                b'to': b'06155423',
-                                               b'content': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'})
+                                               b'content': content})
         self.assertEqual(response.responseCode, 200)
         self.assertEqual(json.loads(response.value()), {'submit_sm_count': 2, 'unit_rate': 1.5})
 

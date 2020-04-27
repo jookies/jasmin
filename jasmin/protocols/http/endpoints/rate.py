@@ -41,6 +41,7 @@ class Rate(Resource):
                         short_message = request.args[b'content'][0].decode().encode('gsm0338', 'replace')
                     else:
                         short_message = request.args[b'content'][0].encode('gsm0338', 'replace')
+                    request.args[b'content'] = short_message
                 else:
                     # Otherwise forward it as is
                     short_message = request.args[b'content'][0]
@@ -206,11 +207,11 @@ class Rate(Resource):
                       }
 
             # Default coding is 0 when not provided
-            if 'coding' not in request.args:
+            if b'coding' not in request.args:
                 request.args[b'coding'] = [b'0']
 
             # Content is optional, defaults to empty content string
-            if 'hex-content' not in request.args and 'content' not in request.args:
+            if b'hex-content' not in request.args and b'content' not in request.args:
                 request.args[b'content'] = [b'']
 
             # Make validation
@@ -219,7 +220,7 @@ class Rate(Resource):
 
             # Check if have content --OR-- hex-content
             # @TODO: make this inside UrlArgsValidator !
-            if 'content' in request.args and 'hex-content' in request.args:
+            if b'content' in request.args and b'hex-content' in request.args:
                 raise UrlArgsValidationError("content and hex-content cannot be used both in same request.")
 
             # Continue routing in a separate thread
