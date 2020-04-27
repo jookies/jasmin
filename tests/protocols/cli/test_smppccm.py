@@ -1,5 +1,6 @@
 from twisted.internet import defer, reactor
 from twisted.internet.protocol import Factory
+from smpp.pdu.pdu_types import AddrTon, AddrNpi
 from .test_jcli import jCliWithoutAuthTestCases
 from tests.protocols.smpp.smsc_simulator import *
 
@@ -850,7 +851,7 @@ class SMSCTestCases(HappySMSCTestCase):
 
         # Assert bind_ton value
         self.assertEqual(1, len(self.SMSCPort.factory.lastClient.pduRecords))
-        self.assertEqual('ALPHANUMERIC', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_ton']))
-        self.assertEqual('NATIONAL', str(self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_npi']))
+        self.assertEqual(AddrTon.ALPHANUMERIC, self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_ton'])
+        self.assertEqual(AddrNpi.NATIONAL, self.SMSCPort.factory.lastClient.pduRecords[0].params['addr_npi'])
         self.assertEqual('^34.*{6}$', self.SMSCPort.factory.lastClient.pduRecords[
             0].params['address_range'].decode('ascii'))

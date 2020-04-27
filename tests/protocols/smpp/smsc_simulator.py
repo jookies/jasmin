@@ -389,11 +389,15 @@ class HappySMSCRecorder(HappySMSC):
         self.sendSubmitSmResponse(reqPDU)
 
     def sendSubmitSmResponse(self, reqPDU):
-        if reqPDU.params['short_message'] == 'test_error: ESME_RTHROTTLED':
+        short_message = reqPDU.params['short_message']
+        if isinstance(short_message, bytes):
+            short_message = short_message.decode()
+
+        if short_message == 'test_error: ESME_RTHROTTLED':
             status = CommandStatus.ESME_RTHROTTLED
-        elif reqPDU.params['short_message'] == 'test_error: ESME_RSYSERR':
+        elif short_message == 'test_error: ESME_RSYSERR':
             status = CommandStatus.ESME_RSYSERR
-        elif reqPDU.params['short_message'] == 'test_error: ESME_RREPLACEFAIL':
+        elif short_message == 'test_error: ESME_RREPLACEFAIL':
             status = CommandStatus.ESME_RREPLACEFAIL
         else:
             status = CommandStatus.ESME_ROK

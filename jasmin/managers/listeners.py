@@ -260,12 +260,13 @@ class SMPPClientSMListener:
             submit_sm_resp_bill = pickle.loads(
                 amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
 
+            total_bill_amount = 0.0
+            
             if r.response.status == CommandStatus.ESME_ROK:
                 # No more retrials !
                 del self.submit_retrials[msgid]
 
                 # Get bill information
-                total_bill_amount = 0.0
                 if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
                     total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
 
@@ -329,8 +330,8 @@ class SMPPClientSMListener:
                     logged_content)
             else:
                 # Message must be retried ?
-                if str(r.response.status) in self.config.submit_error_retrial:
-                    retrial = self.config.submit_error_retrial[str(r.response.status)]
+                if r.response.status.name in self.config.submit_error_retrial:
+                    retrial = self.config.submit_error_retrial[r.response.status.name]
 
                     # Still have some retries to go ?
                     if self.submit_retrials[msgid] < retrial['count']:
