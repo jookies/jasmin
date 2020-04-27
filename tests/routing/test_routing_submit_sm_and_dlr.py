@@ -5,7 +5,7 @@ import random
 import urllib.request, urllib.parse, urllib.error
 import binascii
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 from twisted.internet import defer, reactor
 from twisted.web import server
 from twisted.web.client import Agent
