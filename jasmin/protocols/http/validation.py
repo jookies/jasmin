@@ -172,6 +172,12 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
     def _convert_to_string(self, arg_name, encoding_type=None):
         value = self.request.args[arg_name][0]
         if isinstance(value, bytes):
+            if encoding_type == b'13':
+                # JISX0212 can be decoded this way given the escape sequences
+                return (b'\x1b$(D' + value + b'\x1b(B').decode('iso2022jp-1')
+            if encoding_type in (b'2', b'4', b'14'):
+                # These types dont decode properly
+                return ''
             return value.decode(self.encoding_map.get(encoding_type, 'ascii'))
         if isinstance(value, str):
             return value

@@ -28,6 +28,8 @@ COPY . .
 
 RUN pip install .
 
+ENV UNICODEMAP_JP unicode-ascii
+
 WORKDIR /usr/jasmin
 
 # Change binding host for jcli

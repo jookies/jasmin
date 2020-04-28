@@ -19,7 +19,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.protocol import *
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from tests.protocols.smpp.smsc_simulator import *
-from tests.routing.codepages import GSM0338, ISO8859_1
+from tests.encoding.codepages import GSM0338, ISO8859_1
 from smpp.pdu.error import *
 from smpp.pdu.operations import *
 from smpp.pdu.pdu_types import CommandStatus

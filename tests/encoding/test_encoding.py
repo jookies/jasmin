@@ -14,8 +14,7 @@ import messaging.sms.gsm0338
 from jasmin.protocols.http.configs import HTTPApiConfig
 from jasmin.protocols.http.server import HTTPApi
 from jasmin.routing.proxies import RouterPBProxy
-from tests.routing.codepages import (IA5_ASCII, ISO8859_1,
-                                           CYRILLIC, ISO_8859_8)
+from tests.encoding.codepages import (IA5_ASCII, ISO_8859)
 
 from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
 
@@ -128,8 +127,9 @@ class SubmitSmCodingTestCases(CodingTestCases):
     test_OCTET_UNSPECIFIED.skip = 'TODO: What kind of data should we send using this DC ?'
 
     @defer.inlineCallbacks
-    def test_LATIN_1(self):
-        _latin1_str = composeMessage(ISO8859_1, 140)
+    def test_ISO_8859_1(self):
+        self.assertEqual(b'\xD0\xFE', '\u00D0\u00FE'.encode('iso-8859-1'))
+        _latin1_str = composeMessage(ISO_8859, 140)
         yield self.run_test(content=_latin1_str, datacoding=3)
 
     def test_OCTET_UNSPECIFIED_COMMON(self):
@@ -142,33 +142,36 @@ class SubmitSmCodingTestCases(CodingTestCases):
     def test_JIS(self):
         # c.f. http://unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/SHIFTJIS.TXT
         # .encode('shift_jis')
-        _jisx201_str = composeMessage({b'\x81\x40', b'\x96\xBA', b'\xE0\x62', b'\xEA\xA2'}, 70)
-        yield self.run_test(content=_jisx201_str, datacoding=5)
+        self.assertEqual(b'\x81\x40\x96\xBA\xE0\x62\xEA\xA2', '\u3000\u5A18\u7009\u7464'.encode('shift_jis'))
+        _jisx201_str = composeUnicodeMessage({'\u3000', '\u5A18', '\u7009', '\u7464'}, 70)
+        yield self.run_test(content=_jisx201_str.encode('shift_jis'), datacoding=5)
 
     @defer.inlineCallbacks
-    def test_CYRILLIC(self):
+    def test_ISO_8859_5(self):
         # .encode('iso-8859-5')
-        _cyrillic_str = composeMessage(CYRILLIC, 140)
+        self.assertEqual(b'\xA6\xE9', '\u0406\u0449'.encode('iso-8859-5'))
+        _cyrillic_str = composeMessage(ISO_8859, 140)
         yield self.run_test(content=_cyrillic_str, datacoding=6)
 
     @defer.inlineCallbacks
     def test_ISO_8859_8(self):
         # .encode('iso-8859-8')
-        _iso8859_8_str = composeMessage(ISO_8859_8, 140)
+        self.assertEqual(b'\xED\xFD', '\u05DD\u200E'.encode('iso-8859-8'))
+        _iso8859_8_str = composeMessage(ISO_8859, 140)
         yield self.run_test(content=_iso8859_8_str, datacoding=7)
 
     @defer.inlineCallbacks
     def test_UCS2(self):
         # .encode('utf_16_be')
-        _rabbit_arabic = composeMessage({b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}, 70)
-        yield self.run_test(content=_rabbit_arabic, datacoding=8)
+        _rabbit_arabic = composeUnicodeMessage({'\u0623', '\u0631', '\u0646', '\u0628'}, 70)
+        self.assertEqual(b'\x06\x23'.decode('utf_16_be'), '\u0623')
+        yield self.run_test(content=_rabbit_arabic.encode('utf_16_be'), datacoding=8)
 
     @defer.inlineCallbacks
     def test_PICTOGRAM(self):
-        # c.f. http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
-        # .encode('cp932')
-        _cp932_str = composeMessage({b'\x8B\x89', b'\x8B\x90', b'\x8B\xC9', b'\xFC\x4B'}, 70)
-        yield self.run_test(content=_cp932_str, datacoding=9)
+        # https://en.wikipedia.org/wiki/Short_Message_Peer-to-Peer#Unclear_support_for_Shift-JIS_encoding
+        _pictogram_str = composeUnicodeMessage({'\u7D1A', '\u5DE8', '\u6975', '\u6DD8'}, 70)
+        yield self.run_test(content=_pictogram_str.encode('shift_jis'), datacoding=9)
 
     def test_ISO_2022_JP(self):
         # datacoding = 10
@@ -178,18 +181,24 @@ class SubmitSmCodingTestCases(CodingTestCases):
 
     @defer.inlineCallbacks
     def test_EXTENDED_KANJI_JIS(self):
-        # c.f. http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
-        # .encode('cp932')
-        _cp932_str = composeMessage({b'\x8B\x89', b'\x8B\x90', b'\x8B\xC9', b'\xFC\x4B'}, 70)
-        yield self.run_test(content=_cp932_str, datacoding=13)
+        # c.f. https://www.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/JIS0212.TXT
+        # https://github.com/python/cpython/blob/master/Modules/cjkcodecs/_codecs_iso2022.c#L1090
+        # Need to set ENV var UNICODEMAP_JP to unicode-ascii
+        # https://doc.qt.io/qtforpython/overviews/codecs-jis.html
+        self.assertEqual(b'\x31\x24\x4C\x4B', '\u4F8C\u7480'.encode('iso2022jp-1').lstrip(b'\x1b$(D').rstrip(b'\x1b(B'))
+        self.assertEqual('\u4F8C\u7480', (b'\x1b$(D' + b'\x31\x24\x4C\x4B' + b'\x1b(B').decode('iso2022jp-1'))
+        jisx0212_str = composeUnicodeMessage({'\u4F8C', '\u7480', '\u5B94', '\u9835'}, 70)
+        yield self.run_test(content=jisx0212_str.encode('iso2022jp-1').lstrip(b'\x1b$(D').rstrip(b'\x1b(B'), datacoding=13)
 
     @defer.inlineCallbacks
     def test_KS_C_5601(self):
         # c.f. ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/KSC/KSC5601.TXT
         # .encode('ksc5601')
-        _ks_c_5601_str = composeMessage({b'\x81\x41', b'\xA4\x96', b'\xE1\xD7', b'\xFD\xFE'}, 70)
-        yield self.run_test(content=_ks_c_5601_str, datacoding=14)
+        self.assertEqual(b'\xA5\x55\xA4\xBA', '\uCA64\u314A'.encode('ksc5601'))
+        _ks_c_5601_str = composeUnicodeMessage({'\uAC02', '\uCA3C', '\u6D91', '\u8A70'}, 70)
+        yield self.run_test(content=_ks_c_5601_str.encode('ksc5601'), datacoding=14)
 
+    test_KS_C_5601.skip = 'ksc5601 encoding in python does not match the mappings expected'
 
 class LongSubmitSmCodingUsingSARTestCases(CodingTestCases):
     @defer.inlineCallbacks
@@ -209,9 +218,9 @@ class LongSubmitSmCodingUsingSARTestCases(CodingTestCases):
     test_OCTET_UNSPECIFIED.skip = 'TODO: What kind of data should we send using this DC ?'
 
     @defer.inlineCallbacks
-    def test_LATIN_1(self):
+    def test_ISO_8859_1(self):
         # .encode('iso-8859-1')
-        _latin1_str = composeMessage(ISO8859_1, 670)  # 670 = 134 * 5
+        _latin1_str = composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         yield self.run_test(content=_latin1_str, datacoding=3)
 
     def test_OCTET_UNSPECIFIED_COMMON(self):
@@ -223,31 +232,31 @@ class LongSubmitSmCodingUsingSARTestCases(CodingTestCases):
     @defer.inlineCallbacks
     def test_JIS(self):
         # c.f. http://unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/SHIFTJIS.TXT
-        _jisx201_str = composeMessage({b'\x81\x40', b'\x96\xBA', b'\xE0\x62', b'\xEA\xA2'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_jisx201_str, datacoding=5)
+        _jisx201_str = composeUnicodeMessage({'\u3000', '\u5A18', '\u7009', '\u7464'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_jisx201_str.encode('shift_jis'), datacoding=5)
 
     @defer.inlineCallbacks
-    def test_CYRILLIC(self):
+    def test_ISO_8859_5(self):
         # .encode('iso-8859-5')
-        _cyrillic_str = composeMessage(CYRILLIC, 670)  # 670 = 134 * 5
+        _cyrillic_str = composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         yield self.run_test(content=_cyrillic_str, datacoding=6)
 
     @defer.inlineCallbacks
     def test_ISO_8859_8(self):
         # .encode('iso-8859-8')
-        _iso8859_8_str = composeMessage(ISO_8859_8, 670)  # 670 = 134 * 5
+        _iso8859_8_str = composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         yield self.run_test(content=_iso8859_8_str, datacoding=7)
 
     @defer.inlineCallbacks
     def test_UCS2(self):
-        _rabbit_arabic = composeMessage({b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_rabbit_arabic, datacoding=8)
+        _rabbit_arabic = composeUnicodeMessage({'\u0623', '\u0631', '\u0646', '\u0628'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_rabbit_arabic.encode('utf_16_be'), datacoding=8)
 
     @defer.inlineCallbacks
     def test_PICTOGRAM(self):
-        # c.f. http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
-        _cp932_str = composeMessage({b'\x8B\x89', b'\x8B\x90', b'\x8B\xC9', b'\xFC\x4B'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_cp932_str, datacoding=9)
+        # https://en.wikipedia.org/wiki/Short_Message_Peer-to-Peer#Unclear_support_for_Shift-JIS_encoding
+        _pictogram_str = composeUnicodeMessage({'\u7D1A', '\u5DE8', '\u6975', '\u6DD8'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_pictogram_str.encode('shift_jis'), datacoding=9)
 
     def test_ISO_2022_JP(self):
         # datacoding = 10
@@ -257,16 +266,17 @@ class LongSubmitSmCodingUsingSARTestCases(CodingTestCases):
 
     @defer.inlineCallbacks
     def test_EXTENDED_KANJI_JIS(self):
-        # c.f. http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
-        _cp932_str = composeMessage({b'\x8B\x89', b'\x8B\x90', b'\x8B\xC9', b'\xFC\x4B'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_cp932_str, datacoding=13)
+        # c.f. https://www.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/JIS0212.TXT
+        jisx0212_str = composeUnicodeMessage({'\u4F8C', '\u7480', '\u5B94', '\u9835'}, 335)
+        yield self.run_test(content=jisx0212_str.encode('iso2022jp-1').lstrip(b'\x1b$(D').rstrip(b'\x1b(B'), datacoding=13)
 
     @defer.inlineCallbacks
     def test_KS_C_5601(self):
         # c.f. ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/KSC/KSC5601.TXT
-        _ks_c_5601_str = composeMessage({b'\x81\x41', b'\xA4\x96', b'\xE1\xD7', b'\xFD\xFE'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_ks_c_5601_str, datacoding=14)
+        _ks_c_5601_str = composeUnicodeMessage({'\uAC02', '\uCA3C', '\u6D91', '\u8A70'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_ks_c_5601_str.encode('ksc5601'), datacoding=14)
 
+    test_KS_C_5601.skip = 'ksc5601 encoding in python does not match the mappings expected'
 
 class LongSubmitSmCodingUsingUDHTestCases(CodingTestCases):
     @defer.inlineCallbacks
@@ -305,9 +315,9 @@ class LongSubmitSmCodingUsingUDHTestCases(CodingTestCases):
     test_OCTET_UNSPECIFIED.skip = 'TODO: What kind of data should we send using this DC ?'
 
     @defer.inlineCallbacks
-    def test_LATIN_1(self):
+    def test_ISO_8859_1(self):
         # .encode('iso-8859-1')
-        _latin1_str = composeMessage(ISO8859_1, 670)  # 670 = 134 * 5
+        _latin1_str = composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         yield self.run_test(content=_latin1_str, datacoding=3, port=self.httpPort_udh)
 
     def test_OCTET_UNSPECIFIED_COMMON(self):
@@ -319,31 +329,31 @@ class LongSubmitSmCodingUsingUDHTestCases(CodingTestCases):
     @defer.inlineCallbacks
     def test_JIS(self):
         # c.f. http://unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/SHIFTJIS.TXT
-        _jisx201_str = composeMessage({b'\x81\x40', b'\x96\xBA', b'\xE0\x62', b'\xEA\xA2'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_jisx201_str, datacoding=5, port=self.httpPort_udh)
+        _jisx201_str = composeUnicodeMessage({'\u3000', '\u5A18', '\u7009', '\u7464'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_jisx201_str.encode('shift_jis'), datacoding=5, port=self.httpPort_udh)
 
     @defer.inlineCallbacks
-    def test_CYRILLIC(self):
+    def test_ISO_8859_5(self):
         # .encode('iso-8859-5')
-        _cyrillic_str = composeMessage(CYRILLIC, 670)  # 670 = 134 * 5
+        _cyrillic_str = composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         yield self.run_test(content=_cyrillic_str, datacoding=6, port=self.httpPort_udh)
 
     @defer.inlineCallbacks
     def test_ISO_8859_8(self):
         # .encode('iso-8859-8')
-        _iso8859_8_str = composeMessage(ISO_8859_8, 670)  # 670 = 134 * 5
+        _iso8859_8_str = composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         yield self.run_test(content=_iso8859_8_str, datacoding=7, port=self.httpPort_udh)
 
     @defer.inlineCallbacks
     def test_UCS2(self):
-        _rabbit_arabic = composeMessage({b'\x06\x23', b'\x06\x31', b'\x06\x46', b'\x06\x28'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_rabbit_arabic, datacoding=8, port=self.httpPort_udh)
+        _rabbit_arabic = composeUnicodeMessage({'\u0623', '\u0631', '\u0646', '\u0628'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_rabbit_arabic.encode('utf_16_be'), datacoding=8, port=self.httpPort_udh)
 
     @defer.inlineCallbacks
     def test_PICTOGRAM(self):
-        # c.f. http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
-        _cp932_str = composeMessage({b'\x8B\x89', b'\x8B\x90', b'\x8B\xC9', b'\xFC\x4B'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_cp932_str, datacoding=9, port=self.httpPort_udh)
+        # https://en.wikipedia.org/wiki/Short_Message_Peer-to-Peer#Unclear_support_for_Shift-JIS_encoding
+        _pictogram_str = composeUnicodeMessage({'\u7D1A', '\u5DE8', '\u6975', '\u6DD8'}, 335)  # 335 = 67 * 5
+        yield self.run_test(content=_pictogram_str.encode('shift_jis'), datacoding=9, port=self.httpPort_udh)
 
     def test_ISO_2022_JP(self):
         # datacoding = 10
@@ -353,13 +363,16 @@ class LongSubmitSmCodingUsingUDHTestCases(CodingTestCases):
 
     @defer.inlineCallbacks
     def test_EXTENDED_KANJI_JIS(self):
-        # c.f. http://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
-        _cp932_str = composeMessage({b'\x8B\x89', b'\x8B\x90', b'\x8B\xC9', b'\xFC\x4B'}, 335)  # 335 = 67 * 5
-        yield self.run_test(content=_cp932_str, datacoding=13, port=self.httpPort_udh)
+        # c.f. https://www.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/JIS/JIS0212.TXT
+        jisx0212_str = composeUnicodeMessage({'\u4F8C', '\u7480', '\u5B94', '\u9835'}, 70)
+        yield self.run_test(content=jisx0212_str.encode('iso2022jp-1').lstrip(b'\x1b$(D').rstrip(b'\x1b(B'), datacoding=13, port=self.httpPort_udh)
+        pass
 
     @defer.inlineCallbacks
     def test_KS_C_5601(self):
         # c.f. ftp://ftp.unicode.org/Public/MAPPINGS/OBSOLETE/EASTASIA/KSC/KSC5601.TXT
-        _ks_c_5601_str = composeMessage({b'\x81\x41', b'\xA4\x96', b'\xE1\xD7', b'\xFD\xFE'}, 335)  # 335 = 67 * 5
+        _ks_c_5601_str = composeUnicodeMessage({'\uAC02', '\uCA3C', '\u6D91', '\u8A70'}, 335)  # 335 = 67 * 5
         # self.assertTrue(False)
-        yield self.run_test(content=_ks_c_5601_str, datacoding=14, port=self.httpPort_udh)
+        yield self.run_test(content=_ks_c_5601_str.encode('ksc5601'), datacoding=14, port=self.httpPort_udh)
+
+    test_KS_C_5601.skip = 'ksc5601 encoding in python does not match the mappings expected'

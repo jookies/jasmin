@@ -34,6 +34,8 @@ RUN pip install -e git+https://github.com/DomAmato/smpp.twisted.git@master#egg=s
 RUN pip install -e git+https://github.com/DomAmato/txamqp.git@master#egg=txamqp
 RUN pip install .
 
+ENV UNICODEMAP_JP unicode-ascii
+
 ENV ROOT_PATH /
 ENV CONFIG_PATH /etc/jasmin/
 ENV RESOURCE_PATH /etc/jasmin/resource/
@@ -45,8 +47,6 @@ COPY misc/config/resource ${RESOURCE_PATH}
 
 # Change binding host for jcli
 RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
-
-VOLUME [${LOG_PATH}, ${CONFIG_PATH}, ${STORE_PATH}]
 
 COPY docker/docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]

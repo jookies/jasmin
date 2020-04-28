@@ -37,6 +37,8 @@ RUN pip install -e git+https://github.com/DomAmato/smpp.pdu.git@master#egg=smpp.
 RUN pip install -e git+https://github.com/DomAmato/smpp.twisted.git@master#egg=smpp.twisted
 RUN pip install .
 
+ENV UNICODEMAP_JP unicode-ascii
+
 ENV ROOT_PATH /
 ENV CONFIG_PATH /etc/jasmin
 ENV RESOURCE_PATH /etc/jasmin/resource
