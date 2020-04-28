@@ -19,7 +19,7 @@ from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.protocol import *
 from jasmin.protocols.smpp.stats import SMPPClientStatsCollector
 from tests.protocols.smpp.smsc_simulator import *
-from tests.encoding.codepages import GSM0338, ISO8859_1
+from tests.encoding.codepages import GSM0338, ISO_8859
 from smpp.pdu.error import *
 from smpp.pdu.operations import *
 from smpp.pdu.pdu_types import CommandStatus
@@ -656,7 +656,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 670)  # 670 = 134 * 5
+        content = self.composeMessage(ISO_8859, 670)  # 670 = 134 * 5
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -681,7 +681,7 @@ class LongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 1340)  # 1340 = 134 * 10
+        content = self.composeMessage(ISO_8859, 1340)  # 1340 = 134 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -837,7 +837,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 402)  # 402 = 134 * 3
+        content = self.composeMessage(ISO_8859, 402)  # 402 = 134 * 3
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -862,7 +862,7 @@ class LongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 1340)  # 1340 = 134 * 10
+        content = self.composeMessage(ISO_8859, 1340)  # 1340 = 134 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -1009,7 +1009,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 1072)  # 1072 = 134 * 8
+        content = self.composeMessage(ISO_8859, 1072)  # 1072 = 134 * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -1034,7 +1034,7 @@ class VeryLongSubmitSmUsingSARTestCase(LongSubmitSmWithSARTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 1340)  # 1340 = 134 * 10
+        content = self.composeMessage(ISO_8859, 1340)  # 1340 = 134 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -1181,7 +1181,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 1072)  # 1072 = 134 * 8
+        content = self.composeMessage(ISO_8859, 1072)  # 1072 = 134 * 8
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
@@ -1206,7 +1206,7 @@ class VeryLongSubmitSmUsingUDHTestCase(LongSubmitSmWithUDHTestCase):
         self.prepareMocks(smpp)
 
         # Send submit_sm
-        content = self.composeMessage(ISO8859_1, 1340)  # 1340 = 134 * 10
+        content = self.composeMessage(ISO_8859, 1340)  # 1340 = 134 * 10
         SubmitSmPDU = self.opFactory.SubmitSM(
             source_addr=self.source_addr,
             destination_addr=self.destination_addr,
