@@ -1,5 +1,6 @@
 # pylint: disable=W0401,W0611,W0231
 import pickle
+import sys
 import logging
 import re
 from enum import Enum
@@ -57,7 +58,10 @@ class SMPPClientFactory(ClientFactory):
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
-            handler = TimedRotatingFileHandler(filename=self.config.log_file, when=_when)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file, when=_when)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -233,7 +237,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE + ".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file, when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file, when=self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

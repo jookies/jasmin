@@ -1,4 +1,5 @@
 import re
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from twisted.internet import reactor, defer
@@ -55,8 +56,11 @@ class JCliFactory(ServerFactory):
         self.log = logging.getLogger('jcli')
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)

@@ -1,5 +1,6 @@
 import binascii
 import pickle
+import sys
 import logging
 import urllib.request, urllib.parse, urllib.error
 from logging.handlers import TimedRotatingFileHandler
@@ -75,8 +76,11 @@ class Thrower(Service):
         self.log = logging.getLogger(self.log_category)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
