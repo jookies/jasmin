@@ -56,13 +56,13 @@ class SMPPClientFactory(ClientFactory):
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE + ".%s" % config.id)
         if len(self.log.handlers) != 1:
-            self.log.setLevel(config.log_level)
+            self.log.setLevel(self.config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
             if 'stdout' in self.config.log_file:
                 handler = logging.StreamHandler(sys.stdout)
             else:
                 handler = TimedRotatingFileHandler(filename=self.config.log_file, when=_when)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False

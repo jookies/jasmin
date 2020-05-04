@@ -45,7 +45,7 @@ class RedisForJasminFactory(redis.RedisFactory):
         self.log = logging.getLogger(LOG_CATEGORY)
         if config is not None:
             self.log.setLevel(config.log_level)
-            if 'stdout' in self.config.log_file:
+            if 'stdout' in config.log_file:
                 handler = logging.StreamHandler(sys.stdout)
             else:
                 handler = TimedRotatingFileHandler(filename=config.log_file,

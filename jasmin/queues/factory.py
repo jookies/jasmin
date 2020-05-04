@@ -30,13 +30,13 @@ class AmqpFactory(ClientFactory):
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
-            self.log.setLevel(config.log_level)
+            self.log.setLevel(self.config.log_level)
             if 'stdout' in self.config.log_file:
                 handler = logging.StreamHandler(sys.stdout)
             else:
                 handler = TimedRotatingFileHandler(filename=self.config.log_file,
                                                    when=self.config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False
