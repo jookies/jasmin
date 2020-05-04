@@ -12,13 +12,14 @@ install:
     - pip install coveralls
 # Commands to run tests:
 script:
+    # Pylint code analysis and rating:
+    - ./misc/pylint/run.sh
     # Trial tests and coverage:
     - coverage run --source=jasmin -m twisted.trial tests
     - coveralls
     # Docs building test:
-    # - cd misc/doc;make html;cd ../../
-    # Pylint code analysis and rating:
-    # - ./misc/pylint/run.sh
+    - cd misc/doc;make html;cd ../../
+    
 services:
     - rabbitmq
     - redis-server
@@ -46,12 +47,12 @@ addons:
     # As described here https://blog.travis-ci.com/2019-04-15-xenial-default-build-environment
     # Rabbitmq is no more provided out of the box, installed it manually:
     - rabbitmq-server
-# notifications:
-#   slack:
-#     secure: guCY7vL67vUhvNYLzInV/EIPMZ7ciq+/s0UlfmKvGYrjIMwXdgfshgKXdHF194eQ9+f0dF8ea1P1/aGqCE4Q4ULPZ555FbftNy/bVLfUPn01+odorAux3rVNq4ezX2QlQc06DpVS2r7U+grM+MQtNdRjoZIuAeipp3YRhyyuIr8=
-#   webhooks:
-#     urls:
-#       - https://webhooks.gitter.im/e/4ed32e6d5fb2778d9854
-#     on_success: change
-#     on_failure: always
-#     on_start: never
+notifications:
+  slack:
+    secure: guCY7vL67vUhvNYLzInV/EIPMZ7ciq+/s0UlfmKvGYrjIMwXdgfshgKXdHF194eQ9+f0dF8ea1P1/aGqCE4Q4ULPZ555FbftNy/bVLfUPn01+odorAux3rVNq4ezX2QlQc06DpVS2r7U+grM+MQtNdRjoZIuAeipp3YRhyyuIr8=
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/4ed32e6d5fb2778d9854
+    on_success: change
+    on_failure: always
+    on_start: never
