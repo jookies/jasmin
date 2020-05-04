@@ -15,7 +15,6 @@ tabulate~=0.8.7
 txAMQP
 smpp.pdu
 smpp.twisted
-messaging
 
 # txAMQP @ git+https://github.com/DomAmato/txamqp.git@master
 # smpp.pdu @ git+https://github.com/DomAmato/smpp.pdu.git@master
