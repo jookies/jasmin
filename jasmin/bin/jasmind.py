@@ -3,6 +3,7 @@
 import os
 import signal
 import sys
+import traceback
 import logging
 
 from lockfile import FileLock, LockTimeout, AlreadyLocked
@@ -350,7 +351,7 @@ class JasminDaemon:
                 # [optional] Start Interceptor client
                 yield self.startInterceptorPBClient()
             except Exception as e:
-                self.log.error("  Cannot connect to interceptor: %s" % e)
+                self.log.error("  Cannot connect to interceptor: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  Interceptor client Started.")
         # Requirements check end.
@@ -360,7 +361,7 @@ class JasminDaemon:
         try:
             yield self.startRedisClient()
         except Exception as e:
-            self.log.error("  Cannot start RedisClient: %s" % e)
+            self.log.error("  Cannot start RedisClient: %s\n%s" % (e, traceback.format_exc()))
         else:
             self.log.info("  RedisClient Started.")
 
@@ -370,7 +371,7 @@ class JasminDaemon:
             yield self.startAMQPBrokerService()
             yield self.components['amqp-broker-factory'].getChannelReadyDeferred()
         except Exception as e:
-            self.log.error("  Cannot start AMQP Broker: %s" % e)
+            self.log.error("  Cannot start AMQP Broker: %s\n%s" % (e, traceback.format_exc()))
         else:
             self.log.info("  AMQP Broker Started.")
 
@@ -379,7 +380,7 @@ class JasminDaemon:
         try:
             yield self.startRouterPBService()
         except Exception as e:
-            self.log.error("  Cannot start RouterPB: %s" % e)
+            self.log.error("  Cannot start RouterPB: %s\n%s" % (e, traceback.format_exc()))
         else:
             self.log.info("  RouterPB Started.")
 
@@ -388,7 +389,7 @@ class JasminDaemon:
         try:
             self.startSMPPClientManagerPBService()
         except Exception as e:
-            self.log.error("  Cannot start SMPPClientManagerPB: %s" % e)
+            self.log.error("  Cannot start SMPPClientManagerPB: %s\n%s" % (e, traceback.format_exc()))
         else:
             self.log.info("  SMPPClientManagerPB Started.")
 
@@ -398,7 +399,7 @@ class JasminDaemon:
                 # [optional] Start DLR Lookup
                 self.startDLRLookupService()
             except Exception as e:
-                self.log.error("  Cannot start DLRLookup: %s" % e)
+                self.log.error("  Cannot start DLRLookup: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  DLRLookup Started.")
 
@@ -408,7 +409,7 @@ class JasminDaemon:
                 # [optional] Start SMPP Server
                 self.startSMPPServerService()
             except Exception as e:
-                self.log.error("  Cannot start SMPPServer: %s" % e)
+                self.log.error("  Cannot start SMPPServer: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  SMPPServer Started.")
 
@@ -417,7 +418,7 @@ class JasminDaemon:
                 self.startSMPPServerPBService()
                 self.components['smpps-pb-factory'].addSmpps(self.components['smpp-server-factory'])
             except Exception as e:
-                self.log.error("  Cannot start SMPPServerPB: %s" % e)
+                self.log.error("  Cannot start SMPPServerPB: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  SMPPServer Started.")
 
@@ -427,7 +428,7 @@ class JasminDaemon:
                 # [optional] Start deliverSmThrower
                 yield self.startdeliverSmThrowerService()
             except Exception as e:
-                self.log.error("  Cannot start deliverSmThrower: %s" % e)
+                self.log.error("  Cannot start deliverSmThrower: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  deliverSmThrower Started.")
 
@@ -437,7 +438,7 @@ class JasminDaemon:
                 # [optional] Start DLRThrower
                 yield self.startDLRThrowerService()
             except Exception as e:
-                self.log.error("  Cannot start DLRThrower: %s" % e)
+                self.log.error("  Cannot start DLRThrower: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  DLRThrower Started.")
 
@@ -447,7 +448,7 @@ class JasminDaemon:
                 # [optional] Start HTTP Api
                 self.startHTTPApiService()
             except Exception as e:
-                self.log.error("  Cannot start HTTPApi: %s" % e)
+                self.log.error("  Cannot start HTTPApi: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  HTTPApi Started.")
 
@@ -457,7 +458,7 @@ class JasminDaemon:
                 # [optional] Start JCli server
                 self.startJCliService()
             except Exception as e:
-                self.log.error("  Cannot start jCli: %s" % e)
+                self.log.error("  Cannot start jCli: %s\n%s" % (e, traceback.format_exc()))
             else:
                 self.log.info("  jCli Started.")
 
