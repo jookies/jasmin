@@ -69,7 +69,7 @@ class JasminDaemon:
         self.options = opt
         self.components = {}
         self.log = logging.getLogger(LOG_CATEGORY)
-        self.log.setLevel(logging.DEBUG)
+        self.log.setLevel(logging.INFO)
         handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(process)d %(message)s', '%Y-%m-%d %H:%M:%S')
         handler.setFormatter(formatter)
