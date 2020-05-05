@@ -30,8 +30,8 @@ class ConfigFile:
         Will check if section.option exists in config_file, return its value, default
         otherwise
         """
-        if ('%s_%s' % (section, option)).upper() in os.environ:
-            return os.environ[('%s_%s' % (section, option)).upper()]
+        if self._convert_to_env_var_str(('%s_%s' % (section, option))) in os.environ:
+            return self._convert_to_env_var_str(os.environ[('%s_%s' % (section, option))])
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -47,8 +47,8 @@ class ConfigFile:
         default otherwise
         """
 
-        if ('%s_%s' % (section, option)).upper() in os.environ:
-            return int(os.environ[('%s_%s' % (section, option)).upper()])
+        if self._convert_to_env_var_str('%s_%s' % (section, option)) in os.environ:
+            return int(self._convert_to_env_var_str(os.environ['%s_%s' % (section, option)]))
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -64,8 +64,8 @@ class ConfigFile:
         default otherwise
         """
 
-        if ('%s_%s' % (section, option)).upper() in os.environ:
-            return float(os.environ[('%s_%s' % (section, option)).upper()])
+        if self._convert_to_env_var_str(('%s_%s' % (section, option))) in os.environ:
+            return float(self._convert_to_env_var_str(os.environ[('%s_%s' % (section, option))]))
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -81,8 +81,8 @@ class ConfigFile:
         default otherwise
         """
 
-        if ('%s_%s' % (section.replace('-', '_'), option)).upper() in os.environ:
-            return self._convert_to_bool(os.environ[('%s_%s' % (section, option)).upper()])
+        if self._convert_to_env_var_str(('%s_%s' % (section.replace('-', '_'), option))) in os.environ:
+            return self._convert_to_bool(self._convert_to_env_var_str(os.environ[('%s_%s' % (section, option))]))
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -94,3 +94,16 @@ class ConfigFile:
         if isinstance(value, str):
             return value.lower() in ['t', 'true', 'yes', 'y', '1']
         return bool(value)
+
+    def _convert_to_env_var_str(self, env_str):
+        """
+        Dashes in env strings don't work well in bash so we shouldnt expect them
+        This is not the value stored in the var but the var name itself
+        Also converts it to upper case
+
+        :param env_str: The string to convert to an env friendly string
+        :type env_str: str
+        :return: converted string
+        :rtype: str
+        """
+        return env_str.replace('-', '_').upper()
