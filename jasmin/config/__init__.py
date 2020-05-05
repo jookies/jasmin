@@ -31,7 +31,7 @@ class ConfigFile:
         otherwise
         """
         if self._convert_to_env_var_str(('%s_%s' % (section, option))) in os.environ:
-            return self._convert_to_env_var_str(os.environ[('%s_%s' % (section, option))])
+            return os.environ[self._convert_to_env_var_str('%s_%s' % (section, option))])
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -48,7 +48,7 @@ class ConfigFile:
         """
 
         if self._convert_to_env_var_str('%s_%s' % (section, option)) in os.environ:
-            return int(self._convert_to_env_var_str(os.environ['%s_%s' % (section, option)]))
+            return int(os.environ[self._convert_to_env_var_str('%s_%s' % (section, option))])
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -65,7 +65,7 @@ class ConfigFile:
         """
 
         if self._convert_to_env_var_str(('%s_%s' % (section, option))) in os.environ:
-            return float(self._convert_to_env_var_str(os.environ[('%s_%s' % (section, option))]))
+            return float(os.environ[self._convert_to_env_var_str('%s_%s' % (section, option))])
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
@@ -82,7 +82,7 @@ class ConfigFile:
         """
 
         if self._convert_to_env_var_str(('%s_%s' % (section.replace('-', '_'), option))) in os.environ:
-            return self._convert_to_bool(self._convert_to_env_var_str(os.environ[('%s_%s' % (section, option))]))
+            return self._convert_to_bool(os.environ[self._convert_to_env_var_str('%s_%s' % (section, option))])
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
