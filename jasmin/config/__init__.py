@@ -31,7 +31,7 @@ class ConfigFile:
         otherwise
         """
         if self._convert_to_env_var_str(('%s_%s' % (section, option))) in os.environ:
-            return os.environ[self._convert_to_env_var_str('%s_%s' % (section, option))])
+            return os.environ[self._convert_to_env_var_str('%s_%s' % (section, option))]
         if not self.config.has_section(section):
             return default
         if not self.config.has_option(section, option):
