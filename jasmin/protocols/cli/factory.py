@@ -47,7 +47,7 @@ class JCliFactory(ServerFactory):
         self.sessionRef = 0
         self.sessionsOnline = 0
         # When defined, configuration profile will be loaded on startup
-        if loadConfigProfileWithCreds is None:
+        if not loadConfigProfileWithCreds or not loadConfigProfileWithCreds['username']:
             # Defaults:
             loadConfigProfileWithCreds = {'username': 'jcliadmin', 'password': 'jclipwd'}
         self.loadConfigProfileWithCreds = loadConfigProfileWithCreds
@@ -83,31 +83,32 @@ class JCliFactory(ServerFactory):
         tr = proto_helpers.StringTransport()
         proto.makeConnection(tr)
 
-        if (self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None
-            and self.loadConfigProfileWithCreds['password'] is not None):
-            self.log.info(
-                "OnStart loading configuration default profile with username: '%s'",
-                self.loadConfigProfileWithCreds['username'])
+        # passing in auth values is not secure, load the profiles without passing in the auth values
+        # if (self.config.authentication and self.loadConfigProfileWithCreds['username'] is not None
+        #     and self.loadConfigProfileWithCreds['password'] is not None):
+        #     self.log.info(
+        #         "OnStart loading configuration default profile with username: '%s'",
+        #         self.loadConfigProfileWithCreds['username'])
 
-            if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
-                        md5(self.loadConfigProfileWithCreds['password'].encode(
-                            'ascii')).digest() != self.config.admin_password):
-                self.log.error(
-                    "Authentication error, cannot load configuration profile with provided username: '%s'",
-                    self.loadConfigProfileWithCreds['username'])
-                proto.connectionLost(None)
-                defer.returnValue(False)
+        #     if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
+        #                 md5(self.loadConfigProfileWithCreds['password'].encode(
+        #                     'ascii')).digest() != self.config.admin_password):
+        #         self.log.error(
+        #             "Authentication error, cannot load configuration profile with provided username: '%s'",
+        #             self.loadConfigProfileWithCreds['username'])
+        #         proto.connectionLost(None)
+        #         defer.returnValue(False)
 
-            proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['username']).encode())
-            proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['password']).encode())
-        elif self.config.authentication:
-            self.log.error(
-                'Authentication is required and no credentials given, config. profile will not be loaded')
-            proto.connectionLost(None)
-            defer.returnValue(False)
-        else:
-            self.log.info(
-                "OnStart loading configuration default profile without credentials (auth. is not required)")
+        #     proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['username']).encode())
+        #     proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['password']).encode())
+        # elif self.config.authentication:
+        #     self.log.error(
+        #         'Authentication is required and no credentials given, config. profile will not be loaded')
+        #     proto.connectionLost(None)
+        #     defer.returnValue(False)
+        # else:
+        #     self.log.info(
+        #         "OnStart loading configuration default profile without credentials (auth. is not required)")
 
         proto.dataReceived(b'load\r\n')
 
