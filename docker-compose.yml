@@ -12,17 +12,7 @@ services:
             - 8990:8990
             - 1401:1401
         env_file: .env
-    test:
-        build:
-            context: ./
-            dockerfile: ./docker/Dockerfile.test
-        container_name: jasmin_test
-        volumes:
-            - ./jasmin:/usr/jasmin/jasmin
-            - ./tests:/usr/jasmin/tests
-    jasmin-alpine:
-        build:
-            context: ./
-            dockerfile: ./docker/Dockerfile.alpine
-        container_name: jasmin-alpine
-        env_file: .env
+    redis:
+        image: redis:alpine
+    rabbit-mq:
+        image: rabbitmq:alpine
