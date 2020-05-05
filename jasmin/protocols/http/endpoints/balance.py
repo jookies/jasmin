@@ -35,8 +35,8 @@ class Balance(Resource):
 
         try:
             # Validation
-            fields = {b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,15}$')},
-                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,8}$')}}
+            fields = {b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,16}$')},
+                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,16}$')}}
 
             # Make validation
             v = UrlArgsValidator(request, fields)

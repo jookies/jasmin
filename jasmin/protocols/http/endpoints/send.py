@@ -424,8 +424,8 @@ class Send(Resource):
             fields = {b'to': {'optional': False, 'pattern': re.compile(rb'^\+{0,1}\d+$')},
                       b'from': {'optional': True},
                       b'coding': {'optional': True, 'pattern': re.compile(rb'^(0|1|2|3|4|5|6|7|8|9|10|13|14){1}$')},
-                      b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,15}$')},
-                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,8}$')},
+                      b'username': {'optional': False, 'pattern': re.compile(rb'^.{1,16}$')},
+                      b'password': {'optional': False, 'pattern': re.compile(rb'^.{1,16}$')},
                       # Priority validation pattern can be validated/filtered further more
                       # through HttpAPICredentialValidator
                       b'priority': {'optional': True, 'pattern': re.compile(rb'^[0-3]$')},
