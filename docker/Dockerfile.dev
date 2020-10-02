@@ -32,9 +32,9 @@ COPY README.rst .
 
 RUN pip install -r requirements.txt
 RUN pip install -r requirements-test.txt
-RUN pip install -e git+https://github.com/DomAmato/python-messaging.git@master#egg=messaging
-RUN pip install -e git+https://github.com/DomAmato/smpp.pdu.git@master#egg=smpp.pdu
-RUN pip install -e git+https://github.com/DomAmato/smpp.twisted.git@master#egg=smpp.twisted
+RUN pip install -e git+https://github.com/jookies/python-messaging.git@master#egg=messaging
+RUN pip install -e git+https://github.com/jookies/smpp.pdu.git@master#egg=smpp.pdu
+RUN pip install -e git+https://github.com/jookies/smpp.twisted.git@master#egg=smpp.twisted
 RUN pip install .
 
 ENV UNICODEMAP_JP unicode-ascii

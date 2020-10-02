@@ -12,14 +12,10 @@ falcon~=2.0.0
 txredisapi~=1.4.7
 tabulate~=0.8.7
 
-txAMQP
-smpp.pdu
-smpp.twisted
-
-# txAMQP @ git+https://github.com/DomAmato/txamqp.git@master
-# smpp.pdu @ git+https://github.com/DomAmato/smpp.pdu.git@master
-# smpp.twisted @ git+https://github.com/DomAmato/smpp.twisted.git@master
-# messaging @ git+https://github.com/DomAmato/python-messaging.git@master
+txAMQP @ git+https://github.com/jookies/txamqp.git@master
+smpp.pdu @ git+https://github.com/jookies/smpp.pdu.git@master
+smpp.twisted @ git+https://github.com/jookies/smpp.twisted.git@master
+# messaging @ git+https://github.com/jookies/python-messaging.git@master
 
 
 # Added in 0.9rc16:
