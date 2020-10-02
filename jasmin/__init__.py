@@ -3,8 +3,8 @@
 
 """Jasmin SMS Gateway by Jookies LTD <jasmin@jookies.net>"""
 
-MAJOR = 1
-MINOR = 0
+MAJOR = 0
+MINOR = 10
 PATCH = 0
 META = ''
 

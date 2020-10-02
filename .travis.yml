@@ -5,7 +5,7 @@ python:
     - '3.7'
     - '3.8'
 env:
-    - ROOT_PATH=~/jasmin JASMIN_RELEASE=1.0.0
+    - ROOT_PATH=~/jasmin JASMIN_RELEASE=0.10.0
 # Command to install dependencies
 install:
     - pip install -r requirements.txt
