@@ -148,14 +148,18 @@ class HTTPDeliverSmThrowingTestCases(deliverSmThrowerTestCase):
     def test_throwing_http_connector_timeout_retry(self):
         self.TimeoutLeafServerResource.render_POST = Mock(wraps=self.TimeoutLeafServerResource.render_POST)
 
-        routedConnector = HttpConnector('dst', 'http://127.0.0.1:%s/send' % self.TimeoutLeafServer.getHost().port, 'POST')
+        routedConnector = HttpConnector('dst',
+                                        'http://127.0.0.1:%s/send' % self.TimeoutLeafServer.getHost().port,
+                                        'POST')
 
-        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu, '1', 'src', routedConnector)
+        self.publishRoutedDeliverSmContent(self.routingKey, self.testDeliverSMPdu,
+                                           '1', 'src', routedConnector)
 
         # Wait 12 seconds (timeout is set to 2 seconds in deliverSmThrowerTestCase.setUp(self)
         yield waitFor(15)
 
-        self.assertEqual(self.TimeoutLeafServerResource.render_POST.call_count, 3)
+        # We shoould have 2 to 4 calls (depends on the resource availability)
+        self.assertApproximates(self.TimeoutLeafServerResource.render_POST.call_count, 3, 1)
 
     @defer.inlineCallbacks
     def test_throwing_http_connector_404_error_noretry(self):

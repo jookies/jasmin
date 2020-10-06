@@ -34,7 +34,8 @@ class AuthenticationTestCase(TestCase):
             yield self.redisClient.select(self.RedisForJasminConfigInstance.dbid)
         except Exception as e:
             self.assertEqual(type(e), redis.ResponseError)
-            self.assertEqual(str(e), 'ERR Client sent AUTH, but no password is set')
+            self.assertEqual(str(e), 'ERR AUTH <password> called without any password configured for the default user. '
+                                     'Are you sure your configuration is correct?')
 
 
 class RedisTestCase(TestCase):

@@ -32,18 +32,18 @@ class BasicTestCases(jCliWithoutAuthTestCases):
 
     def test_httpapi(self):
         expectedList = ['#Item                     Value',
-                        '#created_at               ND',
-                        '#request_count            0',
-                        '#last_request_at          ND',
-                        '#auth_error_count         0',
-                        '#route_error_count        0',
-                        '#interceptor_error_count  0',
-                        '#interceptor_count        0',
-                        '#throughput_error_count   0',
-                        '#charging_error_count     0',
-                        '#server_error_count       0',
-                        '#success_count            0',
-                        '#last_success_at          ND'
+                        '#created_at               ',
+                        '#request_count            ',
+                        '#last_request_at          ',
+                        '#auth_error_count         ',
+                        '#route_error_count        ',
+                        '#interceptor_error_count  ',
+                        '#interceptor_count        ',
+                        '#throughput_error_count   ',
+                        '#charging_error_count     ',
+                        '#server_error_count       ',
+                        '#success_count            ',
+                        '#last_success_at          '
                         ]
         commands = [{'command': 'stats --httpapi', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
