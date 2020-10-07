@@ -923,12 +923,12 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             submitCounter += 1
 
         # Wait 5 seconds
-        yield waitFor(5)
+        yield waitFor(15)
 
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        yield waitFor(2)
+        yield waitFor(5)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message.
