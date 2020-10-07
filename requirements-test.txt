@@ -3,3 +3,4 @@ sphinx>=1.1.0
 sphinx-rtd-theme>=0.4.3
 pylint
 coverage
+coveralls

@@ -9,7 +9,6 @@ env:
 # Command to install dependencies
 install:
     - pip install -r requirements.txt
-    - pip install coveralls
 # Commands to run tests:
 script:
     # Pylint code analysis and rating:
