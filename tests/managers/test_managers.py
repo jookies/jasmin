@@ -922,7 +922,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             c = yield self.submit_sm(localConfig.id, SubmitSmPDU, self.SubmitSmBill)
             submitCounter += 1
 
-        # Wait 5 seconds
+        # Wait 15 seconds
         yield waitFor(15)
 
         yield self.stop(localConfig.id)
