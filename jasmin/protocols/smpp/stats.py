@@ -8,6 +8,9 @@ class ConnectorStatistics(Stats):
 
         self.init()
 
+    def init(self):
+        raise NotImplementedError('Child class does not implement init')
+
 
 class ClientConnectorStatistics(ConnectorStatistics):
     """One client connector statistics holder"""
@@ -74,9 +77,8 @@ class ServerConnectorStatistics(ConnectorStatistics):
         return self._stats
 
 
-class SMPPClientStatsCollector(object):
+class SMPPClientStatsCollector(metaclass=Singleton):
     """SMPP Clients statistics collection holder"""
-    __metaclass__ = Singleton
     connectors = {}
 
     def get(self, cid):
@@ -87,9 +89,8 @@ class SMPPClientStatsCollector(object):
         return self.connectors[cid]
 
 
-class SMPPServerStatsCollector(object):
+class SMPPServerStatsCollector(metaclass=Singleton):
     """SMPP Servers statistics collection holder"""
-    __metaclass__ = Singleton
     connectors = {}
 
     def get(self, cid):

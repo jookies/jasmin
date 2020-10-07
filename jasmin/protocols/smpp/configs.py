@@ -2,14 +2,14 @@ import logging
 import os
 import re
 
-from jasmin.config.tools import ConfigFile
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
+from jasmin.config import ConfigFile
+from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               RegisteredDelivery, RegisteredDeliveryReceipt,
                                               AddrTon, AddrNpi,
                                               PriorityFlag, ReplaceIfPresentFlag)
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class ConfigUndefinedIdError(Exception):
@@ -32,7 +32,7 @@ class UnknownValue(Exception):
     """
 
 
-class SMPPClientConfig(object):
+class SMPPClientConfig:
     def __init__(self, **kwargs):
         #####################
         # Generic configuration block
@@ -51,7 +51,7 @@ class SMPPClientConfig(object):
             raise TypeMismatch('port must be an integer')
 
         # Logging configuration
-        self.log_file = kwargs.get('log_file', '%s/var/log/jasmin/default-%s.log' % (ROOT_PATH, self.id))
+        self.log_file = kwargs.get('log_file', '%s/default-%s.log' % (LOG_PATH, self.id))
         self.log_rotate = kwargs.get('log_rotate', 'midnight')
         self.log_level = kwargs.get('log_level', logging.INFO)
         self.log_format = kwargs.get('log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -105,8 +105,8 @@ class SMPPClientConfig(object):
         if len(self.username) > 15:
             raise TypeMismatch('username is longer than allowed size (15)')
         self.password = kwargs.get('password', 'password')
-        if len(self.password) > 8:
-            raise TypeMismatch('password is longer than allowed size (8)')
+        if len(self.password) > 16:
+            raise TypeMismatch('password is longer than allowed size (16)')
         self.systemType = kwargs.get('systemType', '')
 
         # Reconnection
@@ -205,7 +205,7 @@ class SMPPClientServiceConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(self._get('service-smppclient', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'service-smppclient', 'log_file', '%s/var/log/jasmin/service-smppclient.log' % ROOT_PATH)
+            'service-smppclient', 'log_file', '%s/service-smppclient.log' % LOG_PATH)
         self.log_rotate = self._get('service-smppclient', 'log_rotate', 'W6')
         self.log_format = self._get(
             'service-smppclient', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -224,7 +224,7 @@ class SMPPServerConfig(ConfigFile):
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
         self.log_file = self._get(
-            'smpp-server', 'log_file', '%s/var/log/jasmin/default-%s.log' % (ROOT_PATH, self.id))
+            'smpp-server', 'log_file', '%s/default-%s.log' % (LOG_PATH, self.id))
         self.log_rotate = self._get('smpp-server', 'log_rotate', 'midnight')
         self.log_format = self._get(
             'smpp-server', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
@@ -265,13 +265,13 @@ class SMPPServerPBConfig(ConfigFile):
 
         self.authentication = self._getbool('smpp-server-pb', 'authentication', True)
         self.admin_username = self._get('smpp-server-pb', 'admin_username', 'smppsadmin')
-        self.admin_password = self._get(
-            'smpp-server-pb', 'admin_password', "e97ab122faa16beea8682d84f3d2eea4").decode('hex')
+        self.admin_password = bytes.fromhex(self._get(
+            'smpp-server-pb', 'admin_password', "e97ab122faa16beea8682d84f3d2eea4"))
 
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server-pb', 'log_level', 'INFO'))
         self.log_rotate = self._get('smpp-server-pb', 'log_rotate', 'W6')
-        self.log_file = self._get('smpp-server-pb', 'log_file', '%s/var/log/jasmin/smpp-server-pb.log' % ROOT_PATH)
+        self.log_file = self._get('smpp-server-pb', 'log_file', '%s/smpp-server-pb.log' % LOG_PATH)
         self.log_format = self._get(
             'smpp-server-pb', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('smpp-server-pb', 'log_date_format', '%Y-%m-%d %H:%M:%S')

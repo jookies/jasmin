@@ -1,20 +1,25 @@
 import binascii
-import cPickle as pickle
+import pickle
+import sys
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.application.service import Service
 from twisted.internet import defer
 from twisted.internet import reactor
-from twisted.web.client import getPage
+from twisted.web.client import Agent
 from txamqp.queue import Closed
+from treq.client import HTTPClient
+from treq import text_content
+from smpp.pdu.constants import priority_flag_name_map
+from smpp.pdu.pdu_encoding import DataCodingEncoder
 
 from jasmin.protocols.smpp.factory import SMPPServerFactory
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.protocols.smpp.proxies import SMPPServerPBProxy
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_name_map, priority_flag_name_map
-from jasmin.vendor.smpp.pdu.pdu_encoding import DataCodingEncoder
+from jasmin.protocols.http.errors import HttpApiError
+
 
 
 class MessageAcknowledgementError(Exception):
@@ -71,8 +76,11 @@ class Thrower(Service):
         self.log = logging.getLogger(self.log_category)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -132,7 +140,7 @@ class Thrower(Service):
             del self.requeueTimers[msgid]
 
     def clearRequeueTimers(self):
-        for msgid, timer in self.requeueTimers.items():
+        for msgid, timer in list(self.requeueTimers.items()):
             if timer.active():
                 timer.cancel()
             del self.requeueTimers[msgid]
@@ -235,11 +243,11 @@ class deliverSmThrower(Thrower):
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
 
-        if dcs[0].type != 'http':
+        if dcs[0]._type != 'http':
             self.log.error(
                 'Rejecting message [msgid:%s] because destination connector is not http (type were %s)',
                 msgid,
-                dcs[0].type)
+                dcs[0]._type)
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
@@ -263,15 +271,18 @@ class deliverSmThrower(Thrower):
             defer.returnValue(None)
 
         # Set the binary arg after deciding where to pick the content from
-        args['binary'] = binascii.hexlify(args['content'])
+        if isinstance(args['content'], bytes):
+            args['binary'] = binascii.hexlify(args['content'])
+        else:
+            args['binary'] = binascii.hexlify(args['content'].encode())
 
         # Build optional arguments
         if ('priority_flag' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['priority_flag'] is not None):
-            args['priority'] = priority_flag_name_map[str(RoutedDeliverSmContent.params['priority_flag'])]
+            args['priority'] = priority_flag_name_map[RoutedDeliverSmContent.params['priority_flag'].name]
         if ('data_coding' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['data_coding'] is not None):
-            args['coding'] = ord(DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])[0])
+            args['coding'] = DataCodingEncoder().encode(RoutedDeliverSmContent.params['data_coding'])
         if ('validity_period' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
@@ -286,26 +297,39 @@ class deliverSmThrower(Thrower):
 
             try:
                 # Throw the message to http endpoint
-                encodedArgs = urllib.urlencode(args)
                 postdata = None
+                params = None
                 baseurl = dc.baseurl
-                _method = dc.method.upper()
-                if _method == 'GET':
-                    baseurl += '?%s' % encodedArgs
+                _method = dc.method
+                if isinstance(_method, bytes):
+                    _method = _method.decode().upper()
                 else:
-                    postdata = encodedArgs
+                    _method = _method.upper()
+
+                if _method == 'GET':
+                    params = args
+                else:
+                    postdata = args
 
                 self.log.debug('Calling %s with args %s using %s method.', dc.baseurl, args, _method)
-                content = yield getPage(
+                agent = Agent(reactor)
+                client = HTTPClient(agent)
+                response = yield client.request(
+                    _method,
                     baseurl,
-                    method=_method,
-                    postdata=postdata,
+                    params=params,
+                    data=postdata,
                     timeout=self.config.timeout,
                     agent='Jasmin gateway/1.0 deliverSmHttpThrower',
                     headers={'Content-Type': 'application/x-www-form-urlencoded',
                              'Accept': 'text/plain'})
                 self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using http to %s.',
                               msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl)
+                
+                content = yield text_content(response)
+                
+                if response.code >= 400:
+                    raise HttpApiError(response.code, content)
 
                 self.log.debug('Destination end replied to message [msgid:%s]: %r',
                                msgid, content)
@@ -319,7 +343,7 @@ class deliverSmThrower(Thrower):
                                msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl, type(e), e)
 
                 # List of errors after which, no further retrying shall be made
-                noRetryErrors = ['404 Not Found']
+                noRetryErrors = ['404']
 
                 if route_type == 'simple':
                     # Requeue message for later retry
@@ -371,11 +395,11 @@ class deliverSmThrower(Thrower):
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
 
-        if dcs[0].type != 'smpps':
+        if dcs[0]._type != 'smpps':
             self.log.error(
                 'Rejecting message [msgid:%s] because destination connector is not smpps (type were %s)',
                 msgid,
-                dcs[0].type)
+                dcs[0]._type)
             yield self.rejectMessage(message)
             defer.returnValue(None)
 
@@ -495,8 +519,8 @@ class DLRThrower(Thrower):
     @defer.inlineCallbacks
     def http_dlr_callback(self, message):
         msgid = message.content.properties['message-id']
-        url = message.content.properties['headers']['url'].encode('ascii')
-        method = message.content.properties['headers']['method'].encode('ascii')
+        url = message.content.properties['headers']['url']
+        method = message.content.properties['headers']['method']
         level = message.content.properties['headers']['level']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
 
@@ -523,24 +547,32 @@ class DLRThrower(Thrower):
 
         try:
             # Throw the message to http endpoint
-            encodedArgs = urllib.urlencode(args)
             postdata = None
+            params = None
             baseurl = url
             if method == 'GET':
-                baseurl += '?%s' % encodedArgs
+                params = args
             else:
-                postdata = encodedArgs
+                postdata = args
 
-            self.log.debug('Calling %s with args %s using %s method.', baseurl, encodedArgs, method)
-            content = yield getPage(
+            self.log.debug('Calling %s with args %s using %s method.', baseurl, args, method)
+            agent = Agent(reactor)
+            client = HTTPClient(agent)
+            response = yield client.request(
+                method,
                 baseurl,
-                method=method,
-                postdata=postdata,
+                params=params,
+                data=postdata,
                 timeout=self.config.timeout,
                 agent='Jasmin gateway/1.0 %s' % self.name,
                 headers={'Content-Type': 'application/x-www-form-urlencoded',
                          'Accept': 'text/plain'})
             self.log.info('Throwed DLR [msgid:%s] to %s.', msgid, baseurl)
+
+            content = yield text_content(response)
+            
+            if response.code >= 400:
+                raise HttpApiError(response.code, content)
 
             self.log.debug('Destination end replied to message [msgid:%s]: %r', msgid, content)
             # Check for acknowledgement
@@ -554,7 +586,7 @@ class DLRThrower(Thrower):
             self.log.error('Throwing HTTP/DLR [msgid:%s] to (%s): %r.', msgid, baseurl, e)
 
             # List of errors after which, no further retrying shall be made
-            noRetryErrors = ['404 Not Found']
+            noRetryErrors = ['404']
 
             # Requeue message for later retry
             if (str(e) not in noRetryErrors
@@ -575,6 +607,7 @@ class DLRThrower(Thrower):
         msgid = message.content.properties['message-id'].encode('ascii')
         system_id = message.content.properties['headers']['system_id']
         message_status = message.content.properties['headers']['message_status'].encode('ascii')
+        err = message.content.properties['headers']['err']
         source_addr = '%s' % message.content.properties['headers']['source_addr']
         destination_addr = '%s' % message.content.properties['headers']['destination_addr']
         sub_date = message.content.properties['headers']['sub_date']
@@ -583,6 +616,10 @@ class DLRThrower(Thrower):
         dest_addr_ton = message.content.properties['headers']['dest_addr_ton']
         dest_addr_npi = message.content.properties['headers']['dest_addr_npi']
         self.log.debug('Got one message (msgid:%s) to throw', msgid)
+
+        if isinstance(err, str):
+            # If err is string then encode it to ascii
+            err = err.encode('ascii')
 
         # If any, clear requeuing timer
         self.clearRequeueTimer(msgid)
@@ -606,6 +643,7 @@ class DLRThrower(Thrower):
                                             source_addr=source_addr,
                                             destination_addr=destination_addr,
                                             message_status=message_status,
+                                            err=err,
                                             sub_date=sub_date,
                                             source_addr_ton=source_addr_ton,
                                             source_addr_npi=source_addr_npi,

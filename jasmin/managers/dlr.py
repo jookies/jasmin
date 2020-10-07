@@ -1,12 +1,16 @@
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.internet import defer
 from twisted.internet import reactor
 from txamqp.queue import Closed
+from txredisapi import ConnectionError
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt
 
 from jasmin.managers.content import DLRContentForHttpapi, DLRContentForSmpps
 from jasmin.tools.singleton import Singleton
+from jasmin.tools import to_enum
 
 LOG_CATEGORY = "dlr"
 
@@ -23,7 +27,7 @@ class DLRMapNotFound(Exception):
     """Raised if no dlr is found in Redis db"""
 
 
-class DLRLookup(object):
+class DLRLookup:
     """
     Will consume dlr pdus (submit_sm, deliver_sm or data_sm), lookup for matching dlr maps in redis db
     and publish dlr for later throwing (http or smpp)
@@ -42,8 +46,11 @@ class DLRLookup(object):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -153,11 +160,12 @@ class DLRLookup(object):
         msgid = message.content.properties['message-id']
         dlr_status = message.content.body
 
+        if isinstance(dlr_status, bytes):
+            dlr_status = dlr_status.decode()
+
         try:
             if self.redisClient is None:
                 raise RedisError('RC undefined !')
-            if self.redisClient.connected != 1:
-                raise RedisError('RC is offline !')
 
             # Check for DLR request from redis 'dlr' key
             # If there's a pending delivery receipt request then serve it
@@ -219,21 +227,27 @@ class DLRLookup(object):
             elif dlr['sc'] == 'smppsapi':
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
                 system_id = dlr['system_id']
-                source_addr_ton = dlr['source_addr_ton']
-                source_addr_npi = dlr['source_addr_npi']
-                source_addr = str(dlr['source_addr'])
-                dest_addr_ton = dlr['dest_addr_ton']
-                dest_addr_npi = dlr['dest_addr_npi']
-                destination_addr = str(dlr['destination_addr'])
+                source_addr_ton = to_enum(dlr['source_addr_ton'])
+                source_addr_npi = to_enum(dlr['source_addr_npi'])
+                source_addr = dlr['source_addr']
+                dest_addr_ton = to_enum(dlr['dest_addr_ton'])
+                dest_addr_npi = to_enum(dlr['dest_addr_npi'])
+                destination_addr = dlr['destination_addr']
                 sub_date = dlr['sub_date']
-                registered_delivery_receipt = dlr['rd_receipt']
+                registered_delivery_receipt = to_enum(dlr['rd_receipt'])
                 smpps_map_expiry = dlr['expiry']
+
+                if isinstance(source_addr, int):
+                    source_addr = str(source_addr)
+
+                if isinstance(destination_addr, int):
+                    destination_addr = str(destination_addr)
 
                 # Do we need to forward the receipt to the original sender ?
                 if ((dlr_status == 'ESME_ROK' and registered_delivery_receipt in
-                    ['SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE', 'SMSC_DELIVERY_RECEIPT_REQUESTED']) or
+                    [RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE, RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED]) or
                         (dlr_status != 'ESME_ROK' and
-                                 registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE')):
+                                 registered_delivery_receipt == RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE)):
                     self.log.debug('Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
                                    msgid, registered_delivery_receipt, system_id)
 
@@ -264,7 +278,7 @@ class DLRLookup(object):
         except DLRMapError as e:
             self.log.error('[msgid:%s] DLR Content: %s', msgid, e)
             yield self.rejectMessage(message)
-        except RedisError as e:
+        except (RedisError, ConnectionError) as e:
             if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)
@@ -294,11 +308,12 @@ class DLRLookup(object):
         pdu_dlr_dlvrd = message.content.properties['headers']['dlr_dlvrd']
         pdu_dlr_status = message.content.body
 
+        if isinstance(pdu_dlr_status, bytes):
+            pdu_dlr_status = pdu_dlr_status.decode()
+
         try:
             if self.redisClient is None:
                 raise RedisError('RC undefined !')
-            if self.redisClient.connected != 1:
-                raise RedisError('RC is offline !')
 
             q = yield self.redisClient.hgetall("queue-msgid:%s" % msgid)
             if len(q) != 2 or 'msgid' not in q or 'connector_type' not in q:
@@ -348,23 +363,29 @@ class DLRLookup(object):
             elif connector_type == 'smppsapi':
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
                 system_id = dlr['system_id']
-                source_addr_ton = dlr['source_addr_ton']
-                source_addr_npi = dlr['source_addr_npi']
-                source_addr = str(dlr['source_addr'])
-                dest_addr_ton = dlr['dest_addr_ton']
-                dest_addr_npi = dlr['dest_addr_npi']
-                destination_addr = str(dlr['destination_addr'])
+                source_addr_ton = to_enum(dlr['source_addr_ton'])
+                source_addr_npi = to_enum(dlr['source_addr_npi'])
+                source_addr = dlr['source_addr']
+                dest_addr_ton = to_enum(dlr['dest_addr_ton'])
+                dest_addr_npi = to_enum(dlr['dest_addr_npi'])
+                destination_addr = dlr['destination_addr']
                 sub_date = dlr['sub_date']
-                registered_delivery_receipt = dlr['rd_receipt']
+                registered_delivery_receipt = to_enum(dlr['rd_receipt'])
+
+                if isinstance(source_addr, int):
+                    source_addr = str(source_addr)
+
+                if isinstance(destination_addr, int):
+                    destination_addr = str(destination_addr)
 
                 success_states = ['ACCEPTD', 'DELIVRD']
                 final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                 # Do we need to forward the receipt to the original sender ?
                 if ((pdu_dlr_status in success_states and
-                             registered_delivery_receipt == 'SMSC_DELIVERY_RECEIPT_REQUESTED') or
+                             registered_delivery_receipt == RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED) or
                         (pdu_dlr_status not in success_states and
-                                 registered_delivery_receipt in ['SMSC_DELIVERY_RECEIPT_REQUESTED',
-                                                                 'SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE'])):
+                                 registered_delivery_receipt in [RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED,
+                                                                 RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED_FOR_FAILURE])):
                     self.log.debug(
                         'Got DLR information for msgid[%s], registered_deliver%s, system_id:%s',
                         submit_sm_queue_id, registered_delivery_receipt, system_id)
@@ -377,7 +398,8 @@ class DLRLookup(object):
                                                                              submit_sm_queue_id, system_id,
                                                                              source_addr, destination_addr, sub_date,
                                                                              source_addr_ton, source_addr_npi,
-                                                                             dest_addr_ton, dest_addr_npi))
+                                                                             dest_addr_ton, dest_addr_npi,
+                                                                             err=pdu_dlr_err))
 
                     if pdu_dlr_status in final_states:
                         self.log.debug('Removing SMPPs dlr map for msgid[%s]', submit_sm_queue_id)
@@ -385,7 +407,7 @@ class DLRLookup(object):
         except DLRMapError as e:
             self.log.error('[msgid:%s] DLRMapError: %s', msgid, e)
             yield self.rejectMessage(message)
-        except RedisError as e:
+        except (RedisError, ConnectionError) as e:
             if msgid in self.lookup_retrials and self.lookup_retrials[msgid] < self.config.dlr_lookup_max_retries:
                 self.log.error('[msgid:%s] (retrials: %s/%s) RedisError: %s', msgid, self.lookup_retrials[msgid],
                                self.config.dlr_lookup_max_retries, e)
@@ -428,15 +450,14 @@ class DLRLookup(object):
                 logged_content)
 
 
-class DLRLookupSingleton(object):
+class DLRLookupSingleton(metaclass=Singleton):
     """Used to launch only one DLRLookup object"""
-    __metaclass__ = Singleton
     objects = {}
 
     def get(self, config, amqpBroker, redisClient):
         """Return a DLRLookup object or instanciate a new one"""
         name = 'singleton'
         if name not in self.objects:
-            self.objects[name] = DLRLookup(name, config, amqpBroker, redisClient)
+            self.objects[name] = DLRLookup(config, amqpBroker, redisClient)
 
         return self.objects[name]

@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 from twisted.internet import defer, reactor
 from twisted.spread.pb import RemoteReference
 from twisted.cred.credentials import UsernamePassword, Anonymous
@@ -31,7 +31,7 @@ def ConnectedPB(fCallback):
     return check_cnx_and_call
 
 
-class JasminPBProxy(object):
+class JasminPBProxy:
     """This is a factorised PBProxy to be used by all proxies in Jasmin
 
     It's holding connection related methods as well as picklings
@@ -39,7 +39,7 @@ class JasminPBProxy(object):
 
     pb = None
     isConnected = False
-    pickleProtocol = 2
+    pickleProtocol = pickle.HIGHEST_PROTOCOL
 
     @defer.inlineCallbacks
     def connect(self, host, port, username=None, password=None, retry=False):
@@ -57,7 +57,7 @@ class JasminPBProxy(object):
                 self.pbClientFactory.startLogin(
                     UsernamePassword(
                         username,
-                        password))
+                        password.encode('ascii')))
 
             reactor.connectTCP(host, port, self.pbClientFactory)
         else:
@@ -74,7 +74,7 @@ class JasminPBProxy(object):
                 yield self.pbClientFactory.login(
                     UsernamePassword(
                         username,
-                        password)).addCallback(self._connected)
+                        password.encode('ascii'))).addCallback(self._connected)
 
     def disconnect(self):
         self.isConnected = False

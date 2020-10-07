@@ -112,9 +112,7 @@ manually installed into your system, once placed in **/lib/systemd/system** jasm
 Docker
 ******
 
-You probably have heard of `Docker <https://www.docker.com/>`_, it is a container technology with a ton of momentum. But if you
-haven't, you can think of containers as easily-configured, lightweight VMs that start up fast, often in under
-one second. Containers are ideal for `microservice architectures <https://en.wikipedia.org/wiki/Microservices>`_
+Containers are ideal for `microservice architectures <https://en.wikipedia.org/wiki/Microservices>`_
 and for environments that scale rapidly or release often, Here's more from `Docker's website <https://www.docker.com/what-docker>`_.
 
 Installing Docker

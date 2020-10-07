@@ -15,7 +15,7 @@ try:
 	if count[0] == 0:
 		# It is not blacklisted, filter will pass
 		result = True
-except mdb.Error, e:
+except mdb.Error as e:
 	# A DB error, filter will block
 	# Error can be logged as well ...
 	result = False

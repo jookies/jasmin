@@ -8,7 +8,7 @@ from .api import PingResource, BalanceResource, RateResource, SendResource, Send
 from .config import *
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
-import falcon
+from falcon import HTTPUnauthorized, HTTPUnsupportedMediaType, API
 
 # @TODO: make configuration loadable from /etc/jasmin/restapi.conf
 logger = logging.getLogger('jasmin-restapi')
@@ -23,7 +23,7 @@ class TokenNotFound(Exception):
     """Raised when authentication token is not found"""
 
 
-class JsonResponserMiddleware(object):
+class JsonResponserMiddleware:
     """Encodes response to json and set content_type accordingly"""
 
     def process_response(self, request, response, resource):
@@ -40,7 +40,7 @@ class JsonResponserMiddleware(object):
             response.set_header('Powered-By', 'Jasmin %s' % jasmin.get_release())
 
 
-class LoggingMiddleware(object):
+class LoggingMiddleware:
     """Logging api calls"""
 
     def process_response(self, request, response, resource):
@@ -54,18 +54,18 @@ class LoggingMiddleware(object):
                 request.method, request.relative_uri))
 
 
-class ContentTypeFilter(object):
+class ContentTypeFilter:
     """Enforces client uses json media type"""
 
     def process_request(self, request, response):
         if not request.client_accepts_json:
-            raise falcon.HTTPUnsupportedMediaType(
+            raise HTTPUnsupportedMediaType(
                 'Unsupported media type',
                 'This API supports JSON media type only.',
-                'http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+                href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
 
 
-class AuthenticationFilter(object):
+class AuthenticationFilter:
     """Extract username/password from Auth token and make it accessible from context"""
 
     def _token_decode(self, request, token):
@@ -79,11 +79,11 @@ class AuthenticationFilter(object):
             # Get the auth token and extract username/password
             auth_token = base64.b64decode(token_keys[1])
         except TokenNotFound as e:
-            raise falcon.HTTPUnauthorized('%s' % e,
+            raise HTTPUnauthorized('%s' % e,
                                           'Please provide a valid Basic auth token',
                                           href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
         except Exception as e:
-            raise falcon.HTTPUnauthorized('Invalid token: %s' % e,
+            raise HTTPUnauthorized('Invalid token: %s' % e,
                                           'Please provide a valid Basic auth token',
                                           href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
         else:
@@ -97,7 +97,7 @@ class AuthenticationFilter(object):
             token = request.get_header('Authorization')
 
             if token is None:
-                raise falcon.HTTPUnauthorized('Authentication required',
+                raise HTTPUnauthorized('Authentication required',
                                               'Please provide a valid Basic auth token',
                                               href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
 
@@ -106,7 +106,7 @@ class AuthenticationFilter(object):
 
 # Start the falcon API with some fancy logging
 logger.info('Starting Jasmin Rest API ...')
-api = falcon.API(
+api = API(
     middleware=[
         ContentTypeFilter(),
         AuthenticationFilter(),

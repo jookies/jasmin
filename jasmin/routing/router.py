@@ -1,4 +1,5 @@
-import cPickle as pickle
+import pickle
+import sys
 import logging
 import time
 from copy import copy
@@ -30,7 +31,10 @@ class RouterPB(pb.Avatar):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
                                                when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
@@ -184,16 +188,16 @@ class RouterPB(pb.Avatar):
             # Smpps will not route any concatenated content, it must instead route
             # multiparted messages
             # Only http connector needs concatenated content
-            if concatenated and routedConnectors[0].type != 'http':
+            if concatenated and routedConnectors[0]._type != 'http':
                 self.log.debug(
                     "DeliverSmPDU [msgid:%s] not routed because its content is concatenated and the routedConnector is not http: %s",
-                    msgid, routedConnectors[0].type)
+                    msgid, routedConnectors[0]._type)
                 yield self.rejectMessage(message)
 
             # Http will not route any multipart messages, it must instead route
             # concatenated messages
             # Only smpps connector needs multipart content
-            elif will_be_concatenated and routedConnectors[0].type == 'http':
+            elif will_be_concatenated and routedConnectors[0]._type == 'http':
                 self.log.debug(
                     "DeliverSmPDU [msgid:%s] not routed because there will be a one concatenated message for all parts",
                     msgid)
@@ -202,18 +206,18 @@ class RouterPB(pb.Avatar):
             else:
                 if len(routedConnectors) == 1:
                     self.log.debug("Connector '%s'(%s) is set to be a route for this DeliverSmPDU",
-                                   routedConnectors[0].cid, routedConnectors[0].type)
+                                   routedConnectors[0].cid, routedConnectors[0]._type)
                 else:
                     self.log.debug("%s %s connectors (failover route) are set to be a route for this DeliverSmPDU",
-                                   len(routedConnectors), routedConnectors[0].type)
+                                   len(routedConnectors), routedConnectors[0]._type)
                 yield self.ackMessage(message)
 
                 # Enqueue DeliverSm for delivery through publishing it to deliver_sm_thrower.(type)
                 content = RoutedDeliverSmContent(routable.pdu, msgid, scid, routedConnectors, route_type)
                 self.log.debug("Publishing RoutedDeliverSmContent [msgid:%s] in deliver_sm_thrower.%s",
-                               msgid, routedConnectors[0].type)
+                               msgid, routedConnectors[0]._type)
                 yield self.amqpBroker.publish(exchange='messaging', routing_key='deliver_sm_thrower.%s' %
-                                                                                routedConnectors[0].type,
+                                                                                routedConnectors[0]._type,
                                               content=content)
 
     def deliver_sm_errback(self, error):
@@ -287,7 +291,7 @@ class RouterPB(pb.Avatar):
         """
         # Find user having correct username/password
         for _user in self.users:
-            if _user.username == username and _user.password == md5(password).digest():
+            if _user.username == username and _user.password == md5(password.encode('ascii')).digest():
                 self.log.debug('authenticateUser [username:%s] returned a User', username)
 
                 # Check if user's group is enabled
@@ -380,7 +384,7 @@ class RouterPB(pb.Avatar):
         mointerceptors = self.mo_interception_table.getAll()
 
         for e in mointerceptors:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMOInterceptor [order:%s] returned a MOInterceptor', order)
                 return e[order]
 
@@ -391,7 +395,7 @@ class RouterPB(pb.Avatar):
         mtinterceptors = self.mt_interception_table.getAll()
 
         for e in mtinterceptors:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMTInterceptor [order:%s] returned a MTInterceptor', order)
                 return e[order]
 
@@ -402,7 +406,7 @@ class RouterPB(pb.Avatar):
         moroutes = self.mo_routing_table.getAll()
 
         for e in moroutes:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMORoute [order:%s] returned a MORoute', order)
                 return e[order]
 
@@ -413,7 +417,7 @@ class RouterPB(pb.Avatar):
         mtroutes = self.mt_routing_table.getAll()
 
         for e in mtroutes:
-            if order == e.keys()[0]:
+            if order == list(e)[0]:
                 self.log.debug('getMTRoute [order:%s] returned a MTRoute', order)
                 return e[order]
 
@@ -434,9 +438,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current Groups configuration to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.groups, self.pickleProtocol))
                 fh.close()
 
@@ -449,9 +454,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current Users configuration to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.users, self.pickleProtocol))
                 fh.close()
 
@@ -465,9 +471,10 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-moroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MORoutingTable to [%s] profile in %s', profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mo_routing_table, self.pickleProtocol))
                 fh.close()
 
@@ -479,9 +486,10 @@ class RouterPB(pb.Avatar):
                 path = '%s/%s.router-mtroutes' % (self.config.store_path, profile)
                 self.log.info('Persisting current MTRoutingTable to [%s] profile in %s', profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mt_routing_table, self.pickleProtocol))
                 fh.close()
 
@@ -494,9 +502,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current MOInterceptionTable to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mo_interception_table, self.pickleProtocol))
                 fh.close()
 
@@ -509,9 +518,10 @@ class RouterPB(pb.Avatar):
                 self.log.info('Persisting current MTInterceptionTable to [%s] profile in %s',
                               profile, path)
 
-                fh = open(path, 'w')
+                fh = open(path, 'wb')
                 # Write configuration with datetime stamp
-                fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+                fh.write(
+                    ('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
                 fh.write(pickle.dumps(self.mt_interception_table, self.pickleProtocol))
                 fh.close()
 
@@ -536,12 +546,12 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context='groups', header=lines[0], data=''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='groups', header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Remove current configuration
                 self.log.info('Removing current Groups (%d)', len(self.groups))
@@ -561,12 +571,12 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
-                cf = ConfigurationMigrator(context='users', header=lines[0], data=''.join(lines[1:]))
+                cf = ConfigurationMigrator(context='users', header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Remove current configuration
                 self.log.info('Removing current Users (%d)', len(self.users))
@@ -588,13 +598,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='mointerceptors',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MO Interceptors
                 self.mo_interception_table = cf.getMigratedData()
@@ -611,13 +621,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='mtinterceptors',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MT Interceptors
                 self.mt_interception_table = cf.getMigratedData()
@@ -634,13 +644,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='moroutes',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MO Routes
                 self.mo_routing_table = cf.getMigratedData()
@@ -657,13 +667,13 @@ class RouterPB(pb.Avatar):
                               profile, path)
 
                 # Load configuration from file
-                fh = open(path, 'r')
+                fh = open(path, 'rb')
                 lines = fh.readlines()
                 fh.close()
 
                 # Init migrator
                 cf = ConfigurationMigrator(context='mtroutes',
-                                           header=lines[0], data=''.join(lines[1:]))
+                                           header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
                 # Adding new MT Routes
                 self.mt_routing_table = cf.getMigratedData()
@@ -683,7 +693,7 @@ class RouterPB(pb.Avatar):
         return True
 
     def perspective_is_persisted(self):
-        for _, v in self.persistenceState.iteritems():
+        for _, v in self.persistenceState.items():
             if not v:
                 return False
 

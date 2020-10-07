@@ -1,4 +1,6 @@
 import re
+import os
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from twisted.internet import reactor, defer
@@ -46,18 +48,23 @@ class JCliFactory(ServerFactory):
         self.sessionRef = 0
         self.sessionsOnline = 0
         # When defined, configuration profile will be loaded on startup
-        if loadConfigProfileWithCreds is None:
+        if not loadConfigProfileWithCreds or not loadConfigProfileWithCreds['username']:
             # Defaults:
-            loadConfigProfileWithCreds = {'username': 'jcliadmin', 'password': 'jclipwd'}
+            loadConfigProfileWithCreds = {
+                'username': os.environ.get('JCLI_USERNAME', 'jcliadmin'), 
+                'password':  os.environ.get('JCLI_PASSWORD', 'jclipwd')}
         self.loadConfigProfileWithCreds = loadConfigProfileWithCreds
 
         # Set up and configure a dedicated logger
         self.log = logging.getLogger('jcli')
         if len(self.log.handlers) != 1:
-            self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            self.log.setLevel(self.config.log_level)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
 
@@ -86,15 +93,16 @@ class JCliFactory(ServerFactory):
                 self.loadConfigProfileWithCreds['username'])
 
             if (self.loadConfigProfileWithCreds['username'] != self.config.admin_username or
-                        md5(self.loadConfigProfileWithCreds['password']).digest() != self.config.admin_password):
+                        md5(self.loadConfigProfileWithCreds['password'].encode(
+                            'ascii')).digest() != self.config.admin_password):
                 self.log.error(
                     "Authentication error, cannot load configuration profile with provided username: '%s'",
                     self.loadConfigProfileWithCreds['username'])
                 proto.connectionLost(None)
                 defer.returnValue(False)
 
-            proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['username'])
-            proto.dataReceived('%s\r\n' % self.loadConfigProfileWithCreds['password'])
+            proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['username']).encode())
+            proto.dataReceived(('%s\r\n' % self.loadConfigProfileWithCreds['password']).encode())
         elif self.config.authentication:
             self.log.error(
                 'Authentication is required and no credentials given, config. profile will not be loaded')
@@ -104,7 +112,7 @@ class JCliFactory(ServerFactory):
             self.log.info(
                 "OnStart loading configuration default profile without credentials (auth. is not required)")
 
-        proto.dataReceived('load\r\n')
+        proto.dataReceived(b'load\r\n')
 
         # Wait some more time till all configurations are loaded
         pending_load = ['mtrouter', 'morouter', 'filter', 'group', 'smppcc', 'httpcc', 'user']
@@ -121,6 +129,6 @@ class JCliFactory(ServerFactory):
             else:
                 break
 
-        proto.dataReceived('quit\r\n')
+        proto.dataReceived(b'quit\r\n')
         proto.connectionLost(None)
         defer.returnValue(False)

@@ -43,12 +43,12 @@ def tagfilters_casting(data, context=None):
     Will cast tag filters to string (from integer) in filters and routes having tagfilters"""
 
     if context == 'filters':
-        for fid, tagfilter in data.iteritems():
+        for fid, tagfilter in data.items():
             if isinstance(tagfilter, TagFilter):
                 tagfilter.tag = str(tagfilter.tag)
     elif context == 'mtroutes':
         for routes in data.getAll():
-            route = routes[routes.keys()[0]]
+            route = routes[list(routes)[0]]
             for filter in route.filters:
                 if isinstance(filter, TagFilter):
                     # Cast tags to str

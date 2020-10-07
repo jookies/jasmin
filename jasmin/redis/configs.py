@@ -5,10 +5,10 @@ Config file handler for 'redis-client' section in jasmin.cfg
 import logging
 import os
 
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class RedisForJasminConfig(ConfigFile):
@@ -25,7 +25,7 @@ class RedisForJasminConfig(ConfigFile):
 
         self.log_level = logging.getLevelName(self._get('redis-client', 'log_level', 'INFO'))
         self.log_file = self._get('redis-client',
-                                  'log_file', '%s/var/log/jasmin/redis-client.log' % ROOT_PATH)
+                                  'log_file', '%s/redis-client.log' % LOG_PATH)
         self.log_rotate = self._get('redis-client', 'log_rotate', 'W6')
         self.log_format = self._get('redis-client',
                                     'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')

@@ -1,5 +1,5 @@
 # pylint: disable=W0611
-import cPickle as pickle
+import pickle
 import inspect
 import re
 
@@ -54,7 +54,7 @@ def MTRouteBuild(fCallback):
                     self.protocol.sessionCompletitions))
 
             route = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['order', 'type', 'route_class', 'route_args']:
                     route[key] = value
             try:
@@ -108,7 +108,7 @@ def MTRouteBuild(fCallback):
 
                 if len(RouteClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MTRouteKeyMap.keys() + RouteClassArgs
+                    self.protocol.sessionCompletitions = list(MTRouteKeyMap) + RouteClassArgs
 
                     return self.protocol.sendData('%s arguments:\n%s' % (
                         self.sessBuffer['route_class'], ', '.join(RouteClassArgs)))
@@ -202,7 +202,7 @@ def MTRouteBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class MTRouteExist(object):
+class MTRouteExist:
     """Check if a mt route exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):
@@ -264,7 +264,7 @@ class MtRouterManager(PersistableManager):
             ), prompt=False)
 
             for e in mtroutes:
-                order = e.keys()[0]
+                order = list(e)[0]
                 mtroute = e[order]
                 counter += 1
 
@@ -274,9 +274,9 @@ class MtRouterManager(PersistableManager):
                     for c in mtroute.connector:
                         if connectors != '':
                             connectors += ', '
-                        connectors += '%s(%s)' % (c.type, c.cid)
+                        connectors += '%s(%s)' % (c._type, c.cid)
                 else:
-                    connectors = '%s(%s)' % (mtroute.connector.type, mtroute.connector.cid)
+                    connectors = '%s(%s)' % (mtroute.connector._type, mtroute.connector.cid)
 
                 filters = ''
                 # Prepare display for filters
@@ -322,7 +322,7 @@ class MtRouterManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MT Route: (ok: save, ko: exit)',
-                                 completitions=MTRouteKeyMap.keys())
+                                 completitions=list(MTRouteKeyMap))
 
     @MTRouteExist(order_key='remove')
     def remove(self, arg, opts):

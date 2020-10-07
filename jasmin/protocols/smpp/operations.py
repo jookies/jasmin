@@ -1,50 +1,24 @@
-# -*- test-case-name: jasmin.test.test_operations -*-
-# -*- coding: utf-8 -*-
-
 import datetime
 import math
 import re
 import struct
+from enum import Enum
 
 import dateutil.parser as parser
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
-from jasmin.vendor.smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
+from smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
+from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
 
-gsm_chars = (u"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>"
-             u"?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà")
-gsm_chars_ext = (u"````````````````````^```````````````````{}`````\\````````````[~]`"
-                 u"|````````````````````````````````````€``````````````````````````")
-
-
-def gsm_encode(plaintext):
-    """Will encode plaintext to gsm 338
-    Taken from
-    http://stackoverflow.com/questions/2452861/python-library-for-converting-plain-text-ascii-into-gsm-7-bit-character-set
-    """
-    res = ""
-    for c in plaintext:
-        idx = gsm_chars.find(c)
-        if idx != -1:
-            res += chr(idx)
-            continue
-        idx = gsm_chars_ext.find(c)
-        if idx != -1:
-            res += chr(27) + chr(idx)
-    return res
-
-
 message_state_map = {
-    '%s' % MessageState.ACCEPTED: 'ACCEPTD',
-    '%s' % MessageState.UNDELIVERABLE: 'UNDELIV',
-    '%s' % MessageState.REJECTED: 'REJECTD',
-    '%s' % MessageState.DELIVERED: 'DELIVRD',
-    '%s' % MessageState.EXPIRED: 'EXPIRED',
-    '%s' % MessageState.DELETED: 'DELETED',
-    '%s' % MessageState.ACCEPTED: 'ACCEPTD',
-    '%s' % MessageState.UNKNOWN: 'UNKNOWN',
+    MessageState.ACCEPTED: 'ACCEPTD',
+    MessageState.UNDELIVERABLE: 'UNDELIV',
+    MessageState.REJECTED: 'REJECTD',
+    MessageState.DELIVERED: 'DELIVRD',
+    MessageState.EXPIRED: 'EXPIRED',
+    MessageState.DELETED: 'DELETED',
+    MessageState.UNKNOWN: 'UNKNOWN',
 }
 
 
@@ -53,7 +27,7 @@ class UnknownMessageStatusError(Exception):
     """
 
 
-class SMPPOperationFactory(object):
+class SMPPOperationFactory:
     lastLongMsgRefNum = 0
 
     def __init__(self, config=None, long_content_max_parts=5, long_content_split='sar'):
@@ -63,6 +37,8 @@ class SMPPOperationFactory(object):
             self.config = SMPPClientConfig(**{'id': 'anyid'})
 
         self.long_content_max_parts = long_content_max_parts
+        if isinstance(long_content_split, bytes):
+            long_content_split = long_content_split.decode()
         self.long_content_split = long_content_split
 
     def _setConfigParamsInPDU(self, pdu, kwargs):
@@ -102,8 +78,8 @@ class SMPPOperationFactory(object):
         if 'receipted_message_id' in pdu.params and 'message_state' in pdu.params:
             ret['id'] = pdu.params['receipted_message_id']
 
-            if str(pdu.params['message_state']) in message_state_map:
-                ret['stat'] = message_state_map[str(pdu.params['message_state'])]
+            if pdu.params['message_state'] in message_state_map:
+                ret['stat'] = message_state_map[pdu.params['message_state']]
             else:
                 ret['stat'] = 'UNKNOWN'
 
@@ -126,9 +102,12 @@ class SMPPOperationFactory(object):
 
             # Look for patterns and compose return object
             for pattern in patterns:
-                m = re.search(pattern, pdu.params['short_message'])
+                if isinstance(pdu.params['short_message'], bytes):
+                    m = re.search(pattern, pdu.params['short_message'].decode())
+                else:
+                    m = re.search(pattern, pdu.params['short_message'])
                 if m:
-                    key = m.groupdict().keys()[0]
+                    key = list(m.groupdict())[0]
                     if (key not in ['id', 'stat']
                         or (key == 'id' and 'id' not in ret)
                         or (key == 'stat' and 'stat' not in ret)):
@@ -232,7 +211,10 @@ class SMPPOperationFactory(object):
                     udh.append(struct.pack('!B', msg_ref_num))
                     udh.append(struct.pack('!B', total_segments))
                     udh.append(struct.pack('!B', segment_seqnum))
-                    tmpPdu.params['short_message'] = ''.join(udh) + kwargs['short_message']
+                    if isinstance(kwargs['short_message'], str):
+                        tmpPdu.params['short_message'] = b''.join(udh) + kwargs['short_message'].encode()
+                    else:
+                        tmpPdu.params['short_message'] = b''.join(udh) + kwargs['short_message']
 
                 # - The first PDU is the one we return back
                 # - sar_msg_ref_num takes the seqnum of the initial submit_sm
@@ -247,51 +229,45 @@ class SMPPOperationFactory(object):
 
         return pdu
 
-    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, sub_date,
+    def getReceipt(self, dlr_pdu, msgid, source_addr, destination_addr, message_status, err, sub_date,
                    source_addr_ton, source_addr_npi, dest_addr_ton, dest_addr_npi):
-        "Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"
+        """Will build a DataSm or a DeliverSm (depending on dlr_pdu) containing a receipt data"""
 
+        if isinstance(message_status, bytes):
+            message_status = message_status.decode()
+        if isinstance(msgid, bytes):
+            msgid = msgid.decode()
         sm_message_stat = message_status
         # Prepare message_state
         if message_status[:5] == 'ESME_':
             if message_status == 'ESME_ROK':
                 message_state = MessageState.ACCEPTED
                 sm_message_stat = 'ACCEPTD'
-                err = 6
             else:
                 message_state = MessageState.UNDELIVERABLE
                 sm_message_stat = 'UNDELIV'
-                err = 5
         elif message_status == 'UNDELIV':
             message_state = MessageState.UNDELIVERABLE
-            err = 5
         elif message_status == 'REJECTD':
             message_state = MessageState.REJECTED
-            err = 8
         elif message_status == 'DELIVRD':
-            err = 2
             message_state = MessageState.DELIVERED
         elif message_status == 'EXPIRED':
-            err = 3
             message_state = MessageState.EXPIRED
         elif message_status == 'DELETED':
-            err = 4
             message_state = MessageState.DELETED
         elif message_status == 'ACCEPTD':
-            err = 6
             message_state = MessageState.ACCEPTED
         elif message_status == 'ENROUTE':
-            err = 1
             message_state = MessageState.ENROUTE
         elif message_status == 'UNKNOWN':
-            err = 7
             message_state = MessageState.UNKNOWN
         else:
-            raise UnknownMessageStatusError('Unknow message_status: %s' % message_status)
+            raise UnknownMessageStatusError('Unknown message_status: %s' % message_status)
 
         # Build pdu
         if dlr_pdu == 'deliver_sm':
-            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%03d" % (
+            short_message = r"id:%s submit date:%s done date:%s stat:%s err:%s" % (
                 msgid,
                 parser.parse(sub_date).strftime("%y%m%d%H%M"),
                 datetime.datetime.now().strftime("%y%m%d%H%M"),
@@ -307,10 +283,10 @@ class SMPPOperationFactory(object):
                 receipted_message_id=msgid,
                 short_message=short_message,
                 message_state=message_state,
-                source_addr_ton=getattr(AddrTon, dest_addr_ton),
-                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
-                dest_addr_ton=getattr(AddrTon, source_addr_ton),
-                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
+                source_addr_ton=self.get_enum(AddrTon, dest_addr_ton),
+                source_addr_npi=self.get_enum(AddrNpi, dest_addr_npi),
+                dest_addr_ton=self.get_enum(AddrTon, source_addr_ton),
+                dest_addr_npi=self.get_enum(AddrNpi, source_addr_npi),
             )
         else:
             # Build DataSM pdu
@@ -320,10 +296,15 @@ class SMPPOperationFactory(object):
                 esm_class=EsmClass(EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT),
                 receipted_message_id=msgid,
                 message_state=message_state,
-                source_addr_ton=getattr(AddrTon, dest_addr_ton),
-                source_addr_npi=getattr(AddrNpi, dest_addr_npi),
-                dest_addr_ton=getattr(AddrTon, source_addr_ton),
-                dest_addr_npi=getattr(AddrNpi, source_addr_npi),
+                source_addr_ton=self.get_enum(AddrTon, dest_addr_ton),
+                source_addr_npi=self.get_enum(AddrNpi, dest_addr_npi),
+                dest_addr_ton=self.get_enum(AddrTon, source_addr_ton),
+                dest_addr_npi=self.get_enum(AddrNpi, source_addr_npi),
             )
 
         return pdu
+
+    def get_enum(self, enum_type, value):
+        if isinstance(value, Enum):
+            return value
+        return getattr(enum_type, value.lstrip(str(enum_type) + '.'))

@@ -7,11 +7,12 @@ import os
 
 import txamqp
 
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
-
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+RESOURCE_PATH = os.getenv('RESOURCE_PATH', '%s/resource/' % CONFIG_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 class AmqpConfig(ConfigFile):
     """Config handler for 'amqp-broker' section"""
@@ -24,12 +25,12 @@ class AmqpConfig(ConfigFile):
         self.username = self._get('amqp-broker', 'username', 'guest')
         self.password = self._get('amqp-broker', 'password', 'guest')
         self.vhost = self._get('amqp-broker', 'vhost', '/')
-        self.spec = self._get('amqp-broker', 'spec', '%s/etc/jasmin/resource/amqp0-9-1.xml' % ROOT_PATH)
+        self.spec = self._get('amqp-broker', 'spec', '%s/amqp0-9-1.xml' % RESOURCE_PATH)
         self.heartbeat = self._getint('amqp-broker', 'heartbeat', 0)
 
         # Logging
         self.log_level = logging.getLevelName(self._get('amqp-broker', 'log_level', 'INFO'))
-        self.log_file = self._get('amqp-broker', 'log_file', '%s/var/log/jasmin/amqp-client.log' % ROOT_PATH)
+        self.log_file = self._get('amqp-broker', 'log_file', '%s/amqp-client.log' % LOG_PATH)
         self.log_rotate = self._get('amqp-broker', 'log_rotate', 'W6')
         self.log_format = self._get(
             'amqp-broker', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')

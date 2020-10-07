@@ -129,7 +129,7 @@ this feature is mainly used in the :doc:`interceptor </interception/index>`, the
      - Type
      - Description
    * - PDU
-     - jasmin.vendor.smpp.pdu.pdu_types.PDURequest
+     - smpp.pdu.pdu_types.PDURequest
      - The SMPP submit_sm PDU
    * - user
      - jasmin.routing.jasminApi.User
@@ -146,7 +146,7 @@ this feature is mainly used in the :doc:`interceptor </interception/index>`, the
      - Type
      - Description
    * - PDU
-     - jasmin.vendor.smpp.pdu.pdu_types.PDURequest
+     - smpp.pdu.pdu_types.PDURequest
      - The SMPP deliver_sm PDU
    * - connector
      - jasmin.routing.jasminApi.Connector

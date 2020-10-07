@@ -1,15 +1,16 @@
-import cPickle as pickle
+import pickle
 import logging
+from enum import Enum
 
 from twisted.internet import defer, reactor
 
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.protocol import str2num
 from jasmin.protocols.smpp.configs import SMPPClientConfig, UnknownValue
-from jasmin.vendor.smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
-from jasmin.vendor.smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
-from jasmin.vendor.smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
-from jasmin.vendor.smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
+from smpp.pdu.constants import addr_npi_name_map, addr_npi_value_map
+from smpp.pdu.constants import addr_ton_name_map, addr_ton_value_map
+from smpp.pdu.constants import priority_flag_name_map, priority_flag_value_map
+from smpp.pdu.constants import replace_if_present_flap_name_map, replace_if_present_flap_value_map
 
 # A config map between console-configuration keys and SMPPClientConfig keys.
 SMPPClientConfigKeyMap = {
@@ -40,14 +41,16 @@ def castOutputToBuiltInType(key, value):
 
     if isinstance(value, bool):
         return 'yes' if value else 'no'
+    if isinstance(value, Enum):
+        value = value.name
     if key in ['bind_npi', 'dst_npi', 'src_npi']:
-        return addr_npi_name_map[str(value)]
+        return addr_npi_name_map[value]
     if key in ['bind_ton', 'dst_ton', 'src_ton']:
-        return addr_ton_name_map[str(value)]
+        return addr_ton_name_map[value]
     if key == 'ripf':
-        return replace_if_present_flap_name_map[str(value)]
+        return replace_if_present_flap_name_map[value]
     if key == 'priority':
-        return priority_flag_name_map[str(value)]
+        return priority_flag_name_map[value]
     else:
         return value
 
@@ -94,9 +97,12 @@ class JCliSMPPClientConfig(SMPPClientConfig):
 
     def getAll(self):
         r = {}
-        for key, value in SMPPClientConfigKeyMap.iteritems():
+        for key, value in SMPPClientConfigKeyMap.items():
             if hasattr(self, value):
-                r[key] = castOutputToBuiltInType(key, getattr(self, value))
+                if isinstance(getattr(self, value), Enum):
+                    r[key] = castOutputToBuiltInType(key, getattr(self, value).name)
+                else:
+                    r[key] = castOutputToBuiltInType(key, getattr(self, value))
             else:
                 # Related to #192
                 r[key] = 'Unknown (object is from an old Jasmin release !)'
@@ -120,7 +126,7 @@ def SMPPClientConfigBuild(fCallback):
                 return self.protocol.sendData('You must set at least connector id (cid) before saving !')
 
             connector = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 connector[key] = value
             try:
                 SMPPClientConfigInstance = JCliSMPPClientConfig(**connector)
@@ -196,7 +202,7 @@ def SMPPClientConfigUpdate(fCallback):
     return log_update_requests_and_call
 
 
-class ConnectorExist(object):
+class ConnectorExist:
     """Check if connector cid exist before passing it to fCallback"""
 
     def __init__(self, cid_key):
@@ -284,7 +290,7 @@ class SmppCCManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new connector: (ok: save, ko: exit)',
-                                 completitions=SMPPClientConfigKeyMap.keys())
+                                 completitions=list(SMPPClientConfigKeyMap))
 
     @Session
     @SMPPClientConfigUpdate
@@ -292,7 +298,7 @@ class SmppCCManager(PersistableManager):
     def update_session(self, updateLog):
         connector = self.pb['smppcm'].getConnector(self.sessionContext['cid'])
         connectorDetails = self.pb['smppcm'].getConnectorDetails(self.sessionContext['cid'])
-        for key, value in updateLog.iteritems():
+        for key, value in updateLog.items():
             connector['config'].set(key, value)
 
         if connector['config'].PendingRestart and connectorDetails['service_status'] == 1:
@@ -326,7 +332,7 @@ class SmppCCManager(PersistableManager):
         return self.startSession(
             self.update_session,
             annoucement='Updating connector id [%s]: (ok: save, ko: exit)' % opts.update,
-            completitions=SMPPClientConfigKeyMap.keys(),
+            completitions=list(SMPPClientConfigKeyMap),
             sessionContext={'cid': opts.update})
 
     @ConnectorExist(cid_key='remove')
@@ -342,7 +348,7 @@ class SmppCCManager(PersistableManager):
     @ConnectorExist(cid_key='show')
     def show(self, arg, opts):
         connector = self.pb['smppcm'].getConnector(opts.show)
-        for k, v in connector['config'].getAll().iteritems():
+        for k, v in connector['config'].getAll().items():
             self.protocol.sendData('%s %s' % (k, v), prompt=False)
         self.protocol.sendData()
 

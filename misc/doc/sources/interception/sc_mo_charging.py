@@ -53,7 +53,7 @@ try:
         "SetupTime": datetime.utcnow().isoformat() + 'Z'}]
 
     result = call(sck, name, params)
-except Exception, e:
+except Exception as e:
     # We got an error when calling for charging
     # Return ESME_RDELIVERYFAILURE
     smpp_status = 254

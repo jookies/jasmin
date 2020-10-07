@@ -1,22 +1,14 @@
-FROM debian:jessie
+FROM python:3-buster
 
 MAINTAINER Jookies LTD <jasmin@jookies.net>
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 
-ENV JASMIN_VERSION 0.9.31
-
 # Install requirements
 RUN apt-get update && apt-get install -y \
-    python2.7 \
-    python-pip \
-    python-dev \
     libffi-dev \
     libssl-dev \
-    rabbitmq-server \
-    redis-server \
-    supervisor \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -25,16 +17,27 @@ RUN mkdir -p /etc/jasmin/resource \
     /etc/jasmin/store \
     /var/log/jasmin \
   && chown jasmin:jasmin /etc/jasmin/store \
-    /var/log/jasmin \
-  && pip install --pre jasmin=="$JASMIN_VERSION"
+    /var/log/jasmin 
 
-# Change binding host for jcli
+WORKDIR /build
+
+COPY . .
+
+RUN pip install .
+
+ENV UNICODEMAP_JP unicode-ascii
+
+WORKDIR /usr/jasmin
+
+# Change binding host for jcli, redis, and amqp
 RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
+RUN sed -i '/\[redis-client\]/a host=redis' /etc/jasmin/jasmin.cfg
+RUN sed -i '/\[amqp-broker\]/a host=rabbitmq' /etc/jasmin/jasmin.cfg
 
 EXPOSE 2775 8990 1401
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
-COPY docker-entrypoint.sh /
+COPY docker/docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
 # Notes:

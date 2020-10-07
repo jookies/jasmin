@@ -1,6 +1,6 @@
 # pylint: disable=W0401,W0611
 import inspect
-import cPickle as pickle
+import pickle
 import time
 import jasmin
 import os
@@ -15,10 +15,12 @@ from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
 
 # Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 # Since FiltersManager does not have any PB, there's no configuration for it
-# Persist and Load are using CONFIG_STORE_PATH for persisting/loading filters
-CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
+# Persist and Load are using STORE_PATH for persisting/loading filters
+STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
 
 # A config map between console-configuration keys and Filter keys.
 FilterKeyMap = {'fid': 'fid', 'type': 'type'}
@@ -58,7 +60,7 @@ def FilterBuild(fCallback):
                         self.protocol.sessionCompletitions))
 
             _filter = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['fid', 'type', 'filter_class', 'filter_args']:
                     _filter[key] = value
             try:
@@ -141,7 +143,7 @@ def FilterBuild(fCallback):
 
                 if len(FilterClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = FilterKeyMap.keys() + FilterClassArgs
+                    self.protocol.sessionCompletitions = list(FilterKeyMap) + FilterClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (self.sessBuffer['filter_class'], ', '.join(FilterClassArgs)))
@@ -226,7 +228,7 @@ def FilterBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class FilterExist(object):
+class FilterExist:
     """Check if filter fid exist before passing it to fCallback"""
 
     def __init__(self, fid_key):
@@ -239,7 +241,7 @@ class FilterExist(object):
             opts = args[1]
             fid = getattr(opts, fid_key)
 
-            for filter_id in self.filters.iterkeys():
+            for filter_id in list(self.filters.keys()):
                 if fid == filter_id:
                     return fCallback(self, *args, **kwargs)
 
@@ -269,12 +271,12 @@ class FiltersManager(PersistableManager):
             protocol.log.error('Config loading error: %s' % str(e))
 
     def persist(self, arg, opts):
-        path = '%s/%s.filters' % (CONFIG_STORE_PATH, opts.profile)
+        path = '%s/%s.filters' % (STORE_PATH, opts.profile)
 
         try:
             # Write configuration with datetime stamp
-            fh = open(path, 'w')
-            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+            fh = open(path, 'wb')
+            fh.write(('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
             fh.write(pickle.dumps(self.filters, pickle.HIGHEST_PROTOCOL))
             fh.close()
         except IOError:
@@ -297,16 +299,18 @@ class FiltersManager(PersistableManager):
                 prompt=False)
 
     def _load(self, profile='jcli-prod'):
-        path = '%s/%s.filters' % (CONFIG_STORE_PATH, profile)
+        path = '%s/%s.filters' % (STORE_PATH, profile)
 
         try:
             # Load configuration from file
-            fh = open(path, 'r')
+            fh = open(path, mode='rb')
             lines = fh.readlines()
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context='filters', header=lines[0], data=''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='filters',
+                                       header=lines[0].decode('ascii'),
+                                       data=b''.join(lines[1:]))
 
             # Apply configuration
             self.filters = cf.getMigratedData()
@@ -326,7 +330,7 @@ class FiltersManager(PersistableManager):
                 'Description'.ljust(32),
             ), prompt=False)
 
-            for fid, _filter in self.filters.iteritems():
+            for fid, _filter in self.filters.items():
                 counter += 1
                 routes = ''
                 if _filter.__class__.__name__ in MOFILTERS:
@@ -355,7 +359,7 @@ class FiltersManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Filter: (ok: save, ko: exit)',
-                                 completitions=FilterKeyMap.keys())
+                                 completitions=list(FilterKeyMap))
 
     @FilterExist(fid_key='remove')
     def remove(self, arg, opts):

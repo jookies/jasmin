@@ -1,7 +1,7 @@
 # pylint: disable=W0611
 import re
 import inspect
-import cPickle as pickle
+import pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MOFILTERS
 from jasmin.routing.jasminApi import MOInterceptorScript
@@ -20,9 +20,9 @@ class InvalidScriptSyntax(Exception):
 def validate_typed_script(script):
     """Will ensure the script exists and compilable"""
 
-    m = re.match(r'(python2)\((.*)\)', script, re.I)
+    m = re.match(r'(python3)\((.*)\)', script, re.I)
     if not m:
-        raise InvalidScriptSyntax('Invalid syntax for script, must be python2(/path/to/script).')
+        raise InvalidScriptSyntax('Invalid syntax for script, must be python3(/path/to/script).')
     else:
         language = m.group(1).lower()
         script_path = m.group(2)
@@ -50,7 +50,7 @@ def MOInterceptorBuild(fCallback):
                     self.protocol.sessionCompletitions))
 
             interceptor = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['order', 'type', 'interceptor_class', 'interceptor_args']:
                     interceptor[key] = value
             try:
@@ -105,7 +105,7 @@ def MOInterceptorBuild(fCallback):
 
                 if len(InterceptorClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MOInterceptorKeyMap.keys() + InterceptorClassArgs
+                    self.protocol.sessionCompletitions = list(MOInterceptorKeyMap) + InterceptorClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (
@@ -132,7 +132,7 @@ def MOInterceptorBuild(fCallback):
                     try:
                         stype, script_path = validate_typed_script(arg)
 
-                        if stype == 'python2':
+                        if stype == 'python3':
                             # Open file and get its content
                             with open(script_path, 'r') as content_file:
                                 pyCode = content_file.read()
@@ -243,7 +243,7 @@ class MoInterceptorManager(PersistableManager):
             ), prompt=False)
 
             for e in mointerceptors:
-                order = e.keys()[0]
+                order = list(e)[0]
                 mointerceptor = e[order]
                 counter += 1
 
@@ -281,7 +281,7 @@ class MoInterceptorManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Interceptor: (ok: save, ko: exit)',
-                                 completitions=MOInterceptorKeyMap.keys())
+                                 completitions=list(MOInterceptorKeyMap))
 
     @MOInterceptorExist(order_key='remove')
     def remove(self, arg, opts):

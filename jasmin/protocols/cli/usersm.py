@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import re
 from hashlib import md5
 from jasmin.protocols.cli.managers import PersistableManager, Session
@@ -148,7 +148,7 @@ def UserBuild(fCallback):
                     UserKeyMap['smpps_cred']['class']]()
 
             user = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 user[key] = value
             try:
                 UserInstance = User(**user)
@@ -175,7 +175,7 @@ def UserBuild(fCallback):
                 value = _r.group(3)
 
                 # Validate section
-                possible_values = subKeyMap.keys()
+                possible_values = list(subKeyMap)
                 possible_values.remove('class')
                 possible_values.remove('keyMapValue')
                 valid_section = False
@@ -189,9 +189,9 @@ def UserBuild(fCallback):
                         section, ', '.join(possible_values)))
 
                 # Validate key
-                if key not in subKeyMap[section].keys():
+                if key not in list(subKeyMap[section]):
                     return self.protocol.sendData('Error: invalid key: %s, possible keys: %s' % (
-                        key, ', '.join(subKeyMap[section].keys())))
+                        key, ', '.join(list(subKeyMap[section]))))
                 SectionKey = subKeyMap[section][key]
 
                 try:
@@ -231,7 +231,7 @@ def UserBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class UserExist(object):
+class UserExist:
     """Check if user uid exist before passing it to fCallback"""
 
     def __init__(self, uid_key):
@@ -292,7 +292,7 @@ def UserUpdate(fCallback):
                 value = _r.group(3)
 
                 # Validate section
-                possible_values = subKeyMap.keys()
+                possible_values = list(subKeyMap)
                 possible_values.remove('class')
                 possible_values.remove('keyMapValue')
                 valid_section = False
@@ -306,9 +306,9 @@ def UserUpdate(fCallback):
                         section, ', '.join(possible_values)))
 
                 # Validate key
-                if key not in subKeyMap[section].keys():
+                if key not in list(subKeyMap[section]):
                     return self.protocol.sendData('Error: invalid key: %s, possible keys: %s' % (
-                        key, ', '.join(subKeyMap[section].keys())))
+                        key, ', '.join(list(subKeyMap[section]))))
                 SectionKey = subKeyMap[section][key]
 
                 try:
@@ -448,7 +448,7 @@ class UsersManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new User: (ok: save, ko: exit)',
-                                 completitions=UserKeyMap.keys())
+                                 completitions=list(UserKeyMap))
 
     @UserExist(uid_key='enable')
     def enable(self, arg, opts):
@@ -475,17 +475,17 @@ class UsersManager(PersistableManager):
         # user object must be allways found through the above iteration since it is secured by
         # the @UserExist annotation on update() method
 
-        for key, value in updateLog.iteritems():
+        for key, value in updateLog.items():
             if key[:1] == '_':
                 # When key is prefixed by '_' it must be treated exceptionnally since the value
                 # is holding advanced update log of a sub-User object
                 subUserObject = getattr(user, key[1:])
-                for update in value.iteritems():
+                for update in value.items():
                     section = update[0]
                     if update[1] is None:
                         continue
 
-                    for SectionKey, SectionValue in update[1].iteritems():
+                    for SectionKey, SectionValue in update[1].items():
                         if str(SectionValue)[:1] in ['+', '-']:
                             if str(SectionValue)[:1] == '+':
                                 # Decode the value and its type
@@ -506,7 +506,7 @@ class UsersManager(PersistableManager):
                                     prompt=False)
             else:
                 if key == 'password':
-                    setattr(user, key, md5(value).digest())
+                    setattr(user, key, md5(value.encode('ascii')).digest())
                 else:
                     setattr(user, key, value)
 
@@ -517,7 +517,7 @@ class UsersManager(PersistableManager):
     def update(self, arg, opts):
         return self.startSession(self.update_session,
                                  annoucement='Updating User id [%s]: (ok: save, ko: exit)' % opts.update,
-                                 completitions=UserKeyMap.keys(),
+                                 completitions=list(UserKeyMap),
                                  sessionContext={'uid': opts.update})
 
     @UserExist(uid_key='remove')
@@ -533,7 +533,7 @@ class UsersManager(PersistableManager):
     def show(self, arg, opts):
         user = self.pb['router'].getUser(opts.show)
 
-        for key, value in UserKeyMap.iteritems():
+        for key, value in UserKeyMap.items():
             if key == 'password':
                 # Dont show password
                 pass
@@ -543,10 +543,10 @@ class UsersManager(PersistableManager):
                 self.protocol.sendData('%s %s' % (key, getattr(user, value)), prompt=False)
             elif isinstance(value, dict) and 'class' in value:
                 if value['class'] == 'MtMessagingCredential':
-                    for section, sectionData in value.iteritems():
+                    for section, sectionData in value.items():
                         if section in ['class', 'keyMapValue']:
                             continue
-                        for SectionShortKey, SectionLongKey in value[section].iteritems():
+                        for SectionShortKey, SectionLongKey in value[section].items():
                             try:
                                 sectionValue = getattr(user.mt_credential, 'get%s' % section)(SectionLongKey)
                             except jasminApiCredentialError:
@@ -559,10 +559,10 @@ class UsersManager(PersistableManager):
                             self.protocol.sendData('%s %s %s %s' % (
                                 key, section.lower(), SectionShortKey, sectionValue), prompt=False)
                 if value['class'] == 'SmppsCredential':
-                    for section, sectionData in value.iteritems():
+                    for section, sectionData in value.items():
                         if section in ['class', 'keyMapValue']:
                             continue
-                        for SectionShortKey, SectionLongKey in value[section].iteritems():
+                        for SectionShortKey, SectionLongKey in value[section].items():
                             sectionValue = getattr(user.smpps_credential, 'get%s' % section)(SectionLongKey)
                             if section == 'ValueFilter':
                                 sectionValue = sectionValue.pattern
