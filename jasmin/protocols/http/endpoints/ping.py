@@ -1,5 +1,6 @@
 from twisted.web.resource import Resource
 
+
 class Ping(Resource):
     isleaf = True
 

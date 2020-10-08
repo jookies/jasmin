@@ -9,7 +9,6 @@ from twisted.web.server import NOT_DONE_YET
 from smpp.pdu.constants import priority_flag_value_map
 from smpp.pdu.smpp_time import parse
 from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
-import messaging.sms.gsm0338
 
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.smpp.configs import SMPPClientConfig
@@ -20,6 +19,7 @@ from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, Ser
                      ChargingError, ThroughputExceededError, InterceptorNotSetError,
                      InterceptorNotConnectedError, InterceptorRunError)
 from jasmin.protocols.http.endpoints import hex2bin, authenticate_user
+
 
 def update_submit_sm_pdu(routable, config, config_update_params=None):
     """Will set pdu parameters from smppclient configuration.
@@ -59,6 +59,7 @@ def update_submit_sm_pdu(routable, config, config_update_params=None):
                     _pdu.params[param] = config[param]
 
     return routable
+
 
 class Send(Resource):
     isleaf = True
@@ -518,3 +519,6 @@ class Send(Resource):
         else:
             return NOT_DONE_YET
 
+    def render_GET(self, request):
+        """Allow GET /send for backward compatibility"""
+        return self.render_POST(request)
