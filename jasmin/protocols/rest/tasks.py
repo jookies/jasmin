@@ -2,7 +2,6 @@ import time
 
 import requests
 from celery import Celery, Task
-from celery.task import task
 from datetime import datetime, timedelta
 
 from .config import *
@@ -16,6 +15,7 @@ if len(logger.handlers) == 0:
     logger.addHandler(handler)
 
 app = Celery(__name__)
+task = app.task
 app.config_from_object('jasmin.protocols.rest.config')
 
 

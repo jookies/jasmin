@@ -17,6 +17,7 @@ Commercial Support
 
 We offer commercial support for Jasmin_, commercial solution hosting, as well as remote and on-site consulting and engineering.
 
-You can contact us at support@jasminsms.com to learn more.
+You can contact us at support@jasminsms.com or raise a demand through our Helpdesk_ to learn more.
 
 .. _Jasmin: http://www.jasminsms.com
+.. _Helpdesk: https://jasminsms.atlassian.net/servicedesk/customer/portal/1

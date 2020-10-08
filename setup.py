@@ -7,7 +7,7 @@ def parse_requirements(filename):
 
 setup(
     name="jasmin",
-    version='0.10.0',
+    version='0.10.1',
     author="Jookies LTD",
     author_email="jasmin@jookies.net",
     url="http://www.jasminsms.com",

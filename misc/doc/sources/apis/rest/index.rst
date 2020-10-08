@@ -26,7 +26,7 @@ The RESTful API's made available starting from **v0.9rc16**, it can be launched 
 
 If you are not using rpm/deb packages to install Jasmin then that systemd service may not be installed on your system, you still can launch the RESTful API manually::
 
-  celery -A jasmin.protocols.rest.tasks worker -l info -c 4 --autoscale=10,3
+  celery -A jasmin.protocols.rest.tasks worker -l INFO -c 4 --autoscale=10,3
   twistd -n --pidfile=/tmp/twistd-web-restapi.pid web --wsgi=jasmin.protocols.rest.api
 
 Configuration file for Celery and the Web server can be found in **/etc/jasmin/rest-api.py.conf**.

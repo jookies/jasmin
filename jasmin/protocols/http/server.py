@@ -17,6 +17,7 @@ LOG_CATEGORY = "jasmin-http-api"
 # @TODO make it configurable
 reactor.suggestThreadPoolSize(30)
 
+
 class HTTPApi(Resource):
 
     def __init__(self, RouterPB, SMPPClientManagerPB, config, interceptor=None):
