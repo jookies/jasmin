@@ -15,6 +15,7 @@ from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredential
 from jasmin.protocols.http.errors import HttpApiError, AuthenticationError, InterceptorNotSetError, InterceptorNotConnectedError, InterceptorRunError, RouteNotFoundError
 from jasmin.protocols.http.endpoints import hex2bin, authenticate_user
 
+
 class Rate(Resource):
     isleaf = True
 

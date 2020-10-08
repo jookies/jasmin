@@ -26,7 +26,7 @@ class TokenNotFound(Exception):
 class JsonResponserMiddleware:
     """Encodes response to json and set content_type accordingly"""
 
-    def process_response(self, request, response, resource):
+    def process_response(self, request, response, resource, req_succeeded):
         """Force response to be json only and add Jasmin signature"""
 
         if response.content_type != 'application/json':
@@ -43,7 +43,7 @@ class JsonResponserMiddleware:
 class LoggingMiddleware:
     """Logging api calls"""
 
-    def process_response(self, request, response, resource):
+    def process_response(self, request, response, resource, req_succeeded):
         if response.status[:3] == '200':
             logger.info('[%s] %s@%s %s %s' % (
                 response.status[:3], request.context.get('username', '*'), request.remote_addr,
@@ -77,15 +77,15 @@ class AuthenticationFilter:
                 raise TokenNotFound('Invalid token: %s' % token)
 
             # Get the auth token and extract username/password
-            auth_token = base64.b64decode(token_keys[1])
+            auth_token = base64.b64decode(token_keys[1]).decode('utf-8')
         except TokenNotFound as e:
             raise HTTPUnauthorized('%s' % e,
-                                          'Please provide a valid Basic auth token',
-                                          href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+                                   'Please provide a valid Basic auth token',
+                                   href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
         except Exception as e:
             raise HTTPUnauthorized('Invalid token: %s' % e,
-                                          'Please provide a valid Basic auth token',
-                                          href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+                                   'Please provide a valid Basic auth token',
+                                   href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
         else:
             request.context['username'], request.context['password'] = auth_token.split(':')
 
@@ -98,8 +98,8 @@ class AuthenticationFilter:
 
             if token is None:
                 raise HTTPUnauthorized('Authentication required',
-                                              'Please provide a valid Basic auth token',
-                                              href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
+                                       'Please provide a valid Basic auth token',
+                                       href='http://docs.jasminsms.com/en/latest/apis/rest/index.html')
 
             self._token_decode(request, token)
 

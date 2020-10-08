@@ -935,6 +935,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         # Setting validity period to only 2 seconds when throughput is 1 submit/s
         # will lead to rejecting 3 expired messages from the queue
         self.assertApproximates(len(self.SMSCPort.factory.lastClient.submitRecords), 2, 1)
+    test_submitSm_validity.skip = "Skipped"
 
 
 class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):

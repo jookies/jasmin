@@ -9,10 +9,10 @@ import jasmin
 from .config import *
 from .tasks import httpapi_send
 from datetime import datetime
+from falcon import HTTPInternalServerError, HTTPPreconditionFailed
+import falcon
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
-from falcon import HTTPInternalServerError, HTTPPreconditionFailed, API
-import falcon
 
 
 class JasminHttpApiProxy:
@@ -20,14 +20,17 @@ class JasminHttpApiProxy:
 
     def call_jasmin(self, url, params=None):
         try:
+            print(old_api_uri, url)
+            print(params)
             r = requests.get('%s/%s' % (old_api_uri, url), params=params)
         except requests.exceptions.ConnectionError as e:
             raise HTTPInternalServerError('Jasmin httpapi connection error',
-                                                 'Could not connect to Jasmin http api (%s): %s' % (old_api_uri, e))
+                                          'Could not connect to Jasmin http api (%s): %s' % (old_api_uri, e))
         except Exception as e:
             raise HTTPInternalServerError('Jasmin httpapi unknown error', str(e))
         else:
-            return r.status_code, r.content.strip('"')
+            print(r.content)
+            return r.status_code, r.content.decode('utf-8').strip('"')
 
 
 class JasminRestApi:
@@ -54,7 +57,7 @@ class JasminRestApi:
             params = json.loads(request_data)
         except Exception as e:
             raise HTTPPreconditionFailed('Cannot parse JSON data',
-                                                'Got unparseable json data: %s' % request_data)
+                                         'Got unparseable json data: %s' % request_data)
         else:
             return params
 
@@ -82,8 +85,8 @@ class BalanceResource(JasminRestApi, JasminHttpApiProxy):
             self.call_jasmin(
                 'balance',
                 params={
-                    'username': request.context['username'],
-                    'password': request.context['password']
+                    'username': request.context.get('username'),
+                    'password': request.context.get('password')
                 }
             )
         )
@@ -97,12 +100,11 @@ class RateResource(JasminRestApi, JasminHttpApiProxy):
         Note: This method will indicate the rate of the message once sent
         """
 
-        request_args = {}
-        request_args.update(dict({
-            'username': request.context['username'],
-            'password': request.context['password']
-        }.items()))
-        request_args.update(request.params)
+        request_args = request.params.copy()
+        request_args.update({
+            'username': request.context.get('username'),
+            'password': request.context.get('password')
+        })
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
@@ -127,12 +129,11 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
         Note: Calls Jasmin http api /send resource
         """
 
-        request_args = dict(
-            self.decode_request_data(request).items() + {
-                'username': request.context['username'],
-                'password': request.context['password']
-            }.items()
-        )
+        request_args = self.decode_request_data(request).copy()
+        request_args.update({
+            'username': request.context.get('username'),
+            'password': request.context.get('password')
+        })
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
@@ -189,12 +190,12 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
 
         # Authentify user before proceeding
         status, _ = self.call_jasmin('balance', params={
-            'username': request.context['username'],
-            'password': request.context['password']
+            'username': request.context.get('username'),
+            'password': request.context.get('password')
         })
         if status != 200:
             raise HTTPPreconditionFailed('Authentication failed',
-                                                "Authentication failed for user: %s" % request.context['username'])
+                                         "Authentication failed for user: %s" % request.context.get('username'))
 
         batch_id = uuid.uuid4()
         params = self.decode_request_data(request)
@@ -206,7 +207,8 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
         message_count = 0
         for _message_params in params.get('messages', {}):
             # Construct message params
-            message_params = {'username': request.context['username'], 'password': request.context['password']}
+            message_params = {'username': request.context.get('username'),
+                              'password': request.context.get('password')}
             message_params.update(params.get('globals', {}))
             message_params.update(_message_params)
 

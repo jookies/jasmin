@@ -8,6 +8,7 @@ from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredential
 from jasmin.protocols.http.errors import HttpApiError
 from jasmin.protocols.http.endpoints import authenticate_user
 
+
 class Balance(Resource):
     isleaf = True
 
