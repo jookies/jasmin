@@ -328,7 +328,10 @@ class DLRLookup:
                 raise DLRMapNotFound('Got a DLR for an unknown message id: %s (coded:%s)' % (pdu_dlr_id, msgid))
             if len(dlr) > 0 and dlr['sc'] != connector_type:
                 raise DLRMapError('Found a dlr for msgid:%s with diffrent sc: %s' % (submit_sm_queue_id, dlr['sc']))
-
+            
+            success_states = ['ACCEPTD', 'DELIVRD']
+            final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
+            
             if connector_type == 'httpapi':
                 self.log.debug('There is a HTTP DLR request for msgid[%s] ...', msgid)
                 dlr_url = dlr['url']
@@ -358,8 +361,9 @@ class DLRLookup:
                                                                                text=pdu_dlr_text,
                                                                                method=dlr_method))
 
-                    self.log.debug('Removing HTTP dlr map for msgid[%s]', submit_sm_queue_id)
-                    yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
+                    if pdu_dlr_status in final_states:
+                        self.log.debug('Removing HTTP dlr map for msgid[%s]', submit_sm_queue_id)
+                        yield self.redisClient.delete('dlr:%s' % submit_sm_queue_id)
             elif connector_type == 'smppsapi':
                 self.log.debug('There is a SMPPs mapping for msgid[%s] ...', msgid)
                 system_id = dlr['system_id']
@@ -378,8 +382,6 @@ class DLRLookup:
                 if isinstance(destination_addr, int):
                     destination_addr = str(destination_addr)
 
-                success_states = ['ACCEPTD', 'DELIVRD']
-                final_states = ['DELIVRD', 'EXPIRED', 'DELETED', 'UNDELIV', 'REJECTD']
                 # Do we need to forward the receipt to the original sender ?
                 if ((pdu_dlr_status in success_states and
                              registered_delivery_receipt == RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED) or
