@@ -1,6 +1,8 @@
 # pylint: disable=E0203
 import sys
 import logging
+import os
+import signal
 from logging.handlers import TimedRotatingFileHandler
 from twisted.internet.protocol import ClientFactory
 from twisted.internet import defer, reactor
@@ -95,6 +97,7 @@ class AmqpFactory(ClientFactory):
             self.connectDeferred.errback(reason)
             self.exitDeferred.callback(self)
             self.log.info("Exiting.")
+            os.kill(os.getpid(), signal.SIGINT)
 
     def clientConnectionLost(self, connector, reason):
         """Connection lost
@@ -115,6 +118,7 @@ class AmqpFactory(ClientFactory):
         else:
             self.exitDeferred.callback(self)
             self.log.info("Exiting.")
+            os.kill(os.getpid(), signal.SIGINT)
 
     def reConnect(self, connector=None):
         if connector is None:
