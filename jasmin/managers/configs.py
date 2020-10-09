@@ -65,7 +65,7 @@ class SMPPClientSMListenerConfig(ConfigFile):
             'sm-listener', 'submit_max_age_smppc_not_ready', 1200)
 
         self.submit_retrial_delay_smppc_not_ready = self._getint(
-            'sm-listener', 'submit_retrial_delay_smppc_not_ready', False)
+            'sm-listener', 'submit_retrial_delay_smppc_not_ready', 30)
 
         self.dlr_lookup_retry_delay = self._getint(
             'sm-listener', 'dlr_lookup_retry_delay', 10)
