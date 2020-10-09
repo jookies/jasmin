@@ -154,6 +154,7 @@ if __name__ == '__main__':
         ja_d = DlrlookupDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, ja_d.sighandler_stop)
+        signal.signal(signal.SIGTERM, ja_d.sighandler_stop)
         # Start DlrlookupDaemon
         ja_d.start()
 

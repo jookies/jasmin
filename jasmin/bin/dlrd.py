@@ -162,6 +162,7 @@ if __name__ == '__main__':
         dlr_d = DlrDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, dlr_d.sighandler_stop)
+        signal.signal(signal.SIGTERM, dlr_d.sighandler_stop)
         # Start DlrDaemon
         dlr_d.start()
 
