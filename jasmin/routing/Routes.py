@@ -23,13 +23,13 @@ class InvalidRouteFilterError(Exception):
     """
 
 
-class Route(object):
+class Route:
     """Generic Route:
 
     Route contain a triplet of [Filter(s), Connector, Rate]
     When more than one Filter is given, matching these filters will use the AND operator
     """
-    type = 'generic'
+    _type = 'generic'
     _str = 'generic'
     _repr = 'Route'
     filters = []
@@ -50,10 +50,10 @@ class Route(object):
                 raise InvalidRouteParameterError(
                     "filter must be an instance of Filter, %s found" % type(_filter)
                 )
-            if not self.type in _filter.usedFor:
+            if not self._type in _filter.usedFor:
                 raise InvalidRouteFilterError(
                     "filter types (%s) is not compatible with this route type (%s)" % (
-                        _filter.usedFor, self.type
+                        _filter.usedFor, self._type
                     ))
 
         self.filters = filters
@@ -64,7 +64,7 @@ class Route(object):
             rate_str = 'rated %.2f' % self.rate
         else:
             rate_str = 'NOT RATED'
-        self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector.type, connector.cid, rate_str)
+        self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector._type, connector.cid, rate_str)
 
     def __str__(self):
         return self._str
@@ -129,7 +129,7 @@ class Route(object):
 class DefaultRoute(Route):
     """This is a default route which can contain one connector
     """
-    type = 'default'
+    _type = 'default'
 
     def __init__(self, connector, rate=0.0):
         """
@@ -150,7 +150,7 @@ class DefaultRoute(Route):
             rate_str = 'rated %.2f' % self.rate
         else:
             rate_str = 'NOT RATED'
-        self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector.type, connector.cid, rate_str)
+        self._str = '%s to %s(%s) %s' % (self.__class__.__name__, connector._type, connector.cid, rate_str)
 
     def matchFilters(self, routable):
         return self.getConnector()
@@ -159,13 +159,13 @@ class DefaultRoute(Route):
 class MTRoute(Route):
     """Generic MT Route
     """
-    type = 'mt'
+    _type = 'mt'
 
 
 class MORoute(Route):
     """Generic MO Route
     """
-    type = 'mo'
+    _type = 'mo'
 
     def __init__(self, filters, connector, rate=0.0):
         "Overriding Route's __init__ to remove rate parameter, MORoutes are not rated"
@@ -183,9 +183,11 @@ class StaticMTRoute(MTRoute):
     """
 
 
-class RoundrobinRoute(object):
+class RoundrobinRoute:
     """Generic RoundrobinRoute
     """
+
+    _type = None
 
     def __init__(self, filters, connectors):
         if not isinstance(connectors, list):
@@ -201,10 +203,10 @@ class RoundrobinRoute(object):
             if not isinstance(_filter, Filter):
                 raise InvalidRouteParameterError(
                     "filter must be an instance of Filter, %s found" % type(_filter))
-            if self.type not in _filter.usedFor:
+            if self._type not in _filter.usedFor:
                 raise InvalidRouteFilterError(
                     "filter types (%s) is not compatible with this route type (%s)" % (
-                        _filter.usedFor, self.type))
+                        _filter.usedFor, self._type))
 
         self.filters = filters
         self.connector = connectors
@@ -213,7 +215,7 @@ class RoundrobinRoute(object):
         for c in connectors:
             if connector_list_str != '':
                 connector_list_str += '\n'
-            connector_list_str += '\t- %s(%s)' % (c.type, c.cid)
+            connector_list_str += '\t- %s(%s)' % (c._type, c.cid)
         self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__,
                                                   len(connectors),
                                                   connector_list_str)
@@ -229,12 +231,14 @@ class RandomRoundrobinMORoute(RoundrobinRoute, MORoute):
     """Return one route taken randomly from a pool of
     routes
     """
+    _type = 'mo'
 
 
 class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
     """Return one route taken randomly from a pool of
     routes
     """
+    _type = 'mt'
 
     def __init__(self, filters, connectors, rate):
         "Overriding RoundrobinRoute's __init__ to add rate parameter as it is only used for MT Routes"
@@ -255,8 +259,10 @@ class RandomRoundrobinMTRoute(RoundrobinRoute, MTRoute):
         self._str = "%s %s" % (self._str, rate_str)
 
 
-class FailoverRoute(object):
+class FailoverRoute:
     """Generic FailoverRoute"""
+
+    _type = None
 
     def __init__(self, filters, connectors):
         if not isinstance(connectors, list):
@@ -272,10 +278,10 @@ class FailoverRoute(object):
             if not isinstance(_filter, Filter):
                 raise InvalidRouteParameterError(
                     "filter must be an instance of Filter, %s found" % type(_filter))
-            if self.type not in _filter.usedFor:
+            if self._type not in _filter.usedFor:
                 raise InvalidRouteFilterError(
                     "filter types (%s) is not compatible with this route type (%s)" % (
-                        _filter.usedFor, self.type))
+                        _filter.usedFor, self._type))
 
         self.filters = filters
         self.seq = -1
@@ -285,7 +291,7 @@ class FailoverRoute(object):
         for c in connectors:
             if connector_list_str != '':
                 connector_list_str += '\n'
-            connector_list_str += '\t- %s(%s)' % (c.type, c.cid)
+            connector_list_str += '\t- %s(%s)' % (c._type, c.cid)
         self._str = '%s to %s connectors:\n%s' % (self.__class__.__name__,
                                                   len(connectors),
                                                   connector_list_str)
@@ -304,6 +310,7 @@ class FailoverRoute(object):
 class FailoverMORoute(FailoverRoute, MORoute):
     """Returned connector from getConnector method is iterated through the list of available connectors
     """
+    _type = 'mo'
 
     def __init__(self, filters, connectors):
         FailoverRoute.__init__(self, filters, connectors)
@@ -313,9 +320,9 @@ class FailoverMORoute(FailoverRoute, MORoute):
         #  they cannot execute a failover algorithm on top of two different connector types.
         _types = None
         for c in connectors:
-            if _types is not None and c.type != _types:
+            if _types is not None and c._type != _types:
                 raise InvalidRouteParameterError('FailoverMORoute cannot have mixed connector types')
-            _types = c.type
+            _types = c._type
 
         if not isinstance(connectors, list):
             raise InvalidRouteParameterError("connectors must be a list")
@@ -333,6 +340,8 @@ class FailoverMORoute(FailoverRoute, MORoute):
 class FailoverMTRoute(FailoverRoute, MTRoute):
     """Returned connector from getConnector method is iterated through the list of available connectors
     """
+
+    _type = 'mt'
 
     def __init__(self, filters, connectors, rate):
         """Overriding FailoverRoute's __init__ to add rate parameter as it is only used for MT Routes"""

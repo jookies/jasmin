@@ -1,5 +1,6 @@
 # pylint: disable=W0401,W0611
-import cPickle as pickle
+import pickle
+import sys
 import logging
 import struct
 from datetime import datetime, timedelta
@@ -9,6 +10,10 @@ from dateutil import parser
 from twisted.internet import defer
 from twisted.internet import reactor
 from txamqp.queue import Closed
+from smpp.pdu.operations import SubmitSM, DeliverSM
+from smpp.pdu.pdu_types import CommandStatus, DataCodingScheme, DataCodingGsmMsgClass, EsmClassGsmFeatures
+from smpp.twisted.protocol import DataHandlerResponse
+from smpp.pdu.error import SMPPRequestTimoutError
 
 from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, SubmitSmRespBillContent, DLR
@@ -16,14 +21,11 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
-from jasmin.vendor.smpp.pdu.operations import SubmitSM, DeliverSM
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus
-from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
 
-class SMPPClientSMListener(object):
+class SMPPClientSMListener:
     """
     This is a listener object instantiated for every new SMPP connection, it is responsible of handling
     SubmitSm, DeliverSm and SubmitSm PDUs for a given SMPP connection
@@ -50,8 +52,11 @@ class SMPPClientSMListener(object):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -69,7 +74,7 @@ class SMPPClientSMListener(object):
             del self.rejectTimers[msgid]
 
     def clearRejectTimers(self):
-        for msgid, timer in self.rejectTimers.items():
+        for msgid, timer in list(self.rejectTimers.items()):
             if timer.active():
                 timer.cancel()
             del self.rejectTimers[msgid]
@@ -259,12 +264,13 @@ class SMPPClientSMListener(object):
             submit_sm_resp_bill = pickle.loads(
                 amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
 
+            total_bill_amount = 0.0
+            
             if r.response.status == CommandStatus.ESME_ROK:
                 # No more retrials !
                 del self.submit_retrials[msgid]
 
                 # Get bill information
-                total_bill_amount = 0.0
                 if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
                     total_bill_amount = submit_sm_resp_bill.getTotalAmounts()
 
@@ -272,7 +278,7 @@ class SMPPClientSMListener(object):
                 UDHI_INDICATOR_SET = False
                 if hasattr(r.request.params['esm_class'], 'gsmFeatures'):
                     for gsmFeature in r.request.params['esm_class'].gsmFeatures:
-                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        if gsmFeature == EsmClassGsmFeatures.UDHI_INDICATOR_SET:
                             UDHI_INDICATOR_SET = True
                             break
 
@@ -280,7 +286,7 @@ class SMPPClientSMListener(object):
                 splitMethod = None
                 if 'sar_msg_ref_num' in r.request.params:
                     splitMethod = 'sar'
-                elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == '\x05\x00\x03':
+                elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == b'\x05\x00\x03':
                     splitMethod = 'udh'
 
                 # Concatenate short_message
@@ -304,9 +310,16 @@ class SMPPClientSMListener(object):
                 else:
                     short_message = r.request.params['short_message']
 
+                # Do not log text for privacy reasons
+                # Added in #691
+                if self.config.log_privacy:
+                    logged_content = '** %s byte content **' % len(short_message)
+                else:
+                    logged_content = '%r' % short_message
+
                 self.log.info(
                     "SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] \
-[from:%s] [to:%s] [content:%r]",
+[from:%s] [to:%s] [content:%s]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.params['message_id'],
@@ -318,11 +331,11 @@ class SMPPClientSMListener(object):
                     else amqpMessage.content.properties['headers']['expiration'],
                     r.request.params['source_addr'],
                     r.request.params['destination_addr'],
-                    short_message)
+                    logged_content)
             else:
                 # Message must be retried ?
-                if str(r.response.status) in self.config.submit_error_retrial:
-                    retrial = self.config.submit_error_retrial[str(r.response.status)]
+                if r.response.status.name in self.config.submit_error_retrial:
+                    retrial = self.config.submit_error_retrial[r.response.status.name]
 
                     # Still have some retries to go ?
                     if self.submit_retrials[msgid] < retrial['count']:
@@ -333,10 +346,17 @@ class SMPPClientSMListener(object):
                         # Prevent this list from over-growing
                         del self.submit_retrials[msgid]
 
+                # Do not log text for privacy reasons
+                # Added in #691
+                if self.config.log_privacy:
+                    logged_content = '** %s byte content **' % len(r.request.params['short_message'])
+                else:
+                    logged_content = '%r' % r.request.params['short_message']
+
                 # Log the message
                 self.log.info(
                     "SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] \
-[from:%s] [to:%s] [content:%r]",
+[from:%s] [to:%s] [content:%s]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.status,
@@ -348,7 +368,7 @@ class SMPPClientSMListener(object):
                     else amqpMessage.content.properties['headers']['expiration'],
                     r.request.params['source_addr'],
                     r.request.params['destination_addr'],
-                    r.request.params['short_message'])
+                    logged_content)
 
             # It is a final submit_sm_resp !
             if not will_be_retried:
@@ -447,7 +467,7 @@ class SMPPClientSMListener(object):
                 return
 
             # Build concat_message_content
-            concat_message_content = ''
+            concat_message_content = b''
             for i in range(total_segments):
                 if splitMethod == 'sar':
                     concat_message_content += pdus[i + 1].params[msg_content_key]
@@ -474,22 +494,30 @@ class SMPPClientSMListener(object):
 
         try:
             if isinstance(pdu, DeliverSM):
-                if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
-                    ret = ('%x' % int(pdu.dlr['id'])).upper().lstrip('0')
-                elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
-                    ret = int(str(pdu.dlr['id']), 16)
+                if isinstance(pdu.dlr['id'], bytes):
+                    dlr_id = pdu.dlr['id'].decode()
                 else:
-                    ret = str(pdu.dlr['id']).upper().lstrip('0')
+                    dlr_id = pdu.dlr['id']
+                if self.SMPPClientFactory.config.dlr_msg_id_bases == 1:
+                    ret = ('%x' % int(dlr_id)).upper().lstrip('0')
+                elif self.SMPPClientFactory.config.dlr_msg_id_bases == 2:
+                    ret = int(str(dlr_id), 16)
+                else:
+                    ret = str(dlr_id).upper().lstrip('0')
             else:
+                if isinstance(pdu.dlr['id'], bytes):
+                    dlr_id = pdu.dlr['id'].decode()
+                else:
+                    dlr_id = pdu.dlr['id']
                 # TODO: code dlr for submit_sm_resp maybe ? TBC
-                ret = str(pdu.dlr['id']).upper().lstrip('0')
+                ret = str(dlr_id).upper().lstrip('0')
         except Exception as e:
             self.log.error('code_dlr_msgid, cannot code msgid [%s] with dlr_msg_id_bases:%s',
-                           pdu.dlr['id'], self.SMPPClientFactory.config.dlr_msg_id_bases)
+                           dlr_id, self.SMPPClientFactory.config.dlr_msg_id_bases)
             self.log.error('code_dlr_msgid, error details: %s', e)
-            ret = str(pdu.dlr['id']).upper().lstrip('0')
+            ret = str(dlr_id).upper().lstrip('0')
 
-        self.log.debug('code_dlr_msgid: %s coded to %s', pdu.dlr['id'], ret)
+        self.log.debug('code_dlr_msgid: %s coded to %s', dlr_id, ret)
         return ret
 
     def deliver_sm_event_interceptor(self, smpp, pdu):
@@ -576,7 +604,7 @@ class SMPPClientSMListener(object):
                     self.log.info(
                         'Interceptor script returned %s smpp_status error.', args[0]['smpp_status'])
                     raise DeliverSmInterceptionError(code=args[0]['smpp_status'])
-                elif isinstance(args[0], str):
+                elif isinstance(args[0], (str, bytes)):
                     smpp.factory.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
                 else:
@@ -603,15 +631,15 @@ class SMPPClientSMListener(object):
                 UDHI_INDICATOR_SET = False
                 if 'esm_class' in routable.pdu.params and hasattr(routable.pdu.params['esm_class'], 'gsmFeatures'):
                     for gsmFeature in routable.pdu.params['esm_class'].gsmFeatures:
-                        if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                        if gsmFeature == EsmClassGsmFeatures.UDHI_INDICATOR_SET:
                             UDHI_INDICATOR_SET = True
                             break
 
                 not_class2 = True
                 if 'data_coding' in routable.pdu.params:
                     dcs = routable.pdu.params['data_coding']
-                    if (str(dcs.scheme) == 'GSM_MESSAGE_CLASS') and (dcs.schemeData is not None):
-                        not_class2 = (str(dcs.schemeData.msgClass) != 'CLASS_2')
+                    if (dcs.scheme == DataCodingScheme.GSM_MESSAGE_CLASS) and (dcs.schemeData is not None):
+                        not_class2 = (dcs.schemeData.msgClass != DataCodingGsmMsgClass.CLASS_2)
 
                 splitMethod = None
                 # Is it a part of a long message ?
@@ -623,11 +651,11 @@ class SMPPClientSMListener(object):
                     self.log.debug(
                         'Received SMS-MO part [queue-msgid:%s] using SAR: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)
-                elif UDHI_INDICATOR_SET and not_class2 and message_content[:3] == '\x05\x00\x03':
+                elif UDHI_INDICATOR_SET and not_class2 and message_content[:3] == b'\x05\x00\x03':
                     splitMethod = 'udh'
-                    total_segments = struct.unpack('!B', message_content[4])[0]
-                    segment_seqnum = struct.unpack('!B', message_content[5])[0]
-                    msg_ref_num = struct.unpack('!B', message_content[3])[0]
+                    total_segments = message_content[4]
+                    segment_seqnum = message_content[5]
+                    msg_ref_num = message_content[3]
                     self.log.debug(
                         'Received SMS-MO part [queue-msgid:%s] using UDH: ttl_segments=%s, segment_sn=%s, msgref=%s',
                         msgid, total_segments, segment_seqnum, msg_ref_num)
@@ -648,9 +676,16 @@ class SMPPClientSMListener(object):
                     if 'validity_period' in routable.pdu.params:
                         validity_period = routable.pdu.params['validity_period']
 
+                    # Do not log text for privacy reasons
+                    # Added in #691
+                    if self.config.log_privacy:
+                        logged_content = '** %s byte content **' % len(message_content)
+                    else:
+                        logged_content = '%r' % message_content
+
                     self.log.info(
                         "SMS-MO [cid:%s] [queue-msgid:%s] [status:%s] [prio:%s] [validity:%s] [from:%s] [to:%s] \
-[content:%r]",
+[content:%s]",
                         self.SMPPClientFactory.config.id,
                         msgid,
                         routable.pdu.status,
@@ -658,7 +693,7 @@ class SMPPClientSMListener(object):
                         validity_period,
                         routable.pdu.params['source_addr'],
                         routable.pdu.params['destination_addr'],
-                        message_content)
+                        logged_content)
                 else:
                     # Long message part received
                     if self.redisClient is None:
@@ -706,12 +741,19 @@ class SMPPClientSMListener(object):
                                                           cid=self.SMPPClientFactory.config.id,
                                                           dlr_details=routable.pdu.dlr))
         except (InterceptorRunError, DeliverSmInterceptionError) as e:
-            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%r]",
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config.log_privacy:
+                logged_content = '** %s byte content **' % len(message_content)
+            else:
+                logged_content = '%r' % message_content
+
+            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%s]",
                           self.SMPPClientFactory.config.id,
                           e.status,
                           routable.pdu.params['source_addr'],
                           routable.pdu.params['destination_addr'],
-                          message_content)
+                          logged_content)
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))

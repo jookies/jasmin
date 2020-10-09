@@ -1,7 +1,9 @@
 # pylint: disable=W0401,W0611,W0231
-import cPickle as pickle
+import pickle
+import sys
 import logging
 import re
+from enum import Enum
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 
@@ -10,13 +12,22 @@ from twisted.internet import defer, reactor, ssl
 from twisted.internet.protocol import ClientFactory
 
 from jasmin.routing.Routables import RoutableSubmitSm
-from jasmin.vendor.smpp.twisted.protocol import DataHandlerResponse
-from jasmin.vendor.smpp.twisted.server import SMPPBindManager as _SMPPBindManager
-from jasmin.vendor.smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
-from .error import *
-from .protocol import SMPPClientProtocol, SMPPServerProtocol
-from .stats import SMPPClientStatsCollector, SMPPServerStatsCollector
-from .validation import SmppsCredentialValidator
+from smpp.twisted.protocol import DataHandlerResponse, SMPPSessionStates
+from smpp.twisted.server import SMPPBindManager as _SMPPBindManager
+from smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
+from smpp.pdu.error import SMPPClientError
+from smpp.pdu.pdu_types import CommandId, CommandStatus, PDURequest
+
+from jasmin.protocols.smpp.error import (
+    SubmitSmInvalidArgsError, SubmitSmWithoutDestinationAddrError, 
+    InterceptorRunError, SubmitSmInterceptionError, SubmitSmInterceptionSuccess,
+    SubmitSmThroughputExceededError, SubmitSmRoutingError, SubmitSmRouteNotFoundError,
+    SubmitSmChargingError)
+from jasmin.protocols.smpp.protocol import SMPPClientProtocol, SMPPServerProtocol
+from jasmin.protocols.smpp.stats import SMPPClientStatsCollector, SMPPServerStatsCollector
+from jasmin.protocols.smpp.validation import SmppsCredentialValidator
+
+from jasmin.protocols.smpp.error import InterceptorNotSetError, InterceptorNotConnectedError
 
 LOG_CATEGORY_CLIENT_BASE = "smpp.client"
 LOG_CATEGORY_SERVER_BASE = "smpp.server"
@@ -45,10 +56,13 @@ class SMPPClientFactory(ClientFactory):
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY_CLIENT_BASE + ".%s" % config.id)
         if len(self.log.handlers) != 1:
-            self.log.setLevel(config.log_level)
+            self.log.setLevel(self.config.log_level)
             _when = self.config.log_rotate if hasattr(self.config, 'log_rotate') else 'midnight'
-            handler = TimedRotatingFileHandler(filename=self.config.log_file, when=_when)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file, when=_when)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False
@@ -184,7 +198,7 @@ class SMPPClientFactory(ClientFactory):
 
     def getSessionState(self):
         if self.smpp is None:
-            return None
+            return SMPPSessionStates.NONE
         else:
             return self.smpp.sessionState
 
@@ -223,7 +237,10 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log = logging.getLogger(LOG_CATEGORY_SERVER_BASE + ".%s" % config.id)
         if len(self.log.handlers) != 1:
             self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file, when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file, when=self.config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
@@ -244,13 +261,13 @@ class SMPPServerFactory(_SMPPServerFactory):
         if len(args) != 2:
             self.log.error('(submit_sm_event/%s) Invalid args: %s', system_id, args)
             raise SubmitSmInvalidArgsError()
-        if not isinstance(args[1], pdu_types.PDURequest):
+        if not isinstance(args[1], PDURequest):
             self.log.error(
                 '(submit_sm_event/%s) Received an unknown object when waiting for a PDURequest: %s',
                 system_id,
                 args[1])
             raise SubmitSmInvalidArgsError()
-        if args[1].id != pdu_types.CommandId.submit_sm:
+        if args[1].id != CommandId.submit_sm:
             self.log.error('(submit_sm_event/%s) Received a non submit_sm command id: %s',
                            system_id, args[1].id)
             raise SubmitSmInvalidArgsError()
@@ -344,7 +361,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                     if 'message_id' in args[0]['extra']:
                         message_id = str(args[0]['extra']['message_id'])
                     raise SubmitSmInterceptionSuccess()
-                elif isinstance(args[0], str):
+                elif isinstance(args[0], (str, bytes)):
                     self.stats.inc('interceptor_count')
                     routable = pickle.loads(args[0])
                 else:
@@ -398,7 +415,7 @@ class SMPPServerFactory(_SMPPServerFactory):
                 raise SubmitSmRoutingError()
 
             # QoS throttling
-            if (routable.user.mt_credential.getQuota('smpps_throughput') >= 0
+            if (routable.user.mt_credential.getQuota('smpps_throughput') and routable.user.mt_credential.getQuota('smpps_throughput') >= 0
                 and routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] != 0):
                 qos_throughput_second = 1 / float(routable.user.mt_credential.getQuota('smpps_throughput'))
                 qos_throughput_ysecond_td = timedelta(microseconds=qos_throughput_second * 1000000)
@@ -441,7 +458,7 @@ class SMPPServerFactory(_SMPPServerFactory):
             # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
             priority = 0
             if routable.pdu.params['priority_flag'] is not None:
-                priority = routable.pdu.params['priority_flag'].index
+                priority = routable.pdu.params['priority_flag']._value_
 
             if self.SMPPClientManagerPB is None:
                 self.log.error(
@@ -480,9 +497,20 @@ class SMPPServerFactory(_SMPPServerFactory):
         except Exception as e:
             # Unknown exception handling
             self.log.critical('Got an unknown exception: %s', e)
-            status = pdu_types.CommandStatus.ESME_RUNKNOWNERR
+            status = CommandStatus.ESME_RUNKNOWNERR
         else:
             self.log.debug('SubmitSmPDU sent to [cid:%s], result = %s', routedConnector.cid, message_id)
+
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config.log_privacy:
+                logged_content = '** %s byte content **' % len(routable.pdu.params['short_message'])
+            else:
+                if isinstance(routable.pdu.params['short_message'], bytes):
+                    logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', routable.pdu.params['short_message'])
+                else:
+                    logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message'])
+
             self.log.info(
                 'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]',
                 routable.user.uid,
@@ -491,8 +519,8 @@ class SMPPServerFactory(_SMPPServerFactory):
                 priority,
                 routable.pdu.params['source_addr'],
                 routable.pdu.params['destination_addr'],
-                re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message']))
-            status = pdu_types.CommandStatus.ESME_ROK
+                logged_content)
+            status = CommandStatus.ESME_ROK
         finally:
             if message_id is not None:
                 return DataHandlerResponse(status=status, message_id=message_id)
@@ -595,11 +623,11 @@ class SMPPBindManager(_SMPPBindManager):
 
         # Update CnxStatus
         self.user.getCnxStatus().smpps['bind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][str(connection.bind_type)] += 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type.name] += 1
 
     def removeBinding(self, connection):
         _SMPPBindManager.removeBinding(self, connection)
 
         # Update CnxStatus
         self.user.getCnxStatus().smpps['unbind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][str(connection.bind_type)] -= 1
+        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type.name] -= 1

@@ -1,4 +1,5 @@
 # pylint: disable=E0203
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from twisted.internet.protocol import ClientFactory
@@ -29,10 +30,13 @@ class AmqpFactory(ClientFactory):
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
-            self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
-            formatter = logging.Formatter(config.log_format, config.log_date_format)
+            self.log.setLevel(self.config.log_level)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
+            formatter = logging.Formatter(self.config.log_format, self.config.log_date_format)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             self.log.propagate = False
@@ -95,7 +99,11 @@ class AmqpFactory(ClientFactory):
     def clientConnectionLost(self, connector, reason):
         """Connection lost
         """
-        self.log.error("Connection lost. Reason: %s", str(reason))
+        if not 'Connection was closed cleanly.' in str(reason):
+            # dont log an error when the queue closed as expected
+            self.log.error("Connection lost. Reason: %s", str(reason))
+        else:
+            self.log.info("Connection lost. Reason: %s", str(reason))
         self.connected = False
 
         self.client = None

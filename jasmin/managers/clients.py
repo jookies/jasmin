@@ -1,7 +1,8 @@
-import cPickle as pickle
+import pickle
 import datetime
-import logging
+import sys
 import time
+import logging
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.internet import defer
@@ -11,8 +12,8 @@ import jasmin
 from jasmin.protocols.smpp.protocol import SMPPServerProtocol
 from jasmin.protocols.smpp.services import SMPPClientService
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt
-from jasmin.vendor.smpp.twisted.protocol import SMPPSessionStates
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt
+from smpp.twisted.protocol import SMPPSessionStates
 from .configs import SMPPClientSMListenerConfig
 from .content import SubmitSmContent
 from .listeners import SMPPClientSMListener
@@ -46,8 +47,11 @@ class SMPPClientManagerPB(pb.Avatar):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.config.log_level)
-            handler = TimedRotatingFileHandler(filename=self.config.log_file,
-                                               when=self.config.log_rotate)
+            if 'stdout' in self.config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.config.log_file,
+                                                   when=self.config.log_rotate)
             formatter = logging.Formatter(self.config.log_format,
                                           self.config.log_date_format)
             handler.setFormatter(formatter)
@@ -104,7 +108,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
         details = {}
         details['id'] = c['id']
-        details['session_state'] = str(c['service'].SMPPClientFactory.getSessionState())
+        details['session_state'] = c['service'].SMPPClientFactory.getSessionState().name
         details['service_status'] = c['service'].running
         details['start_count'] = c['service'].startCounter
         details['stop_count'] = c['service'].stopCounter
@@ -143,8 +147,8 @@ class SMPPClientManagerPB(pb.Avatar):
                     'service_status': c['service'].running})
 
             # Write configuration with datetime stamp
-            fh = open(path, 'w')
-            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+            fh = open(path, 'wb')
+            fh.write(('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
             fh.write(pickle.dumps(connectors, self.pickleProtocol))
             fh.close()
 
@@ -166,12 +170,12 @@ class SMPPClientManagerPB(pb.Avatar):
 
         try:
             # Load configuration from file
-            fh = open(path, 'r')
+            fh = open(path, 'rb')
             lines = fh.readlines()
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context='smppccs', header=lines[0], data=''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='smppccs', header=lines[0].decode('ascii'), data=b''.join(lines[1:]))
 
             # Remove current configuration
             CIDs = []
@@ -433,7 +437,7 @@ class SMPPClientManagerPB(pb.Avatar):
         # Reject & requeue any pending message to avoid loosing messages after
         # clearing timers
         if len(connector['sm_listener'].rejectTimers) > 0:
-            for msgid, timer in connector['sm_listener'].rejectTimers.items():
+            for msgid, timer in list(connector['sm_listener'].rejectTimers.items()):
                 if timer.active():
                     func = timer.func
                     kw = timer.kw
@@ -501,7 +505,7 @@ class SMPPClientManagerPB(pb.Avatar):
             return False
 
         session_state = connector['service'].SMPPClientFactory.getSessionState()
-        self.log.info('Connector [%s] session state is: %s', cid, str(session_state))
+        self.log.info('Connector [%s] session state is: %s', cid, session_state)
 
         if session_state is None:
             return None
@@ -509,7 +513,7 @@ class SMPPClientManagerPB(pb.Avatar):
             # returning Enum would raise this on the client side:
             # Unpersistable data: instance of class enum.EnumValue deemed insecure
             # So we just return back the string of it
-            return str(session_state)
+            return session_state.name
 
     def perspective_connector_details(self, cid):
         """This will return the connector details
@@ -539,7 +543,7 @@ class SMPPClientManagerPB(pb.Avatar):
 
     @defer.inlineCallbacks
     def perspective_submit_sm(self, uid, cid, SubmitSmPDU, submit_sm_bill, priority=1, validity_period=None,
-                              pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST',
+                              pickled=True, dlr_url=None, dlr_level=1, dlr_method='POST', dlr_connector=None,
                               source_connector='httpapi'):
         """This will enqueue a submit_sm to a connector
         """
@@ -602,13 +606,13 @@ class SMPPClientManagerPB(pb.Avatar):
                               'url': dlr_url,
                               'level': dlr_level,
                               'method': dlr_method,
+                              'connector': dlr_connector,
                               'expiry': connector['config'].dlr_expiry}
                 self.redisClient.hmset(hashKey, hashValues).addCallback(
                     lambda response: self.redisClient.expire(
                         hashKey, connector['config'].dlr_expiry))
         elif (isinstance(source_connector, SMPPServerProtocol) and
-                      SubmitSmPDU.params[
-                          'registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
+              SubmitSmPDU.params['registered_delivery'].receipt != RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED):
             # If submit_sm is successfully sent from a SMPPServerProtocol connector and DLR is
             # requested, then map message-id to the source_connector to permit related deliver_sm
             # messages holding further receipts to be sent back to the right connector
@@ -633,7 +637,7 @@ class SMPPClientManagerPB(pb.Avatar):
                               'dest_addr_npi': SubmitSmPDU.params['dest_addr_npi'],
                               'destination_addr': SubmitSmPDU.params['destination_addr'],
                               'sub_date': datetime.datetime.now(),
-                              'rd_receipt': '%s' % SubmitSmPDU.params['registered_delivery'].receipt,
+                              'rd_receipt': SubmitSmPDU.params['registered_delivery'].receipt,
                               'expiry': source_connector.factory.config.dlr_expiry}
                 self.redisClient.hmset(hashKey, hashValues).addCallback(
                     lambda response: self.redisClient.expire(

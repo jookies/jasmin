@@ -16,7 +16,7 @@ class InvalidFilterParameterError(Exception):
     """
 
 
-class Filter(object):
+class Filter:
     """
     Generic Filter:
 

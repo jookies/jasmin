@@ -55,7 +55,7 @@ class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClien
     # oldcred methods
 
     def getPerspective(self, *args):
-        raise RuntimeError, "getPerspective is one-shot: use startGettingPerspective instead"
+        raise RuntimeError("getPerspective is one-shot: use startGettingPerspective instead")
 
     def startGettingPerspective(self, username, password, serviceName,
                                 perspectiveName=None, client=None):
@@ -77,7 +77,7 @@ class ReconnectingPBClientFactory(pb.PBClientFactory, protocol.ReconnectingClien
     # newcred methods
 
     def login(self, *args):
-        raise RuntimeError, "login is one-shot: use startLogin instead"
+        raise RuntimeError("login is one-shot: use startLogin instead")
 
     def startLogin(self, credentials, client=None):
         self._credentials = credentials

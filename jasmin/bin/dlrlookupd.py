@@ -17,13 +17,13 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.redis.configs import RedisForJasminConfig
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
 
 class Options(usage.Options):
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/dlrlookupd.cfg' % ROOT_PATH,
+        ['config', 'c', '%s/dlrlookupd.cfg' % CONFIG_PATH,
          'Jasmin dlrlookupd configuration file'],
         ['id', 'i', 'master',
          'Daemon id, need to be different for each dlrlookupd daemon'],
@@ -33,7 +33,7 @@ class Options(usage.Options):
     ]
 
 
-class DlrlookupDaemon(object):
+class DlrlookupDaemon:
     def __init__(self, opt):
         self.options = opt
         self.components = {}
@@ -154,6 +154,7 @@ if __name__ == '__main__':
         ja_d = DlrlookupDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, ja_d.sighandler_stop)
+        signal.signal(signal.SIGTERM, ja_d.sighandler_stop)
         # Start DlrlookupDaemon
         ja_d.start()
 

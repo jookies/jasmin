@@ -8,12 +8,17 @@ from datetime import datetime
 from twisted.cred import error
 from twisted.internet import defer, reactor
 
-from jasmin.vendor.smpp.pdu.constants import data_coding_default_value_map
-from jasmin.vendor.smpp.pdu.operations import *
-from jasmin.vendor.smpp.pdu.pdu_types import CommandStatus, DataCoding, DataCodingDefault
-from jasmin.vendor.smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
-from jasmin.vendor.smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
-from jasmin.vendor.smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
+from smpp.pdu.constants import data_coding_default_value_map
+from smpp.pdu.error import (SMPPClientConnectionCorruptedError, SMPPRequestTimoutError,
+    SMPPSessionInitTimoutError, SMPPProtocolError,
+    SMPPGenericNackTransactionError, SMPPTransactionError,
+    SMPPClientError, SessionStateError)
+from smpp.pdu.operations import SubmitSM, GenericNack
+from smpp.pdu.pdu_types import (CommandId, CommandStatus, DataCoding,
+        DataCodingDefault, PDURequest, PDUResponse, EsmClassGsmFeatures)
+from smpp.twisted.protocol import SMPPClientProtocol as twistedSMPPClientProtocol
+from smpp.twisted.protocol import SMPPServerProtocol as twistedSMPPServerProtocol
+from smpp.twisted.protocol import (SMPPSessionStates, SMPPOutboundTxn,
                                                  SMPPOutboundTxnResult)
 from .error import *
 
@@ -47,7 +52,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         elif isinstance(pdu, PDUResponse):
             self.PDUResponseReceived(pdu)
         else:
-            getattr(self, "onPDU_%s" % str(pdu.commandId))(pdu)
+            getattr(self, "onPDU_%s" % pdu.commandId.name)(pdu)
 
     def connectionMade(self):
         twistedSMPPClientProtocol.connectionMade(self)
@@ -131,22 +136,23 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
     def endOutboundTransaction(self, respPDU):
         txn = self.closeOutboundTransaction(respPDU.seqNum)
 
-        # Any status of a SubmitSMResp must be handled as a normal status
-        if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
-            if not isinstance(respPDU, txn.request.requireAck):
-                txn.ackDeferred.errback(
-                    SMPPProtocolError, "Invalid PDU response type [%s] returned for request type [%s]" % (
-                        type(respPDU), type(txn.request)))
+        if txn is not None:
+            # Any status of a SubmitSMResp must be handled as a normal status
+            if isinstance(txn.request, SubmitSM) or respPDU.status == CommandStatus.ESME_ROK:
+                if not isinstance(respPDU, txn.request.requireAck):
+                    txn.ackDeferred.errback(
+                        SMPPProtocolError, "Invalid PDU response type [%s] returned for request type [%s]" % (
+                            type(respPDU), type(txn.request)))
+                    return
+                # Do callback
+                txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
                 return
-            # Do callback
-            txn.ackDeferred.callback(SMPPOutboundTxnResult(self, txn.request, respPDU))
-            return
 
-        if isinstance(respPDU, GenericNack):
-            txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
-            return
+            if isinstance(respPDU, GenericNack):
+                txn.ackDeferred.errback(SMPPGenericNackTransactionError(respPDU, txn.request))
+                return
 
-        txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
+            txn.ackDeferred.errback(SMPPTransactionError(respPDU, txn.request))
 
     def cancelOutboundTransactions(self, err):
         """Cancels LongSubmitSmTransactions when cancelling OutboundTransactions
@@ -155,7 +161,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         self.cancelLongSubmitSmTransactions(err)
 
     def cancelLongSubmitSmTransactions(self, err):
-        for item in self.longSubmitSmTxns.values():
+        for item in list(self.longSubmitSmTxns.values()):
             reqPDU = item['txn'].request
 
             self.log.exception(err)
@@ -274,14 +280,14 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             UDHI_INDICATOR_SET = False
             if hasattr(pdu.params['esm_class'], 'gsmFeatures'):
                 for gsmFeature in pdu.params['esm_class'].gsmFeatures:
-                    if str(gsmFeature) == 'UDHI_INDICATOR_SET':
+                    if gsmFeature == EsmClassGsmFeatures.UDHI_INDICATOR_SET:
                         UDHI_INDICATOR_SET = True
                         break
 
             # Discover any splitting method, otherwise, it is a single SubmitSm
             if 'sar_msg_ref_num' in pdu.params:
                 splitMethod = 'sar'
-            elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == '\x05\x00\x03':
+            elif UDHI_INDICATOR_SET and pdu.params['short_message'][:3] == b'\x05\x00\x03':
                 splitMethod = 'udh'
             else:
                 splitMethod = None
@@ -304,11 +310,9 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                         partedSmPdu.LongSubmitSm['segment_seqnum'] = partedSmPdu.params['sar_segment_seqnum']
                     elif splitMethod == 'udh':
                         # Using UDH options:
-                        partedSmPdu.LongSubmitSm['msg_ref_num'] = struct.unpack('!B', pdu.params['short_message'][3])[0]
-                        partedSmPdu.LongSubmitSm['total_segments'] = \
-                        struct.unpack('!B', pdu.params['short_message'][4])[0]
-                        partedSmPdu.LongSubmitSm['segment_seqnum'] = \
-                        struct.unpack('!B', pdu.params['short_message'][5])[0]
+                        partedSmPdu.LongSubmitSm['msg_ref_num'] = pdu.params['short_message'][3]
+                        partedSmPdu.LongSubmitSm['total_segments'] = pdu.params['short_message'][4]
+                        partedSmPdu.LongSubmitSm['segment_seqnum'] = pdu.params['short_message'][5]
 
                     self.preSubmitSm(partedSmPdu)
                     self.sendPDU(partedSmPdu)
@@ -385,7 +389,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         elif isinstance(pdu, PDUResponse):
             self.PDUResponseReceived(pdu)
         else:
-            getattr(self, "onPDU_%s" % str(pdu.commandId))(pdu)
+            getattr(self, "onPDU_%s" % pdu.commandId.name)(pdu)
 
     def connectionMade(self):
         twistedSMPPServerProtocol.connectionMade(self)
@@ -400,11 +404,11 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         if self.sessionState in [SMPPSessionStates.BOUND_RX,
                                  SMPPSessionStates.BOUND_TX,
                                  SMPPSessionStates.BOUND_TRX]:
-            if str(self.bind_type) == 'bind_transceiver':
+            if self.bind_type == CommandId.bind_transceiver:
                 self.factory.stats.dec('bound_trx_count')
-            elif str(self.bind_type) == 'bind_receiver':
+            elif self.bind_type == CommandId.bind_receiver:
                 self.factory.stats.dec('bound_rx_count')
-            elif str(self.bind_type) == 'bind_transmitter':
+            elif self.bind_type == CommandId.bind_transmitter:
                 self.factory.stats.dec('bound_tx_count')
 
     def onPDURequest_enquire_link(self, reqPDU):
@@ -433,6 +437,13 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
             if message_content is None:
                 message_content = pdu.params.get('message_payload', '')
 
+            # Do not log text for privacy reasons
+            # Added in #691
+            if self.config().log_privacy:
+                logged_content = '** %s byte content **' % len(message_content)
+            else:
+                logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', message_content)
+
         # Stats:
         self.factory.stats.set('last_sent_pdu_at', datetime.now())
         if pdu.commandId == CommandId.deliver_sm:
@@ -443,7 +454,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                     self.user.uid,
                     pdu.params['source_addr'],
                     pdu.params['destination_addr'],
-                    re.sub(r'[^\x20-\x7E]+', '.', message_content))
+                    logged_content)
                 self.user.getCnxStatus().smpps['deliver_sm_count'] += 1
         elif pdu.commandId == CommandId.data_sm:
             self.factory.stats.inc('data_sm_count')
@@ -452,7 +463,7 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
                               self.user.uid,
                               pdu.params['source_addr'],
                               pdu.params['destination_addr'],
-                              re.sub(r'[^\x20-\x7E]+', '.', message_content))
+                              logged_content)
                 self.user.getCnxStatus().smpps['data_sm_count'] += 1
         elif pdu.commandId == CommandId.submit_sm_resp:
             if pdu.status == CommandStatus.ESME_RTHROTTLED:
@@ -473,11 +484,11 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         twistedSMPPServerProtocol.onPDURequest_unbind(self, reqPDU)
 
         self.factory.stats.inc('unbind_count')
-        if str(self.bind_type) == 'bind_transceiver':
+        if self.bind_type == CommandId.bind_transceiver:
             self.factory.stats.dec('bound_trx_count')
-        elif str(self.bind_type) == 'bind_receiver':
+        elif self.bind_type == CommandId.bind_receiver:
             self.factory.stats.dec('bound_rx_count')
-        elif str(self.bind_type) == 'bind_transmitter':
+        elif self.bind_type == CommandId.bind_transmitter:
             self.factory.stats.dec('bound_tx_count')
 
     def PDUDataRequestReceived(self, reqPDU):
@@ -511,15 +522,16 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         bind_type = reqPDU.commandId
 
         # Update stats
-        if str(bind_type) == 'bind_transceiver':
+        if bind_type == CommandId.bind_transceiver:
             self.factory.stats.inc('bind_trx_count')
-        elif str(bind_type) == 'bind_receiver':
+        elif bind_type == CommandId.bind_receiver:
             self.factory.stats.inc('bind_rx_count')
-        elif str(bind_type) == 'bind_transmitter':
+        elif bind_type == CommandId.bind_transmitter:
             self.factory.stats.inc('bind_tx_count')
 
         # Check the authentication
-        username, password = reqPDU.params['system_id'], reqPDU.params['password']
+        username = reqPDU.params['system_id'].decode()
+        password = reqPDU.params['password'].decode()
 
         # Authenticate username and password
         try:
@@ -559,11 +571,11 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
         self.sendResponse(reqPDU, system_id=self.system_id)
 
         # Update stats
-        if str(bind_type) == 'bind_transceiver':
+        if bind_type == CommandId.bind_transceiver:
             self.factory.stats.inc('bound_trx_count')
-        elif str(bind_type) == 'bind_receiver':
+        elif bind_type == CommandId.bind_receiver:
             self.factory.stats.inc('bound_rx_count')
-        elif str(bind_type) == 'bind_transmitter':
+        elif bind_type == CommandId.bind_transmitter:
             self.factory.stats.inc('bound_tx_count')
 
     def sendDataRequest(self, pdu):

@@ -1,3 +1,4 @@
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from jasmin.protocols.smpp.factory import SMPPClientFactory
@@ -20,9 +21,11 @@ class SMPPClientService(service.Service):
         self.log = logging.getLogger(LOG_CATEGORY)
         if len(self.log.handlers) != 1:
             self.log.setLevel(self.SMPPClientServiceConfig.log_level)
-            handler = TimedRotatingFileHandler(
-                filename=self.SMPPClientServiceConfig.log_file,
-                when=self.SMPPClientServiceConfig.log_rotate)
+            if 'stdout' in self.SMPPClientServiceConfig.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=self.SMPPClientServiceConfig.log_file,
+                                                   when=self.SMPPClientServiceConfig.log_rotate)
             formatter = logging.Formatter(self.SMPPClientServiceConfig.log_format,
                                           self.SMPPClientServiceConfig.log_date_format)
             handler.setFormatter(formatter)

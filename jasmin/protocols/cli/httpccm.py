@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import time
 import jasmin
 import os
@@ -9,12 +9,13 @@ from jasmin.routing.jasminApi import HttpConnector
 # A config map between console-configuration keys and Httpcc keys.
 HttpccKeyMap = {'cid': 'cid', 'url': 'baseurl', 'method': 'method'}
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 # Since HttpccManager does not have any PB, there's no configuration for it
-# Persist and Load are using CONFIG_STORE_PATH for persisting/loading httpc connectors
-CONFIG_STORE_PATH = '%s/etc/jasmin/store' % ROOT_PATH
+# Persist and Load are using STORE_PATH for persisting/loading httpc connectors
+STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
 
 
 def HttpccBuild(fCallback):
@@ -36,7 +37,7 @@ def HttpccBuild(fCallback):
                         self.protocol.sessionCompletitions))
 
             httpcc = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 httpcc[key] = value
             try:
                 HttpccInstance = HttpConnector(**httpcc)
@@ -58,7 +59,7 @@ def HttpccBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class HttpccExist(object):
+class HttpccExist:
     """Check if httpcc cid exist before passing it to fCallback"""
 
     def __init__(self, cid_key):
@@ -71,7 +72,7 @@ class HttpccExist(object):
             opts = args[1]
             cid = getattr(opts, cid_key)
 
-            for httpcc_id in self.httpccs.iterkeys():
+            for httpcc_id in list(self.httpccs.keys()):
                 if cid == httpcc_id:
                     return fCallback(self, *args, **kwargs)
 
@@ -101,12 +102,12 @@ class HttpccManager(PersistableManager):
             protocol.log.error('Config loading error: %s' % str(e))
 
     def persist(self, arg, opts):
-        path = '%s/%s.httpccs' % (CONFIG_STORE_PATH, opts.profile)
+        path = '%s/%s.httpccs' % (STORE_PATH, opts.profile)
 
         try:
             # Write configuration with datetime stamp
-            fh = open(path, 'w')
-            fh.write('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release()))
+            fh = open(path, 'wb')
+            fh.write(('Persisted on %s [Jasmin %s]\n' % (time.strftime("%c"), jasmin.get_release())).encode('ascii'))
             fh.write(pickle.dumps(self.httpccs, pickle.HIGHEST_PROTOCOL))
             fh.close()
         except IOError:
@@ -129,16 +130,18 @@ class HttpccManager(PersistableManager):
                 prompt=False)
 
     def _load(self, profile='jcli-prod'):
-        path = '%s/%s.httpccs' % (CONFIG_STORE_PATH, profile)
+        path = '%s/%s.httpccs' % (STORE_PATH, profile)
 
         try:
             # Load configuration from file
-            fh = open(path, 'r')
+            fh = open(path, 'rb')
             lines = fh.readlines()
             fh.close()
 
             # Init migrator
-            cf = ConfigurationMigrator(context='httpcs', header=lines[0], data=''.join(lines[1:]))
+            cf = ConfigurationMigrator(context='httpcs',
+                                       header=lines[0].decode('ascii'),
+                                       data=b''.join(lines[1:]))
 
             # Apply configuration
             self.httpccs = cf.getMigratedData()
@@ -157,7 +160,7 @@ class HttpccManager(PersistableManager):
                 'Method'.ljust(6),
                 'URL'.ljust(64),
             ), prompt=False)
-            for cid, _httpcc in self.httpccs.iteritems():
+            for cid, _httpcc in self.httpccs.items():
                 counter += 1
                 self.protocol.sendData("#%s %s %s %s" % (
                     str(cid).ljust(16),
@@ -181,7 +184,7 @@ class HttpccManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Httpcc: (ok: save, ko: exit)',
-                                 completitions=HttpccKeyMap.keys())
+                                 completitions=list(HttpccKeyMap))
 
     @HttpccExist(cid_key='remove')
     def remove(self, arg, opts):

@@ -1,6 +1,7 @@
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
-import jasmin.vendor.txredisapi as redis
+import txredisapi as redis
 from twisted.internet import reactor
 from twisted.internet import defer
 from jasmin.redis.configs import RedisForJasminConfig
@@ -44,8 +45,11 @@ class RedisForJasminFactory(redis.RedisFactory):
         self.log = logging.getLogger(LOG_CATEGORY)
         if config is not None:
             self.log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=config.log_file,
-                                               when=config.log_rotate)
+            if 'stdout' in config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=config.log_file,
+                                                   when=config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
         else:
@@ -60,7 +64,7 @@ def makeConnection(host, port, dbid, poolsize, reconnect, isLazy, _RedisForJasmi
     uuid = "%s:%s" % (host, port)
     factory = RedisForJasminFactory(uuid, None, poolsize, isLazy, redis.ConnectionHandler, _RedisForJasminConfig)
     factory.continueTrying = reconnect
-    for _ in xrange(poolsize):
+    for _ in range(poolsize):
         reactor.connectTCP(host, port, factory)
 
     if isLazy:
@@ -84,42 +88,3 @@ def ConnectionWithConfiguration(_RedisForJasminConfig):
                           _RedisForJasminConfig.poolsize, True, False, _RedisForJasminConfig)
 
 
-@defer.inlineCallbacks
-def main():
-    config = RedisForJasminConfig()
-    rc = yield ConnectionWithConfiguration(config)
-    print(rc)
-
-    # Authenticate and select db
-    if config.password is not None:
-        rc.auth(config.password)
-        rc.select(config.dbid)
-
-    yield rc.set("foo", {'yes', 'no'})
-    yield rc.expire("foo", 2)
-
-    import time
-
-    time.sleep(1)
-    v = yield rc.get("foo")
-    print("1, foo:", repr(v))
-
-    time.sleep(1)
-    v = yield rc.get("foo")
-    print("2, foo:", repr(v))
-
-    time.sleep(1)
-    v = yield rc.get("foo")
-    print("3, foo:", repr(v))
-
-    msgid = "68ee8fe5-d5c8-4502-906a-c6b6b9fc2bed"
-    v = yield rc.get(msgid)
-    print("%s:" % msgid, repr(v))
-
-    yield rc.disconnect()
-
-
-# this only runs if the module was *not* imported
-if __name__ == '__main__':
-    main().addCallback(lambda ign: reactor.stop())
-    reactor.run()

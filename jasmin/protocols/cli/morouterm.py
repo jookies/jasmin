@@ -1,5 +1,5 @@
 # pylint: disable=W0611
-import cPickle as pickle
+import pickle
 import inspect
 import re
 
@@ -55,7 +55,7 @@ def MORouteBuild(fCallback):
                     self.protocol.sessionCompletitions))
 
             route = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['order', 'type', 'route_class', 'route_args']:
                     route[key] = value
             try:
@@ -112,7 +112,7 @@ def MORouteBuild(fCallback):
 
                 if len(RouteClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MORouteKeyMap.keys() + RouteClassArgs
+                    self.protocol.sessionCompletitions = list(MORouteKeyMap) + RouteClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (self.sessBuffer['route_class'], ', '.join(RouteClassArgs)))
@@ -205,7 +205,7 @@ def MORouteBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class MORouteExist(object):
+class MORouteExist:
     """Check if a mo route exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):
@@ -266,7 +266,7 @@ class MoRouterManager(PersistableManager):
             ), prompt=False)
 
             for e in moroutes:
-                order = e.keys()[0]
+                order = list(e)[0]
                 moroute = e[order]
                 counter += 1
 
@@ -276,9 +276,9 @@ class MoRouterManager(PersistableManager):
                     for c in moroute.connector:
                         if connectors != '':
                             connectors += ', '
-                        connectors += '%s(%s)' % (c.type, c.cid)
+                        connectors += '%s(%s)' % (c._type, c.cid)
                 else:
-                    connectors = '%s(%s)' % (moroute.connector.type, moroute.connector.cid)
+                    connectors = '%s(%s)' % (moroute.connector._type, moroute.connector.cid)
 
                 filters = ''
                 # Prepare display for filters
@@ -314,7 +314,7 @@ class MoRouterManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MO Route: (ok: save, ko: exit)',
-                                 completitions=MORouteKeyMap.keys())
+                                 completitions=list(MORouteKeyMap))
 
     @MORouteExist(order_key='remove')
     def remove(self, arg, opts):

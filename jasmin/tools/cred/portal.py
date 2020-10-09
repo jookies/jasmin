@@ -1,10 +1,10 @@
-from zope.interface import implements
+from zope.interface import implementer
 from twisted.spread import pb
 from twisted.cred import portal
 
 
-class JasminPBRealm(object):
-    implements(portal.IRealm)
+@implementer(portal.IRealm)
+class JasminPBRealm:
 
     def __init__(self, PBFactory):
         self.PBFactory = PBFactory
@@ -17,8 +17,8 @@ class JasminPBRealm(object):
         return pb.IPerspective, self.PBFactory, lambda: None
 
 
-class SmppsRealm(object):
-    implements(portal.IRealm)
+@implementer(portal.IRealm)
+class SmppsRealm:
 
     def __init__(self, smpps_id, router_factory):
         self.smpps_id = smpps_id

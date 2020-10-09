@@ -1,7 +1,7 @@
 # pylint: disable=W0611
 import re
 import inspect
-import cPickle as pickle
+import pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import MTInterceptorScript
@@ -20,9 +20,9 @@ class InvalidScriptSyntax(Exception):
 def validate_typed_script(script):
     """Will ensure the script exists and compilable"""
 
-    m = re.match(r'(python2)\((.*)\)', script, re.I)
+    m = re.match(r'(python3)\((.*)\)', script, re.I)
     if not m:
-        raise InvalidScriptSyntax('Invalid syntax for script, must be python2(/path/to/script).')
+        raise InvalidScriptSyntax('Invalid syntax for script, must be python3(/path/to/script).')
     else:
         language = m.group(1).lower()
         script_path = m.group(2)
@@ -50,7 +50,7 @@ def MTInterceptorBuild(fCallback):
                     self.protocol.sessionCompletitions))
 
             interceptor = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 if key not in ['order', 'type', 'interceptor_class', 'interceptor_args']:
                     interceptor[key] = value
             try:
@@ -105,7 +105,7 @@ def MTInterceptorBuild(fCallback):
 
                 if len(InterceptorClassArgs) > 0:
                     # Update completitions
-                    self.protocol.sessionCompletitions = MTInterceptorKeyMap.keys() + InterceptorClassArgs
+                    self.protocol.sessionCompletitions = list(MTInterceptorKeyMap) + InterceptorClassArgs
 
                     return self.protocol.sendData(
                         '%s arguments:\n%s' % (
@@ -132,7 +132,7 @@ def MTInterceptorBuild(fCallback):
                     try:
                         stype, script_path = validate_typed_script(arg)
 
-                        if stype == 'python2':
+                        if stype == 'python3':
                             # Open file and get its content
                             with open(script_path, 'r') as content_file:
                                 pyCode = content_file.read()
@@ -182,7 +182,7 @@ def MTInterceptorBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class MTInterceptorExist(object):
+class MTInterceptorExist:
     """Check if a mt interceptor exist with a given order before passing it to fCallback"""
 
     def __init__(self, order_key):
@@ -243,7 +243,7 @@ class MtInterceptorManager(PersistableManager):
             ), prompt=False)
 
             for e in mtinterceptors:
-                order = e.keys()[0]
+                order = list(e)[0]
                 mtinterceptor = e[order]
                 counter += 1
 
@@ -281,7 +281,7 @@ class MtInterceptorManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new MT Interceptor: (ok: save, ko: exit)',
-                                 completitions=MTInterceptorKeyMap.keys())
+                                 completitions=list(MTInterceptorKeyMap))
 
     @MTInterceptorExist(order_key='remove')
     def remove(self, arg, opts):

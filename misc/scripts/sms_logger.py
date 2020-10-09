@@ -27,7 +27,7 @@ Requirement:
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 """
 
-import cPickle as pickle
+import pickle as pickle
 import binascii
 from datetime import datetime
 from twisted.internet.defer import inlineCallbacks
@@ -38,7 +38,7 @@ from txamqp.protocol import AMQClient
 from txamqp.client import TwistedDelegate
 import txamqp.spec
 
-from jasmin.vendor.smpp.pdu.pdu_types import DataCoding
+from smpp.pdu.pdu_types import DataCoding
 
 import MySQLdb as mdb
 
@@ -46,10 +46,10 @@ q = {}
 
 @inlineCallbacks
 def gotConnection(conn, username, password):
-    print "Connected to broker, authenticating: %s" % username
+    print("Connected to broker, authenticating: %s" % username)
     yield conn.start({"LOGIN": username, "PASSWORD": password})
 
-    print "Authenticated. Ready to receive messages"
+    print("Authenticated. Ready to receive messages")
     chan = yield conn.channel(1)
     yield chan.channel_open()
 
@@ -71,7 +71,7 @@ def gotConnection(conn, username, password):
         host='127.0.0.1',
         db='jasmin')
 
-    print "Connected to MySQL"
+    print("Connected to MySQL")
     cursor = db.cursor()
 
     # Wait for messages
@@ -129,7 +129,7 @@ def gotConnection(conn, username, password):
 
             pdu = pickle.loads(msg.content.body)
             if props['message-id'] not in q:
-                print 'Got resp of an unknown submit_sm: %s' % props['message-id']
+                print('Got resp of an unknown submit_sm: %s' % props['message-id'])
                 chan.basic_ack(delivery_tag=msg.delivery_tag)
                 continue
 
@@ -166,7 +166,7 @@ def gotConnection(conn, username, password):
 
             # It's a dlr
             if props['message-id'] not in q:
-                print 'Got dlr of an unknown submit_sm: %s' % props['message-id']
+                print('Got dlr of an unknown submit_sm: %s' % props['message-id'])
                 chan.basic_ack(delivery_tag=msg.delivery_tag)
                 continue
 
@@ -178,7 +178,7 @@ def gotConnection(conn, username, password):
                 props['message-id'],))
             db.commit()
         else:
-            print 'unknown route: %s' % msg.routing_key
+            print('unknown route: %s' % msg.routing_key)
 
         chan.basic_ack(delivery_tag=msg.delivery_tag)
 

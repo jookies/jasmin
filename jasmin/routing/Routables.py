@@ -6,7 +6,7 @@ More info: http://docs.jasminsms.com/en/latest/routing/index.html
 from datetime import datetime
 
 from jasmin.routing.jasminApi import *
-from jasmin.vendor.smpp.pdu.pdu_types import PDURequest
+from smpp.pdu.pdu_types import PDURequest
 
 
 class InvalidRoutableParameterError(Exception):
@@ -30,7 +30,7 @@ class InvalidLockError(Exception):
     """
 
 
-class Routable(object):
+class Routable:
     """Generic Routable:
 
     Routable represents a PDU and optionnaly its owner and source Connector, it can be

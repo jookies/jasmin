@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.routing.jasminApi import Group
 
@@ -22,7 +22,7 @@ def GroupBuild(fCallback):
                 return self.protocol.sendData('You must set Group id (gid) before saving !')
 
             group = {}
-            for key, value in self.sessBuffer.iteritems():
+            for key, value in self.sessBuffer.items():
                 group[key] = value
             try:
                 GroupInstance = Group(**group)
@@ -44,7 +44,7 @@ def GroupBuild(fCallback):
     return parse_args_and_call_with_instance
 
 
-class GroupExist(object):
+class GroupExist:
     """Check if Group gid exist before passing it to fCallback"""
 
     def __init__(self, gid_key):
@@ -119,7 +119,7 @@ class GroupsManager(PersistableManager):
     def add(self, arg, opts):
         return self.startSession(self.add_session,
                                  annoucement='Adding a new Group: (ok: save, ko: exit)',
-                                 completitions=GroupKeyMap.keys())
+                                 completitions=list(GroupKeyMap))
 
     @GroupExist(gid_key='enable')
     def enable(self, arg, opts):

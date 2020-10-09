@@ -1,15 +1,15 @@
-import cPickle as pickle
+import pickle as _pickle
 
 from txamqp.content import Content
 
 
 class PDU(Content):
-    pickleProtocol = pickle.HIGHEST_PROTOCOL
+    pickleProtocol = _pickle.HIGHEST_PROTOCOL
 
     def pickle(self, data):
-        return pickle.dumps(data, self.pickleProtocol)
+        return _pickle.dumps(data, self.pickleProtocol)
 
-    def __init__(self, body="", children=None, properties=None, pickleProtocol=2):
+    def __init__(self, body="", children=None, properties=None, pickleProtocol=_pickle.HIGHEST_PROTOCOL):
         self.pickleProtocol = pickleProtocol
 
         body = self.pickle(body)
@@ -18,7 +18,7 @@ class PDU(Content):
 
 
 class RoutedDeliverSmContent(PDU):
-    def __init__(self, deliver_sm, msgid, scid, dcs, route_type='simple', trycount=0, pickleProtocol=2):
+    def __init__(self, deliver_sm, msgid, scid, dcs, route_type='simple', trycount=0, pickleProtocol=_pickle.HIGHEST_PROTOCOL):
         props = {}
 
         if type(dcs) != list:

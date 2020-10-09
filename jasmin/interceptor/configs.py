@@ -2,13 +2,16 @@
 Config file handlers for 'interceptor' section in interceptor.cfg
 """
 
+import binascii
 import logging
 import os
 
-from jasmin.config.tools import ConfigFile
+from jasmin.config import ConfigFile
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+RESOURCE_PATH = os.getenv('RESOURCE_PATH', '%s/resource/' % CONFIG_PATH)
+LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class InterceptorPBConfig(ConfigFile):
@@ -22,13 +25,13 @@ class InterceptorPBConfig(ConfigFile):
 
         self.authentication = self._getbool('interceptor', 'authentication', True)
         self.admin_username = self._get('interceptor', 'admin_username', 'iadmin')
-        self.admin_password = self._get(
-            'interceptor', 'admin_password', "dd8b84cdb60655fed3b9b2d668c5bd9e").decode('hex')
+        self.admin_password = binascii.unhexlify(self._get('interceptor', 'admin_password',
+                                                           "dd8b84cdb60655fed3b9b2d668c5bd9e"))
 
         # Logging
         self.log_level = logging.getLevelName(self._get('interceptor', 'log_level', 'INFO'))
         self.log_rotate = self._get('interceptor', 'log_rotate', 'W6')
-        self.log_file = self._get('interceptor', 'log_file', '%s/var/log/jasmin/interceptor.log' % ROOT_PATH)
+        self.log_file = self._get('interceptor', 'log_file', '%s/interceptor.log' % LOG_PATH)
         self.log_format = self._get(
             'interceptor', 'log_format', '%(asctime)s %(levelname)-8s %(process)d %(message)s')
         self.log_date_format = self._get('interceptor', 'log_date_format', '%Y-%m-%d %H:%M:%S')

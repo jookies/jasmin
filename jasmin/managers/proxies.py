@@ -1,6 +1,6 @@
 from jasmin.tools.proxies import ConnectedPB
 from jasmin.tools.proxies import JasminPBProxy
-from jasmin.vendor.smpp.pdu.operations import SubmitSM
+from smpp.pdu.operations import SubmitSM
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.routing.Bills import SubmitSmBill
 
@@ -82,7 +82,7 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
 
         # Set the message priority
         if SubmitSmPDU.params['priority_flag'] is not None:
-            priority_flag = SubmitSmPDU.params['priority_flag'].index
+            priority_flag = SubmitSmPDU.params['priority_flag']._value_
         else:
             priority_flag = 0
 

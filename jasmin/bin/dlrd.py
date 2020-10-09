@@ -16,13 +16,12 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.configs import DLRThrowerConfig
 from jasmin.routing.throwers import DLRThrower
 
-# Related to travis-ci builds
 ROOT_PATH = os.getenv('ROOT_PATH', '/')
-
+CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
 class Options(usage.Options):
     optParameters = [
-        ['config', 'c', '%s/etc/jasmin/dlr.cfg' % ROOT_PATH,
+        ['config', 'c', '%s/dlr.cfg' % CONFIG_PATH,
          'Jasmin dlrd configuration file'],
         ['id', 'i', 'master',
          'Daemon id, need to be different for each dlrd daemon'],
@@ -32,7 +31,7 @@ class Options(usage.Options):
     ]
 
 
-class DlrDaemon(object):
+class DlrDaemon:
     def __init__(self, opt):
         self.options = opt
         self.components = {}
@@ -163,6 +162,7 @@ if __name__ == '__main__':
         dlr_d = DlrDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, dlr_d.sighandler_stop)
+        signal.signal(signal.SIGTERM, dlr_d.sighandler_stop)
         # Start DlrDaemon
         dlr_d.start()
 

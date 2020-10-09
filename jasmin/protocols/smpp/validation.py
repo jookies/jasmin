@@ -1,11 +1,12 @@
 """
 SMPP validators
 """
+from enum import Enum
 
 from jasmin.protocols.validation import AbstractCredentialValidator
 from jasmin.protocols.smpp.error import *
-from jasmin.vendor.smpp.pdu.constants import priority_flag_value_map
-from jasmin.vendor.smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
+from smpp.pdu.constants import priority_flag_value_map
+from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 
 
 class SmppsCredentialValidator(AbstractCredentialValidator):
@@ -32,7 +33,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
             raise AuthorizationError(
                 'Authorization failed for username [%s] (Setting source address is not authorized).' % self.user)
         if (not self.user.mt_credential.getAuthorization('set_priority') and
-                    str(self.submit_sm.params['priority_flag']) != priority_flag_value_map[0]):
+                    self._convert_to_string('priority_flag') != priority_flag_value_map[0]):
             raise AuthorizationError(
                 'Authorization failed for username [%s] (Setting priority is not authorized).' % self.user)
 
@@ -41,24 +42,25 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
 
         if (self.user.mt_credential.getValueFilter('destination_address') is None or
                 not self.user.mt_credential.getValueFilter('destination_address').match(
-                    self.submit_sm.params['destination_addr'])):
+                    self._convert_to_string('destination_addr'))):
             raise FilterError(
                 'Value filter failed for username [%s] (destination_address filter mismatch).' % self.user,
                 'destination_address')
         if (self.user.mt_credential.getValueFilter('source_address') is None or
                 not self.user.mt_credential.getValueFilter('source_address').match(
-                    self.submit_sm.params['source_addr'])):
+                    self._convert_to_string('source_addr'))):
             raise FilterError(
                 'Value filter failed for username [%s] (source_address filter mismatch).' % self.user,
                 'source_address')
         if (self.user.mt_credential.getValueFilter('priority') is None or
                 not self.user.mt_credential.getValueFilter('priority').match(
-                    str(self.submit_sm.params['priority_flag'].index))):
+                    self._convert_to_string('priority_flag'))):
             raise FilterError(
                 'Value filter failed for username [%s] (priority filter mismatch).' % self.user,
                 'priority')
         if (self.user.mt_credential.getValueFilter('content') is None or
-                not self.user.mt_credential.getValueFilter('content').match(self.submit_sm.params['short_message'])):
+                not self.user.mt_credential.getValueFilter('content').match(
+                    self._convert_to_string('short_message'))):
             raise FilterError(
                 'Value filter failed for username [%s] (content filter mismatch).' % self.user,
                 'content')
@@ -81,3 +83,14 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
             self._checkSendFilters()
         else:
             raise CredentialValidationError('Unknown action [%s].' % self.action)
+
+    def _convert_to_string(self, arg_name):
+        value = self.submit_sm.params[arg_name]
+        if isinstance(value, bytes):
+            return value.decode()
+        if isinstance(value, str):
+            return value
+        if isinstance(value, Enum):
+            # this is likely priority flag and we need the value minus one
+            return str(value._value_-1)
+        return str(value)

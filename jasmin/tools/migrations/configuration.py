@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import re
 import logging
 from dateutil.parser import parse as date_parse
@@ -51,7 +51,7 @@ def version_is_valid(version, condition):
         return False
 
 
-class ConfigurationMigrator(object):
+class ConfigurationMigrator:
     """Responsible of migrating old saved configuration to recent definition, if any"""
 
     def __init__(self, context, header, data):
@@ -90,6 +90,6 @@ class ConfigurationMigrator(object):
             if valid:
                 for operation in m['operations']:
                     self.log.info('Migrating old data [%s] from v%s to v%s by calling %s(data)',
-                                  self.context, self.version, jasmin.get_release(), operation.func_name)
+                                  self.context, self.version, jasmin.get_release(), operation.__name__)
                     self.data = operation(self.data, context=self.context)
         return self.data
