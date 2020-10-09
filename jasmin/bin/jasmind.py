@@ -537,6 +537,7 @@ if __name__ == '__main__':
         ja_d = JasminDaemon(options)
         # Setup signal handlers
         signal.signal(signal.SIGINT, ja_d.sighandler_stop)
+        signal.signal(signal.SIGTERM, ja_d.sighandler_stop)
         # Start JasminDaemon
         ja_d.start()
 
