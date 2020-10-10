@@ -55,7 +55,7 @@ a MO message (deliver_sm) interception rule through :doc:`jcli management consol
   > type DefaultInterceptor
   <class 'jasmin.routing.Interceptors.DefaultInterceptor'> arguments:
   script
-  > script python2(/opt/jasmin-scripts/interception/mo-interceptor.py)
+  > script python3(/opt/jasmin-scripts/interception/mo-interceptor.py)
   > ok
   Successfully added MOInterceptor [DefaultInterceptor] with order:0
 
@@ -67,14 +67,14 @@ filtered rule instead of a default one::
   > type StaticMTInterceptor
   <class 'jasmin.routing.Interceptors.DefaultInterceptor'> arguments:
   filters, script
-  > script python2(/opt/jasmin-scripts/interception/mt-interceptor.py)
+  > script python3(/opt/jasmin-scripts/interception/mt-interceptor.py)
   > filters U-foo;DA-33
   > order 100
   > ok
   Successfully added MTInterceptor [StaticMTInterceptor] with order:100
 
 As show in the above examples, the interception rules are straightforward, any matched message will be handed to
-the script you set through the **script python2(<path_to_pyfile>)** instruction.
+the script you set through the **script python3(<path_to_pyfile>)** instruction.
 
 When your python script is called it will get the following global variables set:
 
