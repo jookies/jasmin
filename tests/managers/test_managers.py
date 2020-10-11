@@ -833,30 +833,30 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
             submitCounter += 1
 
-        # Wait for 2 seconds before stopping
-        yield waitFor(2)
-
-        yield self.stop(localConfig.id)
-
-        # Wait for unbound state
-        yield waitFor(2)
-
-        # Save the count before starting the connector
-        _submitRecordsCount = len(self.SMSCPort.factory.lastClient.submitRecords)
-
-        # Wait for 3 seconds before starting again
-        yield waitFor(3)
-
-        # Start the connector again
-        yield self.start(localConfig.id)
-
-        # Wait for 5 seconds before stopping , all the rest of the queue must be sent
+        # Wait for 5 seconds before stopping
         yield waitFor(5)
 
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        yield waitFor(2)
+        yield waitFor(5)
+
+        # Save the count before starting the connector
+        _submitRecordsCount = len(self.SMSCPort.factory.lastClient.submitRecords)
+
+        # Wait for 5 seconds before starting again
+        yield waitFor(5)
+
+        # Start the connector again
+        yield self.start(localConfig.id)
+
+        # Wait for 10 seconds before stopping , all the rest of the queue must be sent
+        yield waitFor(10)
+
+        yield self.stop(localConfig.id)
+
+        # Wait for unbound state
+        yield waitFor(10)
 
         # Update the counter
         _submitRecordsCount += len(self.SMSCPort.factory.lastClient.submitRecords)
