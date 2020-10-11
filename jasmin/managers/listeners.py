@@ -2,7 +2,6 @@
 import pickle
 import sys
 import logging
-import struct
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 

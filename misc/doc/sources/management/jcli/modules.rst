@@ -730,11 +730,11 @@ Here's an example of adding a **DefaultInterceptor** to a python script::
   > type DefaultInterceptor
   <class 'jasmin.routing.Interceptors.DefaultInterceptor'> arguments:
   script
-  > script python2(/opt/jasmin-scripts/interception/mo-interceptor.py)
+  > script python3(/opt/jasmin-scripts/interception/mo-interceptor.py)
   > ok
   Successfully added MOInterceptor [DefaultInterceptor] with order:0
 
-.. note:: As of now, only **python2** script is permitted.
+.. note:: As of now, only **python3** script is permitted.
 
 .. note:: Pay attention that the given script is copied to Jasmin core, do not expect Jasmin to refresh the script
   code when you update it, you'll need to redefine the *mointerceptor* rule again so Jasmin will refresh the script.
@@ -751,7 +751,7 @@ Here's an example of adding a **StaticMOInterceptor** to a python script::
   filters, script
   > order 10
   > filters filter_1
-  > script python2(/opt/jasmin-scripts/interception/mo-interceptor.py)
+  > script python3(/opt/jasmin-scripts/interception/mo-interceptor.py)
   > ok
   Successfully added MOInterceptor [StaticMOInterceptor] with order:10
 
@@ -842,11 +842,11 @@ Here's an example of adding a **DefaultInterceptor** to a python script::
   > type DefaultInterceptor
   <class 'jasmin.routing.Interceptors.DefaultInterceptor'> arguments:
   script
-  > script python2(/opt/jasmin-scripts/interception/mt-interceptor.py)
+  > script python3(/opt/jasmin-scripts/interception/mt-interceptor.py)
   > ok
   Successfully added MTInterceptor [DefaultInterceptor] with order:0
 
-.. note:: As of now, only **python2** script is permitted.
+.. note:: As of now, only **python3** script is permitted.
 
 .. note:: Pay attention that the given script is copied to Jasmin core, do not expect Jasmin to refresh the script
   code when you update it, you'll need to redefine the *mtinterceptor* rule again so Jasmin will refresh the script.
@@ -863,7 +863,7 @@ Here's an example of adding a **StaticMTInterceptor** to a python script::
   filters, script
   > order 10
   > filters filter_1
-  > script python2(/opt/jasmin-scripts/interception/mt-interceptor.py)
+  > script python3(/opt/jasmin-scripts/interception/mt-interceptor.py)
   > ok
   Successfully added MTInterceptor [StaticMTInterceptor] with order:10
 
