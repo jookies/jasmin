@@ -2,6 +2,7 @@
 include README.rst
 include LICENSE
 include requirements.txt
+include requirements-test.txt
 recursive-include misc *
 
 # Prune stray bytecode files.
