@@ -70,7 +70,7 @@ Credits
 * SMPP 3.4 Client based on smpp.twisted: https://github.com/mozes/smpp.twisted
 * GSMP 3.38 based on Python messaging: https://github.com/pmarti/python-messaging
 
-.. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png
+.. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png?branch=master
     :alt: Build status
     :scale: 100%
     :target: https://travis-ci.org/jookies/jasmin
