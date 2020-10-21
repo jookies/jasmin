@@ -7,10 +7,10 @@ def parse_requirements(filename):
 
 setup(
     name="jasmin",
-    version='0.10.5',
+    version='0.10.6',
     author="Jookies LTD",
     author_email="jasmin@jookies.net",
-    url="http://www.jasminsms.com",
+    url="https://www.jasminsms.com",
     license="Apache v2.0",
     description=('Jasmin is a very complete open source SMS Gateway '
                  'with many enterprise-class features.'),
