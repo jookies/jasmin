@@ -32,9 +32,9 @@ Ubuntu
 `Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
     wget -qO - http://bit.ly/jasmin-deb-repo | sudo bash
-    sudo apt-get install python-jasmin
+    sudo apt-get install jasmin-sms-gateway
 
-.. note:: Ubuntu 15.04 and higher versions are supported.
+.. note:: Ubuntu 20.04 and higher versions are supported, earlier versions of Ubuntu may use "python-jasmin" package name (Unsupported).
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 

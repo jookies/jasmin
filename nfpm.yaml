@@ -1,0 +1,84 @@
+name: "jasmin-sms-gateway"
+arch: "amd64"
+platform: "linux"
+version: "v0.10.6"
+section: "default"
+priority: "extra"
+maintainer: "Jookies LTD <jasmin@jookies.net>"
+description: |
+  SMS Gateway
+  Jasmin is a very complete open source SMS Gateway with many enterprise-class
+  features such as:
+  .
+   - SMPP Client / Server
+   - HTTP Client / Server
+   - Console-based configuration, no service restart required
+   - Based on AMQP broker for store&forward mechanisms and other queuing systems
+   - Using Redis for in-memory DLR tracking and billing
+   - Advanced message routing/filtering
+   - Web and console ui for management
+   - Supports Unicode (UTF-8) for sending out multilingual SMS
+   - Supports easy creation and sending of specialized/binary SMS
+   - Supports concatenated SMS strings (long SMS)
+  .
+  Jasmin relies heavily on message queuing through message brokers
+  (Using AMQP), it is designed for performance, high traffic loads and full
+  in-memory execution.
+vendor: "Jookies"
+homepage: "https://jasminsms.com"
+license: "Apache 2"
+replaces:
+- python-jasmin
+provides:
+- jasmin-sms-gateway
+depends:
+- python3 (>= 3.7)
+- rabbitmq-server
+- redis-server
+- adduser
+- python3-twisted
+- python3-dateutil
+- python3-pyparsing
+- python3-lockfile
+- python3-requests
+- python3-setuptools
+- python3-tz
+- python3-mimeparse
+- python3-celery
+- python-celery-common
+- python3-falcon
+- python3-redis
+- python3-amqp
+- python3-tabulate
+- python3-treq
+# These dependencies come from Jookies package repository
+- python3-txredisapi
+- python3-txamqp3
+- python3-smpp-pdu3
+- python3-smpp-twisted3
+- python3-messaging
+empty_folders:
+  - /var/log/jasmin
+  - /etc/jasmin/store
+config_files:
+  ./misc/config/jasmin.cfg: "/etc/jasmin/jasmin.cfg"
+  ./misc/config/interceptor.cfg: "/etc/jasmin/interceptor.cfg"
+  ./misc/config/dlr.cfg: "/etc/jasmin/dlr.cfg"
+  ./misc/config/dlrlookupd.cfg: "/etc/jasmin/dlrlookupd.cfg"
+  ./misc/config/resource/amqp0-9-1.xml: "/etc/jasmin/resource/amqp0-9-1.xml"
+  ./misc/config/resource/amqp0-8.stripped.rabbitmq.xml: "/etc/jasmin/resource/amqp0-8.stripped.rabbitmq.xml"
+  ./misc/config/systemd/jasmind.service: "/usr/lib/systemd/system/jasmind.service"
+  ./misc/config/systemd/jasmin-celery.service: "/usr/lib/systemd/system/jasmin-celery.service"
+  ./misc/config/systemd/jasmin-dlrd.service: "/usr/lib/systemd/system/jasmin-dlrd.service"
+  ./misc/config/systemd/jasmin-dlrlookupd.service: "/usr/lib/systemd/system/jasmin-dlrlookupd.service"
+  ./misc/config/systemd/jasmin-interceptord.service: "/usr/lib/systemd/system/jasmin-interceptord.service"
+  ./misc/config/systemd/jasmin-restapi.service: "/usr/lib/systemd/system/jasmin-restapi.service"
+files:
+  ./jasmin/**/*: /usr/lib/python3/dist-packages/jasmin/
+  ./jasmin/bin/jasmind.py: /usr/local/bin/jasmind.py
+  ./jasmin/bin/interceptord.py: /usr/local/bin/interceptord.py
+  ./jasmin/bin/dlrd.py: /usr/local/bin/dlrd.py
+  ./jasmin/bin/dlrlookupd.py: /usr/local/bin/dlrlookupd.py
+scripts:
+  postinstall: ./misc/packaging/scripts/common-postinstall.sh
+  preremove: ./misc/packaging/scripts/common-preremove.sh
