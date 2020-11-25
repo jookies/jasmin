@@ -13,7 +13,7 @@ Jasmin installation is provided as rpm & deb Linux packages, docker image and py
 Prerequisites & Dependencies
 ****************************
 
-`Jasmin <http://jasminsms.com/>`_ requires Python 2.7 or newer (but not Python 3) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
+`Jasmin <http://jasminsms.com/>`_ requires Python 3 (Python 2 is no more supported) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
 
 .. hint:: Latest pip module installation: # **curl https://bootstrap.pypa.io/get-pip.py | python**
 
@@ -31,44 +31,38 @@ Ubuntu
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-    wget -qO - http://bit.ly/jasmin-deb-repo | sudo bash
+    curl -s http://bit.ly/jasmin-deb-repo | sudo bash
     sudo apt-get install jasmin-sms-gateway
 
 .. note:: Ubuntu 20.04 and higher versions are supported, earlier versions of Ubuntu may use "python-jasmin" package name (Unsupported).
+
+You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 
     sudo systemctl enable jasmind
     sudo systemctl start jasmind
 
-.. note:: redis and rabbitmq must be started with jasmin.
+.. note:: redis and rabbitmq must be installed and already running.
 
 RHEL & CentOS
 *************
 
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
 
-    wget -qO - http://bit.ly/jasmin-rpm-repo | sudo bash
+    curl -s http://bit.ly/jasmin-rpm-repo | sudo bash
     sudo yum install python-jasmin
 
-.. note:: Red Hat Enterprise Linux 7 & CentOS 7 are supported.
+.. note:: Red Hat Enterprise Linux 8 & CentOS 8 are supported, earlier version of RHEL and CentOS may use "python-jasmin" package name (Unsupported).
 
-You may get the following error if **RabbitMQ** or **Redis** server are not installed::
-
-    No package redis available.
-    No package rabbitmq-server available.
-
-These requirements are available from the `EPEL repository <https://fedoraproject.org/wiki/EPEL>`_, you'll need to enable it before installing Jasmin::
-
-    ## RHEL/CentOS 7 64-Bit ##
-    yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
 
 Once Jasmin installed, you may simply start the **jasmind** service::
 
     sudo systemctl enable jasmind
     sudo systemctl start jasmind
 
-.. note:: redis and rabbitmq must be started with jasmin.
+.. note:: redis and rabbitmq must be installed and already running.
 
 Pypi
 ****

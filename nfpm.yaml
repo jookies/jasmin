@@ -31,32 +31,6 @@ replaces:
 - python-jasmin
 provides:
 - jasmin-sms-gateway
-depends:
-- python3 (>= 3.7)
-- rabbitmq-server
-- redis-server
-- adduser
-- python3-twisted
-- python3-dateutil
-- python3-pyparsing
-- python3-lockfile
-- python3-requests
-- python3-setuptools
-- python3-tz
-- python3-mimeparse
-- python3-celery
-- python-celery-common
-- python3-falcon
-- python3-redis
-- python3-amqp
-- python3-tabulate
-- python3-treq
-# These dependencies come from Jookies package repository
-- python3-txredisapi
-- python3-txamqp3
-- python3-smpp-pdu3
-- python3-smpp-twisted3
-- python3-messaging
 empty_folders:
   - /var/log/jasmin
   - /etc/jasmin/store
@@ -82,3 +56,55 @@ files:
 scripts:
   postinstall: ./misc/packaging/scripts/common-postinstall.sh
   preremove: ./misc/packaging/scripts/common-preremove.sh
+overrides:
+  deb:
+    depends:
+      - python3 (>= 3.7)
+      - adduser
+      - python3-twisted
+      - python3-dateutil
+      - python3-pyparsing
+      - python3-lockfile
+      - python3-requests
+      - python3-setuptools
+      - python3-tz
+      - python3-mimeparse
+      - python3-celery
+      - python-celery-common
+      - python3-falcon
+      - python3-redis
+      - python3-amqp
+      - python3-tabulate
+      - python3-treq
+      # These dependencies come from Jookies package repository
+      - python3-txredisapi
+      - python3-txamqp3
+      - python3-smpp-pdu3
+      - python3-smpp-twisted3
+      - python3-messaging
+  rpm:
+    depends:
+      - python3 (>= 3.7)
+
+      - adduser
+      - python3-twisted
+      - python3-dateutil
+      - python3-pyparsing
+      - python3-lockfile
+      - python3-requests
+      - python3-setuptools
+      - python3-tz
+      - python3-mimeparse
+      - python3-celery
+      - python-celery-common
+      - python3-falcon
+      - python3-redis
+      - python3-amqp
+      - python3-tabulate
+      - python3-treq
+      # These dependencies come from Jookies package repository
+      - python3-txredisapi
+      - python3-txamqp3
+      - python3-smpp-pdu3
+      - python3-smpp-twisted3
+      - python3-messaging
