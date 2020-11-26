@@ -160,8 +160,8 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_persist(self):
         expectedList = [
-            r'user configuration persisted \(profile\:jcli-prod\)',
             r'group configuration persisted \(profile\:jcli-prod\)',
+            r'user configuration persisted \(profile\:jcli-prod\)',
             r'mointerceptor configuration persisted \(profile\:jcli-prod\)',
             r'mtinterceptor configuration persisted \(profile\:jcli-prod\)',
             r'morouter configuration persisted \(profile\:jcli-prod\)',
@@ -176,8 +176,8 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_persist_profile(self):
         expectedList = [
-            r'user configuration persisted \(profile\:testprofile\)',
             r'group configuration persisted \(profile\:testprofile\)',
+            r'user configuration persisted \(profile\:testprofile\)',
             r'mointerceptor configuration persisted \(profile\:testprofile\)',
             r'mtinterceptor configuration persisted \(profile\:testprofile\)',
             r'morouter configuration persisted \(profile\:testprofile\)',
@@ -196,8 +196,8 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
         yield self._test(r'jcli : ', commands)
 
         expectedList = [
-            r'user configuration loaded \(profile\:jcli-prod\)',
             r'group configuration loaded \(profile\:jcli-prod\)',
+            r'user configuration loaded \(profile\:jcli-prod\)',
             r'mointerceptor configuration loaded \(profile\:jcli-prod\)',
             r'mtinterceptor configuration loaded \(profile\:jcli-prod\)',
             r'morouter configuration loaded \(profile\:jcli-prod\)',
@@ -216,8 +216,8 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
         yield self._test(r'jcli : ', commands)
 
         expectedList = [
-            r'user configuration loaded \(profile\:testprofile\)',
             r'group configuration loaded \(profile\:testprofile\)',
+            r'user configuration loaded \(profile\:testprofile\)',
             r'mointerceptor configuration loaded \(profile\:testprofile\)',
             r'mtinterceptor configuration loaded \(profile\:testprofile\)',
             r'morouter configuration loaded \(profile\:testprofile\)',
@@ -232,8 +232,8 @@ class PersistanceTestCases(jCliWithoutAuthTestCases):
     @defer.inlineCallbacks
     def test_load_unknown_profile(self):
         expectedList = [
-            r'Failed to load user configuration \(profile\:any_profile\)',
             r'Failed to load group configuration \(profile\:any_profile\)',
+            r'Failed to load user configuration \(profile\:any_profile\)',
             r'Failed to load mointerceptor configuration \(profile\:any_profile\)',
             r'Failed to load mtinterceptor configuration \(profile\:any_profile\)',
             r'Failed to load morouter configuration \(profile\:any_profile\)',

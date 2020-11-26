@@ -69,8 +69,8 @@ class JCliProtocol(CmdProtocol):
             self.terminal.write('Authentication required.\n\n')
 
         # Provision managers
-        self.managers = {'user': UsersManager(self, self.factory.pb),
-                         'group': GroupsManager(self, self.factory.pb),
+        self.managers = {'group': GroupsManager(self, self.factory.pb),
+                         'user': UsersManager(self, self.factory.pb),
                          'mointerceptor': MoInterceptorManager(self, self.factory.pb),
                          'mtinterceptor': MtInterceptorManager(self, self.factory.pb),
                          'morouter': MoRouterManager(self, self.factory.pb),
