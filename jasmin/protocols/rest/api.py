@@ -137,9 +137,12 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
-        for k, v in request_args.items():
+        _request_args = request_args.copy() # void dictionary key change error in python 3.8
+        for k, v in _request_args.items():
             del (request_args[k])
             request_args[re.sub('_', '-', k)] = v
+
+        del _request_args # Unset the variable
 
         self.build_response_from_proxy_result(
             response,
@@ -214,9 +217,12 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
 
             # Convert _ to -
             # Added for compliance with json encoding/decoding constraints on dev env like .Net
-            for k, v in message_params.items():
+            _message_params = message_params.copy() # Avoid dictionary key changed error in python 3.8
+            for k, v in _message_params.items():
                 del (message_params[k])
                 message_params[re.sub('_', '-', k)] = v
+
+            del _message_params # Unset the variable
 
             # Ignore message if these args are not found
             if 'to' not in message_params or ('content' not in message_params and 'hex-content' not in message_params):
