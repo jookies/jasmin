@@ -29,10 +29,10 @@ RUN chown jasmin:jasmin ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH
 
 WORKDIR /build
 
-RUN pip install -e git+https://github.com/jookies/txamqp.git@master#egg=txAMQP
-RUN pip install -e git+https://github.com/jookies/python-messaging.git@master#egg=messaging
-RUN pip install -e git+https://github.com/jookies/smpp.pdu.git@master#egg=smpp.pdu
-RUN pip install -e git+https://github.com/jookies/smpp.twisted.git@master#egg=smpp.twisted
+RUN pip install -e git+https://github.com/jookies/txamqp.git@master#egg=txamqp3
+RUN pip install -e git+https://github.com/jookies/python-messaging.git@master#egg=python-messaging
+RUN pip install -e git+https://github.com/jookies/smpp.pdu.git@master#egg=smpp.pdu3
+RUN pip install -e git+https://github.com/jookies/smpp.twisted.git@master#egg=smpp.twisted3
 
 COPY . .
 
