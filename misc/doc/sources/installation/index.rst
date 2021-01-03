@@ -38,6 +38,8 @@ Ubuntu
 
 You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
 
+.. note:: redis and rabbitmq must be installed and already running.
+
 Once Jasmin installed, you may simply start the **jasmind** service::
 
     sudo systemctl enable jasmind
@@ -59,12 +61,13 @@ RHEL & CentOS
 
 You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
 
+.. note:: redis and rabbitmq must be installed and already running.
+
 Once Jasmin installed, you may simply start the **jasmind** service::
 
     sudo systemctl enable jasmind
     sudo systemctl start jasmind
 
-.. note:: redis and rabbitmq must be installed and already running.
 
 Pypi
 ****
