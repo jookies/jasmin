@@ -28,31 +28,62 @@ vendor: "Jookies"
 homepage: "https://jasminsms.com"
 license: "Apache 2"
 replaces:
-- python-jasmin
+  - python-jasmin
+  - jasmin-sms-gateway
 provides:
-- jasmin-sms-gateway
+  - jasmin-sms-gateway
 empty_folders:
   - /var/log/jasmin
   - /etc/jasmin/store
-config_files:
-  ./misc/config/jasmin.cfg: "/etc/jasmin/jasmin.cfg"
-  ./misc/config/interceptor.cfg: "/etc/jasmin/interceptor.cfg"
-  ./misc/config/dlr.cfg: "/etc/jasmin/dlr.cfg"
-  ./misc/config/dlrlookupd.cfg: "/etc/jasmin/dlrlookupd.cfg"
-  ./misc/config/resource/amqp0-9-1.xml: "/etc/jasmin/resource/amqp0-9-1.xml"
-  ./misc/config/resource/amqp0-8.stripped.rabbitmq.xml: "/etc/jasmin/resource/amqp0-8.stripped.rabbitmq.xml"
-  ./misc/config/systemd/jasmind.service: "/usr/lib/systemd/system/jasmind.service"
-  ./misc/config/systemd/jasmin-celery.service: "/usr/lib/systemd/system/jasmin-celery.service"
-  ./misc/config/systemd/jasmin-dlrd.service: "/usr/lib/systemd/system/jasmin-dlrd.service"
-  ./misc/config/systemd/jasmin-dlrlookupd.service: "/usr/lib/systemd/system/jasmin-dlrlookupd.service"
-  ./misc/config/systemd/jasmin-interceptord.service: "/usr/lib/systemd/system/jasmin-interceptord.service"
-  ./misc/config/systemd/jasmin-restapi.service: "/usr/lib/systemd/system/jasmin-restapi.service"
-files:
-  ./jasmin/**/*: /usr/lib/python3/dist-packages/jasmin/
-  ./jasmin/bin/jasmind.py: /usr/local/bin/jasmind.py
-  ./jasmin/bin/interceptord.py: /usr/local/bin/interceptord.py
-  ./jasmin/bin/dlrd.py: /usr/local/bin/dlrd.py
-  ./jasmin/bin/dlrlookupd.py: /usr/local/bin/dlrlookupd.py
+contents:
+  - src: ./misc/config/jasmin.cfg
+    dst: "/etc/jasmin/jasmin.cfg"
+    type: config
+  - src: ./misc/config/interceptor.cfg
+    dst: "/etc/jasmin/interceptor.cfg"
+    type: config
+  - src: ./misc/config/dlr.cfg
+    dst: "/etc/jasmin/dlr.cfg"
+    type: config
+  - src: ./misc/config/dlrlookupd.cfg
+    dst: "/etc/jasmin/dlrlookupd.cfg"
+    type: config
+  - src: ./misc/config/resource/amqp0-9-1.xml
+    dst: "/etc/jasmin/resource/amqp0-9-1.xml"
+    type: config
+  - src: ./misc/config/resource/amqp0-8.stripped.rabbitmq.xml
+    dst: "/etc/jasmin/resource/amqp0-8.stripped.rabbitmq.xml"
+    type: config
+  - src: ./misc/config/systemd/jasmind.service
+    dst: "/usr/lib/systemd/system/jasmind.service"
+    type: symlink
+  - src: ./misc/config/systemd/jasmin-celery.service
+    dst: "/usr/lib/systemd/system/jasmin-celery.service"
+    type: symlink
+  - src: ./misc/config/systemd/jasmin-dlrd.service
+    dst: "/usr/lib/systemd/system/jasmin-dlrd.service"
+    type: symlink
+  - src: ./misc/config/systemd/jasmin-dlrlookupd.service
+    dst: "/usr/lib/systemd/system/jasmin-dlrlookupd.service"
+    type: symlink
+  - src: ./misc/config/systemd/jasmin-interceptord.service
+    dst: "/usr/lib/systemd/system/jasmin-interceptord.service"
+    type: symlink
+  - src: ./misc/config/systemd/jasmin-restapi.service
+    dst: "/usr/lib/systemd/system/jasmin-restapi.service"
+    type: symlink
+  - src: ./jasmin/bin/jasmind.py
+    dst: "/usr/local/bin/jasmind.py"
+    type: symlink
+  - src: ./jasmin/bin/interceptord.py
+    dst: "/usr/local/bin/interceptord.py"
+    type: symlink
+  - src: ./jasmin/bin/dlrd.py
+    dst: "/usr/local/bin/dlrd.py"
+    type: symlink
+  - src: ./jasmin/bin/dlrlookupd.py
+    dst: "/usr/local/bin/dlrlookupd.py"
+    type: symlink
 scripts:
   postinstall: ./misc/packaging/scripts/common-postinstall.sh
   preremove: ./misc/packaging/scripts/common-preremove.sh
@@ -67,7 +98,6 @@ overrides:
       - python3-lockfile
       - python3-requests
       - python3-setuptools
-      - python3-tz
       - python3-mimeparse
       - python3-celery
       - python-celery-common
@@ -77,34 +107,33 @@ overrides:
       - python3-tabulate
       - python3-treq
       # These dependencies come from Jookies package repository
+      - python3-jookies-messaging
       - python3-txredisapi
       - python3-txamqp3
       - python3-smpp-pdu3
       - python3-smpp-twisted3
-      - python3-messaging
   rpm:
     depends:
+      - epel-release
       - python3 (>= 3.7)
-
-      - adduser
       - python3-twisted
       - python3-dateutil
       - python3-pyparsing
       - python3-lockfile
       - python3-requests
       - python3-setuptools
-      - python3-tz
       - python3-mimeparse
       - python3-celery
-      - python-celery-common
-      - python3-falcon
       - python3-redis
       - python3-amqp
       - python3-tabulate
       - python3-treq
       # These dependencies come from Jookies package repository
+      - python3-jookies-messaging
       - python3-txredisapi
       - python3-txamqp3
       - python3-smpp-pdu3
       - python3-smpp-twisted3
-      - python3-messaging
+      # There's no python3-falcon package for CentOS/RHEL 8
+      # It will be handled by the pre/post scripts
+      #- python3-falcon
