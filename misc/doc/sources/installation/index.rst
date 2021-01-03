@@ -29,12 +29,12 @@ Depending on the Linux distribution you are using, you may need to install the f
 Ubuntu
 ******
 
-`Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
+`Jasmin <http://jasminsms.com/>`_ can be installed through **DEB** packages hosted on `Packagecloud <https://packagecloud.io/jookies/jasmin-sms-gateway>`_::
 
-    curl -s http://bit.ly/jasmin-deb-repo | sudo bash
+    curl -s https://setup.jasminsms.com/deb | sudo bash
     sudo apt-get install jasmin-sms-gateway
 
-.. note:: Ubuntu 20.04 and higher versions are supported, earlier versions of Ubuntu may use "python-jasmin" package name (Unsupported).
+.. note:: Ubuntu 20.04 and newer versions are supported.
 
 You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
 
@@ -48,12 +48,12 @@ Once Jasmin installed, you may simply start the **jasmind** service::
 RHEL & CentOS
 *************
 
-`Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/python-jasmin>`_::
+`Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/jasmin-sms-gateway>`_::
 
-    curl -s http://bit.ly/jasmin-rpm-repo | sudo bash
-    sudo yum install python-jasmin
+    curl -s https://setup.jasminsms.com/rpm | sudo bash
+    sudo yum install jasmin-sms-gateway
 
-.. note:: Red Hat Enterprise Linux 8 & CentOS 8 are supported, earlier version of RHEL and CentOS may use "python-jasmin" package name (Unsupported).
+.. note:: Red Hat Enterprise Linux 8 & CentOS 8 and newer versions are supported.
 
 You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
 
