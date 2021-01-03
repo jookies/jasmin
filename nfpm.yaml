@@ -56,34 +56,30 @@ contents:
     type: config
   - src: ./misc/config/systemd/jasmind.service
     dst: "/usr/lib/systemd/system/jasmind.service"
-    type: symlink
+    type: config
   - src: ./misc/config/systemd/jasmin-celery.service
     dst: "/usr/lib/systemd/system/jasmin-celery.service"
-    type: symlink
+    type: config
   - src: ./misc/config/systemd/jasmin-dlrd.service
     dst: "/usr/lib/systemd/system/jasmin-dlrd.service"
-    type: symlink
+    type: config
   - src: ./misc/config/systemd/jasmin-dlrlookupd.service
     dst: "/usr/lib/systemd/system/jasmin-dlrlookupd.service"
-    type: symlink
+    type: config
   - src: ./misc/config/systemd/jasmin-interceptord.service
     dst: "/usr/lib/systemd/system/jasmin-interceptord.service"
-    type: symlink
+    type: config
   - src: ./misc/config/systemd/jasmin-restapi.service
     dst: "/usr/lib/systemd/system/jasmin-restapi.service"
-    type: symlink
+    type: config
   - src: ./jasmin/bin/jasmind.py
     dst: "/usr/local/bin/jasmind.py"
-    type: symlink
   - src: ./jasmin/bin/interceptord.py
     dst: "/usr/local/bin/interceptord.py"
-    type: symlink
   - src: ./jasmin/bin/dlrd.py
     dst: "/usr/local/bin/dlrd.py"
-    type: symlink
   - src: ./jasmin/bin/dlrlookupd.py
     dst: "/usr/local/bin/dlrlookupd.py"
-    type: symlink
 scripts:
   postinstall: ./misc/packaging/scripts/common-postinstall.sh
   preremove: ./misc/packaging/scripts/common-preremove.sh

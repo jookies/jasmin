@@ -51,8 +51,10 @@ RHEL & CentOS
 `Jasmin <http://jasminsms.com/>`_ can be installed through **RPM** packages hosted on `Packagecloud <https://packagecloud.io/jookies/jasmin-sms-gateway>`_::
 
     curl -s https://setup.jasminsms.com/rpm | sudo bash
+    sudo yum install epel-release
     sudo yum install jasmin-sms-gateway
 
+.. note:: Many dependencies are installed from the Epel repository, please pay attention to activating this repository before installing jasmin-sms-gateway package.
 .. note:: Red Hat Enterprise Linux 8 & CentOS 8 and newer versions are supported.
 
 You have to install and setup **RabbitMQ** or **Redis** servers on same machine (Default configuration) or on separate ones (Requires Jasmin configuration: /etc/jasmin/jasmin.cfg).
