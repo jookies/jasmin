@@ -118,7 +118,7 @@ class JCliFactory(ServerFactory):
         pending_load = ['mtrouter', 'morouter', 'filter', 'group', 'smppcc', 'httpcc', 'user']
         while True:
             for _pl in pending_load:
-                if re.match(r'.*%s configuration loaded.*' % _pl, tr.value(), re.DOTALL):
+                if re.match(r'.*%s configuration loaded.*' % _pl, str(tr.value()), re.DOTALL):
                     self.log.info("%s configuration loaded.", _pl)
                     pending_load.remove(_pl)
 

@@ -6,7 +6,7 @@ Before=jasmin-restapi.service
 
 [Service]
 SyslogIdentifier=jasmin-celery
-PIDFile=/var/run/jasmin-celery.pid
+PIDFile=/run/jasmin-celery.pid
 User=jasmin
 Group=jasmin
 ExecStart=/bin/sh -c "celery -A jasmin.protocols.rest.tasks worker -l INFO -c 4 --autoscale=10,3"
