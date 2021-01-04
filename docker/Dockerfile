@@ -27,6 +27,15 @@ RUN pip install .
 
 ENV UNICODEMAP_JP unicode-ascii
 
+ENV ROOT_PATH /
+ENV CONFIG_PATH /etc/jasmin
+ENV RESOURCE_PATH /etc/jasmin/resource
+ENV STORE_PATH /etc/jasmin/store
+ENV LOG_PATH /var/log/jasmin
+
+COPY misc/config/*.cfg ${CONFIG_PATH}/
+COPY misc/config/resource ${RESOURCE_PATH}
+
 WORKDIR /usr/jasmin
 
 # Change binding host for jcli, redis, and amqp

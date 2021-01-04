@@ -69,8 +69,8 @@ class JCliProtocol(CmdProtocol):
             self.terminal.write('Authentication required.\n\n')
 
         # Provision managers
-        self.managers = {'user': UsersManager(self, self.factory.pb),
-                         'group': GroupsManager(self, self.factory.pb),
+        self.managers = {'group': GroupsManager(self, self.factory.pb),
+                         'user': UsersManager(self, self.factory.pb),
                          'mointerceptor': MoInterceptorManager(self, self.factory.pb),
                          'mtinterceptor': MtInterceptorManager(self, self.factory.pb),
                          'morouter': MoRouterManager(self, self.factory.pb),
@@ -379,7 +379,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-1', '--start', type="string", metavar="CID",
                           help="Start SMPP connector using it's CID"),
               make_option('-0', '--stop', type="string", metavar="CID",
-                          help="Start SMPP connector using it's CID")], '')
+                          help="Stop SMPP connector using it's CID")], '')
     def do_smppccm(self, arg, opts):
         """SMPP connector management"""
 

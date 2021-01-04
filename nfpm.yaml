@@ -1,0 +1,135 @@
+name: "jasmin-sms-gateway"
+arch: "amd64"
+platform: "linux"
+version: "v0.10.6"
+section: "default"
+priority: "extra"
+maintainer: "Jookies LTD <jasmin@jookies.net>"
+description: |
+  SMS Gateway
+  Jasmin is a very complete open source SMS Gateway with many enterprise-class
+  features such as:
+  .
+   - SMPP Client / Server
+   - HTTP Client / Server
+   - Console-based configuration, no service restart required
+   - Based on AMQP broker for store&forward mechanisms and other queuing systems
+   - Using Redis for in-memory DLR tracking and billing
+   - Advanced message routing/filtering
+   - Web and console ui for management
+   - Supports Unicode (UTF-8) for sending out multilingual SMS
+   - Supports easy creation and sending of specialized/binary SMS
+   - Supports concatenated SMS strings (long SMS)
+  .
+  Jasmin relies heavily on message queuing through message brokers
+  (Using AMQP), it is designed for performance, high traffic loads and full
+  in-memory execution.
+vendor: "Jookies"
+homepage: "https://jasminsms.com"
+license: "Apache 2"
+replaces:
+  - python-jasmin
+  - jasmin-sms-gateway
+provides:
+  - jasmin-sms-gateway
+empty_folders:
+  - /var/log/jasmin
+  - /etc/jasmin/store
+contents:
+  - src: ./misc/config/jasmin.cfg
+    dst: "/etc/jasmin/jasmin.cfg"
+    type: config
+  - src: ./misc/config/interceptor.cfg
+    dst: "/etc/jasmin/interceptor.cfg"
+    type: config
+  - src: ./misc/config/dlr.cfg
+    dst: "/etc/jasmin/dlr.cfg"
+    type: config
+  - src: ./misc/config/dlrlookupd.cfg
+    dst: "/etc/jasmin/dlrlookupd.cfg"
+    type: config
+  - src: ./misc/config/resource/amqp0-9-1.xml
+    dst: "/etc/jasmin/resource/amqp0-9-1.xml"
+    type: config
+  - src: ./misc/config/resource/amqp0-8.stripped.rabbitmq.xml
+    dst: "/etc/jasmin/resource/amqp0-8.stripped.rabbitmq.xml"
+    type: config
+  - src: ./misc/config/systemd/jasmind.service
+    dst: "/usr/lib/systemd/system/jasmind.service"
+    type: config
+  - src: ./misc/config/systemd/jasmin-celery.service
+    dst: "/usr/lib/systemd/system/jasmin-celery.service"
+    type: config
+  - src: ./misc/config/systemd/jasmin-dlrd.service
+    dst: "/usr/lib/systemd/system/jasmin-dlrd.service"
+    type: config
+  - src: ./misc/config/systemd/jasmin-dlrlookupd.service
+    dst: "/usr/lib/systemd/system/jasmin-dlrlookupd.service"
+    type: config
+  - src: ./misc/config/systemd/jasmin-interceptord.service
+    dst: "/usr/lib/systemd/system/jasmin-interceptord.service"
+    type: config
+  - src: ./misc/config/systemd/jasmin-restapi.service
+    dst: "/usr/lib/systemd/system/jasmin-restapi.service"
+    type: config
+  - src: ./jasmin/bin/jasmind.py
+    dst: "/usr/local/bin/jasmind.py"
+  - src: ./jasmin/bin/interceptord.py
+    dst: "/usr/local/bin/interceptord.py"
+  - src: ./jasmin/bin/dlrd.py
+    dst: "/usr/local/bin/dlrd.py"
+  - src: ./jasmin/bin/dlrlookupd.py
+    dst: "/usr/local/bin/dlrlookupd.py"
+scripts:
+  postinstall: ./misc/packaging/scripts/common-postinstall.sh
+  preremove: ./misc/packaging/scripts/common-preremove.sh
+overrides:
+  deb:
+    depends:
+      - python3 (>= 3.7)
+      - adduser
+      - python3-twisted
+      - python3-dateutil
+      - python3-pyparsing
+      - python3-lockfile
+      - python3-requests
+      - python3-setuptools
+      - python3-mimeparse
+      - python3-celery
+      - python-celery-common
+      - python3-falcon
+      - python3-redis
+      - python3-amqp
+      - python3-tabulate
+      - python3-treq
+      # These dependencies come from Jookies package repository
+      - python3-jookies-messaging
+      - python3-txredisapi
+      - python3-txamqp3
+      - python3-smpp-pdu3
+      - python3-smpp-twisted3
+  rpm:
+    depends:
+      - epel-release
+      - python3 (>= 3.7)
+      - python3-twisted
+      - python3-dateutil
+      - python3-pyparsing
+      - python3-lockfile
+      - python3-requests
+      - python3-setuptools
+      - python3-mimeparse
+      - python3-celery
+      - python3-redis
+      - python3-amqp
+      - python3-tabulate
+      - python3-treq
+      # These dependencies come from Jookies package repository
+      - python3-jookies-messaging
+      - python3-txredisapi
+      - python3-txamqp3
+      - python3-smpp-pdu3
+      - python3-smpp-twisted3
+      # There's no python3-falcon package for CentOS/RHEL 8
+      # It will be handled by the pre/post scripts
+      #- python3-falcon
