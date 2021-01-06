@@ -149,9 +149,9 @@ class PDUDecoderTest(TestCase):
         SMStringEncoder().decodeSM(pdu)
 
         # Asserts
-        self.assertEqual(b'id:0000436949 submit date:1504211508 done date:1504211508 stat:DELIVRD err:000\x00',
-                          pdu.params['message_payload'])
-        self.assertEqual(b'6aad5', pdu.params['receipted_message_id'])
+        self.assertEqual(b'id:0416342074 sub:001 dlvrd:001 submit date:2101041522 done date:2101041522 stat:DELIVRD err:000 text:\x84A\x89O\x88 ENTO\x84H. \x8cAPAKA',
+                          pdu.params['short_message'])
+        self.assertEqual(b'18d0e03a', pdu.params['receipted_message_id'])
 
     def test_invalid_option_vendor_specific_bypass(self):
         """Related to #577"""
