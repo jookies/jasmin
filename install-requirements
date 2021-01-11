@@ -1,16 +1,16 @@
-pyasn1>=0.1.7
-txAMQP>=0.7.0
-pyOpenSSL>=0.13
+pyasn1==0.4.3
+txAMQP==0.8.2
+pyOpenSSL==18.0.0
 twisted==15.5.0
-pyparsing>=2.0.0
-python-dateutil>=2.0
-service_identity>=14.0.0
-lockfile>=0.10.0
+pyparsing==2.3.0
+python-dateutil==2.5.3
+service_identity==18.1.0
+lockfile==0.12.2
 
 # Added in 0.9rc16:
-celery>=4.0.0
-redis>=2.10
-requests>=2.13.0
+celery==4.1.1
+redis==3.0.0
+requests==2.19.1
 
 # For REST API
-mimeparse>=0.1.3
+mimeparse==0.1.4
