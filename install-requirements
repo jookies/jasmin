@@ -13,4 +13,4 @@ redis==3.0.0
 requests==2.19.1
 
 # For REST API
-mimeparse==0.1.4
+mimeparse==0.1.3
