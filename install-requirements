@@ -12,5 +12,8 @@ celery==4.1.1
 redis==3.0.0
 requests==2.19.1
 
+# Fix release versions of some requirements
+cryptography==2.1.4
+
 # For REST API
 mimeparse==0.1.3
