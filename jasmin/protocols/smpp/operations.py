@@ -103,7 +103,7 @@ class SMPPOperationFactory:
             # Look for patterns and compose return object
             for pattern in patterns:
                 if isinstance(pdu.params['short_message'], bytes):
-                    m = re.search(pattern, pdu.params['short_message'].decode())
+                    m = re.search(pattern, pdu.params['short_message'].decode('utf-8', 'ignore'))
                 else:
                     m = re.search(pattern, pdu.params['short_message'])
                 if m:
