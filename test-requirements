@@ -6,4 +6,4 @@ coverage==4.5.2
 sphinx==1.7.5
 sphinx-rtd-theme==0.4.3
 mock==2.0.0
-pylint==2.0.0
+pylint==1.9.5
