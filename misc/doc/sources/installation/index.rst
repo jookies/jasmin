@@ -119,55 +119,36 @@ Installing Docker
 
 Before we get into containers, we'll need to get Docker running locally. You can do this by installing the
 package for your system (tip: you can find `yours here <https://docs.docker.com/installation/#installation>`_).
-Running a Mac? You'll need to install the `boot2docker application <http://boot2docker.io/>`_ before using Docker.
+
 Once that's set up, you're ready to start using Jasmin container !
 
-Pulling Jasmin image
+Using docker-compose
 ====================
 
-This command will pull latest jasmin docker image to your computer::
+Create a file named "docker-compose.yml" and paste the following:
 
-    docker pull jookies/jasmin
+.. literalinclude:: /installation/docker-compose.yml
+   :language: yaml
 
-You should have Jasmin image listed in your local docker images::
+Then spin it::
+
+    docker-compose up -d
+
+This command will pull latest jasmin v0.10, latest redis and latest rabbitmq images to your computer::
 
     # docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     jasmin              latest              0e4cf8879899        36 minutes ago      478.6 MB
 
-.. note:: The Jasmin docker image is a self-contained/standalone box including Jasmin+Redis+RabbitMQ.
-
-Starting Jasmin in a container
-==============================
-
-This command will create a new docker container with name *jasmin_01* which run as a demon::
-
-    docker run -d -p 1401:1401 -p 2775:2775 -p 8990:8990 --name jasmin_01 jookies/jasmin:latest
-
-Note that we used the parameter **-p** three times, it defines port forwarding from host computer to the container,
-typing **-p 2775:2775** will map the container's 2775 port to your host 2775 port; this can
-be useful in case you'll be running multiple containers of Jasmin where you keep a port offset of 10 between
-each, example::
-
-    docker run -d -p 1411:1401 -p 2785:2775 -p 8990:8990 --name jasmin_02 jookies/jasmin:latest
-    docker run -d -p 1421:1401 -p 2795:2775 -p 9000:8990 --name jasmin_03 jookies/jasmin:latest
-    docker run -d -p 1431:1401 -p 2805:2775 -p 9010:8990 --name jasmin_04 jookies/jasmin:latest
-
-You should have the container running by typing the following::
+Jasmin is now up and running::
 
     # docker ps
-    CONTAINER ID  IMAGE                   COMMAND                CREATED         STATUS         PORTS                                                                    NAMES
-    0a2fafbe60d0  jookies/jasmin:latest   "/docker-entrypoint.   43 minutes ago  Up 41 minutes  0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp   jasmin_01
+    CONTAINER ID   IMAGE                 COMMAND                  CREATED         STATUS         PORTS                                                                    NAMES
+    1a9016d298bf   jookies/jasmin:0.10   "/docker-entrypoint.…"   3 seconds ago   Up 2 seconds   0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp   jasmin
+    af450de4fb95   rabbitmq:alpine       "docker-entrypoint.s…"   5 seconds ago   Up 3 seconds   4369/tcp, 5671-5672/tcp, 15691-15692/tcp, 25672/tcp                      rabbitmq
+    c8feb6c07d94   redis:alpine          "docker-entrypoint.s…"   5 seconds ago   Up 3 seconds   6379/tcp                                                                 redis
 
-And in order to control the container **jasmin_01**, use::
-
-    docker stop jasmin_01
-    docker start jasmin_01
-
-It's possible to access log files located in **/var/log/jasmin** inside the container by mounting it as a shared
-folder::
-
-    docker run -d -v /home/user/jasmin_logs:/var/log/jasmin --name jasmin_100 jookies/jasmin:latest
+.. note:: You can play around with the docker-compose.yml to choose different versions, mounting the configs outside the container, etc ...
 
 Sending your first SMS
 **********************
