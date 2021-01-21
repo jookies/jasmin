@@ -10,9 +10,9 @@ class FilterTestCase(TestCase):
     def setUp(self):
         self.connector = Connector('abc')
         self.PDU = SubmitSM(
-            source_addr='20203060',
-            destination_addr='20203060',
-            short_message='hello world',
+            source_addr=b'20203060',
+            destination_addr=b'20203060',
+            short_message=b'hello world',
         )
         self.group = Group(100)
         self.user = User(1, self.group, 'username', 'password')
@@ -83,7 +83,7 @@ class SourceAddrFilterTestCase(FilterTestCase):
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        self.f = self._filter(b'^\d+0$')
+        self.f = self._filter('^\d+0$')
 
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
@@ -98,7 +98,7 @@ class DestinationAddrFilterTestCase(FilterTestCase):
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        self.f = self._filter(b'^20\d+')
+        self.f = self._filter('^20\d+')
 
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
@@ -113,7 +113,7 @@ class ShortMessageFilterTestCase(FilterTestCase):
 
     def setUp(self):
         FilterTestCase.setUp(self)
-        self.f = self._filter(b'^hello.*$')
+        self.f = self._filter('^hello.*$')
 
     def test_standard(self):
         self.assertTrue(self.f.match(self.routable))
