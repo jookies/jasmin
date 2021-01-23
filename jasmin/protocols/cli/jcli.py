@@ -379,7 +379,7 @@ class JCliProtocol(CmdProtocol):
               make_option('-1', '--start', type="string", metavar="CID",
                           help="Start SMPP connector using it's CID"),
               make_option('-0', '--stop', type="string", metavar="CID",
-                          help="Start SMPP connector using it's CID")], '')
+                          help="Stop SMPP connector using it's CID")], '')
     def do_smppccm(self, arg, opts):
         """SMPP connector management"""
 
