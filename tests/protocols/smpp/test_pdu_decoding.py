@@ -127,6 +127,32 @@ class PDUDecoderTest(TestCase):
         self.assertEqual(CommandId.submit_sm_resp, pdu.id)
         self.assertEqual(CommandStatus.RESERVEDSTATUS_UNKNOWN_STATUS, pdu.status)
 
+    def test_deliver_sm_resp_unknown_error(self):
+        """Raises a 'builtins.UnicodeDecodeError: 'ascii' codec can't decode byte 0x84 in position 102: ordinal not in range(128)'
+        ref: #937
+        """
+        pduHex = '000000c600000005000000000000000a000201363930373137373035380005003532303030000400000000000000007a69643a30343136333432303734207375623a30303120646c7672643a303031207375626d697420646174653a3231303130343135323220646f6e6520646174653a3231303130343135323220737461743a44454c49565244206572723a30303020746578743a8441894f8820454e544f84482e208c4150414b41000e0001010006000101001e00093138643065303361000427000102'
+        pdu = self.getPDU(pduHex)
+        SMStringEncoder().decodeSM(pdu)
+
+        # Asserts
+        self.assertEqual(b'id:0416342074 sub:001 dlvrd:001 submit date:2101041522 done date:2101041522 stat:DELIVRD err:000 text:\x84A\x89O\x88 ENTO\x84H. \x8cAPAKA',
+                          pdu.params['short_message'])
+        self.assertEqual(b'18d0e03a', pdu.params['receipted_message_id'])
+
+    def test_deliver_sm_resp_opt_param_not_allow_more_messages_to_send(self):
+        """Raises a 'Optional Parameter not allowed: Invalid option more_messages_to_send'
+        ref: #938
+        """
+        pduHex = '000000cb00000005000000000000000b000201363930373137373035380005003532303030000400000000000000007a69643a30343136333432303734207375623a30303120646c7672643a303031207375626d697420646174653a3231303130343135323220646f6e6520646174653a3231303130343135323220737461743a44454c49565244206572723a30303020746578743a8441894f8820454e544f84482e208c4150414b41000e0001010006000101001e000931386430653033610004270001020426000101'
+        pdu = self.getPDU(pduHex)
+        SMStringEncoder().decodeSM(pdu)
+
+        # Asserts
+        self.assertEqual(b'id:0416342074 sub:001 dlvrd:001 submit date:2101041522 done date:2101041522 stat:DELIVRD err:000 text:\x84A\x89O\x88 ENTO\x84H. \x8cAPAKA',
+                          pdu.params['short_message'])
+        self.assertEqual(b'18d0e03a', pdu.params['receipted_message_id'])
+
     def test_invalid_option_vendor_specific_bypass(self):
         """Related to #577"""
 

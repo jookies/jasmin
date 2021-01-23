@@ -171,7 +171,8 @@ class SourceAddrFilter(Filter):
     def match(self, routable):
         Filter.match(self, routable)
 
-        return False if self.source_addr.match(routable.pdu.params['source_addr']) is None else True
+        return False if self.source_addr.match(
+            routable.pdu.params['source_addr'].decode('utf-8', 'replace')) is None else True
 
 
 class DestinationAddrFilter(Filter):
@@ -184,7 +185,8 @@ class DestinationAddrFilter(Filter):
     def match(self, routable):
         Filter.match(self, routable)
 
-        if self.destination_addr.match(routable.pdu.params['destination_addr']) is None:
+        if self.destination_addr.match(
+                routable.pdu.params['destination_addr'].decode('utf-8', 'replace')) is None:
             return False
         else:
             return True
@@ -202,9 +204,11 @@ class ShortMessageFilter(Filter):
 
         # Content can be short_message or message_payload:
         if 'short_message' in routable.pdu.params:
-            return False if self.short_message.match(routable.pdu.params['short_message']) is None else True
+            return False if self.short_message.match(
+                routable.pdu.params['short_message'].decode('utf-8', 'replace')) is None else True
         elif 'message_payload' in routable.pdu.params:
-            return False if self.short_message.match(routable.pdu.params['message_payload']) is None else True
+            return False if self.short_message.match(
+                routable.pdu.params['message_payload'].decode('utf-8', 'replace')) is None else True
         else:
             return False
 
