@@ -91,7 +91,7 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.user2 = User(2, self.group100, 'username', 'password')
 
         self.mt_filter1 = [UserFilter(self.user1)]
-        self.mt_filter2 = [DestinationAddrFilter(b'^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter('^10\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.route1 = StaticMTRoute(self.mt_filter1, self.connector1, 0.0)
         self.route2 = StaticMTRoute(self.mt_filter2, self.connector2, 0.0)
@@ -99,14 +99,14 @@ class MTRoutingTableTestCase(RoutingTableTests, TestCase):
         self.route4 = DefaultRoute(self.connector4)
 
         self.PDU_dst_1 = SubmitSM(
-            source_addr='x',
-            destination_addr='200',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'200',
+            short_message=b'hello world',
         )
         self.PDU_dst_2 = SubmitSM(
-            source_addr='x',
-            destination_addr='100',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'100',
+            short_message=b'hello world',
         )
 
         self.routable_matching_route1 = RoutableSubmitSm(self.PDU_dst_1, self.user1)
@@ -123,8 +123,8 @@ class MORoutingTableTestCase(RoutingTableTests, TestCase):
         self.connector3 = HttpConnector('ghi', 'http://127.0.0.1')
         self.connector4 = SmppServerSystemIdConnector('jkl')
 
-        self.mt_filter1 = [SourceAddrFilter(b'^10\d+')]
-        self.mt_filter2 = [DestinationAddrFilter(b'^90\d+')]
+        self.mt_filter1 = [SourceAddrFilter('^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter('^90\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.route1 = StaticMORoute(self.mt_filter1, self.connector1)
         self.route2 = StaticMORoute(self.mt_filter2, self.connector2)
@@ -132,19 +132,19 @@ class MORoutingTableTestCase(RoutingTableTests, TestCase):
         self.route4 = DefaultRoute(self.connector4)
 
         self.PDU_dst_1 = DeliverSM(
-            source_addr='100',
-            destination_addr='200',
-            short_message='hello world',
+            source_addr=b'100',
+            destination_addr=b'200',
+            short_message=b'hello world',
         )
         self.PDU_dst_2 = DeliverSM(
-            source_addr='x',
-            destination_addr='900',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'900',
+            short_message=b'hello world',
         )
         self.PDU_dst_3 = DeliverSM(
-            source_addr='x',
-            destination_addr='y',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'y',
+            short_message=b'hello world',
         )
 
         self.routable_matching_route1 = RoutableDeliverSm(self.PDU_dst_1, self.connector1)

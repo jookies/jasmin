@@ -91,7 +91,7 @@ class MTInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.user2 = User(2, self.group100, 'username', 'password')
 
         self.mt_filter1 = [UserFilter(self.user1)]
-        self.mt_filter2 = [DestinationAddrFilter(b'^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter('^10\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.interceptor1 = StaticMTInterceptor(self.mt_filter1, self.script1)
         self.interceptor2 = StaticMTInterceptor(self.mt_filter2, self.script2)
@@ -99,14 +99,14 @@ class MTInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.interceptor4 = DefaultInterceptor(self.script4)
 
         self.PDU_dst_1 = SubmitSM(
-            source_addr='x',
-            destination_addr='200',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'200',
+            short_message=b'hello world',
         )
         self.PDU_dst_2 = SubmitSM(
-            source_addr='x',
-            destination_addr='100',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'100',
+            short_message=b'hello world',
         )
 
         self.routable_matching_interceptor1 = RoutableSubmitSm(self.PDU_dst_1, self.user1)
@@ -124,8 +124,8 @@ class MOInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.script3 = MOInterceptorScript('ghi')
         self.script4 = MOInterceptorScript('jkl')
 
-        self.mt_filter1 = [SourceAddrFilter(b'^10\d+')]
-        self.mt_filter2 = [DestinationAddrFilter(b'^90\d+')]
+        self.mt_filter1 = [SourceAddrFilter('^10\d+')]
+        self.mt_filter2 = [DestinationAddrFilter('^90\d+')]
         self.transparent_filter = [TransparentFilter()]
         self.interceptor1 = StaticMOInterceptor(self.mt_filter1, self.script1)
         self.interceptor2 = StaticMOInterceptor(self.mt_filter2, self.script2)
@@ -133,19 +133,19 @@ class MOInterceptionTableTestCase(InterceptionTableTests, TestCase):
         self.interceptor4 = DefaultInterceptor(self.script4)
 
         self.PDU_dst_1 = DeliverSM(
-            source_addr='100',
-            destination_addr='200',
-            short_message='hello world',
+            source_addr=b'100',
+            destination_addr=b'200',
+            short_message=b'hello world',
         )
         self.PDU_dst_2 = DeliverSM(
-            source_addr='x',
-            destination_addr='900',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'900',
+            short_message=b'hello world',
         )
         self.PDU_dst_3 = DeliverSM(
-            source_addr='x',
-            destination_addr='y',
-            short_message='hello world',
+            source_addr=b'x',
+            destination_addr=b'y',
+            short_message=b'hello world',
         )
 
         self.routable_matching_interceptor1 = RoutableDeliverSm(self.PDU_dst_1, self.connector)
