@@ -307,4 +307,10 @@ class SMPPOperationFactory:
     def get_enum(self, enum_type, value):
         if isinstance(value, Enum):
             return value
-        return getattr(enum_type, value.lstrip(str(enum_type) + '.'))
+
+        _value = value.split('.')
+
+        if len(_value) == 2:
+            return getattr(enum_type, _value[1])
+        else:
+            return getattr(enum_type, value)
