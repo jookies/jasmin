@@ -42,26 +42,26 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
 
         if (self.user.mt_credential.getValueFilter('destination_address') is None or
                 not self.user.mt_credential.getValueFilter('destination_address').match(
-                    self._convert_to_string('destination_addr'))):
+                    self.submit_sm.params['destination_addr'])):
             raise FilterError(
                 'Value filter failed for username [%s] (destination_address filter mismatch).' % self.user,
                 'destination_address')
         if (self.user.mt_credential.getValueFilter('source_address') is None or
                 not self.user.mt_credential.getValueFilter('source_address').match(
-                    self._convert_to_string('source_addr'))):
+                    self.submit_sm.params['source_addr'])):
             raise FilterError(
                 'Value filter failed for username [%s] (source_address filter mismatch).' % self.user,
                 'source_address')
         if (self.user.mt_credential.getValueFilter('priority') is None or
                 not self.user.mt_credential.getValueFilter('priority').match(
-                    self._convert_to_string('priority_flag'))):
+                    self.submit_sm.params['priority_flag'])):
             raise FilterError(
                 'Value filter failed for username [%s] (priority filter mismatch).' % self.user,
                 'priority')
         print(self.user.mt_credential.getValueFilter('content'))
         if (self.user.mt_credential.getValueFilter('content') is None or
                 not self.user.mt_credential.getValueFilter('content').match(
-                    self._convert_to_string('short_message'))):
+                    self.submit_sm.params['short_message'])):
             raise FilterError(
                 'Value filter failed for username [%s] (content filter mismatch).' % self.user,
                 'content')
