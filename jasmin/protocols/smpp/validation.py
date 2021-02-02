@@ -43,7 +43,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
         # Filtering destination_address
         _value = self.submit_sm.params['destination_addr']
         _r = self.user.mt_credential.getValueFilter('destination_address')
-        if _r is None or not _r.match(_value):
+        if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (destination_address filter mismatch).' % self.user,
                 'destination_address')
@@ -51,7 +51,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
         # Filtering source_address
         _value = self.submit_sm.params['source_addr']
         _r = self.user.mt_credential.getValueFilter('source_address')
-        if _r is None or not _r.match(_value):
+        if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (source_address filter mismatch).' % self.user,
                 'source_address')
@@ -59,7 +59,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
         # Filtering priority_flag
         _value = ('%s' % priority_flag_name_map[self.submit_sm.params['priority_flag'].name]).encode()
         _r = self.user.mt_credential.getValueFilter('priority')
-        if _r is None or not _r.match(_value):
+        if _r is None or (_r.pattern != b'^[0-3]$' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (priority filter mismatch).' % self.user,
                 'priority')
@@ -67,7 +67,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
         # Filtering content
         _value = self.submit_sm.params['short_message']
         _r = self.user.mt_credential.getValueFilter('content')
-        if _r is None or not _r.match(_value):
+        if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (content filter mismatch).' % self.user,
                 'content')
