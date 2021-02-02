@@ -23,6 +23,18 @@ class ValidatorTest(TestCase):
 
 class SmppsCredentialValidatorTest(ValidatorTest):
 
+    def test_all_filters(self):
+
+        pdu = copy.copy(self.pdu)
+
+        # Make Credential validation
+        v = SmppsCredentialValidator('Send', self.user, pdu)
+
+        try:
+            v.validate()
+        except UnicodeDecodeError as e:
+            self.fail("(UnicodeDecodeError): %s" % e)
+
     def test_check_send_filters_utf8(self):
         """
         Make regex matching pass the utf8 content

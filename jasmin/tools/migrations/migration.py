@@ -1,3 +1,4 @@
+import re
 from jasmin.routing.Filters import TagFilter
 from jasmin.routing.jasminApi import User, Group
 
@@ -109,6 +110,24 @@ def fix_users_09rc24(data, context=None):
 
         return new_data
 
+def fix_user_filters_0109(data, context=None):
+    """Set regex filters to binary format"""
+
+    if context == 'users':
+        # Convert regex patterns from str to bytes
+        new_data = []
+        for user in data:
+            for key in user.mt_credential.value_filters.keys():
+                pattern = user.mt_credential.value_filters[key].pattern
+
+                if not isinstance(pattern, bytes):
+                    bpattern = pattern.encode()
+                    user.mt_credential.value_filters[key] = re.compile(bpattern)
+
+            new_data.append(user)
+
+    return new_data
+
 
 """This is the main map for orchestrating config migrations.
 
@@ -134,4 +153,7 @@ MAP = [
     {'conditions': ['<=0.9023'],
      'contexts': {'users'},
      'operations': [fix_users_09rc24]},
+    {'conditions': ['<=0.10008'],
+     'contexts': {'users'},
+     'operations': [fix_user_filters_0109]},
 ]
