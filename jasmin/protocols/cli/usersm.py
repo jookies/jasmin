@@ -556,6 +556,10 @@ class UsersManager(PersistableManager):
                                 sectionValue = sectionValue.pattern
                             elif section == 'Quota' and sectionValue is None:
                                 sectionValue = 'ND'
+
+                            # Decode binary data to string for display purpose
+                            if isinstance(sectionValue, bytes):
+                                sectionValue = sectionValue.decode()
                             self.protocol.sendData('%s %s %s %s' % (
                                 key, section.lower(), SectionShortKey, sectionValue), prompt=False)
                 if value['class'] == 'SmppsCredential':

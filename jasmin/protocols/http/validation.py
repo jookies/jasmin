@@ -2,6 +2,7 @@
 HTTP request validators
 """
 
+import re
 from jasmin.protocols.http.errors import UrlArgsValidationError, CredentialValidationError
 from jasmin.protocols.validation import AbstractCredentialValidator
 
@@ -116,35 +117,57 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             raise CredentialValidationError(
                 'Authorization failed for user [%s] (Cannot check rate).' % self.user)
 
+    def _get_binary_r(self, key, credential=None):
+        "Return a compile re object with a binary pattern"
+        if credential is None:
+            credential = self.user.mt_credential
+
+        r = credential.getValueFilter(key)
+        if isinstance(r.pattern, str):
+            r = re.compile(r.pattern.encode())
+
+        return r
+
     def _checkSendFilters(self):
         """MT Filters check"""
 
-        if (self.user.mt_credential.getValueFilter('destination_address') is None or
-                not self.user.mt_credential.getValueFilter('destination_address').match(
-                    self._convert_to_string(b'to'))):
+        # Filtering destination_address
+        _value = self.request.args[b'to'][0]
+        _r = self._get_binary_r('destination_address')
+        if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise CredentialValidationError(
                 'Value filter failed for user [%s] (destination_address filter mismatch).' % self.user)
-        if b'from' in self.request.args and (self.user.mt_credential.getValueFilter('source_address') is None or
-                                                not self.user.mt_credential.getValueFilter('source_address').match(
-                                                    self._convert_to_string(b'from'))):
-            raise CredentialValidationError(
-                'Value filter failed for user [%s] (source_address filter mismatch).' % self.user)
-        if b'priority' in self.request.args and (self.user.mt_credential.getValueFilter('priority') is None or
-                                                    not self.user.mt_credential.getValueFilter('priority').match(
-                                                        self._convert_to_string(b'priority'))):
-            raise CredentialValidationError(
-                'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
-        if b'validity-period' in self.request.args and (
-                        self.user.mt_credential.getValueFilter('validity_period') is None or
-                    not self.user.mt_credential.getValueFilter('validity_period').match(
-                        self._convert_to_string(b'validity-period'))):
-            raise CredentialValidationError(
-                'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
-        if (b'content' in self.request.args and 
-                (self.user.mt_credential.getValueFilter('content') is None or
-                not self.user.mt_credential.getValueFilter('content').match(self._convert_to_string(b'content', self.request.args.get(b'coding', [None])[0])))):
-            raise CredentialValidationError(
-                'Value filter failed for user [%s] (content filter mismatch).' % self.user)
+
+        # Filtering source_address
+        if b'from' in self.request.args:
+            _value = self.request.args[b'from'][0]
+            _r = self._get_binary_r('source_address')
+            if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
+                raise CredentialValidationError(
+                    'Value filter failed for user [%s] (source_address filter mismatch).' % self.user)
+
+        # Filtering priority
+        if b'priority' in self.request.args:
+            _value = self.request.args[b'priority'][0]
+            _r = self._get_binary_r('priority')
+            if _r is None or (_r.pattern != b'^[0-3]$' and not _r.match(_value)):
+                raise CredentialValidationError(
+                    'Value filter failed for user [%s] (priority filter mismatch).' % self.user)
+
+        # Filtering validity_period
+        if b'validity-period' in self.request.args:
+            _value = self.request.args[b'validity-period'][0]
+            _r = self._get_binary_r('validity_period')
+            if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
+                raise CredentialValidationError(
+                    'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
+
+        if b'content' in self.request.args:
+            _value = self.request.args[b'content'][0]
+            _r = self._get_binary_r('content')
+            if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
+                raise CredentialValidationError(
+                    'Value filter failed for user [%s] (content filter mismatch).' % self.user)
 
     def updatePDUWithUserDefaults(self, PDU):
         """Will update SubmitSmPDU.params from User credential defaults whenever a
@@ -168,18 +191,3 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
             self._checkBalanceAuthorizations()
         else:
             raise CredentialValidationError('Unknown action [%s].' % self.action)
-
-    def _convert_to_string(self, arg_name, encoding_type=None):
-        value = self.request.args[arg_name][0]
-        if isinstance(value, bytes):
-            if encoding_type == b'13':
-                # JISX0212 can be decoded this way given the escape sequences
-                return (b'\x1b$(D' + value + b'\x1b(B').decode('iso2022jp-1')
-            if encoding_type in (b'2', b'4', b'14'):
-                # These types dont decode properly
-                return ''
-            return value.decode(self.encoding_map.get(encoding_type, 'ascii'))
-        if isinstance(value, str):
-            return value
-        return str(value)
-        

@@ -1,8 +1,8 @@
 """
 SMPP validators
 """
+import re
 from enum import Enum
-
 from jasmin.protocols.validation import AbstractCredentialValidator
 from jasmin.protocols.smpp.error import *
 from smpp.pdu.constants import priority_flag_value_map, priority_flag_name_map
@@ -37,12 +37,23 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
             raise AuthorizationError(
                 'Authorization failed for username [%s] (Setting priority is not authorized).' % self.user)
 
+    def _get_binary_r(self, key, credential=None):
+        "Return a compile re object with a binary pattern"
+        if credential is None:
+            credential = self.user.mt_credential
+
+        r = credential.getValueFilter(key)
+        if isinstance(r.pattern, str):
+            r = re.compile(r.pattern.encode())
+
+        return r
+
     def _checkSendFilters(self):
         """MT Filters check"""
 
         # Filtering destination_address
         _value = self.submit_sm.params['destination_addr']
-        _r = self.user.mt_credential.getValueFilter('destination_address')
+        _r = self._get_binary_r('destination_address')
         if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (destination_address filter mismatch).' % self.user,
@@ -50,7 +61,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
 
         # Filtering source_address
         _value = self.submit_sm.params['source_addr']
-        _r = self.user.mt_credential.getValueFilter('source_address')
+        _r = self._get_binary_r('source_address')
         if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (source_address filter mismatch).' % self.user,
@@ -58,7 +69,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
 
         # Filtering priority_flag
         _value = ('%s' % priority_flag_name_map[self.submit_sm.params['priority_flag'].name]).encode()
-        _r = self.user.mt_credential.getValueFilter('priority')
+        _r = self._get_binary_r('priority')
         if _r is None or (_r.pattern != b'^[0-3]$' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (priority filter mismatch).' % self.user,
@@ -66,7 +77,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
 
         # Filtering content
         _value = self.submit_sm.params['short_message']
-        _r = self.user.mt_credential.getValueFilter('content')
+        _r = self._get_binary_r('content')
         if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
             raise FilterError(
                 'Value filter failed for username [%s] (content filter mismatch).' % self.user,
