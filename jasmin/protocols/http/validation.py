@@ -158,7 +158,7 @@ class HttpAPICredentialValidator(AbstractCredentialValidator):
         if b'validity-period' in self.request.args:
             _value = self.request.args[b'validity-period'][0]
             _r = self._get_binary_r('validity_period')
-            if _r is None or (_r.pattern != b'.*' and not _r.match(_value)):
+            if not isinstance(_value, int) and (_r is None or (_r.pattern != b'.*' and not _r.match(_value))):
                 raise CredentialValidationError(
                     'Value filter failed for user [%s] (validity_period filter mismatch).' % self.user)
 

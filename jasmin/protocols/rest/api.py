@@ -20,8 +20,6 @@ class JasminHttpApiProxy:
 
     def call_jasmin(self, url, params=None):
         try:
-            print(old_api_uri, url)
-            print(params)
             r = requests.get('%s/%s' % (old_api_uri, url), params=params)
         except requests.exceptions.ConnectionError as e:
             raise HTTPInternalServerError('Jasmin httpapi connection error',
@@ -29,7 +27,6 @@ class JasminHttpApiProxy:
         except Exception as e:
             raise HTTPInternalServerError('Jasmin httpapi unknown error', str(e))
         else:
-            print(r.content)
             return r.status_code, r.content.decode('utf-8').strip('"')
 
 
