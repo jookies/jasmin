@@ -36,7 +36,7 @@ class SMPPOperationFactory:
         else:
             self.config = SMPPClientConfig(**{'id': 'anyid'})
 
-        self.long_content_max_parts = long_content_max_parts
+        self.long_content_max_parts = int(long_content_max_parts)
         if isinstance(long_content_split, bytes):
             long_content_split = long_content_split.decode()
         self.long_content_split = long_content_split
