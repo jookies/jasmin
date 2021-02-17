@@ -87,7 +87,7 @@ class SmppsCredentialValidator(AbstractCredentialValidator):
     def _convert_to_string(self, arg_name):
         value = self.submit_sm.params[arg_name]
         if isinstance(value, bytes):
-            return value.decode()
+            return value.decode("unicode_escape")
         if isinstance(value, str):
             return value
         if isinstance(value, Enum):
