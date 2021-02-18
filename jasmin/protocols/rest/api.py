@@ -105,9 +105,12 @@ class RateResource(JasminRestApi, JasminHttpApiProxy):
 
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
-        for k, v in request_args.items():
+        _request_args = request_args.copy() # void dictionary key change error in python 3.8
+        for k, v in _request_args.items():
             del (request_args[k])
             request_args[re.sub('_', '-', k)] = v
+            
+        del _request_args # Unset the variable
 
         self.build_response_from_proxy_result(
             response,
