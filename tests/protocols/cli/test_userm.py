@@ -485,6 +485,12 @@ class BasicTestCases(UserTestCases):
 
 
 class MtMessagingCredentialTestCases(UserTestCases):
+    def _get_str_repattern(self, pattern):
+        if isinstance(pattern, bytes):
+            return pattern.decode()
+        else:
+            return pattern
+
     @defer.inlineCallbacks
     def _test_user_with_MtMessagingCredential(self, uid, gid, username, mtcred):
         if mtcred.getQuota('balance') is None:
@@ -535,15 +541,15 @@ class MtMessagingCredentialTestCases(UserTestCases):
                 'set_schedule_delivery_time'),
             'mt_messaging_cred authorization hex_content %s' % mtcred.getAuthorization('set_hex_content'),
             'mt_messaging_cred valuefilter dst_addr %s' % re.escape(
-                mtcred.getValueFilter('destination_address').pattern),
+                self._get_str_repattern(mtcred.getValueFilter('destination_address').pattern)),
             'mt_messaging_cred valuefilter src_addr %s' % re.escape(
-                mtcred.getValueFilter('source_address').pattern),
+                self._get_str_repattern(mtcred.getValueFilter('source_address').pattern)),
             'mt_messaging_cred valuefilter priority %s' % re.escape(
-                mtcred.getValueFilter('priority').pattern),
+                self._get_str_repattern(mtcred.getValueFilter('priority').pattern)),
             'mt_messaging_cred valuefilter validity_period %s' % re.escape(
-                mtcred.getValueFilter('validity_period').pattern),
+                self._get_str_repattern(mtcred.getValueFilter('validity_period').pattern)),
             'mt_messaging_cred valuefilter content %s' % re.escape(
-                mtcred.getValueFilter('content').pattern),
+                self._get_str_repattern(mtcred.getValueFilter('content').pattern)),
             'mt_messaging_cred defaultvalue src_addr %s' % mtcred.getDefaultValue('source_address'),
             'mt_messaging_cred quota balance %s' % assertBalance,
             'mt_messaging_cred quota early_percent %s' % assertEarlyPercent,

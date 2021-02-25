@@ -162,3 +162,15 @@ class PDUDecoderTest(TestCase):
         # Asserts
         self.assertEqual(CommandId.bind_transceiver_resp, pdu.id)
         self.assertEqual(CommandStatus.ESME_ROK, pdu.status)
+
+    def test_smpp_drop_on_unknown_char(self):
+        """Related to #954
+         SMPP connection dropped, if there is '§' char in the message text
+         """
+
+        pduHex = '000000250000000400000000000000020005003200010033000000000000010008000200a7'
+        pdu = self.getPDU(pduHex)
+
+        # Asserts
+        self.assertEqual(CommandId.submit_sm, pdu.id)
+        self.assertEqual(CommandStatus.ESME_ROK, pdu.status)

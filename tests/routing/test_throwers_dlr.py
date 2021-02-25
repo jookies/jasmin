@@ -296,6 +296,33 @@ class SMPPDLRThrowerTestCases(RouterPBProxy, SMPPClientTestCases, SubmitSmTestCa
         yield self.stopSmppClientConnectors()
 
     @defer.inlineCallbacks
+    def test_throwing_smpps_using_ALPHANUMERIC_srcton(self):
+        """Refs #951 issue"""
+
+        self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
+        self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
+        self.DLRThrower.smpp_dlr_callback = Mock(wraps=self.DLRThrower.smpp_dlr_callback)
+
+        # Bind
+        yield self.connect('127.0.0.1', self.pbPort)
+        yield self.prepareRoutingsAndStartConnector()
+        yield self.smppc_factory.connectAndBind()
+
+        yield self.publishDLRContentForSmppapi('ESME_ROK', 'MSGID', 'username',
+                                               'SOMETHING', '000', source_addr_ton='ALPHANUMERIC')
+
+        yield waitFor(1)
+
+        # Run tests
+        self.assertEqual(self.DLRThrower.smpp_dlr_callback.call_count, 1)
+        self.assertEqual(self.DLRThrower.ackMessage.call_count, 1)
+        self.assertEqual(self.DLRThrower.rejectMessage.call_count, 0)
+
+        # Unbind & Disconnect
+        yield self.smppc_factory.smpp.unbindAndDisconnect()
+        yield self.stopSmppClientConnectors()
+
+    @defer.inlineCallbacks
     def test_throwing_smpps_to_not_bound_connection(self):
         self.DLRThrower.ackMessage = Mock(wraps=self.DLRThrower.ackMessage)
         self.DLRThrower.rejectMessage = Mock(wraps=self.DLRThrower.rejectMessage)
