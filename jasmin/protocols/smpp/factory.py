@@ -254,7 +254,9 @@ class SMPPServerFactory(_SMPPServerFactory):
         self.log.info('Added Interceptor to SMPPServerFactory')
 
     def submit_sm_event_interceptor(self, system_id, *args):
-        "Intercept submit_sm befor handing it to self.submit_sm_event"
+        """Intercept submit_sm before handing it to self.submit_sm_event
+        """
+
         self.log.debug('Intercepting submit_sm event for system_id: %s', system_id)
 
         # Args validation

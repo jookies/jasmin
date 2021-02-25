@@ -124,11 +124,11 @@ class MtMessagingCredential(CredentialGeneric):
         }
 
         self.value_filters = {
-            'destination_address': re.compile(r'.*'),
-            'source_address': re.compile(r'.*'),
-            'priority': re.compile(r'^[0-3]$'),
-            'validity_period': re.compile(r'^\d+$'),
-            'content': re.compile(r'.*'),
+            'destination_address': re.compile(b'.*'),
+            'source_address': re.compile(b'.*'),
+            'priority': re.compile(b'^[0-3]$'),
+            'validity_period': re.compile(b'^\d+$'),
+            'content': re.compile(b'.*'),
         }
 
         self.defaults = {'source_address': None, }
