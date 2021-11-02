@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+# install the compatible PIP version
+RUN pip install pip==20.3.3
+
 # Install Jasmin SMS gateway
 RUN mkdir -p /etc/jasmin/resource \
     /etc/jasmin/store \
