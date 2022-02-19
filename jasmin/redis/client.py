@@ -39,7 +39,7 @@ class RedisForJasminFactory(redis.RedisFactory):
 
     def __init__(self, uuid, dbid, poolsize, isLazy=True,
                  handler=redis.ConnectionHandler, config=None):
-        redis.RedisFactory.__init__(self, uuid, dbid, poolsize, isLazy, handler)
+        redis.RedisFactory.__init__(self, uuid, dbid, poolsize, isLazy, handler, password=config.password)
 
         # Set up a dedicated logger
         self.log = logging.getLogger(LOG_CATEGORY)
