@@ -37,7 +37,7 @@ jobs:
           python-version: "${{ matrix.python }}"
       - name: Set Jasmin release version in env
         run: |
-          echo "$(python setup.py --version)" >> $JASMIN_RELEASE
+          echo "JASMIN_RELEASE=$(python setup.py --version)" >> $JASMIN_RELEASE
           echo "Building Jasmin $JASMIN_RELEASE"
       - name: Install pip
         run: python -m pip install --upgrade pip
