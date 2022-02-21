@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install os dependencies
         run: |
-          apt-get install python-dev libffi-dev libffi-dev bc rabbitmq-server
+          sudo apt-get install -y python-dev libffi-dev libffi-dev bc rabbitmq-server
       - name: Install python dependencies
         run: |
           python -m pip install --upgrade pip
