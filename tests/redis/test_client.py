@@ -58,7 +58,7 @@ class RedisTestCase(TestCase):
         yield self.redisClient.disconnect()
 
 
-class DataTestCase(RedisTestCase):
+class DataTestCase(object):
     @defer.inlineCallbacks
     def test_set_get_string(self):
         yield self.redisClient.set('foo', 'bar')
@@ -116,3 +116,10 @@ class DataTestCase(RedisTestCase):
         # Redis key must be expired
         g = yield self.redisClient.hgetall('h_test')
         self.assertEqual(g, {})
+
+class DataTestCaseWithAuth(AuthenticationTestCase, DataTestCase):
+    pass
+
+
+class DataTestCaseNoAuth(RedisTestCase, DataTestCase):
+    pass
