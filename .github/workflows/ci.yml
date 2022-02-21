@@ -48,9 +48,11 @@ jobs:
           sudo cp ./misc/config/resource/* /etc/jasmin/resource/
           sudo chmod -R 777 /var/log/jasmin /etc/jasmin/store
           chmod +x ./misc/pylint/run.sh
-      - name: Run tests
-        run: |
-          ./misc/pylint/run.sh
-          coverage run --source=jasmin -m twisted.trial tests
-          coveralls
-          cd misc/doc;make html;cd ../../
+      - name: Run pylint checks
+        run: ./misc/pylint/run.sh
+      - name: Run twisted tests with coverage
+        run: coverage run --source=jasmin -m twisted.trial tests
+      - name: Coveralls.io synchronization
+        run: coveralls
+      - name: Build the html docs
+        run: cd misc/doc;make html;cd ../../
