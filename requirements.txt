@@ -12,9 +12,9 @@ falcon~=2.0.0
 txredisapi~=1.4.7
 tabulate~=0.8.7
 
-txAMQP3~=0.9.0
+txAMQP3~=0.9.3
 smpp.pdu3~=0.6
-smpp.twisted3~=0.6
+smpp.twisted3~=0.7
 python-messaging~=0.5.13
 
 # Added in 0.9rc16:
