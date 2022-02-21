@@ -1,6 +1,6 @@
 pyasn1~=0.4.8
 pyOpenSSL~=19.1.0
-Twisted~=20.3.0
+Twisted~=22.1.0
 # install twisted requests since they changed how that all works
 treq~=20.3.0
 pyparsing~=2.4.7
