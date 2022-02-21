@@ -43,8 +43,9 @@ jobs:
         run: pip install -r ./requirements-test.txt
       - name: Pre-test preps
         run: |
-          sudo mkdir -p /var/log/jasmins
-          sudo ln -s ./misc/config /etc/jasmin
+          sudo mkdir -p /var/log/jasmin /etc/jasmin/resource /etc/jasmin/store
+          sudo cp ./misc/config/*.cfg /etc/jasmin/
+          sudo cp ./misc/config/resource/* /etc/jasmin/resource/
           sudo chmod -R 777 /var/log/jasmin /etc/jasmin/store
           chmod +x ./misc/pylint/run.sh
       - name: Run tests
