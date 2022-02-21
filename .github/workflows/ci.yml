@@ -43,8 +43,7 @@ jobs:
         run: pip install -r ./requirements-test.txt
       - name: Pre-test preps
         run: |
-          sudo sudo mkdir -p /var/log/jasmin /etc/jasmin
-          ls -l /etc/jasmin
+          sudo sudo mkdir -p /var/log/jasmin
           sudo sudo ln -s ./misc/config /etc/jasmin
           ls -l ./misc/config
           ls -l /etc/jasmin
