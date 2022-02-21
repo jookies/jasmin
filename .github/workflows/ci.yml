@@ -1,0 +1,53 @@
+name: continuous integration jobs
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - 'master'
+      - '0.9'
+      - '0.10'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:3-alpine
+        ports:
+          - 5672:5672
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+    strategy:
+      matrix:
+        python: [3.6, 3.7, 3.8, 3.9, 3.10]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install os dependencies
+        run: |
+          apt-get install python-dev libffi-dev libffi-dev bc rabbitmq-server
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: "${{ matrix.python }}"
+      - name: Pre-test preps
+        run: |
+          chmod +x ./misc/pylint/run.sh
+          mkdir -p /var/log/jasmin
+          ln -s ./misc/config /etc/jasmin
+          chmod -R 777 /var/log/jasmin /etc/jasmin/store
+      - name: Run tests
+        run: |
+          ./misc/pylint/run.sh
+          coverage run --source=jasmin -m twisted.trial tests
+          coveralls
+          cd misc/doc;make html;cd ../../
