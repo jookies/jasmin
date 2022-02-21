@@ -43,10 +43,10 @@ jobs:
         run: pip install -r ./requirements-test.txt
       - name: Pre-test preps
         run: |
-          chmod +x ./misc/pylint/run.sh
-          mkdir -p /var/log/jasmin
-          ln -s ./misc/config /etc/jasmin
+          sudo mkdir -p /var/log/jasmin
+          sudo ln -s ./misc/config /etc/jasmin
           chmod -R 777 /var/log/jasmin /etc/jasmin/store
+          chmod +x ./misc/pylint/run.sh
       - name: Run tests
         run: |
           ./misc/pylint/run.sh
