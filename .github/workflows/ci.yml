@@ -44,7 +44,10 @@ jobs:
       - name: Pre-test preps
         run: |
           sudo sudo mkdir -p /var/log/jasmin
+          ls -l /etc/jasmin
           sudo sudo ln -s ./misc/config /etc/jasmin
+          ls -l ./misc/config
+          ls -l /etc/jasmin
           sudo chmod -R 777 /var/log/jasmin /etc/jasmin/store
           chmod +x ./misc/pylint/run.sh
       - name: Run tests
