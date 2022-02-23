@@ -11,6 +11,9 @@ on:
       - '0.10'
       - '0.10.*'
 
+env:
+  GITHUB_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
