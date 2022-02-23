@@ -353,20 +353,20 @@ class RejectAndRequeueTestCase(ConsumeTools):
         queue.get().addCallback(self._callback_reject_once, queue, reject=True).addErrback(self._errback)
 
         # Publish
-        for i in range(3000):
+        for i in range(50):
             yield self.amqp.publish(exchange='messaging', routing_key="submit.sm.connector01",
                                     content=Content(str(i)))
 
-        # Wait for 20 seconds
+        # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
-        yield waitFor(20)
+        yield waitFor(2)
 
+        yield self.amqp.chan.queue_unbind(queue="submit.sm_all_1", exchange="messaging", routing_key="submit.sm.*")
         yield queue.close()
-
         yield self.amqp.disconnect()
 
-        self.assertEqual(self.rejectedMessages, 3000)
-        self.assertEqual(self.consumedMessages, 3000)
+        self.assertEqual(self.rejectedMessages, 50)
+        self.assertEqual(self.consumedMessages, 50)
 
     @defer.inlineCallbacks
     def test_requeue_all_restart_then_reconsume(self):
@@ -405,13 +405,14 @@ class RejectAndRequeueTestCase(ConsumeTools):
         yield self.amqp.chan.basic_consume(queue="submit.sm_all_2", no_ack=False, consumer_tag='qtag')
         queue = yield self.amqp.client.queue('qtag')
         # Consuming through _callback
-        queue.get().addCallback(self._callback, queue).addErrback(self._errback)
+        queue.get().addCallback(self._callback, queue, ack=True).addErrback(self._errback)
 
         # Wait for 2 seconds
         # (give some time to the consumer to get its work done)
         yield waitFor(2)
 
         # Stop consuming and assert
+        yield self.amqp.chan.queue_unbind(queue="submit.sm_all_2", exchange="messaging", routing_key="submit.sm.*")
         yield queue.close()
         self.assertEqual(self.consumedMessages, 50)
 
