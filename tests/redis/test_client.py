@@ -16,26 +16,34 @@ def waitFor(seconds):
 class AuthenticationTestCase(TestCase):
     @defer.inlineCallbacks
     def setUp(self):
-        # Connect to redis server
+        # Connect to redis server without authentication
         self.RedisForJasminConfigInstance = RedisForJasminConfig()
+        self.redisClient = yield ConnectionWithConfiguration(self.RedisForJasminConfigInstance)
+        yield self.redisClient._connected
+
+        # Set password for default user
         self.RedisForJasminConfigInstance.password = 'guest'
+        yield self.redisClient.execute_command(
+            'CONFIG', 'SET', 'requirepass', self.RedisForJasminConfigInstance.password)
+
+        # Disconnect and reconnect using password
+        yield self.redisClient.disconnect()
         self.redisClient = yield ConnectionWithConfiguration(self.RedisForJasminConfigInstance)
         yield self.redisClient._connected
 
     @defer.inlineCallbacks
     def tearDown(self):
+        # Before disconnecting: set the password for default user to '' (default behaviour)
+        yield self.redisClient.execute_command(
+            'CONFIG', 'SET', 'requirepass', '')
+
         yield self.redisClient.disconnect()
 
     @defer.inlineCallbacks
     def test_auth(self):
-        try:
-            # Authenticate and select db
-            yield self.redisClient.auth(self.RedisForJasminConfigInstance.password)
-            yield self.redisClient.select(self.RedisForJasminConfigInstance.dbid)
-        except Exception as e:
-            self.assertEqual(type(e), redis.ResponseError)
-            self.assertEqual(str(e), 'ERR AUTH <password> called without any password configured for the default user. '
-                                     'Are you sure your configuration is correct?')
+        # Authenticate and select db
+        yield self.redisClient.auth(self.RedisForJasminConfigInstance.password)
+        yield self.redisClient.select(self.RedisForJasminConfigInstance.dbid)
 
 
 class RedisTestCase(TestCase):
