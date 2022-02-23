@@ -885,19 +885,19 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
             submitCounter += 1
 
-        # Wait for 10 seconds
-        yield waitFor(10)
+        # Wait for 20 seconds
+        yield waitFor(20)
 
         # Start the connector again
         yield self.start(localConfig.id)
 
-        # Wait for 15 seconds, all the rest of the queue must be sent
-        yield waitFor(20)
+        # Wait for 30 seconds, all the rest of the queue must be sent
+        yield waitFor(30)
 
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        yield waitFor(5)
+        yield waitFor(15)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message
