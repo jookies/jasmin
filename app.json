@@ -15,10 +15,6 @@
   "logo": "https://docs.jasminsms.com/en/latest/_static/jasmin-small.png",
   "success_url": "/welcome",
   "stack": "heroku-20",
-  "scripts": {
-    "predeploy": "echo pre-deploy",
-    "postdeploy": "echo post-deploy"
-  },
   "addons": [
     "redistogo",
     "cloudamqp"
