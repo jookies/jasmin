@@ -1,4 +1,4 @@
-name: continuous integration jobs
+name: CI Jasmin
 
 on:
   push:
