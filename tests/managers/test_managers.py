@@ -892,7 +892,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.start(localConfig.id)
 
         # Wait for 30 seconds, all the rest of the queue must be sent
-        yield waitFor(30)
+        yield waitFor(50)
 
         yield self.stop(localConfig.id)
 
