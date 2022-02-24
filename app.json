@@ -16,12 +16,7 @@
   "success_url": "/welcome",
   "stack": "heroku-20",
   "addons": [
-    "redistogo",
+    "heroku-redis",
     "cloudamqp"
-  ],
-  "buildpacks": [
-    {
-      "url": "dockhero/heroku-buildpack-docker-compose"
-    }
   ]
 }
