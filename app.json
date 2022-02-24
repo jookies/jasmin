@@ -18,5 +18,10 @@
   "addons": [
     "redistogo",
     "cloudamqp"
+  ],
+  "buildpacks": [
+    {
+      "url": "dockhero/heroku-buildpack-docker-compose"
+    }
   ]
 }
