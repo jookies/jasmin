@@ -16,8 +16,8 @@ class HTTPApiConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.bind = self._get('http-api', 'bind', '0.0.0.0')
-        self.port = self._getint('http-api', 'port', 1401)
+        self.bind = self._get('http-api', 'bind', os.getenv('API_BIND', '0.0.0.0'))
+        self.port = self._getint('http-api', 'port', os.getenv('API_PORT', 1401))
 
         # Logging
         self.access_log = self._get(

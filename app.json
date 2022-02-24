@@ -24,5 +24,8 @@
   "addons": [
     "redistogo",
     "cloudamqp"
-  ]
+  ],
+  "scripts": {
+    "postdeploy": "mkdir -p /tmp/var/log/jasmin"
+  }
 }
