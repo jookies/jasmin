@@ -32,7 +32,7 @@ class AmqpConfig(ConfigFile):
             self.username = self._get('amqp-broker', 'username', 'guest')
             self.password = self._get('amqp-broker', 'password', 'guest')
             self.vhost = self._get('amqp-broker', 'vhost', '/')
-        
+
         self.port = self._getint('amqp-broker', 'port', 5672)
         self.spec = self._get('amqp-broker', 'spec', '%s/amqp0-9-1.xml' % RESOURCE_PATH)
         self.heartbeat = self._getint('amqp-broker', 'heartbeat', 0)
