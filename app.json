@@ -20,6 +20,6 @@
     "cloudamqp"
   ],
   "scripts": {
-    "postdeploy": "python3 jasmin/bin/jasmind.py --enable-dlr-lookup --enable-dlr-thrower"
+    "postdeploy": "mkdir /var/log/jasmin"
   }
 }
