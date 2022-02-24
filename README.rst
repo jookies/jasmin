@@ -3,7 +3,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|ci| |docker| |docs|
+|contribs| |ci| |docker| |docs| |support|
 
 Introduction
 ************
@@ -55,8 +55,14 @@ Links
 * `Project home page <http://www.jasminsms.com>`_
 * `Documentation <http://docs.jasminsms.com>`_
 * `Support <https://groups.google.com/forum/#!forum/jasmin-sms-gateway>`_
+* `Continuous Integration <https://github.com/jookies/jasmin/actions>`_
 * `Source code <http://github.com/jookies/jasmin>`_
 * `Travis CI <https://travis-ci.org/jookies/jasmin>`_
+
+Authors
+*******
+
+|authors|
 
 License
 *******
@@ -70,17 +76,33 @@ Credits
 * SMPP 3.4 Client based on smpp.twisted: https://github.com/mozes/smpp.twisted
 * GSMP 3.38 based on Python messaging: https://github.com/pmarti/python-messaging
 
-.. |ci| image:: https://api.travis-ci.org/jookies/jasmin.png?branch=master
+.. |contribs| image:: https://img.shields.io/badge/contributions-welcome-brightgreen?logo=github
+    :alt: Contributions welcome
+    :scale: 100%
+    :target: https://github.com/jookies/jasmin/blob/master/CODE_OF_CONDUCT.md
+
+.. |ci| image:: https://github.com/jookies/jasmin/actions/workflows/ci.yml/badge.svg
     :alt: Build status
     :scale: 100%
-    :target: https://travis-ci.org/jookies/jasmin
+    :target: https://github.com/jookies/jasmin/actions
 
-.. |docker| image:: https://images.microbadger.com/badges/image/jookies/jasmin.svg
-    :alt: Docker image contents
+.. |docker| image:: https://github.com/jookies/jasmin/actions/workflows/docker.yml/badge.svg
+    :alt: Docker image build status
     :scale: 100%
-    :target: https://microbadger.com/#/images/jookies/jasmin
+    :target: https://github.com/jookies/jasmin/actions
 
 .. |docs| image:: https://readthedocs.org/projects/jasmin/badge/?version=latest
     :alt: Documentation status
     :scale: 100%
     :target: http://docs.jasminsms.com
+
+.. |support| image:: https://img.shields.io/badge/discussions-GitHub-333333?logo=github
+    :alt: Github discussions
+    :scale: 100%
+    :target: https://github.com/jookies/jasmin/discussions
+
+.. |authors| image:: https://opencollective.com/jookies/contributors.svg?width=840&button=false
+    :alt: Contributors
+    s:align: center
+    :scale: 100%
+    :target: https://github.com/jookies/jasmin/graphs/contributors
