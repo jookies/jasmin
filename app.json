@@ -1,6 +1,6 @@
 {
   "name": "Jasmin SMS Gateway",
-  "description": "Jasmin is a very complete open source SMS Gateway with many enterprise-class features.",
+  "description": "Open source SMS Gateway running on Heroku.",
   "keywords": [
     "jasmin",
     "sms",
