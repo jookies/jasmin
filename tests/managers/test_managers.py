@@ -877,10 +877,10 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         localConfig.submit_sm_throughput = 20
         yield self.add(localConfig)
 
-        # Send 180 messages to the queue
+        # Send 150 messages to the queue
         submitCounter = 0
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
-        while submitCounter < 180:
+        while submitCounter < 150:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
             yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
             submitCounter += 1
@@ -897,11 +897,11 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         yield self.stop(localConfig.id)
 
         # Wait for unbound state
-        yield waitFor(15)
+        yield waitFor(20)
 
         # Assertions
         # Take the lastClient (and unique one) and assert received message
-        self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 180)
+        self.assertEqual(len(self.SMSCPort.factory.lastClient.submitRecords), 150)
 
     @defer.inlineCallbacks
     def test_submitSm_validity(self):
