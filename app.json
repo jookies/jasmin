@@ -15,12 +15,6 @@
   "logo": "https://docs.jasminsms.com/en/latest/_static/jasmin-small.png",
   "success_url": "/welcome",
   "stack": "heroku-20",
-  "env": {
-    "ROOT_PATH": {
-      "description": "Base path for Jasmin logs and config files, set to /tmp to avoid heroku readonly fs limit",
-      "value": "/tmp"
-    }
-  },
   "addons": [
     "redistogo",
     "cloudamqp"
