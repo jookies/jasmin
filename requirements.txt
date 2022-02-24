@@ -1,8 +1,8 @@
 pyasn1~=0.4.8
 pyOpenSSL~=19.1.0
-Twisted~=20.3.0
+Twisted~=22.1.0
 # install twisted requests since they changed how that all works
-treq~=20.3.0
+treq~=22.1.0
 pyparsing~=2.4.7
 python-dateutil~=2.8.1
 service_identity~=18.1.0
@@ -12,9 +12,9 @@ falcon~=2.0.0
 txredisapi~=1.4.7
 tabulate~=0.8.7
 
-txAMQP3~=0.9.0
+txAMQP3~=0.9.3
 smpp.pdu3~=0.6
-smpp.twisted3~=0.6
+smpp.twisted3~=0.7
 python-messaging~=0.5.13
 
 # Added in 0.9rc16:

@@ -320,9 +320,9 @@ class deliverSmThrower(Thrower):
                     params=params,
                     data=postdata,
                     timeout=self.config.timeout,
-                    agent='Jasmin gateway/1.0 deliverSmHttpThrower',
                     headers={'Content-Type': 'application/x-www-form-urlencoded',
-                             'Accept': 'text/plain'})
+                             'Accept': 'text/plain',
+                             'User-Agent': 'Jasmin gateway/1.0 deliverSmHttpThrower'})
                 self.log.info('Throwed message [msgid:%s] to connector (%s %s/%s)[cid:%s] using http to %s.',
                               msgid, route_type, counter, len(dcs), dc.cid, dc.baseurl)
                 
@@ -564,9 +564,9 @@ class DLRThrower(Thrower):
                 params=params,
                 data=postdata,
                 timeout=self.config.timeout,
-                agent='Jasmin gateway/1.0 %s' % self.name,
                 headers={'Content-Type': 'application/x-www-form-urlencoded',
-                         'Accept': 'text/plain'})
+                         'Accept': 'text/plain',
+                         'User-Agent': 'Jasmin gateway/1.0 %s' % self.name})
             self.log.info('Throwed DLR [msgid:%s] to %s.', msgid, baseurl)
 
             content = yield text_content(response)
