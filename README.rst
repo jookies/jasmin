@@ -57,7 +57,7 @@ Links
 * `Support <https://groups.google.com/forum/#!forum/jasmin-sms-gateway>`_
 * `Continuous Integration <https://github.com/jookies/jasmin/actions>`_
 * `Source code <http://github.com/jookies/jasmin>`_
-* `Travis CI <https://travis-ci.org/jookies/jasmin>`_
+* `/Experimental/ Deploy to Heroku <https://heroku.com/deploy?template=https://github.com/jookies/jasmin>`_
 
 Authors
 *******

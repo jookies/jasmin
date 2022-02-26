@@ -1,6 +1,6 @@
 {
   "name": "Jasmin SMS Gateway",
-  "description": "Open source SMS Gateway running on Heroku.",
+  "description": "Open source SMS Gateway running on Heroku (experimental).",
   "keywords": [
     "jasmin",
     "sms",
@@ -11,9 +11,9 @@
     "smsgw"
   ],
   "website": "https://jasminsms.com",
-  "repository": "https://github.com/jookies/jasmin/tree/0.10.11",
-  "logo": "https://docs.jasminsms.com/en/latest/_static/jasmin-small.png",
-  "success_url": "/welcome",
+  "repository": "https://github.com/jookies/jasmin",
+  "logo": "https://docs.jasminsms.com/en/latest/_static/jasmin-logo-60x60.png",
+  "success_url": "/ping",
   "stack": "heroku-20",
   "addons": [
     "heroku-redis",
