@@ -29,6 +29,7 @@ Architecture
    :alt: HLD Architecture
    :align: Center
    :figwidth: 100%
+   :target: https://docs.jasminsms.com/en/latest/architecture/index.html
 
 Jasmin core and its external connectors (used for AMQP, Redis, SMPP, HTTP, Telnet ...) are written in Python
 and are mainly based on `Twisted matrix <https://twistedmatrix.com/>`_, an event-driven networking engine.
@@ -62,7 +63,11 @@ Links
 Authors
 *******
 
-|authors|
+.. figure:: https://opencollective.com/jookies/contributors.svg?width=840&button=false
+   :alt: Contributors
+   :align: Center
+   :figwidth: 100%
+   :target: https://github.com/jookies/jasmin/graphs/contributors
 
 License
 *******
@@ -100,9 +105,3 @@ Credits
     :alt: Github discussions
     :scale: 100%
     :target: https://github.com/jookies/jasmin/discussions
-
-.. |authors| image:: https://opencollective.com/jookies/contributors.svg?width=840&button=false
-    :alt: Contributors
-    s:align: center
-    :scale: 100%
-    :target: https://github.com/jookies/jasmin/graphs/contributors
