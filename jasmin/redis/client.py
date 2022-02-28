@@ -68,7 +68,7 @@ def makeConnection(host, port, dbid, poolsize, reconnect, isLazy, _RedisForJasmi
     factory = RedisForJasminFactory(uuid, None, poolsize, isLazy, redis.ConnectionHandler, _RedisForJasminConfig)
     factory.continueTrying = reconnect
     for _ in range(poolsize):
-        reactor.connectTCP(host, port, factory)
+        reactor.connectTCP(host, int(port), factory)
 
     if isLazy:
         return factory.handler
