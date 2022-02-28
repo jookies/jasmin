@@ -4,6 +4,7 @@ Config file handler for 'amqp-broker' section in jasmin.cfg
 
 import logging
 import os
+import re
 
 import txamqp
 
@@ -13,6 +14,7 @@ ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 RESOURCE_PATH = os.getenv('RESOURCE_PATH', '%s/resource/' % CONFIG_PATH)
 LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
+CLOUDAMQP_URL = os.getenv('CLOUDAMQP_URL', None)
 
 class AmqpConfig(ConfigFile):
     """Config handler for 'amqp-broker' section"""
@@ -20,11 +22,18 @@ class AmqpConfig(ConfigFile):
     def __init__(self, config_file=None):
         ConfigFile.__init__(self, config_file)
 
-        self.host = self._get('amqp-broker', 'host', '127.0.0.1')
+        if CLOUDAMQP_URL is not None:
+            # Take rabbitmq config from CLOUDAMQP_URL env variable (used by heroku)
+            self.username, self.password, self.host, self.vhost = \
+                re.search(r"^amqps\:\/\/([a-z]+)\:([A-Za-z0-9_-]+)@((?!-)[-a-zA-Z0-9.]{1,63}(?<!-))\/([a-z]+)$",
+                          CLOUDAMQP_URL).groups()
+        else:
+            self.host = self._get('amqp-broker', 'host', '127.0.0.1')
+            self.username = self._get('amqp-broker', 'username', 'guest')
+            self.password = self._get('amqp-broker', 'password', 'guest')
+            self.vhost = self._get('amqp-broker', 'vhost', '/')
+
         self.port = self._getint('amqp-broker', 'port', 5672)
-        self.username = self._get('amqp-broker', 'username', 'guest')
-        self.password = self._get('amqp-broker', 'password', 'guest')
-        self.vhost = self._get('amqp-broker', 'vhost', '/')
         self.spec = self._get('amqp-broker', 'spec', '%s/amqp0-9-1.xml' % RESOURCE_PATH)
         self.heartbeat = self._getint('amqp-broker', 'heartbeat', 0)
 
