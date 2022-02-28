@@ -3,7 +3,7 @@
 Jasmin - Open source SMS gateway
 ################################
 
-|contribs| |ci| |docker| |docs| |support|
+|contribs| |ubuntu-package| |redhat-package| |ci| |docker| |docs| |support|
 
 Introduction
 ************
@@ -60,8 +60,8 @@ Links
 * `Source code <http://github.com/jookies/jasmin>`_
 * `/Experimental/ Deploy to Heroku <https://heroku.com/deploy?template=https://github.com/jookies/jasmin>`_
 
-Authors
-*******
+Contributors
+************
 
 .. figure:: https://opencollective.com/jookies/contributors.svg?width=840&button=false
    :alt: Contributors
@@ -90,6 +90,16 @@ Credits
     :alt: Build status
     :scale: 100%
     :target: https://github.com/jookies/jasmin/actions
+
+.. |ubuntu-package| image:: https://img.shields.io/badge/package-ubuntu-brightgreen.svg?style=flat-square
+    :alt: Ubuntu package
+    :scale: 100%
+    :target: https://packagecloud.io/jookies/jasmin-sms-gateway
+
+.. |redhat-package| image:: https://img.shields.io/badge/package-redhat-brightgreen.svg?style=flat-square
+    :alt: Redhat package
+    :scale: 100%
+    :target: https://packagecloud.io/jookies/jasmin-sms-gateway
 
 .. |docker| image:: https://github.com/jookies/jasmin/actions/workflows/docker.yml/badge.svg
     :alt: Docker image build status
