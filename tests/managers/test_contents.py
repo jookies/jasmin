@@ -41,6 +41,19 @@ class SubmitSmContentTestCase(ContentTestCase):
         self.assertEqual(c['priority'], 1)
         self.assertNotEqual(c['message-id'], None)
 
+    def test_priority_values(self):
+        """Refs #971"""
+
+        # Assert standard values
+        for priority in [0, 1, 2, 3]:
+            c = SubmitSmContent(1, self.body, self.replyto, self.bill, priority=priority)
+            self.assertEqual(c['priority'], priority)
+
+        # Assert non-standard values
+        for priority in [4, 10, 100]:
+            c = SubmitSmContent(1, self.body, self.replyto, self.bill, priority=priority)
+            self.assertEqual(c['priority'], priority)
+
     def test_unique_messageid(self):
         counter = 0
         maxCounter = 10000
