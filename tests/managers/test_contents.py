@@ -54,6 +54,10 @@ class SubmitSmContentTestCase(ContentTestCase):
             c = SubmitSmContent(1, self.body, self.replyto, self.bill, priority=priority)
             self.assertEqual(c['priority'], priority)
 
+        # Assert incorrect values
+        for priority in ['2', 'string', object]:
+            self.assertRaises(InvalidParameterError, SubmitSmContent, 1, self.body, self.replyto, self.bill, priority=priority)
+
     def test_unique_messageid(self):
         counter = 0
         maxCounter = 10000
