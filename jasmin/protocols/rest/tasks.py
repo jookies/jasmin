@@ -102,9 +102,10 @@ def httpapi_send(self, batch_id, batch_config, message_params, config):
                     'HTTPAPI error: %s' % r.content.strip('"'))
         else:
             if batch_config.get('callback_url', None):
-                resp_content = r.content
-                if isinstance(resp_content, bytes):
-                    resp_content = str(r.content)
+                if isinstance(r.content, bytes) and r.text:
+                    resp_content = r.text
+                else:
+                    resp_content = r.content
                 batch_callback.delay(
                     batch_config.get('callback_url'), batch_id, message_params['to'], 1, resp_content)
 
