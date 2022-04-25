@@ -95,19 +95,15 @@ def httpapi_send(self, batch_id, batch_config, message_params, config):
 
         # Return status back
         if r.status_code != 200:
-            logger.error('[%s] %s' % (batch_id, r.content.strip('"')))
+            logger.error('[%s] %s' % (batch_id, r.text.strip('"')))
             if batch_config.get('errback_url', None):
                 batch_callback.delay(
                     batch_config.get('errback_url'), batch_id, message_params['to'], 0,
-                    'HTTPAPI error: %s' % r.content.strip('"'))
+                    'HTTPAPI error: %s' % r.text.strip('"'))
         else:
             if batch_config.get('callback_url', None):
-                if isinstance(r.content, bytes) and r.text:
-                    resp_content = r.text
-                else:
-                    resp_content = r.content
                 batch_callback.delay(
-                    batch_config.get('callback_url'), batch_id, message_params['to'], 1, resp_content)
+                    batch_config.get('callback_url'), batch_id, message_params['to'], 1, r.text)
 
 
 @task(bind=True, base=JasminTask)
