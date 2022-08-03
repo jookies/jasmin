@@ -60,6 +60,7 @@ jobs:
       - name: Run twisted tests with coverage
         run: coverage run --source=jasmin -m twisted.trial tests
       - name: Coveralls.io synchronization
+        if: ${{ env.GITHUB_TOKEN }}
         run: coveralls
       - name: Build the html docs
         run: cd misc/doc;make html;cd ../../
