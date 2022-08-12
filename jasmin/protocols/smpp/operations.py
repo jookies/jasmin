@@ -91,13 +91,13 @@ class SMPPOperationFactory:
         if 'short_message' in pdu.params:
             patterns = [
                 r"id:(?P<id>[\dA-Za-z-_]+)",
-                r"sub:(?P<sub>\d{3})",
-                r"dlvrd:(?P<dlvrd>\d{3})",
+                r"sub:(?P<sub>\d{1,3})",
+                r"dlvrd:(?P<dlvrd>\d{1,3})",
                 r"submit date:(?P<sdate>\d+)",
                 r"done date:(?P<ddate>\d+)",
                 r"stat:(?P<stat>\w{7})",
-                r"err:(?P<err>\w{3})",
-                r"text:(?P<text>.*)",
+                r"err:(?P<err>\w{1,3})",
+                r"[tT]ext:(?P<text>.*)",
             ]
 
             # Look for patterns and compose return object
@@ -112,6 +112,15 @@ class SMPPOperationFactory:
                         or (key == 'id' and 'id' not in ret)
                         or (key == 'stat' and 'stat' not in ret)):
                         ret.update(m.groupdict())
+
+        if ret['sub'] != 'ND' and len(ret['sub']) < 3:
+            ret['sub'] = '{:0>3}'.format(ret['sub'])
+
+        if ret['dlvrd'] != 'ND' and len(ret['dlvrd']) < 3:
+            ret['dlvrd'] = '{:0>3}'.format(ret['dlvrd'])
+
+        if ret['err'] != 'ND' and len(ret['err']) < 3:
+            ret['err'] = '{:0>3}'.format(ret['err'])
 
         # Should we consider this as a DLR ?
         if 'id' in ret and 'stat' in ret:
@@ -237,6 +246,8 @@ class SMPPOperationFactory:
             message_status = message_status.decode()
         if isinstance(msgid, bytes):
             msgid = msgid.decode()
+        if isinstance(err, bytes):
+            err = err.decode()
         sm_message_stat = message_status
         # Prepare message_state
         if message_status[:5] == 'ESME_':
