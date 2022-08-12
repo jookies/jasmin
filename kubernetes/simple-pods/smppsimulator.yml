@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: smppsim
+  labels:
+    name: smppsim
+spec:
+  hostname: smppsim
+  subdomain: test
+  containers:
+  - name: smppsim
+    image: jookies/smppsim:latest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test
+spec:
+  selector:
+    name: smppsim
+  clusterIP: None

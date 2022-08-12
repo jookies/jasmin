@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcjasmin
+data:
+  jasmin.cfg: |
+      # This is a simplified config version taken from the /etc/jasmin/jasmin.cfg file
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      
+      [sm-listener]
+      publish_submit_sm_resp = False
+      submit_max_age_smppc_not_ready = 300
+      
+      [dlr]
+      dlr_lookup_retry_delay = 180
+      
+      [amqp-broker]
+      host = rabbit.mq.farirat.svc.cluster.local
+      
+      [deliversm-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 2
+      
+      [dlr-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 2
+      
+      [redis-client]
+      host = redis.store.farirat.svc.cluster.local
+      poolsize = 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcredis
+data:
+  redis.conf: ""
