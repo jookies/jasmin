@@ -19,11 +19,11 @@ class AckServer(LeafServer):
 
     def render_GET(self, request):
         self.last_request = request
-        return 'ACK/Jasmin'
+        return b'ACK/Jasmin'
 
     def render_POST(self, request):
         self.last_request = request
-        return 'ACK/Jasmin'
+        return b'ACK/Jasmin'
 
 
 class NoAckServer(LeafServer):
