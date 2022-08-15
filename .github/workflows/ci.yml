@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - 'ack_fix'
+      - 'master'
   pull_request:
     branches:
       - 'master'

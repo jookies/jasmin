@@ -45,7 +45,6 @@ from jasmin.tools.proxies import ConnectError
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from smpp.pdu.pdu_types import (AddrTon, AddrNpi)
 
-twisted.internet.base.DelayedCall.debug = True
 
 @defer.inlineCallbacks
 def waitFor(seconds):
@@ -1495,7 +1494,6 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         client = HTTPClient(agent)
         response = yield client.post(baseurl, data=self.params)
         c = yield text_content(response)
-        print(c)
         msgStatus = c[:7]
         msgId = c[9:45]
 
@@ -1510,7 +1508,6 @@ class BOUND_RX_SubmitSmTestCases(RouterPBProxy, NoSubmitSmWhenReceiverIsBoundSMS
         self.assertEqual(self.AckServerResource.render_POST.call_count, 1)
         # Message ID must be transmitted in the DLR
         callArgs = self.AckServerResource.render_POST.call_args_list[0][0][0].args
-        print(callArgs)
         self.assertEqual(callArgs[b'id'][0], msgId.encode())
         self.assertEqual(callArgs[b'message_status'][0], b'ESME_RINVBNDSTS')
 
