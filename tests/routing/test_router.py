@@ -4,7 +4,6 @@ import os
 import string
 import urllib.request, urllib.parse, urllib.error
 import random
-import twisted
 
 from unittest.mock import Mock, call
 from twisted.cred import portal
@@ -47,6 +46,7 @@ from jasmin.tools.spread.pb import JasminPBPortalRoot
 from smpp.pdu.pdu_types import (AddrTon, AddrNpi)
 
 twisted.internet.base.DelayedCall.debug = True
+
 @defer.inlineCallbacks
 def waitFor(seconds):
     # Wait seconds
