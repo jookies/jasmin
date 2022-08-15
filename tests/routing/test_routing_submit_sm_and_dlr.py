@@ -3,7 +3,6 @@ import string
 from datetime import datetime
 import random
 import binascii
-import twisted
 
 from unittest.mock import MagicMock, Mock
 from twisted.internet import defer, reactor
@@ -28,7 +27,7 @@ from smpp.pdu.pdu_types import AddrTon, AddrNpi, RegisteredDelivery, RegisteredD
 from smpp.pdu.smpp_time import FixedOffset
 from smpp.pdu.smpp_time import SMPPRelativeTime
 
-twisted.internet.base.DelayedCall.debug = True
+
 @defer.inlineCallbacks
 def waitFor(seconds):
     # Wait seconds
