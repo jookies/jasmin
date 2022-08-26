@@ -38,11 +38,6 @@ COPY misc/config/resource ${RESOURCE_PATH}
 
 WORKDIR /usr/jasmin
 
-# Change binding host for jcli, redis, and amqp
-RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
-RUN sed -i '/\[redis-client\]/a host=redis' /etc/jasmin/jasmin.cfg
-RUN sed -i '/\[amqp-broker\]/a host=rabbitmq' /etc/jasmin/jasmin.cfg
-
 EXPOSE 2775 8990 1401
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
 
