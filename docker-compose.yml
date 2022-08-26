@@ -6,11 +6,10 @@ services:
 
   rabbit-mq:
     image: rabbitmq:alpine
-
   jasmin:
     build:
       context: ./
-      dockerfile: ./docker/Dockerfile.dev
+      dockerfile: ./docker/Dockerfile
     container_name: jasmin
     volumes:
       - ./jasmin:/usr/jasmin/jasmin
@@ -24,3 +23,4 @@ services:
     environment:
       REDIS_CLIENT_HOST: redis
       AMQP_BROKER_HOST: rabbit-mq
+      JCLI_BIND: 0.0.0.0
