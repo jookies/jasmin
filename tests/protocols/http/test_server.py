@@ -704,3 +704,25 @@ class StatsTestCases(HTTPApiTestCases):
         self.assertEqual(stats.get('server_error_count'), 1)
         self.assertEqual(stats.get('success_count'), 0)
         self.assertEqual(stats.get('last_success_at'), 0)
+
+
+class MetricsTestCases(HTTPApiTestCases):
+    username = 'nathalie'
+
+    @defer.inlineCallbacks
+    def get_metrics(self):
+        response = yield self.web.get(b"metrics")
+        print(response)
+
+    @defer.inlineCallbacks
+    def test_send_failure(self):
+        # Save before
+        metrics_before = yield self.get_metrics()
+
+        response = yield self.web.post(b'send', {b'username': 'nathalie',
+                                               b'password': 'incorrec',
+                                               b'to': b'06155423',
+                                               b'content': 'anycontent'})
+        self.assertNotEqual(response.responseCode, 200)
+
+        
