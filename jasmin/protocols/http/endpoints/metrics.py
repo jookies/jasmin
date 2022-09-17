@@ -78,8 +78,8 @@ class Metrics(Resource):
         _s = HttpAPIStatsCollector().get()
         for metric, descriptor in PROM_METRICS_HTTPAPI.items():
             response.extend([
-                b'# HELP httpapi_%s %s' % (metric.encode(), descriptor['help']),
                 b'# TYPE httpapi_%s %s' % (metric.encode(), descriptor['type']),
+                b'# HELP httpapi_%s %s' % (metric.encode(), descriptor['help']),
                 ('httpapi_%s %s' % (metric, _s.get(metric))).encode(),
             ])
 
@@ -89,8 +89,8 @@ class Metrics(Resource):
         for metric, descriptor in PROM_METRICS_SMPPC.items():
             if len(_connectors) > 0:
                 response.extend([
-                    b'# HELP smppc_%s %s' % (metric.encode(), descriptor['help']),
                     b'# TYPE smppc_%s %s' % (metric.encode(), descriptor['type']),
+                    b'# HELP smppc_%s %s' % (metric.encode(), descriptor['help']),
                 ])
 
             for _connector in _connectors:
@@ -105,9 +105,12 @@ class Metrics(Resource):
         _s = SMPPServerStatsCollector().get('smpps_01').getStats()
         for metric, descriptor in PROM_METRICS_SMPPS_API.items():
             response.extend([
-                b'# HELP smppsapi_%s %s' % (metric.encode(), descriptor['help']),
                 b'# TYPE smppsapi_%s %s' % (metric.encode(), descriptor['type']),
+                b'# HELP smppsapi_%s %s' % (metric.encode(), descriptor['help']),
                 ('smppsapi_%s %s' % (metric, _s.get(metric))).encode(),
             ])
 
-        return b'\r\n'.join(response)
+        # Add padding
+        response.extend([b'', b''])
+
+        return b'\n'.join(response)
