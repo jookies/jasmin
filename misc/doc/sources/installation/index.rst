@@ -2,7 +2,7 @@
 Installation
 ############
 
-The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/ja-http/index` or :doc:`/apis/smpp-server/index`.
+The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/http/index` or :doc:`/apis/smpp-server/index`.
 
 Jasmin installation is provided as rpm & deb Linux packages, docker image and pypi package.
 
@@ -150,6 +150,52 @@ Jasmin is now up and running::
 
 .. note:: You can play around with the docker-compose.yml to choose different versions, mounting the configs outside the container, etc ...
 
+.. _monitoring_grafana:
+
+Monitoring using Grafana
+************************
+
+Through its native exporter for `Prometheus <https://prometheus.io/>`_ you can collect and analyze detailed metrics within a production environment, we will be using the /metrics API (:ref:`get_metrics`) with `Prometheus <https://prometheus.io/>`_  and `Grafana <https://grafana.com/>`_ in this guide.
+
+Spin the `docker-compose including prometheus and grafana <https://github.com/jookies/jasmin/blob/master/docker-compose.grafana.yml>`_ file::
+
+    docker-compose -f docker-compose.grafana.yml up -d
+
+You should have the following containers up and running::
+
+    CONTAINER ID   IMAGE                    COMMAND                  CREATED       STATUS              PORTS                                                                     NAMES
+    cd7597137e9a   grafana/grafana          "/run.sh"                2 days ago    Up About a minute   0.0.0.0:3000->3000/tcp                                                    jasmin-grafana-1
+    bd3be30a5cd5   prom/prometheus:latest   "/bin/prometheus --c…"   2 days ago    Up About a minute   9090/tcp                                                                  jasmin-prometheus-1
+    8209435c2f8d   jasmin-jasmin            "/docker-entrypoint.…"   2 days ago    Up About a minute   0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp    jasmin
+    6c88fa5e47db   rabbitmq:alpine          "docker-entrypoint.s…"   2 days ago    Up About a minute   4369/tcp, 5671-5672/tcp, 15691-15692/tcp, 25672/tcp                       jasmin-rabbit-mq-1
+    a649abd164c8   redis:alpine             "docker-entrypoint.s…"   2 days ago    Up About a minute   6379/tcp                                                                  jasmin-redis-1
+
+Now open Grafana using default username (admin) and password (admin)::
+
+  http://127.0.0.1:3000
+
+First you'll need to add *Prometheus metrics* as a **Data Source**, go to **Configuration > Data sources** and click on **Add data source**:
+
+* Name: *Prometheus*
+* URL: *http://prometheus:9090*
+
+Keep defaults the **Save & test**.
+
+Now you can start playing around with the collected metrics, go to **Explore** and play with the autocomplete feature in **Metrics browser** by typing **httapi**, **smpps** or **smppc**.
+
+You can also *explore* metrics of a defined SMPP client connector by setting the **cid** tag, example of getting number of bound session of a specific connector::
+
+  smppc_bound_count{cid="foo"}
+
+.. note:: The complete set of metrics exposed by Jasmin can be checked through the **/metrics** http api, these metrics are also exposed through jcli's :ref:`stats_manager` module.
+
+.. _install_k8s:
+
+Kubernetes cluster
+******************
+
+@TODO
+
 Sending your first SMS
 **********************
 
@@ -260,7 +306,7 @@ And then create the new user::
 5. Send SMS
 ===========
 
-Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/ja-http/index` for detailed information about sending and receiving SMS and receipts)::
+Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/http/index` for detailed information about sending and receiving SMS and receipts)::
 
 	http://127.0.0.1:1401/send?username=foo&password=bar&to=06222172&content=hello
 

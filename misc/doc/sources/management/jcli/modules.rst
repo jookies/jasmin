@@ -50,7 +50,7 @@ The User manager module is accessible through the **user** command and is provid
 A User object is required for:
 
  * :doc:`/apis/smpp-server/index` authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
- * :doc:`/apis/ja-http/index` authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
+ * :doc:`/apis/http/index` authentication to send a SMS (c.f. :ref:`sending_sms-mt`)
  * Creating a **UserFilter** using the **filter** manager (c.f. :ref:`filter_manager`)
 
 Every User **must** be a member of a Group, so before adding a new User, there must be at least one Group

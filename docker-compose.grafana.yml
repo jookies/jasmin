@@ -10,8 +10,8 @@ services:
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
-    #ports:
-    #  - '9090:9090'
+    ports:
+      - '9090:9090'
     volumes:
       - ./misc/config/prometheus.yml:/etc/prometheus/prometheus.yml
       - monitoring_data:/prometheus

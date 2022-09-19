@@ -98,7 +98,7 @@ class Metrics(Resource):
                 _s = _stats.get(_cid, SMPPClientStatsCollector().get(_cid))
 
                 response.extend([
-                    ('smppc_%s{cid=%s} %s' % (metric, _cid, _s.get(metric))).encode(),
+                    ('smppc_%s{cid="%s"} %s' % (metric, _cid, _s.get(metric))).encode(),
                 ])
 
         # Fill smpps stats
