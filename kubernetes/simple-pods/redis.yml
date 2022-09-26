@@ -32,3 +32,10 @@ spec:
   selector:
     name: redis
   clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcredis
+data:
+  redis.conf: ""

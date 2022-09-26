@@ -1,0 +1,127 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        fsGroup: 472
+        runAsUser: 0
+        supplementalGroups:
+          - 0
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - containerPort: 3000
+              name: http-grafana
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/grafana
+              name: grafana-data
+      volumes:
+        - name: grafana-data
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+          ports:
+            - containerPort: 9090
+              name: prometheus-port
+              protocol: TCP
+          volumeMounts:
+            - name: etcprom
+              mountPath: /etc/prometheus
+      volumes:
+        - name: etcprom
+          configMap:
+            name: promconf
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promconf
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      scrape_timeout: 10s
+
+    scrape_configs:
+      - job_name: jasmin
+        static_configs:
+          - targets:
+              - 'jasmin.app.farirat.svc.cluster.local:1401'
+      - job_name: rabbitmq
+        static_configs:
+          - targets:
+              - 'rabbit.mq.farirat.svc.cluster.local:15692'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+spec:
+  ports:
+    - port: 9090
+      protocol: TCP
+      targetPort: prometheus-port
+  selector:
+    app: prometheus
+  sessionAffinity: None
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: http-grafana
+  selector:
+    app: grafana
+  sessionAffinity: None
+  type: LoadBalancer
