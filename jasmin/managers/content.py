@@ -150,7 +150,7 @@ class SubmitSmContent(PDU):
         # RabbitMQ does not support priority (yet), anyway, we may use any other amqp broker that supports it
         if not isinstance(priority, int):
             raise InvalidParameterError("Invalid priority argument: %s" % priority)
-        if priority < 0 or priority > 3:
+        if not isinstance(priority, int) or priority < 0:
             raise InvalidParameterError("Priority must be set from 0 to 3, it is actually set to %s" %
                                         priority)
         if source_connector not in ['httpapi', 'smppsapi']:

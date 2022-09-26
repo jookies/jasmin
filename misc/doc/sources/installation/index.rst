@@ -2,7 +2,7 @@
 Installation
 ############
 
-The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/ja-http/index` or :doc:`/apis/smpp-server/index`.
+The Installation section is intended to get you up and running quickly with a simple SMS sending scenario through :doc:`/apis/http/index` or :doc:`/apis/smpp-server/index`.
 
 Jasmin installation is provided as rpm & deb Linux packages, docker image and pypi package.
 
@@ -150,6 +150,142 @@ Jasmin is now up and running::
 
 .. note:: You can play around with the docker-compose.yml to choose different versions, mounting the configs outside the container, etc ...
 
+.. _monitoring_grafana:
+
+Monitoring using Grafana
+************************
+
+Through its native exporter for `Prometheus <https://prometheus.io/>`_ you can collect and analyze detailed metrics within a production environment, we will be using the /metrics API (:ref:`get_metrics`) with `Prometheus <https://prometheus.io/>`_  and `Grafana <https://grafana.com/>`_ in this guide.
+
+Spin the `docker-compose including prometheus and grafana <https://github.com/jookies/jasmin/blob/master/docker-compose.grafana.yml>`_ file::
+
+    docker-compose -f docker-compose.grafana.yml up -d
+
+You should have the following containers up and running::
+
+    CONTAINER ID   IMAGE                    COMMAND                  CREATED       STATUS              PORTS                                                                     NAMES
+    cd7597137e9a   grafana/grafana          "/run.sh"                2 days ago    Up About a minute   0.0.0.0:3000->3000/tcp                                                    jasmin-grafana-1
+    bd3be30a5cd5   prom/prometheus:latest   "/bin/prometheus --c…"   2 days ago    Up About a minute   9090/tcp                                                                  jasmin-prometheus-1
+    8209435c2f8d   jasmin-jasmin            "/docker-entrypoint.…"   2 days ago    Up About a minute   0.0.0.0:1401->1401/tcp, 0.0.0.0:2775->2775/tcp, 0.0.0.0:8990->8990/tcp    jasmin
+    6c88fa5e47db   rabbitmq:alpine          "docker-entrypoint.s…"   2 days ago    Up About a minute   4369/tcp, 5671-5672/tcp, 15691-15692/tcp, 25672/tcp                       jasmin-rabbit-mq-1
+    a649abd164c8   redis:alpine             "docker-entrypoint.s…"   2 days ago    Up About a minute   6379/tcp                                                                  jasmin-redis-1
+
+Now open Grafana using default username (admin) and password (admin)::
+
+  http://127.0.0.1:3000
+
+First you'll need to add *Prometheus metrics* as a **Data Source**, go to **Configuration > Data sources** and click on **Add data source**:
+
+* Name: *Prometheus*
+* URL: *http://prometheus:9090*
+
+Keep defaults the **Save & test**.
+
+Now you can start playing around with the collected metrics, go to **Explore** and play with the autocomplete feature in **Metrics browser** by typing **httapi**, **smpps** or **smppc**.
+
+You can also *explore* metrics of a defined SMPP client connector by setting the **cid** tag, example of getting number of bound session of a specific connector::
+
+  smppc_bound_count{cid="foo"}
+
+.. note:: The complete set of metrics exposed by Jasmin can be checked through the **/metrics** http api, these metrics are also exposed through jcli's :ref:`stats_manager` module.
+
+.. _install_k8s:
+
+Kubernetes cluster
+******************
+
+**@TODO: add link to documented stresstests**
+
+This part of the documentation covers clustering Jasmin SMS Gateway using `Kubernetes <https://kubernetes.io/>`_, it is also made as a reference setup for anyone looking to deploy Jasmin in complex/cloud architectures, this is a proof-of-concept model for deploying simple and advanced clusters, these were used for making stress tests and performance metering of the sms gateway, `documented here <http://docs.jasminsms.com/@TODO>`_.
+
+Before you begin you need to have a Kubernetes cluster, and the **kubectl** command-line tool must be configured to communicate with your cluster. It is recommended to run this tutorial on a cluster with at least two nodes that are not acting as control plane hosts. If you do not already have a cluster, you can create one by using minikube or you can use one of these Kubernetes playgrounds:
+
+* `Okteto <https://www.okteto.com/>`_
+* `Killercoda <https://killercoda.com/playgrounds/scenario/kubernetes>`_
+* `Play with Kubernetes <https://labs.play-with-k8s.com/>`_
+
+Your Kubernetes server must be at or later than version v1.10. To check the version, enter *kubectl version*.
+
+Simple k8s architecture
+=======================
+
+This is barely simple architecture with running pods and a SMPP simulator to allow simple functional or performance testing.
+
+.. note:: This section of the guide uses the provided Kubernetes objects located in this `directory <https://github.com/jookies/jasmin/blob/master/kubernetes/simple-pods>`_.
+
+Start by adjusting the namespace in **configmaps.yml**: replace the rabbitmq and redis hosts to hostnames provided by your own Kubernetes cluster then deploy:
+
+1. kubectl apply -f redis.yml
+2. kubectl apply -f rabbitmq.yml
+3. kubectl apply -f jasmin.yml
+
+You should have the cluster up and running within seconds, your Jasmin pod must log to stdout the following messages:
+
+.. code-block:: bash
+
+   INFO 1 Starting Jasmin Daemon ...
+   INFO 1 Interceptor client Started.
+   INFO 1 RedisClient Started.
+   INFO 1 AMQP Broker Started.
+   INFO 1 RouterPB Started.
+   INFO 1 SMPPClientManagerPB Started.
+   INFO 1 DLRLookup Started.
+   INFO 1 SMPPServer Started.
+   INFO 1 deliverSmThrower Started.
+   INFO 1 DLRThrower Started.
+   INFO 1 HTTPApi Started.
+   INFO 1 jCli Started.
+
+.. warning::
+
+   If you don't have the indicated above logged lines to Jasmin's pod stdout then you are having troubles somewhere, do not step forward before solving them.
+
+Now you can connect jcli by *first* running a port-forward and then connecting to the forwarded port:
+
+.. code-block:: bash
+
+   kubectl port-forward jasmin 8990:8990
+
+Then:
+
+.. code-block:: bash
+
+   telnet 127.0.0.1 8990
+
+.. note::
+
+   The **kubectl port-forward** command will not return unless you *ctrl-c* to stop the port-forward, the second command (telnet) needs to be run in another terminal session.
+
+You can now make the same steps to port-forward the smpp (2775) port or the http (1401) port and start using Jasmin.
+
+If you need to connect Jasmin to a *provided smpp simulator* then first deploy the simulator::
+
+  kubectl apply -f smppsimulator.yml
+
+And then add a new SMPP client connector by following these steps:
+
+.. code-block:: bash
+
+   smppccm -a
+   > cid smpp_simulator
+   > host smppsim.test.farirat.svc.cluster.local
+   > username smppclient1
+   > password password
+   > ok
+   smppccm -1 smpp_simulator
+
+You will also need to create a group, user and at least a mt route to make your first sms delivery test, `this guide is your friend ! <https://docs.jasminsms.com/en/latest/installation/index.html#sending-your-first-sms>`_
+
+.. note::
+
+   You may adjust the **host** value in the example above to your own host (provided by your Kubernetes cluster).
+
+Advanced deployment architecture
+================================
+
+*[work in progress]*
+
+
 Sending your first SMS
 **********************
 
@@ -260,7 +396,7 @@ And then create the new user::
 5. Send SMS
 ===========
 
-Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/ja-http/index` for detailed information about sending and receiving SMS and receipts)::
+Sending outbound SMS (MT) is simply done through Jasmin's HTTP API (refer to :doc:`/apis/http/index` for detailed information about sending and receiving SMS and receipts)::
 
 	http://127.0.0.1:1401/send?username=foo&password=bar&to=06222172&content=hello
 

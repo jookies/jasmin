@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jasmin
+  labels:
+    app: jasmin
+spec:
+  hostname: jasmin
+  subdomain: app
+  containers:
+    - name: jasmin
+      image: jookies/jasmin:latest
+      ports:
+        - containerPort: 2775
+          name: smpp-port
+          protocol: TCP
+        - containerPort: 1401
+          name: http-port
+          protocol: TCP
+        - containerPort: 8990
+          name: cli-port
+          protocol: TCP
+      lifecycle:
+        postStart:
+          exec:
+            command: [ "sh", "-c", "cp /tmp/jasminconfig/* /etc/jasmin/" ]
+      volumeMounts:
+        - name: jasminconfig
+          mountPath: /tmp/jasminconfig
+  volumes:
+    - name: jasminconfig
+      configMap:
+        name: etcjasmin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  selector:
+    name: jasmin
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcjasmin
+data:
+  jasmin.cfg: |
+      # This is a simplified config version taken from the /etc/jasmin/jasmin.cfg file
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      
+      [sm-listener]
+      publish_submit_sm_resp = False
+      submit_max_age_smppc_not_ready = 300
+      
+      [dlr]
+      dlr_lookup_retry_delay = 180
+      
+      [amqp-broker]
+      host = rabbit.mq.farirat.svc.cluster.local
+      
+      [deliversm-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 2
+      
+      [dlr-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 2
+      
+      [redis-client]
+      host = redis.store.farirat.svc.cluster.local
+      poolsize = 30

@@ -1,7 +1,7 @@
 name: "jasmin-sms-gateway"
 arch: "amd64"
 platform: "linux"
-version: "v0.10.11"
+version: "v0.10.12"
 section: "default"
 priority: "extra"
 maintainer: "Jookies LTD <jasmin@jookies.net>"
@@ -32,10 +32,15 @@ replaces:
   - jasmin-sms-gateway
 provides:
   - jasmin-sms-gateway
-empty_folders:
-  - /var/log/jasmin
-  - /etc/jasmin/store
 contents:
+  - dst: /var/log/jasmin
+    type: dir
+    file_info:
+      mode: 0700
+  - dst: /etc/jasmin/store
+    type: dir
+    file_info:
+      mode: 0700
   - src: ./misc/config/jasmin.cfg
     dst: "/etc/jasmin/jasmin.cfg"
     type: config
