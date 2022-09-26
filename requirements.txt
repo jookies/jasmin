@@ -17,6 +17,10 @@ smpp.pdu3~=0.6
 smpp.twisted3~=0.7
 python-messaging~=0.5.13
 
+# Freezinng cryptography version because of a bug in >=38.0.0
+# https://github.com/pyca/cryptography/issues/7617
+cryptography~=37.0.4
+
 # Added in 0.9rc16:
 celery>=4.0.0
 redis~=3.4.1
@@ -24,3 +28,6 @@ requests~=2.23.0
 
 # For REST API
 python-mimeparse~=1.6.0
+
+# For /metrics (prometheus exporter)
+prometheus-client~=0.14.1

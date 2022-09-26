@@ -4,11 +4,9 @@ These are test cases for only Jasmin's code, smpp.twisted tests are not included
 """
 
 import copy
-import random
 
 from unittest.mock import Mock
 from testfixtures import LogCapture
-from twisted.internet import defer
 from twisted.internet.protocol import Factory
 from twisted.python import log
 from twisted.trial.unittest import TestCase

@@ -32,10 +32,15 @@ replaces:
   - jasmin-sms-gateway
 provides:
   - jasmin-sms-gateway
-empty_folders:
-  - /var/log/jasmin
-  - /etc/jasmin/store
 contents:
+  - dst: /var/log/jasmin
+    type: dir
+    file_info:
+      mode: 0700
+  - dst: /etc/jasmin/store
+    type: dir
+    file_info:
+      mode: 0700
   - src: ./misc/config/jasmin.cfg
     dst: "/etc/jasmin/jasmin.cfg"
     type: config

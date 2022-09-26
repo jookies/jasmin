@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
 
   jasmin:
-    image: jookies/jasmin:0.10
+    image: jookies/jasmin:latest
     restart: unless-stopped
     container_name: jasmin
     volumes:

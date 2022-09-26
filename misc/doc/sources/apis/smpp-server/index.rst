@@ -2,7 +2,7 @@
 SMPP Server API
 ###############
 
-This document is targeted at software designers/programmers wishing to integrate SMS messaging through a stateful tcp protocol **SMPP v3.4**, if you feel this does not fit your needs and that you are more "web-service-guy" then you still can try :doc:`/apis/ja-http/index`.
+This document is targeted at software designers/programmers wishing to integrate SMS messaging through a stateful tcp protocol **SMPP v3.4**, if you feel this does not fit your needs and that you are more "web-service-guy" then you still can try :doc:`/apis/http/index`.
 
 SMS Messages can be transmitted using SMPP protocol, the following requirements must be met to enable the service :
 
@@ -27,18 +27,18 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
 
 .. code-block:: ini
    :linenos:
-   
+
    [smpp-server]
    id            = "smpps_01"
    bind          = 0.0.0.0
    port          = 2775
-   
+
    sessionInitTimerSecs = 30
    enquireLinkTimerSecs = 30
    inactivityTimerSecs  = 300
    responseTimerSecs    = 60
    pduReadTimerSecs     = 30
-   
+
    log_level          = INFO
    log_file           = /var/log/jasmin/default-smpps_01.log
    log_format         = %(asctime)s %(levelname)-8s %(process)d %(message)s
@@ -76,7 +76,7 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      - 30
      - Protocol tuning parameter: binary pdu ready timeout.
    * - log_*
-     - 
+     -
      - Python's logging module configuration.
 
 .. _smpps_binding:

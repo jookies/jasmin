@@ -19,11 +19,12 @@ SMS Messages can be transmitted using HTTP protocol, the following requirements 
 Features
 ********
 
-The ja-http API allows you to:
+The Http API allows you to:
 
 * Send and receive SMS through Jasmin's connectors,
 * Receive http callbacks for delivery notification (*receipts*) when SMS-MT is received (or not) on mobile station,
 * Send and receive long (more than 160 characters) SMS, unicode/binary content and receive http callbacks when a mobile station send you a SMS-MO.
+* Get monitoring metrics
 * Check your balance status,
 * Check a message rate price before sending it.
 
@@ -47,7 +48,7 @@ HTTP request parameters
 =======================
 When calling Jasmin's URL from an application, the below parameters must be passed (at least mandatory ones), the api will return a message id on success, see :ref:`http_response`.
 
-.. list-table:: ja-http sending SMS parameters
+.. list-table:: Http sending SMS parameters
    :header-rows: 1
 
    * - Parameter
@@ -87,9 +88,9 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - Default is 0 (lowest priority)
    * - **sdt**
      - String
-     - 000000000100000R (send in 1 minute) 
+     - 000000000100000R (send in 1 minute)
      - Optional
-     - Specifies  the  scheduled delivery time at which the message delivery should be first attempted, default is value is None (message will take SMSC's default). Supports Absolute and Relative Times per SMPP v3.4 Issue 1.2 
+     - Specifies  the  scheduled delivery time at which the message delivery should be first attempted, default is value is None (message will take SMSC's default). Supports Absolute and Relative Times per SMPP v3.4 Issue 1.2
    * - **validity-period**
      - Integer
      - 1440
@@ -148,7 +149,7 @@ Otherwise, an error is returned:
 
   Error "No route found"
 
-.. list-table:: HTTP response code details
+.. list-table:: Http response code details
    :widths: 10 40 50
    :header-rows: 1
 
@@ -225,7 +226,7 @@ In Ruby:
 jasmin.cfg / http-api
 =====================
 
-The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **http-api** where all ja-http API related config elements are:
+The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section called **http-api** where all Http API related config elements are:
 
 .. code-block:: ini
    :linenos:
@@ -294,7 +295,7 @@ HTTP Parameters for a level 1 DLR
 =================================
 The following parameters are sent to the receiving end point (at dlr-url) when the DLR's dlr-level is set to 1 (SMS-C level only)
 
-.. list-table:: ja-http parameters for a level 1 DLR
+.. list-table:: Http parameters for a level 1 DLR
    :header-rows: 1
 
    * - Parameter
@@ -328,7 +329,7 @@ HTTP Parameters for a level 2 or 3 DLR
 ======================================
 The following parameters are sent to the receiving end point (at dlr-url) when DLR's dlr-level is set to 2 or 3 (Terminal level or all levels)
 
-.. list-table:: ja-http parameters for a level 2 or 3 DLR
+.. list-table:: Http parameters for a level 2 or 3 DLR
    :header-rows: 1
 
    * - Parameter
@@ -398,7 +399,7 @@ Processing
 ==========
 The flowchart below describes how dlr delivery and retrying policy is done inside DLRThrower service:
 
-.. figure:: /resources/ja-http/dlr-flowchart.png
+.. figure:: /resources/http/dlr-flowchart.png
    :alt: DLR delivery flowchart as processed by DLRThrower service
    :align: Center
 
@@ -470,7 +471,7 @@ HTTP Parameters
 ===============
 When receiving an URL call from Jasmin's *deliverSmHttpThrower service*, the below parameters are delivered (at least *Always* present ones).
 
-.. list-table:: ja-http receiving SMS parameters
+.. list-table:: Http receiving SMS parameters
    :header-rows: 1
 
    * - Parameter
@@ -533,7 +534,7 @@ Processing
 ==========
 The flowchart below describes how message delivery and retrying policy are done inside *deliverSmHttpThrower* service:
 
-.. figure:: /resources/ja-http/sms-mo-flowchart.png
+.. figure:: /resources/http/sms-mo-flowchart.png
    :alt: MO delivery flowchart as processed by deliverSmHttpThrower service
    :align: Center
 
@@ -576,6 +577,149 @@ The **jasmin.cfg** file *(INI format, located in /etc/jasmin)* contain a section
      -
      - Python's logging module configuration.
 
+.. _get_metrics:
+
+Monitoring metrics
+******************
+
+Jasmin provides a native exporter for `Prometheus <https://prometheus.io/>`_ with extensive metrics obtained directly from the statistics collector.
+
+In order to get Jasmin's metrics, user may request a **HTTP GET** from the following URL:
+
+http://127.0.0.1:1401/metrics
+
+.. note:: Host ``127.0.0.1`` and port ``1401`` are default values and configurable in ``/etc/jasmin/jasmin.cfg``, see :ref:`configuration_http-api`.
+
+HTTP response
+=============
+
+Self documented response:
+
+.. code-block:: text
+
+  # TYPE httpapi_request_count counter
+  # HELP httpapi_request_count Http request count.
+  httpapi_request_count 0
+  # TYPE httpapi_interceptor_count counter
+  # HELP httpapi_interceptor_count Successful http request count.
+  httpapi_interceptor_count 0
+  # TYPE httpapi_auth_error_count counter
+  # HELP httpapi_auth_error_count Authentication error count.
+  httpapi_auth_error_count 0
+  # TYPE httpapi_route_error_count counter
+  # HELP httpapi_route_error_count Routing error count.
+  httpapi_route_error_count 0
+  # TYPE httpapi_interceptor_error_count counter
+  # HELP httpapi_interceptor_error_count Interceptor error count.
+  httpapi_interceptor_error_count 0
+  # TYPE httpapi_throughput_error_count counter
+  # HELP httpapi_throughput_error_count Throughput exceeded error count.
+  httpapi_throughput_error_count 0
+  # TYPE httpapi_charging_error_count counter
+  # HELP httpapi_charging_error_count Charging error count.
+  httpapi_charging_error_count 0
+  # TYPE httpapi_server_error_count counter
+  # HELP httpapi_server_error_count Server error count.
+  httpapi_server_error_count 0
+  # TYPE httpapi_success_count counter
+  # HELP httpapi_success_count Successful http request count.
+  httpapi_success_count 0
+  # TYPE smppc_connected_count counter
+  # HELP smppc_connected_count Cumulated number of successful connections.
+  smppc_connected_count{cid=smppprovider} 0
+  # TYPE smppc_disconnected_count counter
+  # HELP smppc_disconnected_count Cumulated number of disconnections.
+  smppc_disconnected_count{cid=smppprovider} 0
+  # TYPE smppc_bound_count counter
+  # HELP smppc_bound_count Number of bound sessions.
+  smppc_bound_count{cid=smppprovider} 0
+  # TYPE smppc_submit_sm_request_count counter
+  # HELP smppc_submit_sm_request_count SubmitSm pdu requests count.
+  smppc_submit_sm_request_count{cid=smppprovider} 0
+  # TYPE smppc_submit_sm_count counter
+  # HELP smppc_submit_sm_count Complete SubmitSm transactions count.
+  smppc_submit_sm_count{cid=smppprovider} 0
+  # TYPE smppc_deliver_sm_count counter
+  # HELP smppc_deliver_sm_count DeliverSm pdu requests count.
+  smppc_deliver_sm_count{cid=smppprovider} 0
+  # TYPE smppc_data_sm_count counter
+  # HELP smppc_data_sm_count Complete DataSm transactions count.
+  smppc_data_sm_count{cid=smppprovider} 0
+  # TYPE smppc_interceptor_count counter
+  # HELP smppc_interceptor_count Interceptor calls count.
+  smppc_interceptor_count{cid=smppprovider} 0
+  # TYPE smppc_elink_count counter
+  # HELP smppc_elink_count EnquireLinks count.
+  smppc_elink_count{cid=smppprovider} 0
+  # TYPE smppc_throttling_error_count counter
+  # HELP smppc_throttling_error_count Throttling errors count.
+  smppc_throttling_error_count{cid=smppprovider} 0
+  # TYPE smppc_interceptor_error_count counter
+  # HELP smppc_interceptor_error_count Interception errors count.
+  smppc_interceptor_error_count{cid=smppprovider} 0
+  # TYPE smppc_other_submit_error_count counter
+  # HELP smppc_other_submit_error_count Other errors count.
+  smppc_other_submit_error_count{cid=smppprovider} 0
+  # TYPE smppsapi_connected_count counter
+  # HELP smppsapi_connected_count Number of connected sessions.
+  smppsapi_connected_count 0
+  # TYPE smppsapi_connect_count counter
+  # HELP smppsapi_connect_count Cumulated number of connect requests.
+  smppsapi_connect_count 0
+  # TYPE smppsapi_disconnect_count counter
+  # HELP smppsapi_disconnect_count Cumulated number of disconnect requests.
+  smppsapi_disconnect_count 0
+  # TYPE smppsapi_interceptor_count counter
+  # HELP smppsapi_interceptor_count Interceptor calls count.
+  smppsapi_interceptor_count 0
+  # TYPE smppsapi_bound_trx_count counter
+  # HELP smppsapi_bound_trx_count Number of bound sessions in transceiver mode.
+  smppsapi_bound_trx_count 0
+  # TYPE smppsapi_bound_rx_count counter
+  # HELP smppsapi_bound_rx_count Number of bound sessions in receiver mode.
+  smppsapi_bound_rx_count 0
+  # TYPE smppsapi_bound_tx_count counter
+  # HELP smppsapi_bound_tx_count Number of bound sessions in transmitter mode.
+  smppsapi_bound_tx_count 0
+  # TYPE smppsapi_bind_trx_count counter
+  # HELP smppsapi_bind_trx_count Number of bind requests in transceiver mode.
+  smppsapi_bind_trx_count 0
+  # TYPE smppsapi_bind_rx_count counter
+  # HELP smppsapi_bind_rx_count Number of bind requests in receiver mode.
+  smppsapi_bind_rx_count 0
+  # TYPE smppsapi_bind_tx_count counter
+  # HELP smppsapi_bind_tx_count Number of bind requests in transmitter mode.
+  smppsapi_bind_tx_count 0
+  # TYPE smppsapi_unbind_count counter
+  # HELP smppsapi_unbind_count Cumulated number of unbind requests.
+  smppsapi_unbind_count 0
+  # TYPE smppsapi_submit_sm_request_count counter
+  # HELP smppsapi_submit_sm_request_count SubmitSm pdu requests count.
+  smppsapi_submit_sm_request_count 0
+  # TYPE smppsapi_submit_sm_count counter
+  # HELP smppsapi_submit_sm_count Complete SubmitSm transactions count.
+  smppsapi_submit_sm_count 0
+  # TYPE smppsapi_deliver_sm_count counter
+  # HELP smppsapi_deliver_sm_count DeliverSm pdu requests count.
+  smppsapi_deliver_sm_count 0
+  # TYPE smppsapi_data_sm_count counter
+  # HELP smppsapi_data_sm_count Complete DataSm transactions count.
+  smppsapi_data_sm_count 0
+  # TYPE smppsapi_elink_count counter
+  # HELP smppsapi_elink_count EnquireLinks count.
+  smppsapi_elink_count 0
+  # TYPE smppsapi_throttling_error_count counter
+  # HELP smppsapi_throttling_error_count Throttling errors count.
+  smppsapi_throttling_error_count 0
+  # TYPE smppsapi_interceptor_error_count counter
+  # HELP smppsapi_interceptor_error_count Interception errors count.
+  smppsapi_interceptor_error_count 0
+  # TYPE smppsapi_other_submit_error_count counter
+  # HELP smppsapi_other_submit_error_count Other errors count.
+  smppsapi_other_submit_error_count 0
+
+.. note:: The statistics exposed through this api are also exposed through jcli's :ref:`stats_manager` module.
+
 .. _check_balance:
 
 Checking account balance
@@ -592,7 +736,7 @@ http://127.0.0.1:1401/balance
 HTTP request parameters
 =======================
 
-.. list-table:: ja-http balance request parameters
+.. list-table:: Http balance request parameters
    :header-rows: 1
 
    * - Parameter
@@ -652,7 +796,7 @@ http://127.0.0.1:1401/rate
 HTTP request parameters
 =======================
 
-.. list-table:: ja-http rate request parameters
+.. list-table:: Http rate request parameters
    :header-rows: 1
 
    * - Parameter

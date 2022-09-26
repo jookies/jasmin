@@ -10,6 +10,7 @@ from jasmin.protocols.http.endpoints.send import Send
 from jasmin.protocols.http.endpoints.rate import Rate
 from jasmin.protocols.http.endpoints.ping import Ping
 from jasmin.protocols.http.endpoints.balance import Balance
+from jasmin.protocols.http.endpoints.metrics import Metrics
 from jasmin.protocols.http.stats import HttpAPIStatsCollector
 
 LOG_CATEGORY = "jasmin-http-api"
@@ -47,6 +48,8 @@ class HTTPApi(Resource):
         self.putChild(b'balance', Balance(RouterPB, stats, log))
         log.debug("Setting http url routing for /ping")
         self.putChild(b'ping', Ping(log))
+        log.debug("Setting http url routing for /metrics")
+        self.putChild(b'metrics', Metrics(SMPPClientManagerPB, log))
 
     def getChild(self, name, request):
         self.log.debug("Getting child with name %s", name)
