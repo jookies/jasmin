@@ -28,7 +28,7 @@ jobs:
           - 6379:6379
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.7, 3.8, 3.9, 3.10]
     steps:
       - uses: actions/checkout@v2
       - name: Install os dependencies
