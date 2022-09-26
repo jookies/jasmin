@@ -33,11 +33,13 @@ replaces:
 provides:
   - jasmin-sms-gateway
 contents:
-  - dst: /var/log/jasmin
+  - src: ./misc/logs
+    dst: "/var/log/jasmin"
     type: dir
     file_info:
       mode: 0700
-  - dst: /etc/jasmin/store
+  - src: ./misc/config/store
+    dst: "/etc/jasmin/store"
     type: dir
     file_info:
       mode: 0700
