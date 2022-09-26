@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: jasmin
   labels:
-    app: jasmin
+    name: jasmin
 spec:
   hostname: jasmin
   subdomain: app
