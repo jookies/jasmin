@@ -5,7 +5,7 @@
 
 MAJOR = 0
 MINOR = 10
-PATCH = 12
+PATCH = 13
 META = ''
 
 
