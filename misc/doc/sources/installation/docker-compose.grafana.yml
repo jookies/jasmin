@@ -9,6 +9,35 @@ services:
     image: rabbitmq:alpine
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - '9090:9090'
+    volumes:
+      - prometheus.yml:/etc/prometheus/prometheus.yml
+      - monitoring_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - jasmin
+
+  grafana:
+    image: grafana/grafana
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    environment:
+      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
+    volumes:
+      - monitoring_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
   jasmin:
     image: jookies/jasmin:latest
     restart: unless-stopped
@@ -25,3 +54,6 @@ services:
     environment:
       REDIS_CLIENT_HOST: redis
       AMQP_BROKER_HOST: rabbit-mq
+
+volumes:
+  monitoring_data: { }

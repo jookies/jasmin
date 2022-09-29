@@ -157,7 +157,12 @@ Monitoring using Grafana
 
 Through its native exporter for `Prometheus <https://prometheus.io/>`_ you can collect and analyze detailed metrics within a production environment, we will be using the /metrics API (:ref:`get_metrics`) with `Prometheus <https://prometheus.io/>`_  and `Grafana <https://grafana.com/>`_ in this guide.
 
-Use the following docker-compose including prometheus and grafana:
+Prepare Prometheus's settings:
+
+.. literalinclude:: /installation/prometheus.yml
+   :language: yaml
+
+The use the following docker-compose including prometheus and grafana:
 
 .. literalinclude:: /installation/docker-compose.grafana.yml
    :language: yaml
