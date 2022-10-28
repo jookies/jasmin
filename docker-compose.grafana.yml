@@ -34,7 +34,6 @@ services:
       - '9090:9090'
     volumes:
       - ./docker/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - monitoring_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -59,8 +58,9 @@ services:
     environment:
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
     volumes:
-      - monitoring_data:/var/lib/grafana
       - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/dashboards:/opt/grafana-dashboards:ro
     depends_on:
       - prometheus
     deploy:
@@ -97,6 +97,3 @@ services:
           memory: 256M
     security_opt:
       - no-new-privileges:true
-
-volumes:
-  monitoring_data: { }

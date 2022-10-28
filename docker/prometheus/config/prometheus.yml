@@ -1,0 +1,16 @@
+# Simple configuration file for prometheus service
+# This is used in the /docker-compose.yml file
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: jasmin
+    static_configs:
+      - targets:
+          - 'jasmin:1401'
+  - job_name: rabbitmq
+    static_configs:
+      - targets:
+          - 'rabbit-mq:15692'
