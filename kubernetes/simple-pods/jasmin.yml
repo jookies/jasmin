@@ -24,13 +24,10 @@ spec:
       ports:
         - containerPort: 2775
           name: smpp-port
-          protocol: TCP
         - containerPort: 1401
           name: http-port
-          protocol: TCP
         - containerPort: 8990
           name: cli-port
-          protocol: TCP
       command: ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]
       lifecycle:
         postStart:

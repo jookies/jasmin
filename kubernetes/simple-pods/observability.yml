@@ -106,6 +106,15 @@ data:
           foldersFromFilesStructure: true
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  selector:
+    name: grafana
+  clusterIP: None
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: prometheus-pvc
@@ -123,6 +132,15 @@ metadata:
   labels:
     name: prometheus
 spec:
+  initContainers:
+    - name: file-ownership-fix
+      image: busybox
+      command: ["/bin/sh","-c"]
+      args:
+        - chown 65534:65534 /prometheus
+      volumeMounts:
+        - name: dataprom
+          mountPath: "/prometheus"
   containers:
     - name: prometheus
       image: prom/prometheus:latest
@@ -167,7 +185,7 @@ data:
       - job_name: rabbitmq
         static_configs:
           - targets:
-              - 'rabbit.mq.farirat.svc.cluster.local:15692/metrics/per-object'
+              - 'rabbit.mq.farirat.svc.cluster.local:15692'
 ---
 apiVersion: v1
 kind: Service
@@ -176,13 +194,4 @@ metadata:
 spec:
   selector:
     name: prometheus
-  clusterIP: None
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana
-spec:
-  selector:
-    name: grafana
   clusterIP: None
