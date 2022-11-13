@@ -1,4 +1,4 @@
-FROM python:3-buster
+FROM python:3-bullseye
 
 MAINTAINER Jookies LTD <jasmin@jookies.net>
 
