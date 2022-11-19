@@ -1,0 +1,87 @@
+FROM python:3-alpine
+
+MAINTAINER Jookies LTD <jasmin@jookies.net>
+
+# add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
+RUN addgroup -S jasmin && adduser -S -g jasmin jasmin
+
+# Install requirements
+RUN apk --update add \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev \
+    python3-dev \
+    py3-pip \
+    git \
+    bash \
+    mariadb-dev \
+    postgresql-dev
+
+# For RestAPI
+ENV ENABLE_RESTAPI 0
+# For sms_logger.py
+ENV ENABLE_SMS_LOGGER 0
+ENV DB_TYPE_MYSQL 1
+ENV DB_USER 'root'
+ENV DB_PASS 'root'
+ENV DB_DATABASE 'jasmin_messages'
+ENV DB_TABLE 'sms_log'
+ENV DB_HOST 'mysql'
+ENV AMQP_BROKER_HOST 'rabbit-mq'
+ENV AMQP_BROKER_PORT 5672
+ENV REDIS_CLIENT_HOST 'redis'
+ENV REDIS_CLIENT_PORT 6379
+
+ENV ROOT_PATH /
+ENV CONFIG_PATH /etc/jasmin
+ENV RESOURCE_PATH /etc/jasmin/resource
+ENV STORE_PATH /etc/jasmin/store
+ENV LOG_PATH /var/log/jasmin
+
+RUN mkdir -p ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
+RUN chown jasmin:jasmin ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
+
+WORKDIR /build
+
+RUN pip install -e git+https://github.com/jookies/txamqp.git@master#egg=txamqp3
+RUN pip install -e git+https://github.com/jookies/python-messaging.git@master#egg=python-messaging
+RUN pip install -e git+https://github.com/jookies/smpp.pdu.git@master#egg=smpp.pdu3
+RUN pip install -e git+https://github.com/jookies/smpp.twisted.git@master#egg=smpp.twisted3
+
+COPY . .
+
+RUN sed -i "/jasmin\/bin\/dlrlookupd\.py/s//jasmin\/bin\/dlrlookupd\.py', 'misc\/scripts\/sms_logger\.py/" ./setup.py
+RUN pip install .
+# For sms_logger.py
+RUN pip install twisted
+RUN pip install txamqp
+RUN pip install psycopg2
+RUN pip install mysql-connector-python
+# For RestAPI
+RUN pip install gunicorn
+
+ENV UNICODEMAP_JP unicode-ascii
+
+COPY misc/config/*.cfg ${CONFIG_PATH}/
+COPY misc/config/resource/*.xml ${RESOURCE_PATH}/
+
+WORKDIR /etc/jasmin
+
+# Change binding host for jcli
+RUN sed -i '/\[jcli\]/a bind=0.0.0.0' ${CONFIG_PATH}/jasmin.cfg
+# Change binding port for redis, and amqp
+RUN sed -i "/\[redis-client\]/a port=$REDIS_CLIENT_PORT" ${CONFIG_PATH}/jasmin.cfg
+RUN sed -i "/\[amqp-broker\]/a port=$AMQP_BROKER_PORT" ${CONFIG_PATH}/jasmin.cfg
+# Change binding host for redis, and amqp
+RUN sed -i "/\[redis-client\]/a host=$REDIS_CLIENT_HOST" ${CONFIG_PATH}/jasmin.cfg
+RUN sed -i "/\[amqp-broker\]/a host=$AMQP_BROKER_HOST" ${CONFIG_PATH}/jasmin.cfg
+
+EXPOSE 2775 8990 1401 1402
+VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]
+
+COPY docker/extra-docker-entrypoint.sh /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["jasmind.py", "--enable-interceptor-client", "--enable-dlr-thrower", "--enable-dlr-lookup", "-u", "jcliadmin", "-p", "jclipwd"]
+# Notes:
+# - jasmind is started with native dlr-thrower and dlr-lookup threads instead of standalone processes
