@@ -62,7 +62,7 @@ services:
       ENABLE_RESTAPI: ${ENABLE_RESTAPI:-0}
       ENABLE_SMS_LOGGER: ${ENABLE_SMS_LOGGER:-0}
       DB_TYPE_MYSQL: ${DB_TYPE_MYSQL:-1}
-      DB_HOST: '${DB_HOST:-127.0.0.1}'
+      DB_HOST: '${DB_HOST:-mysql}'
       DB_DATABASE: '${DB_DATABASE:-jasmin}'
       DB_TABLE: '${DB_TABLE:-submit_log}'
       DB_USER: '${DB_USERNAME:-jasmin}'
