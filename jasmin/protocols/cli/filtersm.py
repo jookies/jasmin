@@ -125,7 +125,7 @@ def FilterBuild(fCallback):
                 self.sessBuffer['filter_class'] = globals()[_type]
 
                 # Show Filter help and save Filter args
-                fargs = inspect.getargspec(self.sessBuffer['filter_class'].__init__).args
+                fargs = inspect.signature(self.sessBuffer['filter_class'].__init__).args
                 # Remove 'self' from args
                 del fargs[0]
                 FilterClassArgs = []

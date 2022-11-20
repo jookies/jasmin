@@ -1,6 +1,6 @@
 testfixtures>=3.0.0
 sphinx>=1.1.0
-sphinx-rtd-theme>=0.4.3
+renku-sphinx-theme
 pylint
 coverage
 coveralls

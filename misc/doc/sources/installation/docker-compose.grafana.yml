@@ -33,7 +33,7 @@ services:
     ports:
       - '9090:9090'
     volumes:
-      - ./docker/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus.yml:/etc/prometheus/prometheus.yml
       - monitoring_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -59,9 +59,10 @@ services:
     environment:
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
     volumes:
-      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./docker/grafana/dashboards:/opt/grafana-dashboards:ro
+      # These mount points should be copied from https://github.com/jookies/jasmin/tree/master/docker/grafana
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./dashboards:/opt/grafana-dashboards:ro
 
       - monitoring_data:/var/lib/grafana
     depends_on:
@@ -75,12 +76,8 @@ services:
       - no-new-privileges:true
 
   jasmin:
-    build:
-      context: ./
-      dockerfile: ./docker/Dockerfile.dev
+    image: jookies/jasmin:latest
     restart: unless-stopped
-    volumes:
-      - ./jasmin:/usr/jasmin/jasmin
     ports:
       - 2775:2775
       - 8990:8990
