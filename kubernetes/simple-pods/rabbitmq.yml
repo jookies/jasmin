@@ -6,7 +6,6 @@ metadata:
     name: rabbit
 spec:
   hostname: rabbit
-  subdomain: mq
   containers:
   - name: rabbit
     image: rabbitmq:3.10-management-alpine
@@ -31,7 +30,7 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mq
+  name: rabbitmq-broker
 spec:
   selector:
     name: rabbit

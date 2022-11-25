@@ -279,7 +279,7 @@ And then add a new SMPP client connector by following these steps:
 
    smppccm -a
    > cid smpp_simulator
-   > host smppsim.test.farirat.svc.cluster.local
+   > host smpp-simulator
    > username smppclient1
    > password password
    > ok

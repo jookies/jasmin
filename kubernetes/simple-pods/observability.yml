@@ -221,11 +221,11 @@ data:
       - job_name: jasmin
         static_configs:
           - targets:
-              - 'jasmin.app.farirat.svc.cluster.local:1401'
+              - 'jasmin-http-api:1401'
       - job_name: rabbitmq
         static_configs:
           - targets:
-              - 'rabbit.mq.farirat.svc.cluster.local:15692'
+              - 'rabbitmq-broker:15692'
 ---
 apiVersion: v1
 kind: Service
