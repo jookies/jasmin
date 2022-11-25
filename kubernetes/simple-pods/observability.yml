@@ -1,3 +1,17 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: grafana-pv
+  labels:
+    pv-name: grafana-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/grafana-pv
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,6 +22,9 @@ spec:
   resources:
     requests:
       storage: 1Gi
+  selector:
+    matchLabels:
+      pv-name: grafana-pv
 ---
 apiVersion: v1
 kind: Pod
@@ -43,8 +60,8 @@ spec:
       command: ["/bin/sh","-c"]
       # @TODO: switch https links back to master once 0.10.13 is published
       args:
-        - mkdir /tmp-dashboards/Jasmin;
-          mkdir /tmp-dashboards/RabbitMQ;
+        - mkdir -p /tmp-dashboards/Jasmin;
+          mkdir -p /tmp-dashboards/RabbitMQ;
           wget -O '/tmp-dashboards/Jasmin/HTTP API.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/Jasmin/HTTP%20API.json';
           wget -O '/tmp-dashboards/Jasmin/SMPP Clients.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/Jasmin/SMPP%20Clients.json';
           wget -O '/tmp-dashboards/Jasmin/SMPP Server.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/Jasmin/SMPP%20Server.json';
@@ -109,10 +126,30 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana
+  annotations:
+    metallb.universe.tf/address-pool: management-network
 spec:
+  type: LoadBalancer
   selector:
     name: grafana
-  clusterIP: None
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: http-grafana
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: prometheus-pv
+  labels:
+    pv-name: prometheus-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/prometheus-pv
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -124,6 +161,9 @@ spec:
   resources:
     requests:
       storage: 1Gi
+  selector:
+    matchLabels:
+      pv-name: prometheus-pv
 ---
 apiVersion: v1
 kind: Pod

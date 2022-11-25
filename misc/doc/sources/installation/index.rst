@@ -184,12 +184,12 @@ Now open Grafana using default username (admin) and password (admin)::
 
   http://127.0.0.1:3000
 
-First you'll need to add *Prometheus metrics* as a **Data Source**, go to **Configuration > Data sources** and click on **Add data source**:
+Then go to *Dashboards* where you'll find 2 folders having a bunch of pre-made dashboards:
 
-* Name: *Prometheus*
-* URL: *http://prometheus:9090*
-
-Keep defaults the **Save & test**.
+* *Jasmin* > **HTTP API**: HTTP Api monitoring,
+* *Jasmin* > **SMPP Clients**: Per SMPP Client (cid) monitoring with rabbitmq queues,
+* *Jasmin* > **SMPP Server**: SMPP Server monitoring,
+* *RabbitMQ* > **RabbitMQ-Overview**: Standard RabbitMQ monitoring,
 
 Now you can start playing around with the collected metrics, go to **Explore** and play with the autocomplete feature in **Metrics browser** by typing **httapi**, **smpps** or **smppc**.
 
@@ -221,7 +221,8 @@ Simple k8s architecture
 
 This is barely simple architecture with running pods and a SMPP simulator to allow simple functional or performance testing.
 
-.. note:: This section of the guide uses the provided Kubernetes objects located in this `directory <https://github.com/jookies/jasmin/blob/master/kubernetes/simple-pods>`_.
+.. note:: This section of the guide uses the provided Kubernetes objects located in this `directory <https://github.com/jookies/jasmin/blob/master/kubernetes/simple-pods>`_, please note that you may need to prepare volumes and metallb ip address pools to make these manifests run on your bare-metal K8s cluster.
+.. note:: Please note this set of K8s manifests are prepared for a bare-metal cluster and you may need to adjust it for cloud/managed clusters where volumes, networking and services are handled with a slight difference.
 
 Start by adjusting the namespace in **configmaps.yml**: replace the rabbitmq and redis hosts to hostnames provided by your own Kubernetes cluster then deploy:
 

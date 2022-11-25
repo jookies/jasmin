@@ -1,3 +1,17 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jasmin-pv
+  labels:
+    pv-name: jasmin-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/jasmin-pv
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,6 +22,9 @@ spec:
   resources:
     requests:
       storage: 1Gi
+  selector:
+    matchLabels:
+      pv-name: jasmin-pv
 ---
 apiVersion: v1
 kind: Pod
@@ -88,11 +105,47 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: app
+  name: jasmin-cli
+  annotations:
+    metallb.universe.tf/address-pool: management-network
 spec:
+  type: LoadBalancer
   selector:
     name: jasmin
-  clusterIP: None
+  ports:
+  - protocol: TCP
+    port: 8990
+    targetPort: cli-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-smpp-api
+  annotations:
+    metallb.universe.tf/address-pool: production-network
+spec:
+  type: LoadBalancer
+  selector:
+    name: jasmin
+  ports:
+  - protocol: TCP
+    port: 2775
+    targetPort: smpp-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-http-api
+  annotations:
+    metallb.universe.tf/address-pool: production-network
+spec:
+  type: LoadBalancer
+  selector:
+    name: jasmin
+  ports:
+  - protocol: TCP
+    port: 1401
+    targetPort: http-port
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -118,6 +171,9 @@ data:
       [redis-client]
       host = redis.store.farirat.svc.cluster.local
       poolsize = 30
+    
+      [jcli]
+      bind = 0.0.0.0
 ---
 apiVersion: v1
 kind: ConfigMap
