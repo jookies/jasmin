@@ -7,6 +7,9 @@ sed -i "/\[redis-client\]/,/port=/  s/port=.*/port=$REDIS_CLIENT_PORT/" /etc/jas
 sed -i "/\[amqp-broker\]/,/host=/  s/host=.*/host=$AMQP_BROKER_HOST/" /etc/jasmin/jasmin.cfg
 sed -i "/\[amqp-broker\]/,/port=/  s/port=.*/port=$AMQP_BROKER_PORT/" /etc/jasmin/jasmin.cfg
 
+echo 'Cleaning lock files'
+rm -f /tmp/*.lock
+
 # RestAPI
 if [ "$RESTAPI_MODE" = 1 ]; then
   # find jasmin installation directory
