@@ -22,6 +22,12 @@ Jasmin is a very complete open source SMS Gateway with many enterprise-class fea
 Jasmin relies heavily on message queuing through message brokers (Using AMQP), it is designed for performance,
 high traffic loads and full in-memory execution.
 
+.. figure:: https://opensource.nyc3.cdn.digitaloceanspaces.com/attribution/assets/PoweredByDO/DO_Powered_by_Badge_blue.svg
+   :alt: Powered by DigitalOcean
+   :align: Center
+   :figwidth: 210px
+   :target: https://www.digitalocean.com/
+
 Architecture
 ************
 
@@ -76,6 +82,7 @@ Jasmin is released under the terms of the [Apache License Version 2]. See **`LIC
 Credits
 *******
 
+* Supported by `DigitalOcean <https://www.digitalocean.com/>`_
 * Dominic Amato for the extraordinary effort porting Jasmin to Python3: https://github.com/DomAmato
 * SMPP PDU parsing based on smpp.pdu: https://github.com/mozes/smpp.pdu
 * SMPP 3.4 Client based on smpp.twisted: https://github.com/mozes/smpp.twisted
