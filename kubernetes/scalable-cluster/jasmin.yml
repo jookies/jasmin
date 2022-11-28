@@ -1,0 +1,205 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasmin-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jasmin
+  labels:
+    app: jasmin
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: jasmin
+  serviceName: "jasmin"
+  podManagementPolicy: "Parallel"
+  template:
+    metadata:
+      labels:
+        app: jasmin
+    spec:
+      containers:
+        - name: jasmin
+          image: jookies/jasmin:latest
+          ports:
+            - containerPort: 2775
+              name: smpp-port
+            - containerPort: 1401
+              name: http-port
+            - containerPort: 8990
+              name: cli-port
+          command: ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: jasmin-config
+              mountPath: /tmp/config
+            - name: jasmin-data
+              mountPath: /etc/jasmin/store
+        - name: interceptord-sidecar
+          image: jookies/jasmin:latest
+          command: ["interceptord.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: interceptor-config
+              mountPath: /tmp/config
+        - name: dlrlookupd-sidecar
+          image: jookies/jasmin:latest
+          command: ["dlrlookupd.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: dlrlookupd-config
+              mountPath: /tmp/config
+        - name: dlrd-sidecar
+          image: jookies/jasmin:latest
+          command: ["dlrd.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: dlr-config
+              mountPath: /tmp/config
+      volumes:
+        - name: jasmin-config
+          configMap:
+            name: etc-jasmin
+        - name: jasmin-data
+          persistentVolumeClaim:
+            claimName: jasmin-pvc
+        - name: interceptor-config
+          configMap:
+            name: etc-interceptor
+        - name: dlrlookupd-config
+          configMap:
+            name: etc-dlrlookupd
+        - name: dlr-config
+          configMap:
+            name: etc-dlr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-smppserver
+spec:
+  type: NodePort
+  ports:
+  - name: smpp-port
+    port: 2775
+  selector:
+    app: jasmin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-httpapi
+spec:
+  type: NodePort
+  ports:
+  - name: http-port
+    port: 1401
+  selector:
+    app: jasmin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-cli
+spec:
+  type: NodePort
+  ports:
+  - name: cli-port
+    port: 8990
+  selector:
+    app: jasmin
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-jasmin
+data:
+  jasmin.cfg: |
+      # This is a simplified config version taken from the /etc/jasmin/jasmin.cfg file
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      [sm-listener]
+      publish_submit_sm_resp = False
+      submit_max_age_smppc_not_ready = 30
+      
+      [deliversm-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 2
+      
+      [amqp-broker]
+      host = rabbit.mq.farirat.svc.cluster.local
+      
+      [redis-client]
+      host = redis.store.farirat.svc.cluster.local
+      poolsize = 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-interceptor
+data:
+  interceptor.cfg: |
+      # This is a simplified config version taken from the /etc/jasmin/interceptor.cfg file
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-dlrlookupd
+data:
+  dlrlookupd.cfg: |
+      # This is the Jasmin DLR Lookup Daemon configuration file.
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      [dlr]
+      dlr_lookup_retry_delay = 180
+      dlr_lookup_max_retries = 1
+
+      [amqp-broker]
+      host = rabbit.mq.farirat.svc.cluster.local
+
+      [redis-client]
+      host = redis.store.farirat.svc.cluster.local
+      poolsize = 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-dlr
+data:
+  dlr.cfg: |
+      # This is the Jasmin DLR Lookup Daemon configuration file.
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      [dlr-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 1
+      
+      [amqp-broker]
+      host = rabbit.mq.farirat.svc.cluster.local
+
+      [redis-client]
+      host = redis.store.farirat.svc.cluster.local
+      poolsize = 30
