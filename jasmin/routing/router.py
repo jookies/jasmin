@@ -78,7 +78,7 @@ class RouterPB(pb.Avatar):
         self.log.info('Added amqpBroker to RouterPB')
 
         if not self.amqpBroker.connected:
-            self.log.warn('AMQP Broker channel is not yet ready, waiting for it to become ready.')
+            self.log.warning('AMQP Broker channel is not yet ready, waiting for it to become ready.')
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
 
@@ -331,7 +331,7 @@ class RouterPB(pb.Avatar):
         # Verify user-defined requirements
         for requirement in requirements:
             if not requirement['condition']:
-                self.log.warn(requirement['error_message'])
+                self.log.warning(requirement['error_message'])
                 return None
 
         # Charge _user
@@ -716,7 +716,7 @@ class RouterPB(pb.Avatar):
         # Replace existant users
         for _user in self.users:
             if user.uid == _user.uid or user.username == _user.username:
-                self.log.warn('User (id:%s) already existant, will be replaced !', user.uid)
+                self.log.warning('User (id:%s) already existant, will be replaced !', user.uid)
                 self.users.remove(_user)
 
                 # Save old CnxStatus in new user

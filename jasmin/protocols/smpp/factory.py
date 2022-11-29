@@ -86,7 +86,7 @@ class SMPPClientFactory(ClientFactory):
         return self.config
 
     def msgHandlerStub(self, smpp, pdu):
-        self.log.warn("msgHandlerStub: Received an unhandled message %s ...", pdu)
+        self.log.warning("msgHandlerStub: Received an unhandled message %s ...", pdu)
 
     def startedConnecting(self, connector):
         self.log.info("Connecting to %s ...", connector.getDestination())

@@ -343,6 +343,13 @@ class Send(Resource):
                 uid=user.uid,
                 cid=routedConnector.cid,
                 SubmitSmPDU=routable.pdu,
+                # @TODO:
+                # If bill is void or user has unlimited quotas then set it to None !
+                # Then:
+                # 1. Make same thing in http api
+                # 2. Handle possible regressions in perspective_submit_sm
+                # 3. Handle changes in listeners where submit_sm_bill is unpickled
+                # 4. Run tests
                 submit_sm_bill=bill,
                 priority=priority,
                 pickled=False,

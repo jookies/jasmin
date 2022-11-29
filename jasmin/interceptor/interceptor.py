@@ -68,7 +68,7 @@ class InterceptorPB(pb.Avatar):
             return False
         else:
             if 0 <= self.config.log_slow_script <= delay:
-                self.log.warn('Execution delay [%ss] for script [%s].', delay, pyCode)
+                self.log.warning('Execution delay [%ss] for script [%s].', delay, pyCode)
 
             if glo['smpp_status'] is None and glo['http_status'] is None:
                 return pickle.dumps(glo['routable'], pickle.HIGHEST_PROTOCOL)
