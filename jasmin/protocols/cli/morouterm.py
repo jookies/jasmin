@@ -101,7 +101,7 @@ def MORouteBuild(fCallback):
                 self.sessBuffer['route_class'] = globals()[_type]
 
                 # Show Route help and save Route args
-                RouteClassArgs = inspect.signature(self.sessBuffer['route_class'].__init__).args
+                RouteClassArgs = inspect.getfullargspec(self.sessBuffer['route_class'].__init__).args
                 if 'self' in RouteClassArgs:
                     # Remove 'self' from args
                     RouteClassArgs.remove('self')
