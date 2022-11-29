@@ -4,10 +4,7 @@ Config file handler for 'http-api' section in jasmin.cfg
 
 import logging
 import os
-from jasmin.config import ConfigFile
-
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
+from jasmin.config import ConfigFile, LOG_PATH
 
 
 class HTTPApiConfig(ConfigFile):

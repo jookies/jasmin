@@ -1,15 +1,12 @@
 import logging
-import os
 import re
 
+from jasmin.config import LOG_PATH
 from jasmin.config import ConfigFile
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               RegisteredDelivery, RegisteredDeliveryReceipt,
                                               AddrTon, AddrNpi,
                                               PriorityFlag, ReplaceIfPresentFlag)
-
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class ConfigUndefinedIdError(Exception):
