@@ -17,6 +17,7 @@ from jasmin.interceptor.interceptor import InterceptorPB
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from jasmin.config import ROOT_PATH
+from jasmin.bin import BaseDaemon
 
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
@@ -28,7 +29,7 @@ class Options(usage.Options):
     ]
 
 
-class InterceptorDaemon:
+class InterceptorDaemon(BaseDaemon):
     def startInterceptorPBService(self):
         """Start Interceptor PB server"""
 

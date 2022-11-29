@@ -38,7 +38,7 @@ from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 from jasmin.config import ROOT_PATH
-from . import BaseDaemon
+from jasmin.bin import BaseDaemon
 
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 

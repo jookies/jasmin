@@ -17,6 +17,7 @@ from jasmin.queues.factory import AmqpFactory
 from jasmin.redis.client import ConnectionWithConfiguration
 from jasmin.redis.configs import RedisForJasminConfig
 from jasmin.config import ROOT_PATH
+from jasmin.bin import BaseDaemon
 
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
@@ -33,7 +34,7 @@ class Options(usage.Options):
     ]
 
 
-class DlrlookupDaemon:
+class DlrlookupDaemon(BaseDaemon):
     @defer.inlineCallbacks
     def startRedisClient(self):
         """Start AMQP Broker"""
