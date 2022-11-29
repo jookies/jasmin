@@ -241,6 +241,9 @@ class SMPPClientManagerPB(pb.Avatar):
             self.log.error('AMQP Broker channel is not yet ready')
             defer.returnValue(False)
 
+        # Set prefetch limit per consumer
+        yield self.amqpBroker.chan.basic_qos(1, False)
+
         # Declare queues
         # First declare the messaging exchange (has no effect if its already declared)
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
