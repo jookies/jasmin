@@ -278,7 +278,10 @@ def gotConnection(conn, username, password):
             billing_pickle = billing.get('submit_sm_resp_bill')
             if not billing_pickle:
                 billing_pickle = billing.get('submit_sm_bill')
-            submit_sm_bill = pickle.loads(billing_pickle)
+            if billing_pickle is not None:
+                submit_sm_bill = pickle.loads(billing_pickle)
+            else:
+                submit_sm_bill = None
             source_connector = props['headers']['source_connector']
             routed_cid = msg.routing_key[10:]
 
@@ -306,15 +309,19 @@ def gotConnection(conn, username, password):
             q[props['message-id']] = {
                 'source_connector': source_connector,
                 'routed_cid': routed_cid,
-                'rate': submit_sm_bill.getTotalAmounts(),
-                'charge': submit_sm_bill.getTotalAmounts() * pdu_count,
-                'uid': submit_sm_bill.user.uid,
+                'rate': 0,
+                'charge': 0,
+                'uid': 0,
                 'destination_addr': pdu.params['destination_addr'],
                 'source_addr': pdu.params['source_addr'],
                 'pdu_count': pdu_count,
                 'short_message': short_message,
                 'binary_message': binary_message,
             }
+            if submit_sm_bill is not None:
+                q[props['message-id']]['rate'] = submit_sm_bill.getTotalAmounts()
+                q[props['message-id']]['charge'] = submit_sm_bill.getTotalAmounts() * pdu_count
+                q[props['message-id']]['uid'] = submit_sm_bill.user.uid
         elif msg.routing_key[:15] == 'submit.sm.resp.':
             # It's a submit_sm_resp
 

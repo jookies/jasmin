@@ -309,6 +309,8 @@ class Send(Resource):
                 _pdu = _pdu.nextPdu
                 submit_sm_count += 1
 
+            # Bypass billing (for testing purpose)
+            """
             # Pre-sending submit_sm: Billing processing
             bill = route.getBillFor(user)
             self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU (x%s)",
@@ -335,6 +337,8 @@ class Send(Resource):
                 self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] SubmitSmPDU (x%s)',
                                user, bill.bid, bill.getTotalAmounts(), submit_sm_count)
                 raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+            """
+            bill = None
 
             ########################################################
             # Send SubmitSmPDU through smpp client manager PB server
@@ -343,13 +347,6 @@ class Send(Resource):
                 uid=user.uid,
                 cid=routedConnector.cid,
                 SubmitSmPDU=routable.pdu,
-                # @TODO:
-                # If bill is void or user has unlimited quotas then set it to None !
-                # Then:
-                # 1. Make same thing in http api
-                # 2. Handle possible regressions in perspective_submit_sm
-                # 3. Handle changes in listeners where submit_sm_bill is unpickled
-                # 4. Run tests
                 submit_sm_bill=bill,
                 priority=priority,
                 pickled=False,

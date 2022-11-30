@@ -259,15 +259,17 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
-        total_bill_amount = None
+        total_bill_amount = 0.0
         will_be_retried = False
 
         try:
-            submit_sm_resp_bill = pickle.loads(
-                amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
+            if amqpMessage.content.properties['headers']['submit_sm_bill'] is not None:
+                submit_sm_resp_bill = pickle.loads(
+                    amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
+            else:
+                submit_sm_resp_bill = None
 
-            total_bill_amount = 0.0
-            
+
             if r.response.status == CommandStatus.ESME_ROK:
                 # No more retrials !
                 del self.submit_retrials[msgid]

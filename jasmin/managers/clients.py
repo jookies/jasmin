@@ -577,7 +577,8 @@ class SMPPClientManagerPB(pb.Avatar):
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
-            submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
+            if submit_sm_bill is not None:
+                submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
         else:
             PickledSubmitSmPDU = SubmitSmPDU
             SubmitSmPDU = pickle.loads(PickledSubmitSmPDU)

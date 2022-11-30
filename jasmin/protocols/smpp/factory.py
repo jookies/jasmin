@@ -335,10 +335,10 @@ class SMPPServerFactory(_SMPPServerFactory):
     def submit_sm_post_interception(self, *args, **kw):
         """This event handler will deliver the submit_sm to the right smppc connector.
         Note that Jasmin deliver submit_sm messages like this:
-        - from httpapi to smppc (handled in jasmin.protocols.http.server)
+        - from httpapi to smppc (handled in jasmin.protocols.http.endpoints.send)
         - from smpps to smppc (this event handler)
 
-        Note: This event handler MUST behave exactly like jasmin.protocols.http.server.Send.render
+        Note: This event handler MUST behave exactly like jasmin.protocols.http.endpoints.send.Send.render
         """
 
         try:
@@ -432,6 +432,8 @@ class SMPPServerFactory(_SMPPServerFactory):
                     raise SubmitSmThroughputExceededError()
             routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] = datetime.now()
 
+            # Bypass billing (for testing purpose)
+            """
             # Pre-sending submit_sm: Billing processing
             bill = route.getBillFor(routable.user)
             self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU",
@@ -456,6 +458,8 @@ class SMPPServerFactory(_SMPPServerFactory):
                 self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)',
                                routable.user, bill.bid, bill.getTotalAmounts())
                 raise SubmitSmChargingError()
+            """
+            bill = None
 
             # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
             priority = 0
