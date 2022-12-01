@@ -16,6 +16,8 @@ class HTTPApiConfig(ConfigFile):
         self.bind = self._get('http-api', 'bind', os.getenv('API_BIND', '0.0.0.0'))
         self.port = self._getint('http-api', 'port', int(os.getenv('API_PORT', 1401)))
 
+        self.billing_feature = self._getbool('http-api', 'billing_feature', True)
+
         # Logging
         self.access_log = self._get(
             'http-api', 'access_log', '%s/http-accesslog.log' % LOG_PATH)

@@ -218,6 +218,8 @@ class SMPPServerConfig(ConfigFile):
         self.bind = self._get('smpp-server', 'bind', '0.0.0.0')
         self.port = self._getint('smpp-server', 'port', 2775)
 
+        self.billing_feature = self._getbool('smpp-server', 'billing_feature', True)
+
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))
         self.log_file = self._get(
