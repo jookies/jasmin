@@ -2,7 +2,6 @@ import binascii
 import pickle
 import sys
 import logging
-import urllib.request, urllib.parse, urllib.error
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.application.service import Service

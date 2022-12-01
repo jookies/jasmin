@@ -263,7 +263,7 @@ class SMPPClientSMListener:
         will_be_retried = False
 
         try:
-            if amqpMessage.content.properties['headers']['submit_sm_bill'] is not None:
+            if 'submit_sm_bill' in amqpMessage.content.properties['headers']:
                 submit_sm_resp_bill = pickle.loads(
                     amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
             else:
