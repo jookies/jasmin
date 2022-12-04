@@ -336,6 +336,8 @@ class Send(Resource):
                     self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] SubmitSmPDU (x%s)',
                                    user, bill.bid, bill.getTotalAmounts(), submit_sm_count)
                     raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+            else:
+                bill = None
 
             ########################################################
             # Send SubmitSmPDU through smpp client manager PB server

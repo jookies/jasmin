@@ -457,6 +457,8 @@ class SMPPServerFactory(_SMPPServerFactory):
                     self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)',
                                    routable.user, bill.bid, bill.getTotalAmounts())
                     raise SubmitSmChargingError()
+            else:
+                bill = None
 
             # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
             priority = 0
