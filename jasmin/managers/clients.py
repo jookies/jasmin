@@ -241,11 +241,11 @@ class SMPPClientManagerPB(pb.Avatar):
             self.log.error('AMQP Broker channel is not yet ready')
             defer.returnValue(False)
 
-        # Set prefetch limit per consumer to 10, as of now, it's
+        # Set prefetch limit per consumer to 50, as of now, it's
         # the best value giving correct throughput without much
         # pressure on resources (by avoiding re-deliveries)
         # @TODO: set this parameter in config
-        yield self.amqpBroker.chan.basic_qos(prefetch_count=10)
+        yield self.amqpBroker.chan.basic_qos(prefetch_count=50)
 
         # Declare queues
         # First declare the messaging exchange (has no effect if its already declared)

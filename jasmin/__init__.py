@@ -2,6 +2,8 @@
 # See LICENSE for details.
 
 """Jasmin SMS Gateway by Jookies LTD <jasmin@jookies.net>"""
+import os
+import re
 
 MAJOR = 0
 MINOR = 10
@@ -21,3 +23,12 @@ def get_release():
 
 __version__ = get_version()
 __release__ = get_release()
+
+HOSTNAME = os.getenv('HOSTNAME', 'default-hostname')
+RUNNING_KUBERNETES = False
+PRIMARY_POD = False
+if 'KUBERNETES_SERVICE_HOST' in os.environ:
+    RUNNING_KUBERNETES = True
+    _r = re.search(r"^([a-z0-9A-Z]+)\-(\d+)$", HOSTNAME)
+    if len(_r.groups()) == 2 and int(_r.group(2)) == 0:
+        PRIMARY_POD = True
