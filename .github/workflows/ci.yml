@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install os dependencies
         run: |
-          sudo apt-get install -y python-dev libffi-dev libffi-dev bc
+          sudo apt-get install -y libffi-dev libffi-dev bc
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v2
         with:
