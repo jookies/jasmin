@@ -204,9 +204,7 @@ You can also *explore* metrics of a defined SMPP client connector by setting the
 Kubernetes cluster
 ******************
 
-**@TODO: add link to documented stresstests**
-
-This part of the documentation covers clustering Jasmin SMS Gateway using `Kubernetes <https://kubernetes.io/>`_, it is also made as a reference setup for anyone looking to deploy Jasmin in complex/cloud architectures, this is a proof-of-concept model for deploying simple and advanced clusters, these were used for making stress tests and performance metering of the sms gateway, `documented here <http://docs.jasminsms.com/@TODO>`_.
+This part of the documentation covers clustering Jasmin SMS Gateway using `Kubernetes <https://kubernetes.io/>`_, it is also made as a reference setup for anyone looking to deploy Jasmin in cloud architectures, this is a proof-of-concept model for deploying simple clusters, these were used for making stress tests and performance metering of the sms gateway.
 
 Before you begin you need to have a Kubernetes cluster, and the **kubectl** command-line tool must be configured to communicate with your cluster. It is recommended to run this tutorial on a cluster with at least two nodes that are not acting as control plane hosts. If you do not already have a cluster, you can create one by using minikube or you can use one of these Kubernetes playgrounds:
 
@@ -290,11 +288,6 @@ You will also need to create a group, user and at least a mt route to make your 
 .. note::
 
    You may adjust the **host** value in the example above to your own host (provided by your Kubernetes cluster).
-
-Advanced deployment architecture
-================================
-
-*[work in progress]*
 
 
 Sending your first SMS

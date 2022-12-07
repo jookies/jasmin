@@ -162,15 +162,6 @@ class SMPPClientSMListener:
                         "QoS: submit_sm_callback faster (%s) than throughput (%s), slowing down %ss (requeuing).",
                         qos_delay, qos_throughput_ysecond_td, qos_slow_down)
 
-                    # Legacy QoS controller (<0.10.13):
-                    # @TODO: remove this old controller after making stresstest and confirming performance boost
-                    # Relaunch queue callbacking after qos_slow_down seconds
-                    # self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
-                    # self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
-                    # Requeue the message
-                    #yield self.rejectAndRequeueMessage(message, delay=qos_slow_down)
-                    #defer.returnValue(False)
-
                     # New QoS controller (>=0.10.13):
                     # Will pause for a delay then allow handling the message normally
                     # This will avoid impacting resources by requeuing on rabbitmq
