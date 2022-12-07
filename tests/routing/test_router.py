@@ -55,6 +55,10 @@ def waitFor(seconds):
 
 
 def composeMessage(characters, length):
+    # Convert set to sequence
+    # c.f. https://docs.python.org/3/library/random.html#random.sample
+    characters = list(characters)
+
     if length <= len(characters):
         return ''.join(random.sample(characters, length))
     else:
