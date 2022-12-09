@@ -1522,10 +1522,6 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
 
-        # Mock callback
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = Mock(
-            self.pbRoot_f.bill_request_submit_sm_resp_callback)
-
         self.params['content'] = composeMessage({'_'}, 200)
         baseurl = 'http://127.0.0.1:1401/send'
 
