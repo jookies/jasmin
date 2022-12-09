@@ -79,6 +79,10 @@ class SimulatorTestCase(TestCase):
         self.SMSCPort.stopListening()
 
     def composeMessage(self, characters, length):
+        # Convert set to sequence
+        # c.f. https://docs.python.org/3/library/random.html#random.sample
+        characters = list(characters)
+
         if length <= len(characters):
             return b''.join(random.sample(characters, length).encode())
         else:

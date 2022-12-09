@@ -6,7 +6,6 @@ metadata:
     name: smppsim
 spec:
   hostname: smppsim
-  subdomain: test
   containers:
   - name: smppsim
     image: jookies/smppsim:latest
@@ -14,7 +13,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: test
+  name: smpp-simulator
 spec:
   selector:
     name: smppsim

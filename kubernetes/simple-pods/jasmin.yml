@@ -1,76 +1,284 @@
+kind: PersistentVolume
 apiVersion: v1
-kind: Pod
+metadata:
+  name: jasmin-data-pv
+  labels:
+    pv-name: jasmin-data-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/jasmin-data-pv
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: jasmin-logs-pv
+  labels:
+    pv-name: jasmin-logs-pv
+spec:
+  capacity:
+    storage: 4Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/jasmin-logs-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasmin-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 512Mi
+  selector:
+    matchLabels:
+      pv-name: jasmin-data-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasmin-logs-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+  selector:
+    matchLabels:
+      pv-name: jasmin-logs-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jasmin-logs-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+  selector:
+    matchLabels:
+      pv-name: jasmin-logs-pv
+---
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
   name: jasmin
   labels:
     app: jasmin
 spec:
-  hostname: jasmin
-  subdomain: app
-  containers:
-    - name: jasmin
-      image: jookies/jasmin:latest
-      ports:
-        - containerPort: 2775
-          name: smpp-port
-          protocol: TCP
-        - containerPort: 1401
-          name: http-port
-          protocol: TCP
-        - containerPort: 8990
-          name: cli-port
-          protocol: TCP
-      lifecycle:
-        postStart:
-          exec:
-            command: [ "sh", "-c", "cp /tmp/jasminconfig/* /etc/jasmin/" ]
-      volumeMounts:
-        - name: jasminconfig
-          mountPath: /tmp/jasminconfig
-  volumes:
-    - name: jasminconfig
-      configMap:
-        name: etcjasmin
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jasmin
+  podManagementPolicy: "Parallel"
+  template:
+    metadata:
+      labels:
+        app: jasmin
+    spec:
+      containers:
+        - name: jasmin
+          image: jookies/jasmin:latest
+          ports:
+            - containerPort: 2775
+              name: smpp-port
+            - containerPort: 1401
+              name: http-port
+            - containerPort: 8990
+              name: cli-port
+          command: ["jasmind.py", "--enable-interceptor-client", "-u", "jcliadmin", "-p", "jclipwd"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: jasmin-config
+              mountPath: /tmp/config
+            - name: jasmin-data
+              mountPath: /etc/jasmin/store
+            - name: jasmin-logs
+              mountPath: /var/log/jasmin
+        - name: interceptord-sidecar
+          image: jookies/jasmin:latest
+          command: ["interceptord.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: interceptor-config
+              mountPath: /tmp/config
+        - name: dlrlookupd-sidecar
+          image: jookies/jasmin:latest
+          command: ["dlrlookupd.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: dlrlookupd-config
+              mountPath: /tmp/config
+        - name: dlrd-sidecar
+          image: jookies/jasmin:latest
+          command: ["dlrd.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: dlr-config
+              mountPath: /tmp/config
+      volumes:
+        - name: jasmin-config
+          configMap:
+            name: etc-jasmin
+        - name: jasmin-data
+          persistentVolumeClaim:
+            claimName: jasmin-data-pvc
+        - name: interceptor-config
+          configMap:
+            name: etc-interceptor
+        - name: dlrlookupd-config
+          configMap:
+            name: etc-dlrlookupd
+        - name: dlr-config
+          configMap:
+            name: etc-dlr
+        - name: jasmin-logs
+          persistentVolumeClaim:
+            claimName: jasmin-logs-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: app
+  name: jasmin-cli
+  annotations:
+    metallb.universe.tf/address-pool: management-network
 spec:
+  type: LoadBalancer
   selector:
-    name: jasmin
-  clusterIP: None
+    app: jasmin
+  ports:
+  - protocol: TCP
+    port: 8990
+    targetPort: cli-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-smpp-api
+  annotations:
+    metallb.universe.tf/address-pool: production-network
+spec:
+  type: LoadBalancer
+  selector:
+    app: jasmin
+  ports:
+  - protocol: TCP
+    port: 2775
+    targetPort: smpp-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jasmin-http-api
+  annotations:
+    metallb.universe.tf/address-pool: production-network
+spec:
+  type: LoadBalancer
+  selector:
+    app: jasmin
+  ports:
+  - protocol: TCP
+    port: 1401
+    targetPort: http-port
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: etcjasmin
+  name: etc-jasmin
 data:
   jasmin.cfg: |
       # This is a simplified config version taken from the /etc/jasmin/jasmin.cfg file
       # Some parameters are slightly fine tuned for better performance, amqp and redis
       # parameters are updated accordingly to kubernetes requirements.
-      
+      [smpp-server]
+      # Disabled to allow smpp stress tests without charging & billing management
+      billing_feature    = False
+    
       [sm-listener]
       publish_submit_sm_resp = False
-      submit_max_age_smppc_not_ready = 300
-      
-      [dlr]
-      dlr_lookup_retry_delay = 180
-      
-      [amqp-broker]
-      host = rabbit.mq.farirat.svc.cluster.local
+      submit_max_age_smppc_not_ready = 30
       
       [deliversm-thrower]
       http_timeout = 10
       retry_delay = 90
       max_retries = 2
       
+      [amqp-broker]
+      host = rabbitmq-broker
+      
+      [redis-client]
+      host = redis-server
+      poolsize = 30
+    
+      [jcli]
+      bind = 0.0.0.0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-interceptor
+data:
+  interceptor.cfg: |
+      # This is a simplified config version taken from the /etc/jasmin/interceptor.cfg file
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-dlrlookupd
+data:
+  dlrlookupd.cfg: |
+      # This is the Jasmin DLR Lookup Daemon configuration file.
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      [dlr]
+      dlr_lookup_retry_delay = 180
+      dlr_lookup_max_retries = 1
+
+      [amqp-broker]
+      host = rabbitmq-broker
+      
+      [redis-client]
+      host = redis-server
+      poolsize = 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-dlr
+data:
+  dlr.cfg: |
+      # This is the Jasmin DLR Lookup Daemon configuration file.
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
       [dlr-thrower]
       http_timeout = 10
       retry_delay = 90
-      max_retries = 2
+      max_retries = 1
+      
+      [amqp-broker]
+      host = rabbitmq-broker
       
       [redis-client]
-      host = redis.store.farirat.svc.cluster.local
+      host = redis-server
       poolsize = 30

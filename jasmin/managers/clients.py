@@ -241,6 +241,9 @@ class SMPPClientManagerPB(pb.Avatar):
             self.log.error('AMQP Broker channel is not yet ready')
             defer.returnValue(False)
 
+        # Fix prefetch limit per consumer to 1 to get correct throttling
+        yield self.amqpBroker.chan.basic_qos(prefetch_count=1)
+
         # Declare queues
         # First declare the messaging exchange (has no effect if its already declared)
         yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
@@ -571,7 +574,8 @@ class SMPPClientManagerPB(pb.Avatar):
         # Pickle SubmitSmPDU if it's not pickled
         if not pickled:
             PickledSubmitSmPDU = pickle.dumps(SubmitSmPDU, self.pickleProtocol)
-            submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
+            if submit_sm_bill is not None:
+                submit_sm_bill = pickle.dumps(submit_sm_bill, self.pickleProtocol)
         else:
             PickledSubmitSmPDU = SubmitSmPDU
             SubmitSmPDU = pickle.loads(PickledSubmitSmPDU)
@@ -592,7 +596,7 @@ class SMPPClientManagerPB(pb.Avatar):
         if source_connector == 'httpapi' and dlr_url is not None:
             # Enqueue DLR request in redis 'dlr' key if it is a httpapi request
             if self.redisClient is None or str(self.redisClient) == '<Redis Connection: Not connected>':
-                self.log.warn("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected.",
+                self.log.warning("DLR is not enqueued for SubmitSmPDU [msgid:%s], RC is not connected.",
                               c.properties['message-id'])
             else:
                 self.log.debug('Setting DLR url (%s) and level (%s) for message id:%s, expiring in %s',
@@ -617,7 +621,7 @@ class SMPPClientManagerPB(pb.Avatar):
             # requested, then map message-id to the source_connector to permit related deliver_sm
             # messages holding further receipts to be sent back to the right connector
             if self.redisClient is None or str(self.redisClient) == '<Redis Connection: Not connected>':
-                self.log.warn("SMPPs mapping is not done for SubmitSmPDU [msgid:%s], RC is not connected.",
+                self.log.warning("SMPPs mapping is not done for SubmitSmPDU [msgid:%s], RC is not connected.",
                               c.properties['message-id'])
             else:
                 self.log.debug(

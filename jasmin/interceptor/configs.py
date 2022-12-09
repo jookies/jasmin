@@ -6,12 +6,10 @@ import binascii
 import logging
 import os
 
-from jasmin.config import ConfigFile
+from jasmin.config import ConfigFile, ROOT_PATH, LOG_PATH
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 RESOURCE_PATH = os.getenv('RESOURCE_PATH', '%s/resource/' % CONFIG_PATH)
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class InterceptorPBConfig(ConfigFile):

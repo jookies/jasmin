@@ -25,6 +25,10 @@ grep -q "^${JASMIN_USER}:" /etc/passwd || useradd -r -g $JASMIN_GROUP \
   -d /usr/share/jasmin -s /sbin/nologin \
   -c "Jasmin SMS Gateway user" $JASMIN_USER
 
+# Create empty directories
+mkdir /etc/jasmin/store
+mkdir /var/log/jasmin
+
 # Change owner of required folders
 chown -R "$JASMIN_USER:$JASMIN_GROUP" /etc/jasmin/store/
 chown -R "$JASMIN_USER:$JASMIN_GROUP" /var/log/jasmin

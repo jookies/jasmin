@@ -5,7 +5,7 @@ Billing
 `Jasmin <http://jasminsms.com/>`_ comes with a user billing feature that lets you apply rates on message routes, every time a user sends a SMS through a rated route he'll get charged, once he runs out of credit no more sending will be permitted.
 
 .. important:: New routes created through :ref:`mtrouter_manager` are not rated by default, you must :ref:`define <mtrouter_manager>` the rate of each route in order to enable billing.
-.. note:: Billing is applied on all channels (SMPP Server and HTTP API) the same way.
+.. note:: Billing is applied on all channels (SMPP Server and HTTP API) the same way, and starting from Jasmin 0.10.13 release, it is possible to disable the billing feature if not used by setting *billing_feature=False* in jasmin.cfg under **http-api** and/or **smpp-server** sections.
 
 Billing quotas
 **************
@@ -92,7 +92,7 @@ The following process flow shows how billing is done through HTTP Api (same proc
 .. figure:: /resources/billing/billing-process.png
    :alt: Billing process flow
    :align: Center
-   
+
    Billing process flow
 
 .. _billing_call_flow_async:
@@ -105,7 +105,7 @@ When enabled, :ref:`Asynchronous billing <billing_async>` algorithm can charge u
 .. figure:: /resources/billing/async-callflow.png
    :alt: Asynchronous billing call flow
    :align: Center
-   
+
    Asynchronous billing call flow
 
 In the above figure, user is charged early before submitting SMS to SMSC, and the charged later when the SMSC acknowledge back reception of the message, as detailed :ref:`earlier <billing_async>`, the charged amount in early stage is defined by **early_decrement_balance_percent** :ref:`set in user profile <user_credentials>`.
@@ -117,7 +117,7 @@ The below figure explain how asynchronous billing is handling long content messa
 .. figure:: /resources/billing/async-callflow-long-content.png
    :alt: Asynchronous billing call flow for long content messages
    :align: Center
-   
+
    Asynchronous billing call flow for long content messages
 
 Asynchronous billing is mainly relying on AMQP broker (like :doc:`messaging </messaging/index>`), The AMQP broker is providing a queuing mechanism, through the following illustration you can see how asynchronous billing is done:
@@ -125,7 +125,7 @@ Asynchronous billing is mainly relying on AMQP broker (like :doc:`messaging </me
 .. figure:: /resources/billing/billing.png
    :alt: Asynchronous billing AMQP message exchange
    :align: Center
-   
+
    Asynchronous billing AMQP message exchange
 
 When receiving a **SUBMIT_SM_RESP** PDU, *submit_sm_resp_event()* method is called (:ref:`more details here <billing_async>`), it will check if there's a remaining bill to charge on user and publish it on **bill_request.submit_sm_resp.UID** (using *billing* exchange) where UID is the concerned User ID.

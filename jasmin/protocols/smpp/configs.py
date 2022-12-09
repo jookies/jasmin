@@ -1,15 +1,12 @@
 import logging
-import os
 import re
 
+from jasmin.config import LOG_PATH
 from jasmin.config import ConfigFile
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType,
                                               RegisteredDelivery, RegisteredDeliveryReceipt,
                                               AddrTon, AddrNpi,
                                               PriorityFlag, ReplaceIfPresentFlag)
-
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class ConfigUndefinedIdError(Exception):
@@ -220,6 +217,8 @@ class SMPPServerConfig(ConfigFile):
 
         self.bind = self._get('smpp-server', 'bind', '0.0.0.0')
         self.port = self._getint('smpp-server', 'port', 2775)
+
+        self.billing_feature = self._getbool('smpp-server', 'billing_feature', True)
 
         # Logging
         self.log_level = logging.getLevelName(self._get('smpp-server', 'log_level', 'INFO'))

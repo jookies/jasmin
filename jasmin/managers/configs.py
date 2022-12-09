@@ -4,18 +4,15 @@ Config file handlers for 'client-management' and 'sm-listener' section in jasmin
 
 import binascii
 import ast
-import pickle
 import logging
 import os
 
-from jasmin.config import ConfigFile
+from jasmin.config import ConfigFile, ROOT_PATH, LOG_PATH
 
 DEFAULT_LOGFORMAT = '%(asctime)s %(levelname)-8s %(process)d %(message)s'
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 
 class SMPPClientPBConfig(ConfigFile):

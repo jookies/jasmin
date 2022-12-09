@@ -2,7 +2,6 @@ import binascii
 import pickle
 import sys
 import logging
-import urllib.request, urllib.parse, urllib.error
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.application.service import Service
@@ -162,7 +161,7 @@ class Thrower(Service):
         self.log.info('Added amqpBroker')
 
         if not self.amqpBroker.connected:
-            self.log.warn('AMQP Broker channel is not yet ready, waiting for it to become ready.')
+            self.log.warning('AMQP Broker channel is not yet ready, waiting for it to become ready.')
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
 
@@ -353,17 +352,17 @@ class deliverSmThrower(Thrower):
                                        self.getThrowingRetrials(message), msgid)
                         yield self.rejectAndRequeueMessage(message)
                     elif str(e) in noRetryErrors:
-                        self.log.warn('Message [msgid:%s] is no more processed after receiving "%s" error',
+                        self.log.warning('Message [msgid:%s] is no more processed after receiving "%s" error',
                                       msgid, str(e))
                         yield self.rejectMessage(message)
                     else:
-                        self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                        self.log.warning('Message try-count is %s [msgid:%s]: purged from queue',
                                       self.getThrowingRetrials(message), msgid)
                         yield self.rejectMessage(message)
                 elif route_type == 'failover':
                     # The route has multiple connectors, we will not retry throwing to same connector
                     if last_dc:
-                        self.log.warn(
+                        self.log.warning(
                             'Message [msgid:%s] is no more processed after receiving "%s" error on this fo/connector',
                             msgid, str(e))
             else:
@@ -456,17 +455,17 @@ class deliverSmThrower(Thrower):
                                        self.getThrowingRetrials(message), msgid)
                         yield self.rejectAndRequeueMessage(message)
                     elif retry and self.getThrowingRetrials(message) > self.config.max_retries:
-                        self.log.warn('Message [msgid:%s] is no more processed after receiving "%s" error',
+                        self.log.warning('Message [msgid:%s] is no more processed after receiving "%s" error',
                                       msgid, str(e))
                         yield self.rejectMessage(message)
                     else:
-                        self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                        self.log.warning('Message try-count is %s [msgid:%s]: purged from queue',
                                       self.getThrowingRetrials(message), msgid)
                         yield self.rejectMessage(message)
                 elif route_type == 'failover':
                     # The route has multiple connectors, we will not retry throwing to same connector
                     if last_dc:
-                        self.log.warn(
+                        self.log.warning(
                             'Message [msgid:%s] is no more processed after receiving "%s" error on this fo/connector',
                             msgid, str(e))
             else:
@@ -595,10 +594,10 @@ class DLRThrower(Thrower):
                                self.getThrowingRetrials(message), msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif str(e) in noRetryErrors:
-                self.log.warn('Message is no more processed after receiving "%s" error', str(e))
+                self.log.warning('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
-                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                self.log.warning('Message try-count is %s [msgid:%s]: purged from queue',
                               self.getThrowingRetrials(message), msgid)
                 yield self.rejectMessage(message)
 
@@ -680,10 +679,10 @@ class DLRThrower(Thrower):
                                self.getThrowingRetrials(message), msgid)
                 yield self.rejectAndRequeueMessage(message)
             elif retry and self.getThrowingRetrials(message) > self.config.max_retries:
-                self.log.warn('Message is no more processed after receiving "%s" error', str(e))
+                self.log.warning('Message is no more processed after receiving "%s" error', str(e))
                 yield self.rejectMessage(message)
             else:
-                self.log.warn('Message try-count is %s [msgid:%s]: purged from queue',
+                self.log.warning('Message try-count is %s [msgid:%s]: purged from queue',
                               self.getThrowingRetrials(message), msgid)
                 yield self.rejectMessage(message)
         else:

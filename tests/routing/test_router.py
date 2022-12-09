@@ -55,6 +55,10 @@ def waitFor(seconds):
 
 
 def composeMessage(characters, length):
+    # Convert set to sequence
+    # c.f. https://docs.python.org/3/library/random.html#random.sample
+    characters = list(characters)
+
     if length <= len(characters):
         return ''.join(random.sample(characters, length))
     else:
@@ -1517,10 +1521,6 @@ class BillRequestSubmitSmRespCallbackingTestCases(RouterPBProxy, HappySMSCTestCa
     def test_unrated_route(self):
         yield self.connect('127.0.0.1', self.pbPort)
         yield self.prepareRoutingsAndStartConnector()
-
-        # Mock callback
-        self.pbRoot_f.bill_request_submit_sm_resp_callback = Mock(
-            self.pbRoot_f.bill_request_submit_sm_resp_callback)
 
         self.params['content'] = composeMessage({'_'}, 200)
         baseurl = 'http://127.0.0.1:1401/send'

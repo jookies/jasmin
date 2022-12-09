@@ -20,6 +20,7 @@ from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
+from jasmin.tools import qos
 
 LOG_CATEGORY = "jasmin-sm-listener"
 
@@ -161,12 +162,10 @@ class SMPPClientSMListener:
                         "QoS: submit_sm_callback faster (%s) than throughput (%s), slowing down %ss (requeuing).",
                         qos_delay, qos_throughput_ysecond_td, qos_slow_down)
 
-                    # Relaunch queue callbacking after qos_slow_down seconds
-                    # self.qosTimer = task.deferLater(reactor, qos_slow_down, self.submit_sm_q.get)
-                    # self.qosTimer.addCallback(self.submit_sm_callback).addErrback(self.submit_sm_errback)
-                    # Requeue the message
-                    yield self.rejectAndRequeueMessage(message, delay=qos_slow_down)
-                    defer.returnValue(False)
+                    # New QoS controller (>=0.10.13):
+                    # Will pause for a delay then allow handling the message normally
+                    # This will avoid impacting resources by requeuing on rabbitmq
+                    yield qos.slow_down(qos_slow_down)
 
                 self.qos_last_submit_sm_at = datetime.now()
 
@@ -177,6 +176,7 @@ class SMPPClientSMListener:
                     msgid)
                 yield self.rejectMessage(message)
                 defer.returnValue(False)
+
             # If the message has expired in the queue
             if 'headers' in message.content.properties and 'expiration' in message.content.properties['headers']:
                 expiration_datetime = parser.parse(message.content.properties['headers']['expiration'])
@@ -185,6 +185,7 @@ class SMPPClientSMListener:
                         "Discarding expired message[%s]: expiration is %s", msgid, expiration_datetime)
                     yield self.rejectMessage(message)
                     defer.returnValue(False)
+
             # SMPP Client should be already connected
             if self.SMPPClientFactory.smpp is None:
                 created_at = parser.parse(message.content.properties['headers']['created_at'])
@@ -208,6 +209,7 @@ class SMPPClientSMListener:
                     yield self.rejectAndRequeueMessage(message,
                                                        delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
+
             # SMPP Client should be already bound as transceiver or transmitter
             if self.SMPPClientFactory.smpp.isBound() is False:
                 created_at = parser.parse(message.content.properties['headers']['created_at'])
@@ -232,8 +234,8 @@ class SMPPClientSMListener:
                     defer.returnValue(False)
 
             # Finally: send the sms !
-            self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s]",
-                           msgid, self.SMPPClientFactory.config.id)
+            self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s] after %s requeues.",
+                           msgid, self.SMPPClientFactory.config.id, self.submit_retrials[msgid])
             d = self.SMPPClientFactory.smpp.sendDataRequest(SubmitSmPDU)
             d.addCallback(self.submit_sm_resp_event, message)
             yield d
@@ -256,15 +258,17 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def submit_sm_resp_event(self, r, amqpMessage):
         msgid = amqpMessage.content.properties['message-id']
-        total_bill_amount = None
+        total_bill_amount = 0.0
         will_be_retried = False
 
         try:
-            submit_sm_resp_bill = pickle.loads(
-                amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
+            if 'submit_sm_bill' in amqpMessage.content.properties['headers']:
+                submit_sm_resp_bill = pickle.loads(
+                    amqpMessage.content.properties['headers']['submit_sm_bill']).getSubmitSmRespBill()
+            else:
+                submit_sm_resp_bill = None
 
-            total_bill_amount = 0.0
-            
+
             if r.response.status == CommandStatus.ESME_ROK:
                 # No more retrials !
                 del self.submit_retrials[msgid]
@@ -434,7 +438,7 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def concatDeliverSMs(self, HSetReturn, hashKey, splitMethod, total_segments, msg_ref_num, segment_seqnum):
         if HSetReturn == 0:
-            self.log.warn('This hashKey %s already exists, will not reset it !', hashKey)
+            self.log.warning('This hashKey %s already exists, will not reset it !', hashKey)
             return
 
         # @TODO: longDeliverSm part expiry must be configurable
@@ -444,7 +448,7 @@ class SMPPClientSMListener:
         if segment_seqnum == total_segments:
             hvals = yield self.redisClient.hvals(hashKey)
             if len(hvals) != total_segments:
-                self.log.warn(
+                self.log.warning(
                     'Received the last part (msg_ref_num:%s) and did not find all parts in redis, data lost !',
                     msg_ref_num)
                 return
@@ -462,7 +466,7 @@ class SMPPClientSMListener:
             elif 'message_payload' in pdus[1].params:
                 msg_content_key = 'message_payload'
             else:
-                self.log.warn('Cannot find message content in first pdu params: %s', pdus[1].params)
+                self.log.warning('Cannot find message content in first pdu params: %s', pdus[1].params)
                 return
 
             # Build concat_message_content
