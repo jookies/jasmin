@@ -15,9 +15,11 @@ from jasmin.queues.configs import AmqpConfig
 from jasmin.queues.factory import AmqpFactory
 from jasmin.routing.configs import DLRThrowerConfig
 from jasmin.routing.throwers import DLRThrower
+from jasmin.config import ROOT_PATH
+from jasmin.bin import BaseDaemon
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
+
 
 class Options(usage.Options):
     optParameters = [
@@ -31,11 +33,7 @@ class Options(usage.Options):
     ]
 
 
-class DlrDaemon:
-    def __init__(self, opt):
-        self.options = opt
-        self.components = {}
-
+class DlrDaemon(BaseDaemon):
     def startAMQPBrokerService(self):
         """Start AMQP Broker"""
 

@@ -1,3 +1,17 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: grafana-pv
+  labels:
+    pv-name: grafana-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/grafana-pv
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,75 +22,190 @@ spec:
   resources:
     requests:
       storage: 1Gi
+  selector:
+    matchLabels:
+      pv-name: grafana-pv
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
   name: grafana
   labels:
-    app: grafana
+    name: grafana
 spec:
-  replicas: 1
+  securityContext:
+    fsGroup: 472
+    runAsUser: 0
+    supplementalGroups:
+      - 0
+  containers:
+    - name: grafana
+      image: grafana/grafana:latest
+      ports:
+        - containerPort: 3000
+          name: http-grafana
+          protocol: TCP
+      volumeMounts:
+        - name: provisioning-ds-prometheus
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: provisioning-dashboards
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /opt/grafana-dashboards
+        - name: grafana-data
+          mountPath: /var/lib/grafana
+  initContainers:
+    - name: grafana-installer
+      image: busybox
+      command: ["/bin/sh","-c"]
+      # @TODO: switch https links back to master once 0.10.13 is published
+      args:
+        - mkdir -p /tmp-dashboards/Jasmin;
+          mkdir -p /tmp-dashboards/RabbitMQ;
+          wget -O '/tmp-dashboards/Jasmin/HTTP API.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/Jasmin/HTTP%20API.json';
+          wget -O '/tmp-dashboards/Jasmin/SMPP Clients.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/Jasmin/SMPP%20Clients.json';
+          wget -O '/tmp-dashboards/Jasmin/SMPP Server.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/Jasmin/SMPP%20Server.json';
+          wget -O '/tmp-dashboards/RabbitMQ/Overview.json' 'https://raw.githubusercontent.com/jookies/jasmin/0.10.13/docker/grafana/dashboards/RabbitMQ/Overview.json';
+      volumeMounts:
+        - name: dashboards
+          mountPath: "/tmp-dashboards"
+  volumes:
+    - name: provisioning-ds-prometheus
+      configMap:
+        name: provisioning-ds-prometheus
+    - name: provisioning-dashboards
+      configMap:
+        name: provisioning-dashboards
+    - name: dashboards
+      emptyDir: {}
+    - name: grafana-data
+      persistentVolumeClaim:
+        claimName: grafana-pvc
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: provisioning-ds-prometheus
+data:
+  prometheus.yml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        uid: jasmin-prometheus-ds
+        type: prometheus
+        access: proxy
+        orgId: 1
+        url: http://prometheus:9090
+        basicAuth: false
+        editable: false
+        enabled: true
+        version: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: provisioning-dashboards
+data:
+  dashboards.yml: |
+    apiVersion: 1
+
+    providers:
+      - name: 'Jasmin'
+        orgId: 1
+        #folder: ''
+        #folderUid: ''
+        disableDeletion: false
+        updateIntervalSeconds: 120
+        allowUiUpdates: true
+        options:
+          path: /opt/grafana-dashboards
+          foldersFromFilesStructure: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  annotations:
+    metallb.universe.tf/address-pool: management-network
+spec:
+  type: LoadBalancer
+  selector:
+    name: grafana
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: http-grafana
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: prometheus-pv
+  labels:
+    pv-name: prometheus-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /k8s-volumes/jasmin/prometheus-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
   selector:
     matchLabels:
-      app: grafana
-  template:
-    metadata:
-      labels:
-        app: grafana
-    spec:
-      securityContext:
-        fsGroup: 472
-        runAsUser: 0
-        supplementalGroups:
-          - 0
-      containers:
-        - name: grafana
-          image: grafana/grafana:latest
-          ports:
-            - containerPort: 3000
-              name: http-grafana
-              protocol: TCP
-          volumeMounts:
-            - mountPath: /var/lib/grafana
-              name: grafana-data
-      volumes:
-        - name: grafana-data
-          persistentVolumeClaim:
-            claimName: grafana-pvc
+      pv-name: prometheus-pv
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
   name: prometheus
   labels:
-    app: prometheus
+    name: prometheus
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: prometheus
-  template:
-    metadata:
-      labels:
-        app: prometheus
-    spec:
-      containers:
-        - name: prometheus
-          image: prom/prometheus:latest
-          args:
-            - --config.file=/etc/prometheus/prometheus.yml
-          ports:
-            - containerPort: 9090
-              name: prometheus-port
-              protocol: TCP
-          volumeMounts:
-            - name: etcprom
-              mountPath: /etc/prometheus
-      volumes:
+  initContainers:
+    - name: file-ownership-fix
+      image: busybox
+      command: ["/bin/sh","-c"]
+      args:
+        - chown 65534:65534 /prometheus
+      volumeMounts:
+        - name: dataprom
+          mountPath: "/prometheus"
+  containers:
+    - name: prometheus
+      image: prom/prometheus:latest
+      args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - '--storage.tsdb.path=/prometheus'
+        - '--web.console.libraries=/etc/prometheus/console_libraries'
+        - '--web.console.templates=/etc/prometheus/consoles'
+        - '--web.enable-lifecycle'
+      ports:
+        - containerPort: 9090
+          name: prometheus-port
+          protocol: TCP
+      volumeMounts:
         - name: etcprom
-          configMap:
-            name: promconf
+          mountPath: /etc/prometheus
+        - name: dataprom
+          mountPath: /prometheus
+  volumes:
+    - name: etcprom
+      configMap:
+        name: promconf
+    - name: dataprom
+      persistentVolumeClaim:
+        claimName: prometheus-pvc
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -92,36 +221,17 @@ data:
       - job_name: jasmin
         static_configs:
           - targets:
-              - 'jasmin.app.farirat.svc.cluster.local:1401'
+              - 'jasmin-http-api:1401'
       - job_name: rabbitmq
         static_configs:
           - targets:
-              - 'rabbit.mq.farirat.svc.cluster.local:15692'
+              - 'rabbitmq-broker:15692'
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
 spec:
-  ports:
-    - port: 9090
-      protocol: TCP
-      targetPort: prometheus-port
   selector:
-    app: prometheus
-  sessionAffinity: None
-  type: LoadBalancer
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana
-spec:
-  ports:
-    - port: 3000
-      protocol: TCP
-      targetPort: http-grafana
-  selector:
-    app: grafana
-  sessionAffinity: None
-  type: LoadBalancer
+    name: prometheus
+  clusterIP: None

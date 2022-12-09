@@ -2,13 +2,9 @@
 Config file handler for 'jcli' section in jasmin.cfg
 """
 
-import os
 import logging
 import binascii
-from jasmin.config import ConfigFile
-
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
+from jasmin.config import ConfigFile, LOG_PATH
 
 
 class JCliConfig(ConfigFile):

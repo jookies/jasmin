@@ -6,10 +6,8 @@ import logging
 import os
 import re
 
-from jasmin.config import ConfigFile
+from jasmin.config import ConfigFile, LOG_PATH
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 REDIS_URL = os.getenv('REDIS_URL', None)
 
 

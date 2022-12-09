@@ -12,11 +12,10 @@ from jasmin.routing.Filters import (TransparentFilter, UserFilter, GroupFilter,
                                     ConnectorFilter, SourceAddrFilter, DestinationAddrFilter,
                                     ShortMessageFilter, DateIntervalFilter, TimeIntervalFilter,
                                     EvalPyFilter, TagFilter)
+from jasmin.config import ROOT_PATH
 
 # Related to travis-ci builds
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 # Since FiltersManager does not have any PB, there's no configuration for it
 # Persist and Load are using STORE_PATH for persisting/loading filters
@@ -125,7 +124,7 @@ def FilterBuild(fCallback):
                 self.sessBuffer['filter_class'] = globals()[_type]
 
                 # Show Filter help and save Filter args
-                fargs = inspect.getargspec(self.sessBuffer['filter_class'].__init__).args
+                fargs = inspect.getfullargspec(self.sessBuffer['filter_class'].__init__).args
                 # Remove 'self' from args
                 del fargs[0]
                 FilterClassArgs = []

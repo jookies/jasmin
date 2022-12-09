@@ -310,31 +310,34 @@ class Send(Resource):
                 submit_sm_count += 1
 
             # Pre-sending submit_sm: Billing processing
-            bill = route.getBillFor(user)
-            self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU (x%s)",
-                           bill.bid, bill.getTotalAmounts(), submit_sm_count)
-            charging_requirements = []
-            u_balance = user.mt_credential.getQuota('balance')
-            u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
-            if u_balance is not None and bill.getTotalAmounts() > 0:
-                # Ensure user have enough balance to pay submit_sm and submit_sm_resp
-                charging_requirements.append({
-                    'condition': bill.getTotalAmounts() * submit_sm_count <= u_balance,
-                    'error_message': 'Not enough balance (%s) for charging: %s' % (
-                        u_balance, bill.getTotalAmounts())})
-            if u_subsm_count is not None:
-                # Ensure user have enough submit_sm_count to to cover
-                # the bill action (decrement_submit_sm_count)
-                charging_requirements.append({
-                    'condition': bill.getAction('decrement_submit_sm_count') * submit_sm_count <= u_subsm_count,
-                    'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % (
-                        u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
+            if self.config.billing_feature:
+                bill = route.getBillFor(user)
+                self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU (x%s)",
+                               bill.bid, bill.getTotalAmounts(), submit_sm_count)
+                charging_requirements = []
+                u_balance = user.mt_credential.getQuota('balance')
+                u_subsm_count = user.mt_credential.getQuota('submit_sm_count')
+                if u_balance is not None and bill.getTotalAmounts() > 0:
+                    # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+                    charging_requirements.append({
+                        'condition': bill.getTotalAmounts() * submit_sm_count <= u_balance,
+                        'error_message': 'Not enough balance (%s) for charging: %s' % (
+                            u_balance, bill.getTotalAmounts())})
+                if u_subsm_count is not None:
+                    # Ensure user have enough submit_sm_count to to cover
+                    # the bill action (decrement_submit_sm_count)
+                    charging_requirements.append({
+                        'condition': bill.getAction('decrement_submit_sm_count') * submit_sm_count <= u_subsm_count,
+                        'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % (
+                            u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
-            if self.RouterPB.chargeUserForSubmitSms(user, bill, submit_sm_count, charging_requirements) is None:
-                self.stats.inc('charging_error_count')
-                self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] SubmitSmPDU (x%s)',
-                               user, bill.bid, bill.getTotalAmounts(), submit_sm_count)
-                raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+                if self.RouterPB.chargeUserForSubmitSms(user, bill, submit_sm_count, charging_requirements) is None:
+                    self.stats.inc('charging_error_count')
+                    self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] SubmitSmPDU (x%s)',
+                                   user, bill.bid, bill.getTotalAmounts(), submit_sm_count)
+                    raise ChargingError('Cannot charge submit_sm, check RouterPB log file for details')
+            else:
+                bill = None
 
             ########################################################
             # Send SubmitSmPDU through smpp client manager PB server

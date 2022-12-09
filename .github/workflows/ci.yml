@@ -28,12 +28,12 @@ jobs:
           - 6379:6379
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9]
+        python: [3.7, 3.8, 3.9, '3.10', 3.11]
     steps:
       - uses: actions/checkout@v2
       - name: Install os dependencies
         run: |
-          sudo apt-get install -y python-dev libffi-dev libffi-dev bc
+          sudo apt-get install -y libffi-dev libffi-dev bc
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v2
         with:

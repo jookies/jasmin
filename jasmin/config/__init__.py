@@ -4,6 +4,15 @@ A Config file reader
 import os
 import configparser as ConfigParser
 
+# Setting base paths
+ROOT_PATH = os.getenv('ROOT_PATH', '/')
+HOSTNAME = os.getenv('HOSTNAME', 'default-hostname')
+if 'KUBERNETES_SERVICE_HOST' in os.environ:
+    # Bypass environment's LOG_PATH variable and set it based on pod's hostname
+    LOG_PATH = '%s/var/log/jasmin/%s' % (ROOT_PATH, HOSTNAME)
+else:
+    LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin' % ROOT_PATH)
+
 
 class ConfigFile:
     """

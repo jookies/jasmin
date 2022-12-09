@@ -6,15 +6,31 @@ metadata:
     name: rabbit
 spec:
   hostname: rabbit
-  subdomain: mq
   containers:
   - name: rabbit
     image: rabbitmq:3.10-management-alpine
+    volumeMounts:
+      - name: etcrabbit
+        mountPath: /etc/rabbitmq/conf.d
+  volumes:
+    - name: etcrabbit
+      configMap:
+        name: rabbit-conf
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbit-conf
+data:
+  10-main.conf: |
+    loopback_users.guest = false
+    prometheus.return_per_object_metrics = true
+    log.console = true
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mq
+  name: rabbitmq-broker
 spec:
   selector:
     name: rabbit

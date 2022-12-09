@@ -8,6 +8,13 @@ Based on strong message routing algorithms, Jasmin provides flexibility to defin
 
 Jasmin is written in Python and Twisted framework for serving highly scalable applications, SMS message delivery can be done through HTTP and SMPP protocols, intelligent routing can be configured in real-time through an API, cli interface or a web backend [1]_.
 
+.. figure:: https://opensource.nyc3.cdn.digitaloceanspaces.com/attribution/assets/PoweredByDO/DO_Powered_by_Badge_blue.svg
+   :target: https://www.digitalocean.com/
+   :alt: Powered by DigitalOcean
+   :align: Center
+   :width: 210px
+   :scale: 80 %
+
 Features
 ********
 

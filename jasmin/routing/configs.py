@@ -3,16 +3,13 @@ Config file handlers for 'router', 'deliversm-httpthrower' and 'dlr-thrower' sec
 """
 
 import binascii
-import pickle
 import logging
 import os
 
-from jasmin.config import ConfigFile
+from jasmin.config import ConfigFile, ROOT_PATH, LOG_PATH
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 STORE_PATH = os.getenv('STORE_PATH', '%s/store/' % CONFIG_PATH)
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 class RouterPBConfig(ConfigFile):
     """Config handler for 'router' section"""

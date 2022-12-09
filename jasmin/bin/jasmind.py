@@ -37,11 +37,13 @@ from jasmin.tools.cred.checkers import RouterAuthChecker
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.cred.portal import SmppsRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
+from jasmin.config import ROOT_PATH
+from jasmin.bin import BaseDaemon
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
 
 LOG_CATEGORY = "jasmin-daemon"
+
 
 class Options(usage.Options):
     optParameters = [
@@ -65,10 +67,10 @@ class Options(usage.Options):
     ]
 
 
-class JasminDaemon:
+class JasminDaemon(BaseDaemon):
     def __init__(self, opt):
-        self.options = opt
-        self.components = {}
+        super(JasminDaemon, self).__init__(opt)
+
         self.log = logging.getLogger(LOG_CATEGORY)
         self.log.setLevel(logging.INFO)
         handler = logging.StreamHandler(sys.stdout)

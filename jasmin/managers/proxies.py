@@ -74,11 +74,13 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
         return self.pb.callRemote('connector_config', cid)
 
     @ConnectedPB
-    def submit_sm(self, cid, SubmitSmPDU, submit_sm_bill):
+    def submit_sm(self, cid, SubmitSmPDU, uid, submit_sm_bill=None):
         if not isinstance(SubmitSmPDU, SubmitSM):
             raise Exception("SubmitSmPDU is not an instance of SubmitSm")
-        if not isinstance(submit_sm_bill, SubmitSmBill):
+        if submit_sm_bill is not None and not isinstance(submit_sm_bill, SubmitSmBill):
             raise Exception("submit_sm_bill is not an instance of SubmitSmBill")
+        if submit_sm_bill is not None:
+            submit_sm_bill = self.pickle(submit_sm_bill)
 
         # Set the message priority
         if SubmitSmPDU.params['priority_flag'] is not None:
@@ -96,9 +98,9 @@ class SMPPClientManagerPBProxy(JasminPBProxy):
 
         return self.pb.callRemote(
             'submit_sm',
-            uid=submit_sm_bill.user.uid,
+            uid=uid,
             cid=cid,
             SubmitSmPDU=self.pickle(SubmitSmPDU),
-            submit_sm_bill=self.pickle(submit_sm_bill),
+            submit_sm_bill=submit_sm_bill,
             priority=priority_flag,
             validity_period=validity_period)

@@ -5,13 +5,12 @@ import os
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.tools.migrations.configuration import ConfigurationMigrator
 from jasmin.routing.jasminApi import HttpConnector
+from jasmin.config import ROOT_PATH
 
 # A config map between console-configuration keys and Httpcc keys.
 HttpccKeyMap = {'cid': 'cid', 'url': 'baseurl', 'method': 'method'}
 
-ROOT_PATH = os.getenv('ROOT_PATH', '/')
 CONFIG_PATH = os.getenv('CONFIG_PATH', '%s/etc/jasmin/' % ROOT_PATH)
-LOG_PATH = os.getenv('LOG_PATH', '%s/var/log/jasmin/' % ROOT_PATH)
 
 # Since HttpccManager does not have any PB, there's no configuration for it
 # Persist and Load are using STORE_PATH for persisting/loading httpc connectors

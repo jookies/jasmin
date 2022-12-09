@@ -20,6 +20,10 @@ from tests.routing.test_router import HappySMSCTestCase, SubmitSmTestCaseTools
 
 
 def composeMessage(characters, length):
+    # Convert set to sequence
+    # c.f. https://docs.python.org/3/library/random.html#random.sample
+    characters = list(characters)
+
     if length <= len(characters):
         return b''.join(random.sample(characters, length))
     else:
@@ -30,6 +34,10 @@ def composeMessage(characters, length):
 
 
 def composeUnicodeMessage(characters, length):
+    # Convert set to sequence
+    # c.f. https://docs.python.org/3/library/random.html#random.sample
+    characters = list(characters)
+
     if length <= len(characters):
         return ''.join(random.sample(characters, length))
     else:

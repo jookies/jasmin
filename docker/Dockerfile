@@ -1,4 +1,4 @@
-FROM python:3-buster
+FROM python:3.11-slim-bullseye
 
 MAINTAINER Jookies LTD <jasmin@jookies.net>
 
@@ -9,8 +9,16 @@ RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+    # Run python with jemalloc
+    # More on this:
+    # - https://zapier.com/engineering/celery-python-jemalloc/
+    # - https://paste.pics/581cc286226407ab0be400b94951a7d9
+    libjemalloc2
+
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Run python with jemalloc
+ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
 # Install Jasmin SMS gateway
 RUN mkdir -p /etc/jasmin/resource \

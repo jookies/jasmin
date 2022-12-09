@@ -86,7 +86,7 @@ class SMPPClientFactory(ClientFactory):
         return self.config
 
     def msgHandlerStub(self, smpp, pdu):
-        self.log.warn("msgHandlerStub: Received an unhandled message %s ...", pdu)
+        self.log.warning("msgHandlerStub: Received an unhandled message %s ...", pdu)
 
     def startedConnecting(self, connector):
         self.log.info("Connecting to %s ...", connector.getDestination())
@@ -335,10 +335,10 @@ class SMPPServerFactory(_SMPPServerFactory):
     def submit_sm_post_interception(self, *args, **kw):
         """This event handler will deliver the submit_sm to the right smppc connector.
         Note that Jasmin deliver submit_sm messages like this:
-        - from httpapi to smppc (handled in jasmin.protocols.http.server)
+        - from httpapi to smppc (handled in jasmin.protocols.http.endpoints.send)
         - from smpps to smppc (this event handler)
 
-        Note: This event handler MUST behave exactly like jasmin.protocols.http.server.Send.render
+        Note: This event handler MUST behave exactly like jasmin.protocols.http.endpoints.send.Send.render
         """
 
         try:
@@ -433,29 +433,32 @@ class SMPPServerFactory(_SMPPServerFactory):
             routable.user.getCnxStatus().smpps['qos_last_submit_sm_at'] = datetime.now()
 
             # Pre-sending submit_sm: Billing processing
-            bill = route.getBillFor(routable.user)
-            self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU",
-                           bill.bid, bill.getTotalAmounts())
-            charging_requirements = []
-            u_balance = routable.user.mt_credential.getQuota('balance')
-            u_subsm_count = routable.user.mt_credential.getQuota('submit_sm_count')
-            if u_balance is not None and bill.getTotalAmounts() > 0:
-                # Ensure user have enough balance to pay submit_sm and submit_sm_resp
-                charging_requirements.append({
-                    'condition': bill.getTotalAmounts() <= u_balance,
-                    'error_message': 'Not enough balance (%s) for charging: %s' % (
-                        u_balance, bill.getTotalAmounts())})
-            if u_subsm_count is not None:
-                # Ensure user have enough submit_sm_count to to cover the bill action (decrement_submit_sm_count)
-                charging_requirements.append({
-                    'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
-                    'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % (
-                        u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
+            if self.config.billing_feature:
+                bill = route.getBillFor(routable.user)
+                self.log.debug("SubmitSmBill [bid:%s] [ttlamounts:%s] generated for this SubmitSmPDU",
+                               bill.bid, bill.getTotalAmounts())
+                charging_requirements = []
+                u_balance = routable.user.mt_credential.getQuota('balance')
+                u_subsm_count = routable.user.mt_credential.getQuota('submit_sm_count')
+                if u_balance is not None and bill.getTotalAmounts() > 0:
+                    # Ensure user have enough balance to pay submit_sm and submit_sm_resp
+                    charging_requirements.append({
+                        'condition': bill.getTotalAmounts() <= u_balance,
+                        'error_message': 'Not enough balance (%s) for charging: %s' % (
+                            u_balance, bill.getTotalAmounts())})
+                if u_subsm_count is not None:
+                    # Ensure user have enough submit_sm_count to cover the bill action (decrement_submit_sm_count)
+                    charging_requirements.append({
+                        'condition': bill.getAction('decrement_submit_sm_count') <= u_subsm_count,
+                        'error_message': 'Not enough submit_sm_count (%s) for charging: %s' % (
+                            u_subsm_count, bill.getAction('decrement_submit_sm_count'))})
 
-            if self.RouterPB.chargeUserForSubmitSms(routable.user, bill, requirements=charging_requirements) is None:
-                self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)',
-                               routable.user, bill.bid, bill.getTotalAmounts())
-                raise SubmitSmChargingError()
+                if self.RouterPB.chargeUserForSubmitSms(routable.user, bill, requirements=charging_requirements) is None:
+                    self.log.error('Charging user %s failed, [bid:%s] [ttlamounts:%s] (check router log)',
+                                   routable.user, bill.bid, bill.getTotalAmounts())
+                    raise SubmitSmChargingError()
+            else:
+                bill = None
 
             # Get priority value from SubmitSmPDU to pass to SMPPClientManagerPB.perspective_submit_sm()
             priority = 0

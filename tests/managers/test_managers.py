@@ -697,7 +697,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         assertionKey = str(randint(10000, 99999999999))
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = assertionKey
-        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill.user.uid)
 
         # Wait 2 seconds
         yield waitFor(2)
@@ -738,7 +738,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         startAt = datetime.now()
         submitCounter = 0
         while submitCounter < 5:
-            yield self.submit_sm(localConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
+            yield self.submit_sm(localConfig.id, self.SubmitSmPDU, self.SubmitSmBill.user.uid)
             submitCounter += 1
 
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
@@ -783,7 +783,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
         while submitCounter < 60:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
-            yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
+            yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill.user.uid)
             submitCounter += 1
 
         receivedSubmits = self.SMSCPort.factory.lastClient.submitRecords
@@ -830,7 +830,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
         while submitCounter < 4:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
-            msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
+            msgid = yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill.user.uid)
             submitCounter += 1
 
         # Wait for 5 seconds before stopping
@@ -882,7 +882,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
         submit_sm_pdu = copy.copy(self.SubmitSmPDU)
         while submitCounter < 150:
             submit_sm_pdu.params['short_message'] = '%s' % submitCounter
-            yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill)
+            yield self.submit_sm(localConfig.id, submit_sm_pdu, self.SubmitSmBill.user.uid)
             submitCounter += 1
 
         # Wait for 20 seconds
@@ -919,7 +919,7 @@ class ClientConnectorSubmitSmTestCases(SMSCSimulatorRecorder):
             SubmitSmPDU = copy.copy(self.SubmitSmPDU)
             SubmitSmPDU.params['validity_period'] = datetime.today() + delta
 
-            c = yield self.submit_sm(localConfig.id, SubmitSmPDU, self.SubmitSmBill)
+            c = yield self.submit_sm(localConfig.id, SubmitSmPDU, self.SubmitSmBill.user.uid)
             submitCounter += 1
 
         # Wait 15 seconds
@@ -971,7 +971,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         # Send submit_sm
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RSYSERR'
-        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill.user.uid)
 
         # Wait
         yield waitFor(70)
@@ -1002,7 +1002,7 @@ class ClientConnectorSubmitSmRetrialTestCases(SMSCSimulatorRecorder):
         # Send submit_sm
         SentSubmitSmPDU = copy.copy(self.SubmitSmPDU)
         SentSubmitSmPDU.params['short_message'] = 'test_error: ESME_RREPLACEFAIL'
-        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill)
+        msgid = yield self.submit_sm(self.defaultConfig.id, self.SubmitSmPDU, self.SubmitSmBill.user.uid)
 
         # Wait
         yield waitFor(70)
@@ -1052,7 +1052,7 @@ class LoggingTestCases(SMSCSimulatorRecorder):
         )
 
         # Send submit_sm
-        yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU, self.SubmitSmBill)
+        yield self.submit_sm(self.defaultConfig.id, SubmitSmPDU, self.SubmitSmBill.user.uid)
 
         # Wait 2 seconds
         yield waitFor(2)

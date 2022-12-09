@@ -97,7 +97,7 @@ def MOInterceptorBuild(fCallback):
                 self.sessBuffer['interceptor_class'] = globals()[_type]
 
                 # Show Interceptor help and save Interceptor args
-                InterceptorClassArgs = inspect.getargspec(self.sessBuffer['interceptor_class'].__init__).args
+                InterceptorClassArgs = inspect.getfullargspec(self.sessBuffer['interceptor_class'].__init__).args
                 if 'self' in InterceptorClassArgs:
                     # Remove 'self' from args
                     InterceptorClassArgs.remove('self')
