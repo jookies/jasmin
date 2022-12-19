@@ -9,14 +9,16 @@ RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+    # Run python with jemalloc
+    # More on this:
+    # - https://zapier.com/engineering/celery-python-jemalloc/
+    # - https://paste.pics/581cc286226407ab0be400b94951a7d9
+    libjemalloc2
 
-# For RestAPI MODE
-ENV RESTAPI_MODE 0
-ENV RESTAPI_OLD_HTTP_HOST '127.0.0.1'
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV ENABLE_PUBLISH_SUBMIT_SM_RESP 0
+# Run python with jemalloc
+ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
 ENV ROOT_PATH /
 ENV CONFIG_PATH /etc/jasmin
