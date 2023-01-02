@@ -134,19 +134,20 @@ def MTInterceptorBuild(fCallback):
 
                         if stype == 'python3':
                             import os
+                            import urllib
                             if os.path.isfile(script_path):
                                 # Open file and get its content
                                 with open(script_path, 'r') as content_file:
                                     pyCode = content_file.read()
-                            else:
-                                # Assume it's a URL
-                                import urllib.request
+                            elif urllib.parse.urlparse(script_path).scheme in ['https', 'http', 'ftp', 'file']:
                                 try:
                                     with urllib.request.urlopen(script_path) as content_file:
                                         pyCode = content_file.read().decode('utf-8')
                                 except urllib.error.URLError as e:
                                     # Handle errors that may occur while reading the file from a URL
                                     return self.protocol.sendData('[URL]: %s' % str(e))
+                            else:
+                                raise NotImplementedError("Not implemented yet !")
 
                             # Test compilation of the script
                             compile(pyCode, '', 'exec')
