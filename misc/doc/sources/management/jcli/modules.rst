@@ -736,6 +736,12 @@ Here's an example of adding a **DefaultInterceptor** to a python script::
 
 .. note:: As of now, only **python3** script is permitted.
 
+.. note:: The path to the script can be any of the fallowing:
+  
+    * **python3(/path/to/script.py)** or **python3(file://path/to/script.py)**: The path must be absolute, relative path is not supported
+    * **python3(https://example.com/path/to/script.py)**: The script is a remote python3 script. The script will be
+      downloaded and copied to Jasmin core. Accepts http, https, and ftp protocols.
+
 .. note:: Pay attention that the given script is copied to Jasmin core, do not expect Jasmin to refresh the script
   code when you update it, you'll need to redefine the *mointerceptor* rule again so Jasmin will refresh the script.
 
