@@ -133,13 +133,13 @@ def MTInterceptorBuild(fCallback):
                         stype, script_path = validate_typed_script(arg)
 
                         if stype == 'python3':
-                            import os
-                            import urllib
-                            if os.path.isfile(script_path):
+                            import urllib.parse, urllib.request, urllib.error
+                            pathscheme = urllib.parse.urlparse(script_path).scheme
+                            if pathscheme == '':
                                 # Open file and get its content
                                 with open(script_path, 'r') as content_file:
                                     pyCode = content_file.read()
-                            elif urllib.parse.urlparse(script_path).scheme in ['https', 'http', 'ftp', 'file']:
+                            elif pathscheme in ['https', 'http', 'ftp', 'file']:
                                 try:
                                     with urllib.request.urlopen(script_path) as content_file:
                                         pyCode = content_file.read().decode('utf-8')
