@@ -44,7 +44,7 @@ received SMS (using routing):
 
 In the above example, there's an error handling where the message is not ACKed if there's a database connection
 problem, if it occurs, the script will return "**Error connecting to DB**" when Jasmin HTTP thrower is waiting for
-a "**ACL/Jasmin**", this will lead to a message re-queue and later re-delivery to the same script, this behaviour is
+a "**ACK/Jasmin**", this will lead to a message re-queue and later re-delivery to the same script, this behaviour is
 explained in :ref:`deliverSmHttpThrower_process`.
 
 Another example of an interactive SMS application:
