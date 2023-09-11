@@ -10,10 +10,10 @@ services:
   jasmin:
     build:
       context: ./
-      dockerfile: ./docker/Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.full
     container_name: jasmin
-    volumes:
-      - ./jasmin:/usr/jasmin/jasmin
+    # volumes:
+    #   - ./jasmin:/usr/jasmin/jasmin
     ports:
       - 2775:2775
       - 8990:8990

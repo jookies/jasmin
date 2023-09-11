@@ -105,6 +105,9 @@ class Send(Resource):
                 self.stats,
                 self.log
             )
+            self.log.info(f"Log For MUSA {updated_request}")
+            self.log.info(f"Log For MUSA {dir(updated_request)}")
+
 
             # Update CnxStatus
             user.getCnxStatus().httpapi['connects_count'] += 1
