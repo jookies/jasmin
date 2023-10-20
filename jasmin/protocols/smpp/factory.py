@@ -298,6 +298,12 @@ class SMPPServerFactory(_SMPPServerFactory):
 
         # Update SubmitSmPDU by default values from user MtMessagingCredential
         SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
+        
+        # Force same default values on subPDU while multipart
+        _pdu = SubmitSmPDU
+        while hasattr(_pdu, 'nextPdu'):
+          _pdu = _pdu.nextPdu
+          _pdu = v.updatePDUWithUserDefaults(_pdu)
 
         if self.RouterPB is None:
             self.log.error('(submit_sm_event_interceptor/%s) RouterPB not set: submit_sm will not be routed',
