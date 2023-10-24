@@ -291,12 +291,10 @@ class SMPPClientSMListener:
                     splitMethod = 'sar'
                 elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == b'\x05\x00\x03':
                     splitMethod = 'udh'
-                    
-                # create _pdu before splitting, so we can use it in both branches (logging the message according the last part of message)
-                _pdu = r.request
 
                 # Concatenate short_message
                 if splitMethod is not None:
+                    _pdu = r.request
                     if splitMethod == 'sar':
                         short_message = _pdu.params['short_message']
                     else:
@@ -330,12 +328,12 @@ class SMPPClientSMListener:
                     r.response.params['message_id'],
                     r.response.status,
                     amqpMessage.content.properties['priority'],
-                    _pdu.params['registered_delivery'].receipt,
+                    r.request.params['registered_delivery'].receipt,
                     'none' if ('headers' not in amqpMessage.content.properties or
                                'expiration' not in amqpMessage.content.properties['headers'])
                     else amqpMessage.content.properties['headers']['expiration'],
-                    _pdu.params['source_addr'],
-                    _pdu.params['destination_addr'],
+                    r.request.params['source_addr'],
+                    r.request.params['destination_addr'],
                     logged_content)
             else:
                 # Message must be retried ?
