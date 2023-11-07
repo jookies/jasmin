@@ -20,12 +20,14 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Run python with jemalloc
 ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
-# Install Jasmin SMS gateway
-RUN mkdir -p /etc/jasmin/resource \
-    /etc/jasmin/store \
-    /var/log/jasmin \
-  && chown jasmin:jasmin /etc/jasmin/store \
-    /var/log/jasmin 
+ENV ROOT_PATH /
+ENV CONFIG_PATH /etc/jasmin
+ENV RESOURCE_PATH /etc/jasmin/resource
+ENV STORE_PATH /etc/jasmin/store
+ENV LOG_PATH /var/log/jasmin
+
+RUN mkdir -p ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
+RUN chown jasmin:jasmin ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
 
 WORKDIR /build
 
@@ -35,21 +37,25 @@ RUN pip install .
 
 ENV UNICODEMAP_JP unicode-ascii
 
-ENV ROOT_PATH /
-ENV CONFIG_PATH /etc/jasmin
-ENV RESOURCE_PATH /etc/jasmin/resource
-ENV STORE_PATH /etc/jasmin/store
-ENV LOG_PATH /var/log/jasmin
-
 COPY misc/config/*.cfg ${CONFIG_PATH}/
 COPY misc/config/resource ${RESOURCE_PATH}
 
-WORKDIR /usr/jasmin
+WORKDIR /etc/jasmin
 
-# Change binding host for jcli, redis, and amqp
-RUN sed -i '/\[jcli\]/a bind=0.0.0.0' /etc/jasmin/jasmin.cfg
-RUN sed -i '/\[redis-client\]/a host=redis' /etc/jasmin/jasmin.cfg
-RUN sed -i '/\[amqp-broker\]/a host=rabbitmq' /etc/jasmin/jasmin.cfg
+# Default Redis and RabbitMQ connections
+ENV AMQP_BROKER_HOST 'rabbitmq'
+ENV AMQP_BROKER_PORT 5672
+ENV REDIS_CLIENT_HOST 'redis'
+ENV REDIS_CLIENT_PORT 6379
+
+# Change binding host for jcli
+RUN sed -i '/\[jcli\]/a bind=0.0.0.0' ${CONFIG_PATH}/jasmin.cfg
+# Change binding port for redis, and amqp
+RUN sed -i "/\[redis-client\]/a port=$REDIS_CLIENT_PORT" ${CONFIG_PATH}/jasmin.cfg
+RUN sed -i "/\[amqp-broker\]/a port=$AMQP_BROKER_PORT" ${CONFIG_PATH}/jasmin.cfg
+# Change binding host for redis, and amqp
+RUN sed -i "/\[redis-client\]/a host=$REDIS_CLIENT_HOST" ${CONFIG_PATH}/jasmin.cfg
+RUN sed -i "/\[amqp-broker\]/a host=$AMQP_BROKER_HOST" ${CONFIG_PATH}/jasmin.cfg
 
 EXPOSE 2775 8990 1401
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]

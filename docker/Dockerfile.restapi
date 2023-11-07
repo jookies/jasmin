@@ -1,4 +1,4 @@
-FROM python:3-buster
+FROM python:3.11-slim-bullseye
 
 MAINTAINER Jookies LTD <jasmin@jookies.net>
 
@@ -9,22 +9,24 @@ RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+    # Run python with jemalloc
+    # More on this:
+    # - https://zapier.com/engineering/celery-python-jemalloc/
+    # - https://paste.pics/581cc286226407ab0be400b94951a7d9
+    libjemalloc2
 
-# For RestAPI MODE
-ENV RESTAPI_MODE 0
-ENV RESTAPI_OLD_HTTP_HOST '127.0.0.1'
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV ENABLE_PUBLISH_SUBMIT_SM_RESP 0
+# Run python with jemalloc
+ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
 ENV ROOT_PATH /
 ENV CONFIG_PATH /etc/jasmin
-ENV RESOURCE_PATH /etc/jasmin/resource
-ENV STORE_PATH /etc/jasmin/store
+ENV RESOURCE_PATH ${CONFIG_PATH}/resource
+ENV STORE_PATH ${CONFIG_PATH}/store
 ENV LOG_PATH /var/log/jasmin
 
-RUN mkdir -p ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
+RUN mkdir -p ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
 RUN chown jasmin:jasmin ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
 
 WORKDIR /build
@@ -39,9 +41,21 @@ RUN pip install gunicorn
 ENV UNICODEMAP_JP unicode-ascii
 
 COPY misc/config/*.cfg ${CONFIG_PATH}/
-COPY misc/config/resource/*.xml ${RESOURCE_PATH}/
+COPY misc/config/resource ${RESOURCE_PATH}
 
 WORKDIR /etc/jasmin
+
+# Default Redis and RabbitMQ connections
+ENV AMQP_BROKER_HOST 'rabbitmq'
+ENV AMQP_BROKER_PORT 5672
+ENV REDIS_CLIENT_HOST 'redis'
+ENV REDIS_CLIENT_PORT 6379
+
+# For RestAPI MODE
+ENV RESTAPI_MODE 0
+ENV RESTAPI_OLD_HTTP_HOST '127.0.0.1'
+
+ENV ENABLE_PUBLISH_SUBMIT_SM_RESP 0
 
 # Change binding host for jcli
 RUN sed -i '/\[jcli\]/a bind=0.0.0.0' ${CONFIG_PATH}/jasmin.cfg

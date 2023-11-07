@@ -2,10 +2,10 @@
 set -e
 
 # Change binding host:port for redis, and amqp
-sed -i "/\[redis-client\]/,/host=/  s/host=.*/host=$REDIS_CLIENT_HOST/" /etc/jasmin/jasmin.cfg
-sed -i "/\[redis-client\]/,/port=/  s/port=.*/port=$REDIS_CLIENT_PORT/" /etc/jasmin/jasmin.cfg
-sed -i "/\[amqp-broker\]/,/host=/  s/host=.*/host=$AMQP_BROKER_HOST/" /etc/jasmin/jasmin.cfg
-sed -i "/\[amqp-broker\]/,/port=/  s/port=.*/port=$AMQP_BROKER_PORT/" /etc/jasmin/jasmin.cfg
+sed -i "/\[redis-client\]/,/host=/  s/host=.*/host=$REDIS_CLIENT_HOST/" ${CONFIG_PATH}/jasmin.cfg
+sed -i "/\[redis-client\]/,/port=/  s/port=.*/port=$REDIS_CLIENT_PORT/" ${CONFIG_PATH}/jasmin.cfg
+sed -i "/\[amqp-broker\]/,/host=/  s/host=.*/host=$AMQP_BROKER_HOST/" ${CONFIG_PATH}/jasmin.cfg
+sed -i "/\[amqp-broker\]/,/port=/  s/port=.*/port=$AMQP_BROKER_PORT/" ${CONFIG_PATH}/jasmin.cfg
 
 echo 'Cleaning lock files'
 rm -f /tmp/*.lock
@@ -23,11 +23,11 @@ else
   if [ "$ENABLE_PUBLISH_SUBMIT_SM_RESP" = 1 ]; then
     # Enable publish_submit_sm_resp
     echo 'Enabling publish_submit_sm_resp'
-    sed -i "s/.*publish_submit_sm_resp\s*=.*/publish_submit_sm_resp=True/g" /etc/jasmin/jasmin.cfg
+    sed -i "s/.*publish_submit_sm_resp\s*=.*/publish_submit_sm_resp=True/g" ${CONFIG_PATH}/jasmin.cfg
   else
     # Disable publish_submit_sm_resp
     echo 'Disabling publish_submit_sm_resp'
-    sed -i "s/.*publish_submit_sm_resp\s*=.*/publish_submit_sm_resp=False/g" /etc/jasmin/jasmin.cfg
+    sed -i "s/.*publish_submit_sm_resp\s*=.*/publish_submit_sm_resp=False/g" ${CONFIG_PATH}/jasmin.cfg
   fi
 
   if [ "$2" = "--enable-interceptor-client" ]; then
