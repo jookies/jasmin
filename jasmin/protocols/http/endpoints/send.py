@@ -126,6 +126,13 @@ class Send(Resource):
 
             # Update SubmitSmPDU by default values from user MtMessagingCredential
             SubmitSmPDU = v.updatePDUWithUserDefaults(SubmitSmPDU)
+            
+            # Force same default values on subPDU while multipart
+            _pdu = SubmitSmPDU
+            while hasattr(_pdu, 'nextPdu'):
+              _pdu = _pdu.nextPdu
+              _pdu = v.updatePDUWithUserDefaults(_pdu)
+            
 
             # Prepare for interception then routing
             routedConnector = None  # init

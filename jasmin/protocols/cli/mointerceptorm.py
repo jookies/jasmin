@@ -2,6 +2,7 @@
 import re
 import inspect
 import pickle
+import urllib.parse, urllib.request, urllib.error
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MOFILTERS
 from jasmin.routing.jasminApi import MOInterceptorScript
@@ -133,9 +134,20 @@ def MOInterceptorBuild(fCallback):
                         stype, script_path = validate_typed_script(arg)
 
                         if stype == 'python3':
-                            # Open file and get its content
-                            with open(script_path, 'r') as content_file:
-                                pyCode = content_file.read()
+                            pathscheme = urllib.parse.urlparse(script_path).scheme
+                            if pathscheme == '':
+                                # Open file and get its content
+                                with open(script_path, 'r') as content_file:
+                                    pyCode = content_file.read()
+                            elif pathscheme in ['https', 'http', 'ftp', 'file']:
+                                try:
+                                    with urllib.request.urlopen(script_path) as content_file:
+                                        pyCode = content_file.read().decode('utf-8')
+                                except urllib.error.URLError as e:
+                                    # Handle errors that may occur while reading the file from a URL
+                                    return self.protocol.sendData('[URL]: %s' % str(e))
+                            else:
+                                raise NotImplementedError("Not implemented yet !")
 
                             # Test compilation of the script
                             compile(pyCode, '', 'exec')
