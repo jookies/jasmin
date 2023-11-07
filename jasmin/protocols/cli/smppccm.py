@@ -67,7 +67,7 @@ def castInputToBuiltInType(key, value):
             return replace_if_present_flap_value_map[value]
         elif key == 'priority':
             return priority_flag_value_map[value]
-        elif key in ['con_fail_retry', 'con_loss_retry', 'ssl']:
+        elif key in ['con_fail_retry', 'con_loss_retry', 'ssl', 'logprivacy']:
             if value == 'yes':
                 return True
             elif value == 'no':
