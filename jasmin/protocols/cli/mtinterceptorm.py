@@ -2,6 +2,7 @@
 import re
 import inspect
 import pickle
+import urllib.parse, urllib.request, urllib.error
 from jasmin.protocols.cli.managers import PersistableManager, Session
 from jasmin.protocols.cli.filtersm import MTFILTERS
 from jasmin.routing.jasminApi import MTInterceptorScript
@@ -133,7 +134,6 @@ def MTInterceptorBuild(fCallback):
                         stype, script_path = validate_typed_script(arg)
 
                         if stype == 'python3':
-                            import urllib.parse, urllib.request, urllib.error
                             pathscheme = urllib.parse.urlparse(script_path).scheme
                             if pathscheme == '':
                                 # Open file and get its content
