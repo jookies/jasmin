@@ -313,7 +313,7 @@ class SMPPClientSMListener:
                         if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
                             total_bill_amount += submit_sm_resp_bill.getTotalAmounts()
                 else:
-                    short_message = r.request.params['short_message']
+                    short_message = _pdu.params['short_message']
 
                 # Do not log text for privacy reasons
                 # Added in #691
