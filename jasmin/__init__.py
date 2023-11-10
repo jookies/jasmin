@@ -7,7 +7,7 @@ import re
 
 MAJOR = 0
 MINOR = 10
-PATCH = 13
+PATCH = 14
 META = ''
 
 

@@ -60,9 +60,9 @@ class Options(usage.Options):
         ['enable-dlr-thrower', None, 'Enable DLR Thrower service (not recommended: start the dlrd daemon instead)'],
         ['enable-dlr-lookup', None, 'Enable DLR Lookup service (not recommended: start the dlrlookupd daemon instead)'],
         # @TODO: deliver-thrower must be executed as a standalone process, just like dlr-thrower
-        ['disable-deliver-thrower', None, 'Do not DeliverSm Thrower service'],
-        ['disable-http-api', None, 'Do not HTTP API'],
-        ['disable-jcli', None, 'Do not jCli console'],
+        ['disable-deliver-thrower', None, 'Do not start DeliverSm Thrower service'],
+        ['disable-http-api', None, 'Do not start HTTP API'],
+        ['disable-jcli', None, 'Do not start jCli console'],
         ['enable-interceptor-client', None, 'Start Interceptor client'],
     ]
 

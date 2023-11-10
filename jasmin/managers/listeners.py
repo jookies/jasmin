@@ -291,10 +291,12 @@ class SMPPClientSMListener:
                     splitMethod = 'sar'
                 elif UDHI_INDICATOR_SET and r.request.params['short_message'][:3] == b'\x05\x00\x03':
                     splitMethod = 'udh'
+                    
+                # create _pdu before splitting, so we can use it in both branches (logging the message according the last part of message)
+                _pdu = r.request
 
                 # Concatenate short_message
                 if splitMethod is not None:
-                    _pdu = r.request
                     if splitMethod == 'sar':
                         short_message = _pdu.params['short_message']
                     else:
@@ -311,7 +313,7 @@ class SMPPClientSMListener:
                         if submit_sm_resp_bill is not None and submit_sm_resp_bill.getTotalAmounts() > 0:
                             total_bill_amount += submit_sm_resp_bill.getTotalAmounts()
                 else:
-                    short_message = r.request.params['short_message']
+                    short_message = _pdu.params['short_message']
 
                 # Do not log text for privacy reasons
                 # Added in #691
@@ -328,12 +330,12 @@ class SMPPClientSMListener:
                     r.response.params['message_id'],
                     r.response.status,
                     amqpMessage.content.properties['priority'],
-                    r.request.params['registered_delivery'].receipt,
+                    _pdu.params['registered_delivery'].receipt,
                     'none' if ('headers' not in amqpMessage.content.properties or
                                'expiration' not in amqpMessage.content.properties['headers'])
                     else amqpMessage.content.properties['headers']['expiration'],
-                    r.request.params['source_addr'],
-                    r.request.params['destination_addr'],
+                    _pdu.params['source_addr'],
+                    _pdu.params['destination_addr'],
                     logged_content)
             else:
                 # Message must be retried ?
