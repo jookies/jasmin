@@ -1,11 +1,9 @@
 pyasn1~=0.4.8
-pyOpenSSL~=19.1.0
 
 # @TODO: Upgrade on dependabot issue
 # https://github.com/jookies/jasmin/security/dependabot/19
-Twisted~=22.1.0
+Twisted~=23.10.0
 
-# install twisted requests since they changed how that all works
 treq~=22.1.0
 pyparsing~=2.4.7
 python-dateutil~=2.8.1
@@ -16,9 +14,9 @@ falcon~=2.0.0
 txredisapi~=1.4.7
 tabulate~=0.8.7
 
-txAMQP3~=0.9.3
+txAMQP3~=0.9.4
 smpp.pdu3~=0.6
-smpp.twisted3~=0.7
+smpp.twisted3~=0.8
 python-messaging~=0.5.13
 
 # Upgrade to min. 41.0.5
