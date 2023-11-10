@@ -1,6 +1,10 @@
 pyasn1~=0.4.8
 pyOpenSSL~=19.1.0
-Twisted~=22.1.0
+
+# Upgraded on dependabot issue
+# https://github.com/jookies/jasmin/security/dependabot/19
+Twisted~=23.10.0
+
 # install twisted requests since they changed how that all works
 treq~=22.1.0
 pyparsing~=2.4.7
@@ -17,14 +21,17 @@ smpp.pdu3~=0.6
 smpp.twisted3~=0.7
 python-messaging~=0.5.13
 
-# Freezinng cryptography version because of a bug in >=38.0.0
-# https://github.com/pyca/cryptography/issues/7617
-cryptography~=37.0.4
+# Upgrade to 41.0.4
+# https://github.com/jookies/jasmin/security/dependabot/17
+cryptography>=41.0.4
 
 # Added in 0.9rc16:
 celery>=4.0.0
 redis~=3.4.1
-requests~=2.25.0
+
+# Upgraded on dependabot issue
+# https://github.com/jookies/jasmin/security/dependabot/14
+requests~=2.31.0
 
 # For REST API
 python-mimeparse~=1.6.0
