@@ -6,8 +6,8 @@ build:
     python: "3.12"
 sphinx:
   configuration: misc/doc/sources/conf.py
-formats: all
-
+formats:
+  - epub
 python:
   install:
     - requirements: misc/doc/requirements.txt
