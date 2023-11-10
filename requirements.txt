@@ -21,9 +21,9 @@ smpp.pdu3~=0.6
 smpp.twisted3~=0.7
 python-messaging~=0.5.13
 
-# Upgrade to 41.0.4
-# https://github.com/jookies/jasmin/security/dependabot/17
-cryptography>=41.0.4
+# Upgrade to 39.0.1
+# https://github.com/jookies/jasmin/security/dependabot/10
+cryptography>=39.0.1
 
 # Added in 0.9rc16:
 celery>=4.0.0
