@@ -24,13 +24,10 @@ cryptography~=37.0.4
 # Added in 0.9rc16:
 celery>=4.0.0
 redis~=3.4.1
-requests~=2.23.0
+requests~=2.25.0
 
 # For REST API
 python-mimeparse~=1.6.0
 
 # For /metrics (prometheus exporter)
 prometheus-client~=0.14.1
-
-# Documentation theme for readthedocs
-renku-sphinx-theme~=0.2.2

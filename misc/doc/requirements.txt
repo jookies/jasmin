@@ -1,1 +1,1 @@
-renku-sphinx-theme~=0.3.0
+furo~=2023.9.10
