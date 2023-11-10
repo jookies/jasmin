@@ -1,0 +1,1 @@
+renku-sphinx-theme~=0.3.0
