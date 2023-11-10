@@ -6,8 +6,8 @@ import os
 import re
 
 MAJOR = 0
-MINOR = 10
-PATCH = 14
+MINOR = 11
+PATCH = 0
 META = ''
 
 

@@ -8,9 +8,7 @@ on:
     branches:
       - 'master'
       - '0.10-develop'
-      - '0.10.*'
       - '0.11-develop'
-      - '0.11.*'
 
 env:
   GITHUB_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
@@ -29,7 +27,7 @@ jobs:
           - 6379:6379
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9, '3.10', 3.11]
+        python: [3.8, 3.9, '3.10', 3.11, 3.12]
     steps:
       - uses: actions/checkout@v2
       - name: Install os dependencies

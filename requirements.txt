@@ -1,36 +1,39 @@
-pyasn1~=0.4.8
-pyOpenSSL~=19.1.0
-Twisted~=22.1.0
-# install twisted requests since they changed how that all works
-treq~=22.1.0
-pyparsing~=2.4.7
-python-dateutil~=2.8.1
-service_identity~=18.1.0
+pyasn1~=0.5.0
+
+# @TODO: Upgrade on dependabot issue
+# https://github.com/jookies/jasmin/security/dependabot/19
+Twisted~=23.10.0
+
+treq~=23.11.0
+pyparsing~=3.1.1
+python-dateutil~=2.8.2
+service_identity~=23.1.0
 lockfile~=0.12.2
 
-falcon~=2.0.0
+falcon~=3.1.1
 txredisapi~=1.4.7
 tabulate~=0.8.7
 
-txAMQP3~=0.9.3
+txAMQP3~=0.9.4
 smpp.pdu3~=0.6
-smpp.twisted3~=0.7
+smpp.twisted3~=0.8
 python-messaging~=0.5.13
 
-# Freezinng cryptography version because of a bug in >=38.0.0
-# https://github.com/pyca/cryptography/issues/7617
-cryptography~=37.0.4
+# Upgrade to min. 41.0.5
+# https://github.com/jookies/jasmin/security/dependabot/19
+cryptography~=41.0.5
+pyopenssl~=23.3.0
 
 # Added in 0.9rc16:
-celery>=4.0.0
-redis~=3.4.1
-requests~=2.23.0
+celery~=5.3.5
+redis~=5.0.1
+
+# Upgraded on dependabot issue
+# https://github.com/jookies/jasmin/security/dependabot/14
+requests~=2.31.0
 
 # For REST API
 python-mimeparse~=1.6.0
 
 # For /metrics (prometheus exporter)
-prometheus-client~=0.14.1
-
-# Documentation theme for readthedocs
-renku-sphinx-theme~=0.2.2
+prometheus-client~=0.18.0

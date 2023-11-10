@@ -1,7 +1,7 @@
 name: "jasmin-sms-gateway"
 arch: "amd64"
 platform: "linux"
-version: "v0.10.14"
+version: "v0.11.0"
 section: "default"
 priority: "extra"
 maintainer: "Jookies LTD <jasmin@jookies.net>"
@@ -83,7 +83,7 @@ scripts:
 overrides:
   deb:
     depends:
-      - python3 (>= 3.7)
+      - python3 (>= 3.8)
       - adduser
       - python3-twisted
       - python3-dateutil
@@ -108,7 +108,7 @@ overrides:
   rpm:
     depends:
       - epel-release
-      - python3 (>= 3.7)
+      - python3 (>= 3.8)
       - python3-twisted
       - python3-dateutil
       - python3-pyparsing
