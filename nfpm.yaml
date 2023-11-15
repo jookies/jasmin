@@ -36,19 +36,19 @@ provides:
 contents:
   - src: ./misc/config/jasmin.cfg
     dst: "/etc/jasmin/jasmin.cfg"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/interceptor.cfg
     dst: "/etc/jasmin/interceptor.cfg"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/dlr.cfg
     dst: "/etc/jasmin/dlr.cfg"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/jasmind.environment
     dst: "/etc/jasmin/jasmind.environment"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/dlrlookupd.cfg
     dst: "/etc/jasmin/dlrlookupd.cfg"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/resource/amqp0-9-1.xml
     dst: "/etc/jasmin/resource/amqp0-9-1.xml"
     type: config

@@ -36,14 +36,14 @@ create_dir ${JASMIN_LOG_DIR}
 create_dir ${JASMIN_VENV_DIR}
 
 # Find latest installed python version
-LATEST_PYTHON="$(find /usr/bin/ -maxdepth 1 -regex '.*python3\.[0-9]+' | sort --version-sor | tail -n 1)"
+LATEST_PYTHON="$(find /usr/bin/ -maxdepth 1 -regex '.*python3\.[0-9]+' | sort --version-sort | tail -n 1)"
 # LATEST_PYTHON="$(basename ${LATEST_PYTHON})" # Not needed
 
 # Get installed package version and install the related pypi package(s)
 if [ "$(grep -Ei 'debian|buntu' /etc/*release)" ]; then
   PACKAGE_VERSION=$(dpkg -s "${PACKAGE_NAME}"|grep ^Version:|awk '{print $2}')
 elif [ "$(grep -Ei 'centos|rhel|fedora|almalinux' /etc/*release)" ]; then
-  PACKAGE_VERSION=$(rpm -qi "${PACKAGE_NAME}"|grep ^Version|awk {'print $3'})
+  PACKAGE_VERSION=$(rpm -qi "${PACKAGE_NAME}"|grep ^Version|awk {'print $3'} | sort --version-sort | tail -n 1)
 else
   echo "ERROR: Unsupported OS for this package."
   exit 1
