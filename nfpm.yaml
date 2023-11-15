@@ -68,10 +68,14 @@ contents:
   - src: ./misc/config/systemd/jasmin-restapi.service
     dst: "/usr/lib/systemd/system/jasmin-restapi.service"
 scripts:
-  postinstall: ./misc/packaging/scripts/common-postinstall.sh
   preremove: ./misc/packaging/scripts/common-preremove.sh
+rpm:
+  scripts:
+    posttrans: ./misc/packaging/scripts/common-postinstall.sh
 overrides:
   deb:
+    scripts:
+      postinstall: ./misc/packaging/scripts/common-postinstall.sh
     depends:
       - python3 (>= 3.8)
       - adduser

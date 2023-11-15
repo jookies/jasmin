@@ -41,7 +41,7 @@ LATEST_PYTHON="$(find /usr/bin/ -maxdepth 1 -regex '.*python3\.[0-9]+' | sort --
 
 # Get installed package version and install the related pypi package(s)
 if [ "$(grep -Ei 'debian|buntu' /etc/*release)" ]; then
-  PACKAGE_VERSION=$(dpkg -s "${PACKAGE_NAME}"|grep ^Version:|awk '{print $2}')
+  PACKAGE_VERSION=$(dpkg -s "${PACKAGE_NAME}"|grep ^Version:|awk '{print $2}' | sort --version-sort | tail -n 1)
 elif [ "$(grep -Ei 'centos|rhel|fedora|almalinux' /etc/*release)" ]; then
   PACKAGE_VERSION=$(rpm -qi "${PACKAGE_NAME}"|grep ^Version|awk {'print $3'} | sort --version-sort | tail -n 1)
 else
