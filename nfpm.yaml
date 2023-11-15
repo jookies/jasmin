@@ -1,7 +1,7 @@
 name: "jasmin-sms-gateway"
 arch: "amd64"
 platform: "linux"
-version: "v0.11.0"
+version: "v0.11.1"
 section: "default"
 priority: "extra"
 maintainer: "Jookies LTD <jasmin@jookies.net>"
