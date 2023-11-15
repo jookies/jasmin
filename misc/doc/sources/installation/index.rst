@@ -13,7 +13,7 @@ Jasmin installation is provided as rpm & deb Linux packages, docker image and py
 Prerequisites & Dependencies
 ****************************
 
-`Jasmin <http://jasminsms.com/>`_ requires Python 3 (Python 2 is no more supported) with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
+`Jasmin <http://jasminsms.com/>`_ requires Python 3.8+ with a functioning `pip module <https://pypi.python.org/pypi/pip>`_.
 
 .. hint:: Latest pip module installation: # **curl https://bootstrap.pypa.io/get-pip.py | python**
 
