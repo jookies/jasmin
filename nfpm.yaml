@@ -79,10 +79,12 @@ overrides:
     depends:
       - python3 (>= 3.8)
       - adduser
-      - python3-virtualenv
+      - python3-venv
+      - sudo
       # All dependecies all installed to VENV via pip
   rpm:
     depends:
-      - epel-release
       - python(abi) >= 3.8
+      - sudo
       # All dependecies all installed to VENV via pip
+      # Dependecy on epel-release removed - it's not needed on most RHEL version and you might have your own EPEL clone or another source for packages

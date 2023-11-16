@@ -35,13 +35,13 @@ create_dir ${JASMIN_CFG_STORAGE}
 create_dir ${JASMIN_LOG_DIR}
 create_dir ${JASMIN_VENV_DIR}
 
-# Find latest installed python version
+# Find latest installed python version available on system
 LATEST_PYTHON="$(find /usr/bin/ -maxdepth 1 -regex '.*python3\.[0-9]+' | sort --version-sort | tail -n 1)"
 # LATEST_PYTHON="$(basename ${LATEST_PYTHON})" # Not needed
 
 # Get installed package version and install the related pypi package(s)
 if [ "$(grep -Ei 'debian|buntu' /etc/*release)" ]; then
-  PACKAGE_VERSION=$(dpkg -s "${PACKAGE_NAME}"|grep ^Version:|awk '{print $2}' | sort --version-sort | tail -n 1)
+  PACKAGE_VERSION=$(dpkg -s "${PACKAGE_NAME}"|grep ^Version:|awk -F '[- ]' '{print $2}' | sort --version-sort | tail -n 1)
 elif [ "$(grep -Ei 'centos|rhel|fedora|almalinux' /etc/*release)" ]; then
   PACKAGE_VERSION=$(rpm -qi "${PACKAGE_NAME}"|grep ^Version|awk {'print $3'} | sort --version-sort | tail -n 1)
 else
@@ -51,7 +51,7 @@ fi
 
 # Create VENV and install jasmin and all dependencies from pipy into that VENV
 # sudo -u jasmin virtualenv -p ${LATEST_PYTHON}  ${JASMIN_VENV_DIR}/venv
-sudo -u jasmin ${LATEST_PYTHON} -m venv ${JASMIN_VENV_DIR}/venv
+sudo -u "${JASMIN_USER}" ${LATEST_PYTHON} -m venv ${JASMIN_VENV_DIR}/venv
 source ${JASMIN_VENV_DIR}/venv/bin/activate
 sudo -u "${JASMIN_USER}" ${JASMIN_VENV_DIR}/venv/bin/pip install "${PYPI_NAME}"=="${PACKAGE_VERSION}"
 
