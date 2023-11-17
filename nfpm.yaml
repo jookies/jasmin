@@ -46,6 +46,8 @@ contents:
   - src: ./misc/config/jasmind.environment
     dst: "/etc/jasmin/jasmind.environment"
     type: config|noreplace
+    file_info:
+      mode: 0660
   - src: ./misc/config/dlrlookupd.cfg
     dst: "/etc/jasmin/dlrlookupd.cfg"
     type: config|noreplace
