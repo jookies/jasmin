@@ -7,7 +7,7 @@ def parse_requirements(filename):
 
 setup(
     name="jasmin",
-    version='0.11.0',
+    version='0.11.1',
     author="Jookies LTD",
     author_email="jasmin@jookies.net",
     url="https://www.jasminsms.com",
@@ -21,6 +21,7 @@ setup(
     include_package_data=True,
     install_requires=parse_requirements('requirements.txt'),
     tests_require=parse_requirements('requirements-test.txt'),
+    python_requires='>=3.8',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Framework :: Twisted',
