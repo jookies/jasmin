@@ -8,7 +8,7 @@ SyslogIdentifier=jasmin-dlrd
 PIDFile=/run/jasmin-dlrd.pid
 User=jasmin
 Group=jasmin
-ExecStart=/usr/local/bin/dlrd.py
+ExecStart=/opt/jasmin-sms-gateway/venv/bin/dlrd.py
 
 [Install]
 WantedBy=multi-user.target

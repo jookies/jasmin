@@ -9,7 +9,7 @@ SyslogIdentifier=jasmin-celery
 PIDFile=/run/jasmin-celery.pid
 User=jasmin
 Group=jasmin
-ExecStart=/bin/sh -c "celery -A jasmin.protocols.rest.tasks worker -l INFO -c 4 --autoscale=10,3"
+ExecStart=/bin/sh -c "/opt/jasmin-sms-gateway/venv/bin/celery -A jasmin.protocols.rest.tasks worker -l INFO -c 4 --autoscale=10,3"
 
 [Install]
 WantedBy=multi-user.target
