@@ -29,7 +29,7 @@ If you are not using rpm/deb packages to install Jasmin then that systemd servic
   celery -A jasmin.protocols.rest.tasks worker -l INFO -c 4 --autoscale=10,3
   twistd -n --pidfile=/tmp/twistd-web-restapi.pid web --wsgi=jasmin.protocols.rest.api
 
-Configuration file for Celery and the Web server can be found in **/etc/jasmin/rest-api.py.conf**.
+Configuration file for Celery and the Web server can be found in **/etc/jasmin/rest-api.cfg**.
 
 .. note:: You may also use any other WSGI server for better performance, eg: gunicorn with parallel workers ...
 
