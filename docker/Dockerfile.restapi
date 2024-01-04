@@ -39,6 +39,9 @@ COPY . .
 
 RUN pip install .
 
+# Clean build dir
+RUN rm -rf /build
+
 # For RestAPI MODE
 RUN pip install gunicorn
 
