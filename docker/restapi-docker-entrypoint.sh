@@ -8,7 +8,7 @@ rm -f /tmp/*.lock
 # RestAPI http Mode
 if [ "$RESTAPI_HTTP_MODE" = 1 ]; then
   # If Celery Worker is enabled, start Celery worker
-  if [ "$RESTAPI_CELERY_MODE" = 1 ]; then
+elif [ "$RESTAPI_WORKER_MODE" = 1 ]; then
     echo 'Starting Celery worker'
     exec celery -A jasmin.protocols.rest.tasks worker -l INFO -c 4 --autoscale=10,3
   else
