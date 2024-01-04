@@ -20,11 +20,11 @@ class RestAPIForJasminConfig(ConfigFile):
 
         # AMQP Broker Connection configuration
         self.broker_url = 'amqp://%s:%s@%s:%s/%s' % (
-            self._get('amqp-broker', 'broker_username', 'guest'),
-            self._get('amqp-broker', 'broker_password', 'guest'),
-            self._get('amqp-broker', 'broker_host', '127.0.0.1'),
-            self._getint('amqp-broker', 'broker_port', 5672),
-            self._get('amqp-broker', 'broker_vhost', '/'))
+            self._get('amqp-broker', 'username', 'guest'),
+            self._get('amqp-broker', 'password', 'guest'),
+            self._get('amqp-broker', 'host', '127.0.0.1'),
+            self._getint('amqp-broker', 'port', 5672),
+            self._get('amqp-broker', 'vhost', '/'))
         
         self.broker_heartbeat = self._getint('amqp-broker', 'broker_heartbeat', 120)
         self.broker_heartbeat_checkrate = self._getint('amqp-broker', 'broker_heartbeat_checkrate', 2)
@@ -35,12 +35,12 @@ class RestAPIForJasminConfig(ConfigFile):
         self.task_serializer = self._get('amqp-broker', 'task_serializer', 'json')
 
         # Redis configuration
-        redis_password = self._get('redis-client', 'redis_password', None)
+        redis_password = self._get('redis-client', 'password', None)
         self.result_backend = 'redis://:%s@%s:%s/%s' % (
             redis_password if redis_password is not None else '',
-            self._get('redis-client', 'redis_host', '127.0.0.1'),
-            self._getint('redis-client', 'redis_port', 6379),
-            self._getint('redis-client', 'redis_dbid', 1))
+            self._get('redis-client', 'host', '127.0.0.1'),
+            self._getint('redis-client', 'port', 6379),
+            self._getint('redis-client', 'result_dbid', 1))
         
         self.redis_socket_timeout = self._getint('redis-client', 'redis_socket_timeout', 120)
         self.result_expires = self._getint('redis-client', 'result_expires', 86400)
