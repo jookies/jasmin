@@ -33,6 +33,8 @@ RUN chown jasmin:jasmin ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH
 
 WORKDIR /build
 
+RUN pip install --upgrade pip
+
 COPY . .
 
 RUN pip install .
