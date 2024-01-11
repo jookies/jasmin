@@ -218,10 +218,8 @@ class Thrower(Service):
         yield self.amqpBroker.chan.basic_ack(message.delivery_tag)
     
     def getMessageUniqueId(self, message):
-        uniqueId = message.content.properties['message-id']
-        if 'headers' in message.content.properties and 'level' in message.content.properties['headers']:
-            uniqueId += '-%s' % message.content.properties['headers']['level']
-        return uniqueId
+        # get a unique id for this message. dlr level 1 and 2 are different payloads but share the same id
+        return '%s-%s' % (message.content.properties['message-id'], message.delivery_tag)
 
 
 class deliverSmThrower(Thrower):
