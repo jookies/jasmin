@@ -4,19 +4,14 @@ import requests
 from celery import Celery, Task
 from datetime import datetime, timedelta
 
-from .config import *
+from .config import RestAPIForJasminConfig
 
-# @TODO: make configuration loadable from /etc/jasmin/restapi.conf
-logger = logging.getLogger('jasmin-restapi')
-if len(logger.handlers) == 0:
-    logger.setLevel(log_level)
-    handler = logging.handlers.TimedRotatingFileHandler(filename=log_file, when=log_rotate)
-    handler.setFormatter(logging.Formatter(log_format, log_date_format))
-    logger.addHandler(handler)
+RestAPIForJasminConfigInstance = RestAPIForJasminConfig()
+logger = RestAPIForJasminConfigInstance.logger
 
 app = Celery(__name__)
 task = app.task
-app.config_from_object('jasmin.protocols.rest.config')
+app.config_from_object(RestAPIForJasminConfigInstance)
 
 
 class JasminTask(Task):
@@ -50,7 +45,7 @@ def httpapi_send(self, batch_id, batch_config, message_params, config):
         if slow_down_seconds > 0:
             time.sleep(slow_down_seconds)
 
-        r = requests.get('%s/send' % old_api_uri, params=message_params)
+        r = requests.get('%s/send' % RestAPIForJasminConfigInstance.http_api_uri, params=message_params)
     except requests.exceptions.ConnectionError as e:
         logger.error('[%s] Jasmin httpapi connection error: %s' % (batch_id, e))
         if batch_config.get('errback_url', None):
