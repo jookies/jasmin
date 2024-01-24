@@ -39,6 +39,9 @@ contents:
   - src: ./misc/config/interceptor.cfg
     dst: "/etc/jasmin/interceptor.cfg"
     type: config|noreplace
+  - src: ./misc/config/deliversm.cfg
+    dst: "/etc/jasmin/deliversm.cfg"
+    type: config|noreplace
   - src: ./misc/config/dlr.cfg
     dst: "/etc/jasmin/dlr.cfg"
     type: config|noreplace
@@ -60,6 +63,8 @@ contents:
     dst: "/usr/lib/systemd/system/jasmind.service"
   - src: ./misc/config/systemd/jasmin-celery.service
     dst: "/usr/lib/systemd/system/jasmin-celery.service"
+  - src: ./misc/config/systemd/jasmin-deliversmd.service
+    dst: "/usr/lib/systemd/system/jasmin-deliversmd.service"
   - src: ./misc/config/systemd/jasmin-dlrd.service
     dst: "/usr/lib/systemd/system/jasmin-dlrd.service"
   - src: ./misc/config/systemd/jasmin-dlrlookupd.service

@@ -17,7 +17,7 @@ setup(
     long_description=open('README.rst', 'r').read(),
     keywords=['jasmin', 'sms', 'messaging', 'smpp', 'smsc', 'smsgateway'],
     packages=find_packages(exclude=["tests"]),
-    scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py', 'jasmin/bin/dlrd.py', 'jasmin/bin/dlrlookupd.py'],
+    scripts=['jasmin/bin/jasmind.py', 'jasmin/bin/interceptord.py', 'jasmin/bin/dlrd.py', 'jasmin/bin/dlrlookupd.py', 'jasmin/bin/deliversmd.py'],
     include_package_data=True,
     install_requires=parse_requirements('requirements.txt'),
     tests_require=parse_requirements('requirements-test.txt'),
