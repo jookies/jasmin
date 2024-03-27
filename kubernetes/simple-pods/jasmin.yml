@@ -137,6 +137,16 @@ spec:
           volumeMounts:
             - name: dlr-config
               mountPath: /tmp/config
+        - name: deliversmd-sidecar
+          image: jookies/jasmin:latest
+          command: ["deliversmd.py"]
+          lifecycle:
+            postStart:
+              exec:
+                command: [ "sh", "-c", "cp /tmp/config/* /etc/jasmin/" ]
+          volumeMounts:
+            - name: deliversmd-config
+              mountPath: /tmp/config
       volumes:
         - name: jasmin-config
           configMap:
@@ -153,6 +163,9 @@ spec:
         - name: dlr-config
           configMap:
             name: etc-dlr
+        - name: deliversmd-config
+          configMap:
+            name: etc-deliversmd
         - name: jasmin-logs
           persistentVolumeClaim:
             claimName: jasmin-logs-pvc
@@ -272,6 +285,27 @@ data:
       # Some parameters are slightly fine tuned for better performance, amqp and redis
       # parameters are updated accordingly to kubernetes requirements.
       [dlr-thrower]
+      http_timeout = 10
+      retry_delay = 90
+      max_retries = 1
+      
+      [amqp-broker]
+      host = rabbitmq-broker
+      
+      [redis-client]
+      host = redis-server
+      poolsize = 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etc-deliversmd
+data:
+  deliversmd.cfg: |
+      # This is the Jasmin Deliver-Sm Daemon configuration file.
+      # Some parameters are slightly fine tuned for better performance, amqp and redis
+      # parameters are updated accordingly to kubernetes requirements.
+      [deliversm-thrower]
       http_timeout = 10
       retry_delay = 90
       max_retries = 1

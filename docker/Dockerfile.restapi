@@ -6,16 +6,18 @@ MAINTAINER Jookies LTD <jasmin@jookies.net>
 RUN groupadd -r jasmin && useradd -r -g jasmin jasmin
 
 # Install requirements
-RUN apt-get update && apt-get install -y \
-    libffi-dev \
-    libssl-dev \
-    # Run python with jemalloc
-    # More on this:
-    # - https://zapier.com/engineering/celery-python-jemalloc/
-    # - https://paste.pics/581cc286226407ab0be400b94951a7d9
-    libjemalloc2
-
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update; \
+    apt-get install -y --no-install-recommends \
+        libffi-dev \
+        libssl-dev \
+        # Run python with jemalloc
+        # More on this:
+        # - https://zapier.com/engineering/celery-python-jemalloc/
+        # - https://paste.pics/581cc286226407ab0be400b94951a7d9
+        libjemalloc2 \
+    ; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Run python with jemalloc
 ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
@@ -26,14 +28,19 @@ ENV RESOURCE_PATH ${CONFIG_PATH}/resource
 ENV STORE_PATH ${CONFIG_PATH}/store
 ENV LOG_PATH /var/log/jasmin
 
-RUN mkdir -p ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
+RUN mkdir -p ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
 RUN chown jasmin:jasmin ${CONFIG_PATH} ${RESOURCE_PATH} ${STORE_PATH} ${LOG_PATH}
 
 WORKDIR /build
 
+RUN pip install --upgrade pip
+
 COPY . .
 
 RUN pip install .
+
+# Clean build dir
+RUN rm -rf /build
 
 # For RestAPI MODE
 RUN pip install gunicorn
@@ -45,26 +52,17 @@ COPY misc/config/resource ${RESOURCE_PATH}
 
 WORKDIR /etc/jasmin
 
-# Default Redis and RabbitMQ connections
+# Default Jasmin, Redis, and RabbitMQ connections
+ENV JCLI_BIND '0.0.0.0'
 ENV AMQP_BROKER_HOST 'rabbitmq'
 ENV AMQP_BROKER_PORT 5672
 ENV REDIS_CLIENT_HOST 'redis'
 ENV REDIS_CLIENT_PORT 6379
 
-# For RestAPI MODE
-ENV RESTAPI_MODE 0
-ENV RESTAPI_OLD_HTTP_HOST '127.0.0.1'
-
-ENV ENABLE_PUBLISH_SUBMIT_SM_RESP 0
-
-# Change binding host for jcli
-RUN sed -i '/\[jcli\]/a bind=0.0.0.0' ${CONFIG_PATH}/jasmin.cfg
-# Change binding port for redis, and amqp
-RUN sed -i "/\[redis-client\]/a port=$REDIS_CLIENT_PORT" ${CONFIG_PATH}/jasmin.cfg
-RUN sed -i "/\[amqp-broker\]/a port=$AMQP_BROKER_PORT" ${CONFIG_PATH}/jasmin.cfg
-# Change binding host for redis, and amqp
-RUN sed -i "/\[redis-client\]/a host=$REDIS_CLIENT_HOST" ${CONFIG_PATH}/jasmin.cfg
-RUN sed -i "/\[amqp-broker\]/a host=$AMQP_BROKER_HOST" ${CONFIG_PATH}/jasmin.cfg
+# For RestAPI http mode
+ENV RESTAPI_HTTP_MODE 0
+# For RestAPI Celery worker mode
+ENV RESTAPI_WORKER_MODE 0
 
 EXPOSE 2775 8990 1401 8080
 VOLUME ["/var/log/jasmin", "/etc/jasmin", "/etc/jasmin/store"]

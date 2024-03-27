@@ -1,7 +1,7 @@
 name: "jasmin-sms-gateway"
-arch: "amd64"
+arch: "all"
 platform: "linux"
-version: "v0.11.0"
+version: "v0.11.1"
 section: "default"
 priority: "extra"
 maintainer: "Jookies LTD <jasmin@jookies.net>"
@@ -35,16 +35,24 @@ provides:
 contents:
   - src: ./misc/config/jasmin.cfg
     dst: "/etc/jasmin/jasmin.cfg"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/interceptor.cfg
     dst: "/etc/jasmin/interceptor.cfg"
-    type: config
+    type: config|noreplace
+  - src: ./misc/config/deliversm.cfg
+    dst: "/etc/jasmin/deliversm.cfg"
+    type: config|noreplace
   - src: ./misc/config/dlr.cfg
     dst: "/etc/jasmin/dlr.cfg"
-    type: config
+    type: config|noreplace
+  - src: ./misc/config/jasmind.environment
+    dst: "/etc/jasmin/jasmind.environment"
+    type: config|noreplace
+    file_info:
+      mode: 0660
   - src: ./misc/config/dlrlookupd.cfg
     dst: "/etc/jasmin/dlrlookupd.cfg"
-    type: config
+    type: config|noreplace
   - src: ./misc/config/resource/amqp0-9-1.xml
     dst: "/etc/jasmin/resource/amqp0-9-1.xml"
     type: config
@@ -53,80 +61,36 @@ contents:
     type: config
   - src: ./misc/config/systemd/jasmind.service
     dst: "/usr/lib/systemd/system/jasmind.service"
-    type: config
   - src: ./misc/config/systemd/jasmin-celery.service
     dst: "/usr/lib/systemd/system/jasmin-celery.service"
-    type: config
+  - src: ./misc/config/systemd/jasmin-deliversmd.service
+    dst: "/usr/lib/systemd/system/jasmin-deliversmd.service"
   - src: ./misc/config/systemd/jasmin-dlrd.service
     dst: "/usr/lib/systemd/system/jasmin-dlrd.service"
-    type: config
   - src: ./misc/config/systemd/jasmin-dlrlookupd.service
     dst: "/usr/lib/systemd/system/jasmin-dlrlookupd.service"
-    type: config
   - src: ./misc/config/systemd/jasmin-interceptord.service
     dst: "/usr/lib/systemd/system/jasmin-interceptord.service"
-    type: config
   - src: ./misc/config/systemd/jasmin-restapi.service
     dst: "/usr/lib/systemd/system/jasmin-restapi.service"
-    type: config
-  - src: ./jasmin/bin/jasmind.py
-    dst: "/usr/local/bin/jasmind.py"
-  - src: ./jasmin/bin/interceptord.py
-    dst: "/usr/local/bin/interceptord.py"
-  - src: ./jasmin/bin/dlrd.py
-    dst: "/usr/local/bin/dlrd.py"
-  - src: ./jasmin/bin/dlrlookupd.py
-    dst: "/usr/local/bin/dlrlookupd.py"
 scripts:
-  postinstall: ./misc/packaging/scripts/common-postinstall.sh
   preremove: ./misc/packaging/scripts/common-preremove.sh
+rpm:
+  scripts:
+    posttrans: ./misc/packaging/scripts/common-postinstall.sh
 overrides:
   deb:
+    scripts:
+      postinstall: ./misc/packaging/scripts/common-postinstall.sh
     depends:
       - python3 (>= 3.8)
       - adduser
-      - python3-twisted
-      - python3-dateutil
-      - python3-pyparsing
-      - python3-lockfile
-      - python3-requests
-      - python3-setuptools
-      - python3-mimeparse
-      - python3-celery
-      - python-celery-common
-      - python3-falcon
-      - python3-redis
-      - python3-amqp
-      - python3-tabulate
-      - python3-treq
-      # These dependencies come from Jookies package repository
-      - python3-jookies-messaging
-      - python3-txredisapi
-      - python3-txamqp3
-      - python3-smpp-pdu3
-      - python3-smpp-twisted3
+      - python3-venv
+      - sudo
+      # All dependecies all installed to VENV via pip
   rpm:
     depends:
-      - epel-release
-      - python3 (>= 3.8)
-      - python3-twisted
-      - python3-dateutil
-      - python3-pyparsing
-      - python3-lockfile
-      - python3-requests
-      - python3-setuptools
-      - python3-mimeparse
-      - python3-celery
-      - python3-redis
-      - python3-amqp
-      - python3-tabulate
-      - python3-treq
-      # These dependencies come from Jookies package repository
-      - python3-jookies-messaging
-      - python3-txredisapi
-      - python3-txamqp3
-      - python3-smpp-pdu3
-      - python3-smpp-twisted3
-      # There's no python3-falcon package for CentOS/RHEL 8
-      # It will be handled by the pre/post scripts
-      #- python3-falcon
+      - python(abi) >= 3.8
+      - sudo
+      # All dependecies all installed to VENV via pip
+      # Dependecy on epel-release removed - it's not needed on most RHEL version and you might have your own EPEL clone or another source for packages

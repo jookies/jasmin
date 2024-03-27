@@ -22,12 +22,6 @@ Jasmin is a very complete open source SMS Gateway with many enterprise-class fea
 Jasmin relies heavily on message queuing through message brokers (Using AMQP), it is designed for performance,
 high traffic loads and full in-memory execution.
 
-.. figure:: https://opensource.nyc3.cdn.digitaloceanspaces.com/attribution/assets/PoweredByDO/DO_Powered_by_Badge_blue.svg
-   :alt: Powered by DigitalOcean
-   :align: Center
-   :figwidth: 210px
-   :target: https://www.digitalocean.com/
-
 Architecture
 ************
 
