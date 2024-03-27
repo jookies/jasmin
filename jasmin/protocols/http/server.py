@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
+import sys
 
 from twisted.internet import reactor
 from twisted.web.resource import Resource
@@ -32,7 +33,10 @@ class HTTPApi(Resource):
         log = logging.getLogger(LOG_CATEGORY)
         if len(log.handlers) != 1:
             log.setLevel(config.log_level)
-            handler = TimedRotatingFileHandler(filename=config.log_file, when=config.log_rotate)
+            if 'stdout' in config.log_file:
+                handler = logging.StreamHandler(sys.stdout)
+            else:
+                handler = TimedRotatingFileHandler(filename=config.log_file, when=config.log_rotate)
             formatter = logging.Formatter(config.log_format, config.log_date_format)
             handler.setFormatter(formatter)
             log.addHandler(handler)

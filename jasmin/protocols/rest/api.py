@@ -6,7 +6,7 @@ import re
 import requests
 
 import jasmin
-from .config import *
+from .config import RestAPIForJasminConfig
 from .tasks import httpapi_send
 from datetime import datetime
 from falcon import HTTPInternalServerError, HTTPPreconditionFailed
@@ -14,16 +14,17 @@ import falcon
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 
+RestAPIForJasminConfigInstance = RestAPIForJasminConfig()
 
 class JasminHttpApiProxy:
     """Provides a WS caller for old Jasmin http api"""
 
     def call_jasmin(self, url, params=None):
         try:
-            r = requests.get('%s/%s' % (old_api_uri, url), params=params)
+            r = requests.get('%s/%s' % (RestAPIForJasminConfigInstance.http_api_uri, url), params=params)
         except requests.exceptions.ConnectionError as e:
             raise HTTPInternalServerError('Jasmin httpapi connection error',
-                                          'Could not connect to Jasmin http api (%s): %s' % (old_api_uri, e))
+                                          'Could not connect to Jasmin http api (%s): %s' % (RestAPIForJasminConfigInstance.http_api_uri, e))
         except Exception as e:
             raise HTTPInternalServerError('Jasmin httpapi unknown error', str(e))
         else:
@@ -202,7 +203,7 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
 
         batch_id = uuid.uuid4()
         params = self.decode_request_data(request)
-        config = {'throughput': http_throughput_per_worker, 'smart_qos': smart_qos}
+        config = {'throughput': RestAPIForJasminConfigInstance.http_throughput_per_worker, 'smart_qos': RestAPIForJasminConfigInstance.smart_qos}
 
         # Batch scheduling
         countdown = self.parse_schedule_at(params.get('batch_config', {}).get('schedule_at', None))
