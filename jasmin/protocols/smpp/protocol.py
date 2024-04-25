@@ -169,7 +169,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             # Do errback
             txn.ackDeferred.errback(err)
 
-    def startLongSubmitSmTransaction(self, reqPDU, timeout):
+    def startLongSubmitSmTransaction(self, reqPDU, timeout, maxSeqNum):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
             self.log.error(
                 'Transaction with msg_ref_num [%s] is already in progress, open longSubmitSmTxns count: %s',
@@ -185,7 +185,8 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         # Save transaction
         self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
             'txn': SMPPOutboundTxn(reqPDU, timer, ackDeferred),
-            'nack_count': reqPDU.LongSubmitSm['total_segments']}
+            'nack_count': reqPDU.LongSubmitSm['total_segments'],
+            'max_sequence': maxSeqNum}
         self.log.debug("Long submit_sm transaction started with msg_ref_num %s",
                        reqPDU.LongSubmitSm['msg_ref_num'])
         return ackDeferred
@@ -225,8 +226,12 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                 reqPDU.LongSubmitSm['msg_ref_num'],
                 self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'])
 
+        if respPDU.seqNum == self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['max_sequence']:
+            self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['end_resp_pdu'] = respPDU
+
         # End the transaction if no more pending ACKs
         if self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['nack_count'] == 0:
+            respPDU = self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']]['end_resp_pdu']
             txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
 
             # Do callback
@@ -295,10 +300,12 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             if splitMethod is not None and hasattr(pdu, 'nextPdu'):
                 partedSmPdu = pdu
                 first = True
+                maxSeqNum = 0
 
                 # Iterate through parted PDUs
                 while True:
                     partedSmPdu.seqNum = self.claimSeqNum()
+                    maxSeqNum = partedSmPdu.seqNum
 
                     # Set LongSubmitSm tracking flags in pdu:
                     partedSmPdu.LongSubmitSm = {'msg_ref_num': None, 'total_segments': None,
@@ -325,13 +332,15 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                     # Start a transaction using the first parted PDU
                     if first:
                         first = False
-                        txn = self.startLongSubmitSmTransaction(partedSmPdu, timeout)
+                        firstPartedSmPdu = partedSmPdu
 
                     try:
                         # There still another PDU to go for
                         partedSmPdu = partedSmPdu.nextPdu
                     except AttributeError:
                         break
+
+                txn = self.startLongSubmitSmTransaction(firstPartedSmPdu, timeout, maxSeqNum)
 
                 return txn
             else:
