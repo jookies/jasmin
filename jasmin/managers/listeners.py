@@ -10,7 +10,7 @@ from twisted.internet import defer
 from twisted.internet import reactor
 from txamqp.queue import Closed
 from smpp.pdu.operations import SubmitSM, DeliverSM
-from smpp.pdu.pdu_types import CommandStatus, DataCodingScheme, DataCodingGsmMsgClass, EsmClassGsmFeatures
+from smpp.pdu.pdu_types import CommandStatus, DataCodingScheme, DataCodingGsmMsgClass, EsmClassGsmFeatures, CommandId
 from smpp.twisted.protocol import DataHandlerResponse
 from smpp.pdu.error import SMPPRequestTimoutError
 
@@ -120,6 +120,9 @@ class SMPPClientSMListener:
     @defer.inlineCallbacks
     def rejectMessage(self, message, requeue=0):
         yield self.amqpBroker.chan.basic_reject(delivery_tag=message.delivery_tag, requeue=requeue)
+        if requeue == 0:
+            dlr = DLR(pdu_type=CommandId.submit_sm_resp, status=CommandStatus.ESME_RSYSERR, msgid=message.content.properties['message-id'])
+            self.amqpBroker.publish(exchange='messaging', routing_key='dlr.submit_sm_resp', content=dlr)
 
     @defer.inlineCallbacks
     def ackMessage(self, message):
