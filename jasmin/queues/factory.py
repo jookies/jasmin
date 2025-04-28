@@ -50,8 +50,7 @@ class AmqpFactory(ClientFactory):
         self.connectionRetry = True
 
         self.exitDeferred = defer.Deferred()
-        if self.channelReady is None:
-            self.channelReady = defer.Deferred()
+        self.channelReady = defer.Deferred()
 
         try:
             # Check if connectDeferred is already set
