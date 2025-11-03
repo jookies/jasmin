@@ -169,6 +169,11 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
             # Do errback
             txn.ackDeferred.errback(err)
 
+    def onLongSubmitSmTransactionTimeout(self, reqPDU, timeout):
+        txn = self.closeLongSubmitSmTransaction(reqPDU.LongSubmitSm['msg_ref_num'])
+        errMsg = 'Long submit_sm transaction timed out after %s secs: %s' % (timeout, reqPDU)
+        txn.ackDeferred.errback(SMPPRequestTimoutError(errMsg))
+
     def startLongSubmitSmTransaction(self, reqPDU, timeout):
         if reqPDU.LongSubmitSm['msg_ref_num'] in self.longSubmitSmTxns:
             self.log.error(
@@ -181,7 +186,7 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
         # Create callback deferred
         ackDeferred = defer.Deferred()
         # Create response timer
-        timer = reactor.callLater(timeout, self.onResponseTimeout, reqPDU, timeout)
+        timer = reactor.callLater(timeout, self.onLongSubmitSmTransactionTimeout, reqPDU, timeout)
         # Save transaction
         self.longSubmitSmTxns[reqPDU.LongSubmitSm['msg_ref_num']] = {
             'txn': SMPPOutboundTxn(reqPDU, timer, ackDeferred),
