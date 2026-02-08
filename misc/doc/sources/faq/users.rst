@@ -80,7 +80,7 @@ The following error may appear in **messages.log** while receiving a receipt (DL
 This issue can be caused by one of these:
 
 * The receipt is received and it indicates a message id that did not get sent by Jasmin,
-* The receipt is received for a message sent by Jasmin, but message id is not recognize, if it's the case then find below what you can do.
+* The receipt is received for a message sent by Jasmin, but message id is not recognized, if it's the case then find below what you can do.
 
 **What's happening:**
 
