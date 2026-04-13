@@ -18,6 +18,7 @@ from jasmin.managers.configs import SMPPClientPBConfig
 from jasmin.managers.content import SubmitSmRespContent, DeliverSmContent, SubmitSmRespBillContent, DLR
 from jasmin.protocols.smpp.error import *
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.tools.tlv import format_tlvs_for_log
 from jasmin.routing.Routables import RoutableDeliverSm
 from jasmin.routing.jasminApi import Connector
 from jasmin.tools import qos
@@ -233,6 +234,23 @@ class SMPPClientSMListener:
                         message, delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
 
+            # Validate mandatory TLVs and inject connector-level default TLVs
+            connector_tlvs = getattr(self.SMPPClientFactory.config, 'custom_tlvs', [])
+            if connector_tlvs:
+                existing_tags = {t[0] for t in getattr(SubmitSmPDU, 'custom_tlvs', [])}
+                for tlv_def in connector_tlvs:
+                    if tlv_def.get('required', False) and tlv_def['tag'] not in existing_tags:
+                        self.log.error(
+                            "Rejecting SubmitSmPDU[%s]: mandatory TLV 0x%04X missing",
+                            msgid, tlv_def['tag'])
+                        yield self.rejectMessage(message)
+                        defer.returnValue(False)
+                    elif not tlv_def.get('required', False) and tlv_def['tag'] not in existing_tags:
+                        if not hasattr(SubmitSmPDU, 'custom_tlvs'):
+                            SubmitSmPDU.custom_tlvs = []
+                        SubmitSmPDU.custom_tlvs.append(
+                            (tlv_def['tag'], tlv_def.get('length'), tlv_def['type'], tlv_def['value']))
+
             # Finally: send the sms !
             self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s] after %s requeues.",
                            msgid, self.SMPPClientFactory.config.id, self.submit_retrials[msgid])
@@ -324,7 +342,7 @@ class SMPPClientSMListener:
 
                 self.log.info(
                     "SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] \
-[from:%s] [to:%s] [content:%s]",
+[from:%s] [to:%s] [content:%s] [tlvs:%s]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.params['message_id'],
@@ -336,7 +354,8 @@ class SMPPClientSMListener:
                     else amqpMessage.content.properties['headers']['expiration'],
                     _pdu.params['source_addr'],
                     _pdu.params['destination_addr'],
-                    logged_content)
+                    logged_content,
+                    format_tlvs_for_log(_pdu, self.config.log_privacy))
             else:
                 # Message must be retried ?
                 if r.response.status.name in self.config.submit_error_retrial:
@@ -361,7 +380,7 @@ class SMPPClientSMListener:
                 # Log the message
                 self.log.info(
                     "SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] \
-[from:%s] [to:%s] [content:%s]",
+[from:%s] [to:%s] [content:%s] [tlvs:%s]",
                     self.SMPPClientFactory.config.id,
                     msgid,
                     r.response.status,
@@ -373,7 +392,8 @@ class SMPPClientSMListener:
                     else amqpMessage.content.properties['headers']['expiration'],
                     r.request.params['source_addr'],
                     r.request.params['destination_addr'],
-                    logged_content)
+                    logged_content,
+                    format_tlvs_for_log(r.request, self.config.log_privacy))
 
             # It is a final submit_sm_resp !
             if not will_be_retried:
@@ -753,12 +773,13 @@ class SMPPClientSMListener:
             else:
                 logged_content = '%r' % message_content
 
-            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%s]",
+            self.log.info("SMS-MO [cid:%s] [i-status:%s] [from:%s] [to:%s] [content:%s] [tlvs:%s]",
                           self.SMPPClientFactory.config.id,
                           e.status,
                           routable.pdu.params['source_addr'],
                           routable.pdu.params['destination_addr'],
-                          logged_content)
+                          logged_content,
+                          format_tlvs_for_log(routable.pdu, self.config.log_privacy))
 
             # Known exception handling
             defer.returnValue(DataHandlerResponse(status=e.status))
