@@ -26,21 +26,27 @@ jobs:
         ports:
           - 6379:6379
     strategy:
+      fail-fast: false
       matrix:
-        python: [3.8, 3.9, '3.10', 3.11, 3.12]
+        python: ['3.11', '3.12', '3.13']
+        include:
+          - python: '3.13'
+            experimental: true
+    continue-on-error: ${{ matrix.experimental == true }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install os dependencies
         run: |
-          sudo apt-get install -y libffi-dev libffi-dev bc
+          sudo apt-get install -y libffi-dev libssl-dev bc
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "${{ matrix.python }}"
       - name: Set Jasmin release version in env
         run: |
-          echo "JASMIN_RELEASE=$(python setup.py --version)" >> $GITHUB_ENV
-          echo "Building Jasmin ${{ env.JASMIN_RELEASE }}"
+          JASMIN_RELEASE=$(python -c "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "JASMIN_RELEASE=${JASMIN_RELEASE}" >> $GITHUB_ENV
+          echo "Building Jasmin ${JASMIN_RELEASE}"
       - name: Install pip
         run: python -m pip install --upgrade pip
       - name: Install production dependencies

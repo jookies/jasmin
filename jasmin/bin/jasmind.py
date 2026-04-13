@@ -68,7 +68,7 @@ class Options(usage.Options):
 
 class JasminDaemon(BaseDaemon):
     def __init__(self, opt):
-        super(JasminDaemon, self).__init__(opt)
+        super().__init__(opt)
 
         self.log = logging.getLogger(LOG_CATEGORY)
         self.log.setLevel(logging.INFO)
