@@ -7,9 +7,21 @@ from enum import Enum
 import dateutil.parser as parser
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.tools.tlv_encoder import install_pdu_encoder_patch, install_pdu_decoder_patch
 from smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
+
+# Ensure the SMPP PDU codec round-trips connector-level custom TLVs.
+# - Encode patch: emits pdu.custom_tlvs bytes on outbound PDUs (the upstream
+#   encoder only serialises its fixed OptionEncoder whitelist, so vendor-range
+#   tags would otherwise be logged but never hit the wire).
+# - Decode patch: captures vendor-range TLVs that the upstream decoder maps
+#   to `vendor_specific_bypass` (and then drops) back onto pdu.custom_tlvs,
+#   so inbound MO / DLR / submit_sm retain them for logging and forwarding.
+# Both patches are idempotent.
+install_pdu_encoder_patch()
+install_pdu_decoder_patch()
 
 message_state_map = {
     MessageState.ACCEPTED: 'ACCEPTD',

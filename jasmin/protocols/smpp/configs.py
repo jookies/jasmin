@@ -200,7 +200,7 @@ class SMPPClientConfig:
         self.custom_tlvs = kwargs.get('custom_tlvs', [])
         if not isinstance(self.custom_tlvs, list):
             raise TypeMismatch('custom_tlvs must be a list')
-        valid_tlv_types = ('Int1', 'Int2', 'Int4', 'OctetString', 'COctetString')
+        valid_tlv_types = ('Int1', 'Int2', 'Int4', 'Int8', 'OctetString', 'COctetString')
         for tlv in self.custom_tlvs:
             if not isinstance(tlv, dict):
                 raise TypeMismatch('Each custom_tlv entry must be a dict')

@@ -69,7 +69,7 @@ def parseTlvString(value):
     if isinstance(value, str) and value.lower() == 'none':
         return []
 
-    valid_types = ('Int1', 'Int2', 'Int4', 'OctetString', 'COctetString')
+    valid_types = ('Int1', 'Int2', 'Int4', 'Int8', 'OctetString', 'COctetString')
     tlvs = []
     for entry in value.split(';'):
         entry = entry.strip()
@@ -91,7 +91,7 @@ def parseTlvString(value):
             raise KeyError('Invalid TLV type: %s. Must be one of: %s' % (tlv_type, ', '.join(valid_types)))
 
         # Parse value based on type
-        if tlv_type in ('Int1', 'Int2', 'Int4'):
+        if tlv_type in ('Int1', 'Int2', 'Int4', 'Int8'):
             try:
                 tlv_value = int(tlv_value, 16) if tlv_value.lower().startswith('0x') else int(tlv_value)
             except ValueError:
