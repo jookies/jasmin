@@ -60,6 +60,66 @@ def encode_tlv_value(value: Any, tlv_type: str | None) -> bytes:
     return str(value).encode('utf-8')
 
 
+def encoded_value_length(value: Any, tlv_type: str | None) -> int:
+    """Return the byte length that `value` would take on the wire for the
+    given TLV type. Used by connector-level max-length validation."""
+    return len(encode_tlv_value(value, tlv_type))
+
+
+def validate_custom_tlvs(pdu_tlvs: Iterable | None,
+                         connector_rules: Iterable | None) -> tuple[bool, str | None]:
+    """Validate per-message PDU TLVs against connector rules.
+
+    `pdu_tlvs` is the PDU's `custom_tlvs` list: tuples `(tag, length, type, value)`.
+    `connector_rules` is the smppcc `custom_tlvs` config: list of dicts
+    `{tag, type, length (max bytes, None = unbounded), required}`.
+
+    Returns `(True, None)` if OK, else `(False, "<human message>")`.
+    Rules checked:
+      - required tag not present   -> fail
+      - encoded value length > max -> fail
+
+    Per-message TLVs whose tag is NOT in the rule set are allowed through
+    untouched (the connector only expresses *rules*, not a whitelist).
+    """
+    if not connector_rules:
+        return True, None
+
+    by_tag = {}
+    for t in (pdu_tlvs or []):
+        if t and len(t) >= 1:
+            by_tag[int(t[0]) & 0xFFFF] = t
+
+    for rule in connector_rules:
+        tag = int(rule['tag']) & 0xFFFF
+        present = by_tag.get(tag)
+        if present is None:
+            if rule.get('required'):
+                return False, 'missing required TLV 0x%04X' % tag
+            continue
+        max_len = rule.get('length')
+        if max_len is None:
+            continue
+        # Tuple shape: (tag, length, type, value). Be lenient about missing fields.
+        if len(present) >= 4:
+            value = present[3]
+            type_str = present[2] or rule.get('type')
+        elif len(present) == 3:
+            value = present[2]
+            type_str = rule.get('type')
+        elif len(present) == 2:
+            value = present[1]
+            type_str = rule.get('type')
+        else:
+            continue
+        actual = encoded_value_length(value, type_str)
+        if actual > max_len:
+            return False, (
+                'TLV 0x%04X value length %d exceeds configured max %d'
+                % (tag, actual, max_len))
+    return True, None
+
+
 def encode_custom_tlvs(custom_tlvs: Iterable | None) -> bytes:
     """Encode an iterable of (tag, length, type, value) tuples into a
     concatenation of SMPP TLV headers+bodies.
@@ -103,15 +163,50 @@ _PATCH_FLAG = '_jasmin_custom_tlv_patched'
 
 
 def install_pdu_encoder_patch() -> None:
-    """No-op. Kept for API compatibility with earlier revisions.
+    """Extend the upstream `encodeRawParams` to also support `Int8`.
 
-    smpp.pdu3 >= 0.6 already serialises `pdu.custom_tlvs` via
-    `PDUEncoder.encodeBody` -> `encodeRawParams`, using the same
-    (tag, length, type, value) tuple shape that the TLV injection sites in
-    `listeners.py` and `operations.py` already populate.
+    smpp.pdu3 0.6's `encodeRawParams` only handles
+    Int1/Int2/Int4/OctetString/COctetString and silently skips entries with
+    any other type string (`else: continue`). For 19-digit vendor identifiers
+    that don't fit in Int4 (2^32 ≈ 10 digits), the SMSC typically expects an
+    8-byte big-endian integer — our CLI/config already accepts `Int8`, this
+    patch is what actually encodes it.
+
+    The patch delegates to the original encoder for all other types, so
+    behaviour of the known types is unchanged. Idempotent.
     """
-    from smpp.pdu.pdu_encoding import PDUEncoder  # fail fast if missing
-    setattr(PDUEncoder, _PATCH_FLAG, True)  # marker for tests / introspection
+    from smpp.pdu.pdu_encoding import PDUEncoder, Int2Encoder
+
+    if getattr(PDUEncoder, _PATCH_FLAG, False):
+        return
+
+    _orig_encode_raw = PDUEncoder.encodeRawParams
+
+    def _encode_raw_with_int8(self, tlvs):
+        if not tlvs:
+            return _orig_encode_raw(self, tlvs)
+
+        # Split Int8 entries out: encode them manually, and hand everything
+        # else (including invalid rows) to the original encoder verbatim.
+        int8_entries = []
+        passthrough = []
+        for tlv in tlvs:
+            if len(tlv) == 4 and tlv[2] == 'Int8':
+                int8_entries.append(tlv)
+            else:
+                passthrough.append(tlv)
+
+        result = _orig_encode_raw(self, passthrough)
+
+        for tag, length, _value_type, value in int8_entries:
+            encoded_value = struct.pack('>Q', int(value))
+            enc_len = length if length is not None else len(encoded_value)
+            result += Int2Encoder().encode(tag) + Int2Encoder().encode(enc_len) + encoded_value
+
+        return result
+
+    PDUEncoder.encodeRawParams = _encode_raw_with_int8
+    setattr(PDUEncoder, _PATCH_FLAG, True)
 
 
 # --- Decoder monkey-patch -------------------------------------------------
@@ -189,3 +284,74 @@ def install_pdu_decoder_patch() -> None:
     OptionEncoder.decode = _option_decode_tap
     PDUEncoder.decode = _pdu_decode_tap
     setattr(PDUEncoder, _DECODE_PATCH_FLAG, True)
+
+
+# --- Outbound wire hex logger (debug aid) ---------------------------------
+#
+# When investigating missing TLVs on the wire, it's useful to see exactly what
+# bytes Jasmin hands to the transport *after* encode. This patch wraps
+# `SMPPProtocolBase.sendPDU` to emit a single INFO log line per PDU with:
+#   - command id + sequence number
+#   - total PDU length
+#   - short human summary of the TLV section (if any)
+#   - full hex (capped to avoid flooding large MT bodies)
+# Turned on via the environment variable JASMIN_TLV_WIRE_LOG=1 (opt-in).
+
+import logging
+import os
+
+_WIRE_LOG_PATCH_FLAG = '_jasmin_wire_log_patched'
+
+
+def install_sendpdu_wire_logger() -> None:
+    """Log outgoing PDU bytes + TLV summary at INFO level.
+
+    Opt-in via env var `JASMIN_TLV_WIRE_LOG=1` (or truthy). Idempotent.
+    """
+    if not os.environ.get('JASMIN_TLV_WIRE_LOG', '').strip():
+        return
+
+    try:
+        from smpp.twisted.protocol import SMPPProtocolBase
+    except ImportError:
+        return
+
+    if getattr(SMPPProtocolBase, _WIRE_LOG_PATCH_FLAG, False):
+        return
+
+    _orig_send = SMPPProtocolBase.sendPDU
+    logger = logging.getLogger('jasmin.tlv.wire')
+    if not logger.handlers:
+        # Attach a stdout handler if jasmin hasn't wired one already.
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
+        logger.addHandler(h)
+        logger.setLevel(logging.INFO)
+
+    def _send_with_wire_log(self, pdu):
+        try:
+            encoded = self.encoder.encode(pdu)
+            # TLV summary
+            tlvs = getattr(pdu, 'custom_tlvs', None) or []
+            tlv_summary = ','.join('0x%04X' % int(t[0]) for t in tlvs) if tlvs else 'none'
+            # Cap hex for readability; still enough to eyeball the TLV section.
+            hex_blob = encoded.hex()
+            if len(hex_blob) > 600:
+                hex_blob = hex_blob[:600] + '...(+%d bytes)' % ((len(hex_blob) - 600) // 2)
+            cmd_id = getattr(pdu, 'commandId', None)
+            logger.info(
+                'OUT pdu=%s seq=%s len=%d tlvs=%s hex=%s',
+                getattr(cmd_id, 'name', str(cmd_id)),
+                getattr(pdu, 'seqNum', '?'),
+                len(encoded), tlv_summary, hex_blob)
+            # Hand the already-encoded bytes to the transport directly so we
+            # don't encode twice.
+            self.transport.write(encoded)
+            self.onSMPPOperation()
+        except Exception:
+            # On any error in the wrapper, fall back to the original path so
+            # we never regress send behaviour because of a debug aid.
+            return _orig_send(self, pdu)
+
+    SMPPProtocolBase.sendPDU = _send_with_wire_log
+    setattr(SMPPProtocolBase, _WIRE_LOG_PATCH_FLAG, True)

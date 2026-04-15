@@ -234,22 +234,17 @@ class SMPPClientSMListener:
                         message, delay=self.config.submit_retrial_delay_smppc_not_ready)
                     defer.returnValue(False)
 
-            # Validate mandatory TLVs and inject connector-level default TLVs
+            # Validate per-message TLVs against the connector's rule set
+            # (required + max-length). No default-value injection — values
+            # come from the submitter; the connector only enforces policy.
+            from jasmin.tools.tlv_encoder import validate_custom_tlvs
             connector_tlvs = getattr(self.SMPPClientFactory.config, 'custom_tlvs', [])
-            if connector_tlvs:
-                existing_tags = {t[0] for t in getattr(SubmitSmPDU, 'custom_tlvs', [])}
-                for tlv_def in connector_tlvs:
-                    if tlv_def.get('required', False) and tlv_def['tag'] not in existing_tags:
-                        self.log.error(
-                            "Rejecting SubmitSmPDU[%s]: mandatory TLV 0x%04X missing",
-                            msgid, tlv_def['tag'])
-                        yield self.rejectMessage(message)
-                        defer.returnValue(False)
-                    elif not tlv_def.get('required', False) and tlv_def['tag'] not in existing_tags:
-                        if not hasattr(SubmitSmPDU, 'custom_tlvs'):
-                            SubmitSmPDU.custom_tlvs = []
-                        SubmitSmPDU.custom_tlvs.append(
-                            (tlv_def['tag'], tlv_def.get('length'), tlv_def['type'], tlv_def['value']))
+            ok, err = validate_custom_tlvs(
+                getattr(SubmitSmPDU, 'custom_tlvs', []), connector_tlvs)
+            if not ok:
+                self.log.error("Rejecting SubmitSmPDU[%s]: %s", msgid, err)
+                yield self.rejectMessage(message)
+                defer.returnValue(False)
 
             # Finally: send the sms !
             self.log.debug("Sending SubmitSmPDU[%s] through SMPPClientFactory [cid:%s] after %s requeues.",
