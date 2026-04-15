@@ -90,7 +90,8 @@ Each command must exit ``0`` and print its options summary.
 Step 6 (optional) — Install system-wide
 ****************************************
 
-For a production install into ``/opt/jasmin-sms-gateway/venv``:
+For a production install into ``/opt/jasmin-sms-gateway/venv`` (the path the
+bundled systemd units expect):
 
 .. code-block:: bash
 
@@ -98,8 +99,33 @@ For a production install into ``/opt/jasmin-sms-gateway/venv``:
    sudo /opt/jasmin-sms-gateway/venv/bin/pip install -U pip wheel
    sudo /opt/jasmin-sms-gateway/venv/bin/pip install \
        /home/desktop/projects/jasmin/dist/jasmin-0.12-py3-none-any.whl
+
+   # Configuration files
+   sudo mkdir -p /etc/jasmin/{resource,store} /var/log/jasmin
+   sudo cp misc/config/*.cfg /etc/jasmin/
+   sudo cp misc/config/jasmind.environment /etc/jasmin/
+   sudo cp misc/config/resource/* /etc/jasmin/resource/
+   sudo chown -R jasmin:jasmin /etc/jasmin /var/log/jasmin
+
+   # systemd units (shipped under misc/config/systemd/)
+   sudo cp misc/config/systemd/*.service /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl restart jasmind
+
+.. important::
+   ``jasmind.service`` reads JCLI credentials via
+   ``EnvironmentFile=/etc/jasmin/jasmind.environment``. The default file ships
+   ``JCLI_USERNAME='jcliadmin'`` / ``JCLI_PASSWORD='jclipwd'`` — **change these
+   before exposing the JCLI port to anything beyond localhost**. The variables
+   are consumed by ``jasmin/protocols/cli/factory.py`` and override the
+   built-in defaults.
+
+.. note::
+   ``jasmind.service`` declares
+   ``Requires=jasmin-interceptord jasmin-deliversmd jasmin-dlrd jasmin-dlrlookupd``,
+   so a single ``systemctl restart jasmind`` will start the supporting daemons
+   automatically. Use ``systemctl status jasmind jasmin-dlrd jasmin-dlrlookupd
+   jasmin-deliversmd jasmin-interceptord`` to verify all five are active.
 
 Step 7 (optional) — Rebuild the Docker image
 *********************************************
@@ -143,6 +169,14 @@ Troubleshooting
   from ``/usr/local/lib/python3.X/dist-packages/`` and reinstall using pip.
 * **``attrs >= 21.3.0 required``** — same root cause as the ``pkg_resources``
   error above; use pip, not ``setup.py install``.
+* **``jasmind.service: Failed to load environment files: No such file or directory``** —
+  ``/etc/jasmin/jasmind.environment`` is missing. Copy it from
+  ``misc/config/jasmind.environment`` in the source tree and re-run
+  ``sudo systemctl daemon-reload && sudo systemctl restart jasmind``.
+* **jcli login rejects ``jcliadmin`` / ``jclipwd``** — the credentials in
+  ``/etc/jasmin/jasmind.environment`` take precedence over the built-in
+  defaults. Check the current values of ``JCLI_USERNAME`` / ``JCLI_PASSWORD``
+  there, or edit the file and restart ``jasmind``.
 
 See also
 *********
