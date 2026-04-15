@@ -178,6 +178,59 @@ Troubleshooting
   defaults. Check the current values of ``JCLI_USERNAME`` / ``JCLI_PASSWORD``
   there, or edit the file and restart ``jasmind``.
 
+* **``Cannot start RouterPB: ChannelClosed ... PRECONDITION_FAILED -
+  inequivalent arg 'type' for exchange 'messaging'``** — a previous
+  install (or another app sharing the broker) declared the ``messaging`` or
+  ``billing`` exchange in RabbitMQ with a type other than ``topic``. Jasmin
+  refuses to redeclare-and-override; the channel closes with AMQP error 406
+  and ``jasmind`` aborts startup.
+
+  Two fixes:
+
+  **Option 1 — Delete the stale exchanges** *(simplest; OK on dev / freshly
+  provisioned brokers)*:
+
+  .. code-block:: bash
+
+     sudo systemctl stop jasmind
+     sudo rabbitmqctl delete_exchange messaging
+     sudo rabbitmqctl delete_exchange billing
+     sudo rabbitmqctl delete_queue RouterPB_deliver_sm_all
+     sudo rabbitmqctl delete_queue RouterPB_bill_request_submit_sm_resp_all
+     sudo systemctl start jasmind
+
+  Jasmin will re-declare both exchanges as ``topic`` on the next start.
+  Unprocessed messages in those queues are lost; persistent state (routes,
+  users, groups) lives in Jasmin's own config files and is unaffected.
+
+  **Option 2 — Move Jasmin to a dedicated vhost** *(non-destructive;
+  recommended when the broker is shared with other apps)*:
+
+  .. code-block:: bash
+
+     sudo rabbitmqctl add_vhost /jasmin
+     sudo rabbitmqctl set_permissions -p /jasmin guest ".*" ".*" ".*"
+
+  Then edit ``/etc/jasmin/jasmin.cfg`` and set:
+
+  .. code-block:: ini
+
+     [amqp-broker]
+     vhost = /jasmin
+
+  Default is ``/`` (see ``jasmin/queues/configs.py``). Apply the same
+  ``vhost`` override to any ancillary config file that contains an
+  ``[amqp-broker]`` section (``rest-api.cfg``, ``dlrd.cfg``, ``dlrlookupd.cfg``,
+  ``deliversm.cfg``, ``interceptor.cfg``), then restart ``jasmind``.
+
+  Verify afterwards:
+
+  .. code-block:: bash
+
+     sudo rabbitmqctl list_exchanges name type | grep -E "messaging|billing"
+
+  Both should report type ``topic``.
+
 See also
 *********
 

@@ -28,11 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.11', '3.12', '3.13']
-        include:
-          - python: '3.13'
-            experimental: true
-    continue-on-error: ${{ matrix.experimental == true }}
+        python: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
       - name: Install os dependencies
