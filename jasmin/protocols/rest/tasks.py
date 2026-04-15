@@ -45,7 +45,14 @@ def httpapi_send(self, batch_id, batch_config, message_params, config):
         if slow_down_seconds > 0:
             time.sleep(slow_down_seconds)
 
-        r = requests.get('%s/send' % RestAPIForJasminConfigInstance.http_api_uri, params=message_params)
+        if 'custom_tlvs' in message_params:
+            r = requests.post(
+                '%s/send' % RestAPIForJasminConfigInstance.http_api_uri,
+                json=message_params,
+                headers={'Content-Type': 'application/json'},
+                timeout=30)
+        else:
+            r = requests.get('%s/send' % RestAPIForJasminConfigInstance.http_api_uri, params=message_params)
     except requests.exceptions.ConnectionError as e:
         logger.error('[%s] Jasmin httpapi connection error: %s' % (batch_id, e))
         if batch_config.get('errback_url', None):

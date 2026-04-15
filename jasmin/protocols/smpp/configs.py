@@ -195,6 +195,26 @@ class SMPPClientConfig:
         if self.dlr_msg_id_bases not in [0, 1, 2]:
             raise UnknownValue('Invalid dlr_msg_id_bases: %s' % self.dlr_msg_id_bases)
 
+        # Per-connector custom TLV parameters
+        # Each entry is a dict: {'tag': int, 'type': str, 'value': mixed, 'length': int|None, 'required': bool}
+        self.custom_tlvs = kwargs.get('custom_tlvs', [])
+        if not isinstance(self.custom_tlvs, list):
+            raise TypeMismatch('custom_tlvs must be a list')
+        valid_tlv_types = ('Int1', 'Int2', 'Int4', 'OctetString', 'COctetString')
+        for tlv in self.custom_tlvs:
+            if not isinstance(tlv, dict):
+                raise TypeMismatch('Each custom_tlv entry must be a dict')
+            if 'tag' not in tlv or not isinstance(tlv['tag'], int):
+                raise TypeMismatch('custom_tlv entry must have an int "tag"')
+            if 'type' not in tlv or tlv['type'] not in valid_tlv_types:
+                raise UnknownValue('custom_tlv "type" must be one of: %s' % ', '.join(valid_tlv_types))
+            if 'value' not in tlv:
+                raise TypeMismatch('custom_tlv entry must have a "value"')
+            tlv.setdefault('length', None)
+            tlv.setdefault('required', False)
+            if not isinstance(tlv['required'], bool):
+                raise TypeMismatch('custom_tlv "required" must be a boolean')
+
 
 class SMPPClientServiceConfig(ConfigFile):
     def __init__(self, config_file):

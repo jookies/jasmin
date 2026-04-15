@@ -1,7 +1,9 @@
 import binascii
+import json
 import pickle
 import sys
 import logging
+from enum import Enum
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.application.service import Service
@@ -285,6 +287,42 @@ class deliverSmThrower(Thrower):
         if ('validity_period' in RoutedDeliverSmContent.params and
                     RoutedDeliverSmContent.params['validity_period'] is not None):
             args['validity'] = RoutedDeliverSmContent.params['validity_period']
+
+        # Build standard optional TLV params
+        standard_optional_params = [
+            'user_message_reference', 'source_port', 'destination_port',
+            'sar_msg_ref_num', 'sar_total_segments', 'sar_segment_seqnum',
+            'payload_type', 'privacy_indicator', 'callback_num',
+            'language_indicator', 'its_session_info', 'network_error_code',
+            'message_state', 'receipted_message_id',
+        ]
+        tlv_params = {}
+        for param_name in standard_optional_params:
+            if (param_name in RoutedDeliverSmContent.params and
+                    RoutedDeliverSmContent.params[param_name] is not None):
+                value = RoutedDeliverSmContent.params[param_name]
+                if isinstance(value, bytes):
+                    tlv_params[param_name] = binascii.hexlify(value).decode()
+                elif isinstance(value, Enum):
+                    tlv_params[param_name] = value.name
+                else:
+                    tlv_params[param_name] = str(value)
+        if tlv_params:
+            args['tlv_params'] = json.dumps(tlv_params)
+
+        # Forward custom TLVs (raw vendor-specific TLVs)
+        custom_tlvs_list = getattr(RoutedDeliverSmContent, 'custom_tlvs', [])
+        if custom_tlvs_list:
+            custom_tlvs_data = []
+            for tlv in custom_tlvs_list:
+                if len(tlv) >= 4:
+                    tag, length, value_type, value = tlv[0], tlv[1], tlv[2], tlv[3]
+                    if isinstance(value, bytes):
+                        value = binascii.hexlify(value).decode()
+                    custom_tlvs_data.append({
+                        'tag': tag, 'length': length, 'type': value_type, 'value': value})
+            if custom_tlvs_data:
+                args['custom_tlvs'] = json.dumps(custom_tlvs_data)
 
         counter = 0
         for dc in dcs:

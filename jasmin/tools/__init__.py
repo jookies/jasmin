@@ -14,5 +14,5 @@ def to_enum(str_val):
     except NameError:
         try:
             return enum_name_mapping[str_val]
-        except:
+        except KeyError:
             return str_val

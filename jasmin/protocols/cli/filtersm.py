@@ -292,7 +292,7 @@ class FiltersManager(PersistableManager):
 
             self.protocol.sendData(
                 '%s configuration loaded (profile:%s)' % (self.managerName, opts.profile), prompt=False)
-        except:
+        except Exception:
             self.protocol.sendData(
                 'Failed to load %s configuration (profile:%s)' % (self.managerName, opts.profile),
                 prompt=False)

@@ -131,6 +131,11 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - 0623063106460628
      - Mandatory if **content** not defined
      - Binary to be sent
+   * - **custom_tlvs**
+     - JSON array of ``[tag, length, type, value]`` tuples
+     - ``[[12288, null, "COctetString", "ref-42"]]``
+     - Optional
+     - Vendor-specific SMPP TLV optional parameters. See :ref:`custom_tlvs` for the full format and tag-range rules.
 
 .. _http_response:
 
