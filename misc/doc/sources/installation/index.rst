@@ -420,3 +420,9 @@ For more troubleshooting about message delivery, you can check details in relate
      - Information about queued, rejected, received and sent messages
    * - **default-DEMO_CONNECTOR.log**
      - The SMPP connector log file
+
+.. toctree::
+   :maxdepth: 1
+
+   rebuild-from-source
+
