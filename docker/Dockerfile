@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
     # More on this:
     # - https://zapier.com/engineering/celery-python-jemalloc/
     # - https://paste.pics/581cc286226407ab0be400b94951a7d9
-    libjemalloc2
+    libjemalloc2sudo apt install -y libjemalloc2
+
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
