@@ -12,6 +12,7 @@ from twisted.internet import defer, reactor, ssl
 from twisted.internet.protocol import ClientFactory
 
 from jasmin.routing.Routables import RoutableSubmitSm
+from jasmin.tools.tlv import format_tlvs_for_log
 from smpp.twisted.protocol import DataHandlerResponse, SMPPSessionStates
 from smpp.twisted.server import SMPPBindManager as _SMPPBindManager
 from smpp.twisted.server import SMPPServerFactory as _SMPPServerFactory
@@ -523,14 +524,15 @@ class SMPPServerFactory(_SMPPServerFactory):
                     logged_content = '%r' % re.sub(r'[^\x20-\x7E]+', '.', routable.pdu.params['short_message'])
 
             self.log.info(
-                'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s]',
+                'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [from:%s] [to:%s] [content:%s] [tlvs:%s]',
                 routable.user.uid,
                 routedConnector.cid,
                 message_id,
                 priority,
                 routable.pdu.params['source_addr'],
                 routable.pdu.params['destination_addr'],
-                logged_content)
+                logged_content,
+                format_tlvs_for_log(routable.pdu, self.config.log_privacy))
             status = CommandStatus.ESME_ROK
         finally:
             if message_id is not None:

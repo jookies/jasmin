@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.12-slim-bookworm
 
 MAINTAINER Jookies LTD <jasmin@jookies.net>
 
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     # - https://zapier.com/engineering/celery-python-jemalloc/
     # - https://paste.pics/581cc286226407ab0be400b94951a7d9
     libjemalloc2
+
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 

@@ -310,9 +310,9 @@ class SMPPClientProtocol(twistedSMPPClientProtocol):
                         partedSmPdu.LongSubmitSm['segment_seqnum'] = partedSmPdu.params['sar_segment_seqnum']
                     elif splitMethod == 'udh':
                         # Using UDH options:
-                        partedSmPdu.LongSubmitSm['msg_ref_num'] = pdu.params['short_message'][3]
-                        partedSmPdu.LongSubmitSm['total_segments'] = pdu.params['short_message'][4]
-                        partedSmPdu.LongSubmitSm['segment_seqnum'] = pdu.params['short_message'][5]
+                        partedSmPdu.LongSubmitSm['msg_ref_num'] = partedSmPdu.params['short_message'][3]
+                        partedSmPdu.LongSubmitSm['total_segments'] = partedSmPdu.params['short_message'][4]
+                        partedSmPdu.LongSubmitSm['segment_seqnum'] = partedSmPdu.params['short_message'][5]
 
                     self.preSubmitSm(partedSmPdu)
                     self.sendPDU(partedSmPdu)

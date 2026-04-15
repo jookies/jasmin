@@ -1,6 +1,6 @@
 [Unit]
 Description=Jasmin SMS Gateway
-Requires=network.target jasmin-interceptord.service jasmin-dlrd.service jasmin-dlrlookupd.service
+Requires=network.target jasmin-interceptord.service jasmin-deliversmd.service jasmin-dlrd.service jasmin-dlrlookupd.service
 After=network.target
 
 [Service]
@@ -8,7 +8,8 @@ SyslogIdentifier=jasmind
 PIDFile=/run/jasmind.pid
 User=jasmin
 Group=jasmin
-ExecStart=/usr/local/bin/jasmind.py --username jcliadmin --password jclipwd
+ExecStart=/opt/jasmin-sms-gateway/venv/bin/jasmind.py --enable-interceptor-client
+EnvironmentFile=/etc/jasmin/jasmind.environment
 
 [Install]
 WantedBy=multi-user.target

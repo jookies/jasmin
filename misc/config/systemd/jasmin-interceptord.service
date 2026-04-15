@@ -9,7 +9,7 @@ SyslogIdentifier=interceptord
 PIDFile=/run/interceptord.pid
 User=jasmin
 Group=jasmin
-ExecStart=/usr/local/bin/interceptord.py
+ExecStart=/opt/jasmin-sms-gateway/venv/bin/interceptord.py
 
 [Install]
 WantedBy=multi-user.target

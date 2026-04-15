@@ -18,6 +18,8 @@ Features
 ********
 The SMPP Server API allows you to send and receive SMS and delivery receipts (DLR) through Jasmin's connectors, send and receive long (more than 160 characters) SMS and unicode/binary content.
 
+Vendor-specific **TLV** (optional) parameters can be configured per connector or injected per message; see :doc:`custom-tlv`.
+
 .. _configuration_smpps:
 
 jasmin.cfg / smpp-server
@@ -119,6 +121,11 @@ Jamsin's SMPP Server is supporting the following PDUs:
 * submit_sm
 * deliver_sm
 * enquire_link
+
+.. toctree::
+   :maxdepth: 1
+
+   custom-tlv
 
 .. rubric:: Footnotes
 .. [1] :doc:`/billing/index`

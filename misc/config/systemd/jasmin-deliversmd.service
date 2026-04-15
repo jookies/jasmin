@@ -1,0 +1,14 @@
+[Unit]
+Description=Jasmin SMS Gateway deliverSm throwing standalone daemon
+Requires=network.target jasmind.service
+After=network.target jasmind.service
+
+[Service]
+SyslogIdentifier=jasmin-deliversmd
+PIDFile=/run/jasmin-deliversmd.pid
+User=jasmin
+Group=jasmin
+ExecStart=/opt/jasmin-sms-gateway/venv/bin/deliversmd.py
+
+[Install]
+WantedBy=multi-user.target

@@ -8,7 +8,7 @@ SyslogIdentifier=jasmin-restapi
 PIDFile=/run/jasmin-restapi.pid
 User=jasmin
 Group=jasmin
-ExecStart=/bin/sh -c "twistd3 -n --pidfile=/tmp/twistd-web-restapi.pid web --wsgi=jasmin.protocols.rest.api"
+ExecStart=/bin/sh -c "/opt/jasmin-sms-gateway/venv/bin/twistd -n --pidfile=/tmp/twistd-web-restapi.pid web --wsgi=jasmin.protocols.rest.api --listen=tcp:1402"
 
 [Install]
 WantedBy=multi-user.target

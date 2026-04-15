@@ -5,19 +5,13 @@ import os
 import sys
 
 from .api import PingResource, BalanceResource, RateResource, SendResource, SendBatchResource
-from .config import *
+from .config import RestAPIForJasminConfig
 
 sys.path.append("%s/vendor" % os.path.dirname(os.path.abspath(jasmin.__file__)))
 from falcon import HTTPUnauthorized, HTTPUnsupportedMediaType, API
 
-# @TODO: make configuration loadable from /etc/jasmin/restapi.conf
-logger = logging.getLogger('jasmin-restapi')
-if len(logger.handlers) == 0:
-    logger.setLevel(log_level)
-    handler = logging.handlers.TimedRotatingFileHandler(filename=log_file, when=log_rotate)
-    handler.setFormatter(logging.Formatter(log_format, log_date_format))
-    logger.addHandler(handler)
-
+RestAPIForJasminConfigInstance = RestAPIForJasminConfig()
+logger = RestAPIForJasminConfigInstance.logger
 
 class TokenNotFound(Exception):
     """Raised when authentication token is not found"""
@@ -36,7 +30,7 @@ class JsonResponserMiddleware:
             response.body = json.dumps(response.body)
 
         # Add Jasmin signature
-        if show_jasmin_version:
+        if RestAPIForJasminConfigInstance.show_jasmin_version:
             response.set_header('Powered-By', 'Jasmin %s' % jasmin.get_release())
 
 

@@ -13,6 +13,7 @@ from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.tools.tlv import format_tlvs_for_log
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
@@ -150,6 +151,38 @@ class Send(Resource):
                         routable.addTag(tag)
                     self.log.debug('Tagged routable %s: +%s', routable, tag)
 
+            # Set DLR bit mask on the last pdu
+            _last_pdu = routable.pdu
+            while hasattr(_last_pdu, 'nextPdu'):
+                _last_pdu = _last_pdu.nextPdu
+            # DLR setting is clearly described in #107
+            _last_pdu.params['registered_delivery'] = RegisteredDelivery(
+                RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
+            if updated_request.args[b'dlr'][0] == b'yes':
+                _last_pdu.params['registered_delivery'] = RegisteredDelivery(
+                    RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
+                self.log.debug(
+                    "SubmitSmPDU registered_delivery is set to %s",
+                    str(_last_pdu.params['registered_delivery']))
+
+                dlr_level = int(updated_request.args[b'dlr-level'][0])
+                if b'dlr-url' in updated_request.args:
+                    dlr_url = updated_request.args[b'dlr-url'][0]
+                else:
+                    dlr_url = None
+                if updated_request.args[b'dlr-level'][0] == b'1':
+                    dlr_level_text = 'SMS-C'
+                elif updated_request.args[b'dlr-level'][0] == b'2':
+                    dlr_level_text = 'Terminal'
+                else:
+                    dlr_level_text = 'All'
+                dlr_method = updated_request.args[b'dlr-method'][0]
+            else:
+                dlr_url = None
+                dlr_level = 0
+                dlr_level_text = 'No'
+                dlr_method = None
+
             # Intercept
             interceptor = self.RouterPB.getMTInterceptionTable().getInterceptorFor(routable)
             if interceptor is not None:
@@ -257,41 +290,6 @@ class Send(Resource):
                 routable = update_submit_sm_pdu(routable=routable, config=param_updates,
                                                 config_update_params=list(param_updates))
 
-            # Set DLR bit mask on the last pdu
-            _last_pdu = routable.pdu
-            while True:
-                if hasattr(_last_pdu, 'nextPdu'):
-                    _last_pdu = _last_pdu.nextPdu
-                else:
-                    break
-            # DLR setting is clearly described in #107
-            _last_pdu.params['registered_delivery'] = RegisteredDelivery(
-                RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED)
-            if updated_request.args[b'dlr'][0] == b'yes':
-                _last_pdu.params['registered_delivery'] = RegisteredDelivery(
-                    RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED)
-                self.log.debug(
-                    "SubmitSmPDU registered_delivery is set to %s",
-                    str(_last_pdu.params['registered_delivery']))
-
-                dlr_level = int(updated_request.args[b'dlr-level'][0])
-                if b'dlr-url' in updated_request.args:
-                    dlr_url = updated_request.args[b'dlr-url'][0]
-                else:
-                    dlr_url = None
-                if updated_request.args[b'dlr-level'][0] == b'1':
-                    dlr_level_text = 'SMS-C'
-                elif updated_request.args[b'dlr-level'][0] == b'2':
-                    dlr_level_text = 'Terminal'
-                else:
-                    dlr_level_text = 'All'
-                dlr_method = updated_request.args[b'dlr-method'][0]
-            else:
-                dlr_url = None
-                dlr_level = 0
-                dlr_level_text = 'No'
-                dlr_method = None
-
             # QoS throttling
             if (user.mt_credential.getQuota('http_throughput') and user.mt_credential.getQuota('http_throughput') >= 0) and user.getCnxStatus().httpapi[
                 'qos_last_submit_sm_at'] != 0:
@@ -397,7 +395,7 @@ class Send(Resource):
                     logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', short_message)
 
                 self.log.info(
-                    'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]',
+                    'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s] [tlvs:%s]',
                     user.uid,
                     routedConnector.cid,
                     response['return'],
@@ -405,7 +403,8 @@ class Send(Resource):
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
                     updated_request.args[b'to'][0],
-                    logged_content)
+                    logged_content,
+                    format_tlvs_for_log(routable.pdu, self.config.log_privacy))
 
                 _return = 'Success "%s"' % response['return']
 

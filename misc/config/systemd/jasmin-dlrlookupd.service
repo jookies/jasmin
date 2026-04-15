@@ -8,7 +8,7 @@ SyslogIdentifier=jasmin-dlrlookupd
 PIDFile=/run/jasmin-dlrlookupd.pid
 User=jasmin
 Group=jasmin
-ExecStart=/usr/local/bin/dlrlookupd.py
+ExecStart=/opt/jasmin-sms-gateway/venv/bin/dlrlookupd.py
 
 [Install]
 WantedBy=multi-user.target
