@@ -406,11 +406,14 @@ class SMPPClientSMListener:
                 yield self.ackMessage(amqpMessage)
 
             # Send DLR to DLRLookup
+            # Note: use r.response (the wrapper returned by sendDataRequest),
+            # not _pdu.response — a SubmitSM request PDU does not carry a
+            # .response attribute for single-part (non-chained) submits.
             if r.response.status == CommandStatus.ESME_ROK:
-                dlr = DLR(pdu_type=_pdu.response.id, msgid=msgid, status=_pdu.response.status,
-                          smpp_msgid=_pdu.response.params['message_id'])
+                dlr = DLR(pdu_type=r.response.id, msgid=msgid, status=r.response.status,
+                          smpp_msgid=r.response.params['message_id'])
             else:
-                dlr = DLR(pdu_type=_pdu.response.id, msgid=msgid, status=_pdu.response.status)
+                dlr = DLR(pdu_type=r.response.id, msgid=msgid, status=r.response.status)
             yield self.amqpBroker.publish(exchange='messaging', routing_key='dlr.submit_sm_resp', content=dlr)
 
             # Bill will be charged by bill_request.submit_sm_resp.UID queue consumer

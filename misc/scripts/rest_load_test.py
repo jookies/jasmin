@@ -8,6 +8,7 @@ time-bounded runs, concurrency, target rate limiting, and latency percentiles.
 
 Prerequisites
 -------------
+- Python 3.10+ only — no third-party packages required (stdlib http.client).
 - Jasmin REST API process is reachable at --url (default http://127.0.0.1:1401).
   The stock jasmin:0.12-tlv image starts jasmind only; to exercise REST use
   docker/Dockerfile.restapi or run jasmin-restapi.py separately.
@@ -43,7 +44,7 @@ TLV syntax
 
 Notes
 -----
-- Only depends on Python stdlib + `requests` (already in Jasmin's requirements).
+- Pure Python stdlib — no pip install step needed.
 - Ctrl+C prints a partial summary and exits cleanly.
 - Exit code is non-zero if observed error rate > --fail-on-error-rate.
 """
@@ -52,23 +53,18 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import signal
-import statistics
+import socket
+import ssl
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
-
-try:
-    import requests
-    from requests.auth import HTTPBasicAuth
-except ImportError:
-    sys.stderr.write("This script needs the 'requests' package (already a Jasmin dep).\n"
-                     "Install with: pip install requests\n")
-    sys.exit(2)
+from urllib.parse import urlparse
 
 
 # ---------------------------------------------------------------------------
@@ -279,19 +275,87 @@ class Stats:
             }
 
 
-def submit_one(session: requests.Session, url: str, auth: HTTPBasicAuth,
-               payload: dict, timeout: float, verify: bool) -> tuple[bool, float, str | None, str | None]:
+class HttpClient:
+    """Thin per-worker wrapper around http.client with keep-alive.
+
+    Not thread-safe by design — each worker thread owns its own instance so
+    TCP connection reuse is clean and we avoid contention.
+    """
+
+    def __init__(self, url: str, auth_header: str, timeout: float, verify: bool) -> None:
+        u = urlparse(url)
+        self.host = u.hostname or "127.0.0.1"
+        self.port = u.port or (443 if u.scheme == "https" else 80)
+        self.scheme = u.scheme or "http"
+        self.base_path = u.path.rstrip("/")
+        self.timeout = timeout
+        self.verify = verify
+        self.auth_header = auth_header
+        self._conn: http.client.HTTPConnection | None = None
+
+    def _new_conn(self) -> http.client.HTTPConnection:
+        if self.scheme == "https":
+            ctx = ssl.create_default_context()
+            if not self.verify:
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+            return http.client.HTTPSConnection(self.host, self.port, timeout=self.timeout, context=ctx)
+        return http.client.HTTPConnection(self.host, self.port, timeout=self.timeout)
+
+    def post_json(self, path: str, payload: dict) -> tuple[int, str]:
+        body = json.dumps(payload).encode("utf-8")
+        headers = {
+            "Authorization": self.auth_header,
+            "Content-Type": "application/json",
+            "Content-Length": str(len(body)),
+            "Accept": "application/json",
+            "Connection": "keep-alive",
+        }
+        full_path = self.base_path + path
+
+        # Try the existing connection first; on broken pipe / closed socket,
+        # fall back once to a fresh connection.
+        for attempt in range(2):
+            if self._conn is None:
+                self._conn = self._new_conn()
+            try:
+                self._conn.request("POST", full_path, body=body, headers=headers)
+                resp = self._conn.getresponse()
+                text = resp.read().decode("utf-8", errors="replace")
+                return resp.status, text
+            except (http.client.HTTPException, ConnectionError, OSError):
+                try:
+                    self._conn.close()
+                except Exception:
+                    pass
+                self._conn = None
+                if attempt == 1:
+                    raise
+
+        raise RuntimeError("unreachable")  # pragma: no cover
+
+    def close(self) -> None:
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+
+
+def submit_one(client: HttpClient, path: str,
+               payload: dict) -> tuple[bool, float, str | None, str | None]:
     """Returns (ok, latency_ms, error_label, response_text_snippet)."""
     t0 = time.monotonic()
     try:
-        r = session.post(url, json=payload, auth=auth, timeout=timeout, verify=verify)
+        status, text = client.post_json(path, payload)
         dt = (time.monotonic() - t0) * 1000.0
-        if 200 <= r.status_code < 300:
-            return True, dt, None, r.text[:200]
-        return False, dt, f"HTTP {r.status_code}", r.text[:200]
-    except requests.exceptions.Timeout:
+        if 200 <= status < 300:
+            return True, dt, None, text[:200]
+        return False, dt, f"HTTP {status}", text[:200]
+    except socket.timeout:
         return False, (time.monotonic() - t0) * 1000.0, "timeout", None
-    except requests.exceptions.ConnectionError as e:
+    except (ConnectionError, OSError) as e:
         return False, (time.monotonic() - t0) * 1000.0, "connection_error", str(e)[:200]
     except Exception as e:  # pragma: no cover
         return False, (time.monotonic() - t0) * 1000.0, type(e).__name__, str(e)[:200]
@@ -315,8 +379,9 @@ def run(args: argparse.Namespace) -> int:
     _install_sigint_handler()
 
     endpoint = "/secure/send" if args.mode == "send" else "/secure/sendbatch"
-    url = args.url.rstrip("/") + endpoint
-    auth = HTTPBasicAuth(args.username, args.password)
+    base_url = args.url.rstrip("/")
+    auth_header = "Basic " + base64.b64encode(
+        f"{args.username}:{args.password}".encode("utf-8")).decode("ascii")
     stats = Stats()
     limiter = RateLimiter(args.rate)
     verify = not args.insecure
@@ -351,56 +416,53 @@ def run(args: argparse.Namespace) -> int:
             task_counter[0] += ops_per_task
             return start
 
-    session = requests.Session()
-    # Tune connection pool to match concurrency to avoid warnings under load.
-    adapter = requests.adapters.HTTPAdapter(
-        pool_connections=args.concurrency, pool_maxsize=args.concurrency)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-
     def worker() -> None:
-        while True:
-            start = next_task_index()
-            if start is None:
-                return
-            limiter.acquire()
+        # Per-worker HTTP client with its own keep-alive TCP connection.
+        client = HttpClient(base_url, auth_header, args.timeout, verify)
+        try:
+            while True:
+                start = next_task_index()
+                if start is None:
+                    return
+                limiter.acquire()
 
-            if args.mode == "send":
-                payload = build_send_payload(args, start)
-                messages_in_call = 1
-            else:
-                # Clamp last batch to remaining count in --count mode.
-                size = ops_per_task
-                if not use_duration and total_ops is not None:
-                    size = min(ops_per_task, total_ops - start)
-                    if size <= 0:
-                        return
-                payload = build_batch_payload(args, start, size)
-                messages_in_call = size
-
-            ok, dt, err, snippet = submit_one(
-                session, url, auth, payload, args.timeout, verify)
-
-            # For batch we count each message as one observation with the same
-            # latency so percentiles reflect the per-message view.
-            for _ in range(messages_in_call):
-                stats.record(ok, dt, err)
-
-            if args.verbose:
-                if ok:
-                    print(f"[ok]  {dt:7.1f}ms  {snippet}")
+                if args.mode == "send":
+                    payload = build_send_payload(args, start)
+                    messages_in_call = 1
                 else:
-                    print(f"[err] {dt:7.1f}ms  {err}  {snippet}")
+                    # Clamp last batch to remaining count in --count mode.
+                    size = ops_per_task
+                    if not use_duration and total_ops is not None:
+                        size = min(ops_per_task, total_ops - start)
+                        if size <= 0:
+                            return
+                    payload = build_batch_payload(args, start, size)
+                    messages_in_call = size
 
-            # progress
-            if args.log_every and stats.total and (stats.total % args.log_every == 0):
-                snap = stats.snapshot()
-                print(
-                    "progress: total=%d ok=%d fail=%d thrpt=%.1f/s p95=%.1fms"
-                    % (snap["total"], snap["ok"], snap["failed"],
-                       snap["throughput_per_sec"], snap["latency_ms"]["p95"]),
-                    file=sys.stderr,
-                )
+                ok, dt, err, snippet = submit_one(client, endpoint, payload)
+
+                # For batch we count each message as one observation with the
+                # same latency so percentiles reflect the per-message view.
+                for _ in range(messages_in_call):
+                    stats.record(ok, dt, err)
+
+                if args.verbose:
+                    if ok:
+                        print(f"[ok]  {dt:7.1f}ms  {snippet}")
+                    else:
+                        print(f"[err] {dt:7.1f}ms  {err}  {snippet}")
+
+                # progress
+                if args.log_every and stats.total and (stats.total % args.log_every == 0):
+                    snap = stats.snapshot()
+                    print(
+                        "progress: total=%d ok=%d fail=%d thrpt=%.1f/s p95=%.1fms"
+                        % (snap["total"], snap["ok"], snap["failed"],
+                           snap["throughput_per_sec"], snap["latency_ms"]["p95"]),
+                        file=sys.stderr,
+                    )
+        finally:
+            client.close()
 
     # Optional ramp-up: stagger worker starts so concurrency rises linearly.
     threads: list[threading.Thread] = []

@@ -6,8 +6,8 @@ end-to-end (REST → HTTP API → SMPP), measure throughput and latency, and
 stress the new TLV code path (`custom_tlvs`).
 
 - File: [`rest_load_test.py`](./rest_load_test.py)
-- Dependencies: Python 3.10+, `requests` (already in Jasmin's `requirements.txt`)
-- No external test framework (no `locust`, no `aiohttp`) — plain stdlib threads
+- Dependencies: **Python 3.10+ only** — no pip install, pure stdlib (`http.client`, `threading`, `argparse`)
+- No external test framework (no `locust`, no `aiohttp`, no `requests`) — plain stdlib threads
 
 ---
 
@@ -236,7 +236,6 @@ Both endpoints require `Authorization: Basic base64(user:pass)`.
 | --- | --- |
 | 0 | Run completed within `--fail-on-error-rate` threshold (or no threshold set). |
 | 1 | Error rate exceeded `--fail-on-error-rate`. |
-| 2 | `requests` package missing (install it). |
 | non-zero | argparse validation error (missing required flags, etc.). |
 
 ---
