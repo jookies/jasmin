@@ -1,6 +1,6 @@
 pyasn1~=0.6.1
 
-Twisted~=24.10.0
+Twisted~=23.10.0
 
 treq~=24.9.1
 pyparsing~=3.1.1
