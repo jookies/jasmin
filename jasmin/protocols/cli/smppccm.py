@@ -26,11 +26,11 @@ SMPPClientConfigKeyMap = {
     'def_msg_id': 'sm_default_msg_id', 'coding': 'data_coding', 'requeue_delay': 'requeue_delay',
     'submit_throughput': 'submit_sm_throughput', 'dlr_expiry': 'dlr_expiry', 'dlr_msgid': 'dlr_msg_id_bases',
     'con_fail_retry': 'reconnectOnConnectionFailure', 'dst_npi': 'dest_addr_npi',
-    'trx_to': 'inactivityTimerSecs', 'ssl': 'useSSL'}
+    'trx_to': 'inactivityTimerSecs', 'ssl': 'useSSL', 'custom_tlvs': 'custom_tlvs'}
 
 # Keys to be kept in string type, as requested in #64 and #105
 SMPPClientConfigStringKeys = [
-    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL', 'source_addr']
+    'host', 'systemType', 'username', 'password', 'addressRange', 'useSSL', 'source_addr', 'custom_tlvs']
 
 # When updating a key from RequireRestartKeys, the connector need restart for update to take effect
 RequireRestartKeys = ['host', 'port', 'username', 'password', 'systemType']
@@ -51,8 +51,64 @@ def castOutputToBuiltInType(key, value):
         return replace_if_present_flap_name_map[value]
     if key == 'priority':
         return priority_flag_name_map[value]
+    if key == 'custom_tlvs':
+        if not value:
+            return 'none'
+        parts = []
+        for tlv in value:
+            req = 'required' if tlv.get('required', False) else 'optional'
+            parts.append('0x%04X,%s,%s,%s' % (tlv['tag'], tlv['type'], tlv['value'], req))
+        return ';'.join(parts)
     else:
         return value
+
+
+def parseTlvString(value):
+    """Parse TLV string format: tag,type,value,required|optional;tag,type,value,...
+    Returns a list of TLV dicts."""
+    if isinstance(value, str) and value.lower() == 'none':
+        return []
+
+    valid_types = ('Int1', 'Int2', 'Int4', 'OctetString', 'COctetString')
+    tlvs = []
+    for entry in value.split(';'):
+        entry = entry.strip()
+        if not entry:
+            continue
+        parts = entry.split(',')
+        if len(parts) < 3:
+            raise KeyError(
+                'TLV format must be: tag,type,value[,required|optional]. Got: %s' % entry)
+        tag_str, tlv_type, tlv_value = parts[0].strip(), parts[1].strip(), parts[2].strip()
+
+        # Parse tag (hex or decimal)
+        try:
+            tag = int(tag_str, 16) if tag_str.lower().startswith('0x') else int(tag_str)
+        except ValueError:
+            raise KeyError('Invalid TLV tag: %s' % tag_str)
+
+        if tlv_type not in valid_types:
+            raise KeyError('Invalid TLV type: %s. Must be one of: %s' % (tlv_type, ', '.join(valid_types)))
+
+        # Parse value based on type
+        if tlv_type in ('Int1', 'Int2', 'Int4'):
+            try:
+                tlv_value = int(tlv_value, 16) if tlv_value.lower().startswith('0x') else int(tlv_value)
+            except ValueError:
+                raise KeyError('Invalid integer value for TLV: %s' % tlv_value)
+
+        # Parse required flag
+        required = False
+        if len(parts) >= 4:
+            req_str = parts[3].strip().lower()
+            if req_str == 'required':
+                required = True
+            elif req_str not in ('optional', ''):
+                raise KeyError('TLV flag must be "required" or "optional". Got: %s' % parts[3])
+
+        tlvs.append({'tag': tag, 'type': tlv_type, 'value': tlv_value, 'length': None, 'required': required})
+
+    return tlvs
 
 
 def castInputToBuiltInType(key, value):
@@ -74,6 +130,8 @@ def castInputToBuiltInType(key, value):
                 return False
             else:
                 raise KeyError('Boolean value must be expressed by yes or no.')
+        elif key == 'custom_tlvs':
+            return parseTlvString(value)
         elif (key == 'loglevel' and
                       value not in [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]):
             raise KeyError('loglevel must be numeric value of 10, 20, 30, 40 or 50.')

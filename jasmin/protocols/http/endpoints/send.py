@@ -13,6 +13,7 @@ from smpp.pdu.pdu_types import RegisteredDeliveryReceipt, RegisteredDelivery
 from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
+from jasmin.tools.tlv import format_tlvs_for_log
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
@@ -394,7 +395,7 @@ class Send(Resource):
                     logged_content = '%r' % re.sub(rb'[^\x20-\x7E]+', b'.', short_message)
 
                 self.log.info(
-                    'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s]',
+                    'SMS-MT [uid:%s] [cid:%s] [msgid:%s] [prio:%s] [dlr:%s] [from:%s] [to:%s] [content:%s] [tlvs:%s]',
                     user.uid,
                     routedConnector.cid,
                     response['return'],
@@ -402,7 +403,8 @@ class Send(Resource):
                     dlr_level_text,
                     routable.pdu.params['source_addr'],
                     updated_request.args[b'to'][0],
-                    logged_content)
+                    logged_content,
+                    format_tlvs_for_log(routable.pdu, self.config.log_privacy))
 
                 _return = 'Success "%s"' % response['return']
 

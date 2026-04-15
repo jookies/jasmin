@@ -30,6 +30,21 @@ class JasminHttpApiProxy:
         else:
             return r.status_code, r.content.decode('utf-8').strip('"')
 
+    def call_jasmin_post_json(self, url, data=None):
+        """POST to Jasmin HTTP API with JSON body, used when custom_tlvs are present"""
+        try:
+            r = requests.post(
+                '%s/%s' % (RestAPIForJasminConfigInstance.http_api_uri, url),
+                json=data,
+                headers={'Content-Type': 'application/json'})
+        except requests.exceptions.ConnectionError as e:
+            raise HTTPInternalServerError('Jasmin httpapi connection error',
+                                          'Could not connect to Jasmin http api (%s): %s' % (RestAPIForJasminConfigInstance.http_api_uri, e))
+        except Exception as e:
+            raise HTTPInternalServerError('Jasmin httpapi unknown error', str(e))
+        else:
+            return r.status_code, r.content.decode('utf-8').strip('"')
+
 
 class JasminRestApi:
     """Parent class for all rest api resources"""
@@ -136,6 +151,9 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
             'password': request.context.get('password')
         })
 
+        # Preserve custom_tlvs before _ to - conversion (it would become custom-tlvs)
+        custom_tlvs = request_args.pop('custom_tlvs', None)
+
         # Convert _ to -
         # Added for compliance with json encoding/decoding constraints on dev env like .Net
         _request_args = request_args.copy() # void dictionary key change error in python 3.8
@@ -145,13 +163,18 @@ class SendResource(JasminRestApi, JasminHttpApiProxy):
 
         del _request_args # Unset the variable
 
-        self.build_response_from_proxy_result(
-            response,
-            self.call_jasmin(
-                'send',
-                params=request_args
+        # Restore custom_tlvs and use POST with JSON when present
+        if custom_tlvs is not None:
+            request_args['custom_tlvs'] = custom_tlvs
+            self.build_response_from_proxy_result(
+                response,
+                self.call_jasmin_post_json('send', data=request_args)
             )
-        )
+        else:
+            self.build_response_from_proxy_result(
+                response,
+                self.call_jasmin('send', params=request_args)
+            )
 
 
 class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
@@ -216,6 +239,9 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
             message_params.update(params.get('globals', {}))
             message_params.update(_message_params)
 
+            # Preserve custom_tlvs before _ to - conversion
+            batch_custom_tlvs = message_params.pop('custom_tlvs', None)
+
             # Convert _ to -
             # Added for compliance with json encoding/decoding constraints on dev env like .Net
             _message_params = message_params.copy() # Avoid dictionary key changed error in python 3.8
@@ -224,6 +250,10 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
                 message_params[re.sub('_', '-', k)] = v
 
             del _message_params # Unset the variable
+
+            # Restore custom_tlvs
+            if batch_custom_tlvs is not None:
+                message_params['custom_tlvs'] = batch_custom_tlvs
 
             # Ignore message if these args are not found
             if 'to' not in message_params or ('content' not in message_params and 'hex-content' not in message_params):

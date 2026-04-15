@@ -72,6 +72,24 @@ class Routable:
         """Remove all tags from routable"""
         self._tags = []
 
+    def getTlvParam(self, param_name, default=None):
+        """Get a standard TLV parameter from the PDU"""
+        return self.pdu.params.get(param_name, default)
+
+    def setTlvParam(self, param_name, value):
+        """Set a standard TLV parameter on the PDU"""
+        self.pdu.params[param_name] = value
+
+    def getCustomTlvs(self):
+        """Get raw custom TLVs list"""
+        return getattr(self.pdu, 'custom_tlvs', [])
+
+    def addCustomTlv(self, tag, value_type, value, length=None):
+        """Add a raw custom TLV: (tag, length, type, value)"""
+        if not hasattr(self.pdu, 'custom_tlvs'):
+            self.pdu.custom_tlvs = []
+        self.pdu.custom_tlvs.append((tag, length, value_type, value))
+
 
 class SimpleRoutablePDU(Routable):
     """Used for Jasmin unit testing"""

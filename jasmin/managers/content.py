@@ -6,11 +6,11 @@ import pickle
 import datetime
 import uuid
 from enum import Enum
+from importlib.metadata import entry_points
 
+from twisted.python import log
 from txamqp.content import Content
 from smpp.pdu.pdu_types import CommandId, CommandStatus
-
-from pkg_resources import iter_entry_points
 
 
 class InvalidParameterError(Exception):
@@ -21,8 +21,8 @@ class InvalidParameterError(Exception):
 # msgid generator is a pluggable method, make the lookup to find an existant
 # plugin or use the default one (randomUniqueId)
 randomUniqueId = lambda pdu_type, uid, source_cid, destination_cid: str(uuid.uuid4())
-for entry_point in iter_entry_points(group='jasmin.content', name='msgid'):
-    print("Hooking randomUniqueId() from %s" % entry_point.dist)
+for entry_point in entry_points(group='jasmin.content', name='msgid'):
+    log.msg("Hooking randomUniqueId() from %s" % entry_point.dist)
     randomUniqueId = entry_point.load()
     # Takes the first one from the iteration
     break
