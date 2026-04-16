@@ -235,12 +235,16 @@ class SMPPClientSMListener:
                     defer.returnValue(False)
 
             # Validate per-message TLVs against the connector's rule set
-            # (required + max-length). No default-value injection — values
-            # come from the submitter; the connector only enforces policy.
-            from jasmin.tools.tlv_encoder import validate_custom_tlvs
+            # (required + max-length), then resolve their wire types from
+            # the connector config so the SMPP encoder knows how to
+            # serialize (e.g. Int8 vs OctetString).
+            from jasmin.tools.tlv_encoder import validate_custom_tlvs, resolve_tlv_types
             connector_tlvs = getattr(self.SMPPClientFactory.config, 'custom_tlvs', [])
-            ok, err = validate_custom_tlvs(
+            # Resolve None-typed tuples to their declared type first so
+            # the validator can check encoded byte lengths accurately.
+            SubmitSmPDU.custom_tlvs = resolve_tlv_types(
                 getattr(SubmitSmPDU, 'custom_tlvs', []), connector_tlvs)
+            ok, err = validate_custom_tlvs(SubmitSmPDU.custom_tlvs, connector_tlvs)
             if not ok:
                 self.log.error("Rejecting SubmitSmPDU[%s]: %s", msgid, err)
                 yield self.rejectMessage(message)

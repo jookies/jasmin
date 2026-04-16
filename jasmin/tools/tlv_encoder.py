@@ -38,6 +38,115 @@ _TYPE_TO_INT_FMT = {
 }
 
 
+def normalize_custom_tlvs(raw: Any) -> list[tuple]:
+    """Accept various input shapes for per-message custom_tlvs and normalize
+    to the internal tuple list ``[(tag_int, None, None, value), ...]``.
+
+    Accepted shapes on the REST / HTTP API boundary:
+
+    **Preferred (clean)** — dict of ``{hex_tag: value}``::
+
+        {"0x1401": 1707167205648943173, "0x1400": "hello"}
+
+    **Legacy** — list of 4-tuples ``[tag, length, type, value]``::
+
+        [[5121, null, "Int8", 1707167205648943173]]
+
+    The type field is **not** required from the caller — the connector config
+    declares each tag's type; ``listeners.py`` resolves it at dispatch time via
+    ``resolve_tlv_types``.  If the caller *does* supply a type (legacy format),
+    it's preserved.
+
+    Empty / falsy input yields ``[]``.
+    """
+    if not raw:
+        return []
+
+    # ---- dict: {"0x1401": value, ...} ----------------------------------
+    if isinstance(raw, dict):
+        result = []
+        for tag_key, value in raw.items():
+            if isinstance(tag_key, str):
+                tag_key = tag_key.strip()
+                tag_int = int(tag_key, 16) if tag_key.lower().startswith('0x') else int(tag_key)
+            else:
+                tag_int = int(tag_key)
+            result.append((tag_int, None, None, value))
+        return result
+
+    # ---- list: legacy [[tag, len, type, val], ...] or already tuples ----
+    if isinstance(raw, (list, tuple)):
+        result = []
+        for entry in raw:
+            if isinstance(entry, dict):
+                # [{"tag": "0x1401", "value": 123}, ...]
+                tag_key = entry.get('tag', entry.get('0', 0))
+                if isinstance(tag_key, str):
+                    tag_key = tag_key.strip()
+                    tag_int = int(tag_key, 16) if tag_key.lower().startswith('0x') else int(tag_key)
+                else:
+                    tag_int = int(tag_key)
+                result.append((tag_int, None, None, entry.get('value')))
+            elif isinstance(entry, (list, tuple)):
+                if len(entry) >= 4:
+                    result.append(tuple(entry[:4]))
+                elif len(entry) >= 2:
+                    result.append((int(entry[0]), None, None, entry[-1]))
+                # else skip malformed
+            else:
+                pass  # skip scalar
+        return result
+
+    # ---- JSON string (from URL query-param encoding) --------------------
+    if isinstance(raw, (str, bytes)):
+        import json
+        if isinstance(raw, bytes):
+            raw = raw.decode('utf-8', errors='replace')
+        raw = raw.strip()
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return []
+        return normalize_custom_tlvs(parsed)
+
+    return []
+
+
+def resolve_tlv_types(pdu_tlvs: list, connector_rules: list) -> list:
+    """Resolve ``None``-typed TLV tuples using the connector's declared types.
+
+    Per-message TLVs arrive from the REST caller as ``(tag, None, None, value)``
+    (normalised form). The connector config declares each tag's type. This
+    function matches them up so the upstream encoder can serialize correctly.
+
+    Tuples whose tag is NOT in the connector rules default to ``'OctetString'``.
+    Already-typed tuples (type not None) are left as-is.
+    """
+    if not pdu_tlvs:
+        return pdu_tlvs
+
+    rule_map = {}
+    for r in (connector_rules or []):
+        rule_map[int(r['tag']) & 0xFFFF] = r
+
+    result = []
+    for t in pdu_tlvs:
+        if len(t) < 4 or t[2] is not None:
+            result.append(t)
+            continue
+        tag = int(t[0]) & 0xFFFF
+        rule = rule_map.get(tag)
+        tlv_type = rule['type'] if rule else 'OctetString'
+        # For integer types, coerce value to int if it's still a string.
+        value = t[3]
+        if tlv_type in _TYPE_TO_INT_FMT and isinstance(value, str):
+            value = int(value, 16) if value.lower().startswith('0x') else int(value)
+        result.append((t[0], t[1], tlv_type, value))
+    return result
+
+
 def encode_tlv_value(value: Any, tlv_type: str | None) -> bytes:
     """Encode a TLV value according to its declared SMPP type.
 

@@ -193,17 +193,17 @@ def build_message_body(args: argparse.Namespace, i: int) -> dict:
     if args.validity_period:
         body["validity-period"] = args.validity_period
 
-    # TLVs
-    custom: list[list] = []
+    # TLVs — send as clean dict {"0xTAG": value} (new simplified REST format).
+    # Named params (standard SMPP optional-params) go as top-level body fields.
+    custom: dict[str, Any] = {}
     for kind, payload in args.tlv:
         if kind == "custom":
-            custom.append(list(payload))
+            tag_int, _type, _length, value = payload
+            custom["0x%04X" % tag_int] = value
         else:  # named
             name, value = payload
             body[name] = value
     if custom:
-        # REST layer forwards this to the HTTP API as JSON, preserving the
-        # underscore form (see jasmin/protocols/rest/api.py L154-168).
         body["custom_tlvs"] = custom
     return body
 
