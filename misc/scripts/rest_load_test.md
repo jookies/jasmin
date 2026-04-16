@@ -116,30 +116,28 @@ python misc/scripts/rest_load_test.py \
 
 ### TLVs
 
-Repeat `--tlv TAG:VALUE` as many times as needed.
+Repeat `--tlv TAG:VALUE[:TYPE]` as many times as needed. Type is optional
+(resolved from connector config when omitted).
 
-The script sends TLVs using the **simplified `{tag: value}` dict** format
-on the REST JSON body. The connector config declares each tag's wire
-encoding type (`Int8`, `OctetString`, etc.) — the submitter only provides
-the tag and value.
+```bash
+# Type from connector config (simplest)
+--tlv 0x1400:1707167205648943173
+--tlv 0x1401:1401778070000018542
 
-- **Numeric tag** (integer or `0xNNNN`) → sent as `{"0xTAG": value}` in
-  `custom_tlvs`. The connector resolves the encoding type at dispatch time.
-  ```
-  --tlv 0x1400:1707167205648943173
-  --tlv 0x1401:1401778070000018542
-  --tlv 0x2000:hello
-  ```
-- **Named tag** must be a known SMPP optional-param name (e.g.
-  `source_port`, `user_message_reference`, `message_state`). It's placed
-  as a top-level field in the JSON body and flows through the regular
-  optional-param path.
-  ```
-  --tlv source_port:1234
-  --tlv user_message_reference:42
-  ```
-- Unknown non-numeric names are rejected at argument-parse time — use a
-  numeric tag if you mean "custom TLV".
+# Explicit type override (appended at end)
+--tlv 0x1400:1707167205648943173:OctetString
+--tlv 0x1401:1401778070000018542:Int8
+--tlv 0x1402:9638ecb402...a042:OctetString
+
+# Named standard SMPP optional param (top-level body field)
+--tlv source_port:1234
+--tlv user_message_reference:42
+```
+
+- **Numeric tag** → sent as `{"0xTAG": value}` or `{"0xTAG:Type": value}`.
+- **Named tag** → placed as a top-level JSON field.
+- Unknown non-numeric names are rejected at parse time — use a numeric tag
+  for custom TLVs.
 
 ### Reporting
 | flag | default | notes |
@@ -253,7 +251,10 @@ smppccm -u smalert
 
 ### REST API `custom_tlvs` format
 
-The submitter sends a simple dict — **`{"hex_tag": value}`**:
+The `custom_tlvs` field is a JSON dict where each key is a hex tag (with an
+optional `:Type` suffix) and each value is the TLV payload.
+
+#### Example 1 — Type resolved from connector config (simplest)
 
 ```json
 {
@@ -261,18 +262,98 @@ The submitter sends a simple dict — **`{"hex_tag": value}`**:
   "from": "ABXOTP",
   "content": "Your OTP is 5249",
   "custom_tlvs": {
-    "0x1401": 1707167205648943173,
-    "0x1400": 1401778070000018542
+    "0x1401": "1401778070000018542",
+    "0x1400": "1707167205648943173"
   }
 }
 ```
 
-- Tags are hex strings (e.g. `"0x1401"`) — no need to convert to decimal.
-- Values are plain integers or strings — no need to specify type, length,
-  or encoding. The connector config declares the type; Jasmin resolves it
-  at dispatch time via `resolve_tlv_types()`.
-- A legacy list-of-tuples format `[[5121, null, "Int8", 170...]]` is still
-  accepted for backward compatibility.
+The connector config declares `0x1401,OctetString,20,required` so
+Jasmin encodes the value as a 19-byte UTF-8 OctetString on the wire.
+The caller doesn't need to know the encoding type.
+
+#### Example 2 — Caller declares type explicitly
+
+```json
+{
+  "custom_tlvs": {
+    "0x1401:OctetString": "1401778070000018542",
+    "0x1400:Int8": 1707167205648943173,
+    "0x1402:OctetString": "9c70f8165e4cadbb1965d9d105d5543c3ade38aa74dac1b58a76faeec3b413bc"
+  }
+}
+```
+
+The `:Type` suffix in the key overrides whatever the connector config
+declares. Useful when the same tag needs different encodings across
+different callers, or for ad-hoc tags not in the connector config.
+
+#### Example 3 — Interceptor-generated TLV (0x1402 hash)
+
+The caller sends only 0x1400 and 0x1401; an MT interceptor script
+computes SHA-256 and injects 0x1402 automatically:
+
+```json
+{
+  "custom_tlvs": {
+    "0x1401": "1401778070000018542",
+    "0x1400": "1707167205648943173"
+  }
+}
+```
+
+The interceptor appends `0x1402` to the PDU before dispatch:
+```
+wire: 0x1400 len=19 '1707167205648943173'
+      0x1401 len=19 '1401778070000018542'
+      0x1402 len=64 '9c70f8165e4cadbb1965d9d105d5543c3ade38aa74dac1b58a76faeec3b413bc'
+```
+
+See `misc/scripts/interceptor_hash_tlv.py` for the interceptor script.
+
+#### Example 4 — Legacy tuple format (backward compatible)
+
+```json
+{
+  "custom_tlvs": [
+    [5121, null, "OctetString", "1401778070000018542"],
+    [5120, null, "Int8", 1707167205648943173]
+  ]
+}
+```
+
+Still works but not recommended — use the dict format above.
+
+#### Key format summary
+
+| key format | type source | example |
+|---|---|---|
+| `"0x1401"` | Connector config | `"0x1401": "value"` |
+| `"0x1401:OctetString"` | Caller (explicit) | `"0x1401:OctetString": "value"` |
+| `"0x1401:Int8"` | Caller (explicit) | `"0x1401:Int8": 1707167205648943173` |
+| *(not in key)* | Interceptor script | Interceptor calls `routable.addCustomTlv(0x1402, 'OctetString', hash)` |
+
+#### Type resolution priority
+
+1. **Caller-provided type** (`"0x1401:Int8"`) → highest priority
+2. **Connector config type** (`0x1401,OctetString,20,required`) → when caller omits type
+3. **OctetString fallback** → when tag is not in connector config at all
+
+#### `--tlv` flag in `rest_load_test.py`
+
+The load test script mirrors the same three formats:
+
+```bash
+# Type from connector config
+--tlv 0x1400:1707167205648943173
+
+# Explicit type (appended at end)
+--tlv 0x1400:1707167205648943173:OctetString
+--tlv 0x1401:1401778070000018542:Int8
+
+# Named standard optional param
+--tlv source_port:1234
+```
 
 ### Supported TLV types
 
