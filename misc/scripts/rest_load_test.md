@@ -3,7 +3,7 @@
 A self-contained Python script that drives traffic through Jasmin's REST API
 (`/secure/send` and `/secure/sendbatch`) so you can exercise the submit path
 end-to-end (REST → HTTP API → SMPP), measure throughput and latency, and
-stress the new TLV code path (`custom_tlvs`).
+stress the TLV code path (`custom_tlvs`).
 
 - File: [`rest_load_test.py`](./rest_load_test.py)
 - Dependencies: **Python 3.10+ only** — no pip install, pure stdlib (`http.client`, `threading`, `argparse`)
@@ -32,8 +32,12 @@ Before this script can get `200 OK` responses you need all of the following up:
    > ok
    ```
 3. **An MT route** that maps your destination numbers to a running SMPP
-   connector (you already have SMPPSim on `192.168.1.22:2779`).
-4. **SMPPSim** (or any SMSC) bound and accepting PDUs.
+   connector.
+4. **SMSC** (or SMPPSim) bound and accepting PDUs.
+5. **Connector TLV rules** (if using `--tlv`). The connector config declares
+   each tag's type and validation rules — see section 5. The load test
+   script sends `{tag: value}` pairs; the connector resolves the encoding
+   type (Int8, OctetString, etc.) at dispatch time.
 
 Without #1 the script will fail with `connection_error`. Without #2–#4 you'll
 get HTTP 412/403 from Jasmin with "Authentication failed" or "Cannot route".
@@ -51,13 +55,14 @@ python misc/scripts/rest_load_test.py \
 ```
 Expect one `[ok]` line and a summary with `ok=1`.
 
-**200 messages, 50/s, with a custom TLV**
+**200 messages, 50/s, with custom TLVs**
 ```bash
 python misc/scripts/rest_load_test.py \
   --username foo --password bar \
   --count 200 --concurrency 20 --rate 50 \
   --to '+1202555{i:04d}' --content 'load {i}' \
-  --tlv 0x1400:hello
+  --tlv 0x1400:1707167205648943173 \
+  --tlv 0x1401:1401778070000018542
 ```
 
 **60-second burst via batch endpoint (50 msgs per HTTP call)**
@@ -109,20 +114,26 @@ python misc/scripts/rest_load_test.py \
 | `--dlr-mask` | — | e.g. `1` (delivery only), `7` (all). |
 | `--validity-period` | — | Passed through as-is. |
 
-### TLVs (the reason we built this)
+### TLVs
+
 Repeat `--tlv TAG:VALUE` as many times as needed.
 
-- **Numeric tag** (integer or `0xNNNN`) is placed into
-  `custom_tlvs` as a `(tag, type, length, value)` tuple, which is what
-  `jasmin/tools/tlv.py` and `jasmin/protocols/rest/api.py` expect.
+The script sends TLVs using the **simplified `{tag: value}` dict** format
+on the REST JSON body. The connector config declares each tag's wire
+encoding type (`Int8`, `OctetString`, etc.) — the submitter only provides
+the tag and value.
+
+- **Numeric tag** (integer or `0xNNNN`) → sent as `{"0xTAG": value}` in
+  `custom_tlvs`. The connector resolves the encoding type at dispatch time.
   ```
-  --tlv 0x1400:hello
-  --tlv 12288:world
+  --tlv 0x1400:1707167205648943173
+  --tlv 0x1401:1401778070000018542
+  --tlv 0x2000:hello
   ```
 - **Named tag** must be a known SMPP optional-param name (e.g.
-  `source_port`, `user_message_reference`, `payload_type`,
-  `sar_msg_ref_num`, `message_state`…). It's placed as a top-level field in
-  the JSON body and flows through the regular optional-param path.
+  `source_port`, `user_message_reference`, `message_state`). It's placed
+  as a top-level field in the JSON body and flows through the regular
+  optional-param path.
   ```
   --tlv source_port:1234
   --tlv user_message_reference:42
@@ -181,36 +192,126 @@ JSON summary (`--json-out`):
 
 ---
 
-## 5. JSON body shapes (for reference)
+## 5. TLV architecture
 
-What the script puts on the wire. These match
-`jasmin/protocols/rest/api.py`.
+### How TLVs flow through Jasmin
 
-**`POST /secure/send`** (one message per call)
+```
+REST / HTTP caller                    Jasmin connector config (jCli)
+─────────────────                     ─────────────────────────────
+custom_tlvs: {                        custom_tlvs:
+  "0x1401": 170716720...,              0x1401,Int8,8,required;
+  "0x1400": 140177807...               0x1400,Int8,8,required
+}
+
+        │                                        │
+        ▼                                        │
+  normalize_custom_tlvs()                        │
+  → [(0x1401, None, None, 170...)]               │
+        │                                        │
+        ▼                                        │
+  SubmitSM(custom_tlvs=...) → pickle → AMQP     │
+        │                                        │
+        ▼                                        ▼
+  listeners.py ─── resolve_tlv_types() ◄── connector rules
+        │          → [(0x1401, None, 'Int8', 170...)]
+        │
+        ├── validate_custom_tlvs()
+        │   - required tag missing? → reject
+        │   - encoded length > max? → reject
+        │
+        ▼
+  sendDataRequest(pdu)
+        │
+        ▼
+  PDUEncoder.encodeRawParams(pdu.custom_tlvs)
+        │
+        ▼
+  SMPP wire: 14 01 00 08 17 b1 13 87 50 e6 c8 45
+```
+
+### Connector config (validation-only, no default injection)
+
+The connector declares each vendor TLV tag's **type**, **max byte length**,
+and whether it's **required**. It does NOT carry a default value — values come
+from the submitter at submit time.
+
+**jCli format**: `tag,type,max_length,required|optional`
+
+```
+smppccm -u smalert
+> custom_tlvs 0x1401,Int8,8,required;0x1400,Int8,8,required
+> ok
+```
+
+| field | values | notes |
+|---|---|---|
+| `tag` | hex (`0x1401`) or decimal (`5121`) | Vendor-range: `0x1400`–`0x3FFF` |
+| `type` | `Int1`, `Int2`, `Int4`, `Int8`, `OctetString`, `COctetString` | Determines wire encoding. Must match what the upstream SMSC expects. |
+| `max_length` | positive integer, or `-` for unlimited | Max **encoded** byte length. `Int8` = always 8. `OctetString` = byte count of UTF-8 value. |
+| `required` | `required` or `optional` (default) | If `required`, submit is rejected when the tag is absent from per-message `custom_tlvs`. |
+
+### REST API `custom_tlvs` format
+
+The submitter sends a simple dict — **`{"hex_tag": value}`**:
+
 ```json
 {
-  "to": "+1202555000042",
-  "content": "load 42",
-  "from": "Jasmin",
-  "priority": 1,
-  "dlr-mask": 7,
-  "custom_tlvs": [[5120, 0, 5, "hello"]]
+  "to": "+919216217231",
+  "from": "ABXOTP",
+  "content": "Your OTP is 5249",
+  "custom_tlvs": {
+    "0x1401": 1707167205648943173,
+    "0x1400": 1401778070000018542
+  }
 }
 ```
 
-**`POST /secure/sendbatch`** (N messages per call)
-```json
-{
-  "globals": {},
-  "messages": [
-    {"to": "+120255500", "content": "m0"},
-    {"to": "+120255501", "content": "m1",
-     "custom_tlvs": [[5120, 0, 5, "hello"]]}
-  ]
-}
+- Tags are hex strings (e.g. `"0x1401"`) — no need to convert to decimal.
+- Values are plain integers or strings — no need to specify type, length,
+  or encoding. The connector config declares the type; Jasmin resolves it
+  at dispatch time via `resolve_tlv_types()`.
+- A legacy list-of-tuples format `[[5121, null, "Int8", 170...]]` is still
+  accepted for backward compatibility.
+
+### Supported TLV types
+
+| type | wire encoding | typical use |
+|---|---|---|
+| `Int1` | 1 byte unsigned (`>B`) | Flags, small enums |
+| `Int2` | 2 bytes big-endian (`>H`) | Ports, short IDs |
+| `Int4` | 4 bytes big-endian (`>I`) | Standard IDs (up to ~4 billion) |
+| `Int8` | 8 bytes big-endian (`>Q`) | Large IDs (up to ~18 quintillion) |
+| `OctetString` | Raw UTF-8 bytes | Text identifiers, tokens |
+| `COctetString` | UTF-8 bytes + NUL terminator | C-style strings |
+
+### Inbound TLVs (receive direction)
+
+Vendor-range TLVs on incoming `deliver_sm` / MO / DLR PDUs are captured
+by a decode-side patch (`install_pdu_decoder_patch` in
+`jasmin/tools/tlv_encoder.py`) and attached to `pdu.custom_tlvs`. They
+appear in the `SMS-MO` log line via `format_tlvs_for_log()` and are
+available to any downstream code that iterates `pdu.custom_tlvs`.
+
+### Wire debug logging
+
+Set environment variable `JASMIN_TLV_WIRE_LOG=1` on the Jasmin container
+to log every outgoing PDU's hex bytes at INFO level (logger name
+`jasmin.tlv.wire`). Useful for verifying TLVs actually reach the socket:
+
+```bash
+docker run -d --name jasmin-tlv \
+  -e JASMIN_TLV_WIRE_LOG=1 \
+  ...
+  jasmin:0.12-tlv
+
+docker logs jasmin-tlv 2>&1 | grep jasmin.tlv.wire
 ```
 
-Both endpoints require `Authorization: Basic base64(user:pass)`.
+Output:
+```
+OUT pdu=submit_sm seq=4 len=161 tlvs=0x1401,0x1400 hex=0000...14010008...
+```
 
 ---
 
@@ -242,13 +343,16 @@ Both endpoints require `Authorization: Basic base64(user:pass)`.
 
 ## 8. Related files in this repo
 
-- [`jasmin/protocols/rest/api.py`](../../jasmin/protocols/rest/api.py) — REST
-  endpoints (`SendResource`, `SendBatchResource`), auth middleware, the
-  `custom_tlvs` preservation logic that this script targets.
-- [`jasmin/protocols/rest/tasks.py`](../../jasmin/protocols/rest/tasks.py) —
-  REST → HTTP API forwarder with JSON body when TLVs are present.
-- [`jasmin/tools/tlv.py`](../../jasmin/tools/tlv.py) — TLV formatter used in
-  logs; the tuple shape we put on the wire is what this module consumes.
-- [`misc/config/rest-api.cfg`](../config/rest-api.cfg) — REST API bind host/port.
-- [`misc/scripts/sms_logger.py`](./sms_logger.py) — sibling helper that logs
-  sent SMS to a database; useful to run alongside this load test.
+| file | role |
+|---|---|
+| [`jasmin/tools/tlv_encoder.py`](../../jasmin/tools/tlv_encoder.py) | `normalize_custom_tlvs()`, `resolve_tlv_types()`, `validate_custom_tlvs()`, encode/decode patches, wire logger |
+| [`jasmin/tools/tlv.py`](../../jasmin/tools/tlv.py) | `format_tlvs_for_log()` — log formatter for `[tlvs:...]` |
+| [`jasmin/protocols/rest/api.py`](../../jasmin/protocols/rest/api.py) | REST endpoints (`SendResource`, `SendBatchResource`), `custom_tlvs` preservation |
+| [`jasmin/protocols/rest/tasks.py`](../../jasmin/protocols/rest/tasks.py) | REST → HTTP API forwarder (JSON body when TLVs present) |
+| [`jasmin/protocols/http/endpoints/send.py`](../../jasmin/protocols/http/endpoints/send.py) | HTTP API `/send` — normalizes `custom_tlvs` on ingress |
+| [`jasmin/protocols/smpp/operations.py`](../../jasmin/protocols/smpp/operations.py) | `SMPPOperationFactory`, patch installation |
+| [`jasmin/protocols/smpp/configs.py`](../../jasmin/protocols/smpp/configs.py) | `SMPPClientConfig.custom_tlvs` validation schema |
+| [`jasmin/protocols/cli/smppccm.py`](../../jasmin/protocols/cli/smppccm.py) | jCli `custom_tlvs` parser (`parseTlvString`) |
+| [`jasmin/managers/listeners.py`](../../jasmin/managers/listeners.py) | Dispatch-time TLV type resolution + validation |
+| [`misc/config/rest-api.cfg`](../config/rest-api.cfg) | REST API bind host/port |
+| [`misc/scripts/sms_logger.py`](./sms_logger.py) | Sibling helper — logs sent SMS to DB |
