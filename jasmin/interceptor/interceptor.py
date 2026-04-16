@@ -64,7 +64,7 @@ class InterceptorPB(pb.Avatar):
 
             # Run script and measure execution time
             start = dt.datetime.now()
-            eval(node, {}, glo)
+            eval(node, glo)
             end = dt.datetime.now()
             delay = (end - start).seconds
             self.log.debug('... took %s seconds.', delay)
