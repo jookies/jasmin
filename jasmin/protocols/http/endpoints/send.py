@@ -14,6 +14,7 @@ from jasmin.routing.Routables import RoutableSubmitSm
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.protocols.smpp.operations import SMPPOperationFactory
 from jasmin.tools.tlv import format_tlvs_for_log
+from jasmin.tools.tlv_encoder import normalize_custom_tlvs
 from jasmin.protocols.http.errors import UrlArgsValidationError
 from jasmin.protocols.http.validation import UrlArgsValidator, HttpAPICredentialValidator
 from jasmin.protocols.http.errors import (HttpApiError, AuthenticationError, ServerError, RouteNotFoundError, ConnectorNotFoundError,
@@ -118,7 +119,7 @@ class Send(Resource):
                 destination_addr=updated_request.args[b'to'][0],
                 short_message=short_message,
                 data_coding=int(updated_request.args[b'coding'][0]),
-                custom_tlvs=updated_request.args[b'custom_tlvs'][0])
+                custom_tlvs=normalize_custom_tlvs(updated_request.args[b'custom_tlvs'][0]))
             self.log.debug("Built base SubmitSmPDU: %s", SubmitSmPDU)
 
             # Make Credential validation
