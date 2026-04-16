@@ -167,19 +167,24 @@ class Thrower(Service):
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
 
-        # Declare exchange, queue and start consuming to self.callback
-        yield self.amqpBroker.chan.exchange_declare(exchange=self.exchangeName,
-                                                    type='topic')
-        yield self.amqpBroker.named_queue_declare(queue=self.queueName)
-        yield self.amqpBroker.chan.queue_bind(queue=self.queueName,
-                                              exchange=self.exchangeName,
-                                              routing_key=self.routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue=self.queueName,
-                                                 no_ack=False,
-                                                 consumer_tag=self.consumerTag)
-        self.thrower_q = yield self.amqpBroker.client.queue(self.consumerTag)
-        self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
-        self.log.info('Consuming from routing key: %s', self.routingKey)
+        @defer.inlineCallbacks
+        def setupQueue():
+            # Declare exchange, queue and start consuming to self.callback
+            yield self.amqpBroker.chan.exchange_declare(exchange=self.exchangeName,
+                                                        type='topic')
+            yield self.amqpBroker.named_queue_declare(queue=self.queueName, durable=True)
+            yield self.amqpBroker.chan.queue_bind(queue=self.queueName,
+                                                exchange=self.exchangeName,
+                                                routing_key=self.routingKey)
+            yield self.amqpBroker.chan.basic_consume(queue=self.queueName,
+                                                    no_ack=False,
+                                                    consumer_tag=self.consumerTag)
+            self.thrower_q = yield self.amqpBroker.client.queue(self.consumerTag)
+            self.thrower_q.get().addCallback(self.callback).addErrback(self.errback)
+            self.log.info('Consuming from routing key: %s', self.routingKey)
+        
+        yield setupQueue()
+        self.amqpBroker.queueSetupCallbacks.append(setupQueue)
 
     @defer.inlineCallbacks
     def rejectAndRequeueMessage(self, message, delay=True):

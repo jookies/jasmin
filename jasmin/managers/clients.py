@@ -241,20 +241,25 @@ class SMPPClientManagerPB(pb.Avatar):
             self.log.error('AMQP Broker channel is not yet ready')
             defer.returnValue(False)
 
-        # Fix prefetch limit per consumer to 1 to get correct throttling
-        yield self.amqpBroker.chan.basic_qos(prefetch_count=1)
+        @defer.inlineCallbacks
+        def setupQueue():
+            # Fix prefetch limit per consumer to 1 to get correct throttling
+            yield self.amqpBroker.chan.basic_qos(prefetch_count=1)
 
-        # Declare queues
-        # First declare the messaging exchange (has no effect if its already declared)
-        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        # submit.sm queue declaration and binding
-        submit_sm_queue = 'submit.sm.%s' % c.id
-        routing_key = 'submit.sm.%s' % c.id
-        self.log.info('Binding %s queue to %s route_key', submit_sm_queue, routing_key)
-        yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue)
-        yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue,
-                                              exchange="messaging",
-                                              routing_key=routing_key)
+            # Declare queues
+            # First declare the messaging exchange (has no effect if its already declared)
+            yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+            # submit.sm queue declaration and binding
+            submit_sm_queue = 'submit.sm.%s' % c.id
+            routing_key = 'submit.sm.%s' % c.id
+            self.log.info('Binding %s queue to %s route_key', submit_sm_queue, routing_key)
+            yield self.amqpBroker.named_queue_declare(queue=submit_sm_queue, durable=True)
+            yield self.amqpBroker.chan.queue_bind(queue=submit_sm_queue,
+                                                exchange="messaging",
+                                                routing_key=routing_key)
+
+        yield setupQueue()
+        self.amqpBroker.queueSetupCallbacks.append(setupQueue)
 
         # Instanciate smpp client service manager
         serviceManager = SMPPClientService(c, self.config)
@@ -369,37 +374,42 @@ class SMPPClientManagerPB(pb.Avatar):
         # check jasmin.queues.test.test_amqp.PublishConsumeTestCase.test_simple_publish_consume_by_topic
         submit_sm_queue = 'submit.sm.%s' % connector['id']
         consumerTag = 'SMPPClientFactory-%s' % (connector['id'])
+        
+        @defer.inlineCallbacks
+        def setupQueue():
+            try:
+                # Using the same consumerTag will prevent getting multiple consumers on the same queue
+                # This can resolve the dark hole issue #234
 
-        try:
-            # Using the same consumerTag will prevent getting multiple consumers on the same queue
-            # This can resolve the dark hole issue #234
+                # Stop the queue consumer if any
+                if connector['consumer_tag'] is not None:
+                    self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
+                    yield self.amqpBroker.chan.basic_cancel(consumer_tag=connector['consumer_tag'])
 
-            # Stop the queue consumer if any
-            if connector['consumer_tag'] is not None:
-                self.log.debug('Stopping submit_sm_q consumer in connector [%s]', cid)
-                yield self.amqpBroker.chan.basic_cancel(consumer_tag=connector['consumer_tag'])
+                # Start a new consumer
+                yield self.amqpBroker.chan.basic_consume(queue=submit_sm_queue,
+                                                        no_ack=False, consumer_tag=consumerTag)
+            except Exception as e:
+                self.log.error('Error consuming from queue %s: %s', submit_sm_queue, e)
+                defer.returnValue(False)
 
-            # Start a new consumer
-            yield self.amqpBroker.chan.basic_consume(queue=submit_sm_queue,
-                                                     no_ack=False, consumer_tag=consumerTag)
-        except Exception as e:
-            self.log.error('Error consuming from queue %s: %s', submit_sm_queue, e)
-            defer.returnValue(False)
+            submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+            self.log.info('%s is consuming from queue: %s', consumerTag, submit_sm_queue)
 
-        submit_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.log.info('%s is consuming from queue: %s', consumerTag, submit_sm_queue)
+            # Set callbacks for every consumed message from submit_sm_queue queue
+            d = submit_sm_q.get()
+            d.addCallback(connector['sm_listener'].submit_sm_callback).addErrback(
+                connector['sm_listener'].submit_sm_errback)
 
-        # Set callbacks for every consumed message from submit_sm_queue queue
-        d = submit_sm_q.get()
-        d.addCallback(connector['sm_listener'].submit_sm_callback).addErrback(
-            connector['sm_listener'].submit_sm_errback)
+            self.log.info('Started connector [%s]', cid)
 
-        self.log.info('Started connector [%s]', cid)
-
-        # Set connector data
-        connector['sm_listener'].setSubmitSmQ(submit_sm_q)
-        connector['consumer_tag'] = consumerTag
-        connector['submit_sm_q'] = submit_sm_q
+            # Set connector data
+            connector['sm_listener'].setSubmitSmQ(submit_sm_q)
+            connector['consumer_tag'] = consumerTag
+            connector['submit_sm_q'] = submit_sm_q
+            
+        yield setupQueue()
+        self.amqpBroker.queueSetupCallbacks.append(setupQueue)
 
         # Set persistance state to False (pending for persistance)
         self.persisted = False
