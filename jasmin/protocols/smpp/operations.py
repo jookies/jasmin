@@ -7,9 +7,24 @@ from enum import Enum
 import dateutil.parser as parser
 
 from jasmin.protocols.smpp.configs import SMPPClientConfig
+from jasmin.tools.tlv_encoder import (
+    install_pdu_encoder_patch, install_pdu_decoder_patch, install_sendpdu_wire_logger,
+)
 from smpp.pdu.operations import SubmitSM, DataSM, DeliverSM
 from smpp.pdu.pdu_types import (EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
                                               MoreMessagesToSend, MessageState, AddrTon, AddrNpi)
+
+# Ensure the SMPP PDU codec round-trips connector-level custom TLVs.
+# - Encode patch: emits pdu.custom_tlvs bytes on outbound PDUs (the upstream
+#   encoder only serialises its fixed OptionEncoder whitelist, so vendor-range
+#   tags would otherwise be logged but never hit the wire).
+# - Decode patch: captures vendor-range TLVs that the upstream decoder maps
+#   to `vendor_specific_bypass` (and then drops) back onto pdu.custom_tlvs,
+#   so inbound MO / DLR / submit_sm retain them for logging and forwarding.
+# Both patches are idempotent.
+install_pdu_encoder_patch()
+install_pdu_decoder_patch()
+install_sendpdu_wire_logger()  # opt-in via env JASMIN_TLV_WIRE_LOG=1
 
 message_state_map = {
     MessageState.ACCEPTED: 'ACCEPTD',
@@ -54,16 +69,10 @@ class SMPPOperationFactory:
                 except AttributeError:
                     pdu.params[param] = None
 
-        # Inject connector-level default TLVs (non-required only)
-        connector_tlvs = getattr(self.config, 'custom_tlvs', [])
-        if connector_tlvs:
-            existing_tags = {t[0] for t in getattr(pdu, 'custom_tlvs', [])}
-            for tlv_def in connector_tlvs:
-                if not tlv_def.get('required', False) and tlv_def['tag'] not in existing_tags:
-                    if not hasattr(pdu, 'custom_tlvs'):
-                        pdu.custom_tlvs = []
-                    pdu.custom_tlvs.append(
-                        (tlv_def['tag'], tlv_def.get('length'), tlv_def['type'], tlv_def['value']))
+        # Connector-level TLV handling moved to listeners.py as validation
+        # only (required + max-length). `_setConfigParamsInPDU` no longer
+        # injects default TLV values: values come from the submitter, the
+        # connector merely enforces policy at dispatch time.
 
         return pdu
 

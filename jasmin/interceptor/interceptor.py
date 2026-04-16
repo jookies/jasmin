@@ -52,11 +52,19 @@ class InterceptorPB(pb.Avatar):
             self.log.debug('Running [%s]', pyCode)
             self.log.debug('... having routable with pdu: %s', routable.pdu)
             node = CompiledNode().get(pyCode)
-            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status, 'extra': {}}
+            glo = {'routable': routable, 'smpp_status': smpp_status, 'http_status': http_status, 'extra': {},
+                   # Safe stdlib modules available to interceptor scripts
+                   'hashlib': __import__('hashlib'),
+                   're': __import__('re'),
+                   'json': __import__('json'),
+                   'datetime': __import__('datetime'),
+                   'math': __import__('math'),
+                   'struct': __import__('struct'),
+                   }
 
             # Run script and measure execution time
             start = dt.datetime.now()
-            eval(node, {}, glo)
+            eval(node, glo)
             end = dt.datetime.now()
             delay = (end - start).seconds
             self.log.debug('... took %s seconds.', delay)

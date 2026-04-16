@@ -57,19 +57,35 @@ def castOutputToBuiltInType(key, value):
         parts = []
         for tlv in value:
             req = 'required' if tlv.get('required', False) else 'optional'
-            parts.append('0x%04X,%s,%s,%s' % (tlv['tag'], tlv['type'], tlv['value'], req))
+            length = tlv.get('length')
+            length_str = str(length) if length is not None else '-'
+            parts.append('0x%04X,%s,%s,%s' % (tlv['tag'], tlv['type'], length_str, req))
         return ';'.join(parts)
     else:
         return value
 
 
 def parseTlvString(value):
-    """Parse TLV string format: tag,type,value,required|optional;tag,type,value,...
-    Returns a list of TLV dicts."""
+    """Parse connector-level TLV validation rules.
+
+    Format (per entry; `;`-separated):
+        tag,type,max_length[,required|optional]
+
+    - `tag`         : hex (0x1400) or decimal integer
+    - `type`        : Int1 | Int2 | Int4 | Int8 | OctetString | COctetString
+    - `max_length`  : positive integer = max allowed byte length of the encoded
+                      TLV value on the wire. `-` or empty means "no limit".
+    - `required`    : default `optional`. `required` rejects the submit if the
+                      per-message PDU does not carry this tag.
+
+    The value itself is no longer configured at the connector level — TLV values
+    come from the submitter (HTTP / REST `custom_tlvs` parameter). The connector
+    only validates them.
+    """
     if isinstance(value, str) and value.lower() == 'none':
         return []
 
-    valid_types = ('Int1', 'Int2', 'Int4', 'OctetString', 'COctetString')
+    valid_types = ('Int1', 'Int2', 'Int4', 'Int8', 'OctetString', 'COctetString')
     tlvs = []
     for entry in value.split(';'):
         entry = entry.strip()
@@ -78,8 +94,8 @@ def parseTlvString(value):
         parts = entry.split(',')
         if len(parts) < 3:
             raise KeyError(
-                'TLV format must be: tag,type,value[,required|optional]. Got: %s' % entry)
-        tag_str, tlv_type, tlv_value = parts[0].strip(), parts[1].strip(), parts[2].strip()
+                'TLV format must be: tag,type,max_length[,required|optional]. Got: %s' % entry)
+        tag_str, tlv_type, length_str = parts[0].strip(), parts[1].strip(), parts[2].strip()
 
         # Parse tag (hex or decimal)
         try:
@@ -90,12 +106,16 @@ def parseTlvString(value):
         if tlv_type not in valid_types:
             raise KeyError('Invalid TLV type: %s. Must be one of: %s' % (tlv_type, ', '.join(valid_types)))
 
-        # Parse value based on type
-        if tlv_type in ('Int1', 'Int2', 'Int4'):
+        # Parse max length. '-' / '' => unlimited (None).
+        if length_str in ('', '-'):
+            max_length = None
+        else:
             try:
-                tlv_value = int(tlv_value, 16) if tlv_value.lower().startswith('0x') else int(tlv_value)
+                max_length = int(length_str, 16) if length_str.lower().startswith('0x') else int(length_str)
             except ValueError:
-                raise KeyError('Invalid integer value for TLV: %s' % tlv_value)
+                raise KeyError('Invalid TLV max_length: %s (use a positive integer or "-")' % length_str)
+            if max_length <= 0:
+                raise KeyError('TLV max_length must be a positive integer (got %s)' % length_str)
 
         # Parse required flag
         required = False
@@ -106,7 +126,7 @@ def parseTlvString(value):
             elif req_str not in ('optional', ''):
                 raise KeyError('TLV flag must be "required" or "optional". Got: %s' % parts[3])
 
-        tlvs.append({'tag': tag, 'type': tlv_type, 'value': tlv_value, 'length': None, 'required': required})
+        tlvs.append({'tag': tag, 'type': tlv_type, 'length': max_length, 'required': required})
 
     return tlvs
 
