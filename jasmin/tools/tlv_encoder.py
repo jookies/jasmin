@@ -38,40 +38,74 @@ _TYPE_TO_INT_FMT = {
 }
 
 
+_VALID_TLV_TYPES = {'Int1', 'Int2', 'Int4', 'Int8', 'OctetString', 'COctetString'}
+
+
+def _parse_tag_key(tag_key: str) -> tuple[int, str | None]:
+    """Parse a tag key that may carry an optional type hint.
+
+    Accepted formats::
+
+        "0x1401"                → (0x1401, None)
+        "0x1401:OctetString"    → (0x1401, 'OctetString')
+        "0x1401:Int8"           → (0x1401, 'Int8')
+        "5121"                  → (5121,   None)
+        "5121:Int4"             → (5121,   'Int4')
+
+    The type hint is optional.  When present it takes precedence over the
+    connector config; when absent ``resolve_tlv_types()`` fills it in at
+    dispatch time.
+    """
+    tag_key = tag_key.strip()
+    tlv_type = None
+    if ':' in tag_key:
+        parts = tag_key.split(':', 1)
+        tag_str = parts[0].strip()
+        type_candidate = parts[1].strip()
+        if type_candidate in _VALID_TLV_TYPES:
+            tlv_type = type_candidate
+        else:
+            # Colon is part of the tag string (shouldn't happen, but be safe)
+            tag_str = tag_key
+    else:
+        tag_str = tag_key
+    tag_int = int(tag_str, 16) if tag_str.lower().startswith('0x') else int(tag_str)
+    return tag_int, tlv_type
+
+
 def normalize_custom_tlvs(raw: Any) -> list[tuple]:
     """Accept various input shapes for per-message custom_tlvs and normalize
-    to the internal tuple list ``[(tag_int, None, None, value), ...]``.
+    to the internal tuple list ``[(tag_int, None, type_or_None, value), ...]``.
 
     Accepted shapes on the REST / HTTP API boundary:
 
-    **Preferred (clean)** — dict of ``{hex_tag: value}``::
+    **Preferred** — dict with optional type hint in the key::
 
-        {"0x1401": 1707167205648943173, "0x1400": "hello"}
+        {"0x1401:OctetString": "1401778070000018542",
+         "0x1400": "1707167205648943173"}
+
+    When the type is omitted from the key, the connector config provides it
+    at dispatch time via ``resolve_tlv_types()``.
 
     **Legacy** — list of 4-tuples ``[tag, length, type, value]``::
 
         [[5121, null, "Int8", 1707167205648943173]]
-
-    The type field is **not** required from the caller — the connector config
-    declares each tag's type; ``listeners.py`` resolves it at dispatch time via
-    ``resolve_tlv_types``.  If the caller *does* supply a type (legacy format),
-    it's preserved.
 
     Empty / falsy input yields ``[]``.
     """
     if not raw:
         return []
 
-    # ---- dict: {"0x1401": value, ...} ----------------------------------
+    # ---- dict: {"0x1401": value, "0x1401:OctetString": value, ...} -----
     if isinstance(raw, dict):
         result = []
         for tag_key, value in raw.items():
             if isinstance(tag_key, str):
-                tag_key = tag_key.strip()
-                tag_int = int(tag_key, 16) if tag_key.lower().startswith('0x') else int(tag_key)
+                tag_int, tlv_type = _parse_tag_key(tag_key)
             else:
                 tag_int = int(tag_key)
-            result.append((tag_int, None, None, value))
+                tlv_type = None
+            result.append((tag_int, None, tlv_type, value))
         return result
 
     # ---- list: legacy [[tag, len, type, val], ...] or already tuples ----

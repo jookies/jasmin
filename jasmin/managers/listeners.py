@@ -240,10 +240,28 @@ class SMPPClientSMListener:
             # serialize (e.g. Int8 vs OctetString).
             from jasmin.tools.tlv_encoder import validate_custom_tlvs, resolve_tlv_types
             connector_tlvs = getattr(self.SMPPClientFactory.config, 'custom_tlvs', [])
-            # Resolve None-typed tuples to their declared type first so
-            # the validator can check encoded byte lengths accurately.
-            SubmitSmPDU.custom_tlvs = resolve_tlv_types(
-                getattr(SubmitSmPDU, 'custom_tlvs', []), connector_tlvs)
+            pdu_tlvs_before = getattr(SubmitSmPDU, 'custom_tlvs', []) or []
+
+            # Log what type the caller sent (before resolution)
+            for t in pdu_tlvs_before:
+                caller_type = t[2] if len(t) >= 3 else None
+                tag = t[0] if t else '?'
+                self.log.info(
+                    "TLV [msgid:%s] [tag:0x%04X] [caller_type:%s] [value_preview:%s]",
+                    msgid, int(tag) & 0xFFFF,
+                    caller_type if caller_type else 'not-specified',
+                    repr(t[3])[:60] if len(t) >= 4 else '?')
+
+            # Resolve None-typed tuples to their declared type; log the resolved type
+            SubmitSmPDU.custom_tlvs = resolve_tlv_types(pdu_tlvs_before, connector_tlvs)
+            for t in SubmitSmPDU.custom_tlvs:
+                tag = t[0] if t else '?'
+                resolved_type = t[2] if len(t) >= 3 else None
+                self.log.info(
+                    "TLV [msgid:%s] [tag:0x%04X] [resolved_type:%s]",
+                    msgid, int(tag) & 0xFFFF,
+                    resolved_type if resolved_type else 'unknown')
+
             ok, err = validate_custom_tlvs(SubmitSmPDU.custom_tlvs, connector_tlvs)
             if not ok:
                 self.log.error("Rejecting SubmitSmPDU[%s]: %s", msgid, err)
@@ -643,6 +661,23 @@ class SMPPClientSMListener:
 
             self.log.debug('Handling deliver_sm_event_post_interception event for smppc: %s',
                            self.SMPPClientFactory.config.id)
+
+            # Resolve inbound vendor TLV types from connector config and log them
+            from jasmin.tools.tlv_encoder import resolve_tlv_types as _resolve_tlvs
+            inbound_tlvs = getattr(routable.pdu, 'custom_tlvs', []) or []
+            if inbound_tlvs:
+                connector_tlvs = getattr(self.SMPPClientFactory.config, 'custom_tlvs', [])
+                routable.pdu.custom_tlvs = _resolve_tlvs(inbound_tlvs, connector_tlvs)
+                for t in routable.pdu.custom_tlvs:
+                    tag = t[0] if t else '?'
+                    resolved_type = t[2] if len(t) >= 3 else None
+                    val_preview = repr(t[3])[:60] if len(t) >= 4 else '?'
+                    self.log.info(
+                        "TLV-RX [cid:%s] [tag:0x%04X] [type:%s] [value_preview:%s]",
+                        self.SMPPClientFactory.config.id,
+                        int(tag) & 0xFFFF,
+                        resolved_type if resolved_type else 'unknown',
+                        val_preview)
 
             routable.pdu.dlr = self.SMPPOperationFactory.isDeliveryReceipt(routable.pdu)
             content = DeliverSmContent(routable,

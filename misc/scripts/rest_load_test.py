@@ -102,22 +102,40 @@ _NAMED_OPTIONAL_PARAMS = {
 }
 
 
-def parse_tlv_arg(raw: str) -> tuple[str, Any]:
-    """Parse a --tlv TAG:VALUE argument.
+_VALID_TLV_TYPES = {"Int1", "Int2", "Int4", "Int8", "OctetString", "COctetString"}
 
-    Returns ('custom', (tag_int, 0, len, value_str)) for numeric tags, or
-    ('named', (name, value_str)) for known SMPP optional param names.
+
+def parse_tlv_arg(raw: str) -> tuple[str, Any]:
+    """Parse a --tlv argument.
+
+    Accepted formats for custom (vendor-range) TLVs::
+
+        TAG:VALUE                → type resolved from connector config
+        TAG:VALUE:TYPE           → explicit type hint sent to REST API
+
+    Examples::
+
+        --tlv 0x1400:1707167205648943173
+        --tlv 0x1400:1707167205648943173:OctetString
+        --tlv 0x1401:1401778070000018542:Int8
+
+    For standard SMPP optional params (named tags)::
+
+        --tlv source_port:1234
+
+    Returns ('custom', (tag_int, type_or_None, value_str)) or
+            ('named', (name, value_str)).
     """
     if ":" not in raw:
         raise argparse.ArgumentTypeError(
-            "--tlv expects TAG:VALUE, got %r" % raw)
-    tag, value = raw.split(":", 1)
-    tag = tag.strip()
-    value = value.strip()
+            "--tlv expects TAG:VALUE[:TYPE], got %r" % raw)
+
+    parts = raw.split(":")
+    tag = parts[0].strip()
     if not tag:
         raise argparse.ArgumentTypeError("--tlv TAG is empty in %r" % raw)
 
-    # Numeric tag -> custom_tlvs tuple (tag, type, length, value)
+    # Try to parse as numeric tag
     try:
         if tag.lower().startswith("0x"):
             tag_int = int(tag, 16)
@@ -130,9 +148,20 @@ def parse_tlv_arg(raw: str) -> tuple[str, Any]:
         if not (0 <= tag_int <= 0xFFFF):
             raise argparse.ArgumentTypeError(
                 "--tlv numeric tag %s out of SMPP range 0x0000..0xFFFF" % tag)
-        # The 2nd/3rd positions mirror jasmin/tools/tlv.py expectations; length
-        # is the byte-length of the value in its encoded form.
-        return ("custom", (tag_int, 0, len(value.encode("utf-8")), value))
+
+        if len(parts) < 2:
+            raise argparse.ArgumentTypeError(
+                "--tlv numeric tag needs a value: TAG:VALUE[:TYPE]")
+
+        # Check if the LAST part is a known type
+        tlv_type = None
+        if len(parts) >= 3 and parts[-1].strip() in _VALID_TLV_TYPES:
+            tlv_type = parts[-1].strip()
+            value = ":".join(parts[1:-1]).strip()
+        else:
+            value = ":".join(parts[1:]).strip()
+
+        return ("custom", (tag_int, tlv_type, value))
 
     # Named tag must be a known optional-param name.
     name = tag.lower()
@@ -140,6 +169,7 @@ def parse_tlv_arg(raw: str) -> tuple[str, Any]:
         raise argparse.ArgumentTypeError(
             "--tlv named tag %r is not a known SMPP optional param. "
             "Use a numeric tag like 0x1400 for custom TLVs." % tag)
+    value = ":".join(parts[1:]).strip()
     return ("named", (name, value))
 
 
@@ -193,13 +223,18 @@ def build_message_body(args: argparse.Namespace, i: int) -> dict:
     if args.validity_period:
         body["validity-period"] = args.validity_period
 
-    # TLVs — send as clean dict {"0xTAG": value} (new simplified REST format).
+    # TLVs — send as dict {"0xTAG": value} or {"0xTAG:Type": value}.
     # Named params (standard SMPP optional-params) go as top-level body fields.
     custom: dict[str, Any] = {}
     for kind, payload in args.tlv:
         if kind == "custom":
-            tag_int, _type, _length, value = payload
-            custom["0x%04X" % tag_int] = value
+            tag_int, tlv_type, value = payload
+            if tlv_type:
+                # Include type hint in the key: "0x1401:Int8"
+                key = "0x%04X:%s" % (tag_int, tlv_type)
+            else:
+                key = "0x%04X" % tag_int
+            custom[key] = value
         else:  # named
             name, value = payload
             body[name] = value
