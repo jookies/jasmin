@@ -46,7 +46,8 @@ What this script does
 - If 0x1400 or 0x1401 are missing, sets http_status=400 to reject
 """
 
-import hashlib
+# Note: `hashlib` is pre-injected by the interceptor engine — no import needed.
+# Other available modules: re, json, datetime, math, struct
 
 # ---- Helper ----
 def get_hash(input_string):
