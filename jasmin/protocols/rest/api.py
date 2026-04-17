@@ -197,7 +197,7 @@ class SendBatchResource(JasminRestApi, JasminHttpApiProxy):
                                                         "Invalid past date given: %s" % schedule_at)
             except ValueError:
                 # Do we have Seconds format ?
-                m = re.match("^(\d+)s$", val)
+                m = re.match(r"^(\d+)s$", val)
                 if not m:
                     raise HTTPPreconditionFailed('Cannot parse scheduled_at value',
                                                         ("Got unknown format: %s, correct formats are "
