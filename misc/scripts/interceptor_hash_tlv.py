@@ -87,4 +87,5 @@ else:
     hashofpedf = get_hash(chain)
 
     # Inject as TLV 0x1402 (OctetString, 64 hex chars)
-    routable.addCustomTlv(0x1402, 'OctetString', hashofpedf)
+    # Encode to bytes so the log shows b'...' consistently with other TLVs
+    routable.addCustomTlv(0x1402, 'OctetString', hashofpedf.encode('utf-8'))
