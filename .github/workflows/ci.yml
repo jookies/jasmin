@@ -62,6 +62,10 @@ jobs:
         run: coverage run --source=jasmin -m twisted.trial tests
       - name: Coveralls.io synchronization
         if: ${{ env.GITHUB_TOKEN }}
+        continue-on-error: true
+        env:
+          COVERALLS_SERVICE_NAME: github-actions
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
         run: coveralls
       - name: Build the html docs
         run: cd misc/doc;make html;cd ../../

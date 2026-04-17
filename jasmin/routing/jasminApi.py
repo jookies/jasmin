@@ -127,7 +127,7 @@ class MtMessagingCredential(CredentialGeneric):
             'destination_address': re.compile(b'.*'),
             'source_address': re.compile(b'.*'),
             'priority': re.compile(b'^[0-3]$'),
-            'validity_period': re.compile(b'^\d+$'),
+            'validity_period': re.compile(rb'^\d+$'),
             'content': re.compile(b'.*'),
         }
 
