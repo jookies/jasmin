@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# Sample per-user TLV profiles for interceptor_hash_tlv.py
+#
+# Location in the running container:
+#   /etc/jasmin/resource/tlv_profiles.csv
+#
+# Edit this file on the host (if bind-mounted) OR inside the container and the
+# interceptor picks up changes on the next submit — no restart needed. The
+# script caches parsed rows keyed on the file's mtime (see
+# misc/scripts/interceptor_hash_tlv.md).
+#
+# Row format (one per line):
+#
+#   <username> ; <TLV> ; <TLV> ; ...
+#
+# TLV format:
+#
+#   TAG : VALUE [ : TYPE ]
+#
+#   * TAG   — hex (0x1400) or decimal (5120). Vendor range: 0x1400 – 0x3FFF.
+#   * VALUE — the value, as a string. Colons inside the value are OK.
+#   * TYPE  — optional, one of:
+#               Int1 Int2 Int4 Int8 OctetString COctetString
+#             Either order works — `TAG:VALUE:TYPE` and `TAG:TYPE:VALUE` both
+#             parse correctly (the parser recognises the type token wherever
+#             it appears after the tag). If omitted, the type is resolved
+#             from the smppccm custom_tlvs config at dispatch time, defaulting
+#             to OctetString.
+#
+# Lines beginning with `#` and blank lines are ignored.
+# ---------------------------------------------------------------------------
+
+# --- Example 1: a user with three declared TLVs (all authoritative) ---
+anshu;0x1400:1707167205648943173:OctetString;0x1401:1401778070000018542:OctetString;0x1402:9c70f8165e4cadbb1965d9d105d5543c3ade38aa74dac1b58a76faeec3b413bc:OctetString
+
+# --- Example 2: a user with a single required TLV, type omitted
+#     (resolved from the smppcc config — e.g. OctetString if nothing else set) ---
+foo;0x1400:some-token
+
+# --- Example 3: mixing types
+#     0x1400 sent as a raw 8-byte big-endian integer (Int8)
+#     0x1401 sent as a printable OctetString
+#     0x1402 sent as a NUL-terminated C-string ---
+operator1;0x1400:1707167205648943173:Int8;0x1401:hello-world:OctetString;0x1402:END:COctetString
+
+# --- Example 4: numeric tag in decimal, type before value (both supported) ---
+# 5120 == 0x1400
+legacy;5120:Int8:1707167205648943173
