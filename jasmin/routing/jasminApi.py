@@ -186,13 +186,11 @@ class SmppsCredential(CredentialGeneric):
 
     def setAuthorization(self, key, value):
         """Per-key validation.  `bind` is a bool; `ip` is a CIDR/IP whitelist."""
-        if key not in self.authorizations:
-            raise jasminApiCredentialError('%s is not a valid Authorization' % key)
-
         if key == 'ip':
-            # Validate through the shared helper so the error message is
-            # consistent with runtime checks. Import locally to avoid a
-            # circular dependency at module import time.
+            # Back-compat: SmppsCredential instances pickled before the `ip`
+            # authorization existed won't have it in their `authorizations`
+            # dict. Accept it here regardless so `user -u ... ip <cidr>` works
+            # on legacy users (the getAuthorization fallback mirrors this).
             from jasmin.tools.ipmatch import validate_whitelist
             ok, err = validate_whitelist(value)
             if not ok:
@@ -201,6 +199,9 @@ class SmppsCredential(CredentialGeneric):
             # Bypass the base class because its validator insists on bool.
             self.authorizations[key] = value
             return
+
+        if key not in self.authorizations:
+            raise jasminApiCredentialError('%s is not a valid Authorization' % key)
 
         # Anything else (e.g. 'bind') must be a bool — delegate to base.
         CredentialGeneric.setAuthorization(self, key, value)
@@ -256,6 +257,12 @@ class CnxStatus(jasminApiGeneric):
                 'bind_transceiver': 0,
                 'bind_transmitter': 0,
             },
+            # Live roster of bound peers. Each entry is a dict:
+            #   {'session_id': str, 'peer': '1.2.3.4', 'bind_type': 'bind_transceiver',
+            #    'bound_at': datetime}
+            # Populated by SMPPBindManager.addBinding and pruned by removeBinding.
+            # In-memory only (CnxStatus is not persisted).
+            'bound_peer_ips': [],
             'submit_sm_request_count': 0,
             'last_activity_at': 0,
             'qos_last_submit_sm_at': 0,
