@@ -1,91 +1,170 @@
-"""Jasmin MT Interceptor — compute SHA-256 hash and inject as TLV 0x1402.
+"""MT Interceptor — apply per-user TLV profiles from a CSV file.
 
-This script runs inside Jasmin's interceptor engine. The engine injects the
-following variables into the script's namespace:
+File:   /etc/jasmin/resource/tlv_profiles.csv
+Row:    username ; TAG:VALUE[:TYPE] ; TAG:VALUE[:TYPE] ; ...
+Types:  Int1 Int2 Int4 Int8 OctetString COctetString
 
-    routable    : RoutableSubmitSm  — the message being submitted
-    smpp_status : None              — set to an int to reject with SMPP error
-    http_status : None              — set to an int to reject with HTTP error
-    extra       : dict              — extra data to pass back
+Behaviour
+---------
+On every outbound submit this script:
 
-Available methods on `routable`:
-    routable.pdu.params['source_addr']       — sender address (bytes)
-    routable.pdu.params['destination_addr']  — recipient address (bytes)
-    routable.pdu.params['short_message']     — message body (bytes)
-    routable.getCustomTlvs()                 — list of existing custom TLVs
-    routable.addCustomTlv(tag, type, value, length=None)
-                                             — append a vendor TLV
-    routable.setTlvParam(name, value)        — set a standard optional param
+1. Looks up ``routable.user.username`` in the CSV file (O(1) dict access).
+2. For each TLV declared in that user's profile:
+     * PDU already carries the tag with the same value  -> keep as is
+     * PDU carries the tag with a different value       -> replace, record the mismatch
+     * PDU does not carry the tag                       -> add it
+3. Any TLV the caller sent that is NOT in the profile is passed through untouched.
 
-Setup in jCli
--------------
-1. Create the interceptor script:
+The profile is authoritative: its values always win over the caller's for any
+tag it declares. Ops can see what happened via `extra` keys:
+  * `tlv_profile`   — `hit:<user>` or `miss:<user>`
+  * `tlv_added`     — comma-list of tags injected from the profile
+  * `tlv_mismatch`  — semi-list of tags where caller & profile disagreed (profile won)
+  * `tlv_kept`      — comma-list of tags where caller & profile already matched
 
-    jcli : mtinterceptor -a
-    > type DefaultInterceptor
-    > script /etc/jasmin/resource/interceptor_hash_tlv.py
-    > order 100
-    > ok
-    jcli : persist
+Caching
+-------
+The parsed profile dict is cached in the interceptor engine's shared `cache`
+dict (see `jasmin/interceptor/interceptor.py`). A new parse happens only when
+the file's mtime changes, guarded by `cache_lock` (an RLock). Parsing runs
+outside the lock so concurrent first-time callers don't block on I/O.
 
-2. Copy this file into the container:
-
-    docker cp misc/scripts/interceptor_hash_tlv.py \\
-        jasmin-tlv:/etc/jasmin/resource/interceptor_hash_tlv.py
-
-3. Make sure `interceptord` is running (it is by default in the Docker CMD):
-
-    docker logs jasmin-tlv 2>&1 | grep interceptor
-
-What this script does
----------------------
-- Reads existing TLVs 0x1400 and 0x1401 from the PDU
-- Concatenates their values: "0x1400_value,0x1401_value"
-- Computes SHA-256 hash of that string
-- Injects the hash as TLV 0x1402 (OctetString, 64 hex chars)
-- If 0x1400 or 0x1401 are missing, sets http_status=400 to reject
+Pre-injected namespace (no `import` needed):
+  routable, smpp_status, http_status, extra,
+  hashlib, re, json, datetime, math, struct, os, cache, cache_lock
 """
 
-# Note: `hashlib` is pre-injected by the interceptor engine — no import needed.
-# Other available modules: re, json, datetime, math, struct
-
-# ---- Helper ----
-def get_hash(input_string):
-    sha256 = hashlib.sha256()
-    sha256.update(input_string.encode('utf-8'))
-    return sha256.hexdigest()
+PROFILE_PATH = '/etc/jasmin/resource/tlv_profiles.csv'
+CACHE_KEY    = 'tlv_profiles'
+VALID_TYPES  = ('Int1', 'Int2', 'Int4', 'Int8', 'OctetString', 'COctetString')
 
 
-# ---- Main interceptor logic ----
-# `routable` is injected by the interceptor engine
+def _parse_tlv(spec):
+    """Parse `TAG:VALUE[:TYPE]` (or `TAG:TYPE:VALUE`) into `(tag, value, type_or_None)`.
 
-# Collect existing custom TLVs by tag
-tlv_map = {}
-for tlv in routable.getCustomTlvs():
-    # tlv = (tag_int, length, type, value)
-    if len(tlv) >= 4:
-        tag = tlv[0]
-        value = tlv[3]
-        # Value may be bytes (from SMPP decode) or str (from REST normalize)
-        if isinstance(value, bytes):
-            value = value.decode('utf-8', errors='replace')
+    Type detection: the first colon-separated part after the tag that matches
+    one of VALID_TYPES is taken as the type; all remaining parts (joined by
+    ``:``) form the value. This makes the parser tolerant of both orderings
+    without needing a separate flag.
+    """
+    if not spec or ':' not in spec:
+        return None
+    parts = spec.split(':')
+    tag_str = parts[0].strip()
+    try:
+        tag = int(tag_str, 16) if tag_str.lower().startswith('0x') else int(tag_str)
+    except ValueError:
+        return None
+    tlv_type = None
+    value_parts = []
+    for p in parts[1:]:
+        p_stripped = p.strip()
+        if tlv_type is None and p_stripped in VALID_TYPES:
+            tlv_type = p_stripped
         else:
-            value = str(value)
-        tlv_map[tag] = value
+            value_parts.append(p)
+    if not value_parts:
+        return None
+    return (tag, ':'.join(value_parts).strip(), tlv_type)
 
-# Need both 0x1400 and 0x1401 to compute hash
-val_1400 = tlv_map.get(0x1400)
-val_1401 = tlv_map.get(0x1401)
 
-if val_1400 is None or val_1401 is None:
-    # Reject: required TLVs missing for hash computation
-    # http_status = 400  # uncomment to reject; leave commented to allow through without hash
-    pass
+def _parse_profiles(path):
+    """Read the CSV and return ``{username: [(tag, value, type_or_None), ...]}``.
+
+    Blank lines and lines beginning with ``#`` are ignored. Unparseable TLV
+    specs within a row are silently skipped (the rest of the row still loads).
+    """
+    profiles = {}
+    with open(path, 'r', encoding='utf-8') as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            cols = [c.strip() for c in line.split(';')]
+            if len(cols) < 2 or not cols[0]:
+                continue
+            username = cols[0]
+            tlvs = []
+            for spec in cols[1:]:
+                parsed = _parse_tlv(spec)
+                if parsed is not None:
+                    tlvs.append(parsed)
+            profiles[username] = tlvs
+    return profiles
+
+
+def _get_profiles(path):
+    """Return the cached profiles dict, reloading only on mtime change."""
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return {}
+    with cache_lock:
+        entry = cache.get(CACHE_KEY)
+        if entry and entry.get('path') == path and entry.get('mtime') == mtime:
+            return entry['data']
+    # cache miss or stale — parse outside the lock so concurrent first-time
+    # callers don't serialise on disk I/O
+    try:
+        data = _parse_profiles(path)
+    except OSError:
+        data = {}
+    with cache_lock:
+        # re-check: another caller may have populated the cache while we parsed
+        existing = cache.get(CACHE_KEY)
+        if existing and existing.get('mtime') == mtime:
+            return existing['data']
+        cache[CACHE_KEY] = {'path': path, 'mtime': mtime, 'data': data}
+        return data
+
+
+# ---- apply profile to this submit -----------------------------------------
+
+username = getattr(routable.user, 'username', '') or ''
+if isinstance(username, bytes):
+    username = username.decode('utf-8', errors='replace')
+
+profile = _get_profiles(PROFILE_PATH).get(username)
+
+if not profile:
+    extra['tlv_profile'] = 'miss:%s' % username
 else:
-    # Compute hash of "val_1400,val_1401"
-    chain = '%s,%s' % (val_1401, val_1400)
-    hashofpedf = get_hash(chain)
+    pdu_tlvs = list(getattr(routable.pdu, 'custom_tlvs', []) or [])
+    index_by_tag = {}
+    for i, t in enumerate(pdu_tlvs):
+        if t and len(t) >= 1:
+            index_by_tag[int(t[0]) & 0xFFFF] = i
 
-    # Inject as TLV 0x1402 (OctetString, 64 hex chars)
-    # Encode to bytes so the log shows b'...' consistently with other TLVs
-    routable.addCustomTlv(0x1402, 'OctetString', hashofpedf.encode('utf-8'))
+    mismatches = []
+    added = []
+    kept = []
+
+    for tag, profile_value, profile_type in profile:
+        new_tuple = (tag, None, profile_type, profile_value.encode('utf-8'))
+        if tag in index_by_tag:
+            existing = pdu_tlvs[index_by_tag[tag]]
+            existing_value = existing[3] if len(existing) >= 4 else None
+            if isinstance(existing_value, bytes):
+                existing_str = existing_value.decode('utf-8', errors='replace')
+            else:
+                existing_str = str(existing_value) if existing_value is not None else ''
+            if existing_str == profile_value:
+                kept.append(tag)
+            else:
+                mismatches.append(
+                    '0x%04X:caller=%r/profile=%r'
+                    % (tag, existing_str[:40], profile_value[:40]))
+                pdu_tlvs[index_by_tag[tag]] = new_tuple
+        else:
+            pdu_tlvs.append(new_tuple)
+            added.append(tag)
+
+    routable.pdu.custom_tlvs = pdu_tlvs
+
+    extra['tlv_profile'] = 'hit:%s' % username
+    if added:
+        extra['tlv_added'] = ','.join('0x%04X' % t for t in added)
+    if mismatches:
+        extra['tlv_mismatch'] = ';'.join(mismatches)
+    if kept:
+        extra['tlv_kept'] = ','.join('0x%04X' % t for t in kept)
