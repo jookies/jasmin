@@ -34,7 +34,7 @@ MtMessagingCredentialKeyMap = {'class': 'MtMessagingCredential',
 
 SmppsCredentialKeyMap = {'class': 'SmppsCredential',
                          'keyMapValue': 'smpps_credential',
-                         'Authorization': {'bind': 'bind'},
+                         'Authorization': {'bind': 'bind', 'ip': 'ip'},
                          'Quota': {'max_bindings': 'max_bindings'}}
 
 # A config map between console-configuration keys and User keys.
@@ -91,7 +91,12 @@ def castToBuiltCorrectCredType(cred, section, key, value, update=False):
         getattr(_o, 'set%s' % section)(key, value)
     elif cred == 'SmppsCredential':
         if section == 'Authorization':
-            if value.lower() in TrueBoolCastMap:
+            # The `ip` authorization is a CIDR/IP whitelist string — keep it
+            # as-is. Only `bind` (and similar future boolean authorizations)
+            # get coerced from the human "yes/no" form.
+            if key == 'ip':
+                value = value.strip()
+            elif value.lower() in TrueBoolCastMap:
                 value = True
             elif value.lower() in FalseBoolCastMap:
                 value = False

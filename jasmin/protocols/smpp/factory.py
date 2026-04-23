@@ -635,12 +635,46 @@ class SMPPBindManager(_SMPPBindManager):
         _SMPPBindManager.addBinding(self, connection)
 
         # Update CnxStatus
-        self.user.getCnxStatus().smpps['bind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type.name] += 1
+        cnx_smpps = self.user.getCnxStatus().smpps
+        cnx_smpps['bind_count'] += 1
+        cnx_smpps['bound_connections_count'][connection.bind_type.name] += 1
+
+        # Record live peer IP so `stats user <uid>` can show who is bound right now
+        try:
+            peer_host = connection.transport.getPeer().host
+        except Exception:
+            peer_host = 'unknown'
+        cnx_smpps.setdefault('bound_peer_ips', []).append({
+            'session_id': getattr(connection, 'session_id', None),
+            'peer': peer_host,
+            'bind_type': connection.bind_type.name,
+            'bound_at': datetime.now(),
+        })
 
     def removeBinding(self, connection):
         _SMPPBindManager.removeBinding(self, connection)
 
         # Update CnxStatus
-        self.user.getCnxStatus().smpps['unbind_count'] += 1
-        self.user.getCnxStatus().smpps['bound_connections_count'][connection.bind_type.name] -= 1
+        cnx_smpps = self.user.getCnxStatus().smpps
+        cnx_smpps['unbind_count'] += 1
+        cnx_smpps['bound_connections_count'][connection.bind_type.name] -= 1
+
+        # Drop the matching peer-IP entry (match by session_id; fall back to
+        # first entry with the same peer host if the session_id is absent)
+        sid = getattr(connection, 'session_id', None)
+        try:
+            peer_host = connection.transport.getPeer().host
+        except Exception:
+            peer_host = None
+        entries = cnx_smpps.get('bound_peer_ips', []) or []
+        if sid is not None:
+            cnx_smpps['bound_peer_ips'] = [e for e in entries if e.get('session_id') != sid]
+        elif peer_host is not None:
+            # No session_id — remove the first matching peer so we don't
+            # leak entries on unbind.
+            new_entries = list(entries)
+            for i, e in enumerate(new_entries):
+                if e.get('peer') == peer_host and e.get('bind_type') == connection.bind_type.name:
+                    new_entries.pop(i)
+                    break
+            cnx_smpps['bound_peer_ips'] = new_entries

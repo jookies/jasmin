@@ -287,7 +287,41 @@ class SmppsCredentialTestCase(TestCase):
         sc = SmppsCredential()
 
         self.assertEqual(sc.getAuthorization('bind'), True)
+        self.assertEqual(sc.getAuthorization('ip'), '0.0.0.0/0')
         self.assertEqual(sc.getQuota('max_bindings'), None)
+
+    def test_ip_authorization_set_and_get(self):
+        sc = SmppsCredential()
+
+        # Single CIDR
+        sc.setAuthorization('ip', '10.0.0.0/8')
+        self.assertEqual(sc.getAuthorization('ip'), '10.0.0.0/8')
+
+        # Comma-separated list of CIDRs and single IPs
+        sc.setAuthorization('ip', '10.0.0.0/8,192.168.1.5, 172.16.0.0/12')
+        self.assertEqual(sc.getAuthorization('ip'), '10.0.0.0/8,192.168.1.5, 172.16.0.0/12')
+
+        # IPv6
+        sc.setAuthorization('ip', '2001:db8::/32')
+        self.assertEqual(sc.getAuthorization('ip'), '2001:db8::/32')
+
+    def test_ip_authorization_invalid(self):
+        sc = SmppsCredential()
+
+        # malformed CIDR
+        self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'ip', 'not-an-ip')
+        # empty string disallowed (use 0.0.0.0/0 explicitly)
+        self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'ip', '')
+        # None disallowed
+        self.assertRaises(jasminApiCredentialError, sc.setAuthorization, 'ip', None)
+
+    def test_ip_authorization_backcompat(self):
+        """Older pickled users lack the 'ip' key; getAuthorization must fall back."""
+        import pickle
+        sc = SmppsCredential()
+        del sc.authorizations['ip']  # simulate a legacy pickle
+        sc2 = pickle.loads(pickle.dumps(sc))
+        self.assertEqual(sc2.getAuthorization('ip'), '0.0.0.0/0')
 
     def test_normal_defaultsargs(self):
         sc = SmppsCredential(default_authorizations=False)
