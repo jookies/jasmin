@@ -164,13 +164,52 @@ class MtMessagingCredential(CredentialGeneric):
 class SmppsCredential(CredentialGeneric):
     """Credential set for SMPP Server connection"""
 
+    # Default IP whitelist matches everything (current behaviour — no regression
+    # when the attribute is absent on pickled users from older versions).
+    DEFAULT_IP_WHITELIST = '0.0.0.0/0'
+
     def __init__(self, default_authorizations=True):
         if not isinstance(default_authorizations, bool):
             default_authorizations = False
 
-        self.authorizations = {'bind': default_authorizations, }
+        # `bind`: boolean, same as before.
+        # `ip`  : comma-separated list of IPv4/IPv6 addresses or CIDRs. The
+        #         remote peer IP of each bind request must fall inside at
+        #         least one of these networks, or the bind is rejected.
+        #         Default is "any IPv4" so upgrading doesn't lock users out.
+        self.authorizations = {
+            'bind': default_authorizations,
+            'ip': self.DEFAULT_IP_WHITELIST,
+        }
 
         self.quotas = {'max_bindings': None}
+
+    def setAuthorization(self, key, value):
+        """Per-key validation.  `bind` is a bool; `ip` is a CIDR/IP whitelist."""
+        if key not in self.authorizations:
+            raise jasminApiCredentialError('%s is not a valid Authorization' % key)
+
+        if key == 'ip':
+            # Validate through the shared helper so the error message is
+            # consistent with runtime checks. Import locally to avoid a
+            # circular dependency at module import time.
+            from jasmin.tools.ipmatch import validate_whitelist
+            ok, err = validate_whitelist(value)
+            if not ok:
+                raise jasminApiCredentialError(
+                    'Authorization ip is not a valid value (%r): %s' % (value, err))
+            # Bypass the base class because its validator insists on bool.
+            self.authorizations[key] = value
+            return
+
+        # Anything else (e.g. 'bind') must be a bool — delegate to base.
+        CredentialGeneric.setAuthorization(self, key, value)
+
+    def getAuthorization(self, key):
+        """Back-compat: older pickled users may lack the `ip` key."""
+        if key == 'ip' and 'ip' not in self.authorizations:
+            return self.DEFAULT_IP_WHITELIST
+        return CredentialGeneric.getAuthorization(self, key)
 
     def setQuota(self, key, value):
         """Additional validation steps"""

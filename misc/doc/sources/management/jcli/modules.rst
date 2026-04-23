@@ -105,6 +105,7 @@ All the above parameters can be displayed after User creation, except the passwo
    uid foo
    smpps_cred quota max_bindings ND
    smpps_cred authorization bind True
+   smpps_cred authorization ip 0.0.0.0/0
    gid marketing
 
 Listing Users will show currently added Users with their UID, GID and Username::
@@ -260,10 +261,10 @@ SMPP Server section
 
 User have an other optional **smpps_cred** parameter which define a specialized set of sections for defining his credentials for using the :doc:`/apis/smpp-server/index`:
 
-* **Authorizations**: Privileges to bind,
+* **Authorizations**: Privileges to bind and which client IPs may bind,
 * **Quotas**: Maximum bound connections at a time (multi binding),
 
-For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to **authorize** binding and set max_bindings to **2**::
+For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to **authorize** binding, restrict binds to a private /8, and set max_bindings to **2**::
 
    jcli : user -a
    Adding a new User: (ok: save, ko: exit)
@@ -272,6 +273,7 @@ For each section of the above, there's keys to be defined when adding/updating a
    > gid marketing
    > uid foo
    > smpps_cred authorization bind yes
+   > smpps_cred authorization ip 10.0.0.0/8,192.168.1.5
    > smpps_cred quota max_bindings 2
    > ok
    Successfully added User [foo] to Group [marketing]
@@ -279,7 +281,7 @@ For each section of the above, there's keys to be defined when adding/updating a
 In the below tables, you can find exhaustive list of keys for each **smpps_cred** section:
 
 .. list-table:: **authorization** section keys
-   :widths: 10 10 80
+   :widths: 10 15 75
    :header-rows: 1
 
    * - Key
@@ -288,6 +290,15 @@ In the below tables, you can find exhaustive list of keys for each **smpps_cred*
    * - bind
      - True
      - Privilege to bind to SMPP Server API
+   * - ip
+     - 0.0.0.0/0
+     - Comma-separated whitelist of client IPv4/IPv6 addresses or CIDR
+       networks allowed to bind as this user. The peer IP of each
+       ``bind_*`` PDU must fall inside at least one entry; otherwise the
+       bind is rejected with ``ESME_RBINDFAIL``. Default ``0.0.0.0/0``
+       preserves the pre-whitelist behaviour (allow any IPv4). Examples:
+       ``10.0.0.0/8``, ``10.0.0.0/8,192.168.1.5``,
+       ``10.0.0.0/8,2001:db8::/32``.
 
 .. list-table:: **quota** section keys
    :widths: 10 10 80
