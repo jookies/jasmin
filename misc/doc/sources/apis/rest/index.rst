@@ -174,6 +174,76 @@ If successful, response header HTTP status code will be **200 OK** and and the m
 
 .. note:: The Rest API server has an advanced QoS control to throttle pushing messages back to Jasmin, you may fine-tune it through the **http_throughput_per_worker** and **smart_qos** parameters.
 
+.. _restapi_sending_tlv:
+
+Sending with custom TLVs
+************************
+
+Attach vendor-specific SMPP TLV optional parameters by adding a
+``custom_tlvs`` object to the JSON body. Accepted key shapes:
+
+* ``"0xTAG"`` — the type is resolved at dispatch time from the
+  connector's ``custom_tlvs`` validation rules (default ``OctetString``
+  if the tag isn't listed).
+* ``"0xTAG:Type"`` — the caller pins the wire encoding. ``Type`` is one
+  of ``Int1``, ``Int2``, ``Int4``, ``Int8``, ``OctetString``,
+  ``COctetString``.
+
+**Single message** — ``/secure/send``:
+
+.. code-block:: bash
+
+   curl -X POST http://127.0.0.1:8080/secure/send \
+     -H 'Content-Type: application/json' \
+     -u foo:bar \
+     -d '{
+       "to":   "+919216217231",
+       "from": "ABXOTP",
+       "content": "Hello TLV via REST",
+       "custom_tlvs": {
+         "0x1400": "1707167205648943173",
+         "0x1401:Int8": 1401778070000018542
+       }
+     }'
+
+**Batch** — ``/secure/sendbatch``:
+
+.. code-block:: bash
+
+   curl -X POST http://127.0.0.1:8080/secure/sendbatch \
+     -H 'Content-Type: application/json' \
+     -u foo:bar \
+     -d '{
+       "globals":  { "from": "ABXOTP" },
+       "messages": [
+         { "to": "+919111111111", "content": "one",
+           "custom_tlvs": {"0x1400": "id-1"} },
+         { "to": "+919222222222", "content": "two",
+           "custom_tlvs": {"0x1400": "id-2", "0x1401:Int8": 42} }
+       ]
+     }'
+
+As soon as ``custom_tlvs`` is present, the REST layer forwards the
+payload as POST JSON to the HTTP API (instead of GET query params), so
+the TLV dict survives intact without the underscore/hyphen translation
+that the REST layer otherwise applies to top-level fields.
+
+**Using the load test script** — ``misc/scripts/rest_load_test.py``
+accepts ``--tlv TAG:VALUE[:TYPE]`` (repeatable) and serialises into the
+same JSON body shape shown above:
+
+.. code-block:: bash
+
+   python3 misc/scripts/rest_load_test.py \
+     --url http://127.0.0.1:8080 \
+     --username foo --password bar --count 100 --rate 50 \
+     --tlv '0x1400:1707167205648943173' \
+     --tlv '0x1401:1401778070000018542:Int8'
+
+See :ref:`custom_tlvs` for the full tag-range, type and
+required/max-length validation rules, and :ref:`http_sending_tlv` for
+the equivalent request against the underlying HTTP API.
+
 .. _restapi-binary_messages:
 
 Send binary messages
