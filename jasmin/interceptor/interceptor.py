@@ -2,6 +2,7 @@ import pickle
 import datetime as dt
 import sys
 import logging
+import threading
 from logging.handlers import TimedRotatingFileHandler
 
 from twisted.spread import pb
@@ -9,6 +10,14 @@ from twisted.spread import pb
 from jasmin.tools.eval import CompiledNode
 
 LOG_CATEGORY = "jasmin-interceptor-pb"
+
+# Persistent cache shared across all interceptor script invocations. Scripts
+# can stash parsed config, precomputed lookup tables, etc. here without
+# paying re-parse cost on every submit. Access must be guarded by
+# _SCRIPT_CACHE_LOCK (an RLock, which supports nested acquires from the
+# same thread).
+_SCRIPT_CACHE = {}
+_SCRIPT_CACHE_LOCK = threading.RLock()
 
 
 class InterceptorPB(pb.Avatar):
@@ -60,6 +69,12 @@ class InterceptorPB(pb.Avatar):
                    'datetime': __import__('datetime'),
                    'math': __import__('math'),
                    'struct': __import__('struct'),
+                   'os': __import__('os'),
+                   # Persistent cache shared across script invocations, plus
+                   # a re-entrant lock. Scripts can stash parsed config,
+                   # lookup tables, mtime markers etc. here.
+                   'cache': _SCRIPT_CACHE,
+                   'cache_lock': _SCRIPT_CACHE_LOCK,
                    }
 
             # Run script and measure execution time

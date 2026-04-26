@@ -132,10 +132,18 @@ When calling Jasmin's URL from an application, the below parameters must be pass
      - Mandatory if **content** not defined
      - Binary to be sent
    * - **custom_tlvs**
-     - JSON array of ``[tag, length, type, value]`` tuples
-     - ``[[12288, null, "COctetString", "ref-42"]]``
+     - JSON object ``{"0xTAG": value}`` or ``{"0xTAG:Type": value}``
+     - ``{"0x1400": "ref-42", "0x1401:Int8": 1401778070000018542}``
      - Optional
-     - Vendor-specific SMPP TLV optional parameters. See :ref:`custom_tlvs` for the full format and tag-range rules.
+     - Vendor-specific SMPP TLV optional parameters. Keys are hex tag
+       strings (``"0x1400"``); adding ``":Type"`` after the tag
+       (``"0x1401:Int8"``) pins the wire encoding. Omitted types are
+       resolved from the connector's ``custom_tlvs`` validation rules
+       at dispatch time (default ``OctetString``). A JSON array of
+       ``[tag, length, type, value]`` tuples is also accepted for
+       backwards compatibility. See :ref:`http_sending_tlv` for worked
+       examples and :ref:`custom_tlvs` for the tag-range, type and
+       length rules.
 
 .. _http_response:
 
@@ -225,6 +233,53 @@ In Ruby:
 
 .. literalinclude:: example_send_gsm0338.rb
    :language: ruby
+
+.. _http_sending_tlv:
+
+Sending with custom TLVs
+========================
+
+Attach vendor-specific SMPP TLV optional parameters via the
+**custom_tlvs** field. JSON body is the recommended form — it's what
+the REST API (:ref:`restapi_sending_tlv`) uses internally and it
+preserves the dict structure faithfully.
+
+.. code-block:: bash
+
+   curl -X POST http://127.0.0.1:1401/send \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "username": "foo", "password": "bar",
+       "to":   "+919216217231",
+       "from": "ABXOTP",
+       "content": "Hello TLV",
+       "dlr":  "no",
+       "custom_tlvs": {
+         "0x1400": "1707167205648943173",
+         "0x1401:Int8": 1401778070000018542,
+         "0x1402:OctetString": "9c70f8165e4cadbb1965d9d105d5543c3ade38aa74dac1b58a76faeec3b413bc"
+       }
+     }'
+
+The two key shapes are interchangeable per tag:
+
+* ``"0xTAG"`` — type resolved from the connector's ``custom_tlvs``
+  validation rules at dispatch time (defaults to ``OctetString`` if the
+  tag isn't listed).
+* ``"0xTAG:Type"`` — the caller pins the wire encoding. ``Type`` must
+  be one of ``Int1``, ``Int2``, ``Int4``, ``Int8``, ``OctetString``,
+  ``COctetString``.
+
+Query-string form is also supported — URL-encode the same JSON dict:
+
+.. code-block:: bash
+
+   CUSTOM='{"0x1400":"value","0x1401:Int8":12345}'
+   curl "http://127.0.0.1:1401/send?username=foo&password=bar&to=%2B919216217231&from=ABXOTP&content=test&dlr=no&custom_tlvs=$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$CUSTOM")"
+
+See :ref:`custom_tlvs` for the full tag-range, type and
+required/max-length validation rules, and
+:ref:`restapi_sending_tlv` for the equivalent REST API flow.
 
 .. _configuration_http-api:
 
