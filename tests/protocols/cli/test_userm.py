@@ -192,6 +192,7 @@ class BasicTestCases(UserTestCases):
             'mt_messaging_cred quota http_throughput ND',
             'mt_messaging_cred quota smpps_throughput ND',
             'smpps_cred authorization bind True',
+            'smpps_cred authorization ip 0.0.0.0/0',
             'smpps_cred quota max_bindings ND',
         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]
@@ -313,6 +314,7 @@ class BasicTestCases(UserTestCases):
             'mt_messaging_cred quota http_throughput ND',
             'mt_messaging_cred quota smpps_throughput ND',
             'smpps_cred authorization bind True',
+            'smpps_cred authorization ip 0.0.0.0/0',
             'smpps_cred quota max_bindings ND',
         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]
@@ -557,6 +559,7 @@ class MtMessagingCredentialTestCases(UserTestCases):
             'mt_messaging_cred quota http_throughput %s' % assertHttpThroughput,
             'mt_messaging_cred quota smpps_throughput %s' % assertSmppsThroughput,
             'smpps_cred authorization bind True',
+            'smpps_cred authorization ip 0.0.0.0/0',
             'smpps_cred quota max_bindings ND',
         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]
@@ -903,6 +906,7 @@ class SmppsCredentialTestCases(UserTestCases):
                         'mt_messaging_cred ',
                         'mt_messaging_cred ',
                         'smpps_cred authorization bind %s' % smppscred.getAuthorization('bind'),
+                        'smpps_cred authorization ip %s' % re.escape(smppscred.getAuthorization('ip')),
                         'smpps_cred quota max_bindings %s' % assertMaxBindings,
                         ]
         commands = [{'command': 'user -s %s' % uid, 'expect': expectedList}]

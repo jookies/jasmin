@@ -105,6 +105,7 @@ All the above parameters can be displayed after User creation, except the passwo
    uid foo
    smpps_cred quota max_bindings ND
    smpps_cred authorization bind True
+   smpps_cred authorization ip 0.0.0.0/0
    gid marketing
 
 Listing Users will show currently added Users with their UID, GID and Username::
@@ -260,10 +261,10 @@ SMPP Server section
 
 User have an other optional **smpps_cred** parameter which define a specialized set of sections for defining his credentials for using the :doc:`/apis/smpp-server/index`:
 
-* **Authorizations**: Privileges to bind,
+* **Authorizations**: Privileges to bind and which client IPs may bind,
 * **Quotas**: Maximum bound connections at a time (multi binding),
 
-For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to **authorize** binding and set max_bindings to **2**::
+For each section of the above, there's keys to be defined when adding/updating a user, the example below show how to **authorize** binding, restrict binds to a private /8, and set max_bindings to **2**::
 
    jcli : user -a
    Adding a new User: (ok: save, ko: exit)
@@ -272,6 +273,7 @@ For each section of the above, there's keys to be defined when adding/updating a
    > gid marketing
    > uid foo
    > smpps_cred authorization bind yes
+   > smpps_cred authorization ip 10.0.0.0/8,192.168.1.5
    > smpps_cred quota max_bindings 2
    > ok
    Successfully added User [foo] to Group [marketing]
@@ -279,7 +281,7 @@ For each section of the above, there's keys to be defined when adding/updating a
 In the below tables, you can find exhaustive list of keys for each **smpps_cred** section:
 
 .. list-table:: **authorization** section keys
-   :widths: 10 10 80
+   :widths: 10 15 75
    :header-rows: 1
 
    * - Key
@@ -288,6 +290,27 @@ In the below tables, you can find exhaustive list of keys for each **smpps_cred*
    * - bind
      - True
      - Privilege to bind to SMPP Server API
+   * - ip
+     - 0.0.0.0/0
+     - Comma-separated whitelist of client IPv4/IPv6 addresses or CIDR
+       networks allowed to bind as this user. The peer IP of each
+       ``bind_*`` PDU must fall inside at least one entry; otherwise the
+       bind is rejected with ``ESME_RBINDFAIL``. Default ``0.0.0.0/0``
+       preserves the pre-whitelist behaviour (allow any IPv4). Examples:
+       ``10.0.0.0/8``, ``10.0.0.0/8,192.168.1.5``,
+       ``10.0.0.0/8,2001:db8::/32``.
+
+.. note::
+   When a bind is rejected because the peer IP is outside the whitelist,
+   Jasmin writes a single WARNING line (to ``default-smpps01.log`` by
+   default)::
+
+      SMPP Bind rejected for username "foo" from 203.0.113.7: IP not in whitelist (10.0.0.0/8,192.168.1.5)
+
+   The ``bind_resp`` returned to the client is ``ESME_RBINDFAIL``. Use
+   this log line — together with :ref:`stats --user <stats_manager>` —
+   to debug whitelist issues and to discover which IPs a user is
+   currently binding from.
 
 .. list-table:: **quota** section keys
    :widths: 10 10 80
@@ -1471,13 +1494,13 @@ The Stats manager exposes an overall view of all existent users as well as a per
  * **stats --users**: Will show an overall view of all existent users
  * **stats --user foo**: Will show detailed information for **foo**
 
-Here's an example of showing an overall view where users **sandra** and **foo** are actually having 2 and 6 SMPP bound connections, user **bar** is using the HTTP Api only and **sandra** is using both APIs::
+Here's an example of showing an overall view where users **sandra** and **foo** are actually having 2 and 3 SMPP bound connections, user **bar** is using the HTTP Api only and **sandra** is using both APIs::
 
    jcli : stats --users
-   #User id  SMPP Bound connections  SMPP L.A.            HTTP requests counter  HTTP L.A.
-   #sandra   2                       2019-06-02 15:35:01  20                     2019-06-01 12:12:33
-   #foo      6                       2019-06-02 15:35:10  0                      ND
-   #bar      0                       ND                   1289                   2019-06-02 15:39:12
+   #User id  SMPP Bound connections  SMPP Peer IPs              SMPP L.A.            HTTP requests counter  HTTP L.A.
+   #sandra   2                       10.1.2.3,10.1.2.4          2019-06-02 15:35:01  20                     2019-06-01 12:12:33
+   #foo      3                       10.0.2.5,10.0.2.7          2019-06-02 15:35:10  0                      ND
+   #bar      0                       -                          ND                   1289                   2019-06-02 15:39:12
    Total users: 3
 
 The columns shown for each user are explained in the following table:
@@ -1490,6 +1513,11 @@ The columns shown for each user are explained in the following table:
      - Description
    * - SMPP Bound connections
      - Number of current bound SMPP connections
+   * - SMPP Peer IPs
+     - Distinct IPs of clients currently holding a bind to the SMPP Server
+       API as this user (comma-separated; ``-`` when none). Useful for
+       correlating with the :ref:`ip whitelist <user_credentials>`. In-memory
+       only — the list is reset each time Jasmin restarts.
    * - SMPP L.A.
      - SMPP Server Last Activity date & time
    * - HTTP requests counter
@@ -1510,6 +1538,7 @@ Here's an example of showing **sandra**'s detailed statistics::
    #other_submit_error_count  SMPP Server  4
    #throttling_error_count    SMPP Server  2
    #bound_connections_count   SMPP Server  {'bind_transmitter': 1, 'bind_receiver': 1, 'bind_transceiver': 0}
+   #bound_peer_ips            SMPP Server  10.1.2.3 (bind_transmitter @ 2019-06-02 15:30:12); 10.1.2.4 (bind_receiver @ 2019-06-02 15:31:44)
    #elink_count               SMPP Server  16
    #qos_last_submit_sm_at     SMPP Server  2019-06-02 12:31:23
    #deliver_sm_count          SMPP Server  1430
@@ -1537,7 +1566,17 @@ This is clearly a more detailed view for user **sandra**, the following table ex
      - Binds counter value
    * - bound_connections_count
      - SMPP Server
-     - Currently bound connections
+     - Currently bound connections (broken down by bind type)
+   * - bound_peer_ips
+     - SMPP Server
+     - Live roster of peer IPs currently bound as this user, one entry
+       per active connection, formatted as
+       ``<ip> (<bind_type> @ <timestamp>)`` and joined with ``; ``.
+       Populated by the SMPP Server on each successful ``bind_*`` and
+       pruned on unbind / disconnect. In-memory only; the list is reset
+       each time Jasmin restarts. Shows ``-`` when no binding is active.
+       Works hand-in-hand with the
+       :ref:`smpps_cred authorization ip <user_credentials>` whitelist.
    * - submit_sm_request_count
      - SMPP Server
      - Number of requested SubmitSM (MT messages)

@@ -550,6 +550,25 @@ class SMPPServerProtocol(twistedSMPPServerProtocol):
             self.sendErrorResponse(reqPDU, CommandStatus.ESME_RINVPASWD, username)
             return
 
+        # Per-user IP whitelist check. `smpps_credential.getAuthorization('ip')`
+        # returns a comma-separated list of IPv4/IPv6 CIDRs; default "0.0.0.0/0"
+        # allows anything (backwards compatible).
+        try:
+            from jasmin.tools.ipmatch import is_ip_allowed
+            peer_host = self.transport.getPeer().host
+            smpps_cred = getattr(auth_avatar, 'smpps_credential', None)
+            whitelist = smpps_cred.getAuthorization('ip') if smpps_cred is not None else None
+            if whitelist and not is_ip_allowed(peer_host, whitelist):
+                self.log.warning(
+                    'SMPP Bind rejected for username "%s" from %s: IP not in whitelist (%s)',
+                    username, peer_host, whitelist)
+                self.sendErrorResponse(reqPDU, CommandStatus.ESME_RBINDFAIL, username)
+                return
+        except Exception as e:
+            # Never deny on an internal check error — log and continue. The
+            # whitelist is a guard rail, not the primary auth.
+            self.log.error('IP whitelist check failed for username "%s": %s', username, e)
+
         # Check we're not already bound, and are open to being bound
         if self.sessionState != SMPPSessionStates.OPEN:
             self.log.warning('Duplicate SMPP bind request received from: %s', username)

@@ -12,7 +12,7 @@ class BasicTestCases(jCliWithoutAuthTestCases):
         return self._test(r'jcli : ', commands)
 
     def test_users(self):
-        expectedList = ['#User id\s+SMPP Bound connections\s+SMPP L.A.\s+HTTP requests counter\s+HTTP L.A.',
+        expectedList = ['#User id\s+SMPP Bound connections\s+SMPP Peer IPs\s+SMPP L.A.\s+HTTP requests counter\s+HTTP L.A.',
                         'Total users: 0']
         commands = [{'command': 'stats --users', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -83,8 +83,8 @@ class UserStatsTestCases(UserTestCases):
         extraCommands = [{'command': 'uid test_users'}]
         self.add_user('jcli : ', extraCommands, GID='AnyGroup', Username='AnyUsername')
 
-        expectedList = ['#User id\s+SMPP Bound connections\s+SMPP L.A.\s+HTTP requests counter\s+HTTP L.A.',
-                        '#test_users\s+0\s+ND\s+0\s+ND',
+        expectedList = ['#User id\s+SMPP Bound connections\s+SMPP Peer IPs\s+SMPP L.A.\s+HTTP requests counter\s+HTTP L.A.',
+                        '#test_users\s+0\s+-\s+ND\s+0\s+ND',
                         'Total users: 1']
         commands = [{'command': 'stats --users', 'expect': expectedList}]
         return self._test(r'jcli : ', commands)
@@ -98,6 +98,7 @@ class UserStatsTestCases(UserTestCases):
             '#bind_count                SMPP Server  0',
             '#unbind_count              SMPP Server  0',
             '#bound_connections_count   SMPP Server  {"bind_receiver": 0, "bind_transceiver": 0, "bind_transmitter": 0}',
+            '#bound_peer_ips            SMPP Server  -',
             '#submit_sm_request_count   SMPP Server  0',
             '#last_activity_at          SMPP Server  ND',
             '#qos_last_submit_sm_at     SMPP Server  ND',
