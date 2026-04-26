@@ -28,7 +28,20 @@ class StatsManager(Manager):
         user = self.pb['router'].getUser(opts.user)
         # SMPP Server stats
         for k, v in user.getCnxStatus().smpps.items():
-            if isinstance(v, dict):
+            if k == 'bound_peer_ips':
+                # Render the live peer list as a human-readable multi-line
+                # string: one entry per bound connection.
+                if not v:
+                    v = '-'
+                else:
+                    lines = []
+                    for e in v:
+                        lines.append('%s (%s @ %s)' % (
+                            e.get('peer', '?'),
+                            e.get('bind_type', '?'),
+                            formatDateTime(e.get('bound_at', 0))))
+                    v = '; '.join(lines)
+            elif isinstance(v, dict):
                 v = json.dumps(v)
 
             row = []
@@ -60,7 +73,8 @@ class StatsManager(Manager):
             tabulate(table, headers, tablefmt="plain", numalign="left").encode('ascii'))
 
     def users(self, arg, opts):
-        headers = ["#User id", "SMPP Bound connections", "SMPP L.A.", "HTTP requests counter", "HTTP L.A."]
+        headers = ["#User id", "SMPP Bound connections", "SMPP Peer IPs",
+                   "SMPP L.A.", "HTTP requests counter", "HTTP L.A."]
 
         table = []
         users = pickle.loads(self.pb['router'].perspective_user_get_all(None))
@@ -70,6 +84,14 @@ class StatsManager(Manager):
             row.append(user.getCnxStatus().smpps['bound_connections_count']['bind_receiver'] +
                        user.getCnxStatus().smpps['bound_connections_count']['bind_transmitter'] +
                        user.getCnxStatus().smpps['bound_connections_count']['bind_transceiver'])
+            # Distinct peer IPs currently holding a bind (comma-separated)
+            peers = user.getCnxStatus().smpps.get('bound_peer_ips', []) or []
+            seen = []
+            for e in peers:
+                p = e.get('peer')
+                if p and p not in seen:
+                    seen.append(p)
+            row.append(','.join(seen) if seen else '-')
             row.append(formatDateTime(user.getCnxStatus().smpps['last_activity_at']))
             row.append(user.getCnxStatus().httpapi['connects_count'])
             row.append(formatDateTime(user.getCnxStatus().httpapi['last_activity_at']))

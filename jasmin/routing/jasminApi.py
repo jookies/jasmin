@@ -164,13 +164,53 @@ class MtMessagingCredential(CredentialGeneric):
 class SmppsCredential(CredentialGeneric):
     """Credential set for SMPP Server connection"""
 
+    # Default IP whitelist matches everything (current behaviour — no regression
+    # when the attribute is absent on pickled users from older versions).
+    DEFAULT_IP_WHITELIST = '0.0.0.0/0'
+
     def __init__(self, default_authorizations=True):
         if not isinstance(default_authorizations, bool):
             default_authorizations = False
 
-        self.authorizations = {'bind': default_authorizations, }
+        # `bind`: boolean, same as before.
+        # `ip`  : comma-separated list of IPv4/IPv6 addresses or CIDRs. The
+        #         remote peer IP of each bind request must fall inside at
+        #         least one of these networks, or the bind is rejected.
+        #         Default is "any IPv4" so upgrading doesn't lock users out.
+        self.authorizations = {
+            'bind': default_authorizations,
+            'ip': self.DEFAULT_IP_WHITELIST,
+        }
 
         self.quotas = {'max_bindings': None}
+
+    def setAuthorization(self, key, value):
+        """Per-key validation.  `bind` is a bool; `ip` is a CIDR/IP whitelist."""
+        if key == 'ip':
+            # Back-compat: SmppsCredential instances pickled before the `ip`
+            # authorization existed won't have it in their `authorizations`
+            # dict. Accept it here regardless so `user -u ... ip <cidr>` works
+            # on legacy users (the getAuthorization fallback mirrors this).
+            from jasmin.tools.ipmatch import validate_whitelist
+            ok, err = validate_whitelist(value)
+            if not ok:
+                raise jasminApiCredentialError(
+                    'Authorization ip is not a valid value (%r): %s' % (value, err))
+            # Bypass the base class because its validator insists on bool.
+            self.authorizations[key] = value
+            return
+
+        if key not in self.authorizations:
+            raise jasminApiCredentialError('%s is not a valid Authorization' % key)
+
+        # Anything else (e.g. 'bind') must be a bool — delegate to base.
+        CredentialGeneric.setAuthorization(self, key, value)
+
+    def getAuthorization(self, key):
+        """Back-compat: older pickled users may lack the `ip` key."""
+        if key == 'ip' and 'ip' not in self.authorizations:
+            return self.DEFAULT_IP_WHITELIST
+        return CredentialGeneric.getAuthorization(self, key)
 
     def setQuota(self, key, value):
         """Additional validation steps"""
@@ -217,6 +257,12 @@ class CnxStatus(jasminApiGeneric):
                 'bind_transceiver': 0,
                 'bind_transmitter': 0,
             },
+            # Live roster of bound peers. Each entry is a dict:
+            #   {'session_id': str, 'peer': '1.2.3.4', 'bind_type': 'bind_transceiver',
+            #    'bound_at': datetime}
+            # Populated by SMPPBindManager.addBinding and pruned by removeBinding.
+            # In-memory only (CnxStatus is not persisted).
+            'bound_peer_ips': [],
             'submit_sm_request_count': 0,
             'last_activity_at': 0,
             'qos_last_submit_sm_at': 0,
