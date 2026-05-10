@@ -82,31 +82,36 @@ class RouterPB(pb.Avatar):
             yield self.amqpBroker.channelReady
             self.log.info("AMQP Broker channel is ready now, let's go !")
 
-        # Subscribe to deliver.sm.* queues
-        yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
-        consumerTag = 'RouterPB-delivers'
-        routingKey = 'deliver.sm.*'
-        queueName = 'RouterPB_deliver_sm_all'  # A local queue to RouterPB
-        yield self.amqpBroker.named_queue_declare(queue=queueName)
-        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
-        self.deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
-        self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+        @defer.inlineCallbacks
+        def setupQueue():
+            # Subscribe to deliver.sm.* queues
+            yield self.amqpBroker.chan.exchange_declare(exchange='messaging', type='topic')
+            consumerTag = 'RouterPB-delivers'
+            routingKey = 'deliver.sm.*'
+            queueName = 'RouterPB_deliver_sm_all'  # A local queue to RouterPB
+            yield self.amqpBroker.named_queue_declare(queue=queueName, durable=True)
+            yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="messaging", routing_key=routingKey)
+            yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+            self.deliver_sm_q = yield self.amqpBroker.client.queue(consumerTag)
+            self.deliver_sm_q.get().addCallback(self.deliver_sm_callback).addErrback(self.deliver_sm_errback)
+            self.log.info('RouterPB is consuming from routing key: %s', routingKey)
 
-        # Subscribe to bill_request.submit_sm_resp.* queues
-        yield self.amqpBroker.chan.exchange_declare(exchange='billing', type='topic')
-        consumerTag = 'RouterPB-billrequests'
-        routingKey = 'bill_request.submit_sm_resp.*'
-        queueName = 'RouterPB_bill_request_submit_sm_resp_all'  # A local queue to RouterPB
-        yield self.amqpBroker.named_queue_declare(queue=queueName)
-        yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="billing", routing_key=routingKey)
-        yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
-        self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
-        self.bill_request_submit_sm_resp_q.get().addCallback(
-            self.bill_request_submit_sm_resp_callback).addErrback(
-            self.bill_request_submit_sm_resp_errback)
-        self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+            # Subscribe to bill_request.submit_sm_resp.* queues
+            yield self.amqpBroker.chan.exchange_declare(exchange='billing', type='topic')
+            consumerTag = 'RouterPB-billrequests'
+            routingKey = 'bill_request.submit_sm_resp.*'
+            queueName = 'RouterPB_bill_request_submit_sm_resp_all'  # A local queue to RouterPB
+            yield self.amqpBroker.named_queue_declare(queue=queueName, durable=True)
+            yield self.amqpBroker.chan.queue_bind(queue=queueName, exchange="billing", routing_key=routingKey)
+            yield self.amqpBroker.chan.basic_consume(queue=queueName, no_ack=False, consumer_tag=consumerTag)
+            self.bill_request_submit_sm_resp_q = yield self.amqpBroker.client.queue(consumerTag)
+            self.bill_request_submit_sm_resp_q.get().addCallback(
+                self.bill_request_submit_sm_resp_callback).addErrback(
+                self.bill_request_submit_sm_resp_errback)
+            self.log.info('RouterPB is consuming from routing key: %s', routingKey)
+            
+        yield setupQueue()
+        self.amqpBroker.queueSetupCallbacks.append(setupQueue)
 
     @defer.inlineCallbacks
     def rejectMessage(self, message):

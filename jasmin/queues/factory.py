@@ -19,6 +19,7 @@ class AmqpFactory(ClientFactory):
         self.connected = False
         self.config = config
         self.channelReady = None
+        self.queueSetupCallbacks = []
 
         self.delegate = TwistedDelegate()
 
@@ -50,8 +51,7 @@ class AmqpFactory(ClientFactory):
         self.connectionRetry = True
 
         self.exitDeferred = defer.Deferred()
-        if self.channelReady is None:
-            self.channelReady = defer.Deferred()
+        self.channelReady = defer.Deferred()
 
         try:
             # Check if connectDeferred is already set
@@ -172,6 +172,7 @@ class AmqpFactory(ClientFactory):
         d.addCallback(self._channel_open)
         d.addErrback(self._channel_open_failed)
 
+    @defer.inlineCallbacks
     def _channel_open(self, arg):
         """Called when the channel is open."""
         self.log.info("The channel is open")
@@ -179,6 +180,9 @@ class AmqpFactory(ClientFactory):
         # Flag that the connection is open.
         self.connected = True
         self.channelReady.callback(self)
+        
+        for queueSetupCallback in self.queueSetupCallbacks:
+            yield queueSetupCallback()
 
     def _channel_open_failed(self, error):
         self.log.error("Channel open failed: %s", error)
