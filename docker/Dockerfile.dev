@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     rabbitmq-server \
     redis-server \
     supervisor \
+    git \
     # Run python with jemalloc
     # More on this:
     # - https://zapier.com/engineering/celery-python-jemalloc/
