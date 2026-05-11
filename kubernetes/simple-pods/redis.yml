@@ -26,7 +26,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-server
+  name: redis
 spec:
   selector:
     name: redis

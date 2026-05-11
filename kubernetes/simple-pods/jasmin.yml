@@ -238,10 +238,10 @@ data:
       max_retries = 2
       
       [amqp-broker]
-      host = rabbitmq-broker
+      host = rabbitmq
       
       [redis-client]
-      host = redis-server
+      host = redis
       poolsize = 30
     
       [jcli]
@@ -269,10 +269,10 @@ data:
       dlr_lookup_max_retries = 1
 
       [amqp-broker]
-      host = rabbitmq-broker
+      host = rabbitmq
       
       [redis-client]
-      host = redis-server
+      host = redis
       poolsize = 30
 ---
 apiVersion: v1
@@ -290,10 +290,10 @@ data:
       max_retries = 1
       
       [amqp-broker]
-      host = rabbitmq-broker
+      host = rabbitmq
       
       [redis-client]
-      host = redis-server
+      host = redis
       poolsize = 30
 ---
 apiVersion: v1
