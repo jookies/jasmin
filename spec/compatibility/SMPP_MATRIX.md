@@ -1,0 +1,67 @@
+# SMPP 3.4 compatibility matrix
+
+Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
+Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simulators.
+
+## Wire and session contract
+
+| ID | Area | Cases to fixture | Status |
+|---|---|---|---|
+| S-001 | framing | command length/id/status/sequence, partial/coalesced reads, malformed length | INVENTORIED |
+| S-002 | bind TX/RX/TRX | success, wrong password/system_id, disabled user/group, IP restriction | INVENTORIED |
+| S-003 | bind state | allowed commands by state and exact status codes | INVENTORIED |
+| S-004 | limits | max bindings, duplicate sessions, ban/unbind behavior | INVENTORIED |
+| S-005 | timers | response, enquire_link, inactivity, session-init and reconnect timers | INVENTORIED |
+| S-006 | unbind/disconnect | graceful and abrupt paths, pending request behavior | INVENTORIED |
+| S-007 | TLS | handshake, verification/config errors and reconnect | INVENTORIED |
+
+## PDU contract
+
+| ID | PDU/feature | Cases to fixture | Status |
+|---|---|---|---|
+| SP-001 | `submit_sm` | mandatory/default fields, TON/NPI, esm_class, protocol, priority, schedule/validity | INVENTORIED |
+| SP-002 | `submit_sm_resp` | success/error mapping, SMSC ID, ACK/requeue/retry | INVENTORIED |
+| SP-003 | `deliver_sm` | MO versus DLR detection, receipt fields and payload | INVENTORIED |
+| SP-004 | `data_sm` | configured DLR/MO behavior and response | INVENTORIED |
+| SP-005 | `enquire_link` | request/response and timeout | INVENTORIED |
+| SP-006 | standard TLV | message_payload, receipts, SAR and known optionals | INVENTORIED |
+| SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | INVENTORIED |
+| SP-008 | unknown TLV/PDU | legacy accept/reject/error behavior | INVENTORIED |
+
+## Encoding and long messages
+
+| ID | Area | Contract | Status |
+|---|---|---|---|
+| SE-001 | GSM 03.38 | encode/decode and boundaries | INVENTORIED |
+| SE-002 | UCS2 | payload bytes and segmentation | INVENTORIED |
+| SE-003 | binary | DCS and byte fidelity | INVENTORIED |
+| SE-004 | SAR | reference/total/sequence and reassembly | INVENTORIED |
+| SE-005 | UDH | header/reference/ordering and reassembly | INVENTORIED |
+| SE-006 | multipart MO | Redis key, serialized pieces, 300-second TTL, final assembly | INVENTORIED |
+
+## SMPP client connector lifecycle
+
+| ID | Area | Contract | Status |
+|---|---|---|---|
+| SC-001 | configuration | every field/default and runtime-update versus restart-required fields | INVENTORIED |
+| SC-002 | lifecycle | add/remove/list/start/stop and state transitions | INVENTORIED |
+| SC-003 | reconnect | initial/reconnect delay, retry and state/stats | INVENTORIED |
+| SC-004 | throughput | submit pacing and queue behavior | INVENTORIED |
+| SC-005 | readiness | unbound connector requeue and maximum message age | INVENTORIED |
+| SC-006 | error retry | exact statuses, counts and delays including throttled/system/message-queue/schedule errors | INVENTORIED |
+| SC-007 | failover | connector availability and ordered selection | INVENTORIED |
+| SC-008 | submit response publish | optional `submit.sm.resp.<CID>` event/properties | INVENTORIED |
+
+## SMPP server submission and delivery
+
+| ID | Area | Contract | Status |
+|---|---|---|---|
+| SS-001 | credentials | authorizations, regex filters, defaults and throughput | INVENTORIED |
+| SS-002 | routing/interception | tags, route choice, no-route and status override | INVENTORIED |
+| SS-003 | billing | per-part charge/count and insufficient quota status | INVENTORIED |
+| SS-004 | MO/DLR egress | RX/TRX selection, deliver_sm/data_sm mode and unbound behavior | INVENTORIED |
+| SS-005 | parity with HTTP | same route, bill, segmentation and downstream PDU for equivalent message | INVENTORIED |
+
+## DLR ID corpus
+
+Must include uppercase/lowercase, leading zeros, decimal IDs, hexadecimal IDs, configured base conversions, message_payload receipts, optional receipt TLVs, malformed receipts, duplicate/reordered terminal receipts and expired/missing Redis correlation.
