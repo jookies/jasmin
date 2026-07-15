@@ -1,0 +1,919 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "classification": {
+        "bits": 7,
+        "multipart_payload_bytes": 153,
+        "single_limit": 160
+      },
+      "consumed_payload_bytes": 160,
+      "emitted_reference": null,
+      "id": "gsm7_single_160",
+      "input": {
+        "data_coding": 0,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUA==",
+          "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f50",
+          "length": 160,
+          "sha256": "88f4dd95c2974947a771f97848f91ea9874ca5251f14be5be7fc2363dd5f7da8"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUA==",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f50",
+            "length": 160,
+            "sha256": "88f4dd95c2974947a771f97848f91ea9874ca5251f14be5be7fc2363dd5f7da8"
+          },
+          "sar": null,
+          "sequence": 1,
+          "short_message": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUA==",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f50",
+            "length": 160,
+            "sha256": "88f4dd95c2974947a771f97848f91ea9874ca5251f14be5be7fc2363dd5f7da8"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 7,
+        "multipart_payload_bytes": 153,
+        "single_limit": 160
+      },
+      "consumed_payload_bytes": 161,
+      "emitted_reference": 42,
+      "id": "gsm7_sar_161",
+      "input": {
+        "data_coding": 0,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFE=",
+          "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f5051",
+          "length": 161,
+          "sha256": "a6d1f794cf5b410e9a8c41b07b84cdc6d4cd85c3ed6d9add4ae04d2521bfb221"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 7,
+        "multipart_payload_bytes": 153,
+        "single_limit": 160
+      },
+      "consumed_payload_bytes": 161,
+      "emitted_reference": 42,
+      "id": "gsm7_udh_161",
+      "input": {
+        "data_coding": 0,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFE=",
+          "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f5051",
+          "length": 161,
+          "sha256": "a6d1f794cf5b410e9a8c41b07b84cdc6d4cd85c3ed6d9add4ae04d2521bfb221"
+        },
+        "split_method": "udh"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "sar": null,
+          "sequence": 1,
+          "short_message": {
+            "base64": "BQADKgIBQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "0500032a02014142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 159,
+            "sha256": "603326708422c0228af9dbaa57975b8a2489dcc5017a377687a72cc6c866ee8c"
+          },
+          "udh": {
+            "bytes": {
+              "base64": "BQADKgIB",
+              "hex": "0500032a0201",
+              "length": 6,
+              "sha256": "bdc69ae4f19ddcc3a84f1eb444117298719274664957f1c58890f2cf6422d56f"
+            },
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          }
+        },
+        {
+          "payload": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "sar": null,
+          "sequence": 2,
+          "short_message": {
+            "base64": "BQADKgICSktMTU5PUFE=",
+            "hex": "0500032a02024a4b4c4d4e4f5051",
+            "length": 14,
+            "sha256": "e3762abbbe8eadd3c7df0c3c210fc677a4b984e911ebf2ce42303f649df38a81"
+          },
+          "udh": {
+            "bytes": {
+              "base64": "BQADKgIC",
+              "hex": "0500032a0202",
+              "length": 6,
+              "sha256": "11be9b0da2c2e1f38f2ae64eb9558783949eeee49cf715ac8d8c70d3e0a618ab"
+            },
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          }
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 7,
+        "multipart_payload_bytes": 153,
+        "single_limit": 160
+      },
+      "consumed_payload_bytes": 161,
+      "emitted_reference": 42,
+      "id": "invalid_dcs_255_fallback_sar_161",
+      "input": {
+        "data_coding": 255,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFE=",
+          "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f5051",
+          "length": 161,
+          "sha256": "a6d1f794cf5b410e9a8c41b07b84cdc6d4cd85c3ed6d9add4ae04d2521bfb221"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 7,
+        "multipart_payload_bytes": 153,
+        "single_limit": 160
+      },
+      "consumed_payload_bytes": 161,
+      "emitted_reference": 1,
+      "id": "gsm7_reference_rollover_sar_161",
+      "input": {
+        "data_coding": 0,
+        "initial_reference": 255,
+        "max_parts": 5,
+        "payload": {
+          "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFE=",
+          "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f5051",
+          "length": 161,
+          "sha256": "a6d1f794cf5b410e9a8c41b07b84cdc6d4cd85c3ed6d9add4ae04d2521bfb221"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "sar": {
+            "reference": 1,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "sar": {
+            "reference": 1,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "SktMTU5PUFE=",
+            "hex": "4a4b4c4d4e4f5051",
+            "length": 8,
+            "sha256": "7e683a43eaa4dcb74188a0fdbcb2fa78209a9d85f458a37deecdeec6a0b8117f"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 7,
+        "multipart_payload_bytes": 153,
+        "single_limit": 160
+      },
+      "consumed_payload_bytes": 306,
+      "emitted_reference": 42,
+      "id": "gsm7_max_parts_two_truncates",
+      "input": {
+        "data_coding": 0,
+        "initial_reference": 41,
+        "max_parts": 2,
+        "payload": {
+          "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDRA==",
+          "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a3031323334353637383941424344",
+          "length": 400,
+          "sha256": "1186f1f71e0648ba8b594245da7818cc67dc142f0835e1537d7f6cba0acc1e29"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJ",
+            "hex": "4142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a30313233343536373839414243444546474849",
+            "length": 153,
+            "sha256": "626ca545bbf4566fccd61f314614eada1fd9ea157345181d6c8725a76f81fe11"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "SktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFS",
+            "hex": "4a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152",
+            "length": 153,
+            "sha256": "93ca0c279e0e7eea1ff2ad847ec84bf650832abe5a63c4aa4e02b83bf332220e"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "SktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5QUJDREVGR0hJSktMTU5PUFFS",
+            "hex": "4a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152535455565758595a303132333435363738394142434445464748494a4b4c4d4e4f505152",
+            "length": 153,
+            "sha256": "93ca0c279e0e7eea1ff2ad847ec84bf650832abe5a63c4aa4e02b83bf332220e"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": true
+    },
+    {
+      "classification": {
+        "bits": 8,
+        "multipart_payload_bytes": 134,
+        "single_limit": 140
+      },
+      "consumed_payload_bytes": 140,
+      "emitted_reference": null,
+      "id": "eight_bit_single_140",
+      "input": {
+        "data_coding": 3,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SI=",
+          "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd22",
+          "length": 140,
+          "sha256": "5a28bfa762a5c9cd6d623db1eb0486631e46258eff669fdb87883eae755761c5"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SI=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd22",
+            "length": 140,
+            "sha256": "5a28bfa762a5c9cd6d623db1eb0486631e46258eff669fdb87883eae755761c5"
+          },
+          "sar": null,
+          "sequence": 1,
+          "short_message": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SI=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd22",
+            "length": 140,
+            "sha256": "5a28bfa762a5c9cd6d623db1eb0486631e46258eff669fdb87883eae755761c5"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 8,
+        "multipart_payload_bytes": 134,
+        "single_limit": 140
+      },
+      "consumed_payload_bytes": 141,
+      "emitted_reference": 42,
+      "id": "eight_bit_sar_141",
+      "input": {
+        "data_coding": 3,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJH",
+          "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd2247",
+          "length": 141,
+          "sha256": "e611aaeac5fe16e9fd578f6c0e5129dabcb8dab958d10d41d84a32262916e410"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0Q=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44",
+            "length": 134,
+            "sha256": "40ef446abfe35ccabe226df76d58554769f3acee48d79700c03755e5fe9457d5"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0Q=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44",
+            "length": 134,
+            "sha256": "40ef446abfe35ccabe226df76d58554769f3acee48d79700c03755e5fe9457d5"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "aY6z2P0iRw==",
+            "hex": "698eb3d8fd2247",
+            "length": 7,
+            "sha256": "982601140237e7189b27d2b2463593199ae3c830e3d50554ad396e39e701d4b1"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "aY6z2P0iRw==",
+            "hex": "698eb3d8fd2247",
+            "length": 7,
+            "sha256": "982601140237e7189b27d2b2463593199ae3c830e3d50554ad396e39e701d4b1"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 8,
+        "multipart_payload_bytes": 134,
+        "single_limit": 140
+      },
+      "consumed_payload_bytes": 141,
+      "emitted_reference": 42,
+      "id": "eight_bit_udh_141",
+      "input": {
+        "data_coding": 3,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJH",
+          "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd2247",
+          "length": 141,
+          "sha256": "e611aaeac5fe16e9fd578f6c0e5129dabcb8dab958d10d41d84a32262916e410"
+        },
+        "split_method": "udh"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0Q=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44",
+            "length": 134,
+            "sha256": "40ef446abfe35ccabe226df76d58554769f3acee48d79700c03755e5fe9457d5"
+          },
+          "sar": null,
+          "sequence": 1,
+          "short_message": {
+            "base64": "BQADKgIBCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0Q=",
+            "hex": "0500032a02010b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44",
+            "length": 140,
+            "sha256": "d35f7cbd83761952bced8d493eb01a464b81c2ec2d45e21460b59848fc3fc6b4"
+          },
+          "udh": {
+            "bytes": {
+              "base64": "BQADKgIB",
+              "hex": "0500032a0201",
+              "length": 6,
+              "sha256": "bdc69ae4f19ddcc3a84f1eb444117298719274664957f1c58890f2cf6422d56f"
+            },
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          }
+        },
+        {
+          "payload": {
+            "base64": "aY6z2P0iRw==",
+            "hex": "698eb3d8fd2247",
+            "length": 7,
+            "sha256": "982601140237e7189b27d2b2463593199ae3c830e3d50554ad396e39e701d4b1"
+          },
+          "sar": null,
+          "sequence": 2,
+          "short_message": {
+            "base64": "BQADKgICaY6z2P0iRw==",
+            "hex": "0500032a0202698eb3d8fd2247",
+            "length": 13,
+            "sha256": "9172dcd2cb55a430e4c17c541927cd418def1c16a60b0c9b579333ce77add654"
+          },
+          "udh": {
+            "bytes": {
+              "base64": "BQADKgIC",
+              "hex": "0500032a0202",
+              "length": 6,
+              "sha256": "11be9b0da2c2e1f38f2ae64eb9558783949eeee49cf715ac8d8c70d3e0a618ab"
+            },
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          }
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 16,
+        "multipart_payload_bytes": 134,
+        "single_limit": 70
+      },
+      "consumed_payload_bytes": 141,
+      "emitted_reference": 42,
+      "id": "binary_dcs4_sar_141",
+      "input": {
+        "data_coding": 4,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJH",
+          "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd2247",
+          "length": 141,
+          "sha256": "e611aaeac5fe16e9fd578f6c0e5129dabcb8dab958d10d41d84a32262916e410"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0Q=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44",
+            "length": 134,
+            "sha256": "40ef446abfe35ccabe226df76d58554769f3acee48d79700c03755e5fe9457d5"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0Q=",
+            "hex": "0b30557a9fc4e90e33587da2c7ec11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678cb1d6fb20456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44",
+            "length": 134,
+            "sha256": "40ef446abfe35ccabe226df76d58554769f3acee48d79700c03755e5fe9457d5"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "aY6z2P0iRw==",
+            "hex": "698eb3d8fd2247",
+            "length": 7,
+            "sha256": "982601140237e7189b27d2b2463593199ae3c830e3d50554ad396e39e701d4b1"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "aY6z2P0iRw==",
+            "hex": "698eb3d8fd2247",
+            "length": 7,
+            "sha256": "982601140237e7189b27d2b2463593199ae3c830e3d50554ad396e39e701d4b1"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 16,
+        "multipart_payload_bytes": 134,
+        "single_limit": 70
+      },
+      "consumed_payload_bytes": 140,
+      "emitted_reference": null,
+      "id": "ucs2_single_70_units",
+      "input": {
+        "data_coding": 8,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjE=",
+          "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631",
+          "length": 140,
+          "sha256": "8e7a4a5b98c584b6b9e5fff4ba82bfca2593cc5a8a80f8bf45d1bb0cdea4aff3"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjE=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631",
+            "length": 140,
+            "sha256": "8e7a4a5b98c584b6b9e5fff4ba82bfca2593cc5a8a80f8bf45d1bb0cdea4aff3"
+          },
+          "sar": null,
+          "sequence": 1,
+          "short_message": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjE=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631",
+            "length": 140,
+            "sha256": "8e7a4a5b98c584b6b9e5fff4ba82bfca2593cc5a8a80f8bf45d1bb0cdea4aff3"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 16,
+        "multipart_payload_bytes": 134,
+        "single_limit": 70
+      },
+      "consumed_payload_bytes": 142,
+      "emitted_reference": 42,
+      "id": "ucs2_sar_71_units",
+      "input": {
+        "data_coding": 8,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRg==",
+          "hex": "06230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+          "length": 142,
+          "sha256": "e192ef2c439891931a19d478c3fa75ce9e4d40d8921ac75acc711b599928a236"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkY=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+            "length": 134,
+            "sha256": "2a6ffe8b24c03810495bac3ae341a2475f83a9e51a408e0dc7869e2250e3db16"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkY=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+            "length": 134,
+            "sha256": "2a6ffe8b24c03810495bac3ae341a2475f83a9e51a408e0dc7869e2250e3db16"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "BigGIwYxBkY=",
+            "hex": "0628062306310646",
+            "length": 8,
+            "sha256": "ea7f702a50a212fc42c5c285780c3c6563e20fc7725bea609a876f3c3482c6d2"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "BigGIwYxBkY=",
+            "hex": "0628062306310646",
+            "length": 8,
+            "sha256": "ea7f702a50a212fc42c5c285780c3c6563e20fc7725bea609a876f3c3482c6d2"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 16,
+        "multipart_payload_bytes": 134,
+        "single_limit": 70
+      },
+      "consumed_payload_bytes": 142,
+      "emitted_reference": 42,
+      "id": "ucs2_udh_71_units",
+      "input": {
+        "data_coding": 8,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRg==",
+          "hex": "06230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+          "length": 142,
+          "sha256": "e192ef2c439891931a19d478c3fa75ce9e4d40d8921ac75acc711b599928a236"
+        },
+        "split_method": "udh"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkY=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+            "length": 134,
+            "sha256": "2a6ffe8b24c03810495bac3ae341a2475f83a9e51a408e0dc7869e2250e3db16"
+          },
+          "sar": null,
+          "sequence": 1,
+          "short_message": {
+            "base64": "BQADKgIBBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkY=",
+            "hex": "0500032a02010623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+            "length": 140,
+            "sha256": "a739292e7bb0e3fc3b5b9c2898cd630623858660998e47bdc72d45b1fab6078b"
+          },
+          "udh": {
+            "bytes": {
+              "base64": "BQADKgIB",
+              "hex": "0500032a0201",
+              "length": 6,
+              "sha256": "bdc69ae4f19ddcc3a84f1eb444117298719274664957f1c58890f2cf6422d56f"
+            },
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          }
+        },
+        {
+          "payload": {
+            "base64": "BigGIwYxBkY=",
+            "hex": "0628062306310646",
+            "length": 8,
+            "sha256": "ea7f702a50a212fc42c5c285780c3c6563e20fc7725bea609a876f3c3482c6d2"
+          },
+          "sar": null,
+          "sequence": 2,
+          "short_message": {
+            "base64": "BQADKgICBigGIwYxBkY=",
+            "hex": "0500032a02020628062306310646",
+            "length": 14,
+            "sha256": "1a883d8d871ef4012405fa6f101c0d0b2408223b0a6afcfcbc69a20141d459a3"
+          },
+          "udh": {
+            "bytes": {
+              "base64": "BQADKgIC",
+              "hex": "0500032a0202",
+              "length": 6,
+              "sha256": "11be9b0da2c2e1f38f2ae64eb9558783949eeee49cf715ac8d8c70d3e0a618ab"
+            },
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          }
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    },
+    {
+      "classification": {
+        "bits": 16,
+        "multipart_payload_bytes": 134,
+        "single_limit": 70
+      },
+      "consumed_payload_bytes": 141,
+      "emitted_reference": 42,
+      "id": "ucs2_odd_byte_sar",
+      "input": {
+        "data_coding": 8,
+        "initial_reference": 41,
+        "max_parts": 5,
+        "payload": {
+          "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjH/",
+          "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631ff",
+          "length": 141,
+          "sha256": "0633e9eb261157c6b960ea78d2241ea18c68cc577268b84e8a577ede7baf7b80"
+        },
+        "split_method": "sar"
+      },
+      "parts": [
+        {
+          "payload": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkY=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+            "length": 134,
+            "sha256": "2a6ffe8b24c03810495bac3ae341a2475f83a9e51a408e0dc7869e2250e3db16"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 1,
+            "total": 2
+          },
+          "sequence": 1,
+          "short_message": {
+            "base64": "BiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkYGKAYjBjEGRgYoBiMGMQZGBigGIwYxBkY=",
+            "hex": "0623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646062806230631064606280623063106460628062306310646",
+            "length": 134,
+            "sha256": "2a6ffe8b24c03810495bac3ae341a2475f83a9e51a408e0dc7869e2250e3db16"
+          },
+          "udh": null
+        },
+        {
+          "payload": {
+            "base64": "BigGIwYx/w==",
+            "hex": "062806230631ff",
+            "length": 7,
+            "sha256": "ef7ed52a5939b0401913b1f4ac9e683d6fcf95ba4fd58baddcd7dbbf01c9484c"
+          },
+          "sar": {
+            "reference": 42,
+            "sequence": 2,
+            "total": 2
+          },
+          "sequence": 2,
+          "short_message": {
+            "base64": "BigGIwYx/w==",
+            "hex": "062806230631ff",
+            "length": 7,
+            "sha256": "ef7ed52a5939b0401913b1f4ac9e683d6fcf95ba4fd58baddcd7dbbf01c9484c"
+          },
+          "udh": null
+        }
+      ],
+      "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
+      "truncated": false
+    }
+  ],
+  "schema_version": 1
+}

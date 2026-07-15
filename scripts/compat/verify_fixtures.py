@@ -17,6 +17,7 @@ FIXTURES = {
     "smpp": ROOT / "compat/fixtures/smpp/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
+    "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
 }
 COVERAGE = ROOT / "spec/compatibility/FIXTURE_COVERAGE.csv"
 EXPECTED_CASE_IDS = {
@@ -55,8 +56,25 @@ EXPECTED_CASE_IDS = {
         "smpp_to_queue_id",
         "multipart_deliver_sm_part",
     },
+    "segmentation": {
+        "gsm7_single_160",
+        "gsm7_sar_161",
+        "gsm7_udh_161",
+        "invalid_dcs_255_fallback_sar_161",
+        "gsm7_reference_rollover_sar_161",
+        "gsm7_max_parts_two_truncates",
+        "eight_bit_single_140",
+        "eight_bit_sar_141",
+        "eight_bit_udh_141",
+        "binary_dcs4_sar_141",
+        "ucs2_single_70_units",
+        "ucs2_sar_71_units",
+        "ucs2_udh_71_units",
+        "ucs2_odd_byte_sar",
+    },
 }
-EXPECTED_COVERAGE_SHA256 = "cc41ed0517755e95c63fb1607616fd62fcdec797284b89cfffe64244791f2b02"
+EXPECTED_COVERAGE_SHA256 = "30cc16ba2ab90c34ae00678dfb71d14695d37c2c5a2879b2199e23bfcd0c4a04"
+EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_AMQP_CASE_SHA256 = {
     "submit_sm_httpapi": "e696cb539f3b187d99c368e6e69bc6db8a29e3e636bef8ec90d162adc2aa1706",
     "submit_sm_resp": "89768110d1c535cfd625a89aba82d0be827f9e5c1005de7ff30469b6cc300906",
@@ -158,6 +176,87 @@ def validate_redis(document: dict) -> None:
                 require(raw.hex() == value["hex"], f"redis/{case['id']}/{field}: hex mismatch")
 
 
+def validate_bytes(value: dict, context: str) -> bytes:
+    raw = decode64(value["base64"], context)
+    require(raw.hex() == value["hex"], f"{context}: hex mismatch")
+    require(len(raw) == value["length"], f"{context}: length mismatch")
+    require(hashlib.sha256(raw).hexdigest() == value["sha256"], f"{context}: sha256 mismatch")
+    return raw
+
+
+def segmentation_class(data_coding: int) -> tuple[int, int, int]:
+    if data_coding in {3, 6, 7, 10}:
+        return 8, 140, 134
+    if data_coding in {2, 4, 5, 8, 9, 13, 14}:
+        return 16, 70, 134
+    return 7, 160, 153
+
+
+def validate_segmentation(document: dict) -> None:
+    cases_digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(cases_digest == EXPECTED_SEGMENTATION_CASES_SHA256, "segmentation: trusted corpus fingerprint")
+    for case in document["cases"]:
+        context = f"segmentation/{case['id']}"
+        request = case["input"]
+        payload = validate_bytes(request["payload"], f"{context}/input")
+        bits, single_limit, slice_bytes = segmentation_class(request["data_coding"])
+        require(
+            case["classification"] == {
+                "bits": bits,
+                "single_limit": single_limit,
+                "multipart_payload_bytes": slice_bytes,
+            },
+            f"{context}: classification",
+        )
+        single_bytes = single_limit * 2 if bits == 16 else single_limit
+        multipart = len(payload) > single_bytes
+        expected_count = 1
+        if multipart:
+            expected_count = min((len(payload) + slice_bytes - 1) // slice_bytes, request["max_parts"])
+        require(len(case["parts"]) == expected_count, f"{context}: part count")
+
+        emitted = bytearray()
+        if multipart:
+            expected_reference = (request["initial_reference"] % 255) + 1
+            require(case["emitted_reference"] == expected_reference, f"{context}: reference")
+        else:
+            expected_reference = 0
+            require(case["emitted_reference"] is None, f"{context}: single reference")
+        for index, part in enumerate(case["parts"], 1):
+            part_context = f"{context}/part/{index}"
+            require(part["sequence"] == index, f"{part_context}: sequence")
+            raw = validate_bytes(part["payload"], f"{part_context}/payload")
+            short_message = validate_bytes(part["short_message"], f"{part_context}/short_message")
+            start = (index - 1) * slice_bytes if multipart else 0
+            stop = index * slice_bytes if multipart else len(payload)
+            require(raw == payload[start:stop], f"{part_context}: payload slice")
+            emitted.extend(raw)
+            if not multipart:
+                require(part["sar"] is None and part["udh"] is None, f"{part_context}: single metadata")
+                require(short_message == raw, f"{part_context}: single short_message")
+            elif request["split_method"] == "sar":
+                require(part["udh"] is None, f"{part_context}: unexpected UDH")
+                require(
+                    part["sar"] == {"reference": expected_reference, "total": expected_count, "sequence": index},
+                    f"{part_context}: SAR",
+                )
+                require(short_message == raw, f"{part_context}: SAR short_message")
+            else:
+                require(part["sar"] is None, f"{part_context}: unexpected SAR")
+                header = bytes((5, 0, 3, expected_reference, expected_count, index))
+                require(part["udh"]["reference"] == expected_reference, f"{part_context}: UDH reference")
+                require(part["udh"]["total"] == expected_count, f"{part_context}: UDH total")
+                require(part["udh"]["sequence"] == index, f"{part_context}: UDH sequence")
+                require(validate_bytes(part["udh"]["bytes"], f"{part_context}/udh") == header, f"{part_context}: UDH")
+                require(short_message == header + raw, f"{part_context}: UDH short_message")
+
+        require(bytes(emitted) == payload[: len(emitted)], f"{context}: emitted prefix")
+        require(case["consumed_payload_bytes"] == len(emitted), f"{context}: consumed bytes")
+        require(case["truncated"] == (len(emitted) != len(payload)), f"{context}: truncated flag")
+
+
 def main() -> int:
     documents = {}
     for surface, path in FIXTURES.items():
@@ -170,6 +269,7 @@ def main() -> int:
     validate_smpp(documents["smpp"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
+    validate_segmentation(documents["segmentation"])
 
     require(COVERAGE.is_file(), f"missing coverage map: {COVERAGE}")
     require(

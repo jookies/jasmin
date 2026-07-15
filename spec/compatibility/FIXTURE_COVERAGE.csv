@@ -26,3 +26,17 @@ redis,http_dlr_request,RD-001,partial,HTTP DLR hash serialization and TTL
 redis,smpps_dlr_request,RD-001,partial,SMPPS DLR hash serialization and TTL
 redis,smpp_to_queue_id,RD-002,partial,Correlation hash serialization and TTL
 redis,multipart_deliver_sm_part,RD-003;SE-006,partial,Pickled multipart field and 300 second TTL
+segmentation,gsm7_single_160,HE-001;SE-001,partial,Legacy DCS 0 exact single-part boundary
+segmentation,gsm7_sar_161,HE-001;HE-004;SE-001;SE-004,partial,Legacy DCS 0 first SAR boundary
+segmentation,gsm7_udh_161,HE-001;HE-005;SE-001;SE-005,partial,Legacy DCS 0 first UDH boundary
+segmentation,invalid_dcs_255_fallback_sar_161,HE-001;SE-001,partial,Unknown DCS uses legacy 7-bit segmentation class
+segmentation,gsm7_reference_rollover_sar_161,HE-004;SE-004,partial,8-bit concatenation reference cycles from 255 to 1
+segmentation,gsm7_max_parts_two_truncates,HE-004;SE-004,partial,Legacy maximum-part cap silently drops payload suffix
+segmentation,eight_bit_single_140,HE-003;SE-003,partial,DCS 3 exact single-part byte boundary
+segmentation,eight_bit_sar_141,HE-003;HE-004;SE-003;SE-004,partial,DCS 3 first SAR boundary
+segmentation,eight_bit_udh_141,HE-003;HE-005;SE-003;SE-005,partial,DCS 3 first UDH boundary
+segmentation,binary_dcs4_sar_141,HE-003;HE-004;SE-003;SE-004,partial,DCS 4 legacy 16-bit-class slicing
+segmentation,ucs2_single_70_units,HE-002;SE-002,partial,DCS 8 exact 70-unit boundary
+segmentation,ucs2_sar_71_units,HE-002;HE-004;SE-002;SE-004,partial,DCS 8 first SAR boundary
+segmentation,ucs2_udh_71_units,HE-002;HE-005;SE-002;SE-005,partial,DCS 8 first UDH boundary
+segmentation,ucs2_odd_byte_sar,HE-002;HE-004;SE-002;SE-004,partial,Legacy DCS 8 preserves odd trailing byte
