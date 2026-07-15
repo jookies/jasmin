@@ -53,13 +53,13 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
-| B-001 | route rate | rated/unrated route and visible unit rate | INVENTORIED |
+| B-001 | route rate | rated/unrated route and visible unit rate | GO-PARTIAL |
 | B-002 | multipart | charge and submit-count delta per generated segment | INVENTORIED |
-| B-003 | unlimited | `None`/`ND` balance and count behavior | INVENTORIED |
+| B-003 | unlimited | `None`/`ND` balance and count behavior | GO-PARTIAL |
 | B-004 | insufficient balance | boundary/equality/below-charge and protocol error mapping | INVENTORIED |
 | B-005 | insufficient count | boundary and protocol error mapping | INVENTORIED |
-| B-006 | early decrement | 1–100 percent and enqueue-time delta | INVENTORIED |
-| B-007 | late decrement | successful `submit_sm_resp` remainder and error behavior | INVENTORIED |
+| B-006 | early decrement | 1–100 percent and enqueue-time delta | GO-PARTIAL |
+| B-007 | late decrement | successful `submit_sm_resp` remainder and error behavior | GO-PARTIAL |
 | B-008 | float rounding | IEEE-754 corpus, repeated/multipart charges and API/jCli formatting | INVENTORIED |
 | B-009 | persistence timer | quota mutation dirty flag, periodic persistence and crash window | INVENTORIED |
 | B-010 | redelivery | duplicate/reordered billing events and exact legacy delta | INVENTORIED |
