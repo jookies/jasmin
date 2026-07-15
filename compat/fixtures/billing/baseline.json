@@ -1,0 +1,131 @@
+{
+  "baseline_commit": "4a7a2bcbaa5bce053f959d28992cae9bfa6f241c",
+  "cases": [
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 1.5,
+        "submit_sm_resp_amount": 0.0
+      },
+      "id": "rated_100_percent",
+      "route_rate": 1.5,
+      "user": {
+        "balance": 10.0,
+        "early_percent": 100,
+        "uid": 1
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 0.75,
+        "submit_sm_resp_amount": 0.75
+      },
+      "id": "rated_50_percent",
+      "route_rate": 1.5,
+      "user": {
+        "balance": 10.0,
+        "early_percent": 50,
+        "uid": 2
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 0.015,
+        "submit_sm_resp_amount": 1.485
+      },
+      "id": "rated_1_percent",
+      "route_rate": 1.5,
+      "user": {
+        "balance": 10.0,
+        "early_percent": 1,
+        "uid": 3
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 1.5,
+        "submit_sm_resp_amount": 0
+      },
+      "id": "rated_default_percent",
+      "route_rate": 1.5,
+      "user": {
+        "balance": 10.0,
+        "early_percent": null,
+        "uid": 4
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 0.0,
+        "submit_sm_resp_amount": 0.0
+      },
+      "id": "unlimited_balance",
+      "route_rate": 1.5,
+      "user": {
+        "balance": null,
+        "uid": 5
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 0.0,
+        "submit_sm_resp_amount": 0.0
+      },
+      "id": "unrated_route",
+      "route_rate": 0.0,
+      "user": {
+        "balance": 10.0,
+        "uid": 6
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 1,
+        "submit_sm_amount": 1.5,
+        "submit_sm_resp_amount": 0
+      },
+      "id": "with_sm_count",
+      "route_rate": 1.5,
+      "user": {
+        "balance": 10.0,
+        "sm_count": 100,
+        "uid": 7
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 1.5,
+        "submit_sm_resp_amount": 0
+      },
+      "id": "with_sm_count_unlimited",
+      "route_rate": 1.5,
+      "user": {
+        "balance": 10.0,
+        "sm_count": null,
+        "uid": 8
+      }
+    },
+    {
+      "expected": {
+        "decrement_submit_sm_count": 0,
+        "submit_sm_amount": 0.033,
+        "submit_sm_resp_amount": 0.067
+      },
+      "id": "rounding_check",
+      "route_rate": 0.1,
+      "user": {
+        "balance": 1.0,
+        "early_percent": 33,
+        "uid": 9
+      }
+    }
+  ],
+  "schema_version": 1,
+  "source": "jasmin/routing/Routes.py"
+}
