@@ -9,4 +9,5 @@ JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-$$" "$RUNNER" python scripts/compa
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-amqp-$$" "$RUNNER" python scripts/compat/capture_amqp_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-redis-$$" "$RUNNER" python scripts/compat/capture_redis_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-segmentation-$$" "$RUNNER" python scripts/compat/capture_segmentation_golden.py
+JASMIN_COMPAT_PROJECT="jasmin-go-capture-routing-filters-$$" "$RUNNER" python scripts/compat/capture_routing_filters_golden.py
 python3 "$ROOT/scripts/compat/verify_fixtures.py"

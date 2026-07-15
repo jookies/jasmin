@@ -13,13 +13,14 @@ from pathlib import Path
 from unittest import mock
 
 import verify_fixtures
-from verify_fixtures import validate_amqp, validate_common, validate_segmentation
+from verify_fixtures import validate_amqp, validate_common, validate_routing_filters, validate_segmentation
 
 
 ROOT = Path(__file__).resolve().parents[2]
 AMQP_FIXTURE = ROOT / "compat/fixtures/amqp/baseline.json"
 HTTP_FIXTURE = ROOT / "compat/fixtures/http/baseline.json"
 SEGMENTATION_FIXTURE = ROOT / "compat/fixtures/segmentation/baseline.json"
+ROUTING_FILTER_FIXTURE = ROOT / "compat/fixtures/routing-filters/baseline.json"
 
 
 class AmqpFixtureValidationTests(unittest.TestCase):
@@ -59,6 +60,20 @@ class SegmentationFixtureValidationTests(unittest.TestCase):
         forged["cases"][0]["source"] = "forged-but-self-consistent-source"
         with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
             validate_segmentation(forged)
+
+
+class RoutingFilterFixtureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = json.loads(ROUTING_FILTER_FIXTURE.read_text(encoding="utf-8"))
+
+    def test_committed_oracle_corpus_is_valid(self) -> None:
+        validate_routing_filters(self.document)
+
+    def test_self_consistent_outcome_edit_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        forged["cases"][0]["expected"]["matched"] = False
+        with self.assertRaisesRegex(AssertionError, "corpus fingerprint"):
+            validate_routing_filters(forged)
 
 
 class FixtureInventoryValidationTests(unittest.TestCase):

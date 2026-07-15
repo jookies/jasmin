@@ -40,3 +40,39 @@ segmentation,ucs2_single_70_units,HE-002;SE-002,partial,DCS 8 exact 70-unit boun
 segmentation,ucs2_sar_71_units,HE-002;HE-004;SE-002;SE-004,partial,DCS 8 first SAR boundary
 segmentation,ucs2_udh_71_units,HE-002;HE-005;SE-002;SE-005,partial,DCS 8 first UDH boundary
 segmentation,ucs2_odd_byte_sar,HE-002;HE-004;SE-002;SE-004,partial,Legacy DCS 8 preserves odd trailing byte
+routing-filters,transparent_mt,RF-001;RF-012,partial,Transparent MT match and compatibility metadata
+routing-filters,transparent_mo,RF-001;RF-012,partial,Transparent MO match and compatibility metadata
+routing-filters,connector_match,RF-002;RF-012,partial,MO connector identity match
+routing-filters,connector_miss,RF-002,partial,MO connector identity miss
+routing-filters,user_match,RF-003;RF-012,partial,MT user identity match
+routing-filters,user_miss,RF-003,partial,MT user identity miss
+routing-filters,group_match,RF-004;RF-012,partial,MT group identity match
+routing-filters,group_miss,RF-004,partial,MT group identity miss
+routing-filters,source_match,RF-005,partial,Source regex start-position match
+routing-filters,source_miss,RF-005,partial,Source regex miss
+routing-filters,source_utf8_replacement,RF-005,partial,Source invalid UTF-8 replacement decoding
+routing-filters,source_missing_key,RF-005,partial,Source missing-key legacy error
+routing-filters,destination_match,RF-006,partial,Destination regex start-position match
+routing-filters,destination_miss,RF-006,partial,Destination regex miss
+routing-filters,destination_utf8_replacement,RF-006,partial,Destination invalid UTF-8 replacement decoding
+routing-filters,destination_missing_key,RF-006,partial,Destination missing-key legacy error
+routing-filters,short_message_match,RF-007,partial,Short-message regex match
+routing-filters,short_message_precedes_payload,RF-007,partial,short_message takes precedence over message_payload
+routing-filters,message_payload_fallback,RF-007,partial,message_payload fallback when short_message is absent
+routing-filters,message_content_missing,RF-007,partial,Missing content returns false
+routing-filters,short_message_utf8_replacement,RF-007,partial,Content invalid UTF-8 replacement decoding
+routing-filters,date_before,RF-008,partial,Date before interval
+routing-filters,date_start_inclusive,RF-008,partial,Inclusive date start
+routing-filters,date_inside,RF-008,partial,Date interval interior
+routing-filters,date_end_inclusive,RF-008,partial,Inclusive date end
+routing-filters,date_after,RF-008,partial,Date after interval
+routing-filters,date_reversed_matches_nothing,RF-008,partial,Reversed legacy date interval matches nothing
+routing-filters,time_before,RF-009,partial,Time before interval
+routing-filters,time_start_inclusive,RF-009,partial,Inclusive time start
+routing-filters,time_inside,RF-009,partial,Time interval interior
+routing-filters,time_end_inclusive,RF-009,partial,Inclusive time end
+routing-filters,time_after,RF-009,partial,Time after interval
+routing-filters,time_reversed_no_midnight_wrap,RF-009,partial,Reversed interval does not wrap midnight
+routing-filters,tag_integer_normalized_match,RF-010,partial,Integer tag normalized to string with duplicate membership
+routing-filters,tag_string_match,RF-010,partial,String tag membership
+routing-filters,tag_miss,RF-010,partial,Tag membership miss

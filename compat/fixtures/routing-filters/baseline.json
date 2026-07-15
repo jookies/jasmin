@@ -1,0 +1,1352 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "type": "transparent"
+      },
+      "id": "transparent_mt",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "type": "transparent"
+      },
+      "id": "transparent_mo",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mo",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "connector_id": "abc",
+        "type": "connector"
+      },
+      "id": "connector_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "connector_id": "other",
+        "type": "connector"
+      },
+      "id": "connector_miss",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "type": "user",
+        "user_id": 1
+      },
+      "id": "user_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "type": "user",
+        "user_id": 2
+      },
+      "id": "user_miss",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "group_id": 100,
+        "type": "group"
+      },
+      "id": "group_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "group_id": 200,
+        "type": "group"
+      },
+      "id": "group_miss",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^20\\d+0$",
+        "type": "source_addr"
+      },
+      "id": "source_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "pattern": "^30\\d+",
+        "type": "source_addr"
+      },
+      "id": "source_miss",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^A\ufffdB$",
+        "type": "source_addr"
+      },
+      "id": "source_utf8_replacement",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "Qf9C",
+          "length": 3,
+          "sha256": "0f618ee4d2a04e92342e16bfecfcc6e4029a52b2993ceb8bb092650795ce7810"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": "KeyError",
+        "matched": null
+      },
+      "filter": {
+        "pattern": ".*",
+        "type": "source_addr"
+      },
+      "id": "source_missing_key",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": null,
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^20\\d+",
+        "type": "destination_addr"
+      },
+      "id": "destination_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "pattern": "^30\\d+",
+        "type": "destination_addr"
+      },
+      "id": "destination_miss",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^A\ufffdB$",
+        "type": "destination_addr"
+      },
+      "id": "destination_utf8_replacement",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "Qf9C",
+          "length": 3,
+          "sha256": "0f618ee4d2a04e92342e16bfecfcc6e4029a52b2993ceb8bb092650795ce7810"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": "KeyError",
+        "matched": null
+      },
+      "filter": {
+        "pattern": ".*",
+        "type": "destination_addr"
+      },
+      "id": "destination_missing_key",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": null,
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^hello.*$",
+        "type": "short_message"
+      },
+      "id": "short_message_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "pattern": "^payload$",
+        "type": "short_message"
+      },
+      "id": "short_message_precedes_payload",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": {
+          "base64": "cGF5bG9hZA==",
+          "length": 7,
+          "sha256": "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5"
+        },
+        "short_message": {
+          "base64": "c2hvcnQ=",
+          "length": 5,
+          "sha256": "f9b0078b5df596d2ea19010c001bbd009e651de2c57e8fb7e355f31eb9d3f739"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^payload$",
+        "type": "short_message"
+      },
+      "id": "message_payload_fallback",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": {
+          "base64": "cGF5bG9hZA==",
+          "length": 7,
+          "sha256": "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5"
+        },
+        "short_message": null,
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "pattern": ".*",
+        "type": "short_message"
+      },
+      "id": "message_content_missing",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": null,
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "pattern": "^A\ufffdB$",
+        "type": "short_message"
+      },
+      "id": "short_message_utf8_replacement",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "Qf9C",
+          "length": 3,
+          "sha256": "0f618ee4d2a04e92342e16bfecfcc6e4029a52b2993ceb8bb092650795ce7810"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "end": "2024-01-20",
+        "start": "2024-01-10",
+        "type": "date_interval"
+      },
+      "id": "date_before",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-09T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "end": "2024-01-20",
+        "start": "2024-01-10",
+        "type": "date_interval"
+      },
+      "id": "date_start_inclusive",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-10T23:59:59",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "end": "2024-01-20",
+        "start": "2024-01-10",
+        "type": "date_interval"
+      },
+      "id": "date_inside",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "end": "2024-01-20",
+        "start": "2024-01-10",
+        "type": "date_interval"
+      },
+      "id": "date_end_inclusive",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-20T00:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "end": "2024-01-20",
+        "start": "2024-01-10",
+        "type": "date_interval"
+      },
+      "id": "date_after",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-21T00:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "end": "2024-01-10",
+        "start": "2024-01-20",
+        "type": "date_interval"
+      },
+      "id": "date_reversed_matches_nothing",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "end": "09:00:00",
+        "start": "03:00:00",
+        "type": "time_interval"
+      },
+      "id": "time_before",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T02:59:59",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "end": "09:00:00",
+        "start": "03:00:00",
+        "type": "time_interval"
+      },
+      "id": "time_start_inclusive",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T03:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "end": "09:00:00",
+        "start": "03:00:00",
+        "type": "time_interval"
+      },
+      "id": "time_inside",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "end": "09:00:00",
+        "start": "03:00:00",
+        "type": "time_interval"
+      },
+      "id": "time_end_inclusive",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T09:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "end": "09:00:00",
+        "start": "03:00:00",
+        "type": "time_interval"
+      },
+      "id": "time_after",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T09:00:01",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "end": "02:00:00",
+        "start": "23:00:00",
+        "type": "time_interval"
+      },
+      "id": "time_reversed_no_midnight_wrap",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [],
+        "timestamp": "2024-01-15T00:30:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "tag": 300,
+        "type": "tag"
+      },
+      "id": "tag_integer_normalized_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [
+          "300",
+          "300"
+        ],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": true
+      },
+      "filter": {
+        "tag": "blue",
+        "type": "tag"
+      },
+      "id": "tag_string_match",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [
+          "blue"
+        ],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    },
+    {
+      "expected": {
+        "error_type": null,
+        "matched": false
+      },
+      "filter": {
+        "tag": "missing",
+        "type": "tag"
+      },
+      "id": "tag_miss",
+      "routable": {
+        "connector_id": "abc",
+        "destination_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "direction": "mt",
+        "group_id": 100,
+        "message_payload": null,
+        "short_message": {
+          "base64": "aGVsbG8gd29ybGQ=",
+          "length": 11,
+          "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        },
+        "source_addr": {
+          "base64": "MjAyMDMwNjA=",
+          "length": 8,
+          "sha256": "b268acc452a42ed18f8f3713d926564a093f5c5ac8e237726691847a9e73a93d"
+        },
+        "tags": [
+          "blue",
+          "300"
+        ],
+        "timestamp": "2024-01-15T06:00:00",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/Filters.py"
+    }
+  ],
+  "compatibility": {
+    "connector": [
+      "mo"
+    ],
+    "date_interval": [
+      "mt",
+      "mo"
+    ],
+    "destination_addr": [
+      "mt",
+      "mo"
+    ],
+    "group": [
+      "mt"
+    ],
+    "short_message": [
+      "mt",
+      "mo"
+    ],
+    "source_addr": [
+      "mt",
+      "mo"
+    ],
+    "tag": [
+      "mt",
+      "mo"
+    ],
+    "time_interval": [
+      "mt",
+      "mo"
+    ],
+    "transparent": [
+      "mt",
+      "mo"
+    ],
+    "user": [
+      "mt"
+    ]
+  },
+  "schema_version": 1,
+  "source": "jasmin/routing/Filters.py"
+}

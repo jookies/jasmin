@@ -10,18 +10,18 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | RT-001 | MO/MT routables | connector/user/message fields, PDU reference, datetime and type restrictions | INVENTORIED |
 | RT-002 | tags | add/remove/has/get, duplicate/type behavior | INVENTORIED |
 | RT-003 | locked fields | locking and interceptor mutation rejection | INVENTORIED |
-| RF-001 | Transparent | unconditional match | INVENTORIED |
-| RF-002 | Connector | MO-only source connector and type validation | INVENTORIED |
-| RF-003 | User | MT-only user identity | INVENTORIED |
-| RF-004 | Group | MT-only group identity | INVENTORIED |
-| RF-005 | SourceAddr | regex bytes/string and missing value | INVENTORIED |
-| RF-006 | DestinationAddr | regex bytes/string and missing value | INVENTORIED |
-| RF-007 | ShortMessage | message/payload selection and regex | INVENTORIED |
-| RF-008 | DateInterval | inclusive boundaries and invalid ranges | INVENTORIED |
-| RF-009 | TimeInterval | inclusive boundaries and midnight behavior | INVENTORIED |
-| RF-010 | Tag | tag type/value matching | INVENTORIED |
+| RF-001 | Transparent | unconditional match | GO-PARTIAL |
+| RF-002 | Connector | MO-only source connector and type validation | GO-PARTIAL |
+| RF-003 | User | MT-only user identity | GO-PARTIAL |
+| RF-004 | Group | MT-only group identity | GO-PARTIAL |
+| RF-005 | SourceAddr | regex bytes/string and missing value | GO-PARTIAL |
+| RF-006 | DestinationAddr | regex bytes/string and missing value | GO-PARTIAL |
+| RF-007 | ShortMessage | message/payload selection and regex | GO-PARTIAL |
+| RF-008 | DateInterval | inclusive boundaries and invalid ranges | GO-PARTIAL |
+| RF-009 | TimeInterval | inclusive boundaries and midnight behavior | GO-PARTIAL |
+| RF-010 | Tag | tag type/value matching | GO-PARTIAL |
 | RF-011 | EvalPy | globals, result conversion, exception and security boundary | INVENTORIED |
-| RF-012 | compatibility | allowed filter classes by MO/MT table | INVENTORIED |
+| RF-012 | compatibility | allowed filter classes by MO/MT table | GO-PARTIAL |
 
 ## Routing tables and route types
 

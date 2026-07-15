@@ -8,6 +8,7 @@ import csv
 import hashlib
 import json
 import pickletools
+from datetime import datetime
 from pathlib import Path
 
 BASELINE = "0aac58e466d583d0f0436df7b8afa3dc96191263"
@@ -18,6 +19,7 @@ FIXTURES = {
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
+    "routing-filters": ROOT / "compat/fixtures/routing-filters/baseline.json",
 }
 COVERAGE = ROOT / "spec/compatibility/FIXTURE_COVERAGE.csv"
 EXPECTED_CASE_IDS = {
@@ -72,9 +74,22 @@ EXPECTED_CASE_IDS = {
         "ucs2_udh_71_units",
         "ucs2_odd_byte_sar",
     },
+    "routing-filters": {
+        "transparent_mt", "transparent_mo",
+        "connector_match", "connector_miss", "user_match", "user_miss", "group_match", "group_miss",
+        "source_match", "source_miss", "source_utf8_replacement", "source_missing_key",
+        "destination_match", "destination_miss", "destination_utf8_replacement", "destination_missing_key",
+        "short_message_match", "short_message_precedes_payload", "message_payload_fallback",
+        "message_content_missing", "short_message_utf8_replacement",
+        "date_before", "date_start_inclusive", "date_inside", "date_end_inclusive", "date_after",
+        "date_reversed_matches_nothing", "time_before", "time_start_inclusive", "time_inside",
+        "time_end_inclusive", "time_after", "time_reversed_no_midnight_wrap",
+        "tag_integer_normalized_match", "tag_string_match", "tag_miss",
+    },
 }
-EXPECTED_COVERAGE_SHA256 = "30cc16ba2ab90c34ae00678dfb71d14695d37c2c5a2879b2199e23bfcd0c4a04"
+EXPECTED_COVERAGE_SHA256 = "3c23a681362d966a4a5755898dd53aae29b40ca1f91274d72d87ca090c7e29fe"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
+EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_AMQP_CASE_SHA256 = {
     "submit_sm_httpapi": "e696cb539f3b187d99c368e6e69bc6db8a29e3e636bef8ec90d162adc2aa1706",
     "submit_sm_resp": "89768110d1c535cfd625a89aba82d0be827f9e5c1005de7ff30469b6cc300906",
@@ -257,6 +272,53 @@ def validate_segmentation(document: dict) -> None:
         require(case["truncated"] == (len(emitted) != len(payload)), f"{context}: truncated flag")
 
 
+def validate_compact_bytes(descriptor: dict, context: str) -> None:
+    raw = base64.b64decode(descriptor["base64"], validate=True)
+    require(len(raw) == descriptor["length"], f"{context}: length")
+    require(hashlib.sha256(raw).hexdigest() == descriptor["sha256"], f"{context}: sha256")
+
+
+def validate_routing_filters(document: dict) -> None:
+    corpus = {"compatibility": document["compatibility"], "cases": document["cases"]}
+    digest = hashlib.sha256(
+        json.dumps(corpus, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(digest == EXPECTED_ROUTING_FILTER_CORPUS_SHA256, "routing-filters: corpus fingerprint")
+    require(
+        document["compatibility"] == {
+            "connector": ["mo"],
+            "date_interval": ["mt", "mo"],
+            "destination_addr": ["mt", "mo"],
+            "group": ["mt"],
+            "short_message": ["mt", "mo"],
+            "source_addr": ["mt", "mo"],
+            "tag": ["mt", "mo"],
+            "time_interval": ["mt", "mo"],
+            "transparent": ["mt", "mo"],
+            "user": ["mt"],
+        },
+        "routing-filters: compatibility map",
+    )
+    valid_types = set(document["compatibility"])
+    for case in document["cases"]:
+        context = f"routing-filters/{case['id']}"
+        require(case["source"] == "jasmin/routing/Filters.py", f"{context}: source")
+        require(case["filter"]["type"] in valid_types, f"{context}: filter type")
+        route = case["routable"]
+        require(route["direction"] in {"mt", "mo"}, f"{context}: direction")
+        datetime.fromisoformat(route["timestamp"])
+        require(all(isinstance(tag, str) for tag in route["tags"]), f"{context}: normalized tags")
+        for field in ("source_addr", "destination_addr", "short_message", "message_payload"):
+            if route[field] is not None:
+                validate_compact_bytes(route[field], f"{context}/{field}")
+        expected = case["expected"]
+        if expected["error_type"] is None:
+            require(isinstance(expected["matched"], bool), f"{context}: matched outcome")
+        else:
+            require(expected["matched"] is None, f"{context}: errored match must be null")
+            require(expected["error_type"] == "KeyError", f"{context}: legacy error type")
+
+
 def main() -> int:
     documents = {}
     for surface, path in FIXTURES.items():
@@ -270,6 +332,7 @@ def main() -> int:
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])
+    validate_routing_filters(documents["routing-filters"])
 
     require(COVERAGE.is_file(), f"missing coverage map: {COVERAGE}")
     require(
