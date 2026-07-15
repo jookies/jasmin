@@ -3,6 +3,7 @@ package billing
 import (
 	"errors"
 	"math"
+	"sync"
 )
 
 var (
@@ -11,26 +12,115 @@ var (
 )
 
 type User struct {
+	mu                            sync.Mutex
 	uid                           int64
 	balance                       *float64
 	earlyDecrementBalancePercent *int
 	submitSmCountQuota            *int
+	group                         *Group
+}
+
+type Group struct {
+	mu                 sync.Mutex
+	gid                int64
+	balance            *float64
+	submitSmCountQuota *int
+}
+
+func NewGroup(gid int64) *Group {
+	return &Group{gid: gid}
+}
+
+func (g *Group) SetBalance(balance float64) error {
+	if err := ValidateParams(balance, nil); err != nil {
+		return err
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.balance = &balance
+	return nil
+}
+
+func (g *Group) Balance() float64 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.balance == nil {
+		return 0
+	}
+	return *g.balance
+}
+
+func (g *Group) SetSubmitSmCountQuota(count int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.submitSmCountQuota = &count
 }
 
 func NewUser(uid int64) *User {
 	return &User{uid: uid}
 }
 
-func (u *User) SetBalance(balance float64) {
-	u.balance = &balance
+func (u *User) SetGroup(g *Group) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.group = g
 }
 
-func (u *User) SetEarlyDecrementPercent(percent int) {
+func (u *User) SetBalance(balance float64) error {
+	if err := ValidateParams(balance, nil); err != nil {
+		return err
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.balance = &balance
+	return nil
+}
+
+func (u *User) Balance() float64 {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.balance == nil {
+		return 0
+	}
+	return *u.balance
+}
+
+func (u *User) SetEarlyDecrementPercent(percent int) error {
+	if err := ValidateParams(0, &percent); err != nil {
+		return err
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	u.earlyDecrementBalancePercent = &percent
+	return nil
 }
 
 func (u *User) SetSubmitSmCountQuota(count int) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	u.submitSmCountQuota = &count
+}
+
+func (u *User) ApplyBill(bill Bill) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.balance != nil {
+		*u.balance -= (bill.SubmitSmAmount + bill.SubmitSmRespAmount)
+	}
+	if u.submitSmCountQuota != nil {
+		*u.submitSmCountQuota -= bill.DecrementSubmitSmCount
+	}
+	if u.group != nil {
+		u.group.mu.Lock()
+		defer u.group.mu.Unlock()
+		if u.group.balance != nil {
+			*u.group.balance -= (bill.SubmitSmAmount + bill.SubmitSmRespAmount)
+		}
+		if u.group.submitSmCountQuota != nil {
+			*u.group.submitSmCountQuota -= bill.DecrementSubmitSmCount
+		}
+	}
+	return nil
 }
 
 type Bill struct {
@@ -40,6 +130,8 @@ type Bill struct {
 }
 
 func CalculateBill(routeRate float64, u *User) Bill {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	bill := Bill{}
 
 	// B-001/B-006/B-007: Rate calculation

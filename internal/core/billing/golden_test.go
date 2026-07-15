@@ -2,8 +2,10 @@ package billing_test
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/pumpitspace/jasmin/internal/core/billing"
@@ -42,10 +44,10 @@ func TestGoldenBilling(t *testing.T) {
 		t.Run(tc.ID, func(t *testing.T) {
 			u := billing.NewUser(tc.User.UID)
 			if tc.User.Balance != nil {
-				u.SetBalance(*tc.User.Balance)
+				_ = u.SetBalance(*tc.User.Balance)
 			}
 			if tc.User.EarlyPercent != nil {
-				u.SetEarlyDecrementPercent(*tc.User.EarlyPercent)
+				_ = u.SetEarlyDecrementPercent(*tc.User.EarlyPercent)
 			}
 			if tc.User.SmCount != nil {
 				u.SetSubmitSmCountQuota(*tc.User.SmCount)
@@ -61,7 +63,53 @@ func TestGoldenBilling(t *testing.T) {
 			if bill.DecrementSubmitSmCount != tc.Expected.DecrementSubmitSmCount {
 				t.Errorf("decrement_submit_sm_count=%v want=%v", bill.DecrementSubmitSmCount, tc.Expected.DecrementSubmitSmCount)
 			}
+
+			// Verify ApplyBill
+			initialBalance := 0.0
+			if tc.User.Balance != nil {
+				initialBalance = *tc.User.Balance
+			}
+			if err := u.ApplyBill(bill); err != nil {
+				t.Fatalf("ApplyBill err=%v", err)
+			}
+			if tc.User.Balance != nil {
+				// Use a small epsilon for float comparison
+				expectedBalance := initialBalance - (tc.Expected.SubmitSmAmount + tc.Expected.SubmitSmRespAmount)
+				gotBalance := u.Balance()
+				if math.Abs(gotBalance-expectedBalance) > 1e-10 {
+					t.Errorf("final_balance=%v want=%v", gotBalance, expectedBalance)
+				}
+			}
 		})
+	}
+}
+
+func TestBillingConcurrency(t *testing.T) {
+	u := billing.NewUser(1)
+	_ = u.SetBalance(1000.0)
+	g := billing.NewGroup(1)
+	_ = g.SetBalance(1000.0)
+	u.SetGroup(g)
+
+	bill := billing.Bill{SubmitSmAmount: 0.1, SubmitSmRespAmount: 0.0}
+	const count = 1000
+	var wg sync.WaitGroup
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func() {
+			defer wg.Done()
+			_ = u.ApplyBill(bill)
+		}()
+	}
+	wg.Wait()
+
+	// 1000 * 0.1 = 100.0
+	// 1000.0 - 100.0 = 900.0
+	if math.Abs(u.Balance()-900.0) > 1e-9 {
+		t.Errorf("user balance=%v want 900.0", u.Balance())
+	}
+	if math.Abs(g.Balance()-900.0) > 1e-9 {
+		t.Errorf("group balance=%v want 900.0", g.Balance())
 	}
 }
 
