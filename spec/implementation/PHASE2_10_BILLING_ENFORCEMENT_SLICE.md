@@ -22,10 +22,18 @@ Frozen fixtures and no-skip Go replay; reproducible corpus; schema/integrity/cov
 
 ### package `internal/core/billing`
 
-- `User.CanApply(Bill) error`
-- `Group.CanApply(Bill) error`
-- `CalculateBill(routeRate float64, segments int, u *User) Bill`
+- `User.CanApply(Bill) error` (Already implemented, will verify/test)
+- `Group.CanApply(Bill) error` (Already implemented, will verify/test)
+- `CalculateBill(routeRate float64, segments int, u *User) Bill` (Verified)
 
 ### Errors
 - `ErrInsufficientBalance`
 - `ErrInsufficientCount`
+
+## Tasks
+1. [ ] Update fixtures with multipart cases (B-002).
+2. [ ] Update fixtures with enforcement failure cases (B-004, B-005).
+3. [ ] Capture frozen Python oracle for new cases.
+4. [ ] Implement/Verify `CanApply` logic against fixtures.
+5. [ ] Integrate segmentation with billing calculation in a testable way.
+6. [ ] Full verification suite.

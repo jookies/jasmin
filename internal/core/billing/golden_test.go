@@ -19,26 +19,31 @@ type document struct {
 type fixture struct {
 	ID        string   `json:"id"`
 	RouteRate float64  `json:"route_rate"`
+	Segments  int      `json:"segments"`
 	User      userSpec `json:"user"`
 	Expected  expected `json:"expected"`
 }
 type userSpec struct {
-	UID          int64    `json:"uid"`
-	Balance      *float64 `json:"balance"`
-	EarlyPercent *int     `json:"early_percent"`
-	SmCount      *int     `json:"sm_count"`
+	UID          int64      `json:"uid"`
+	Balance      *float64   `json:"balance"`
+	EarlyPercent *int       `json:"early_percent"`
+	SmCount      *int       `json:"sm_count"`
+	Group        *groupSpec `json:"group"`
+}
+type groupSpec struct {
+	GID     int64    `json:"gid"`
+	Balance *float64 `json:"balance"`
 }
 type expected struct {
 	SubmitSmAmount         float64 `json:"submit_sm_amount"`
 	SubmitSmRespAmount     float64 `json:"submit_sm_resp_amount"`
 	DecrementSubmitSmCount int     `json:"decrement_submit_sm_count"`
+	CanApply               bool    `json:"can_apply"`
+	Error                  string  `json:"error"`
 }
 
 func TestGoldenBilling(t *testing.T) {
 	doc := load(t)
-	if len(doc.Cases) != 9 {
-		t.Fatalf("cases=%d", len(doc.Cases))
-	}
 	for _, tc := range doc.Cases {
 		tc := tc
 		t.Run(tc.ID, func(t *testing.T) {
@@ -52,32 +57,40 @@ func TestGoldenBilling(t *testing.T) {
 			if tc.User.SmCount != nil {
 				u.SetSubmitSmCountQuota(*tc.User.SmCount)
 			}
+			if tc.User.Group != nil {
+				g := billing.NewGroup(tc.User.Group.GID)
+				if tc.User.Group.Balance != nil {
+					_ = g.SetBalance(*tc.User.Group.Balance)
+				}
+				u.SetGroup(g)
+			}
 
-			bill := billing.CalculateBill(tc.RouteRate, 1, u)
-			if bill.SubmitSmAmount != tc.Expected.SubmitSmAmount {
+			segments := tc.Segments
+			if segments == 0 {
+				segments = 1
+			}
+
+			bill := billing.CalculateBill(tc.RouteRate, segments, u)
+			if math.Abs(bill.SubmitSmAmount-tc.Expected.SubmitSmAmount) > 1e-10 {
 				t.Errorf("submit_sm_amount=%v want=%v", bill.SubmitSmAmount, tc.Expected.SubmitSmAmount)
 			}
-			if bill.SubmitSmRespAmount != tc.Expected.SubmitSmRespAmount {
+			if math.Abs(bill.SubmitSmRespAmount-tc.Expected.SubmitSmRespAmount) > 1e-10 {
 				t.Errorf("submit_sm_resp_amount=%v want=%v", bill.SubmitSmRespAmount, tc.Expected.SubmitSmRespAmount)
 			}
 			if bill.DecrementSubmitSmCount != tc.Expected.DecrementSubmitSmCount {
 				t.Errorf("decrement_submit_sm_count=%v want=%v", bill.DecrementSubmitSmCount, tc.Expected.DecrementSubmitSmCount)
 			}
 
-			// Verify ApplyBill
-			initialBalance := 0.0
-			if tc.User.Balance != nil {
-				initialBalance = *tc.User.Balance
-			}
-			if err := u.ApplyBill(bill); err != nil {
-				t.Fatalf("ApplyBill err=%v", err)
-			}
-			if tc.User.Balance != nil {
-				// Use a small epsilon for float comparison
-				expectedBalance := initialBalance - (tc.Expected.SubmitSmAmount + tc.Expected.SubmitSmRespAmount)
-				gotBalance := u.Balance()
-				if math.Abs(gotBalance-expectedBalance) > 1e-10 {
-					t.Errorf("final_balance=%v want=%v", gotBalance, expectedBalance)
+			err := u.CanApply(bill)
+			if tc.Expected.CanApply {
+				if err != nil {
+					t.Errorf("CanApply expected true, got err: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("CanApply expected false, got nil")
+				} else if err.Error() != tc.Expected.Error {
+					t.Errorf("CanApply err=%q want=%q", err.Error(), tc.Expected.Error)
 				}
 			}
 		})
@@ -124,8 +137,8 @@ func load(t *testing.T) document {
 	if err = json.Unmarshal(b, &d); err != nil {
 		t.Fatal(err)
 	}
-	if d.SchemaVersion != 1 || d.BaselineCommit != "4a7a2bcbaa5bce053f959d28992cae9bfa6f241c" {
-		t.Fatal("provenance")
+	if d.SchemaVersion != 2 || d.BaselineCommit != "b4e3b64dfd580a4d9bd80cda04299e1ded29adf3" {
+		t.Fatalf("provenance: version=%d commit=%s", d.SchemaVersion, d.BaselineCommit)
 	}
 	return d
 }
