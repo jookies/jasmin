@@ -20,3 +20,5 @@ These behaviors must not be silently corrected during parity.
 | Q-012 | GET `/send` remains supported for backward compatibility. | HTTP send endpoint | Do not remove during parity. |
 | Q-013 | Unlimited balance/count can be represented as `None` internally and `ND` in API output. | credentials/HTTP tests | Preserve type and formatting at edges. |
 | Q-014 | Billing may split charge between enqueue and successful `submit_sm_resp`. | router/listeners | Differential tests must cover redelivery and exactly-once delta. |
+| Q-015 | A captured `deliver_sm` with `message_payload` decodes, but the Python encoder rejects the decoded payload on re-encode with a size mismatch. | `compat/fixtures/smpp/baseline.json` case `deliver_sm_dlr_message_payload`; `tests/protocols/smpp/test_pdu_decoding.py` | Preserve the captured decode-success/re-encode-failure boundary until a deviation is approved. |
+| Q-016 | The Python decoder accepts captured unknown vendor TLV `0x1403`, but re-encoding silently omits it. | `compat/fixtures/smpp/baseline.json` case `submit_sm_unknown_vendor_tlv` | Accept and drop this unknown TLV in compatibility mode; do not claim vendor-TLV fidelity. |

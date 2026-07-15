@@ -7,7 +7,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 
 | ID | Area | Cases to fixture | Status |
 |---|---|---|---|
-| S-001 | framing | command length/id/status/sequence, partial/coalesced reads, malformed length | INVENTORIED |
+| S-001 | framing | command length/id/status/sequence, partial/coalesced reads, malformed length | GO-PARTIAL |
 | S-002 | bind TX/RX/TRX | success, wrong password/system_id, disabled user/group, IP restriction | INVENTORIED |
 | S-003 | bind state | allowed commands by state and exact status codes | INVENTORIED |
 | S-004 | limits | max bindings, duplicate sessions, ban/unbind behavior | INVENTORIED |
@@ -19,14 +19,14 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 
 | ID | PDU/feature | Cases to fixture | Status |
 |---|---|---|---|
-| SP-001 | `submit_sm` | mandatory/default fields, TON/NPI, esm_class, protocol, priority, schedule/validity | INVENTORIED |
-| SP-002 | `submit_sm_resp` | success/error mapping, SMSC ID, ACK/requeue/retry | INVENTORIED |
-| SP-003 | `deliver_sm` | MO versus DLR detection, receipt fields and payload | INVENTORIED |
+| SP-001 | `submit_sm` | mandatory/default fields, TON/NPI, esm_class, protocol, priority, schedule/validity | GO-PARTIAL |
+| SP-002 | `submit_sm_resp` | success/error mapping, SMSC ID, ACK/requeue/retry | GO-PARTIAL |
+| SP-003 | `deliver_sm` | MO versus DLR detection, receipt fields and payload | GO-PARTIAL |
 | SP-004 | `data_sm` | configured DLR/MO behavior and response | INVENTORIED |
 | SP-005 | `enquire_link` | request/response and timeout | INVENTORIED |
-| SP-006 | standard TLV | message_payload, receipts, SAR and known optionals | INVENTORIED |
+| SP-006 | standard TLV | message_payload, receipts, SAR and known optionals | GO-PARTIAL |
 | SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | INVENTORIED |
-| SP-008 | unknown TLV/PDU | legacy accept/reject/error behavior | INVENTORIED |
+| SP-008 | unknown TLV/PDU | legacy accept/reject/error behavior | GO-PARTIAL |
 
 ## Encoding and long messages
 
@@ -35,7 +35,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SE-001 | GSM 03.38 | encode/decode and boundaries | INVENTORIED |
 | SE-002 | UCS2 | payload bytes and segmentation | INVENTORIED |
 | SE-003 | binary | DCS and byte fidelity | INVENTORIED |
-| SE-004 | SAR | reference/total/sequence and reassembly | INVENTORIED |
+| SE-004 | SAR | reference/total/sequence and reassembly | GO-PARTIAL |
 | SE-005 | UDH | header/reference/ordering and reassembly | INVENTORIED |
 | SE-006 | multipart MO | Redis key, serialized pieces, 300-second TTL, final assembly | INVENTORIED |
 
@@ -65,3 +65,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 ## DLR ID corpus
 
 Must include uppercase/lowercase, leading zeros, decimal IDs, hexadecimal IDs, configured base conversions, message_payload receipts, optional receipt TLVs, malformed receipts, duplicate/reordered terminal receipts and expired/missing Redis correlation.
+
+`GO-PARTIAL` means the Go wire adapter has executable coverage for a strict
+subset of the row, while session, routing, lifecycle, or remaining PDU behavior
+is still unimplemented. It must not be interpreted as full row parity.
