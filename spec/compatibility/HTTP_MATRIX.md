@@ -7,18 +7,18 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 
 | ID | Endpoint | Contract to fixture | Status |
 |---|---|---|---|
-| H-001 | `GET/POST /send` | Both methods supported; request forms and response content type | INVENTORIED |
-| H-002 | `/send` required fields | `username`, `password`, `to`, exactly one of `content`/`hex-content` | INVENTORIED |
+| H-001 | `GET/POST /send` | Both methods supported; request forms and response content type | GO-PARTIAL |
+| H-002 | `/send` required fields | `username`, `password`, `to`, exactly one of `content`/`hex-content` | GO-PARTIAL |
 | H-003 | `/send` optional fields | `from`, `coding`, `priority`, `sdt`, `validity-period`, DLR fields, tags, TLVs | INVENTORIED |
-| H-004 | `/send` auth/state | wrong credentials, disabled user/group, missing authorization | INVENTORIED |
+| H-004 | `/send` auth/state | wrong credentials, disabled user/group, missing authorization | GO-PARTIAL |
 | H-005 | `/send` value filters | source/destination/content regex and defaults | INVENTORIED |
 | H-006 | `/send` route/interceptor | no route, interceptor HTTP/SMPP status override, locked fields | INVENTORIED |
 | H-007 | `/send` quotas | balance, submit count, throughput and multipart segment count | INVENTORIED |
 | H-008 | `/send` success | status, exact `Success "<uuid>"` body and UUID shape | INVENTORIED |
-| H-009 | `/send` errors | validation order and exact status/body for 400/403/412/500 paths | INVENTORIED |
-| H-010 | `/rate` | auth, destination route, unit rate, segment count, JSON shape | INVENTORIED |
-| H-011 | `/balance` | balance/count JSON and exact `ND` representation | INVENTORIED |
-| H-012 | `/ping` | exact `Jasmin/PONG` body | FIXTURED |
+| H-009 | `/send` errors | validation order and exact status/body for 400/403/412/500 paths | GO-PARTIAL |
+| H-010 | `/rate` | auth, destination route, unit rate, segment count, JSON shape | GO-PARTIAL |
+| H-011 | `/balance` | balance/count JSON and exact `ND` representation | GO-PARTIAL |
+| H-012 | `/ping` | exact `Jasmin/PONG` body | MATCH |
 | H-013 | `/metrics` | names, HELP/TYPE, labels, values and content type | INVENTORIED |
 
 ## Encoding and segmentation
@@ -61,3 +61,8 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 ## Fixture policy
 
 Fixtures record request bytes/parameters, response status, headers, body bytes, normalized nondeterministic fields and the exact upstream test/source citation. UUIDs/timestamps may be normalized only by explicit fixture metadata.
+
+`GO-PARTIAL` means the Go adapter matches the committed cases for that row but
+the matrix row contains additional legacy behaviors that are not implemented
+yet. `MATCH` means the currently inventoried row is covered by an executable
+differential assertion.
