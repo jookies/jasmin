@@ -1,0 +1,389 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "error_type": null,
+      "expected": {
+        "connector_id": "aaa",
+        "rate": 2.3
+      },
+      "id": "random_mt_index_0",
+      "input": {
+        "connectors": [
+          {
+            "id": "aaa",
+            "type": "smppc"
+          },
+          {
+            "id": "bbb",
+            "type": "smppc"
+          }
+        ],
+        "direction": "mt",
+        "filter": "transparent",
+        "index": 0,
+        "policy": "random",
+        "rate": 2.3
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "connector_id": "bbb",
+        "rate": 2.3
+      },
+      "id": "random_mt_index_1",
+      "input": {
+        "connectors": [
+          {
+            "id": "aaa",
+            "type": "smppc"
+          },
+          {
+            "id": "bbb",
+            "type": "smppc"
+          }
+        ],
+        "direction": "mt",
+        "filter": "transparent",
+        "index": 1,
+        "policy": "random",
+        "rate": 2.3
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "connector_id": "http1",
+        "rate": 0.0
+      },
+      "id": "random_mo_index_0",
+      "input": {
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "index": 0,
+        "policy": "random",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "connector_id": "http2",
+        "rate": 0.0
+      },
+      "id": "random_mo_index_1",
+      "input": {
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "index": 1,
+        "policy": "random",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "connector_types": [
+          "http",
+          "smpps"
+        ]
+      },
+      "id": "random_mo_hybrid_allowed",
+      "input": {
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "smpps1",
+            "type": "smpps"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "policy": "random"
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": true,
+      "id": "random_mt_filter_match",
+      "input": {
+        "connectors": [
+          {
+            "id": "aaa",
+            "type": "smppc"
+          },
+          {
+            "id": "bbb",
+            "type": "smppc"
+          }
+        ],
+        "direction": "mt",
+        "filter": "user",
+        "match": true,
+        "policy": "random",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": false,
+      "id": "random_mt_filter_miss",
+      "input": {
+        "connectors": [
+          {
+            "id": "aaa",
+            "type": "smppc"
+          },
+          {
+            "id": "bbb",
+            "type": "smppc"
+          }
+        ],
+        "direction": "mt",
+        "filter": "user",
+        "match": false,
+        "policy": "random",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": "InvalidRouteParameterError",
+      "expected": null,
+      "id": "random_empty_rejected",
+      "input": {
+        "connectors": [],
+        "direction": "mt",
+        "filter": "transparent",
+        "policy": "random",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "rate": 1.5,
+        "sequence": [
+          "aaa",
+          "bbb",
+          null
+        ]
+      },
+      "id": "failover_mt_sequence",
+      "input": {
+        "action": "sequence",
+        "connectors": [
+          {
+            "id": "aaa",
+            "type": "smppc"
+          },
+          {
+            "id": "bbb",
+            "type": "smppc"
+          }
+        ],
+        "direction": "mt",
+        "filter": "transparent",
+        "policy": "failover",
+        "rate": 1.5
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "rate": 0.0,
+        "sequence": [
+          "http1",
+          "http2",
+          null
+        ]
+      },
+      "id": "failover_mo_sequence",
+      "input": {
+        "action": "sequence",
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": {
+        "after_reset": "http1",
+        "before_reset": "http1"
+      },
+      "id": "failover_match_resets_sequence",
+      "input": {
+        "action": "reset",
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": [
+        "http1",
+        "http2"
+      ],
+      "id": "failover_get_connectors_order",
+      "input": {
+        "action": "pool",
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": "InvalidRouteParameterError",
+      "expected": null,
+      "id": "failover_mo_mixed_rejected",
+      "input": {
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "smpps1",
+            "type": "smpps"
+          }
+        ],
+        "direction": "mo",
+        "filter": "transparent",
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": "InvalidRouteParameterError",
+      "expected": null,
+      "id": "failover_empty_rejected",
+      "input": {
+        "connectors": [],
+        "direction": "mt",
+        "filter": "transparent",
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": true,
+      "id": "failover_mo_filter_match",
+      "input": {
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "connector",
+        "match": true,
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    },
+    {
+      "error_type": null,
+      "expected": false,
+      "id": "failover_mo_filter_miss",
+      "input": {
+        "connectors": [
+          {
+            "id": "http1",
+            "type": "http"
+          },
+          {
+            "id": "http2",
+            "type": "http"
+          }
+        ],
+        "direction": "mo",
+        "filter": "connector",
+        "match": false,
+        "policy": "failover",
+        "rate": 0
+      },
+      "source": "jasmin/routing/Routes.py"
+    }
+  ],
+  "schema_version": 1,
+  "source": "jasmin/routing/Routes.py"
+}

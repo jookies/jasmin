@@ -11,4 +11,5 @@ JASMIN_COMPAT_PROJECT="jasmin-go-capture-redis-$$" "$RUNNER" python scripts/comp
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-segmentation-$$" "$RUNNER" python scripts/compat/capture_segmentation_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-routing-filters-$$" "$RUNNER" python scripts/compat/capture_routing_filters_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-routing-tables-$$" "$RUNNER" python scripts/compat/capture_routing_tables_golden.py
+JASMIN_COMPAT_PROJECT="jasmin-go-capture-multi-connector-routes-$$" "$RUNNER" python scripts/compat/capture_multi_connector_routes_golden.py
 python3 "$ROOT/scripts/compat/verify_fixtures.py"

@@ -33,8 +33,8 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | RR-004 | no match | HTTP/SMPP rejection mapping | GO-PARTIAL |
 | RR-005 | filter composition | all filters combined with AND and evaluation failures | GO-PARTIAL |
 | RR-006 | Static MO/MT | destination connector and MT rate | GO-PARTIAL |
-| RR-007 | RandomRoundrobin MO/MT | legacy random choice and eligible connector set | INVENTORIED |
-| RR-008 | Failover MO/MT | connector order, availability predicate and exhaustion | INVENTORIED |
+| RR-007 | RandomRoundrobin MO/MT | legacy random choice and eligible connector set | GO-PARTIAL |
+| RR-008 | Failover MO/MT | connector order, availability predicate and exhaustion | GO-PARTIAL |
 | RR-009 | connector types | valid destinations for MO versus MT | GO-PARTIAL |
 | RR-010 | BestQualityMTRoute | document upstream stub/non-working status | INVENTORIED |
 

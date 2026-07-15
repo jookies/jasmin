@@ -99,3 +99,19 @@ routing-tables,mt_wrong_connector_rejected,RR-009,partial,MT connector type rest
 routing-tables,mo_wrong_connector_rejected,RR-009,partial,MO connector type restriction
 routing-tables,mt_visible_rate,RR-006,partial,Static MT visible rate
 routing-tables,mo_rate_ignored,RR-006,partial,Static MO ignores supplied rate
+multi-connector-routes,random_mt_index_0,RR-007,partial,Injected random index selects first MT connector
+multi-connector-routes,random_mt_index_1,RR-007,partial,Injected random index selects second MT connector
+multi-connector-routes,random_mo_index_0,RR-007,partial,Injected random index selects first MO connector
+multi-connector-routes,random_mo_index_1,RR-007,partial,Injected random index selects second MO connector
+multi-connector-routes,random_mo_hybrid_allowed,RR-007;RR-009,partial,Random MO permits HTTP and SMPPS pool
+multi-connector-routes,random_mt_filter_match,RR-005;RR-007,partial,Random MT filter match
+multi-connector-routes,random_mt_filter_miss,RR-005;RR-007,partial,Random MT filter miss
+multi-connector-routes,random_empty_rejected,RR-007,partial,Empty random pool rejected
+multi-connector-routes,failover_mt_sequence,RR-008,partial,Ordered MT failover and exhaustion
+multi-connector-routes,failover_mo_sequence,RR-008,partial,Ordered MO failover and exhaustion
+multi-connector-routes,failover_match_resets_sequence,RR-008,partial,New match resets failover sequence
+multi-connector-routes,failover_get_connectors_order,RR-008,partial,Failover connector pool order
+multi-connector-routes,failover_mo_mixed_rejected,RR-008;RR-009,partial,Mixed MO failover connector types rejected
+multi-connector-routes,failover_empty_rejected,RR-008,partial,Empty failover pool rejected
+multi-connector-routes,failover_mo_filter_match,RR-005;RR-008,partial,Failover MO filter match
+multi-connector-routes,failover_mo_filter_miss,RR-005;RR-008,partial,Failover MO filter miss
