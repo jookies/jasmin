@@ -1,0 +1,1177 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          3,
+          2,
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "mt_descending_order",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "d",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "u",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 3,
+          "route": {
+            "connector": {
+              "id": "t",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          3,
+          2,
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "mo_descending_order",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smpps"
+            },
+            "direction": "mo",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "dst",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^90\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "src",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "source"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 3,
+          "route": {
+            "connector": {
+              "id": "top",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          2
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "new",
+          "rate": 0.0
+        }
+      },
+      "id": "replace_same_order",
+      "operations": [
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "old",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "new",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [],
+        "remove_results": [
+          true
+        ],
+        "selected": null
+      },
+      "id": "remove_existing",
+      "operations": [
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "x",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "remove",
+          "order": 2
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [],
+        "remove_results": [
+          false
+        ],
+        "selected": null
+      },
+      "id": "remove_missing",
+      "operations": [
+        {
+          "op": "remove",
+          "order": 9
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "flush_table",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "x",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "flush"
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          2,
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "user",
+          "rate": 0.0
+        }
+      },
+      "id": "mt_first_match_user",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "dest",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "user",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "200",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          2,
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "dest",
+          "rate": 0.0
+        }
+      },
+      "id": "mt_first_match_destination",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "dest",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "user",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "100",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "fallback",
+          "rate": 0.0
+        }
+      },
+      "id": "mt_default_fallback",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "fallback",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "user",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1
+        ],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "mt_no_match",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "user",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          2,
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "source",
+          "rate": 0.0
+        }
+      },
+      "id": "mo_first_match_source",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smpps"
+            },
+            "direction": "mo",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "dest",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^90\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "source",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "source"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "200",
+        "direction": "mo",
+        "source": "100",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          2,
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "dest",
+          "rate": 0.0
+        }
+      },
+      "id": "mo_first_match_destination",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smpps"
+            },
+            "direction": "mo",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 2,
+          "route": {
+            "connector": {
+              "id": "dest",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^90\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "source",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "source"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "900",
+        "direction": "mo",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1,
+          0
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "fallback",
+          "rate": 0.0
+        }
+      },
+      "id": "mo_default_fallback",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "fallback",
+              "type": "smpps"
+            },
+            "direction": "mo",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        },
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "source",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "source"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mo",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1
+        ],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "mo_no_match",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "source",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "pattern": "^10\\d+",
+                "type": "source"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mo",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "and",
+          "rate": 0.0
+        }
+      },
+      "id": "and_filters_match",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "and",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              },
+              {
+                "pattern": "^10\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "100",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1
+        ],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "and_filters_short_circuit_miss",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "and",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "user",
+                "user_id": 1
+              },
+              {
+                "pattern": "^10\\d+",
+                "type": "destination"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": {
+        "destination": "200",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 1
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": "InvalidRoutingTableParameterError",
+        "orders": [],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "negative_order_rejected",
+      "operations": [
+        {
+          "op": "add",
+          "order": -1,
+          "route": {
+            "connector": {
+              "id": "x",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": "InvalidRoutingTableParameterError",
+        "orders": [],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "nondefault_at_zero_rejected",
+      "operations": [
+        {
+          "op": "add",
+          "order": 0,
+          "route": {
+            "connector": {
+              "id": "x",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": "InvalidRoutingTableParameterError",
+        "orders": [],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "default_at_nonzero_rejected",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "default",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [],
+            "kind": "default",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": "InvalidRoutingTableParameterError",
+        "orders": [],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "mt_wrong_connector_rejected",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "xxx",
+              "type": "http"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": "InvalidRoutingTableParameterError",
+        "orders": [],
+        "remove_results": [],
+        "selected": null
+      },
+      "id": "mo_wrong_connector_rejected",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "xxx",
+              "type": "smppc"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 0.0
+          }
+        }
+      ],
+      "query": null,
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mt",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "rated",
+          "rate": 2.3
+        }
+      },
+      "id": "mt_visible_rate",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "rated",
+              "type": "smppc"
+            },
+            "direction": "mt",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 2.3
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mt",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    },
+    {
+      "direction": "mo",
+      "expected": {
+        "error_type": null,
+        "orders": [
+          1
+        ],
+        "remove_results": [],
+        "selected": {
+          "connector_id": "free",
+          "rate": 0.0
+        }
+      },
+      "id": "mo_rate_ignored",
+      "operations": [
+        {
+          "op": "add",
+          "order": 1,
+          "route": {
+            "connector": {
+              "id": "free",
+              "type": "http"
+            },
+            "direction": "mo",
+            "filters": [
+              {
+                "type": "transparent"
+              }
+            ],
+            "kind": "static",
+            "rate": 2.3
+          }
+        }
+      ],
+      "query": {
+        "destination": "x",
+        "direction": "mo",
+        "source": "x",
+        "user_id": 2
+      },
+      "source": "jasmin/routing/RoutingTables.py"
+    }
+  ],
+  "schema_version": 1,
+  "source": "jasmin/routing/RoutingTables.py"
+}

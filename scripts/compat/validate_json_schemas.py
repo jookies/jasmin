@@ -34,6 +34,10 @@ PAIRS = {
         ROOT / "compat/fixtures/schema/routing-filter-golden.schema.json",
         ROOT / "compat/fixtures/routing-filters/baseline.json",
     ),
+    "routing-tables": (
+        ROOT / "compat/fixtures/schema/routing-table-golden.schema.json",
+        ROOT / "compat/fixtures/routing-tables/baseline.json",
+    ),
 }
 
 
@@ -48,7 +52,7 @@ def main() -> int:
                 pointer = "/" + "/".join(str(part) for part in error.absolute_path)
                 print(f"{surface}{pointer}: {error.message}")
             return 1
-    print("json_schemas=valid surfaces=http,smpp,amqp,redis,segmentation,routing-filters")
+    print("json_schemas=valid surfaces=http,smpp,amqp,redis,segmentation,routing-filters,routing-tables")
     return 0
 
 

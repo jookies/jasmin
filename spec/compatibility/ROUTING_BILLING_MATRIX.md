@@ -27,15 +27,15 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
-| RR-001 | order | descending evaluation and first match | INVENTORIED |
-| RR-002 | replacement | add at existing order replaces previous route | INVENTORIED |
-| RR-003 | default | only order 0 and fallback behavior | INVENTORIED |
-| RR-004 | no match | HTTP/SMPP rejection mapping | INVENTORIED |
-| RR-005 | filter composition | all filters combined with AND and evaluation failures | INVENTORIED |
-| RR-006 | Static MO/MT | destination connector and MT rate | INVENTORIED |
+| RR-001 | order | descending evaluation and first match | GO-PARTIAL |
+| RR-002 | replacement | add at existing order replaces previous route | GO-PARTIAL |
+| RR-003 | default | only order 0 and fallback behavior | GO-PARTIAL |
+| RR-004 | no match | HTTP/SMPP rejection mapping | GO-PARTIAL |
+| RR-005 | filter composition | all filters combined with AND and evaluation failures | GO-PARTIAL |
+| RR-006 | Static MO/MT | destination connector and MT rate | GO-PARTIAL |
 | RR-007 | RandomRoundrobin MO/MT | legacy random choice and eligible connector set | INVENTORIED |
 | RR-008 | Failover MO/MT | connector order, availability predicate and exhaustion | INVENTORIED |
-| RR-009 | connector types | valid destinations for MO versus MT | INVENTORIED |
+| RR-009 | connector types | valid destinations for MO versus MT | GO-PARTIAL |
 | RR-010 | BestQualityMTRoute | document upstream stub/non-working status | INVENTORIED |
 
 ## Interceptors

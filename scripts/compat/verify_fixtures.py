@@ -20,6 +20,7 @@ FIXTURES = {
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
     "routing-filters": ROOT / "compat/fixtures/routing-filters/baseline.json",
+    "routing-tables": ROOT / "compat/fixtures/routing-tables/baseline.json",
 }
 COVERAGE = ROOT / "spec/compatibility/FIXTURE_COVERAGE.csv"
 EXPECTED_CASE_IDS = {
@@ -86,10 +87,19 @@ EXPECTED_CASE_IDS = {
         "time_end_inclusive", "time_after", "time_reversed_no_midnight_wrap",
         "tag_integer_normalized_match", "tag_string_match", "tag_miss",
     },
+    "routing-tables": {
+        "mt_descending_order", "mo_descending_order", "replace_same_order", "remove_existing", "remove_missing", "flush_table",
+        "mt_first_match_user", "mt_first_match_destination", "mt_default_fallback", "mt_no_match",
+        "mo_first_match_source", "mo_first_match_destination", "mo_default_fallback", "mo_no_match",
+        "and_filters_match", "and_filters_short_circuit_miss", "negative_order_rejected",
+        "nondefault_at_zero_rejected", "default_at_nonzero_rejected", "mt_wrong_connector_rejected",
+        "mo_wrong_connector_rejected", "mt_visible_rate", "mo_rate_ignored",
+    },
 }
-EXPECTED_COVERAGE_SHA256 = "3c23a681362d966a4a5755898dd53aae29b40ca1f91274d72d87ca090c7e29fe"
+EXPECTED_COVERAGE_SHA256 = "3d0235936df27197ea34e05bcdb2497bf2e034a443db63604e810409a7a2b181"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
+EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
 EXPECTED_AMQP_CASE_SHA256 = {
     "submit_sm_httpapi": "e696cb539f3b187d99c368e6e69bc6db8a29e3e636bef8ec90d162adc2aa1706",
     "submit_sm_resp": "89768110d1c535cfd625a89aba82d0be827f9e5c1005de7ff30469b6cc300906",
@@ -319,6 +329,23 @@ def validate_routing_filters(document: dict) -> None:
             require(expected["error_type"] == "KeyError", f"{context}: legacy error type")
 
 
+def validate_routing_tables(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(digest == EXPECTED_ROUTING_TABLE_CASES_SHA256, "routing-tables: corpus fingerprint")
+    for case in document["cases"]:
+        context = f"routing-tables/{case['id']}"
+        require(case["source"] == "jasmin/routing/RoutingTables.py", f"{context}: source")
+        require(case["direction"] in {"mt", "mo"}, f"{context}: direction")
+        orders = case["expected"]["orders"]
+        require(orders == sorted(orders, reverse=True), f"{context}: descending orders")
+        require(len(orders) == len(set(orders)), f"{context}: unique orders")
+        error_type = case["expected"]["error_type"]
+        require(error_type in {None, "InvalidRoutingTableParameterError"}, f"{context}: error type")
+        require(all(isinstance(value, bool) for value in case["expected"]["remove_results"]), f"{context}: remove results")
+
+
 def main() -> int:
     documents = {}
     for surface, path in FIXTURES.items():
@@ -333,6 +360,7 @@ def main() -> int:
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])
     validate_routing_filters(documents["routing-filters"])
+    validate_routing_tables(documents["routing-tables"])
 
     require(COVERAGE.is_file(), f"missing coverage map: {COVERAGE}")
     require(
