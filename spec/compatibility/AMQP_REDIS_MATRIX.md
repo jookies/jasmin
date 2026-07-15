@@ -24,9 +24,9 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 
 | ID | Key/state | Contract | Status |
 |---|---|---|---|
-| RD-001 | `dlr:<queue-msgid>` | fields, types, expiry, updates and deletion | INVENTORIED |
-| RD-002 | `queue-msgid:<smsc-id>` | normalized key, `{msgid, connector_type}`, expiry and deletion | INVENTORIED |
-| RD-003 | `longDeliverSm:<cid>:<ref>:<destination>` | hash fields/pickled parts, 300-second TTL and concatenation; in mixed mode the partition stays Python-owned or a trusted Python bridge translates the allowlisted structure—Go never decodes legacy pickle | INVENTORIED |
+| RD-001 | `dlr:<queue-msgid>` | fields, types, expiry, updates and deletion | GO-PARTIAL |
+| RD-002 | `queue-msgid:<smsc-id>` | normalized key, `{msgid, connector_type}`, expiry and deletion | GO-PARTIAL |
+| RD-003 | `longDeliverSm:<cid>:<ref>:<destination>` | hash fields/pickled parts, 300-second TTL and concatenation; in mixed mode the partition stays Python-owned or a trusted Python bridge translates the allowlisted structure—Go never decodes legacy pickle | GO-PARTIAL |
 | RD-004 | missing/expired | DLR/MO behavior, ACK/reject/logging | INVENTORIED |
 | RD-005 | duplicate/reordered | idempotency and terminal-state behavior | INVENTORIED |
 | RD-006 | REST backend | DB index/config/result semantics used by Celery | INVENTORIED |
@@ -54,4 +54,4 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 - NoSQL: deferred until a measured access pattern requires it.
 - Legacy import: trusted offline Python exporter to canonical versioned data; Go never writes old pickle profiles.
 
-`GO-PARTIAL` means only the fixture-proven envelope/routing subset is implemented. It does not imply broker topology, ACK/retry, state-machine, or pickle-bridge parity.
+`GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows this is envelope/routing only; it does not imply broker topology, ACK/retry, state-machine, or pickle-bridge parity. For Redis rows it is typed key/hash projection or opaque multipart metadata only; it does not imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle ownership.
