@@ -53,7 +53,7 @@ func TestGoldenBilling(t *testing.T) {
 				u.SetSubmitSmCountQuota(*tc.User.SmCount)
 			}
 
-			bill := billing.CalculateBill(tc.RouteRate, u)
+			bill := billing.CalculateBill(tc.RouteRate, 1, u)
 			if bill.SubmitSmAmount != tc.Expected.SubmitSmAmount {
 				t.Errorf("submit_sm_amount=%v want=%v", bill.SubmitSmAmount, tc.Expected.SubmitSmAmount)
 			}

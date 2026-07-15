@@ -54,10 +54,10 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
 || B-001 | route rate | rated/unrated route and visible unit rate | GO-COMPLETE |
-|| B-002 | multipart | charge and submit-count delta per generated segment | INVENTORIED |
+|| B-002 | multipart | charge and submit-count delta per generated segment | GO-COMPLETE |
 || B-003 | unlimited | `None`/`ND` balance and count behavior | GO-COMPLETE |
-|| B-004 | insufficient balance | boundary/equality/below-charge and protocol error mapping | INVENTORIED |
-|| B-005 | insufficient count | boundary and protocol error mapping | INVENTORIED |
+|| B-004 | insufficient balance | boundary/equality/below-charge and protocol error mapping | GO-COMPLETE |
+|| B-005 | insufficient count | boundary and protocol error mapping | GO-COMPLETE |
 || B-006 | early decrement | 1–100 percent and enqueue-time delta | GO-COMPLETE |
 || B-007 | late decrement | successful `submit_sm_resp` remainder and error behavior | GO-COMPLETE |
 

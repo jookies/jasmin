@@ -9,6 +9,8 @@ import (
 var (
 	ErrInvalidRate    = errors.New("invalid route rate")
 	ErrInvalidPercent = errors.New("invalid early decrement percent")
+	ErrInsufficientBalance = errors.New("insufficient balance")
+	ErrInsufficientCount   = errors.New("insufficient submit_sm_count")
 )
 
 type User struct {
@@ -50,6 +52,25 @@ func (g *Group) Balance() float64 {
 	return *g.balance
 }
 
+func (g *Group) CanApply(bill Bill) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.balance != nil {
+		total := (bill.SubmitSmAmount + bill.SubmitSmRespAmount)
+		if *g.balance < total {
+			return ErrInsufficientBalance
+		}
+	}
+	if g.submitSmCountQuota != nil {
+		total := bill.DecrementSubmitSmCount
+		if *g.submitSmCountQuota < total {
+			return ErrInsufficientCount
+		}
+	}
+	return nil
+}
+
 func (g *Group) SetSubmitSmCountQuota(count int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -83,6 +104,30 @@ func (u *User) Balance() float64 {
 		return 0
 	}
 	return *u.balance
+}
+
+func (u *User) CanApply(bill Bill) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.balance != nil {
+		total := (bill.SubmitSmAmount + bill.SubmitSmRespAmount)
+		if *u.balance < total {
+			return ErrInsufficientBalance
+		}
+	}
+	if u.submitSmCountQuota != nil {
+		total := bill.DecrementSubmitSmCount
+		if *u.submitSmCountQuota < total {
+			return ErrInsufficientCount
+		}
+	}
+
+	if u.group != nil {
+		return u.group.CanApply(bill)
+	}
+
+	return nil
 }
 
 func (u *User) SetEarlyDecrementPercent(percent int) error {
@@ -129,7 +174,7 @@ type Bill struct {
 	DecrementSubmitSmCount int
 }
 
-func CalculateBill(routeRate float64, u *User) Bill {
+func CalculateBill(routeRate float64, segments int, u *User) Bill {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	bill := Bill{}
@@ -137,14 +182,15 @@ func CalculateBill(routeRate float64, u *User) Bill {
 	// B-001/B-006/B-007: Rate calculation
 	// Jasmin Rule 1: If route is rated and user's balance is not unlimited (balance != None)
 	if routeRate > 0 && u.balance != nil {
+		totalRate := routeRate * float64(segments)
 		if u.earlyDecrementBalancePercent != nil {
 			// Early decrement percentage applied (B-006, B-007)
 			percent := float64(*u.earlyDecrementBalancePercent)
-			bill.SubmitSmAmount = routeRate * percent / 100.0
-			bill.SubmitSmRespAmount = routeRate - bill.SubmitSmAmount
+			bill.SubmitSmAmount = totalRate * percent / 100.0
+			bill.SubmitSmRespAmount = totalRate - bill.SubmitSmAmount
 		} else {
 			// Default: 100% early decrement
-			bill.SubmitSmAmount = routeRate
+			bill.SubmitSmAmount = totalRate
 			bill.SubmitSmRespAmount = 0
 		}
 	}
@@ -153,7 +199,7 @@ func CalculateBill(routeRate float64, u *User) Bill {
 
 	// Jasmin Rule 2: Decrement submit_sm_count if not unlimited
 	if u.submitSmCountQuota != nil {
-		bill.DecrementSubmitSmCount = 1
+		bill.DecrementSubmitSmCount = segments
 	}
 
 	return bill
