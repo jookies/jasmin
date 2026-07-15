@@ -7,13 +7,13 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
 | A-001 | exchanges | `messaging`, `billing`, type/durability/declaration properties | INVENTORIED |
-| A-002 | submit route | `submit.sm.<CID>` queue/binding/properties/body | INVENTORIED |
-| A-003 | submit response | optional `submit.sm.resp.<CID>` properties/body | INVENTORIED |
+| A-002 | submit route | `submit.sm.<CID>` queue/binding/properties/body | GO-PARTIAL |
+| A-003 | submit response | optional `submit.sm.resp.<CID>` properties/body | GO-PARTIAL |
 | A-004 | MO ingest | `deliver.sm.<CID>` and router wildcard binding | INVENTORIED |
-| A-005 | MO throwers | `deliver_sm_thrower.http` / `.smpps` | INVENTORIED |
-| A-006 | DLR lookup | every `dlr.*` routing key and payload/property set | INVENTORIED |
-| A-007 | DLR throwers | `dlr_thrower.http` / `.smpps` | INVENTORIED |
-| A-008 | billing | `bill_request.submit_sm_resp.<UID>` and amount/IDs | INVENTORIED |
+| A-005 | MO throwers | `deliver_sm_thrower.http` / `.smpps` | GO-PARTIAL |
+| A-006 | DLR lookup | every `dlr.*` routing key and payload/property set | GO-PARTIAL |
+| A-007 | DLR throwers | `dlr_thrower.http` / `.smpps` | GO-PARTIAL |
+| A-008 | billing | `bill_request.submit_sm_resp.<UID>` and amount/IDs | GO-PARTIAL |
 | A-009 | ACK/reject | success/failure/retry/requeue timing per consumer | INVENTORIED |
 | A-010 | QoS/prefetch | configured counts and concurrency effects | INVENTORIED |
 | A-011 | expiry | message age/expiration and terminal handling | INVENTORIED |
@@ -53,3 +53,5 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 - Redis: parity transient state, not durable configuration source of truth.
 - NoSQL: deferred until a measured access pattern requires it.
 - Legacy import: trusted offline Python exporter to canonical versioned data; Go never writes old pickle profiles.
+
+`GO-PARTIAL` means only the fixture-proven envelope/routing subset is implemented. It does not imply broker topology, ACK/retry, state-machine, or pickle-bridge parity.
