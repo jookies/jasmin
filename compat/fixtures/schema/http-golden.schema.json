@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/http-golden.schema.json",
+  "title": "Jasmin legacy HTTP golden fixture",
+  "type": "object",
+  "required": ["schema_version", "baseline_commit", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "request", "response"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+          "request": {
+            "type": "object",
+            "required": ["method", "path", "arguments"],
+            "properties": {
+              "method": {"enum": ["GET", "POST"]},
+              "path": {"type": "string"},
+              "arguments": {"type": "object"},
+              "json": {"type": ["object", "null"]}
+            },
+            "additionalProperties": false
+          },
+          "response": {
+            "type": "object",
+            "required": ["status", "headers", "body_base64", "body_utf8"],
+            "properties": {
+              "status": {"type": "integer", "minimum": 100, "maximum": 599},
+              "headers": {"type": "object"},
+              "body_base64": {"type": "string"},
+              "body_utf8": {"type": ["string", "null"]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

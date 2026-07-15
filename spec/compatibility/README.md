@@ -23,12 +23,17 @@ This directory defines the frozen behavior that the Go rewrite must preserve bef
 - `DEVIATIONS.md` — owner-approved deviations; currently none.
 - `PHASE0_AUDIT.md` — deterministic checks, independent criticism and residual risks.
 - `TEST_MANIFEST.csv` — deterministic inventory of 1,039 existing `test*` methods.
+- `FIXTURE_COVERAGE.csv` — exact mapping from executable oracle cases to contract rows, with honest partial/full coverage.
 
 ## Current phase status
 
-Phase 0 inventories the surfaces. Matrix rows are `INVENTORIED`, not yet `FIXTURED` or `MATCH`.
+Phase 0 inventories the surfaces. The matrices remain the authoritative parity registry.
 
-Phase 1 will capture executable golden fixtures and differential comparisons. Documentation alone is not parity proof.
+Phase 1 provides the frozen Python oracle harness, 27 executable golden cases
+across HTTP/SMPP/AMQP/Redis, schema and semantic validation, reproducibility
+checks, and an exact differential comparer. `FIXTURE_COVERAGE.csv` distinguishes
+partial from full fixture coverage. These artifacts do not mark any Go surface
+as `MATCH`; that requires a future Go implementation to emit identical results.
 
 ## Regenerate test inventory
 

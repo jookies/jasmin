@@ -1,0 +1,9 @@
+.git
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.coverage
+_trial_temp*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -18,7 +18,7 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 | H-009 | `/send` errors | validation order and exact status/body for 400/403/412/500 paths | INVENTORIED |
 | H-010 | `/rate` | auth, destination route, unit rate, segment count, JSON shape | INVENTORIED |
 | H-011 | `/balance` | balance/count JSON and exact `ND` representation | INVENTORIED |
-| H-012 | `/ping` | exact `Jasmin/PONG` body | INVENTORIED |
+| H-012 | `/ping` | exact `Jasmin/PONG` body | FIXTURED |
 | H-013 | `/metrics` | names, HELP/TYPE, labels, values and content type | INVENTORIED |
 
 ## Encoding and segmentation

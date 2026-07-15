@@ -1,0 +1,56 @@
+name: jasmin-go-compat
+
+services:
+  redis:
+    image: redis:7.4-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+    network_mode: "service:rabbitmq"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs:
+      - /data
+
+  rabbitmq:
+    image: rabbitmq:3.13-alpine@sha256:d7af1c87c5f1eda13fcfca06db452bf3aeab6619fc3358b68535c0c02c4e52bc
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    tmpfs:
+      - /var/lib/rabbitmq
+
+  baseline-tests:
+    build:
+      context: ..
+      dockerfile: compat/Dockerfile.baseline-tests
+    working_dir: /workspace
+    network_mode: "service:rabbitmq"
+    volumes:
+      - ../compat/fixtures:/workspace/compat/fixtures
+      - baseline-artifacts:/artifacts
+    environment:
+      AMQP_BROKER_HOST: localhost
+      AMQP_BROKER_PORT: "5672"
+      REDIS_CLIENT_HOST: localhost
+      REDIS_CLIENT_PORT: "6379"
+      CONFIG_PATH: /workspace/misc/config
+      RESOURCE_PATH: /workspace/misc/config/resource
+      STORE_PATH: /tmp/jasmin-store
+      LOG_PATH: /var/log/jasmin
+      COVERAGE_FILE: /tmp/jasmin-coverage
+      PYTHONPATH: /workspace
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  baseline-artifacts: {}

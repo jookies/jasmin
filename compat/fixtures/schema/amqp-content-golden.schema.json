@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/amqp-content-golden.schema.json",
+  "title": "Jasmin AMQP content golden fixture",
+  "type": "object",
+  "required": ["schema_version", "baseline_commit", "capture_transport", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "capture_transport": {"const": "rabbitmq-publish-consume"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "routing_key", "properties", "body"],
+        "properties": {
+          "id": {"type": "string"},
+          "routing_key": {"type": "string"},
+          "properties": {"type": "object"},
+          "body": {
+            "type": "object",
+            "required": ["python_type", "wire_kind", "wire_base64", "wire_sha256"],
+            "properties": {
+              "python_type": {"type": "string"},
+              "wire_kind": {"enum": ["bytes", "text"]},
+              "wire_base64": {"type": "string"},
+              "wire_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "text": {"type": "string"},
+              "pickle_protocol": {"type": ["integer", "null"]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

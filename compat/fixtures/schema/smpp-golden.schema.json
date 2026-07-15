@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/smpp-golden.schema.json",
+  "title": "Jasmin SMPP wire golden fixture",
+  "type": "object",
+  "required": ["schema_version", "baseline_commit", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "direction", "wire_hex", "decoded"],
+        "properties": {
+          "id": {"type": "string"},
+          "direction": {"enum": ["encode", "decode"]},
+          "wire_hex": {"type": "string", "pattern": "^[0-9a-f]+$"},
+          "decoded": {
+            "type": "object",
+            "required": ["command_id", "command_status", "sequence_number", "parameters"]
+          },
+          "roundtrip_wire_hex": {"type": ["string", "null"]},
+          "roundtrip_error": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

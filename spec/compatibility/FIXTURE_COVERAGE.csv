@@ -1,0 +1,28 @@
+surface,case_id,contract_ids,coverage,notes
+http,ping,H-012,full,Exact status headers and Jasmin/PONG bytes
+http,rate_valid,H-010,partial,Happy path only
+http,balance_unlimited,H-011,partial,Unlimited quota representation
+http,send_missing_password,H-002;H-009,partial,One validation-order case
+http,send_bad_password,H-004;H-009,partial,Form authentication failure
+http,send_no_live_connector,H-009,partial,Legacy downstream failure path
+http,rate_disabled_user,H-004;H-010,partial,Disabled user path
+http,balance_disabled_group,H-004;H-011,partial,Disabled group path
+http,send_json_bad_password,H-004;H-009,partial,JSON authentication failure
+smpp,bind_transceiver,S-001;S-002,partial,Canonical bind wire only
+smpp,submit_sm_ascii,SP-001,partial,Canonical defaults and ASCII payload
+smpp,submit_sm_sar_part,SP-006;SE-004,partial,One fixed SAR segment
+smpp,deliver_sm_mo,SP-003,partial,Canonical MO wire
+smpp,submit_sm_resp_ok,SP-002,partial,Success response wire
+smpp,deliver_sm_dlr_message_payload,SP-003;SP-006,partial,Known message_payload receipt corpus
+smpp,submit_sm_unknown_vendor_tlv,SP-007;SP-008,partial,Known vendor TLV decode and roundtrip failure
+amqp,submit_sm_httpapi,A-002;A-013,partial,Exact Content fields and legacy pickle
+amqp,submit_sm_resp,A-003;A-013,partial,Exact response Content
+amqp,dlr_lookup_submit_sm_resp,A-006;A-013,partial,DLR lookup Content
+amqp,dlr_http_thrower,A-007,partial,HTTP thrower Content
+amqp,dlr_smpps_thrower,A-007,partial,SMPPS thrower Content
+amqp,bill_submit_sm_resp,A-008,partial,Billing Content
+amqp,routed_deliver_sm_http,A-005;A-013,partial,Routed MO Content and connector pickle
+redis,http_dlr_request,RD-001,partial,HTTP DLR hash serialization and TTL
+redis,smpps_dlr_request,RD-001,partial,SMPPS DLR hash serialization and TTL
+redis,smpp_to_queue_id,RD-002,partial,Correlation hash serialization and TTL
+redis,multipart_deliver_sm_part,RD-003;SE-006,partial,Pickled multipart field and 300 second TTL

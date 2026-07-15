@@ -1,0 +1,56 @@
+name: Go rewrite compatibility
+
+on:
+  push:
+    branches: [go-rewrite, master]
+  pull_request:
+    branches: [go-rewrite, master]
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install compatibility validation tools
+        run: python -m pip install --disable-pip-version-check --require-hashes -r compat/requirements-tools.txt
+      - name: Compile compatibility tools
+        run: |
+          docker compose -f compat/compose.yaml config --quiet
+          bash -n scripts/compat/run_baseline_tests.sh scripts/compat/capture_all.sh
+          python -m py_compile scripts/build_test_manifest.py scripts/compat/*.py
+      - name: Verify inventories and fixtures
+        run: |
+          python scripts/build_test_manifest.py --check
+          python scripts/compat/verify_baseline_tree.py
+          python scripts/compat/verify_fixtures.py
+          python scripts/compat/validate_json_schemas.py
+          python -m unittest discover -s scripts/compat -p 'test_*.py'
+          python scripts/compat/diff_golden.py \
+            compat/fixtures/http/baseline.json \
+            compat/fixtures/http/baseline.json
+
+  fixture-reproducibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Regenerate all oracle fixtures
+        run: scripts/compat/capture_all.sh
+      - name: Require byte-for-byte reproducibility
+        run: git diff --exit-code -- compat/fixtures
+
+  frozen-python-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Run complete upstream suite against ephemeral RabbitMQ and Redis
+        run: scripts/compat/run_baseline_tests.sh

@@ -1,0 +1,26 @@
+FROM python:3.12-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b
+
+WORKDIR /workspace
+
+COPY compat/requirements-baseline.lock /tmp/requirements-baseline.lock
+RUN python -m pip install --disable-pip-version-check --no-cache-dir \
+       --require-hashes \
+       -r /tmp/requirements-baseline.lock
+
+RUN mkdir -p /etc/jasmin/resource /etc/jasmin/store /var/log/jasmin /artifacts \
+    /tmp/jasmin-store /tmp/jasmin-logs
+
+COPY jasmin /workspace/jasmin
+COPY tests /workspace/tests
+COPY misc /workspace/misc
+COPY scripts/compat /workspace/scripts/compat
+
+ENV PYTHONPATH=/workspace \
+    ROOT_PATH=/ \
+    CONFIG_PATH=/workspace/misc/config \
+    RESOURCE_PATH=/workspace/misc/config/resource \
+    STORE_PATH=/tmp/jasmin-store \
+    LOG_PATH=/var/log/jasmin \
+    PYTHONUNBUFFERED=1
+
+CMD ["python", "-m", "twisted.trial", "tests"]

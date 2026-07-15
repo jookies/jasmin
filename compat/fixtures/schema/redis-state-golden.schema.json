@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/redis-state-golden.schema.json",
+  "title": "Jasmin Redis state golden fixture",
+  "type": "object",
+  "required": ["schema_version", "baseline_commit", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "key_pattern", "redis_type", "fields", "ttl_seconds"],
+        "properties": {
+          "id": {"type": "string"},
+          "key_pattern": {"type": "string"},
+          "redis_type": {"const": "hash"},
+          "fields": {"type": "object"},
+          "ttl_seconds": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

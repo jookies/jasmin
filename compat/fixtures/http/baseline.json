@@ -1,0 +1,206 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "id": "ping",
+      "request": {
+        "arguments": {},
+        "json": null,
+        "method": "GET",
+        "path": "/ping"
+      },
+      "response": {
+        "body_base64": "SmFzbWluL1BPTkc=",
+        "body_utf8": "Jasmin/PONG",
+        "headers": {},
+        "status": 200
+      }
+    },
+    {
+      "id": "rate_valid",
+      "request": {
+        "arguments": {
+          "password": "correct",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "GET",
+        "path": "/rate"
+      },
+      "response": {
+        "body_base64": "eyJ1bml0X3JhdGUiOiAwLjAsICJzdWJtaXRfc21fY291bnQiOiAxfQ==",
+        "body_utf8": "{\"unit_rate\": 0.0, \"submit_sm_count\": 1}",
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 200
+      }
+    },
+    {
+      "id": "balance_unlimited",
+      "request": {
+        "arguments": {
+          "password": "correct",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "GET",
+        "path": "/balance"
+      },
+      "response": {
+        "body_base64": "eyJiYWxhbmNlIjogIk5EIiwgInNtc19jb3VudCI6ICJORCJ9",
+        "body_utf8": "{\"balance\": \"ND\", \"sms_count\": \"ND\"}",
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 200
+      }
+    },
+    {
+      "id": "send_missing_password",
+      "request": {
+        "arguments": {
+          "content": "hello",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIk1hbmRhdG9yeSBhcmd1bWVudCBbcGFzc3dvcmRdIGlzIG5vdCBmb3VuZC4i",
+        "body_utf8": "Error \"Mandatory argument [password] is not found.\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 400
+      }
+    },
+    {
+      "id": "send_bad_password",
+      "request": {
+        "arguments": {
+          "content": "hello",
+          "password": "wrong",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
+        "body_utf8": "Error \"Authentication failure for username:nathalie\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 403
+      }
+    },
+    {
+      "id": "send_no_live_connector",
+      "request": {
+        "arguments": {
+          "content": "hello",
+          "password": "correct",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkNhbm5vdCBzZW5kIHN1Ym1pdF9zbSwgY2hlY2sgU01QUENsaWVudE1hbmFnZXJQQiBsb2cgZmlsZSBmb3IgZGV0YWlscyI=",
+        "body_utf8": "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 500
+      }
+    },
+    {
+      "id": "rate_disabled_user",
+      "request": {
+        "arguments": {
+          "password": "correct",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "GET",
+        "path": "/rate"
+      },
+      "response": {
+        "body_base64": "IkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
+        "body_utf8": "\"Authentication failure for username:nathalie\"",
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 403
+      }
+    },
+    {
+      "id": "balance_disabled_group",
+      "request": {
+        "arguments": {
+          "password": "correct",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "GET",
+        "path": "/balance"
+      },
+      "response": {
+        "body_base64": "IkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
+        "body_utf8": "\"Authentication failure for username:nathalie\"",
+        "headers": {
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "status": 403
+      }
+    },
+    {
+      "id": "send_json_bad_password",
+      "request": {
+        "arguments": {},
+        "json": {
+          "content": "hello",
+          "password": "wrong",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
+        "body_utf8": "Error \"Authentication failure for username:nathalie\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 403
+      }
+    }
+  ],
+  "schema_version": 1
+}

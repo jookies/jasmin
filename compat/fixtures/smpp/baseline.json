@@ -1,0 +1,565 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "decoded": {
+        "command_id": "CommandId.bind_transceiver",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "address_range": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "interface_version": 0,
+          "password": {
+            "base64": "c2VjcmV0",
+            "hex": "736563726574",
+            "type": "bytes",
+            "utf8": "secret"
+          },
+          "system_id": {
+            "base64": "Y2xpZW50",
+            "hex": "636c69656e74",
+            "type": "bytes",
+            "utf8": "client"
+          },
+          "system_type": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          }
+        },
+        "sequence_number": 1
+      },
+      "direction": "encode",
+      "id": "bind_transceiver",
+      "roundtrip_wire_hex": "00000023000000090000000000000001636c69656e7400736563726574000000000000",
+      "wire_hex": "00000023000000090000000000000001636c69656e7400736563726574000000000000"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.submit_sm",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "data_coding": {
+            "type": "DataCoding",
+            "value": "DataCoding[scheme: DataCodingScheme.DEFAULT, schemeData: DataCodingDefault.SMSC_DEFAULT_ALPHABET]"
+          },
+          "dest_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "dest_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "destination_addr": {
+            "base64": "MjIyMg==",
+            "hex": "32323232",
+            "type": "bytes",
+            "utf8": "2222"
+          },
+          "esm_class": [
+            {
+              "type": "EsmClassMode",
+              "value": "EsmClassMode.DEFAULT"
+            },
+            {
+              "type": "EsmClassType",
+              "value": "EsmClassType.DEFAULT"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            }
+          ],
+          "priority_flag": {
+            "type": "PriorityFlag",
+            "value": "PriorityFlag.LEVEL_0"
+          },
+          "protocol_id": 0,
+          "registered_delivery": [
+            {
+              "type": "RegisteredDeliveryReceipt",
+              "value": "RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            },
+            false
+          ],
+          "replace_if_present_flag": {
+            "type": "ReplaceIfPresentFlag",
+            "value": "ReplaceIfPresentFlag.DO_NOT_REPLACE"
+          },
+          "schedule_delivery_time": null,
+          "service_type": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "short_message": {
+            "base64": "aGVsbG8=",
+            "hex": "68656c6c6f",
+            "type": "bytes",
+            "utf8": "hello"
+          },
+          "sm_default_msg_id": 0,
+          "source_addr": {
+            "base64": "MTExMQ==",
+            "hex": "31313131",
+            "type": "bytes",
+            "utf8": "1111"
+          },
+          "source_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "source_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "validity_period": null
+        },
+        "sequence_number": 7
+      },
+      "direction": "encode",
+      "id": "submit_sm_ascii",
+      "roundtrip_wire_hex": "0000002e0000000400000000000000070000003131313100000032323232000000000000000000000568656c6c6f",
+      "wire_hex": "0000002e0000000400000000000000070000003131313100000032323232000000000000000000000568656c6c6f"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.submit_sm",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "data_coding": {
+            "type": "DataCoding",
+            "value": "DataCoding[scheme: DataCodingScheme.DEFAULT, schemeData: DataCodingDefault.SMSC_DEFAULT_ALPHABET]"
+          },
+          "dest_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "dest_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "destination_addr": {
+            "base64": "MjIyMg==",
+            "hex": "32323232",
+            "type": "bytes",
+            "utf8": "2222"
+          },
+          "esm_class": [
+            {
+              "type": "EsmClassMode",
+              "value": "EsmClassMode.DEFAULT"
+            },
+            {
+              "type": "EsmClassType",
+              "value": "EsmClassType.DEFAULT"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            }
+          ],
+          "priority_flag": {
+            "type": "PriorityFlag",
+            "value": "PriorityFlag.LEVEL_0"
+          },
+          "protocol_id": 0,
+          "registered_delivery": [
+            {
+              "type": "RegisteredDeliveryReceipt",
+              "value": "RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            },
+            false
+          ],
+          "replace_if_present_flag": {
+            "type": "ReplaceIfPresentFlag",
+            "value": "ReplaceIfPresentFlag.DO_NOT_REPLACE"
+          },
+          "sar_msg_ref_num": 4660,
+          "sar_segment_seqnum": 1,
+          "sar_total_segments": 2,
+          "schedule_delivery_time": null,
+          "service_type": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "short_message": {
+            "base64": "cGFydC1vbmU=",
+            "hex": "706172742d6f6e65",
+            "type": "bytes",
+            "utf8": "part-one"
+          },
+          "sm_default_msg_id": 0,
+          "source_addr": {
+            "base64": "MTExMQ==",
+            "hex": "31313131",
+            "type": "bytes",
+            "utf8": "1111"
+          },
+          "source_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "source_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "validity_period": null
+        },
+        "sequence_number": 8
+      },
+      "direction": "encode",
+      "id": "submit_sm_sar_part",
+      "roundtrip_wire_hex": "0000004100000004000000000000000800000031313131000000323232320000000000000000000008706172742d6f6e65020c00021234020e000102020f000101",
+      "wire_hex": "0000004100000004000000000000000800000031313131000000323232320000000000000000000008706172742d6f6e65020c00021234020e000102020f000101"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.deliver_sm",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "data_coding": {
+            "type": "DataCoding",
+            "value": "DataCoding[scheme: DataCodingScheme.DEFAULT, schemeData: DataCodingDefault.SMSC_DEFAULT_ALPHABET]"
+          },
+          "dest_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "dest_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "destination_addr": {
+            "base64": "NDA0MA==",
+            "hex": "34303430",
+            "type": "bytes",
+            "utf8": "4040"
+          },
+          "esm_class": [
+            {
+              "type": "EsmClassMode",
+              "value": "EsmClassMode.DEFAULT"
+            },
+            {
+              "type": "EsmClassType",
+              "value": "EsmClassType.DEFAULT"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            }
+          ],
+          "priority_flag": {
+            "type": "PriorityFlag",
+            "value": "PriorityFlag.LEVEL_0"
+          },
+          "protocol_id": 0,
+          "registered_delivery": [
+            {
+              "type": "RegisteredDeliveryReceipt",
+              "value": "RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            },
+            false
+          ],
+          "replace_if_present_flag": {
+            "type": "ReplaceIfPresentFlag",
+            "value": "ReplaceIfPresentFlag.DO_NOT_REPLACE"
+          },
+          "schedule_delivery_time": null,
+          "service_type": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "short_message": {
+            "base64": "TU8gaGVsbG8=",
+            "hex": "4d4f2068656c6c6f",
+            "type": "bytes",
+            "utf8": "MO hello"
+          },
+          "sm_default_msg_id": 0,
+          "source_addr": {
+            "base64": "MTU1NTEyMzAwMDA=",
+            "hex": "3135353531323330303030",
+            "type": "bytes",
+            "utf8": "15551230000"
+          },
+          "source_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "source_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "validity_period": null
+        },
+        "sequence_number": 9
+      },
+      "direction": "encode",
+      "id": "deliver_sm_mo",
+      "roundtrip_wire_hex": "0000003800000005000000000000000900000031353535313233303030300000003430343000000000000000000000084d4f2068656c6c6f",
+      "wire_hex": "0000003800000005000000000000000900000031353535313233303030300000003430343000000000000000000000084d4f2068656c6c6f"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.submit_sm_resp",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "message_id": {
+            "base64": "MDAwMDQzNjk0OQ==",
+            "hex": "30303030343336393439",
+            "type": "bytes",
+            "utf8": "0000436949"
+          }
+        },
+        "sequence_number": 7
+      },
+      "direction": "encode",
+      "id": "submit_sm_resp_ok",
+      "roundtrip_wire_hex": "0000001b8000000400000000000000073030303034333639343900",
+      "wire_hex": "0000001b8000000400000000000000073030303034333639343900"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.deliver_sm",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "data_coding": {
+            "type": "DataCoding",
+            "value": "DataCoding[scheme: DataCodingScheme.DEFAULT, schemeData: DataCodingDefault.SMSC_DEFAULT_ALPHABET]"
+          },
+          "dest_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "dest_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "destination_addr": {
+            "base64": "Nzc4OA==",
+            "hex": "37373838",
+            "type": "bytes",
+            "utf8": "7788"
+          },
+          "esm_class": [
+            {
+              "type": "EsmClassMode",
+              "value": "EsmClassMode.DEFAULT"
+            },
+            {
+              "type": "EsmClassType",
+              "value": "EsmClassType.SMSC_DELIVERY_RECEIPT"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            }
+          ],
+          "message_payload": {
+            "base64": "aWQ6MDAwMDQzNjk0OSBzdWJtaXQgZGF0ZToxNTA0MjExNTA4IGRvbmUgZGF0ZToxNTA0MjExNTA4IHN0YXQ6REVMSVZSRCBlcnI6MDAwAA==",
+            "hex": "69643a30303030343336393439207375626d697420646174653a3135303432313135303820646f6e6520646174653a3135303432313135303820737461743a44454c49565244206572723a30303000",
+            "type": "bytes",
+            "utf8": "id:0000436949 submit date:1504211508 done date:1504211508 stat:DELIVRD err:000\u0000"
+          },
+          "message_state": {
+            "type": "MessageState",
+            "value": "MessageState.DELIVERED"
+          },
+          "priority_flag": {
+            "type": "PriorityFlag",
+            "value": "PriorityFlag.LEVEL_0"
+          },
+          "protocol_id": 0,
+          "receipted_message_id": {
+            "base64": "NmFhZDU=",
+            "hex": "3661616435",
+            "type": "bytes",
+            "utf8": "6aad5"
+          },
+          "registered_delivery": [
+            {
+              "type": "RegisteredDeliveryReceipt",
+              "value": "RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            },
+            false
+          ],
+          "replace_if_present_flag": {
+            "type": "ReplaceIfPresentFlag",
+            "value": "ReplaceIfPresentFlag.DO_NOT_REPLACE"
+          },
+          "schedule_delivery_time": null,
+          "service_type": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "short_message": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "sm_default_msg_id": 0,
+          "source_addr": {
+            "base64": "MjE2NTM1MjA3MDM=",
+            "hex": "3231363533353230373033",
+            "type": "bytes",
+            "utf8": "21653520703"
+          },
+          "source_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "source_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.UNKNOWN"
+          },
+          "validity_period": null
+        },
+        "sequence_number": 92476
+      },
+      "direction": "decode",
+      "id": "deliver_sm_dlr_message_payload",
+      "roundtrip_error": "ValueError: Value (b'id:0000436949 submit date:1504211508 done date:1504211508 stat:DELIVRD err:000\\x00') size 79 does not match expected 1",
+      "roundtrip_wire_hex": null,
+      "wire_hex": "0000009200000005000000000001693c00000032313635333532303730330000003737383800040000000001000000000424004f69643a30303030343336393439207375626d697420646174653a3135303432313135303820646f6e6520646174653a3135303432313135303820737461743a44454c49565244206572723a30303000001e00063661616435000427000102"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.submit_sm",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "data_coding": {
+            "type": "DataCoding",
+            "value": "DataCoding[scheme: DataCodingScheme.GSM_MESSAGE_CLASS, schemeData: DataCodingGsmMsg[msgCoding: DataCodingGsmMsgCoding.DEFAULT_ALPHABET, msgClass: DataCodingGsmMsgClass.CLASS_1]]"
+          },
+          "dest_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.ISDN"
+          },
+          "dest_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.INTERNATIONAL"
+          },
+          "destination_addr": {
+            "base64": "NTczMTg4MzA4MTI5",
+            "hex": "353733313838333038313239",
+            "type": "bytes",
+            "utf8": "573188308129"
+          },
+          "esm_class": [
+            {
+              "type": "EsmClassMode",
+              "value": "EsmClassMode.STORE_AND_FORWARD"
+            },
+            {
+              "type": "EsmClassType",
+              "value": "EsmClassType.DEFAULT"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            }
+          ],
+          "priority_flag": {
+            "type": "PriorityFlag",
+            "value": "PriorityFlag.LEVEL_0"
+          },
+          "protocol_id": 0,
+          "registered_delivery": [
+            {
+              "type": "RegisteredDeliveryReceipt",
+              "value": "RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED"
+            },
+            {
+              "type": "set",
+              "value": "set()"
+            },
+            false
+          ],
+          "replace_if_present_flag": {
+            "type": "ReplaceIfPresentFlag",
+            "value": "ReplaceIfPresentFlag.DO_NOT_REPLACE"
+          },
+          "schedule_delivery_time": null,
+          "service_type": {
+            "base64": "",
+            "hex": "",
+            "type": "bytes",
+            "utf8": ""
+          },
+          "short_message": {
+            "base64": "UExFQVNFIElHTk9SRSBUSElTIE1FU1NBR0U=",
+            "hex": "504c454153452049474e4f52452054484953204d455353414745",
+            "type": "bytes",
+            "utf8": "PLEASE IGNORE THIS MESSAGE"
+          },
+          "sm_default_msg_id": 0,
+          "source_addr": {
+            "base64": "Sm9qb3M=",
+            "hex": "4a6f6a6f73",
+            "type": "bytes",
+            "utf8": "Jojos"
+          },
+          "source_addr_npi": {
+            "type": "AddrNpi",
+            "value": "AddrNpi.UNKNOWN"
+          },
+          "source_addr_ton": {
+            "type": "AddrTon",
+            "value": "AddrTon.ALPHANUMERIC"
+          },
+          "validity_period": {
+            "type": "datetime",
+            "value": "2015-11-10 14:56:07"
+          }
+        },
+        "sequence_number": 1414
+      },
+      "direction": "decode",
+      "id": "submit_sm_unknown_vendor_tlv",
+      "roundtrip_error": null,
+      "roundtrip_wire_hex": "0000005c0000000400000000000005860005004a6f6a6f7300010135373331383833303831323900030000003135313131303134353630373030302b000100f1001a504c454153452049474e4f52452054484953204d455353414745",
+      "wire_hex": "000000650000000400000000000005860005004a6f6a6f7300010135373331383833303831323900030000003135313131303134353630373030302b000100f1001a504c454153452049474e4f52452054484953204d455353414745140300053338363336"
+    }
+  ],
+  "schema_version": 1
+}
