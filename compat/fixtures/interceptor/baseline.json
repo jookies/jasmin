@@ -82,6 +82,16 @@
       },
       "id": "syntax_error",
       "script": "some invalid code !!!"
+    },
+    {
+      "id": "locked_mutation",
+      "script": "routable.pdu.params['source_addr'] = 'modified'",
+      "input": {
+        "locked": ["source_addr"]
+      },
+      "expected": {
+        "error": "source_addr field is locked"
+      }
     }
   ],
   "schema_version": 1,

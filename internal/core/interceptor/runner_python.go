@@ -26,6 +26,7 @@ type pyRoutable struct {
 	DestinationAddr string   `json:"destination_addr"`
 	ShortMessage    string   `json:"short_message"`
 	Tags            []string `json:"tags"`
+	Locked          []string `json:"locked"`
 }
 
 type pyResponse struct {
@@ -48,13 +49,26 @@ def run():
         # Mocking the Jasmin Routable environment for the script
         class Routable:
             def __init__(self, data):
-                self.pdu = type('PDU', (), {'params': {
+                locked = list(data.get('locked', []))
+                class Params(dict):
+                    def __init__(self, d, locked):
+                        super().__init__(d)
+                        self._locked = locked
+                    def __setitem__(self, key, value):
+                        if key in self._locked:
+                            raise Exception('%s field is locked' % key)
+                        super().__setitem__(key, value)
+                
+                self.pdu = type('PDU', (), {'params': Params({
                     'source_addr': data['source_addr'],
                     'destination_addr': data['destination_addr'],
                     'short_message': data['short_message']
-                }})
+                }, locked)})
                 self._tags = list(data['tags'])
+                self._locked = locked
             def addTag(self, tag):
+                if 'tags' in self._locked:
+                    raise Exception('tags field is locked')
                 if tag not in self._tags:
                     self._tags.append(str(tag))
         
@@ -94,6 +108,7 @@ func (r *PythonRunner) Run(ctx context.Context, script Script, req Context) (Res
 			DestinationAddr: string(req.Routable.DestinationAddr().Value),
 			ShortMessage:    string(req.Routable.ShortMessage().Value),
 			Tags:            req.Routable.Tags(),
+			Locked:          req.Routable.Locked(),
 		},
 		SMPPStatus: req.SMPPStatus,
 		HTTPStatus: req.HTTPStatus,

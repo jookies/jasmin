@@ -16,13 +16,15 @@ type Kind string
 const (
 	Random        Kind = "random"
 	Failover      Kind = "failover"
+	BestQuality   Kind = "bestquality"
 	MaxConnectors      = 1024
 )
 
 var (
-	ErrInvalidPolicy = errors.New("invalid route policy")
-	ErrNoConnectors  = errors.New("route cannot have zero connectors")
-	ErrIndex         = errors.New("connector index out of range")
+	ErrInvalidPolicy      = errors.New("invalid route policy")
+	ErrNotImplemented     = errors.New("route policy not implemented")
+	ErrNoConnectors       = errors.New("route cannot have zero connectors")
+	ErrIndex              = errors.New("connector index out of range")
 )
 
 type Route struct {
@@ -34,6 +36,9 @@ type Route struct {
 }
 
 func New(kind Kind, direction routingfilter.Direction, connectors []routingtable.Connector, rate float64, filters ...routingfilter.Filter) (Route, error) {
+	if kind == BestQuality {
+		return Route{}, ErrNotImplemented
+	}
 	if kind != Random && kind != Failover {
 		return Route{}, ErrInvalidPolicy
 	}
@@ -82,6 +87,7 @@ func New(kind Kind, direction routingfilter.Direction, connectors []routingtable
 	}
 	return Route{kind: kind, direction: direction, connectors: cc, rate: rate, filters: ff}, nil
 }
+
 func (r Route) Kind() Kind    { return r.kind }
 func (r Route) Rate() float64 { return r.rate }
 func (r Route) Connectors() []routingtable.Connector {

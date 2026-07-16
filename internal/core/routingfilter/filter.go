@@ -25,6 +25,7 @@ var (
 	ErrMissingField     = errors.New("required routable field is missing")
 	ErrValueTooLarge    = errors.New("routing filter value exceeds compatibility cap")
 	ErrTooManyTags      = errors.New("too many routable tags")
+	ErrFieldLocked      = errors.New("routable field is locked")
 )
 
 type Direction string
@@ -79,6 +80,7 @@ type Routable struct {
 	messagePayload  BytesField
 	timestamp       time.Time
 	tags            map[string]struct{}
+	locked          map[string]struct{}
 }
 
 type Filter interface {
@@ -140,6 +142,7 @@ func NewRoutable(input RoutableInput) (Routable, error) {
 		messagePayload:  cloneField(input.MessagePayload),
 		timestamp:       input.Timestamp,
 		tags:            tags,
+		locked:          make(map[string]struct{}),
 	}, nil
 }
 
@@ -349,8 +352,18 @@ func (r Routable) Tags() []string {
 	}
 	return tags
 }
+func (r Routable) Locked() []string {
+	locked := make([]string, 0, len(r.locked))
+	for f := range r.locked {
+		locked = append(locked, f)
+	}
+	return locked
+}
 
 func (r *Routable) SetSourceAddr(val []byte) error {
+	if r.IsLocked("source_addr") {
+		return ErrFieldLocked
+	}
 	if len(val) > MaxFieldBytes {
 		return ErrValueTooLarge
 	}
@@ -358,6 +371,9 @@ func (r *Routable) SetSourceAddr(val []byte) error {
 	return nil
 }
 func (r *Routable) SetDestinationAddr(val []byte) error {
+	if r.IsLocked("destination_addr") {
+		return ErrFieldLocked
+	}
 	if len(val) > MaxFieldBytes {
 		return ErrValueTooLarge
 	}
@@ -365,6 +381,9 @@ func (r *Routable) SetDestinationAddr(val []byte) error {
 	return nil
 }
 func (r *Routable) SetShortMessage(val []byte) error {
+	if r.IsLocked("short_message") {
+		return ErrFieldLocked
+	}
 	if len(val) > MaxFieldBytes {
 		return ErrValueTooLarge
 	}
@@ -372,6 +391,9 @@ func (r *Routable) SetShortMessage(val []byte) error {
 	return nil
 }
 func (r *Routable) AddTag(tag string) error {
+	if r.IsLocked("tags") {
+		return ErrFieldLocked
+	}
 	if len(tag) > MaxTagBytes {
 		return ErrValueTooLarge
 	}
@@ -384,8 +406,33 @@ func (r *Routable) AddTag(tag string) error {
 	r.tags[tag] = struct{}{}
 	return nil
 }
-func (r *Routable) RemoveTag(tag string) {
+func (r *Routable) RemoveTag(tag string) error {
+	if r.IsLocked("tags") {
+		return ErrFieldLocked
+	}
 	delete(r.tags, tag)
+	return nil
+}
+
+func (r *Routable) Lock(field string) {
+	if r.locked == nil {
+		r.locked = make(map[string]struct{})
+	}
+	r.locked[field] = struct{}{}
+}
+
+func (r *Routable) Unlock(field string) {
+	if r.locked != nil {
+		delete(r.locked, field)
+	}
+}
+
+func (r *Routable) IsLocked(field string) bool {
+	if r.locked == nil {
+		return false
+	}
+	_, ok := r.locked[field]
+	return ok
 }
 
 func (r Routable) Clone() Routable {
@@ -397,6 +444,10 @@ func (r Routable) Clone() Routable {
 	newR.tags = make(map[string]struct{}, len(r.tags))
 	for t := range r.tags {
 		newR.tags[t] = struct{}{}
+	}
+	newR.locked = make(map[string]struct{}, len(r.locked))
+	for f := range r.locked {
+		newR.locked[f] = struct{}{}
 	}
 	return newR
 }

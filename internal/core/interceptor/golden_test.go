@@ -20,7 +20,11 @@ type document struct {
 type fixture struct {
 	ID       string   `json:"id"`
 	Script   string   `json:"script"`
+	Input    *input   `json:"input,omitempty"`
 	Expected expected `json:"expected"`
+}
+type input struct {
+	Locked []string `json:"locked"`
 }
 type expected struct {
 	Routable   *pyRoutable `json:"routable"`
@@ -33,6 +37,7 @@ type pyRoutable struct {
 	DestinationAddr string   `json:"destination_addr"`
 	ShortMessage    string   `json:"short_message"`
 	Tags            []string `json:"tags"`
+	Locked          []string `json:"locked"`
 }
 
 func TestGoldenInterceptor(t *testing.T) {
@@ -42,14 +47,23 @@ func TestGoldenInterceptor(t *testing.T) {
 	for _, tc := range doc.Cases {
 		tc := tc
 		t.Run(tc.ID, func(t *testing.T) {
-			r, _ := routingfilter.NewRoutable(routingfilter.RoutableInput{
+			rInput := routingfilter.RoutableInput{
 				Direction:       routingfilter.MT,
 				ConnectorID:     "abc",
 				SourceAddr:      routingfilter.BytesField{Present: true, Value: []byte("20203060")},
 				DestinationAddr: routingfilter.BytesField{Present: true, Value: []byte("123456")},
 				ShortMessage:    routingfilter.BytesField{Present: true, Value: []byte("hello world")},
 				Timestamp:       time.Date(2023, 10, 27, 10, 0, 0, 0, time.UTC),
-			})
+			}
+			
+			r, _ := routingfilter.NewRoutable(rInput)
+			
+			// Apply locks from fixture if provided
+			if tc.Input != nil && tc.Input.Locked != nil {
+				for _, f := range tc.Input.Locked {
+					r.Lock(f)
+				}
+			}
 
 			script := interceptor.Script{IDValue: tc.ID, PyCode: tc.Script}
 			res, err := runner.Run(context.Background(), script, interceptor.Context{Routable: r})

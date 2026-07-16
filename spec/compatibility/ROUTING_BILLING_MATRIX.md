@@ -9,7 +9,7 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 |---|---|---|---|
 | RT-001 | MO/MT routables | connector/user/message fields, PDU reference, datetime and type restrictions | INVENTORIED |
 | RT-002 | tags | add/remove/has/get, duplicate/type behavior | INVENTORIED |
-| RT-003 | locked fields | locking and interceptor mutation rejection | INVENTORIED |
+| RT-003 | locked fields | locking and interceptor mutation rejection | GO-PARTIAL |
 | RF-001 | Transparent | unconditional match | GO-PARTIAL |
 | RF-002 | Connector | MO-only source connector and type validation | GO-PARTIAL |
 | RF-003 | User | MT-only user identity | GO-PARTIAL |
@@ -36,7 +36,7 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | RR-007 | RandomRoundrobin MO/MT | legacy random choice and eligible connector set | GO-PARTIAL |
 | RR-008 | Failover MO/MT | connector order, availability predicate and exhaustion | GO-PARTIAL |
 | RR-009 | connector types | valid destinations for MO versus MT | GO-PARTIAL |
-| RR-010 | BestQualityMTRoute | document upstream stub/non-working status | INVENTORIED |
+| RR-010 | BestQualityMTRoute | document upstream stub/non-working status | GO-PARTIAL |
 
 ## Interceptors
 
