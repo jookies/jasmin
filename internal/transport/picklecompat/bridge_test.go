@@ -13,9 +13,6 @@ import (
 
 func TestPickleBridgeRoundTrip(t *testing.T) {
 	pythonPath := os.Getenv("PYTHON_PATH")
-	if pythonPath == "" {
-		pythonPath = "/Users/minibot/.hermes/hermes-agent/venv/bin/python3"
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -30,7 +27,7 @@ func TestPickleBridgeRoundTrip(t *testing.T) {
 	// In Python: pickle.dumps({"a": 1, "b": b"binary"})
 	// Protocol 2: b'\x80\x02}q\x00(X\x01\x00\x00\x0aaK\x01X\x01\x00\x00\x00bC\x06binaryq\x01u.'
 	pickleData := "\x80\x02}q\x00(X\x01\x00\x00\x00aK\x01X\x01\x00\x00\x00bC\x06binaryq\x01u."
-	
+
 	decoded, err := bridge.Decode(ctx, []byte(pickleData))
 	if err != nil {
 		t.Fatalf("Decode: %v", err)
@@ -48,19 +45,19 @@ func TestPickleBridgeRoundTrip(t *testing.T) {
 	if b["__type__"] != "bytes" {
 		t.Errorf("got b type = %v, want bytes", b["__type__"])
 	}
-	
+
 	// Test Encode back
 	encoded, err := bridge.Encode(ctx, res)
 	if err != nil {
 		t.Fatalf("Encode: %v", err)
 	}
-	
+
 	// Decode again to verify roundtrip
 	decoded2, err := bridge.Decode(ctx, encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if string(decoded) != string(decoded2) {
 		t.Errorf("roundtrip mismatch:\n%s\nvs\n%s", string(decoded), string(decoded2))
 	}
@@ -68,9 +65,6 @@ func TestPickleBridgeRoundTrip(t *testing.T) {
 
 func TestAMQPFixtureDecoding(t *testing.T) {
 	pythonPath := os.Getenv("PYTHON_PATH")
-	if pythonPath == "" {
-		pythonPath = "/Users/minibot/.hermes/hermes-agent/venv/bin/python3"
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -84,7 +78,7 @@ func TestAMQPFixtureDecoding(t *testing.T) {
 	// Case: submit_sm_httpapi from baseline.json
 	wireBase64 := "gAJjc21wcC5wZHUub3BlcmF0aW9ucwpTdWJtaXRTTQpxACmBcQF9cQIoWAIAAABpZHEDY3NtcHAucGR1LnBkdV90eXBlcwpDb21tYW5kSWQKcQRLCIVxBVJxBlgGAAAAc2VxTnVtcQdLB1gGAAAAc3RhdHVzcQhjc21wcC5wZHUucGR1X3R5cGVzCkNvbW1hbmRTdGF0dXMKcQlLAYVxClJxC1gLAAAAY3VzdG9tX3RsdnNxDF1xDVgGAAAAcGFyYW1zcQ59cQ8oWAsAAABzb3VyY2VfYWRkcnEQY19jb2RlY3MKZW5jb2RlCnERWAQAAAAxMTExcRJYBgAAAGxhdGluMXEThnEUUnEVWBAAAABkZXN0aW5hdGlvbl9hZGRycRZoEVgEAAAAMjIyMnEXaBOGcRhScRlYDQAAAHNob3J0X21lc3NhZ2VxGmgRWAUAAABoZWxsb3EbaBOGcRxScR1YDAAAAHNlcnZpY2VfdHlwZXEeTlgPAAAAc291cmNlX2FkZHJfdG9ucR9OWA8AAABzb3VyY2VfYWRkcl9ucGlxIE5YDQAAAGRlc3RfYWRkcl90b25xIU5YDQAAAGRlc3RfYWRkcl9ucGlxIk5YCQAAAGVzbV9jbGFzc3EjTlgLAAAAcHJvdG9jb2xfaWRxJE5YDQAAAHByaW9yaXR5X2ZsYWdxJU5YFgAAAHNjaGVkdWxlX2RlbGl2ZXJ5X3RpbWVxJk5YDwAAAHZhbGlkaXR5X3BlcmlvZHEnTlgTAAAAcmVnaXN0ZXJlZF9kZWxpdmVyeXEoTlgXAAAAcmVwbGFjZV9pZl9wcmVzZW50X2ZsYWdxKU5YCwAAAGRhdGFfY29kaW5ncSpOWBEAAABzbV9kZWZhdWx0X21zZ19pZHErTnV1Yi4="
 	data, _ := base64.StdEncoding.DecodeString(wireBase64)
-	
+
 	decoded, err := bridge.Decode(ctx, data)
 	if err != nil {
 		t.Fatalf("Decode fixture: %v", err)
@@ -98,7 +92,7 @@ func TestAMQPFixtureDecoding(t *testing.T) {
 	if sm.ClassName != "smpp.pdu.operations.SubmitSM" {
 		t.Errorf("got class %v, want smpp.pdu.operations.SubmitSM", sm.ClassName)
 	}
-	
+
 	if string(sm.Params.ShortMessage) != "hello" {
 		t.Errorf("got message %q, want hello", string(sm.Params.ShortMessage))
 	}

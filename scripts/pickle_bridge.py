@@ -60,11 +60,11 @@ def deserialize(obj):
 
 def run():
     import logging
-    logging.basicConfig(filename='pickle_bridge.log', level=logging.DEBUG)
-    logging.debug("Bridge started")
+    # A bridge invocation must not mutate the caller's working tree. Diagnostics
+    # stay on stderr and never include request/response payloads.
+    logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     for line in sys.stdin:
         try:
-            logging.debug(f"Received: {line.strip()}")
             req = json.loads(line)
             action = req.get("action")
             
@@ -72,18 +72,16 @@ def run():
                 data = base64.b64decode(req["data"])
                 obj = pickle.loads(data)
                 res = json.dumps({"status": "ok", "result": serialize(obj)})
-                logging.debug(f"Sending: {res}")
                 print(res)
             elif action == "encode":
                 obj = deserialize(req["result"])
                 data = pickle.dumps(obj)
                 res = json.dumps({"status": "ok", "data": base64.b64encode(data).decode('ascii')})
-                logging.debug(f"Sending: {res}")
                 print(res)
             else:
                 print(json.dumps({"status": "error", "message": "unknown action"}))
         except Exception as e:
-            logging.exception("Error in bridge")
+            logging.error("bridge request failed: %s", type(e).__name__)
             print(json.dumps({"status": "error", "message": str(e)}))
         sys.stdout.flush()
 
