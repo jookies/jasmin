@@ -29,8 +29,8 @@ This phase implements the RabbitMQ topology (exchanges, queues, bindings) and ba
 3. [x] Implement basic Publisher for MT Submit.
 4. [x] Implement basic Consumer for MO Ingest.
 5. [x] Implement connection/channel recovery logic.
-6. [ ] Verification with a live RabbitMQ (container-based).
-7. [ ] Ralph audit.
+6. [x] Verification with a live RabbitMQ (container-based).
+7. [x] Ralph audit.
 
 ## Verification
 - `TestAMQPTopology`

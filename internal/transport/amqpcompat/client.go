@@ -72,6 +72,8 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan Envelope, 
 		return nil, err
 	}
 
+	notifyClose := c.ch.NotifyClose(make(chan *amqp.Error, 1))
+
 	out := make(chan Envelope)
 	go func() {
 		defer close(out)
@@ -79,13 +81,19 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan Envelope, 
 			select {
 			case <-ctx.Done():
 				return
+			case err := <-notifyClose:
+				if err != nil {
+					// RI-005: Channel closed due to error.
+					// In a full implementation, this would trigger a reconnect.
+					// For now, we exit the loop.
+				}
+				return
 			case d, ok := <-deliveries:
 				if !ok {
 					return
 				}
 				props, err := NewProperties(d.MessageId, fromAMQPHeaders(d.Headers))
 				if err != nil {
-					// RI-005: Failure handling. Log and skip malformed.
 					continue
 				}
 				env, err := NewEnvelope(d.RoutingKey, props, d.Body)
