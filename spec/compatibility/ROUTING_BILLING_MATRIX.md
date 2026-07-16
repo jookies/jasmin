@@ -42,12 +42,12 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
-| RI-001 | table order | descending order, first match and order-0 default | INVENTORIED |
-| RI-002 | script inputs | `routable`, `smpp_status`, `http_status` globals | INVENTORIED |
-| RI-003 | mutation | PDU fields, tags and locked fields | INVENTORIED |
-| RI-004 | rejection | HTTP/SMPP status overrides and return forms | INVENTORIED |
-| RI-005 | failure | syntax/runtime/timeout/PB failure behavior | INVENTORIED |
-| RI-006 | sidecar | legacy Python execution remains isolated and resource-bounded in compatibility mode | INVENTORIED |
+| RI-001 | table order | descending order, first match and order-0 default | GO-PARTIAL |
+| RI-002 | script inputs | `routable`, `smpp_status`, `http_status` globals | GO-PARTIAL |
+| RI-003 | mutation | PDU fields, tags and locked fields | GO-PARTIAL |
+| RI-004 | rejection | HTTP/SMPP status overrides and return forms | GO-PARTIAL |
+| RI-005 | failure | syntax/runtime/timeout/PB failure behavior | GO-PARTIAL |
+| RI-006 | sidecar | legacy Python execution remains isolated and resource-bounded in compatibility mode | GO-PARTIAL |
 
 ## Billing and quotas
 

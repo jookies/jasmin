@@ -1,0 +1,89 @@
+{
+  "baseline_commit": "05e193ef974514299b042b4742a781b0a701467a",
+  "cases": [
+    {
+      "expected": {
+        "http_status": null,
+        "routable": {
+          "destination_addr": "123456",
+          "short_message": "hello world",
+          "source_addr": "20203060",
+          "tags": []
+        },
+        "smpp_status": null
+      },
+      "id": "noop",
+      "script": "pass"
+    },
+    {
+      "expected": {
+        "http_status": null,
+        "routable": {
+          "destination_addr": "123456",
+          "short_message": "hello world",
+          "source_addr": "9999",
+          "tags": []
+        },
+        "smpp_status": null
+      },
+      "id": "change_src",
+      "script": "routable.pdu.params['source_addr'] = '9999'"
+    },
+    {
+      "expected": {
+        "http_status": null,
+        "routable": {
+          "destination_addr": "123456",
+          "short_message": "hello world",
+          "source_addr": "20203060",
+          "tags": [
+            "newtag"
+          ]
+        },
+        "smpp_status": null
+      },
+      "id": "add_tag",
+      "script": "routable.addTag('newtag')"
+    },
+    {
+      "expected": {
+        "http_status": null,
+        "routable": {
+          "destination_addr": "123456",
+          "short_message": "changed",
+          "source_addr": "20203060",
+          "tags": [
+            "t1",
+            "t2"
+          ]
+        },
+        "smpp_status": null
+      },
+      "id": "multiple_mutations",
+      "script": "routable.pdu.params['short_message'] = 'changed'; routable.addTag('t1'); routable.addTag('t2')"
+    },
+    {
+      "expected": {
+        "http_status": 403,
+        "routable": {
+          "destination_addr": "123456",
+          "short_message": "hello world",
+          "source_addr": "20203060",
+          "tags": []
+        },
+        "smpp_status": 64
+      },
+      "id": "set_statuses",
+      "script": "smpp_status = 64; http_status = 403"
+    },
+    {
+      "expected": {
+        "error": "invalid syntax (<string>, line 1)"
+      },
+      "id": "syntax_error",
+      "script": "some invalid code !!!"
+    }
+  ],
+  "schema_version": 1,
+  "source": "jasmin/interceptor/interceptor.py"
+}

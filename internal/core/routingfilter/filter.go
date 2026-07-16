@@ -332,6 +332,74 @@ func (filter tagFilter) Match(routable Routable) (bool, error) {
 	return found, nil
 }
 
+func (r Routable) Direction() Direction { return r.direction }
+func (r Routable) ConnectorID() string { return r.connectorID }
+func (r Routable) UserID() int64 { return r.userID }
+func (r Routable) GroupID() int64 { return r.groupID }
+func (r Routable) SourceAddr() BytesField { return cloneField(r.sourceAddr) }
+func (r Routable) DestinationAddr() BytesField { return cloneField(r.destinationAddr) }
+func (r Routable) ShortMessage() BytesField { return cloneField(r.shortMessage) }
+func (r Routable) MessagePayload() BytesField { return cloneField(r.messagePayload) }
+func (r Routable) Timestamp() time.Time { return r.timestamp }
+func (r Routable) Tags() []string {
+	tags := make([]string, 0, len(r.tags))
+	for t := range r.tags {
+		tags = append(tags, t)
+	}
+	return tags
+}
+
+func (r *Routable) SetSourceAddr(val []byte) error {
+	if len(val) > MaxFieldBytes {
+		return ErrValueTooLarge
+	}
+	r.sourceAddr = BytesField{Present: true, Value: append([]byte(nil), val...)}
+	return nil
+}
+func (r *Routable) SetDestinationAddr(val []byte) error {
+	if len(val) > MaxFieldBytes {
+		return ErrValueTooLarge
+	}
+	r.destinationAddr = BytesField{Present: true, Value: append([]byte(nil), val...)}
+	return nil
+}
+func (r *Routable) SetShortMessage(val []byte) error {
+	if len(val) > MaxFieldBytes {
+		return ErrValueTooLarge
+	}
+	r.shortMessage = BytesField{Present: true, Value: append([]byte(nil), val...)}
+	return nil
+}
+func (r *Routable) AddTag(tag string) error {
+	if len(tag) > MaxTagBytes {
+		return ErrValueTooLarge
+	}
+	if !utf8.ValidString(tag) {
+		return ErrInvalidValue
+	}
+	if len(r.tags) >= MaxTags {
+		return ErrTooManyTags
+	}
+	r.tags[tag] = struct{}{}
+	return nil
+}
+func (r *Routable) RemoveTag(tag string) {
+	delete(r.tags, tag)
+}
+
+func (r Routable) Clone() Routable {
+	newR := r
+	newR.sourceAddr = cloneField(r.sourceAddr)
+	newR.destinationAddr = cloneField(r.destinationAddr)
+	newR.shortMessage = cloneField(r.shortMessage)
+	newR.messagePayload = cloneField(r.messagePayload)
+	newR.tags = make(map[string]struct{}, len(r.tags))
+	for t := range r.tags {
+		newR.tags[t] = struct{}{}
+	}
+	return newR
+}
+
 func commonBase(kind Kind) filterBase {
 	return filterBase{kind: kind, directions: []Direction{MT, MO}}
 }
