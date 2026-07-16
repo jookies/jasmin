@@ -22,6 +22,78 @@ type User struct {
 	group                         *Group
 }
 
+func (u *User) UID() int64 {
+	return u.uid
+}
+
+type UserState struct {
+	UID                          int64
+	Balance                      *float64
+	EarlyDecrementBalancePercent *int
+	SubmitSmCountQuota           *int
+	GID                          *int64
+}
+
+func (u *User) GetState() UserState {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	
+	var gid *int64
+	if u.group != nil {
+		id := u.group.gid
+		gid = &id
+	}
+	
+	return UserState{
+		UID:                          u.uid,
+		Balance:                      u.balance,
+		EarlyDecrementBalancePercent: u.earlyDecrementBalancePercent,
+		SubmitSmCountQuota:           u.submitSmCountQuota,
+		GID:                          gid,
+	}
+}
+
+func (u *User) LoadState(s UserState) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	
+	u.uid = s.UID
+	u.balance = s.Balance
+	u.earlyDecrementBalancePercent = s.EarlyDecrementBalancePercent
+	u.submitSmCountQuota = s.SubmitSmCountQuota
+	// Group is handled separately by the caller via SetGroup
+}
+
+type GroupState struct {
+	GID                int64
+	Balance            *float64
+	SubmitSmCountQuota *int
+}
+
+func (g *Group) GetState() GroupState {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	
+	return GroupState{
+		GID:                g.gid,
+		Balance:            g.balance,
+		SubmitSmCountQuota: g.submitSmCountQuota,
+	}
+}
+
+func (g *Group) LoadState(s GroupState) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	
+	g.gid = s.GID
+	g.balance = s.Balance
+	g.submitSmCountQuota = s.SubmitSmCountQuota
+}
+
+func (g *Group) GID() int64 {
+	return g.gid
+}
+
 type Group struct {
 	mu                 sync.Mutex
 	gid                int64
