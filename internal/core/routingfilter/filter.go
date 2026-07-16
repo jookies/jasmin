@@ -47,6 +47,7 @@ const (
 	KindDateInterval    Kind = "date_interval"
 	KindTimeInterval    Kind = "time_interval"
 	KindTag             Kind = "tag"
+	KindEvalPy          Kind = "eval_py"
 )
 
 type BytesField struct {
