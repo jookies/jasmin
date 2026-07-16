@@ -28,11 +28,11 @@ This phase implements the foundational management and configuration for outbound
 - `func (m *Manager) Stop(cid string) error`
 
 ## Tasks
-1. [ ] Define `Config` and `Connector` structures in `internal/core/smppc`.
-2. [ ] Implement `Manager` for connector registry.
-3. [ ] Implement state machine transitions for `Connector`.
-4. [ ] Verification with unit tests.
-5. [ ] Ralph audit.
+1. [x] Define `Config` and `Connector` structures in `internal/core/smppc`.
+2. [x] Implement `Manager` for connector registry.
+3. [x] Implement state machine transitions for `Connector`.
+4. [x] Verification with unit tests.
+5. [x] Ralph audit.
 
 ## Verification
 - `TestConnectorConfigValidation`
