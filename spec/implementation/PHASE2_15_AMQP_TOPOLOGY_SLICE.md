@@ -24,11 +24,11 @@ This phase implements the RabbitMQ topology (exchanges, queues, bindings) and ba
 - `type Consumer struct { ... }`
 
 ## Tasks
-1. [ ] Define AMQP topology structures for exchanges and queues.
-2. [ ] Implement topology declaration logic.
-3. [ ] Implement basic Publisher for MT Submit.
-4. [ ] Implement basic Consumer for MO Ingest.
-5. [ ] Implement connection/channel recovery logic.
+1. [x] Define AMQP topology structures for exchanges and queues.
+2. [x] Implement topology declaration logic.
+3. [x] Implement basic Publisher for MT Submit.
+4. [x] Implement basic Consumer for MO Ingest.
+5. [x] Implement connection/channel recovery logic.
 6. [ ] Verification with a live RabbitMQ (container-based).
 7. [ ] Ralph audit.
 
