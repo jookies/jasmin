@@ -18,11 +18,11 @@ This phase implements real TCP connectivity for SMPP connectors, including the s
 - `Connector.Stop()`: Gracefully unbinds and closes the connection.
 
 ## Tasks
-1. [ ] Implement TCP connection loop in `Connector`.
-2. [ ] Integrate `smppwire` for BIND PDU exchange.
-3. [ ] Implement exponential backoff / linear retry for reconnection.
-4. [ ] Unit tests with a mock/real SMPP server (simulated).
-5. [ ] Ralph audit.
+1. [x] Implement TCP connection loop in `Connector`.
+2. [x] Integrate `smppwire` for BIND PDU exchange.
+3. [x] Implement exponential backoff / linear retry for reconnection.
+4. [x] Unit tests with a mock/real SMPP server (simulated).
+5. [x] Ralph audit.
 
 ## Verification
 - `TestConnectorConnectionSuccess`
