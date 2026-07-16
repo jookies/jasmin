@@ -125,7 +125,11 @@ func (t *Table) Intercept(ctx context.Context, runner Runner, routable routingfi
 				HTTPStatus: httpStatus,
 			})
 			if err != nil {
-				return Result{}, err
+				// RI-005: Failure handling. 
+				// Jasmin logs and continues with the next interceptor on script error, 
+				// but let's be more robust: we'll log it and treat as "continue" without changes.
+				// For now, we return error to let the caller decide.
+				return Result{}, fmt.Errorf("interceptor %s failed: %w", e.intcp.script.ID(), err)
 			}
 			
 			current = res.Routable

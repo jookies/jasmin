@@ -32,4 +32,14 @@ Baseline: `05e193ef974514299b042b4742a781b0a701467a`.
 4. [x] Create fixtures for Interceptors (RI-001 to RI-004).
 5. [x] Capture Python oracle for Interceptor behavior.
 6. [x] Implement a basic Python Sidecar Runner (using `os/exec` or similar).
-7. [x] Verification and Ralph audit.
+35|7. [x] Verification and Ralph audit.
+36|
+37|## Verification Evidence
+38|- `internal/core/interceptor/golden_test.go`: PASS
+39|- `internal/core/interceptor/interceptor_test.go`: PASS
+40|- `compat/fixtures/interceptor/baseline.json`: MATCH (noop, change_src, add_tag, multiple_mutations, set_statuses, syntax_error)
+41|- RI-004 (Rejection) verified via `TestGoldenInterceptorRejection` and `TestInterceptorRejection`.
+42|- RI-006 (Sidecar runner) implemented in `runner_python.go`.
+43|
+44|LoopKey: c5ad0c0328bc
+45|

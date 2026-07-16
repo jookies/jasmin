@@ -32,6 +32,7 @@ type pyResponse struct {
 	Routable   pyRoutable `json:"routable"`
 	SMPPStatus int        `json:"smpp_status"`
 	HTTPStatus int        `json:"http_status"`
+	Action     string     `json:"action"`
 	Error      string     `json:"error"`
 }
 
@@ -62,6 +63,7 @@ def run():
             'routable': routable,
             'smpp_status': data['smpp_status'],
             'http_status': data['http_status'],
+            'action': 'continue',
         }
         
         exec(script, gl)
@@ -74,7 +76,8 @@ def run():
                 'tags': routable._tags
             },
             'smpp_status': gl['smpp_status'],
-            'http_status': gl['http_status']
+            'http_status': gl['http_status'],
+            'action': gl['action']
         }))
     except Exception as e:
         print(json.dumps({'error': str(e)}))
@@ -142,14 +145,10 @@ func (r *PythonRunner) Run(ctx context.Context, script Script, req Context) (Res
 	}
 
 	action := ActionContinue
-	// Logic for rejection if statuses are set? 
-	// In Jasmin, setting status doesn't automatically reject if the script continues, 
-	// but usually you set statuses and then you might want to stop.
-	// Actually, Jasmin Interceptor PB returns statuses, and the caller decides.
-	
-	// If statuses are set to non-zero, we might want to flag it.
-	// But according to the matrix, RI-004 is "rejection".
-	
+	if pyRes.Action != "" {
+		action = Action(pyRes.Action)
+	}
+
 	return Result{
 		Routable:    newR,
 		SMPPStatus:  pyRes.SMPPStatus,

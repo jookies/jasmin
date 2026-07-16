@@ -110,3 +110,24 @@ func load(t *testing.T) document {
 	}
 	return d
 }
+
+func TestGoldenInterceptorRejection(t *testing.T) {
+	runner := &interceptor.PythonRunner{}
+	r, _ := routingfilter.NewRoutable(routingfilter.RoutableInput{
+		Direction: routingfilter.MT,
+		Timestamp: time.Now(),
+	})
+
+	script := interceptor.Script{IDValue: "reject", PyCode: "action = 'reject'; smpp_status = 64"}
+	res, err := runner.Run(context.Background(), script, interceptor.Context{Routable: r})
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if res.Action != interceptor.ActionReject {
+		t.Errorf("action=%v want reject", res.Action)
+	}
+	if res.SMPPStatus != 64 {
+		t.Errorf("smpp_status=%v want 64", res.SMPPStatus)
+	}
+}
