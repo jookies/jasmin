@@ -1,0 +1,325 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1
+        },
+        "wait_seconds": null
+      },
+      "id": "default_config",
+      "input": {
+        "elapsed_seconds": null,
+        "throughput": "default"
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": "submit_sm_throughput must be an integer or float",
+          "error_type": "TypeMismatch",
+          "value": null
+        },
+        "wait_seconds": null
+      },
+      "id": "non_numeric_rejected",
+      "input": {
+        "elapsed_seconds": null,
+        "throughput": "fast"
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 0
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "unlimited_zero",
+      "input": {
+        "elapsed_seconds": 0.01,
+        "throughput": 0
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": -1
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "negative_disables_pacing",
+      "input": {
+        "elapsed_seconds": 0.01,
+        "throughput": -1
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "first_message_no_wait",
+      "input": {
+        "elapsed_seconds": null,
+        "throughput": 1
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 9.99999999975e-11
+        },
+        "wait_seconds": 0.25
+      },
+      "id": "first_message_large_interval_component",
+      "input": {
+        "elapsed_seconds": null,
+        "throughput": 9.99999999975e-11
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1e-10
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "first_message_large_interval_zero_component",
+      "input": {
+        "elapsed_seconds": null,
+        "throughput": 1e-10
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "one_mps_same_timestamp",
+      "input": {
+        "elapsed_seconds": 0.0,
+        "throughput": 1
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1
+        },
+        "wait_seconds": 0.75
+      },
+      "id": "one_mps_fast",
+      "input": {
+        "elapsed_seconds": 0.25,
+        "throughput": 1
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "one_mps_boundary",
+      "input": {
+        "elapsed_seconds": 1.0,
+        "throughput": 1
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 4
+        },
+        "wait_seconds": 0.15
+      },
+      "id": "four_mps_fast",
+      "input": {
+        "elapsed_seconds": 0.1,
+        "throughput": 4
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 2.5
+        },
+        "wait_seconds": 0.3
+      },
+      "id": "fractional_two_point_five_mps",
+      "input": {
+        "elapsed_seconds": 0.1,
+        "throughput": 2.5
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 128
+        },
+        "wait_seconds": 0.007812
+      },
+      "id": "half_even_interval_7812_microseconds",
+      "input": {
+        "elapsed_seconds": 0.0,
+        "throughput": 128
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 400000
+        },
+        "wait_seconds": 2e-06
+      },
+      "id": "half_even_interval_2_microseconds",
+      "input": {
+        "elapsed_seconds": 0.0,
+        "throughput": 400000
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 2000000
+        },
+        "wait_seconds": 0.0
+      },
+      "id": "half_even_interval_zero_microseconds",
+      "input": {
+        "elapsed_seconds": 0.0,
+        "throughput": 2000000
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 9.99999999975e-11
+        },
+        "wait_seconds": 0.25
+      },
+      "id": "tiny_positive_large_interval_component",
+      "input": {
+        "elapsed_seconds": 0.0,
+        "throughput": 9.99999999975e-11
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1e-10
+        },
+        "wait_seconds": 0.999999
+      },
+      "id": "large_interval_one_microsecond_elapsed",
+      "input": {
+        "elapsed_seconds": 1e-06,
+        "throughput": 1e-10
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 1e-10
+        },
+        "wait_seconds": 0.999997
+      },
+      "id": "large_interval_three_microseconds_elapsed",
+      "input": {
+        "elapsed_seconds": 3e-06,
+        "throughput": 1e-10
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 9.99999999975e-11
+        },
+        "wait_seconds": 0.249999
+      },
+      "id": "tiny_positive_large_interval_one_microsecond_elapsed",
+      "input": {
+        "elapsed_seconds": 1e-06,
+        "throughput": 9.99999999975e-11
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 2000000
+        },
+        "wait_seconds": 1e-06
+      },
+      "id": "backward_clock_zero_interval",
+      "input": {
+        "elapsed_seconds": -1e-06,
+        "throughput": 2000000
+      }
+    },
+    {
+      "expected": {
+        "config": {
+          "error": null,
+          "error_type": null,
+          "value": 0.5
+        },
+        "wait_seconds": 0.75
+      },
+      "id": "half_mps_legacy_microseconds",
+      "input": {
+        "elapsed_seconds": 0.25,
+        "throughput": 0.5
+      }
+    }
+  ],
+  "schema_version": 1,
+  "source": [
+    "jasmin/protocols/smpp/configs.py:SMPPClientConfig",
+    "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_callback"
+  ]
+}

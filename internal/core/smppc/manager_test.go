@@ -51,6 +51,29 @@ func TestManagerLifecycle(t *testing.T) {
 	}
 }
 
+func TestManagerDefensivelyCopiesThroughput(t *testing.T) {
+	throughput := 2.0
+	m := smppc.NewManager()
+	cfg := smppc.Config{
+		CID: "smpp-copy", Host: "127.0.0.1", Port: 2775, SystemID: "jookies",
+		SubmitSMThroughput: &throughput,
+	}
+	if err := m.Add(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	throughput = 7
+	listed := m.List()
+	if got := listed[0].EffectiveSubmitSMThroughput(); got != 2 {
+		t.Fatalf("stored throughput changed through input alias: got %v, want 2", got)
+	}
+	*listed[0].SubmitSMThroughput = 9
+	listedAgain := m.List()
+	if got := listedAgain[0].EffectiveSubmitSMThroughput(); got != 2 {
+		t.Fatalf("stored throughput changed through output alias: got %v, want 2", got)
+	}
+}
+
 func TestConnectorState(t *testing.T) {
 	cfg := smppc.Config{
 		CID:      "smpp-1",

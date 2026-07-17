@@ -23,14 +23,14 @@ type Connector struct {
 	cfg    Config
 	status Status
 	mu     sync.RWMutex
-	
+
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
 
 func NewConnector(cfg Config) *Connector {
 	return &Connector{
-		cfg:    cfg,
+		cfg:    cfg.Clone(),
 		status: StatusDisconnected,
 	}
 }
@@ -38,7 +38,7 @@ func NewConnector(cfg Config) *Connector {
 func (c *Connector) Config() Config {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.cfg
+	return c.cfg.Clone()
 }
 
 func (c *Connector) Status() Status {
@@ -89,7 +89,7 @@ func (c *Connector) loop(ctx context.Context) {
 	for {
 		err := c.connectAndBind(ctx)
 		if err == nil {
-			// Connected and Bound! 
+			// Connected and Bound!
 			// In this phase, we don't have a receiver loop yet, so we just stay bound
 			// until connection is lost or ctx is cancelled.
 			// Actually, we should wait for connection loss.
@@ -140,14 +140,14 @@ func (c *Connector) connectAndBind(ctx context.Context) error {
 	}
 
 	c.setStatus(StatusBound)
-	
+
 	// Detect connection loss
 	errChan := make(chan error, 1)
 	go func() {
 		buf := make([]byte, 1)
 		_, err := conn.Read(buf)
 		if err == nil {
-			// This shouldn't happen if we are just waiting, 
+			// This shouldn't happen if we are just waiting,
 			// unless server sends something unexpected.
 			// For now, treat any data as "keep-alive" or ignore.
 			// But EOF or error means connection lost.

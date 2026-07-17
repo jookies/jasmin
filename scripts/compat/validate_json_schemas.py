@@ -18,6 +18,10 @@ PAIRS = {
         ROOT / "compat/fixtures/schema/smpp-golden.schema.json",
         ROOT / "compat/fixtures/smpp/baseline.json",
     ),
+    "smpp-client-pacing": (
+        ROOT / "compat/fixtures/schema/smpp-client-pacing-golden.schema.json",
+        ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
+    ),
     "amqp": (
         ROOT / "compat/fixtures/schema/amqp-content-golden.schema.json",
         ROOT / "compat/fixtures/amqp/baseline.json",
@@ -56,7 +60,7 @@ def main() -> int:
                 pointer = "/" + "/".join(str(part) for part in error.absolute_path)
                 print(f"{surface}{pointer}: {error.message}")
             return 1
-    print("json_schemas=valid surfaces=http,smpp,amqp,redis,segmentation,routing-filters,routing-tables,multi-connector-routes")
+    print("json_schemas=valid surfaces=http,smpp,smpp-client-pacing,amqp,redis,segmentation,routing-filters,routing-tables,multi-connector-routes")
     return 0
 
 

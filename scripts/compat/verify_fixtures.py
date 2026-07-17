@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = {
     "http": ROOT / "compat/fixtures/http/baseline.json",
     "smpp": ROOT / "compat/fixtures/smpp/baseline.json",
+    "smpp-client-pacing": ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
@@ -44,6 +45,29 @@ EXPECTED_CASE_IDS = {
         "submit_sm_resp_ok",
         "deliver_sm_dlr_message_payload",
         "submit_sm_unknown_vendor_tlv",
+    },
+    "smpp-client-pacing": {
+        "default_config",
+        "non_numeric_rejected",
+        "unlimited_zero",
+        "negative_disables_pacing",
+        "first_message_no_wait",
+        "first_message_large_interval_component",
+        "first_message_large_interval_zero_component",
+        "one_mps_same_timestamp",
+        "one_mps_fast",
+        "one_mps_boundary",
+        "four_mps_fast",
+        "fractional_two_point_five_mps",
+        "half_even_interval_7812_microseconds",
+        "half_even_interval_2_microseconds",
+        "half_even_interval_zero_microseconds",
+        "tiny_positive_large_interval_component",
+        "large_interval_one_microsecond_elapsed",
+        "large_interval_three_microseconds_elapsed",
+        "tiny_positive_large_interval_one_microsecond_elapsed",
+        "backward_clock_zero_interval",
+        "half_mps_legacy_microseconds",
     },
     "amqp": {
         "submit_sm_httpapi",
@@ -103,7 +127,8 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "5046ee7e32b51c3ea840516ca1d0921f93dab7c6854ca69771ea672b41aa91eb"
+EXPECTED_COVERAGE_SHA256 = "83bde2aa83196da3e7be4f9d34ba6c55b45540f190056ad65d433ddc776c1ae9"
+EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
@@ -162,6 +187,35 @@ def validate_smpp(document: dict) -> None:
             require(case["roundtrip_wire_hex"] == case["wire_hex"], f"smpp/{case['id']}: encode roundtrip")
         if case.get("roundtrip_wire_hex") is None:
             require(bool(case.get("roundtrip_error")), f"smpp/{case['id']}: missing roundtrip error")
+
+
+def validate_smpp_client_pacing(document: dict) -> None:
+    cases_digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(
+        cases_digest == EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256,
+        "smpp-client-pacing: trusted corpus fingerprint",
+    )
+    require(
+        document.get("source") == [
+            "jasmin/protocols/smpp/configs.py:SMPPClientConfig",
+            "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_callback",
+        ],
+        "smpp-client-pacing: source boundary",
+    )
+    for case in document["cases"]:
+        context = f"smpp-client-pacing/{case['id']}"
+        expected = case["expected"]
+        config = expected["config"]
+        if config["error_type"] is None:
+            require(config["error"] is None, f"{context}: successful config error")
+            require(isinstance(config["value"], (int, float)), f"{context}: config value")
+        else:
+            require(config["error_type"] == "TypeMismatch", f"{context}: config error type")
+            require(config["value"] is None, f"{context}: rejected config value")
+        if isinstance(case["input"]["throughput"], (int, float)):
+            require(isinstance(expected["wait_seconds"], (int, float)), f"{context}: wait")
 
 
 def validate_amqp(document: dict) -> None:
@@ -375,6 +429,7 @@ def main() -> int:
 
     validate_http(documents["http"])
     validate_smpp(documents["smpp"])
+    validate_smpp_client_pacing(documents["smpp-client-pacing"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])

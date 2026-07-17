@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.example/schemas/smpp-client-pacing-golden.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input", "expected"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["throughput", "elapsed_seconds"],
+          "properties": {
+            "throughput": {
+              "oneOf": [
+                {"type": "number"},
+                {"enum": ["default", "fast"]}
+              ]
+            },
+            "elapsed_seconds": {"type": ["number", "null"]}
+          }
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["config", "wait_seconds"],
+          "properties": {
+            "config": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["value", "error_type", "error"],
+              "properties": {
+                "value": {"type": ["number", "null"]},
+                "error_type": {"type": ["string", "null"]},
+                "error": {"type": ["string", "null"]}
+              }
+            },
+            "wait_seconds": {"type": ["number", "null"], "minimum": 0}
+          }
+        }
+      }
+    }
+  }
+}

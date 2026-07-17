@@ -45,8 +45,9 @@ type Config struct {
 	ReconnectLoss bool    `json:"reconnect_on_connection_loss"`
 
 	// Other
-	Priority int    `json:"priority"`
-	LogLevel string `json:"log_level"`
+	Priority           int      `json:"priority"`
+	LogLevel           string   `json:"log_level"`
+	SubmitSMThroughput *float64 `json:"submit_sm_throughput,omitempty"`
 }
 
 func (c *Config) Validate() error {
@@ -86,6 +87,28 @@ func (c *Config) Validate() error {
 	if c.ConFailDelay == 0 {
 		c.ConFailDelay = 10
 	}
+	if c.SubmitSMThroughput != nil {
+		if err := validateThroughput(*c.SubmitSMThroughput); err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func (c Config) EffectiveSubmitSMThroughput() float64 {
+	if c.SubmitSMThroughput == nil {
+		return DefaultSubmitSMThroughput
+	}
+	return *c.SubmitSMThroughput
+}
+
+// Clone returns a config with no shared mutable pointer fields.
+func (c Config) Clone() Config {
+	clone := c
+	if c.SubmitSMThroughput != nil {
+		throughput := *c.SubmitSMThroughput
+		clone.SubmitSMThroughput = &throughput
+	}
+	return clone
 }

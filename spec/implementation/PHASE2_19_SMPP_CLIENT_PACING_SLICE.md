@@ -9,9 +9,9 @@ connector queue consumer.
 ## Included
 
 - Frozen-oracle capture of `SMPPClientConfig.submit_sm_throughput` defaults and
-  type validation.
+  ordinary JSON number/string type validation.
 - Frozen-oracle capture of the wait selected by
-  `SMPPClientSMListener.submit_sm_callback` for unlimited, first-message,
+  `SMPPClientSMListener.submit_sm_callback` for unlimited, epoch-sentinel first-message,
   boundary, integer, fractional, and sub-1-MPS cases.
 - A generic, no-skip Go differential harness over every pacing fixture.
 - A typed, context-cancellable, concurrency-safe pacer using an injected clock
@@ -27,6 +27,8 @@ connector queue consumer.
 - Claiming full `SC-004` parity; this slice remains `GO-PARTIAL`.
 - Correcting the legacy whole-second truncation behavior for rates below 1 MPS;
   compatibility is captured and documented before deciding on a deviation.
+- Python's `bool`-as-`int` configuration quirk and non-finite Python floats;
+  these remain inventoried rather than silently claimed by this bounded slice.
 
 ## Acceptance criteria
 
