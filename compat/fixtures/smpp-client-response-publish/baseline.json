@@ -1,0 +1,99 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "action": "ack",
+        "publication": null
+      },
+      "id": "disabled_success_does_not_publish",
+      "input": {
+        "current_attempt": 1,
+        "enabled": false,
+        "reply_to": "submit.sm.resp.user-1",
+        "status": "ESME_ROK"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "publication": {
+          "body_base64": "gAJjc21wcC5wZHUub3BlcmF0aW9ucwpTdWJtaXRTTVJlc3AKcQApgXEBfXECKFgCAAAAaWRxA2NzbXBwLnBkdS5wZHVfdHlwZXMKQ29tbWFuZElkCnEESwmFcQVScQZYBgAAAHNlcU51bXEHSwdYBgAAAHN0YXR1c3EIY3NtcHAucGR1LnBkdV90eXBlcwpDb21tYW5kU3RhdHVzCnEJSwGFcQpScQtYCwAAAGN1c3RvbV90bHZzcQxdcQ1YBgAAAHBhcmFtc3EOfXEPWAoAAABtZXNzYWdlX2lkcRBjX2NvZGVjcwplbmNvZGUKcRFYCgAAADAwMDA0MzY5NDlxElgGAAAAbGF0aW4xcROGcRRScRVzdWIu",
+          "body_sha256": "4d677b2c082f2b0353be29b03e5e2518b3594129bc805ba28a3d89264f792493",
+          "exchange": "messaging",
+          "pickle_protocol": 2,
+          "properties": {
+            "headers": {
+              "created_at": "2026-01-02 03:04:05.678901"
+            },
+            "message-id": "enabled_success_publishes"
+          },
+          "routing_key": "submit.sm.resp.user-1"
+        }
+      },
+      "id": "enabled_success_publishes",
+      "input": {
+        "current_attempt": 1,
+        "enabled": true,
+        "reply_to": "submit.sm.resp.user-1",
+        "status": "ESME_ROK"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "publication": {
+          "body_base64": "gAJjc21wcC5wZHUub3BlcmF0aW9ucwpTdWJtaXRTTVJlc3AKcQApgXEBfXECKFgCAAAAaWRxA2NzbXBwLnBkdS5wZHVfdHlwZXMKQ29tbWFuZElkCnEESwmFcQVScQZYBgAAAHNlcU51bXEHSwdYBgAAAHN0YXR1c3EIY3NtcHAucGR1LnBkdV90eXBlcwpDb21tYW5kU3RhdHVzCnEJSxGFcQpScQtYCwAAAGN1c3RvbV90bHZzcQxdcQ1YBgAAAHBhcmFtc3EOfXEPdWIu",
+          "body_sha256": "2e9feda2b0167717f95855b27e1d59584a318d8ed2a3ec170d0e5dbf795ecf75",
+          "exchange": "messaging",
+          "pickle_protocol": 2,
+          "properties": {
+            "headers": {
+              "created_at": "2026-01-02 03:04:05.678901"
+            },
+            "message-id": "enabled_final_error_publishes"
+          },
+          "routing_key": "submit.sm.resp.user-2"
+        }
+      },
+      "id": "enabled_final_error_publishes",
+      "input": {
+        "current_attempt": 1,
+        "enabled": true,
+        "reply_to": "submit.sm.resp.user-2",
+        "status": "ESME_RREPLACEFAIL"
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "publication": {
+          "body_base64": "gAJjc21wcC5wZHUub3BlcmF0aW9ucwpTdWJtaXRTTVJlc3AKcQApgXEBfXECKFgCAAAAaWRxA2NzbXBwLnBkdS5wZHVfdHlwZXMKQ29tbWFuZElkCnEESwmFcQVScQZYBgAAAHNlcU51bXEHSwdYBgAAAHN0YXR1c3EIY3NtcHAucGR1LnBkdV90eXBlcwpDb21tYW5kU3RhdHVzCnEJSwmFcQpScQtYCwAAAGN1c3RvbV90bHZzcQxdcQ1YBgAAAHBhcmFtc3EOfXEPdWIu",
+          "body_sha256": "2f6e47aa7e21726bf0a0f7eec6cfebfadeb33017dbc6909555c8e87969339115",
+          "exchange": "messaging",
+          "pickle_protocol": 2,
+          "properties": {
+            "headers": {
+              "created_at": "2026-01-02 03:04:05.678901"
+            },
+            "message-id": "enabled_retried_error_publishes"
+          },
+          "routing_key": "submit.sm.resp.user-3"
+        }
+      },
+      "id": "enabled_retried_error_publishes",
+      "input": {
+        "current_attempt": 1,
+        "enabled": true,
+        "reply_to": "submit.sm.resp.user-3",
+        "status": "ESME_RSYSERR"
+      }
+    }
+  ],
+  "pickle_protocol": 2,
+  "schema_version": 1,
+  "source": [
+    "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_resp_event",
+    "jasmin/managers/content.py:SubmitSmRespContent"
+  ]
+}

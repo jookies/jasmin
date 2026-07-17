@@ -19,6 +19,7 @@ FIXTURES = {
     "smpp-client-pacing": ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
     "smpp-client-readiness": ROOT / "compat/fixtures/smpp-client-readiness/baseline.json",
     "smpp-client-error-retry": ROOT / "compat/fixtures/smpp-client-error-retry/baseline.json",
+    "smpp-client-response-publish": ROOT / "compat/fixtures/smpp-client-response-publish/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
@@ -97,6 +98,12 @@ EXPECTED_CASE_IDS = {
         "custom_zero_delay_requeues",
         "custom_count_boundary_acks",
     },
+    "smpp-client-response-publish": {
+        "disabled_success_does_not_publish",
+        "enabled_success_publishes",
+        "enabled_final_error_publishes",
+        "enabled_retried_error_publishes",
+    },
     "amqp": {
         "submit_sm_httpapi",
         "submit_sm_resp",
@@ -155,10 +162,11 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "3be9154d0b76cbb898a552a5cebc5a2afebcd8f9731cbc6d1b024c54b29e9743"
+EXPECTED_COVERAGE_SHA256 = "c4ad7b4a9a17e9b255c8f3d970b7b39cd420d07041347e6ff0e2eaa9fae97115"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
+EXPECTED_SMPP_CLIENT_RESPONSE_PUBLISH_CASES_SHA256 = "2713290bcdf3e284a23e9ff672ac699ee5609a40f6022e041d9113bc60ce0c8d"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
@@ -311,6 +319,49 @@ def validate_smpp_client_error_retry(document: dict) -> None:
             require(expected["retry_entry_after"] == case["input"]["current_attempt"], f"{context}: retry entry")
         else:
             require(expected["requeue_delay_seconds"] is None, f"{context}: final delay")
+
+
+def validate_smpp_client_response_publish(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(
+        digest == EXPECTED_SMPP_CLIENT_RESPONSE_PUBLISH_CASES_SHA256,
+        "smpp-client-response-publish: trusted corpus fingerprint",
+    )
+    require(
+        document.get("source") == [
+            "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_resp_event",
+            "jasmin/managers/content.py:SubmitSmRespContent",
+        ],
+        "smpp-client-response-publish: source boundary",
+    )
+    require(document.get("pickle_protocol") == 2, "smpp-client-response-publish: pickle protocol")
+    for case in document["cases"]:
+        context = f"smpp-client-response-publish/{case['id']}"
+        expected = case["expected"]
+        require(expected["action"] in {"ack", "requeue"}, f"{context}: action")
+        publication = expected["publication"]
+        if not case["input"]["enabled"]:
+            require(publication is None, f"{context}: disabled publication")
+            continue
+        require(isinstance(publication, dict), f"{context}: enabled publication")
+        require(publication["exchange"] == "messaging", f"{context}: exchange")
+        require(publication["routing_key"] == case["input"]["reply_to"], f"{context}: routing key")
+        require(publication["properties"]["message-id"] == case["id"], f"{context}: message ID")
+        require(
+            publication["properties"]["headers"] == {"created_at": "2026-01-02 03:04:05.678901"},
+            f"{context}: headers",
+        )
+        payload = decode64(publication["body_base64"], context)
+        require(hashlib.sha256(payload).hexdigest() == publication["body_sha256"], f"{context}: body hash")
+        require(len(payload) >= 2 and payload[:2] == b"\x80\x02", f"{context}: pickle prefix")
+        require(publication["pickle_protocol"] == 2, f"{context}: publication pickle protocol")
+        try:
+            opcodes = list(pickletools.genops(payload))
+        except Exception as exc:
+            raise AssertionError(f"{context}: malformed pickle opcode stream: {exc}") from exc
+        require(bool(opcodes) and opcodes[-1][0].name == "STOP", f"{context}: pickle missing STOP")
 
 
 def validate_amqp(document: dict) -> None:
@@ -527,6 +578,7 @@ def main() -> int:
     validate_smpp_client_pacing(documents["smpp-client-pacing"])
     validate_smpp_client_readiness(documents["smpp-client-readiness"])
     validate_smpp_client_error_retry(documents["smpp-client-error-retry"])
+    validate_smpp_client_response_publish(documents["smpp-client-response-publish"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])

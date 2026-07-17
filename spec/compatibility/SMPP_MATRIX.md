@@ -50,7 +50,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SC-005 | readiness | unbound connector requeue and maximum message age | GO-PARTIAL |
 | SC-006 | error retry | exact statuses, counts and delays including throttled/system/message-queue/schedule errors | GO-PARTIAL |
 | SC-007 | failover | connector availability and ordered selection | INVENTORIED |
-| SC-008 | submit response publish | optional `submit.sm.resp.<CID>` event/properties | INVENTORIED |
+| SC-008 | submit response publish | optional `submit.sm.resp.<CID>` event/properties | GO-PARTIAL |
 
 ## SMPP server submission and delivery
 
@@ -85,5 +85,13 @@ and socket submission remain inventoried.
 For `SC-006`, the fixture-proven subset is the listener's default retry-status
 map, exact current-attempt/count boundary, configured delay selection, final ACK
 decision, and retry-entry post-state for configured and unconfigured errors.
-AMQP timer/ACK execution, DLR/billing/response publication, transport exceptions,
+AMQP timer/ACK execution, DLR/billing/remaining response side effects, transport exceptions,
 socket response correlation, and arbitrary config-literal quirks remain inventoried.
+
+For `SC-008`, the oracle proves optional response publication occurs on disabled,
+successful, final-error, and retried-error callback paths. The Go subset validates
+ACK/requeue publication context, constructs the exact fixture-proven message ID and
+created-at property set, selects the `messaging` exchange/request `reply-to` key,
+and preserves supplied opaque protocol-2 response bytes. Live AMQP publish,
+status-to-pickle generation, confirms/recovery, queue ownership, and arbitrary
+routing keys remain inventoried.

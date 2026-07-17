@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.example/schemas/smpp-client-response-publish-golden.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "pickle_protocol", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 2, "items": {"type": "string"}, "uniqueItems": true},
+    "pickle_protocol": {"const": 2},
+    "cases": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input", "expected"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "status", "current_attempt", "reply_to"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "status": {"type": "string", "minLength": 1},
+            "current_attempt": {"type": "integer", "minimum": 1},
+            "reply_to": {"type": "string", "minLength": 1, "maxLength": 255}
+          }
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["action", "publication"],
+          "properties": {
+            "action": {"enum": ["ack", "requeue"]},
+            "publication": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/publication"}]}
+          }
+        }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exchange", "routing_key", "properties", "body_base64", "body_sha256", "pickle_protocol"],
+      "properties": {
+        "exchange": {"const": "messaging"},
+        "routing_key": {"type": "string", "pattern": "^submit\\.sm\\.resp\\.[^.]+$", "maxLength": 255},
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["message-id", "headers"],
+          "properties": {
+            "message-id": {"type": "string", "minLength": 1},
+            "headers": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["created_at"],
+              "properties": {"created_at": {"const": "2026-01-02 03:04:05.678901"}}
+            }
+          }
+        },
+        "body_base64": {"type": "string", "contentEncoding": "base64"},
+        "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "pickle_protocol": {"const": 2}
+      }
+    }
+  }
+}

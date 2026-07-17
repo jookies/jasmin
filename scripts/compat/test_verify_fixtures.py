@@ -21,6 +21,7 @@ from verify_fixtures import (
     validate_segmentation,
     validate_smpp_client_pacing,
     validate_smpp_client_readiness,
+    validate_smpp_client_response_publish,
 )
 
 
@@ -32,6 +33,7 @@ ROUTING_FILTER_FIXTURE = ROOT / "compat/fixtures/routing-filters/baseline.json"
 ROUTING_TABLE_FIXTURE = ROOT / "compat/fixtures/routing-tables/baseline.json"
 SMPP_CLIENT_PACING_FIXTURE = ROOT / "compat/fixtures/smpp-client-pacing/baseline.json"
 SMPP_CLIENT_READINESS_FIXTURE = ROOT / "compat/fixtures/smpp-client-readiness/baseline.json"
+SMPP_CLIENT_RESPONSE_PUBLISH_FIXTURE = ROOT / "compat/fixtures/smpp-client-response-publish/baseline.json"
 
 
 class AmqpFixtureValidationTests(unittest.TestCase):
@@ -57,6 +59,23 @@ class AmqpFixtureValidationTests(unittest.TestCase):
         forged["cases"][0]["id"] = "forged"
         with self.assertRaisesRegex(AssertionError, "unexpected or missing case ids"):
             validate_amqp(forged)
+
+
+class SmppClientResponsePublishFixtureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = json.loads(SMPP_CLIENT_RESPONSE_PUBLISH_FIXTURE.read_text(encoding="utf-8"))
+
+    def test_committed_oracle_corpus_is_valid(self) -> None:
+        validate_smpp_client_response_publish(self.document)
+
+    def test_self_consistent_forged_response_body_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        publication = forged["cases"][1]["expected"]["publication"]
+        payload = b"\x80\x02N."
+        publication["body_base64"] = base64.b64encode(payload).decode("ascii")
+        publication["body_sha256"] = hashlib.sha256(payload).hexdigest()
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_smpp_client_response_publish(forged)
 
 
 class SegmentationFixtureValidationTests(unittest.TestCase):

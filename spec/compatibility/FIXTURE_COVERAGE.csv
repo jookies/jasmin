@@ -158,3 +158,7 @@ smpp-client-error-retry,invsched_count_boundary_acks,SC-006,partial,Default inva
 smpp-client-error-retry,unconfigured_status_acks_preserving_entry,SC-006,partial,Unconfigured error ACKs while preserving legacy retry entry
 smpp-client-error-retry,custom_zero_delay_requeues,SC-006,partial,Custom zero-delay rule requeues below count boundary
 smpp-client-error-retry,custom_count_boundary_acks,SC-006,partial,Custom count boundary finalizes with ACK and clears retry entry
+smpp-client-response-publish,disabled_success_does_not_publish,SC-008,partial,Disabled response publication emits no optional response event
+smpp-client-response-publish,enabled_success_publishes,SC-008,partial,Enabled successful response publishes the exact opaque response envelope
+smpp-client-response-publish,enabled_final_error_publishes,SC-008,partial,Enabled final SMPP error publishes the exact opaque response envelope
+smpp-client-response-publish,enabled_retried_error_publishes,SC-008,partial,Enabled retried SMPP error still publishes the exact opaque response envelope
