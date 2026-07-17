@@ -55,7 +55,7 @@ type goldenPart struct {
 }
 
 type goldenConcatenation struct {
-	Reference uint8        `json:"reference"`
+	Reference uint16       `json:"reference"`
 	Total     uint8        `json:"total"`
 	Sequence  uint8        `json:"sequence"`
 	Bytes     *goldenBytes `json:"bytes,omitempty"`
@@ -82,10 +82,10 @@ func TestGoldenSegmentationCompatibility(t *testing.T) {
 			}
 			seen[fixture.ID] = struct{}{}
 			payload := decodeGoldenBytes(t, fixture.Input.Payload)
-			reference := uint8(0)
+			reference := uint16(0)
 			if fixture.EmittedReference != nil {
-				reference = *fixture.EmittedReference
-				if got := segmentation.NextReference(fixture.Input.InitialReference); got != reference {
+				reference = uint16(*fixture.EmittedReference)
+				if got := segmentation.NextReference(uint16(fixture.Input.InitialReference), false); got != reference {
 					t.Fatalf("NextReference(%d) = %d, want %d", fixture.Input.InitialReference, got, reference)
 				}
 			}
@@ -108,7 +108,7 @@ func TestGoldenSegmentationCompatibility(t *testing.T) {
 				if hasReference {
 					t.Fatalf("unexpected reference %d", gotReference)
 				}
-			} else if !hasReference || gotReference != *fixture.EmittedReference {
+			} else if !hasReference || gotReference != uint16(*fixture.EmittedReference) {
 				t.Fatalf("reference = (%d,%v), want %d", gotReference, hasReference, *fixture.EmittedReference)
 			}
 			if result.ConsumedPayloadBytes() != fixture.ConsumedPayloadBytes || result.Truncated() != fixture.Truncated {
@@ -211,10 +211,65 @@ func TestEmptyPayloadIsSinglePart(t *testing.T) {
 	}
 }
 
+func TestCustomTLVPropagation(t *testing.T) {
+	tlvs := map[uint16][]byte{
+		0x1234: []byte("hello"),
+	}
+	req := segmentation.Request{
+		Payload:     []byte("world"),
+		DataCoding:  0,
+		MaxParts:    1,
+		SplitMethod: segmentation.SplitSAR,
+		CustomTLVs:  tlvs,
+	}
+	result, err := segmentation.Segment(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := result.Parts()
+	if len(parts) != 1 {
+		t.Fatal("expected 1 part")
+	}
+	got := parts[0].CustomTLVs()
+	if !bytes.Equal(got[0x1234], []byte("hello")) {
+		t.Fatal("TLV not propagated correctly")
+	}
+}
+
+func TestUDH16BitReference(t *testing.T) {
+	req := segmentation.Request{
+		Payload:     make([]byte, 161),
+		DataCoding:  0,
+		SplitMethod: segmentation.SplitUDH,
+		MaxParts:    5,
+		Reference:   0x1234,
+		Is16Bit:     true,
+	}
+	result, err := segmentation.Segment(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := result.Parts()
+	udh, metadata, ok := parts[0].UDH()
+	if !ok {
+		t.Fatal("expected UDH")
+	}
+	if !metadata.Is16Bit || metadata.Reference != 0x1234 {
+		t.Fatalf("invalid metadata: %#v", metadata)
+	}
+	// IEI 08, Length 4, Ref(2), Total(1), Seq(1) => 6 bytes following length byte => 7 bytes total
+	if len(udh) != 7 || udh[1] != 8 || udh[2] != 4 {
+		t.Fatalf("invalid UDH bytes: %x", udh)
+	}
+	if udh[3] != 0x12 || udh[4] != 0x34 {
+		t.Fatalf("invalid reference in UDH: %x", udh)
+	}
+}
+
 func FuzzSegmentNeverPanics(f *testing.F) {
-	f.Add([]byte("hello"), uint8(0), uint8(1), false)
-	f.Add(make([]byte, 161), uint8(255), uint8(42), true)
-	f.Fuzz(func(t *testing.T, payload []byte, dataCoding, reference uint8, useUDH bool) {
+	f.Add([]byte("hello"), uint8(0), uint16(1), false)
+	f.Add(make([]byte, 161), uint8(255), uint16(42), true)
+	f.Fuzz(func(t *testing.T, payload []byte, dataCoding uint8, reference uint16, useUDH bool) {
 		method := segmentation.SplitSAR
 		if useUDH {
 			method = segmentation.SplitUDH

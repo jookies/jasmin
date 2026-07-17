@@ -98,7 +98,16 @@ def capture(_reactor, output: Path):
     try:
         # 1. Basics & Auth
         cases.append(_case("ping", "GET", "ping", {}, (yield web.get(b"ping"))))
-        
+
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423"}
+        cases.append(_case("rate_valid", "GET", "rate", args, (yield web.get(b"rate", args))))
+
+        args = {b"username": b"nathalie", b"password": b"correct"}
+        cases.append(_case("balance_unlimited", "GET", "balance", args, (yield web.get(b"balance", args))))
+
+        args = {b"username": b"nathalie", b"to": b"06155423", b"content": b"hello"}
+        cases.append(_case("send_missing_password", "POST", "send", args, (yield web.post(b"send", args))))
+
         args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423", b"content": b"hi"}
         cases.append(_case("send_no_live_connector", "POST", "send", args, (yield web.post(b"send", args))))
 
@@ -137,13 +146,28 @@ def capture(_reactor, output: Path):
         cases.append(_case("send_auth_src_addr_forbidden", "POST", "send", args, (yield web.post(b"send", args))))
         user.mt_credential.setAuthorization('set_source_address', True)
 
-        # 6. Quotas
+        # 6. Statuses
+        user.disable()
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423"}
+        cases.append(_case("rate_disabled_user", "GET", "rate", args, (yield web.get(b"rate", args))))
+        user.enable()
+
+        group.disable()
+        args = {b"username": b"nathalie", b"password": b"correct"}
+        cases.append(_case("balance_disabled_group", "GET", "balance", args, (yield web.get(b"balance", args))))
+        group.enable()
+
+        # 7. Quotas
         user.mt_credential.setQuota('balance', 0.0)
         args = {b"username": b"nathalie", b"password": b"correct", b"to": b"33123456", b"content": b"hi"}
         cases.append(_case("send_insufficient_balance", "POST", "send", args, (yield web.post(b"send", args))))
         user.mt_credential.setQuota('balance', None)
 
-        # 7. JSON
+        # 8. JSON
+        payload = {"username": "nathalie", "password": "wrong", "to": "06155423", "content": "hello"}
+        response = yield web.post(b"send", json_data=payload, headers={b"Content-type": [b"application/json"]})
+        cases.append(_case("send_json_bad_password", "POST", "send", {}, response, payload))
+
         payload = {"username": "nathalie", "password": "correct", "to": "12345", "content": "json test"}
         response = yield web.post(b"send", json_data=payload, headers={b"Content-type": [b"application/json"]})
         cases.append(_case("send_json_valid", "POST", "send", {}, response, payload))

@@ -27,18 +27,22 @@ type Classification struct {
 	MultipartPayloadBytes int
 }
 
+// Request defines the input for the segmentation operation.
 type Request struct {
 	Payload     []byte
 	DataCoding  uint8
 	SplitMethod SplitMethod
 	MaxParts    uint8
-	Reference   uint8
+	Reference   uint16
+	Is16Bit     bool
+	CustomTLVs  map[uint16][]byte
 }
 
 type Concatenation struct {
-	Reference uint8
+	Reference uint16
 	Total     uint8
 	Sequence  uint8
+	Is16Bit   bool
 }
 
 type Part struct {
@@ -50,6 +54,7 @@ type Part struct {
 	udh          []byte
 	udhMetadata  Concatenation
 	hasUDH       bool
+	customTLVs   map[uint16][]byte
 }
 
 type Result struct {
@@ -57,7 +62,7 @@ type Result struct {
 	parts                []Part
 	consumedPayloadBytes int
 	truncated            bool
-	reference            uint8
+	reference            uint16
 	hasReference         bool
 }
 
@@ -72,8 +77,12 @@ func Classify(dataCoding uint8) Classification {
 	}
 }
 
-func NextReference(previous uint8) uint8 {
-	if previous >= 255 {
+func NextReference(previous uint16, is16Bit bool) uint16 {
+	limit := uint16(255)
+	if is16Bit {
+		limit = 65535
+	}
+	if previous >= limit {
 		return 1
 	}
 	return previous + 1
@@ -98,8 +107,13 @@ func Segment(request Request) (Result, error) {
 	if len(request.Payload) <= singleBytes {
 		payload := cloneBytes(request.Payload)
 		return Result{
-			classification:       classification,
-			parts:                []Part{{sequence: 1, payload: payload, shortMessage: cloneBytes(payload)}},
+			classification: classification,
+			parts: []Part{{
+				sequence:     1,
+				payload:      payload,
+				shortMessage: cloneBytes(payload),
+				customTLVs:   cloneCustomTLVs(request.CustomTLVs),
+			}},
 			consumedPayloadBytes: len(payload),
 		}, nil
 	}
@@ -124,14 +138,35 @@ func Segment(request Request) (Result, error) {
 			Reference: request.Reference,
 			Total:     uint8(partCount),
 			Sequence:  uint8(index + 1),
+			Is16Bit:   request.Is16Bit,
 		}
-		part := Part{sequence: metadata.Sequence, payload: payload}
+		part := Part{
+			sequence:   metadata.Sequence,
+			payload:    payload,
+			customTLVs: cloneCustomTLVs(request.CustomTLVs),
+		}
 		if request.SplitMethod == SplitSAR {
 			part.shortMessage = cloneBytes(payload)
 			part.sar = metadata
 			part.hasSAR = true
 		} else {
-			header := []byte{5, 0, 3, metadata.Reference, metadata.Total, metadata.Sequence}
+			var header []byte
+			if request.Is16Bit {
+				header = []byte{
+					6, 8, 4,
+					byte(metadata.Reference >> 8),
+					byte(metadata.Reference),
+					metadata.Total,
+					metadata.Sequence,
+				}
+			} else {
+				header = []byte{
+					5, 0, 3,
+					byte(metadata.Reference),
+					metadata.Total,
+					metadata.Sequence,
+				}
+			}
 			part.udh = cloneBytes(header)
 			part.udhMetadata = metadata
 			part.hasUDH = true
@@ -175,7 +210,7 @@ func (result Result) Truncated() bool {
 	return result.truncated
 }
 
-func (result Result) Reference() (uint8, bool) {
+func (result Result) Reference() (uint16, bool) {
 	return result.reference, result.hasReference
 }
 
@@ -199,10 +234,15 @@ func (part Part) UDH() ([]byte, Concatenation, bool) {
 	return cloneBytes(part.udh), part.udhMetadata, part.hasUDH
 }
 
+func (part Part) CustomTLVs() map[uint16][]byte {
+	return cloneCustomTLVs(part.customTLVs)
+}
+
 func (part Part) clone() Part {
 	part.payload = cloneBytes(part.payload)
 	part.shortMessage = cloneBytes(part.shortMessage)
 	part.udh = cloneBytes(part.udh)
+	part.customTLVs = cloneCustomTLVs(part.customTLVs)
 	return part
 }
 
@@ -211,4 +251,15 @@ func cloneBytes(value []byte) []byte {
 		return nil
 	}
 	return append([]byte(nil), value...)
+}
+
+func cloneCustomTLVs(value map[uint16][]byte) map[uint16][]byte {
+	if value == nil {
+		return nil
+	}
+	cloned := make(map[uint16][]byte, len(value))
+	for k, v := range value {
+		cloned[k] = cloneBytes(v)
+	}
+	return cloned
 }

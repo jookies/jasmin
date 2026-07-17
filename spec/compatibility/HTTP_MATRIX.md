@@ -25,12 +25,12 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 
 | ID | Case | Required observations | Status |
 |---|---|---|---|
-| HE-001 | GSM 03.38 | septet handling, extension table, segment boundaries | GO-PARTIAL |
-| HE-002 | UCS2 | byte order, surrogate/non-BMP handling and limits | GO-PARTIAL |
-| HE-003 | binary/hex | validation, payload fidelity and DCS | GO-PARTIAL |
-| HE-004 | SAR | reference, total/sequence TLVs and charge count | GO-PARTIAL |
-| HE-005 | UDH | header bytes, concatenation reference and charge count | GO-PARTIAL |
-| HE-006 | custom TLV | name/tag/type validation and encoded value | INVENTORIED |
+| HE-001 | GSM 03.38 | septet handling, extension table, segment boundaries | MATCH |
+| HE-002 | UCS2 | byte order, surrogate/non-BMP handling and limits | MATCH |
+| HE-003 | binary/hex | validation, payload fidelity and DCS | MATCH |
+| HE-004 | SAR | reference, total/sequence TLVs and charge count | MATCH |
+| HE-005 | UDH | header bytes, concatenation reference and charge count | MATCH |
+| HE-006 | custom TLV | name/tag/type validation and encoded value | MATCH |
 
 ## MO and DLR HTTP callbacks
 

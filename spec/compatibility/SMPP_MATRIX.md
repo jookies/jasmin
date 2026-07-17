@@ -35,8 +35,8 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SE-001 | GSM 03.38 | encode/decode and boundaries | GO-PARTIAL |
 | SE-002 | UCS2 | payload bytes and segmentation | GO-PARTIAL |
 | SE-003 | binary | DCS and byte fidelity | GO-PARTIAL |
-| SE-004 | SAR | reference/total/sequence and reassembly | GO-PARTIAL |
-| SE-005 | UDH | header/reference/ordering and reassembly | GO-PARTIAL |
+| SE-004 | SAR | reference/total/sequence and reassembly | MATCH |
+| SE-005 | UDH | header/reference/ordering and reassembly | MATCH |
 | SE-006 | multipart MO | Redis key, serialized pieces, 300-second TTL, final assembly | INVENTORIED |
 
 ## SMPP client connector lifecycle

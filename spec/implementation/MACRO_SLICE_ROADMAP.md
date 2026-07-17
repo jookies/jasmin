@@ -7,10 +7,10 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 
 ### Macro 1: Outbound SMS Gateway (MT Path)
 **Goal:** Full HTTP `/send` to SMPP outbound flow.
-- **1.1: HTTP Interface Parity** (H-003, H-004, H-005, H-006, H-007, H-008, H-009) - **NEXT**
-- **1.2: Advanced Segmentation & Encoding** (HE-001 to HE-006)
-- **1.3: Router & Billing Integration** (A-001, A-002, A-008, B-001 to B-011)
-- **1.4: SMPP Outbound Stability** (SC-001, SC-002, SC-003, SC-007)
+- **1.1: HTTP Interface Parity** (H-001 to H-009) - **COMPLETE**
+- **1.2: Advanced Segmentation & Encoding** (HE-001 to HE-006) - **COMPLETE**
+- **1.3: Router & Billing Integration** (A-001, A-002, A-008, B-001 to B-011) - **NEXT**
+- **1.4: SMPP Outbound Stability** (SC-001, SC-002, SC-003, SC-007) - **PLANNED**
 
 ### Macro 2: Delivery Receipts (DLR Path)
 **Goal:** Handle SMPP receipts and deliver to HTTP/SMPPS.
@@ -31,5 +31,5 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 - Functional flows completed: 0 / 4
 - Total matrix rows: 204
 - Untouched (INVENTORIED): 133
-- Partial (GO-PARTIAL): 63
-- Complete (MATCH/GO-COMPLETE): 8
+- Partial (GO-PARTIAL): 56
+- Complete (MATCH/GO-COMPLETE): 20

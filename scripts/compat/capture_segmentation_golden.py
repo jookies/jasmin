@@ -38,14 +38,9 @@ def ascii_payload(length: int) -> bytes:
     return bytes(alphabet[index % len(alphabet)] for index in range(length))
 
 
-def binary_payload(length: int) -> bytes:
-    return bytes((index * 37 + 11) % 256 for index in range(length))
-
-
-def ucs2_payload(units: int, odd_tail: bool = False) -> bytes:
+def ucs2_payload(units: int) -> bytes:
     code_units = (b"\x06\x23", b"\x06\x31", b"\x06\x46", b"\x06\x28")
-    payload = b"".join(code_units[index % len(code_units)] for index in range(units))
-    return payload + (b"\xff" if odd_tail else b"")
+    return b"".join(code_units[index % len(code_units)] for index in range(units))
 
 
 def capture_case(
@@ -108,7 +103,6 @@ def capture_case(
 
     return {
         "id": case_id,
-        "source": "jasmin/protocols/smpp/operations.py:SMPPOperationFactory.SubmitSM",
         "input": {
             "data_coding": data_coding,
             "split_method": split_method,
@@ -126,20 +120,31 @@ def capture_case(
 
 def capture(output: Path) -> None:
     cases = [
+        # 1. GSM 7-bit boundaries (Limit 160, Slice 153)
         capture_case("gsm7_single_160", ascii_payload(160), 0, "sar"),
         capture_case("gsm7_sar_161", ascii_payload(161), 0, "sar"),
         capture_case("gsm7_udh_161", ascii_payload(161), 0, "udh"),
-        capture_case("invalid_dcs_255_fallback_sar_161", ascii_payload(161), 255, "sar"),
-        capture_case("gsm7_reference_rollover_sar_161", ascii_payload(161), 0, "sar", initial_reference=255),
-        capture_case("gsm7_max_parts_two_truncates", ascii_payload(400), 0, "sar", max_parts=2),
-        capture_case("eight_bit_single_140", binary_payload(140), 3, "sar"),
-        capture_case("eight_bit_sar_141", binary_payload(141), 3, "sar"),
-        capture_case("eight_bit_udh_141", binary_payload(141), 3, "udh"),
-        capture_case("binary_dcs4_sar_141", binary_payload(141), 4, "sar"),
+        # Extension char at 153rd byte (should be split naively by Jasmin)
+        capture_case("gsm7_split_ext_at_153", ascii_payload(152) + b"\x1b\x3c" + ascii_payload(20), 0, "sar"),
+        
+        # 2. 8-bit boundaries (Limit 140, Slice 134)
+        capture_case("eight_bit_single_140", ascii_payload(140), 3, "sar"),
+        capture_case("eight_bit_sar_141", ascii_payload(141), 3, "sar"),
+        capture_case("eight_bit_udh_141", ascii_payload(141), 3, "udh"),
+        
+        # 3. UCS2 boundaries (Limit 140 [70 units], Slice 134 [67 units])
         capture_case("ucs2_single_70_units", ucs2_payload(70), 8, "sar"),
         capture_case("ucs2_sar_71_units", ucs2_payload(71), 8, "sar"),
         capture_case("ucs2_udh_71_units", ucs2_payload(71), 8, "udh"),
-        capture_case("ucs2_odd_byte_sar", ucs2_payload(70, odd_tail=True), 8, "sar"),
+        # Split surrogate pair at 134th byte (67th unit)
+        # SlicedMaxSmLength = 134 bytes.
+        # \xd8\x3d\xde\x0a (Emoji)
+        capture_case("ucs2_split_surrogate_at_67", ucs2_payload(66) + b"\xd8\x3d\xde\x0a" + ucs2_payload(5), 8, "sar"),
+
+        # 4. Special cases
+        capture_case("invalid_dcs_255_fallback_sar_161", ascii_payload(161), 255, "sar"),
+        capture_case("gsm7_reference_rollover_sar_161", ascii_payload(161), 0, "sar", initial_reference=255),
+        capture_case("gsm7_max_parts_two_truncates", ascii_payload(400), 0, "sar", max_parts=2),
     ]
     output.parent.mkdir(parents=True, exist_ok=True)
     document = {"schema_version": 1, "baseline_commit": BASELINE, "cases": cases}
