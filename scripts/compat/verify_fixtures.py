@@ -72,6 +72,7 @@ EXPECTED_CASE_IDS = {
     },
     "smpp-client-readiness": {
         "expired_discard_precedes_disconnected",
+        "expired_without_created_at_discards",
         "expiration_at_now_is_not_expired",
         "disconnected_fresh_delayed_requeue",
         "disconnected_boundary_requeues",
@@ -140,9 +141,9 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "759483d682627f4f705187a215d873edffe6a10904b660aecf53cdb9c28d4165"
+EXPECTED_COVERAGE_SHA256 = "9ac1bedba60b83e19d62c32163533d692089c5aee62a37fee7bfb31be11fa82e"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
-EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "ea472bf0cc0c4e5faabad1d36d6f656ee9ea508cb2de5b62d32f0bda90e4be36"
+EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"

@@ -15,7 +15,7 @@ type readinessFixture struct {
 		Input struct {
 			Connected               bool   `json:"connected"`
 			Bound                   bool   `json:"bound"`
-			CreatedAgeSeconds       int64  `json:"created_age_seconds"`
+			CreatedAgeSeconds       *int64 `json:"created_age_seconds"`
 			ExpirationOffsetSeconds *int64 `json:"expiration_offset_seconds"`
 			MaxAgeSeconds           int64  `json:"max_age_seconds"`
 			RetryDelaySeconds       int64  `json:"retry_delay_seconds"`
@@ -53,9 +53,9 @@ func TestLegacyReadinessGolden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			input := ReadinessInput{
-				Now: now, CreatedAt: now.Add(-time.Duration(tc.Input.CreatedAgeSeconds) * time.Second),
-				Connected: tc.Input.Connected, Bound: tc.Input.Bound,
+			input := ReadinessInput{Now: now, Connected: tc.Input.Connected, Bound: tc.Input.Bound}
+			if tc.Input.CreatedAgeSeconds != nil {
+				input.CreatedAt = now.Add(-time.Duration(*tc.Input.CreatedAgeSeconds) * time.Second)
 			}
 			if tc.Input.ExpirationOffsetSeconds != nil {
 				expiration := now.Add(time.Duration(*tc.Input.ExpirationOffsetSeconds) * time.Second)

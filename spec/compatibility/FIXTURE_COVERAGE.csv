@@ -137,6 +137,7 @@ smpp-client-pacing,tiny_positive_large_interval_one_microsecond_elapsed,SC-004,p
 smpp-client-pacing,backward_clock_zero_interval,SC-004,partial,Backward wall-clock step with a half-even rounded zero interval
 smpp-client-pacing,half_mps_legacy_microseconds,SC-004,partial,Legacy sub-one-MPS timedelta microseconds truncation
 smpp-client-readiness,expired_discard_precedes_disconnected,SC-005,partial,Expiration discard precedes connector readiness
+smpp-client-readiness,expired_without_created_at_discards,SC-005,partial,Expiration discard does not require the later readiness created-at header
 smpp-client-readiness,expiration_at_now_is_not_expired,SC-005,partial,Expiration equal to current time is not expired
 smpp-client-readiness,disconnected_fresh_delayed_requeue,SC-005,partial,Fresh disconnected message selects configured delayed requeue
 smpp-client-readiness,disconnected_boundary_requeues,SC-005,partial,Exact maximum age remains eligible for requeue

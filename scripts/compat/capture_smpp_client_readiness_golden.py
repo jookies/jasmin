@@ -92,7 +92,9 @@ def capture_case(case):
     listener.rejectMessage = reject_message
     listener.rejectAndRequeueMessage = reject_and_requeue
 
-    headers = {"created_at": _iso(NOW - timedelta(seconds=case["created_age_seconds"]))}
+    headers = {}
+    if case["created_age_seconds"] is not None:
+        headers["created_at"] = _iso(NOW - timedelta(seconds=case["created_age_seconds"]))
     if case["expiration_offset_seconds"] is not None:
         headers["expiration"] = _iso(NOW + timedelta(seconds=case["expiration_offset_seconds"]))
     message = SimpleNamespace(
@@ -120,7 +122,11 @@ def capture_case(case):
     if listener.submit_retrials != {case["id"]: 1}:
         raise RuntimeError(f"unexpected retrial post-state: {listener.submit_retrials!r}")
     if rejects:
+        if rejects != [{"delivery_tag": 7, "requeue": 0}]:
+            raise RuntimeError(f"unexpected discard terminal action: {rejects!r}")
         return {"action": "discard", "requeue_delay_seconds": None, "retry_count": 1}
+    if requeues != [{"delivery_tag": 7, "delay_seconds": case["retry_delay_seconds"]}]:
+        raise RuntimeError(f"unexpected requeue terminal action: {requeues!r}")
     return {
         "action": "requeue",
         "requeue_delay_seconds": requeues[0]["delay_seconds"],
@@ -132,6 +138,7 @@ def build_document():
     defaults = SMPPClientSMListenerConfig()
     cases = [
         dict(id="expired_discard_precedes_disconnected", connected=False, bound=False, created_age_seconds=10, expiration_offset_seconds=-1, max_age_seconds=1200, retry_delay_seconds=30),
+        dict(id="expired_without_created_at_discards", connected=False, bound=False, created_age_seconds=None, expiration_offset_seconds=-1, max_age_seconds=1200, retry_delay_seconds=30),
         dict(id="expiration_at_now_is_not_expired", connected=False, bound=False, created_age_seconds=10, expiration_offset_seconds=0, max_age_seconds=1200, retry_delay_seconds=30),
         dict(id="disconnected_fresh_delayed_requeue", connected=False, bound=False, created_age_seconds=10, expiration_offset_seconds=None, max_age_seconds=1200, retry_delay_seconds=30),
         dict(id="disconnected_boundary_requeues", connected=False, bound=False, created_age_seconds=1200, expiration_offset_seconds=None, max_age_seconds=1200, retry_delay_seconds=30),

@@ -30,7 +30,7 @@
           "properties": {
             "connected": {"type": "boolean"},
             "bound": {"type": "boolean"},
-            "created_age_seconds": {"type": "integer"},
+            "created_age_seconds": {"type": ["integer", "null"]},
             "expiration_offset_seconds": {"type": ["integer", "null"]},
             "max_age_seconds": {"type": "integer", "minimum": 0},
             "retry_delay_seconds": {"type": "integer", "minimum": 0}

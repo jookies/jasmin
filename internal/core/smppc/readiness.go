@@ -66,14 +66,22 @@ func NewReadinessPolicy(cfg ReadinessConfig) (*ReadinessPolicy, error) {
 }
 
 func (p *ReadinessPolicy) Decide(input ReadinessInput) (ReadinessDecision, error) {
-	if p == nil || input.Now.IsZero() || input.CreatedAt.IsZero() || (!input.Connected && input.Bound) {
+	if p == nil || !validReadinessTimestamp(input.Now) {
 		return ReadinessDecision{}, ErrInvalidReadinessInput
 	}
-	if input.Expiration != nil && input.Expiration.Before(input.Now) {
-		return ReadinessDecision{Action: ReadinessDiscard}, nil
+	if input.Expiration != nil {
+		if !validReadinessTimestamp(*input.Expiration) {
+			return ReadinessDecision{}, ErrInvalidReadinessInput
+		}
+		if input.Expiration.Before(input.Now) {
+			return ReadinessDecision{Action: ReadinessDiscard}, nil
+		}
 	}
 	if input.Connected && input.Bound {
 		return ReadinessDecision{Action: ReadinessProceed}, nil
+	}
+	if (!input.Connected && input.Bound) || !validReadinessTimestamp(input.CreatedAt) {
+		return ReadinessDecision{}, ErrInvalidReadinessInput
 	}
 	ageSeconds, err := legacyTimedeltaSeconds(input.Now, input.CreatedAt)
 	if err != nil {
@@ -83,6 +91,17 @@ func (p *ReadinessPolicy) Decide(input ReadinessInput) (ReadinessDecision, error
 		return ReadinessDecision{Action: ReadinessDiscard}, nil
 	}
 	return ReadinessDecision{Action: ReadinessRequeue, RequeueDelay: p.retryDelay}, nil
+}
+
+// validReadinessTimestamp accepts the zero-offset representation used for the
+// legacy listener's offset-naive datetimes. Nonzero offsets are rejected rather
+// than silently diverging from Python's aware-versus-naive TypeError behavior.
+func validReadinessTimestamp(value time.Time) bool {
+	if value.IsZero() {
+		return false
+	}
+	_, offset := value.Zone()
+	return offset == 0
 }
 
 // legacyTimedeltaSeconds returns Python timedelta.seconds: the whole-second

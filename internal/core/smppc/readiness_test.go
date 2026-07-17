@@ -35,6 +35,52 @@ func TestReadinessProceedAndExpirationBoundary(t *testing.T) {
 	}
 }
 
+func TestReadinessExpirationAndProceedDoNotRequireCreatedAt(t *testing.T) {
+	policy, err := NewReadinessPolicy(DefaultReadinessConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	expired := now.Add(-time.Second)
+
+	got, err := policy.Decide(ReadinessInput{Now: now, Expiration: &expired})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Action != ReadinessDiscard {
+		t.Fatalf("expired action = %q", got.Action)
+	}
+
+	got, err = policy.Decide(ReadinessInput{Now: now, Connected: true, Bound: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Action != ReadinessProceed {
+		t.Fatalf("ready action = %q", got.Action)
+	}
+}
+
+func TestReadinessRejectsNonzeroTimezoneOffsets(t *testing.T) {
+	policy, err := NewReadinessPolicy(DefaultReadinessConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	utcNow := time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)
+	plusFive := time.FixedZone("plus-five", 5*60*60)
+	offsetTime := time.Date(2026, 1, 2, 11, 59, 50, 0, plusFive)
+
+	inputs := []ReadinessInput{
+		{Now: offsetTime, CreatedAt: utcNow},
+		{Now: utcNow, CreatedAt: offsetTime},
+		{Now: utcNow, CreatedAt: utcNow, Expiration: &offsetTime},
+	}
+	for _, input := range inputs {
+		if _, err := policy.Decide(input); !errors.Is(err, ErrInvalidReadinessInput) {
+			t.Fatalf("input %+v error = %v", input, err)
+		}
+	}
+}
+
 func TestLegacyTimedeltaSecondsSubsecondAndDays(t *testing.T) {
 	now := time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)
 	cases := []struct {

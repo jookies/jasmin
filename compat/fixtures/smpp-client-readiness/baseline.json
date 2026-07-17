@@ -19,6 +19,22 @@
     },
     {
       "expected": {
+        "action": "discard",
+        "requeue_delay_seconds": null,
+        "retry_count": 1
+      },
+      "id": "expired_without_created_at_discards",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": null,
+        "expiration_offset_seconds": -1,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
         "action": "requeue",
         "requeue_delay_seconds": 30,
         "retry_count": 1
