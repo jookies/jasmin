@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.example/schemas/smpp-client-error-retry-golden.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "defaults", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 2, "items": {"type": "string"}, "uniqueItems": true},
+    "defaults": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/rule"}},
+    "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "rule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "count", "delay_seconds"],
+      "properties": {
+        "status": {"type": "string", "minLength": 1},
+        "count": {"type": "integer"},
+        "delay_seconds": {"type": "number"}
+      }
+    },
+    "case": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "input", "expected"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "current_attempt", "rules"],
+          "properties": {
+            "status": {"type": "string", "minLength": 1},
+            "current_attempt": {"type": "integer", "minimum": 1},
+            "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}}
+          }
+        },
+        "expected": {
+          "type": "object", "additionalProperties": false,
+          "required": ["action", "requeue_delay_seconds", "retry_entry_after"],
+          "properties": {
+            "action": {"enum": ["ack", "requeue"]},
+            "requeue_delay_seconds": {"type": ["number", "null"], "minimum": 0},
+            "retry_entry_after": {"type": ["integer", "null"], "minimum": 1}
+          }
+        }
+      }
+    }
+  }
+}

@@ -18,6 +18,7 @@ FIXTURES = {
     "smpp": ROOT / "compat/fixtures/smpp/baseline.json",
     "smpp-client-pacing": ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
     "smpp-client-readiness": ROOT / "compat/fixtures/smpp-client-readiness/baseline.json",
+    "smpp-client-error-retry": ROOT / "compat/fixtures/smpp-client-error-retry/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
@@ -83,6 +84,19 @@ EXPECTED_CASE_IDS = {
         "multi_day_age_uses_seconds_component",
         "future_created_at_wraps_seconds_component",
     },
+    "smpp-client-error-retry": {
+        "syserr_first_requeues",
+        "syserr_count_boundary_acks",
+        "throttled_penultimate_requeues",
+        "throttled_count_boundary_acks",
+        "msgqful_first_requeues",
+        "msgqful_count_boundary_acks",
+        "invsched_first_requeues",
+        "invsched_count_boundary_acks",
+        "unconfigured_status_acks_preserving_entry",
+        "custom_zero_delay_requeues",
+        "custom_count_boundary_acks",
+    },
     "amqp": {
         "submit_sm_httpapi",
         "submit_sm_resp",
@@ -141,9 +155,10 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "9ac1bedba60b83e19d62c32163533d692089c5aee62a37fee7bfb31be11fa82e"
+EXPECTED_COVERAGE_SHA256 = "3be9154d0b76cbb898a552a5cebc5a2afebcd8f9731cbc6d1b024c54b29e9743"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
+EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
@@ -261,6 +276,41 @@ def validate_smpp_client_readiness(document: dict) -> None:
             require(expected["requeue_delay_seconds"] is None, f"{context}: discard delay")
         else:
             require(isinstance(expected["requeue_delay_seconds"], int), f"{context}: requeue delay")
+
+
+def validate_smpp_client_error_retry(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(
+        digest == EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256,
+        "smpp-client-error-retry: trusted corpus fingerprint",
+    )
+    require(
+        document.get("source") == [
+            "jasmin/managers/configs.py:SMPPClientSMListenerConfig",
+            "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_resp_event",
+        ],
+        "smpp-client-error-retry: source boundary",
+    )
+    require(
+        document.get("defaults") == [
+            {"status": "ESME_RINVSCHED", "count": 2, "delay_seconds": 300},
+            {"status": "ESME_RMSGQFUL", "count": 2, "delay_seconds": 180},
+            {"status": "ESME_RSYSERR", "count": 2, "delay_seconds": 30},
+            {"status": "ESME_RTHROTTLED", "count": 20, "delay_seconds": 30},
+        ],
+        "smpp-client-error-retry: defaults",
+    )
+    for case in document["cases"]:
+        context = f"smpp-client-error-retry/{case['id']}"
+        expected = case["expected"]
+        require(expected["action"] in {"ack", "requeue"}, f"{context}: action")
+        if expected["action"] == "requeue":
+            require(isinstance(expected["requeue_delay_seconds"], (int, float)), f"{context}: retry delay")
+            require(expected["retry_entry_after"] == case["input"]["current_attempt"], f"{context}: retry entry")
+        else:
+            require(expected["requeue_delay_seconds"] is None, f"{context}: final delay")
 
 
 def validate_amqp(document: dict) -> None:
@@ -476,6 +526,7 @@ def main() -> int:
     validate_smpp(documents["smpp"])
     validate_smpp_client_pacing(documents["smpp-client-pacing"])
     validate_smpp_client_readiness(documents["smpp-client-readiness"])
+    validate_smpp_client_error_retry(documents["smpp-client-error-retry"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])

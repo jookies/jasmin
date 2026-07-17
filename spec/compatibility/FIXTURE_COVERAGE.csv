@@ -147,3 +147,14 @@ smpp-client-readiness,unbound_fresh_delayed_requeue,SC-005,partial,Fresh unbound
 smpp-client-readiness,unbound_over_age_discards,SC-005,partial,Over-age unbound message is discarded
 smpp-client-readiness,multi_day_age_uses_seconds_component,SC-005,partial,Legacy timedelta seconds component ignores whole days
 smpp-client-readiness,future_created_at_wraps_seconds_component,SC-005,partial,Future created-at wraps the legacy seconds component
+smpp-client-error-retry,syserr_first_requeues,SC-006,partial,Default system-error first attempt requeues after 30 seconds
+smpp-client-error-retry,syserr_count_boundary_acks,SC-006,partial,Default system-error count boundary finalizes with ACK
+smpp-client-error-retry,throttled_penultimate_requeues,SC-006,partial,Default throttled penultimate attempt requeues after 30 seconds
+smpp-client-error-retry,throttled_count_boundary_acks,SC-006,partial,Default throttled count boundary finalizes with ACK
+smpp-client-error-retry,msgqful_first_requeues,SC-006,partial,Default message-queue-full first attempt requeues after 180 seconds
+smpp-client-error-retry,msgqful_count_boundary_acks,SC-006,partial,Default message-queue-full count boundary finalizes with ACK
+smpp-client-error-retry,invsched_first_requeues,SC-006,partial,Default invalid-schedule first attempt requeues after 300 seconds
+smpp-client-error-retry,invsched_count_boundary_acks,SC-006,partial,Default invalid-schedule count boundary finalizes with ACK
+smpp-client-error-retry,unconfigured_status_acks_preserving_entry,SC-006,partial,Unconfigured error ACKs while preserving legacy retry entry
+smpp-client-error-retry,custom_zero_delay_requeues,SC-006,partial,Custom zero-delay rule requeues below count boundary
+smpp-client-error-retry,custom_count_boundary_acks,SC-006,partial,Custom count boundary finalizes with ACK and clears retry entry

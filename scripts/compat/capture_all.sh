@@ -14,4 +14,5 @@ JASMIN_COMPAT_PROJECT="jasmin-go-capture-routing-tables-$$" "$RUNNER" python scr
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-multi-connector-routes-$$" "$RUNNER" python scripts/compat/capture_multi_connector_routes_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-pacing-$$" "$RUNNER" python scripts/compat/capture_smpp_client_pacing_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-readiness-$$" "$RUNNER" python scripts/compat/capture_smpp_client_readiness_golden.py
+JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-error-retry-$$" "$RUNNER" python scripts/compat/capture_smpp_client_error_retry_golden.py
 python3 "$ROOT/scripts/compat/verify_fixtures.py"

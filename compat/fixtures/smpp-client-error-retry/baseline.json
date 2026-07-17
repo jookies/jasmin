@@ -1,0 +1,376 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_entry_after": 1
+      },
+      "id": "syserr_first_requeues",
+      "input": {
+        "current_attempt": 1,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RSYSERR"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "requeue_delay_seconds": null,
+        "retry_entry_after": null
+      },
+      "id": "syserr_count_boundary_acks",
+      "input": {
+        "current_attempt": 2,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RSYSERR"
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_entry_after": 19
+      },
+      "id": "throttled_penultimate_requeues",
+      "input": {
+        "current_attempt": 19,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RTHROTTLED"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "requeue_delay_seconds": null,
+        "retry_entry_after": null
+      },
+      "id": "throttled_count_boundary_acks",
+      "input": {
+        "current_attempt": 20,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RTHROTTLED"
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 180,
+        "retry_entry_after": 1
+      },
+      "id": "msgqful_first_requeues",
+      "input": {
+        "current_attempt": 1,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RMSGQFUL"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "requeue_delay_seconds": null,
+        "retry_entry_after": null
+      },
+      "id": "msgqful_count_boundary_acks",
+      "input": {
+        "current_attempt": 2,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RMSGQFUL"
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 300,
+        "retry_entry_after": 1
+      },
+      "id": "invsched_first_requeues",
+      "input": {
+        "current_attempt": 1,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RINVSCHED"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "requeue_delay_seconds": null,
+        "retry_entry_after": null
+      },
+      "id": "invsched_count_boundary_acks",
+      "input": {
+        "current_attempt": 2,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RINVSCHED"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "requeue_delay_seconds": null,
+        "retry_entry_after": 1
+      },
+      "id": "unconfigured_status_acks_preserving_entry",
+      "input": {
+        "current_attempt": 1,
+        "rules": [
+          {
+            "count": 2,
+            "delay_seconds": 300,
+            "status": "ESME_RINVSCHED"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 180,
+            "status": "ESME_RMSGQFUL"
+          },
+          {
+            "count": 2,
+            "delay_seconds": 30,
+            "status": "ESME_RSYSERR"
+          },
+          {
+            "count": 20,
+            "delay_seconds": 30,
+            "status": "ESME_RTHROTTLED"
+          }
+        ],
+        "status": "ESME_RREPLACEFAIL"
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 0,
+        "retry_entry_after": 2
+      },
+      "id": "custom_zero_delay_requeues",
+      "input": {
+        "current_attempt": 2,
+        "rules": [
+          {
+            "count": 3,
+            "delay_seconds": 0,
+            "status": "ESME_RSYSERR"
+          }
+        ],
+        "status": "ESME_RSYSERR"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "requeue_delay_seconds": null,
+        "retry_entry_after": null
+      },
+      "id": "custom_count_boundary_acks",
+      "input": {
+        "current_attempt": 3,
+        "rules": [
+          {
+            "count": 3,
+            "delay_seconds": 0,
+            "status": "ESME_RSYSERR"
+          }
+        ],
+        "status": "ESME_RSYSERR"
+      }
+    }
+  ],
+  "defaults": [
+    {
+      "count": 2,
+      "delay_seconds": 300,
+      "status": "ESME_RINVSCHED"
+    },
+    {
+      "count": 2,
+      "delay_seconds": 180,
+      "status": "ESME_RMSGQFUL"
+    },
+    {
+      "count": 2,
+      "delay_seconds": 30,
+      "status": "ESME_RSYSERR"
+    },
+    {
+      "count": 20,
+      "delay_seconds": 30,
+      "status": "ESME_RTHROTTLED"
+    }
+  ],
+  "schema_version": 1,
+  "source": [
+    "jasmin/managers/configs.py:SMPPClientSMListenerConfig",
+    "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_resp_event"
+  ]
+}
