@@ -47,7 +47,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SC-002 | lifecycle | add/remove/list/start/stop and state transitions | INVENTORIED |
 | SC-003 | reconnect | initial/reconnect delay, retry and state/stats | INVENTORIED |
 | SC-004 | throughput | submit pacing and queue behavior | GO-PARTIAL |
-| SC-005 | readiness | unbound connector requeue and maximum message age | INVENTORIED |
+| SC-005 | readiness | unbound connector requeue and maximum message age | GO-PARTIAL |
 | SC-006 | error retry | exact statuses, counts and delays including throttled/system/message-queue/schedule errors | INVENTORIED |
 | SC-007 | failover | connector availability and ordered selection | INVENTORIED |
 | SC-008 | submit response publish | optional `submit.sm.resp.<CID>` event/properties | INVENTORIED |
@@ -75,3 +75,9 @@ for ordinary JSON numbers and strings plus the standalone serialized
 pacing-delay decision. Python's boolean-as-integer/non-finite numeric quirks,
 AMQP ownership, socket submission, ACK/requeue behavior, and response
 correlation remain inventoried.
+
+For `SC-005`, the fixture-proven subset is the listener's expiration-first
+decision, disconnected/unbound readiness checks, strict maximum-age boundary,
+legacy modulo-day age component, and configured delayed/immediate requeue
+selection. AMQP consumer ownership, timer execution, ACK/reject side effects,
+and socket submission remain inventoried.

@@ -136,3 +136,13 @@ smpp-client-pacing,large_interval_three_microseconds_elapsed,SC-004,partial,Exac
 smpp-client-pacing,tiny_positive_large_interval_one_microsecond_elapsed,SC-004,partial,Exact microsecond subtraction from a non-integral tiny-throughput interval
 smpp-client-pacing,backward_clock_zero_interval,SC-004,partial,Backward wall-clock step with a half-even rounded zero interval
 smpp-client-pacing,half_mps_legacy_microseconds,SC-004,partial,Legacy sub-one-MPS timedelta microseconds truncation
+smpp-client-readiness,expired_discard_precedes_disconnected,SC-005,partial,Expiration discard precedes connector readiness
+smpp-client-readiness,expiration_at_now_is_not_expired,SC-005,partial,Expiration equal to current time is not expired
+smpp-client-readiness,disconnected_fresh_delayed_requeue,SC-005,partial,Fresh disconnected message selects configured delayed requeue
+smpp-client-readiness,disconnected_boundary_requeues,SC-005,partial,Exact maximum age remains eligible for requeue
+smpp-client-readiness,disconnected_over_age_discards,SC-005,partial,Age strictly over maximum is discarded
+smpp-client-readiness,disconnected_zero_delay_requeues,SC-005,partial,Zero retry delay selects immediate requeue
+smpp-client-readiness,unbound_fresh_delayed_requeue,SC-005,partial,Fresh unbound message selects configured delayed requeue
+smpp-client-readiness,unbound_over_age_discards,SC-005,partial,Over-age unbound message is discarded
+smpp-client-readiness,multi_day_age_uses_seconds_component,SC-005,partial,Legacy timedelta seconds component ignores whole days
+smpp-client-readiness,future_created_at_wraps_seconds_component,SC-005,partial,Future created-at wraps the legacy seconds component

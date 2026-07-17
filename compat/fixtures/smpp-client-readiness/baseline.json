@@ -1,0 +1,174 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "action": "discard",
+        "requeue_delay_seconds": null,
+        "retry_count": 1
+      },
+      "id": "expired_discard_precedes_disconnected",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 10,
+        "expiration_offset_seconds": -1,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_count": 1
+      },
+      "id": "expiration_at_now_is_not_expired",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 10,
+        "expiration_offset_seconds": 0,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_count": 1
+      },
+      "id": "disconnected_fresh_delayed_requeue",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 10,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_count": 1
+      },
+      "id": "disconnected_boundary_requeues",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 1200,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "discard",
+        "requeue_delay_seconds": null,
+        "retry_count": 1
+      },
+      "id": "disconnected_over_age_discards",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 1201,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 0,
+        "retry_count": 1
+      },
+      "id": "disconnected_zero_delay_requeues",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 10,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 0
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_count": 1
+      },
+      "id": "unbound_fresh_delayed_requeue",
+      "input": {
+        "bound": false,
+        "connected": true,
+        "created_age_seconds": 10,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "discard",
+        "requeue_delay_seconds": null,
+        "retry_count": 1
+      },
+      "id": "unbound_over_age_discards",
+      "input": {
+        "bound": false,
+        "connected": true,
+        "created_age_seconds": 1201,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "requeue",
+        "requeue_delay_seconds": 30,
+        "retry_count": 1
+      },
+      "id": "multi_day_age_uses_seconds_component",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": 86410,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    },
+    {
+      "expected": {
+        "action": "discard",
+        "requeue_delay_seconds": null,
+        "retry_count": 1
+      },
+      "id": "future_created_at_wraps_seconds_component",
+      "input": {
+        "bound": false,
+        "connected": false,
+        "created_age_seconds": -1,
+        "expiration_offset_seconds": null,
+        "max_age_seconds": 1200,
+        "retry_delay_seconds": 30
+      }
+    }
+  ],
+  "defaults": {
+    "max_age_seconds": 1200,
+    "retry_delay_seconds": 30
+  },
+  "schema_version": 1,
+  "source": [
+    "jasmin/managers/configs.py:SMPPClientSMListenerConfig",
+    "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_callback"
+  ]
+}

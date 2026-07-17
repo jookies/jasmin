@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.example/schemas/smpp-client-readiness-golden.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "defaults", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 2, "items": {"type": "string"}, "uniqueItems": true},
+    "defaults": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_age_seconds", "retry_delay_seconds"],
+      "properties": {
+        "max_age_seconds": {"type": "integer", "minimum": 0},
+        "retry_delay_seconds": {"type": "integer", "minimum": 0}
+      }
+    },
+    "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "case": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "input", "expected"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "input": {
+          "type": "object", "additionalProperties": false,
+          "required": ["connected", "bound", "created_age_seconds", "expiration_offset_seconds", "max_age_seconds", "retry_delay_seconds"],
+          "properties": {
+            "connected": {"type": "boolean"},
+            "bound": {"type": "boolean"},
+            "created_age_seconds": {"type": "integer"},
+            "expiration_offset_seconds": {"type": ["integer", "null"]},
+            "max_age_seconds": {"type": "integer", "minimum": 0},
+            "retry_delay_seconds": {"type": "integer", "minimum": 0}
+          }
+        },
+        "expected": {
+          "type": "object", "additionalProperties": false,
+          "required": ["action", "requeue_delay_seconds", "retry_count"],
+          "properties": {
+            "action": {"enum": ["discard", "requeue"]},
+            "requeue_delay_seconds": {"type": ["integer", "null"], "minimum": 0},
+            "retry_count": {"const": 1}
+          }
+        }
+      }
+    }
+  }
+}

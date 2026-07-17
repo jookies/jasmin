@@ -20,6 +20,7 @@ from verify_fixtures import (
     validate_routing_tables,
     validate_segmentation,
     validate_smpp_client_pacing,
+    validate_smpp_client_readiness,
 )
 
 
@@ -30,6 +31,7 @@ SEGMENTATION_FIXTURE = ROOT / "compat/fixtures/segmentation/baseline.json"
 ROUTING_FILTER_FIXTURE = ROOT / "compat/fixtures/routing-filters/baseline.json"
 ROUTING_TABLE_FIXTURE = ROOT / "compat/fixtures/routing-tables/baseline.json"
 SMPP_CLIENT_PACING_FIXTURE = ROOT / "compat/fixtures/smpp-client-pacing/baseline.json"
+SMPP_CLIENT_READINESS_FIXTURE = ROOT / "compat/fixtures/smpp-client-readiness/baseline.json"
 
 
 class AmqpFixtureValidationTests(unittest.TestCase):
@@ -84,6 +86,20 @@ class SMPPClientPacingFixtureValidationTests(unittest.TestCase):
         case["expected"]["wait_seconds"] = 0.123456
         with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
             validate_smpp_client_pacing(forged)
+
+
+class SMPPClientReadinessFixtureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = json.loads(SMPP_CLIENT_READINESS_FIXTURE.read_text(encoding="utf-8"))
+
+    def test_committed_oracle_corpus_is_valid(self) -> None:
+        validate_smpp_client_readiness(self.document)
+
+    def test_modified_action_is_rejected_before_structural_acceptance(self) -> None:
+        forged = copy.deepcopy(self.document)
+        forged["cases"][0]["expected"]["action"] = "requeue"
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_smpp_client_readiness(forged)
 
 
 class RoutingFilterFixtureValidationTests(unittest.TestCase):

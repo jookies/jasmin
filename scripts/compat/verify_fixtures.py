@@ -17,6 +17,7 @@ FIXTURES = {
     "http": ROOT / "compat/fixtures/http/baseline.json",
     "smpp": ROOT / "compat/fixtures/smpp/baseline.json",
     "smpp-client-pacing": ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
+    "smpp-client-readiness": ROOT / "compat/fixtures/smpp-client-readiness/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
@@ -68,6 +69,18 @@ EXPECTED_CASE_IDS = {
         "tiny_positive_large_interval_one_microsecond_elapsed",
         "backward_clock_zero_interval",
         "half_mps_legacy_microseconds",
+    },
+    "smpp-client-readiness": {
+        "expired_discard_precedes_disconnected",
+        "expiration_at_now_is_not_expired",
+        "disconnected_fresh_delayed_requeue",
+        "disconnected_boundary_requeues",
+        "disconnected_over_age_discards",
+        "disconnected_zero_delay_requeues",
+        "unbound_fresh_delayed_requeue",
+        "unbound_over_age_discards",
+        "multi_day_age_uses_seconds_component",
+        "future_created_at_wraps_seconds_component",
     },
     "amqp": {
         "submit_sm_httpapi",
@@ -127,8 +140,9 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "83bde2aa83196da3e7be4f9d34ba6c55b45540f190056ad65d433ddc776c1ae9"
+EXPECTED_COVERAGE_SHA256 = "759483d682627f4f705187a215d873edffe6a10904b660aecf53cdb9c28d4165"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
+EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "ea472bf0cc0c4e5faabad1d36d6f656ee9ea508cb2de5b62d32f0bda90e4be36"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
@@ -216,6 +230,36 @@ def validate_smpp_client_pacing(document: dict) -> None:
             require(config["value"] is None, f"{context}: rejected config value")
         if isinstance(case["input"]["throughput"], (int, float)):
             require(isinstance(expected["wait_seconds"], (int, float)), f"{context}: wait")
+
+
+def validate_smpp_client_readiness(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(
+        digest == EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256,
+        "smpp-client-readiness: trusted corpus fingerprint",
+    )
+    require(
+        document.get("source") == [
+            "jasmin/managers/configs.py:SMPPClientSMListenerConfig",
+            "jasmin/managers/listeners.py:SMPPClientSMListener.submit_sm_callback",
+        ],
+        "smpp-client-readiness: source boundary",
+    )
+    require(
+        document.get("defaults") == {"max_age_seconds": 1200, "retry_delay_seconds": 30},
+        "smpp-client-readiness: defaults",
+    )
+    for case in document["cases"]:
+        context = f"smpp-client-readiness/{case['id']}"
+        expected = case["expected"]
+        require(expected["action"] in {"discard", "requeue"}, f"{context}: action")
+        require(expected["retry_count"] == 1, f"{context}: retry post-state")
+        if expected["action"] == "discard":
+            require(expected["requeue_delay_seconds"] is None, f"{context}: discard delay")
+        else:
+            require(isinstance(expected["requeue_delay_seconds"], int), f"{context}: requeue delay")
 
 
 def validate_amqp(document: dict) -> None:
@@ -430,6 +474,7 @@ def main() -> int:
     validate_http(documents["http"])
     validate_smpp(documents["smpp"])
     validate_smpp_client_pacing(documents["smpp-client-pacing"])
+    validate_smpp_client_readiness(documents["smpp-client-readiness"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])
