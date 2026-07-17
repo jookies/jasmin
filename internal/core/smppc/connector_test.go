@@ -61,8 +61,21 @@ func TestConnectorConnectionSuccess(t *testing.T) {
 		t.Fatal("timed out waiting for connection")
 	}
 
-	if c.Status() != smppc.StatusBound {
-		t.Errorf("expected status BOUND, got %s", c.Status())
+	waitForConnectorStatus(t, c, smppc.StatusBound, 2*time.Second)
+}
+
+func waitForConnectorStatus(t *testing.T, c *smppc.Connector, want smppc.Status, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		got := c.Status()
+		if got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected status %s, got %s after %s", want, got, timeout)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
