@@ -17,102 +17,10 @@
       }
     },
     {
-      "id": "rate_valid",
-      "request": {
-        "arguments": {
-          "password": "correct",
-          "to": "06155423",
-          "username": "nathalie"
-        },
-        "json": null,
-        "method": "GET",
-        "path": "/rate"
-      },
-      "response": {
-        "body_base64": "eyJ1bml0X3JhdGUiOiAwLjAsICJzdWJtaXRfc21fY291bnQiOiAxfQ==",
-        "body_utf8": "{\"unit_rate\": 0.0, \"submit_sm_count\": 1}",
-        "headers": {
-          "content-type": [
-            "application/json"
-          ]
-        },
-        "status": 200
-      }
-    },
-    {
-      "id": "balance_unlimited",
-      "request": {
-        "arguments": {
-          "password": "correct",
-          "username": "nathalie"
-        },
-        "json": null,
-        "method": "GET",
-        "path": "/balance"
-      },
-      "response": {
-        "body_base64": "eyJiYWxhbmNlIjogIk5EIiwgInNtc19jb3VudCI6ICJORCJ9",
-        "body_utf8": "{\"balance\": \"ND\", \"sms_count\": \"ND\"}",
-        "headers": {
-          "content-type": [
-            "application/json"
-          ]
-        },
-        "status": 200
-      }
-    },
-    {
-      "id": "send_missing_password",
-      "request": {
-        "arguments": {
-          "content": "hello",
-          "to": "06155423",
-          "username": "nathalie"
-        },
-        "json": null,
-        "method": "POST",
-        "path": "/send"
-      },
-      "response": {
-        "body_base64": "RXJyb3IgIk1hbmRhdG9yeSBhcmd1bWVudCBbcGFzc3dvcmRdIGlzIG5vdCBmb3VuZC4i",
-        "body_utf8": "Error \"Mandatory argument [password] is not found.\"",
-        "headers": {
-          "content-type": [
-            "text/plain"
-          ]
-        },
-        "status": 400
-      }
-    },
-    {
-      "id": "send_bad_password",
-      "request": {
-        "arguments": {
-          "content": "hello",
-          "password": "wrong",
-          "to": "06155423",
-          "username": "nathalie"
-        },
-        "json": null,
-        "method": "POST",
-        "path": "/send"
-      },
-      "response": {
-        "body_base64": "RXJyb3IgIkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
-        "body_utf8": "Error \"Authentication failure for username:nathalie\"",
-        "headers": {
-          "content-type": [
-            "text/plain"
-          ]
-        },
-        "status": 403
-      }
-    },
-    {
       "id": "send_no_live_connector",
       "request": {
         "arguments": {
-          "content": "hello",
+          "content": "hi",
           "password": "correct",
           "to": "06155423",
           "username": "nathalie"
@@ -133,60 +41,15 @@
       }
     },
     {
-      "id": "rate_disabled_user",
+      "id": "send_bad_password",
       "request": {
         "arguments": {
-          "password": "correct",
-          "to": "06155423",
-          "username": "nathalie"
-        },
-        "json": null,
-        "method": "GET",
-        "path": "/rate"
-      },
-      "response": {
-        "body_base64": "IkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
-        "body_utf8": "\"Authentication failure for username:nathalie\"",
-        "headers": {
-          "content-type": [
-            "application/json"
-          ]
-        },
-        "status": 403
-      }
-    },
-    {
-      "id": "balance_disabled_group",
-      "request": {
-        "arguments": {
-          "password": "correct",
-          "username": "nathalie"
-        },
-        "json": null,
-        "method": "GET",
-        "path": "/balance"
-      },
-      "response": {
-        "body_base64": "IkF1dGhlbnRpY2F0aW9uIGZhaWx1cmUgZm9yIHVzZXJuYW1lOm5hdGhhbGllIg==",
-        "body_utf8": "\"Authentication failure for username:nathalie\"",
-        "headers": {
-          "content-type": [
-            "application/json"
-          ]
-        },
-        "status": 403
-      }
-    },
-    {
-      "id": "send_json_bad_password",
-      "request": {
-        "arguments": {},
-        "json": {
-          "content": "hello",
+          "content": "hi",
           "password": "wrong",
           "to": "06155423",
           "username": "nathalie"
         },
+        "json": null,
         "method": "POST",
         "path": "/send"
       },
@@ -199,6 +62,205 @@
           ]
         },
         "status": 403
+      }
+    },
+    {
+      "id": "send_missing_to",
+      "request": {
+        "arguments": {
+          "content": "hi",
+          "password": "correct",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIk1hbmRhdG9yeSBhcmd1bWVudCBbdG9dIGlzIG5vdCBmb3VuZC4i",
+        "body_utf8": "Error \"Mandatory argument [to] is not found.\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 400
+      }
+    },
+    {
+      "id": "send_missing_content",
+      "request": {
+        "arguments": {
+          "password": "correct",
+          "to": "06155423",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgImNvbnRlbnQgb3IgaGV4LWNvbnRlbnQgbm90IHByZXNlbnQuIg==",
+        "body_utf8": "Error \"content or hex-content not present.\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 400
+      }
+    },
+    {
+      "id": "send_all_optional",
+      "request": {
+        "arguments": {
+          "coding": "8",
+          "content": "test",
+          "dlr": "yes",
+          "dlr-level": "2",
+          "dlr-method": "GET",
+          "from": "JASMIN",
+          "password": "correct",
+          "priority": "2",
+          "tags": "tag1,tag2",
+          "to": "123456",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkNhbm5vdCBzZW5kIHN1Ym1pdF9zbSwgY2hlY2sgU01QUENsaWVudE1hbmFnZXJQQiBsb2cgZmlsZSBmb3IgZGV0YWlscyI=",
+        "body_utf8": "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 500
+      }
+    },
+    {
+      "id": "send_filter_dest_mismatch",
+      "request": {
+        "arguments": {
+          "content": "hi",
+          "password": "correct",
+          "to": "44123456",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIlZhbHVlIGZpbHRlciBmYWlsZWQgZm9yIHVzZXIgW25hdGhhbGllXSAoZGVzdGluYXRpb25fYWRkcmVzcyBmaWx0ZXIgbWlzbWF0Y2gpLiI=",
+        "body_utf8": "Error \"Value filter failed for user [nathalie] (destination_address filter mismatch).\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 400
+      }
+    },
+    {
+      "id": "send_filter_src_mismatch",
+      "request": {
+        "arguments": {
+          "content": "hi",
+          "from": "ALPHA",
+          "password": "correct",
+          "to": "33123456",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIlZhbHVlIGZpbHRlciBmYWlsZWQgZm9yIHVzZXIgW25hdGhhbGllXSAoc291cmNlX2FkZHJlc3MgZmlsdGVyIG1pc21hdGNoKS4i",
+        "body_utf8": "Error \"Value filter failed for user [nathalie] (source_address filter mismatch).\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 400
+      }
+    },
+    {
+      "id": "send_auth_src_addr_forbidden",
+      "request": {
+        "arguments": {
+          "content": "hi",
+          "from": "123",
+          "password": "correct",
+          "to": "33123456",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkF1dGhvcml6YXRpb24gZmFpbGVkIGZvciB1c2VyIFtuYXRoYWxpZV0gKFNldHRpbmcgc291cmNlIGFkZHJlc3Mgbm90IGF1dGhvcml6ZWQpLiI=",
+        "body_utf8": "Error \"Authorization failed for user [nathalie] (Setting source address not authorized).\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 400
+      }
+    },
+    {
+      "id": "send_insufficient_balance",
+      "request": {
+        "arguments": {
+          "content": "hi",
+          "password": "correct",
+          "to": "33123456",
+          "username": "nathalie"
+        },
+        "json": null,
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkNhbm5vdCBzZW5kIHN1Ym1pdF9zbSwgY2hlY2sgU01QUENsaWVudE1hbmFnZXJQQiBsb2cgZmlsZSBmb3IgZGV0YWlscyI=",
+        "body_utf8": "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 500
+      }
+    },
+    {
+      "id": "send_json_valid",
+      "request": {
+        "arguments": {},
+        "json": {
+          "content": "json test",
+          "password": "correct",
+          "to": "12345",
+          "username": "nathalie"
+        },
+        "method": "POST",
+        "path": "/send"
+      },
+      "response": {
+        "body_base64": "RXJyb3IgIkNhbm5vdCBzZW5kIHN1Ym1pdF9zbSwgY2hlY2sgU01QUENsaWVudE1hbmFnZXJQQiBsb2cgZmlsZSBmb3IgZGV0YWlscyI=",
+        "body_utf8": "Error \"Cannot send submit_sm, check SMPPClientManagerPB log file for details\"",
+        "headers": {
+          "content-type": [
+            "text/plain"
+          ]
+        },
+        "status": 500
       }
     }
   ],

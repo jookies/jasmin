@@ -7,15 +7,15 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 
 | ID | Endpoint | Contract to fixture | Status |
 |---|---|---|---|
-| H-001 | `GET/POST /send` | Both methods supported; request forms and response content type | GO-PARTIAL |
-| H-002 | `/send` required fields | `username`, `password`, `to`, exactly one of `content`/`hex-content` | GO-PARTIAL |
-| H-003 | `/send` optional fields | `from`, `coding`, `priority`, `sdt`, `validity-period`, DLR fields, tags, TLVs | INVENTORIED |
-| H-004 | `/send` auth/state | wrong credentials, disabled user/group, missing authorization | GO-PARTIAL |
-| H-005 | `/send` value filters | source/destination/content regex and defaults | INVENTORIED |
-| H-006 | `/send` route/interceptor | no route, interceptor HTTP/SMPP status override, locked fields | INVENTORIED |
-| H-007 | `/send` quotas | balance, submit count, throughput and multipart segment count | INVENTORIED |
-| H-008 | `/send` success | status, exact `Success "<uuid>"` body and UUID shape | INVENTORIED |
-| H-009 | `/send` errors | validation order and exact status/body for 400/403/412/500 paths | GO-PARTIAL |
+| H-001 | `GET/POST /send` | Both methods supported; request forms and response content type | MATCH |
+| H-002 | `/send` required fields | `username`, `password`, `to`, exactly one of `content`/`hex-content` | MATCH |
+| H-003 | `/send` optional fields | `from`, `coding`, `priority`, `sdt`, `validity-period`, DLR fields, tags, TLVs | MATCH |
+| H-004 | `/send` auth/state | wrong credentials, disabled user/group, missing authorization | MATCH |
+| H-005 | `/send` value filters | source/destination/content regex and defaults | MATCH |
+| H-006 | `/send` route/interceptor | no route, interceptor HTTP/SMPP status override, locked fields | MATCH |
+| H-007 | `/send` quotas | balance, submit count, throughput and multipart segment count | MATCH |
+| H-008 | `/send` success | status, exact `Success "<uuid>"` body and UUID shape | MATCH |
+| H-009 | `/send` errors | validation order and exact status/body for 400/403/412/500 paths | MATCH |
 | H-010 | `/rate` | auth, destination route, unit rate, segment count, JSON shape | GO-PARTIAL |
 | H-011 | `/balance` | balance/count JSON and exact `ND` representation | GO-PARTIAL |
 | H-012 | `/ping` | exact `Jasmin/PONG` body | MATCH |

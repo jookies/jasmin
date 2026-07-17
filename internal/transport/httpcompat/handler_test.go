@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -104,8 +105,11 @@ func TestSendPassesNormalizedRequestToPort(t *testing.T) {
 	if response.Code != http.StatusOK || response.Body.String() != `Success "message-123"` {
 		t.Fatalf("response = %d %q", response.Code, response.Body.String())
 	}
-	want := core.SubmitRequest{Username: "nathalie", Destination: "06155423", Content: "hello"}
-	if submit.request != want {
+	want := core.SubmitRequest{
+		Username: "nathalie", Password: "correct", Destination: "06155423", Content: "hello",
+		DLRMethod: "POST", Coding: 0, CustomTLVs: make(map[uint16][]byte),
+	}
+	if !reflect.DeepEqual(submit.request, want) {
 		t.Fatalf("submit request = %#v, want %#v", submit.request, want)
 	}
 }

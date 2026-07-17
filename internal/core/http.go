@@ -3,11 +3,15 @@ package core
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 var (
-	ErrAuthentication  = errors.New("authentication failed")
-	ErrNoLiveConnector = errors.New("no live connector")
+	ErrAuthentication   = errors.New("authentication failed")
+	ErrNoLiveConnector  = errors.New("no live connector")
+	ErrQuotaExceeded    = errors.New("quota exceeded")
+	ErrFilterRejected   = errors.New("request rejected by filters")
+	ErrInvalidParameter = errors.New("invalid parameter")
 )
 
 // Authenticator verifies that a user and its group are enabled and that the
@@ -37,10 +41,22 @@ type RateReader interface {
 }
 
 type SubmitRequest struct {
-	Username    string
-	Destination string
-	Content     string
-	HexContent  string
+	Username       string
+	Password       string
+	Destination    string
+	Content        string
+	HexContent     string
+	From           string
+	Coding         int
+	Priority       int
+	SDT            *time.Time
+	ValidityPeriod *time.Duration
+	DLR            bool
+	DLRUrl         string
+	DLRLevel       int
+	DLRMethod      string
+	Tags           []string
+	CustomTLVs     map[uint16][]byte
 }
 
 type Submitter interface {

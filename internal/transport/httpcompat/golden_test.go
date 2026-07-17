@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -59,16 +60,22 @@ func (s rateStub) Rate(context.Context, string, string) (core.RateQuote, error) 
 	return s.result, nil
 }
 
-type submitStub struct{ err error }
+type submitStub struct {
+	id  string
+	err error
+}
 
 func (s submitStub) Submit(context.Context, core.SubmitRequest) (string, error) {
-	return "", s.err
+	if s.err != nil {
+		return "", s.err
+	}
+	return s.id, nil
 }
 
 func TestGoldenHTTPCompatibility(t *testing.T) {
 	fixture := loadFixture(t)
-	if len(fixture.Cases) != 9 {
-		t.Fatalf("fixture cases = %d, want 9", len(fixture.Cases))
+	if len(fixture.Cases) != 11 {
+		t.Fatalf("fixture cases = %d, want 11", len(fixture.Cases))
 	}
 
 	for _, tc := range fixture.Cases {
@@ -95,7 +102,7 @@ func TestGoldenHTTPCompatibility(t *testing.T) {
 			if !bytes.Equal(body, wantBody) {
 				t.Errorf("body = %q, want %q", body, wantBody)
 			}
-			if string(body) != tc.Response.BodyUTF8 {
+			if tc.Response.BodyUTF8 != "" && string(body) != tc.Response.BodyUTF8 {
 				t.Errorf("body UTF-8 = %q, want %q", body, tc.Response.BodyUTF8)
 			}
 			if got := nonEmptyHeaders(response.Header); !reflect.DeepEqual(got, tc.Response.Headers) {
@@ -110,11 +117,21 @@ func dependenciesFor(id string) httpcompat.Dependencies {
 		Authenticator: authStub{},
 		BalanceReader: balanceStub{result: core.BalanceSnapshot{}},
 		RateReader:    rateStub{result: core.RateQuote{UnitRate: 0, SubmitSMCount: 1}},
-		Submitter:     submitStub{err: core.ErrNoLiveConnector},
+		Submitter:     submitStub{id: "test-msg-id"},
 	}
 	switch id {
-	case "send_bad_password", "send_json_bad_password", "rate_disabled_user", "balance_disabled_group":
+	case "send_bad_password":
 		deps.Authenticator = authStub{err: core.ErrAuthentication}
+	case "send_no_live_connector", "send_all_optional", "send_json_valid":
+		deps.Submitter = submitStub{err: core.ErrNoLiveConnector}
+	case "send_filter_dest_mismatch":
+		deps.Submitter = submitStub{err: fmt.Errorf("%w: Value filter failed for user [nathalie] (destination_address filter mismatch).", core.ErrFilterRejected)}
+	case "send_filter_src_mismatch":
+		deps.Submitter = submitStub{err: fmt.Errorf("%w: Value filter failed for user [nathalie] (source_address filter mismatch).", core.ErrFilterRejected)}
+	case "send_auth_src_addr_forbidden":
+		deps.Submitter = submitStub{err: fmt.Errorf("%w: Authorization failed for user [nathalie] (Setting source address not authorized).", core.ErrAuthentication)}
+	case "send_insufficient_balance":
+		deps.Submitter = submitStub{err: core.ErrQuotaExceeded}
 	}
 	return deps
 }

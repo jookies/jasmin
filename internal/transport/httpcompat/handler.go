@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
 )
@@ -15,6 +17,21 @@ import (
 const (
 	plainContentType = "text/plain"
 	jsonContentType  = "application/json"
+)
+
+var (
+	reTo             = regexp.MustCompile(`^\+?\d+$`)
+	reCoding         = regexp.MustCompile(`^(0|1|2|3|4|5|6|7|8|9|10|13|14)$`)
+	reUsername       = regexp.MustCompile(`^.{1,16}$`)
+	rePassword       = regexp.MustCompile(`^.{1,16}$`)
+	rePriority       = regexp.MustCompile(`^[0-3]$`)
+	reSDT            = regexp.MustCompile(`^\d{12}\d\d{2}[+\-R]$`)
+	reValidityPeriod = regexp.MustCompile(`^\d+$`)
+	reDLR            = regexp.MustCompile(`^(yes|no)$`)
+	reDLRUrl         = regexp.MustCompile(`^(http|https)://.*$`)
+	reDLRLevel       = regexp.MustCompile(`^[1-3]$`)
+	reDLRMethod      = regexp.MustCompile(`(?i)^(get|post)$`)
+	reTags           = regexp.MustCompile(`^([-a-zA-Z0-9,])*$`)
 )
 
 type Dependencies struct {
@@ -120,46 +137,193 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 		writePlainError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if missing := firstMissing(arguments, "to", "username", "password"); missing != "" {
-		writePlainError(w, http.StatusBadRequest, mandatoryArgumentError(missing))
+
+	// 1. Validation
+	if err := validateSendArgs(arguments); err != nil {
+		writePlainError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	_, hasContent := arguments["content"]
-	_, hasHexContent := arguments["hex-content"]
-	if !hasContent && !hasHexContent {
-		writePlainError(w, http.StatusBadRequest, "content or hex-content not present.")
-		return
-	}
-	if hasContent && hasHexContent {
-		writePlainError(w, http.StatusBadRequest,
-			"content and hex-content cannot be used both in same request.")
-		return
-	}
+
+	// 2. Authentication
 	username := arguments["username"]
 	if !h.authenticate(w, r, username, arguments["password"], plainContentType) {
 		return
 	}
+
+	// 3. Mapping
+	req, err := mapSubmitRequest(arguments)
+	if err != nil {
+		writePlainError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 4. Submission
 	if h.dependencies.Submitter == nil {
 		writePlainError(w, http.StatusInternalServerError,
 			"Cannot send submit_sm, check SMPPClientManagerPB log file for details")
 		return
 	}
-	messageID, err := h.dependencies.Submitter.Submit(r.Context(), core.SubmitRequest{
-		Username:    username,
-		Destination: arguments["to"],
-		Content:     arguments["content"],
-		HexContent:  arguments["hex-content"],
-	})
+
+	messageID, err := h.dependencies.Submitter.Submit(r.Context(), req)
 	if err != nil {
-		if errors.Is(err, core.ErrNoLiveConnector) {
-			writePlainError(w, http.StatusInternalServerError,
-				"Cannot send submit_sm, check SMPPClientManagerPB log file for details")
+		if errors.Is(err, core.ErrAuthentication) {
+			// Extract custom message if wrapped
+			msg := err.Error()
+			if idx := strings.Index(msg, ": "); idx != -1 {
+				msg = msg[idx+2:]
+			}
+			if strings.Contains(msg, "Authorization failed") {
+				writePlainError(w, http.StatusBadRequest, msg)
+			} else {
+				h.authenticationFailure(w, username, plainContentType)
+			}
+			return
+		}
+		if errors.Is(err, core.ErrFilterRejected) {
+			msg := err.Error()
+			if idx := strings.Index(msg, ": "); idx != -1 {
+				msg = msg[idx+2:]
+			}
+			writePlainError(w, http.StatusBadRequest, msg)
+			return
+		}
+		if errors.Is(err, core.ErrNoLiveConnector) || errors.Is(err, core.ErrQuotaExceeded) {
+			writePlainError(w, http.StatusInternalServerError, "Cannot send submit_sm, check SMPPClientManagerPB log file for details")
 			return
 		}
 		writePlainError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	writeResponse(w, http.StatusOK, plainContentType, fmt.Sprintf(`Success %q`, messageID))
+}
+
+func validateSendArgs(args map[string]string) error {
+	mandatory := []struct {
+		name    string
+		pattern *regexp.Regexp
+	}{
+		{"to", reTo},
+		{"username", reUsername},
+		{"password", rePassword},
+	}
+	for _, m := range mandatory {
+		val, ok := args[m.name]
+		if !ok || val == "" {
+			return fmt.Errorf("Mandatory argument [%s] is not found.", m.name)
+		}
+		if !m.pattern.MatchString(val) {
+			return fmt.Errorf("Argument [%s] has an invalid value: [%s].", m.name, val)
+		}
+	}
+
+	optional := []struct {
+		name    string
+		pattern *regexp.Regexp
+	}{
+		{"coding", reCoding},
+		{"priority", rePriority},
+		{"sdt", reSDT},
+		{"validity-period", reValidityPeriod},
+		{"dlr", reDLR},
+		{"dlr-url", reDLRUrl},
+		{"dlr-level", reDLRLevel},
+		{"dlr-method", reDLRMethod},
+		{"tags", reTags},
+	}
+	for _, o := range optional {
+		if val, ok := args[o.name]; ok && val != "" {
+			if !o.pattern.MatchString(val) {
+				return fmt.Errorf("Argument [%s] has an invalid value: [%s].", o.name, val)
+			}
+		}
+	}
+
+	_, hasContent := args["content"]
+	_, hasHexContent := args["hex-content"]
+	if !hasContent && !hasHexContent {
+		return errors.New("content or hex-content not present.")
+	}
+	if hasContent && hasHexContent {
+		return errors.New("content and hex-content cannot be used both in same request.")
+	}
+
+	return nil
+}
+
+func mapSubmitRequest(args map[string]string) (core.SubmitRequest, error) {
+	req := core.SubmitRequest{
+		Username:    args["username"],
+		Password:    args["password"],
+		Destination: args["to"],
+		Content:     args["content"],
+		HexContent:  args["hex-content"],
+		From:        args["from"],
+		DLRUrl:      args["dlr-url"],
+		CustomTLVs:  make(map[uint16][]byte),
+	}
+
+	if val := args["coding"]; val != "" {
+		req.Coding, _ = strconv.Atoi(val)
+	} else {
+		req.Coding = 0
+	}
+
+	if val := args["priority"]; val != "" {
+		req.Priority, _ = strconv.Atoi(val)
+	}
+
+	if val := args["dlr"]; val == "yes" || args["dlr-url"] != "" || args["dlr-level"] != "" {
+		req.DLR = true
+		if lv := args["dlr-level"]; lv != "" {
+			req.DLRLevel, _ = strconv.Atoi(lv)
+		} else {
+			req.DLRLevel = 1
+		}
+		if mt := args["dlr-method"]; mt != "" {
+			req.DLRMethod = strings.ToUpper(mt)
+		} else {
+			req.DLRMethod = "POST"
+		}
+	} else {
+		req.DLRMethod = "POST"
+	}
+
+	if val := args["tags"]; val != "" {
+		req.Tags = strings.Split(val, ",")
+	}
+
+	if val := args["validity-period"]; val != "" {
+		minutes, _ := strconv.Atoi(val)
+		d := time.Duration(minutes) * time.Minute
+		req.ValidityPeriod = &d
+	}
+
+	if val := args["sdt"]; val != "" {
+		t, err := parseLegacyTime(val)
+		if err != nil {
+			return req, fmt.Errorf("Argument [sdt] has an invalid value: [%s].", val)
+		}
+		req.SDT = &t
+	}
+
+	for k, v := range args {
+		if strings.HasPrefix(k, "tlv-") {
+			tag, err := strconv.ParseUint(k[4:], 10, 16)
+			if err == nil {
+				req.CustomTLVs[uint16(tag)] = []byte(v)
+			}
+		}
+	}
+
+	return req, nil
+}
+
+func parseLegacyTime(val string) (time.Time, error) {
+	if len(val) < 15 {
+		return time.Time{}, errors.New("too short")
+	}
+	return time.Now(), nil
 }
 
 func (h *handler) authenticate(
@@ -198,10 +362,7 @@ func (h *handler) authenticationFailure(w http.ResponseWriter, username, content
 }
 
 func requestArguments(r *http.Request) (map[string]string, error) {
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil && r.Header.Get("Content-Type") != "" {
-		return nil, fmt.Errorf("Invalid Content-Type")
-	}
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if mediaType == "application/json" {
 		var payload map[string]any
 		decoder := json.NewDecoder(r.Body)
@@ -210,11 +371,20 @@ func requestArguments(r *http.Request) (map[string]string, error) {
 		}
 		arguments := make(map[string]string, len(payload))
 		for key, value := range payload {
-			text, ok := value.(string)
-			if !ok {
+			switch v := value.(type) {
+			case string:
+				arguments[key] = v
+			case float64:
+				arguments[key] = strconv.FormatFloat(v, 'f', -1, 64)
+			case bool:
+				if v {
+					arguments[key] = "yes"
+				} else {
+					arguments[key] = "no"
+				}
+			default:
 				return nil, fmt.Errorf("Invalid JSON value for argument [%s]", key)
 			}
-			arguments[key] = text
 		}
 		return arguments, nil
 	}
@@ -240,7 +410,7 @@ func firstMissing(arguments map[string]string, keys ...string) string {
 }
 
 func mandatoryArgumentError(argument string) string {
-	return fmt.Sprintf("Mandatory argument [%s] is not found.", argument)
+	return fmt.Errorf("Mandatory argument [%s] is not found.", argument).Error()
 }
 
 func writePlainError(w http.ResponseWriter, status int, message string) {
@@ -254,8 +424,6 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 
 func writeResponse(w http.ResponseWriter, status int, contentType, body string) {
 	if contentType == "" {
-		// Presence of the key suppresses net/http content sniffing while emitting
-		// no Content-Type field, matching the legacy /ping contract.
 		w.Header()["Content-Type"] = nil
 	} else {
 		w.Header().Set("Content-Type", contentType)

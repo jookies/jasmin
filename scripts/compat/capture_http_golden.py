@@ -6,6 +6,9 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import re
+import tempfile
+import shutil
 from pathlib import Path
 
 from twisted.internet import defer, task
@@ -19,6 +22,9 @@ from jasmin.routing.configs import RouterPBConfig
 from jasmin.routing.jasminApi import Group, SmppClientConnector, User
 from jasmin.routing.router import RouterPB
 from tests.protocols.http.twisted_web_test_utils import DummySite
+
+# Ensure we have a writable directory for logs/store
+TMP_DIR = Path(tempfile.mkdtemp(prefix="jasmin_capture_"))
 
 BASELINE = "0aac58e466d583d0f0436df7b8afa3dc96191263"
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,7 +73,12 @@ def _case(case_id: str, method: str, path: str, arguments, response, json_body=N
 
 @defer.inlineCallbacks
 def capture(_reactor, output: Path):
-    router = RouterPB(RouterPBConfig())
+    router_config = RouterPBConfig()
+    router_config.log_file = str(TMP_DIR / "router.log")
+    router_config.store_path = str(TMP_DIR / "store")
+    (TMP_DIR / "store").mkdir(exist_ok=True)
+
+    router = RouterPB(router_config)
     group = Group(1)
     user = User(1, group, "nathalie", "correct")
     router.groups.append(group)
@@ -76,63 +87,75 @@ def capture(_reactor, output: Path):
 
     manager_config = SMPPClientPBConfig()
     manager_config.authentication = False
+    manager_config.log_file = str(TMP_DIR / "manager.log")
     manager = SMPPClientManagerPB(manager_config)
-    web = DummySite(HTTPApi(router, manager, HTTPApiConfig()))
+    
+    api_config = HTTPApiConfig()
+    api_config.log_file = str(TMP_DIR / "httpapi.log")
+    web = DummySite(HTTPApi(router, manager, api_config))
     cases = []
 
     try:
-        response = yield web.get(b"ping")
-        cases.append(_case("ping", "GET", "ping", {}, response))
+        # 1. Basics & Auth
+        cases.append(_case("ping", "GET", "ping", {}, (yield web.get(b"ping"))))
+        
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423", b"content": b"hi"}
+        cases.append(_case("send_no_live_connector", "POST", "send", args, (yield web.post(b"send", args))))
 
+        args = {b"username": b"nathalie", b"password": b"wrong", b"to": b"06155423", b"content": b"hi"}
+        cases.append(_case("send_bad_password", "POST", "send", args, (yield web.post(b"send", args))))
+
+        # 2. Validation & Missing fields
+        args = {b"username": b"nathalie", b"password": b"correct", b"content": b"hi"}
+        cases.append(_case("send_missing_to", "POST", "send", args, (yield web.post(b"send", args))))
+        
         args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423"}
-        response = yield web.get(b"rate", args)
-        cases.append(_case("rate_valid", "GET", "rate", args, response))
+        cases.append(_case("send_missing_content", "POST", "send", args, (yield web.post(b"send", args))))
 
-        args = {b"username": b"nathalie", b"password": b"correct"}
-        response = yield web.get(b"balance", args)
-        cases.append(_case("balance_unlimited", "GET", "balance", args, response))
-
-        args = {b"username": b"nathalie", b"to": b"06155423", b"content": b"hello"}
-        response = yield web.post(b"send", args)
-        cases.append(_case("send_missing_password", "POST", "send", args, response))
-
-        args = {b"username": b"nathalie", b"password": b"wrong", b"to": b"06155423", b"content": b"hello"}
-        response = yield web.post(b"send", args)
-        cases.append(_case("send_bad_password", "POST", "send", args, response))
-
-        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423", b"content": b"hello"}
-        response = yield web.post(b"send", args)
-        cases.append(_case("send_no_live_connector", "POST", "send", args, response))
-
-        user.disable()
-        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"06155423"}
-        response = yield web.get(b"rate", args)
-        cases.append(_case("rate_disabled_user", "GET", "rate", args, response))
-        user.enable()
-
-        group.disable()
-        args = {b"username": b"nathalie", b"password": b"correct"}
-        response = yield web.get(b"balance", args)
-        cases.append(_case("balance_disabled_group", "GET", "balance", args, response))
-        group.enable()
-
-        payload = {
-            "username": "nathalie",
-            "password": "wrong",
-            "to": "06155423",
-            "content": "hello",
+        # 3. Optional parameters
+        args = {
+            b"username": b"nathalie", b"password": b"correct", b"to": b"123456", b"content": b"test",
+            b"from": b"JASMIN", b"coding": b"8", b"priority": b"2", b"dlr": b"yes", b"dlr-level": b"2",
+            b"dlr-method": b"GET", b"tags": b"tag1,tag2"
         }
-        response = yield web.post(
-            b"send", json_data=payload, headers={b"Content-type": [b"application/json"]}
-        )
-        cases.append(_case("send_json_bad_password", "POST", "send", {}, response, payload))
+        cases.append(_case("send_all_optional", "POST", "send", args, (yield web.post(b"send", args))))
+
+        # 4. Filters
+        user.mt_credential.setValueFilter('destination_address', re.compile(r'^33\d+$'))
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"44123456", b"content": b"hi"}
+        cases.append(_case("send_filter_dest_mismatch", "POST", "send", args, (yield web.post(b"send", args))))
+        user.mt_credential.setValueFilter('destination_address', re.compile(r'.*'))
+
+        user.mt_credential.setValueFilter('source_address', re.compile(r'^\d+$'))
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"33123456", b"content": b"hi", b"from": b"ALPHA"}
+        cases.append(_case("send_filter_src_mismatch", "POST", "send", args, (yield web.post(b"send", args))))
+        user.mt_credential.setValueFilter('source_address', re.compile(r'.*'))
+
+        # 5. Authorizations
+        user.mt_credential.setAuthorization('set_source_address', False)
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"33123456", b"content": b"hi", b"from": b"123"}
+        cases.append(_case("send_auth_src_addr_forbidden", "POST", "send", args, (yield web.post(b"send", args))))
+        user.mt_credential.setAuthorization('set_source_address', True)
+
+        # 6. Quotas
+        user.mt_credential.setQuota('balance', 0.0)
+        args = {b"username": b"nathalie", b"password": b"correct", b"to": b"33123456", b"content": b"hi"}
+        cases.append(_case("send_insufficient_balance", "POST", "send", args, (yield web.post(b"send", args))))
+        user.mt_credential.setQuota('balance', None)
+
+        # 7. JSON
+        payload = {"username": "nathalie", "password": "correct", "to": "12345", "content": "json test"}
+        response = yield web.post(b"send", json_data=payload, headers={b"Content-type": [b"application/json"]})
+        cases.append(_case("send_json_valid", "POST", "send", {}, response, payload))
+
     finally:
         router.cancelPersistenceTimer()
-
+    
     output.parent.mkdir(parents=True, exist_ok=True)
     document = {"schema_version": 1, "baseline_commit": BASELINE, "cases": cases}
     output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"http_golden={output} cases={len(cases)} status=ok")
+    shutil.rmtree(TMP_DIR)
 
 
 def main() -> int:

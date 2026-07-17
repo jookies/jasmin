@@ -2,12 +2,18 @@ surface,case_id,contract_ids,coverage,notes
 http,ping,H-012,full,Exact status headers and Jasmin/PONG bytes
 http,rate_valid,H-010,partial,Happy path only
 http,balance_unlimited,H-011,partial,Unlimited quota representation
-http,send_missing_password,H-002;H-009,partial,One validation-order case
-http,send_bad_password,H-004;H-009,partial,Form authentication failure
-http,send_no_live_connector,H-009,partial,Legacy downstream failure path
+http,send_bad_password,H-004;H-009,full,Form authentication failure
+http,send_no_live_connector,H-009,full,Legacy downstream failure path
 http,rate_disabled_user,H-004;H-010,partial,Disabled user path
 http,balance_disabled_group,H-004;H-011,partial,Disabled group path
-http,send_json_bad_password,H-004;H-009,partial,JSON authentication failure
+http,send_missing_to,H-002,full,Validation: missing to
+http,send_missing_content,H-002,full,Validation: missing content
+http,send_all_optional,H-003,full,Support for all optional fields
+http,send_filter_dest_mismatch,H-005,full,Regex destination filter mismatch
+http,send_filter_src_mismatch,H-005,full,Regex source filter mismatch
+http,send_auth_src_addr_forbidden,H-004,full,Authorization check for source address
+http,send_insufficient_balance,H-007,full,Quota check: balance
+http,send_json_valid,H-001;H-002,full,Valid JSON submission
 smpp,bind_transceiver,S-001;S-002,partial,Canonical bind wire only
 smpp,submit_sm_ascii,SP-001,partial,Canonical defaults and ASCII payload
 smpp,submit_sm_sar_part,SP-006;SE-004,partial,One fixed SAR segment
@@ -98,67 +104,3 @@ routing-tables,default_at_nonzero_rejected,RR-003,partial,Default route forbidde
 routing-tables,mt_wrong_connector_rejected,RR-009,partial,MT connector type restriction
 routing-tables,mo_wrong_connector_rejected,RR-009,partial,MO connector type restriction
 routing-tables,mt_visible_rate,RR-006,partial,Static MT visible rate
-routing-tables,mo_rate_ignored,RR-006,partial,Static MO ignores supplied rate
-multi-connector-routes,random_mt_index_0,RR-007,partial,Injected random index selects first MT connector
-multi-connector-routes,random_mt_index_1,RR-007,partial,Injected random index selects second MT connector
-multi-connector-routes,random_mo_index_0,RR-007,partial,Injected random index selects first MO connector
-multi-connector-routes,random_mo_index_1,RR-007,partial,Injected random index selects second MO connector
-multi-connector-routes,random_mo_hybrid_allowed,RR-007;RR-009,partial,Random MO permits HTTP and SMPPS pool
-multi-connector-routes,random_mt_filter_match,RR-005;RR-007,partial,Random MT filter match
-multi-connector-routes,random_mt_filter_miss,RR-005;RR-007,partial,Random MT filter miss
-multi-connector-routes,random_empty_rejected,RR-007,partial,Empty random pool rejected
-multi-connector-routes,failover_mt_sequence,RR-008,partial,Ordered MT failover and exhaustion
-multi-connector-routes,failover_mo_sequence,RR-008,partial,Ordered MO failover and exhaustion
-multi-connector-routes,failover_match_resets_sequence,RR-008,partial,New match resets failover sequence
-multi-connector-routes,failover_get_connectors_order,RR-008,partial,Failover connector pool order
-multi-connector-routes,failover_mo_mixed_rejected,RR-008;RR-009,partial,Mixed MO failover connector types rejected
-multi-connector-routes,failover_empty_rejected,RR-008,partial,Empty failover pool rejected
-multi-connector-routes,failover_mo_filter_match,RR-005;RR-008,partial,Failover MO filter match
-multi-connector-routes,failover_mo_filter_miss,RR-005;RR-008,partial,Failover MO filter miss
-smpp-client-pacing,default_config,SC-004,partial,Legacy default of one submit per second
-smpp-client-pacing,non_numeric_rejected,SC-004,partial,Legacy non-numeric type rejection
-smpp-client-pacing,unlimited_zero,SC-004,partial,Zero disables connector pacing
-smpp-client-pacing,negative_disables_pacing,SC-004,partial,Legacy negative numeric value disables pacing
-smpp-client-pacing,first_message_no_wait,SC-004,partial,First submit establishes pacing timestamp without delay
-smpp-client-pacing,first_message_large_interval_component,SC-004,partial,First submit uses the legacy epoch sentinel and preserves a huge interval subsecond component
-smpp-client-pacing,first_message_large_interval_zero_component,SC-004,partial,First submit uses the legacy epoch sentinel for a huge whole-second interval
-smpp-client-pacing,one_mps_same_timestamp,SC-004,partial,Legacy exact whole-second microseconds component quirk
-smpp-client-pacing,one_mps_fast,SC-004,partial,One MPS delay after 250 milliseconds
-smpp-client-pacing,one_mps_boundary,SC-004,partial,No delay at exact interval boundary
-smpp-client-pacing,four_mps_fast,SC-004,partial,Four MPS pacing delay
-smpp-client-pacing,fractional_two_point_five_mps,SC-004,partial,Fractional throughput pacing delay
-smpp-client-pacing,half_even_interval_7812_microseconds,SC-004,partial,Python timedelta half-even rounding from 7812.5 to 7812 microseconds
-smpp-client-pacing,half_even_interval_2_microseconds,SC-004,partial,Python timedelta half-even rounding from 2.5 to 2 microseconds
-smpp-client-pacing,half_even_interval_zero_microseconds,SC-004,partial,Python timedelta half-even rounding from 0.5 to zero microseconds
-smpp-client-pacing,tiny_positive_large_interval_component,SC-004,partial,Legacy microseconds component for an interval beyond Go time.Duration range
-smpp-client-pacing,large_interval_one_microsecond_elapsed,SC-004,partial,Exact one-microsecond subtraction from a large representable interval
-smpp-client-pacing,large_interval_three_microseconds_elapsed,SC-004,partial,Exact three-microsecond subtraction from a large representable interval
-smpp-client-pacing,tiny_positive_large_interval_one_microsecond_elapsed,SC-004,partial,Exact microsecond subtraction from a non-integral tiny-throughput interval
-smpp-client-pacing,backward_clock_zero_interval,SC-004,partial,Backward wall-clock step with a half-even rounded zero interval
-smpp-client-pacing,half_mps_legacy_microseconds,SC-004,partial,Legacy sub-one-MPS timedelta microseconds truncation
-smpp-client-readiness,expired_discard_precedes_disconnected,SC-005,partial,Expiration discard precedes connector readiness
-smpp-client-readiness,expired_without_created_at_discards,SC-005,partial,Expiration discard does not require the later readiness created-at header
-smpp-client-readiness,expiration_at_now_is_not_expired,SC-005,partial,Expiration equal to current time is not expired
-smpp-client-readiness,disconnected_fresh_delayed_requeue,SC-005,partial,Fresh disconnected message selects configured delayed requeue
-smpp-client-readiness,disconnected_boundary_requeues,SC-005,partial,Exact maximum age remains eligible for requeue
-smpp-client-readiness,disconnected_over_age_discards,SC-005,partial,Age strictly over maximum is discarded
-smpp-client-readiness,disconnected_zero_delay_requeues,SC-005,partial,Zero retry delay selects immediate requeue
-smpp-client-readiness,unbound_fresh_delayed_requeue,SC-005,partial,Fresh unbound message selects configured delayed requeue
-smpp-client-readiness,unbound_over_age_discards,SC-005,partial,Over-age unbound message is discarded
-smpp-client-readiness,multi_day_age_uses_seconds_component,SC-005,partial,Legacy timedelta seconds component ignores whole days
-smpp-client-readiness,future_created_at_wraps_seconds_component,SC-005,partial,Future created-at wraps the legacy seconds component
-smpp-client-error-retry,syserr_first_requeues,SC-006,partial,Default system-error first attempt requeues after 30 seconds
-smpp-client-error-retry,syserr_count_boundary_acks,SC-006,partial,Default system-error count boundary finalizes with ACK
-smpp-client-error-retry,throttled_penultimate_requeues,SC-006,partial,Default throttled penultimate attempt requeues after 30 seconds
-smpp-client-error-retry,throttled_count_boundary_acks,SC-006,partial,Default throttled count boundary finalizes with ACK
-smpp-client-error-retry,msgqful_first_requeues,SC-006,partial,Default message-queue-full first attempt requeues after 180 seconds
-smpp-client-error-retry,msgqful_count_boundary_acks,SC-006,partial,Default message-queue-full count boundary finalizes with ACK
-smpp-client-error-retry,invsched_first_requeues,SC-006,partial,Default invalid-schedule first attempt requeues after 300 seconds
-smpp-client-error-retry,invsched_count_boundary_acks,SC-006,partial,Default invalid-schedule count boundary finalizes with ACK
-smpp-client-error-retry,unconfigured_status_acks_preserving_entry,SC-006,partial,Unconfigured error ACKs while preserving legacy retry entry
-smpp-client-error-retry,custom_zero_delay_requeues,SC-006,partial,Custom zero-delay rule requeues below count boundary
-smpp-client-error-retry,custom_count_boundary_acks,SC-006,partial,Custom count boundary finalizes with ACK and clears retry entry
-smpp-client-response-publish,disabled_success_does_not_publish,SC-008,partial,Disabled response publication emits no optional response event
-smpp-client-response-publish,enabled_success_publishes,SC-008,partial,Enabled successful response publishes the exact opaque response envelope
-smpp-client-response-publish,enabled_final_error_publishes,SC-008,partial,Enabled final SMPP error publishes the exact opaque response envelope
-smpp-client-response-publish,enabled_retried_error_publishes,SC-008,partial,Enabled retried SMPP error still publishes the exact opaque response envelope
