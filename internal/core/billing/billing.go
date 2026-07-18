@@ -2,27 +2,30 @@ package billing
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 )
 
 var (
-	ErrInvalidRate    = errors.New("invalid route rate")
-	ErrInvalidPercent = errors.New("invalid early decrement percent")
+	ErrInvalidRate         = errors.New("invalid route rate")
+	ErrInvalidPercent      = errors.New("invalid early decrement percent")
 	ErrInsufficientBalance = errors.New("insufficient balance")
 	ErrInsufficientCount   = errors.New("insufficient submit_sm_count")
 )
 
 type User struct {
-	mu                            sync.Mutex
-	uid                           int64
-	balance                       *float64
+	mu                           sync.Mutex
+	uid                          int64
+	balance                      *float64
 	earlyDecrementBalancePercent *int
-	submitSmCountQuota            *int
-	group                         *Group
+	submitSmCountQuota           *int
+	group                        *Group
 }
 
 func (u *User) UID() int64 {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	return u.uid
 }
 
@@ -37,18 +40,20 @@ type UserState struct {
 func (u *User) GetState() UserState {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	
+
 	var gid *int64
 	if u.group != nil {
+		u.group.mu.Lock()
 		id := u.group.gid
+		u.group.mu.Unlock()
 		gid = &id
 	}
-	
+
 	return UserState{
 		UID:                          u.uid,
-		Balance:                      u.balance,
-		EarlyDecrementBalancePercent: u.earlyDecrementBalancePercent,
-		SubmitSmCountQuota:           u.submitSmCountQuota,
+		Balance:                      cloneFloat64(u.balance),
+		EarlyDecrementBalancePercent: cloneInt(u.earlyDecrementBalancePercent),
+		SubmitSmCountQuota:           cloneInt(u.submitSmCountQuota),
 		GID:                          gid,
 	}
 }
@@ -56,11 +61,11 @@ func (u *User) GetState() UserState {
 func (u *User) LoadState(s UserState) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	
+
 	u.uid = s.UID
-	u.balance = s.Balance
-	u.earlyDecrementBalancePercent = s.EarlyDecrementBalancePercent
-	u.submitSmCountQuota = s.SubmitSmCountQuota
+	u.balance = cloneFloat64(s.Balance)
+	u.earlyDecrementBalancePercent = cloneInt(s.EarlyDecrementBalancePercent)
+	u.submitSmCountQuota = cloneInt(s.SubmitSmCountQuota)
 	// Group is handled separately by the caller via SetGroup
 }
 
@@ -73,24 +78,26 @@ type GroupState struct {
 func (g *Group) GetState() GroupState {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	return GroupState{
 		GID:                g.gid,
-		Balance:            g.balance,
-		SubmitSmCountQuota: g.submitSmCountQuota,
+		Balance:            cloneFloat64(g.balance),
+		SubmitSmCountQuota: cloneInt(g.submitSmCountQuota),
 	}
 }
 
 func (g *Group) LoadState(s GroupState) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	g.gid = s.GID
-	g.balance = s.Balance
-	g.submitSmCountQuota = s.SubmitSmCountQuota
+	g.balance = cloneFloat64(s.Balance)
+	g.submitSmCountQuota = cloneInt(s.SubmitSmCountQuota)
 }
 
 func (g *Group) GID() int64 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	return g.gid
 }
 
@@ -240,6 +247,55 @@ func (u *User) ApplyBill(bill Bill) error {
 	return nil
 }
 
+// AuthorizeAndApplySubmit performs the legacy submit-time quota transition as
+// one linearizable operation. Authorization requires enough balance for the
+// early and late amounts, while only the early amount is deducted here.
+func (u *User) AuthorizeAndApplySubmit(bill Bill) error {
+	if err := validateBill(bill); err != nil {
+		return err
+	}
+
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	group := u.group
+	if group != nil {
+		group.mu.Lock()
+		defer group.mu.Unlock()
+	}
+
+	requiredBalance := bill.SubmitSmAmount + bill.SubmitSmRespAmount
+	if u.balance != nil && *u.balance < requiredBalance {
+		return ErrInsufficientBalance
+	}
+	if u.submitSmCountQuota != nil && *u.submitSmCountQuota < bill.DecrementSubmitSmCount {
+		return ErrInsufficientCount
+	}
+	if group != nil {
+		if group.balance != nil && *group.balance < requiredBalance {
+			return fmt.Errorf("group: %w", ErrInsufficientBalance)
+		}
+		if group.submitSmCountQuota != nil && *group.submitSmCountQuota < bill.DecrementSubmitSmCount {
+			return fmt.Errorf("group: %w", ErrInsufficientCount)
+		}
+	}
+
+	if u.balance != nil {
+		*u.balance -= bill.SubmitSmAmount
+	}
+	if u.submitSmCountQuota != nil {
+		*u.submitSmCountQuota -= bill.DecrementSubmitSmCount
+	}
+	if group != nil {
+		if group.balance != nil {
+			*group.balance -= bill.SubmitSmAmount
+		}
+		if group.submitSmCountQuota != nil {
+			*group.submitSmCountQuota -= bill.DecrementSubmitSmCount
+		}
+	}
+	return nil
+}
+
 type Bill struct {
 	SubmitSmAmount         float64
 	SubmitSmRespAmount     float64
@@ -285,4 +341,33 @@ func ValidateParams(routeRate float64, earlyPercent *int) error {
 		return ErrInvalidPercent
 	}
 	return nil
+}
+
+func validateBill(bill Bill) error {
+	if math.IsNaN(bill.SubmitSmAmount) || math.IsInf(bill.SubmitSmAmount, 0) || bill.SubmitSmAmount < 0 {
+		return ErrInvalidRate
+	}
+	if math.IsNaN(bill.SubmitSmRespAmount) || math.IsInf(bill.SubmitSmRespAmount, 0) || bill.SubmitSmRespAmount < 0 {
+		return ErrInvalidRate
+	}
+	if bill.DecrementSubmitSmCount < 0 {
+		return ErrInsufficientCount
+	}
+	return nil
+}
+
+func cloneFloat64(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
+}
+
+func cloneInt(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }

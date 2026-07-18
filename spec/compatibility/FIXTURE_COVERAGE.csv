@@ -1,11 +1,7 @@
 surface,case_id,contract_ids,coverage,notes
 http,ping,H-012,full,Exact status headers and Jasmin/PONG bytes
-http,rate_valid,H-010,partial,Happy path only
-http,balance_unlimited,H-011,partial,Unlimited quota representation
 http,send_bad_password,H-004;H-009,full,Form authentication failure
 http,send_no_live_connector,H-009,full,Legacy downstream failure path
-http,rate_disabled_user,H-004;H-010,partial,Disabled user path
-http,balance_disabled_group,H-004;H-011,partial,Disabled group path
 http,send_missing_to,H-002,full,Validation: missing to
 http,send_missing_content,H-002,full,Validation: missing content
 http,send_all_optional,H-003,full,Support for all optional fields
@@ -35,17 +31,17 @@ redis,multipart_deliver_sm_part,RD-003;SE-006,partial,Pickled multipart field an
 segmentation,gsm7_single_160,HE-001;SE-001,partial,Legacy DCS 0 exact single-part boundary
 segmentation,gsm7_sar_161,HE-001;HE-004;SE-001;SE-004,partial,Legacy DCS 0 first SAR boundary
 segmentation,gsm7_udh_161,HE-001;HE-005;SE-001;SE-005,partial,Legacy DCS 0 first UDH boundary
-segmentation,invalid_dcs_255_fallback_sar_161,HE-001;SE-001,partial,Unknown DCS uses legacy 7-bit segmentation class
-segmentation,gsm7_reference_rollover_sar_161,HE-004;SE-004,partial,8-bit concatenation reference cycles from 255 to 1
-segmentation,gsm7_max_parts_two_truncates,HE-004;SE-004,partial,Legacy maximum-part cap silently drops payload suffix
+segmentation,gsm7_split_ext_at_153,HE-001;SE-001,partial,Legacy byte slicing may split a GSM extension escape at the multipart boundary
 segmentation,eight_bit_single_140,HE-003;SE-003,partial,DCS 3 exact single-part byte boundary
 segmentation,eight_bit_sar_141,HE-003;HE-004;SE-003;SE-004,partial,DCS 3 first SAR boundary
 segmentation,eight_bit_udh_141,HE-003;HE-005;SE-003;SE-005,partial,DCS 3 first UDH boundary
-segmentation,binary_dcs4_sar_141,HE-003;HE-004;SE-003;SE-004,partial,DCS 4 legacy 16-bit-class slicing
 segmentation,ucs2_single_70_units,HE-002;SE-002,partial,DCS 8 exact 70-unit boundary
 segmentation,ucs2_sar_71_units,HE-002;HE-004;SE-002;SE-004,partial,DCS 8 first SAR boundary
 segmentation,ucs2_udh_71_units,HE-002;HE-005;SE-002;SE-005,partial,DCS 8 first UDH boundary
-segmentation,ucs2_odd_byte_sar,HE-002;HE-004;SE-002;SE-004,partial,Legacy DCS 8 preserves odd trailing byte
+segmentation,ucs2_split_surrogate_at_67,HE-002;SE-002,partial,Legacy byte slicing may split a UTF-16 surrogate pair at the multipart boundary
+segmentation,invalid_dcs_255_fallback_sar_161,HE-001;SE-001,partial,Unknown DCS uses legacy 7-bit segmentation class
+segmentation,gsm7_reference_rollover_sar_161,HE-004;SE-004,partial,8-bit concatenation reference cycles from 255 to 1
+segmentation,gsm7_max_parts_two_truncates,HE-004;SE-004,partial,Legacy maximum-part cap silently drops payload suffix
 routing-filters,transparent_mt,RF-001;RF-012,partial,Transparent MT match and compatibility metadata
 routing-filters,transparent_mo,RF-001;RF-012,partial,Transparent MO match and compatibility metadata
 routing-filters,connector_match,RF-002;RF-012,partial,MO connector identity match
@@ -104,3 +100,74 @@ routing-tables,default_at_nonzero_rejected,RR-003,partial,Default route forbidde
 routing-tables,mt_wrong_connector_rejected,RR-009,partial,MT connector type restriction
 routing-tables,mo_wrong_connector_rejected,RR-009,partial,MO connector type restriction
 routing-tables,mt_visible_rate,RR-006,partial,Static MT visible rate
+billing-enforcement,split_exact_total_authorized_early_only_applied,B-004;B-006;B-007,partial,Total balance authorization with early-only submit mutation
+billing-enforcement,split_below_total_rejected_unchanged,B-004;B-006;B-007,partial,Split bill requires funds for early and late amounts
+billing-enforcement,multipart_split_uses_segment_multiplier,B-002;B-006;B-007,partial,Multipart total authorization and early mutation
+billing-enforcement,multipart_count_below_rejects_without_balance_mutation,B-002;B-005,partial,Count precondition rejects before any quota mutation
+billing-enforcement,balance_equality_full_early,B-004;B-006,partial,Equality boundary succeeds and applies full early amount
+billing-enforcement,unlimited_quotas_are_not_mutated,B-003,partial,None quotas remain unlimited and unchanged
+billing-enforcement,unrated_route_still_decrements_count,B-001;B-002;B-003,partial,Zero rate skips balance while count is decremented
+smpp-client-pacing,default_config,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,non_numeric_rejected,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,unlimited_zero,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,negative_disables_pacing,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,first_message_no_wait,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,first_message_large_interval_component,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,first_message_large_interval_zero_component,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,one_mps_same_timestamp,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,one_mps_fast,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,one_mps_boundary,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,four_mps_fast,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,fractional_two_point_five_mps,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,half_even_interval_7812_microseconds,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,half_even_interval_2_microseconds,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,half_even_interval_zero_microseconds,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,tiny_positive_large_interval_component,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,large_interval_one_microsecond_elapsed,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,large_interval_three_microseconds_elapsed,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,tiny_positive_large_interval_one_microsecond_elapsed,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,backward_clock_zero_interval,SC-004,partial,Frozen legacy oracle case
+smpp-client-pacing,half_mps_legacy_microseconds,SC-004,partial,Frozen legacy oracle case
+smpp-client-readiness,expired_discard_precedes_disconnected,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,expired_without_created_at_discards,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,expiration_at_now_is_not_expired,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,disconnected_fresh_delayed_requeue,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,disconnected_boundary_requeues,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,disconnected_over_age_discards,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,disconnected_zero_delay_requeues,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,unbound_fresh_delayed_requeue,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,unbound_over_age_discards,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,multi_day_age_uses_seconds_component,SC-005,partial,Frozen legacy oracle case
+smpp-client-readiness,future_created_at_wraps_seconds_component,SC-005,partial,Frozen legacy oracle case
+smpp-client-error-retry,syserr_first_requeues,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,syserr_count_boundary_acks,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,throttled_penultimate_requeues,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,throttled_count_boundary_acks,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,msgqful_first_requeues,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,msgqful_count_boundary_acks,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,invsched_first_requeues,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,invsched_count_boundary_acks,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,unconfigured_status_acks_preserving_entry,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,custom_zero_delay_requeues,SC-006,partial,Frozen legacy oracle case
+smpp-client-error-retry,custom_count_boundary_acks,SC-006,partial,Frozen legacy oracle case
+smpp-client-response-publish,disabled_success_does_not_publish,SC-008;A-003,partial,Frozen legacy oracle case
+smpp-client-response-publish,enabled_success_publishes,SC-008;A-003,partial,Frozen legacy oracle case
+smpp-client-response-publish,enabled_final_error_publishes,SC-008;A-003,partial,Frozen legacy oracle case
+smpp-client-response-publish,enabled_retried_error_publishes,SC-008;A-003,partial,Frozen legacy oracle case
+multi-connector-routes,random_mt_index_0,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_mt_index_1,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_mo_index_0,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_mo_index_1,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_mo_hybrid_allowed,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_mt_filter_match,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_mt_filter_miss,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,random_empty_rejected,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_mt_sequence,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_mo_sequence,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_match_resets_sequence,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_get_connectors_order,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_mo_mixed_rejected,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_empty_rejected,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_mo_filter_match,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+multi-connector-routes,failover_mo_filter_miss,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
+routing-tables,mo_rate_ignored,RR-006,partial,Frozen legacy oracle case

@@ -16,4 +16,5 @@ JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-pacing-$$" "$RUNNER" python
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-readiness-$$" "$RUNNER" python scripts/compat/capture_smpp_client_readiness_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-error-retry-$$" "$RUNNER" python scripts/compat/capture_smpp_client_error_retry_golden.py
 JASMIN_COMPAT_PROJECT="jasmin-go-capture-smpp-client-response-publish-$$" "$RUNNER" python scripts/compat/capture_smpp_client_response_publish_golden.py
+JASMIN_COMPAT_PROJECT="jasmin-go-capture-billing-enforcement-$$" "$RUNNER" python scripts/compat/capture_billing_enforcement_golden.py
 python3 "$ROOT/scripts/compat/verify_fixtures.py"

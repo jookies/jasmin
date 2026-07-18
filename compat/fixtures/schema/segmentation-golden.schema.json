@@ -36,10 +36,9 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "source", "input", "classification", "emitted_reference", "consumed_payload_bytes", "truncated", "parts"],
+        "required": ["id", "input", "classification", "emitted_reference", "consumed_payload_bytes", "truncated", "parts"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
-          "source": {"type": "string", "minLength": 1},
           "input": {
             "type": "object",
             "required": ["data_coding", "split_method", "max_parts", "initial_reference", "payload"],

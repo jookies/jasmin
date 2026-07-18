@@ -15,6 +15,7 @@ from unittest import mock
 import verify_fixtures
 from verify_fixtures import (
     validate_amqp,
+    validate_billing_enforcement,
     validate_common,
     validate_routing_filters,
     validate_routing_tables,
@@ -27,6 +28,7 @@ from verify_fixtures import (
 
 ROOT = Path(__file__).resolve().parents[2]
 AMQP_FIXTURE = ROOT / "compat/fixtures/amqp/baseline.json"
+BILLING_ENFORCEMENT_FIXTURE = ROOT / "compat/fixtures/billing-enforcement/baseline.json"
 HTTP_FIXTURE = ROOT / "compat/fixtures/http/baseline.json"
 SEGMENTATION_FIXTURE = ROOT / "compat/fixtures/segmentation/baseline.json"
 ROUTING_FILTER_FIXTURE = ROOT / "compat/fixtures/routing-filters/baseline.json"
@@ -59,6 +61,23 @@ class AmqpFixtureValidationTests(unittest.TestCase):
         forged["cases"][0]["id"] = "forged"
         with self.assertRaisesRegex(AssertionError, "unexpected or missing case ids"):
             validate_amqp(forged)
+
+
+class BillingEnforcementFixtureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = json.loads(BILLING_ENFORCEMENT_FIXTURE.read_text(encoding="utf-8"))
+
+    def test_committed_oracle_corpus_is_valid(self) -> None:
+        validate_billing_enforcement(self.document)
+
+    def test_self_consistent_post_state_edit_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        forged["cases"][0]["expected"]["balance_after"] = 1.5
+        forged["cases_sha256"] = hashlib.sha256(
+            json.dumps(forged["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_billing_enforcement(forged)
 
 
 class SmppClientResponsePublishFixtureValidationTests(unittest.TestCase):
@@ -152,13 +171,13 @@ class RoutingTableFixtureValidationTests(unittest.TestCase):
 class FixtureInventoryValidationTests(unittest.TestCase):
     def test_missing_non_amqp_case_is_rejected(self) -> None:
         document = json.loads(HTTP_FIXTURE.read_text(encoding="utf-8"))
-        document["cases"] = [case for case in document["cases"] if case["id"] != "rate_valid"]
+        document["cases"] = [case for case in document["cases"] if case["id"] != "send_missing_to"]
         with self.assertRaisesRegex(AssertionError, "unexpected or missing case ids"):
             validate_common("http", document)
 
     def test_modified_coverage_manifest_is_rejected(self) -> None:
         original = verify_fixtures.COVERAGE.read_text(encoding="utf-8")
-        forged = original.replace("http,rate_valid,H-010,partial", "http,rate_valid,ZZ-999,full")
+        forged = original.replace("http,send_missing_to,H-002,full", "http,send_missing_to,ZZ-999,full")
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "coverage.csv"
             path.write_text(forged, encoding="utf-8")

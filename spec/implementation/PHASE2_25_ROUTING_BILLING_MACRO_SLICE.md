@@ -82,9 +82,14 @@ Important operation order:
 ## Affected paths
 
 - `scripts/compat/capture_billing_enforcement_golden.py`
+- `scripts/compat/capture_all.sh`
+- `scripts/compat/capture_http_golden.py` (reproducibility repair for the preceding macro)
 - `compat/fixtures/billing-enforcement/baseline.json`
+- `compat/fixtures/schema/billing-enforcement-golden.schema.json`
+- `compat/fixtures/schema/segmentation-golden.schema.json` (schema repair for the preceding macro)
 - `scripts/compat/verify_fixtures.py`
 - `scripts/compat/test_verify_fixtures.py`
+- `scripts/compat/validate_json_schemas.py`
 - `spec/compatibility/FIXTURE_COVERAGE.csv`
 - `spec/compatibility/ROUTING_BILLING_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`

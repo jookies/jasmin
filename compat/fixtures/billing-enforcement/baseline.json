@@ -1,0 +1,187 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 0,
+        "required_submit_sm_count": 0,
+        "required_total_balance": 1.5,
+        "submit_sm_amount_per_segment": 0.75,
+        "submit_sm_resp_amount_per_segment": 0.75
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.75,
+        "submit_sm_count_after": null
+      },
+      "id": "split_exact_total_authorized_early_only_applied",
+      "input": {
+        "route_rate": 1.5,
+        "segments": 1,
+        "user": {
+          "balance": 1.5,
+          "early_percent": 50,
+          "submit_sm_count": null,
+          "uid": "u-1"
+        }
+      }
+    },
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 0,
+        "required_submit_sm_count": 0,
+        "required_total_balance": 1.5,
+        "submit_sm_amount_per_segment": 0.75,
+        "submit_sm_resp_amount_per_segment": 0.75
+      },
+      "expected": {
+        "accepted": false,
+        "balance_after": 1.49,
+        "submit_sm_count_after": null
+      },
+      "id": "split_below_total_rejected_unchanged",
+      "input": {
+        "route_rate": 1.5,
+        "segments": 1,
+        "user": {
+          "balance": 1.49,
+          "early_percent": 50,
+          "submit_sm_count": null,
+          "uid": "u-2"
+        }
+      }
+    },
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 1,
+        "required_submit_sm_count": 3,
+        "required_total_balance": 3.0,
+        "submit_sm_amount_per_segment": 0.5,
+        "submit_sm_resp_amount_per_segment": 0.5
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 1.5,
+        "submit_sm_count_after": 0
+      },
+      "id": "multipart_split_uses_segment_multiplier",
+      "input": {
+        "route_rate": 1.0,
+        "segments": 3,
+        "user": {
+          "balance": 3.0,
+          "early_percent": 50,
+          "submit_sm_count": 3,
+          "uid": "u-3"
+        }
+      }
+    },
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 1,
+        "required_submit_sm_count": 3,
+        "required_total_balance": 3.0,
+        "submit_sm_amount_per_segment": 1.0,
+        "submit_sm_resp_amount_per_segment": 0.0
+      },
+      "expected": {
+        "accepted": false,
+        "balance_after": 10.0,
+        "submit_sm_count_after": 2
+      },
+      "id": "multipart_count_below_rejects_without_balance_mutation",
+      "input": {
+        "route_rate": 1.0,
+        "segments": 3,
+        "user": {
+          "balance": 10.0,
+          "early_percent": 100,
+          "submit_sm_count": 2,
+          "uid": "u-4"
+        }
+      }
+    },
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 1,
+        "required_submit_sm_count": 2,
+        "required_total_balance": 4.0,
+        "submit_sm_amount_per_segment": 2.0,
+        "submit_sm_resp_amount_per_segment": 0.0
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.0,
+        "submit_sm_count_after": 0
+      },
+      "id": "balance_equality_full_early",
+      "input": {
+        "route_rate": 2.0,
+        "segments": 2,
+        "user": {
+          "balance": 4.0,
+          "early_percent": 100,
+          "submit_sm_count": 2,
+          "uid": "u-5"
+        }
+      }
+    },
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 0,
+        "required_submit_sm_count": 0,
+        "required_total_balance": 0.0,
+        "submit_sm_amount_per_segment": 0.0,
+        "submit_sm_resp_amount_per_segment": 0.0
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": null,
+        "submit_sm_count_after": null
+      },
+      "id": "unlimited_quotas_are_not_mutated",
+      "input": {
+        "route_rate": 9.0,
+        "segments": 4,
+        "user": {
+          "balance": null,
+          "early_percent": null,
+          "submit_sm_count": null,
+          "uid": "u-6"
+        }
+      }
+    },
+    {
+      "bill": {
+        "decrement_submit_sm_count_per_segment": 1,
+        "required_submit_sm_count": 2,
+        "required_total_balance": 0.0,
+        "submit_sm_amount_per_segment": 0.0,
+        "submit_sm_resp_amount_per_segment": 0.0
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.0,
+        "submit_sm_count_after": 0
+      },
+      "id": "unrated_route_still_decrements_count",
+      "input": {
+        "route_rate": 0.0,
+        "segments": 2,
+        "user": {
+          "balance": 0.0,
+          "early_percent": null,
+          "submit_sm_count": 2,
+          "uid": "u-7"
+        }
+      }
+    }
+  ],
+  "cases_sha256": "90eedbd9a5add4ce95a4c28a2fa2fd4528744aff9f28af168b87b69e46e1bf44",
+  "schema_version": 1,
+  "source": [
+    "jasmin/protocols/http/endpoints/send.py:319-355",
+    "jasmin/protocols/smpp/factory.py:448-466",
+    "jasmin/routing/router.py:319-363"
+  ]
+}

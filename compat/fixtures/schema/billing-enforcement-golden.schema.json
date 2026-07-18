@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jasmin.example/compat/billing-enforcement-golden.schema.json",
+  "title": "Frozen RouterPB submit billing enforcement corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "cases_sha256", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"type": "string"}
+    },
+    "cases_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "input", "bill", "expected"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["route_rate", "segments", "user"],
+            "properties": {
+              "route_rate": {"type": "number", "minimum": 0},
+              "segments": {"type": "integer", "minimum": 1},
+              "user": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["uid", "balance", "early_percent", "submit_sm_count"],
+                "properties": {
+                  "uid": {"type": "string", "minLength": 1},
+                  "balance": {"type": ["number", "null"]},
+                  "early_percent": {"type": ["integer", "null"]},
+                  "submit_sm_count": {"type": ["integer", "null"]}
+                }
+              }
+            }
+          },
+          "bill": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["submit_sm_amount_per_segment", "submit_sm_resp_amount_per_segment", "decrement_submit_sm_count_per_segment", "required_total_balance", "required_submit_sm_count"],
+            "properties": {
+              "submit_sm_amount_per_segment": {"type": "number", "minimum": 0},
+              "submit_sm_resp_amount_per_segment": {"type": "number", "minimum": 0},
+              "decrement_submit_sm_count_per_segment": {"type": "integer", "minimum": 0},
+              "required_total_balance": {"type": "number", "minimum": 0},
+              "required_submit_sm_count": {"type": "integer", "minimum": 0}
+            }
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["accepted", "balance_after", "submit_sm_count_after"],
+            "properties": {
+              "accepted": {"type": "boolean"},
+              "balance_after": {"type": ["number", "null"]},
+              "submit_sm_count_after": {"type": ["integer", "null"]}
+            }
+          }
+        }
+      }
+    }
+  }
+}

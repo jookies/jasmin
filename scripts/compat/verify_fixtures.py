@@ -20,6 +20,7 @@ FIXTURES = {
     "smpp-client-readiness": ROOT / "compat/fixtures/smpp-client-readiness/baseline.json",
     "smpp-client-error-retry": ROOT / "compat/fixtures/smpp-client-error-retry/baseline.json",
     "smpp-client-response-publish": ROOT / "compat/fixtures/smpp-client-response-publish/baseline.json",
+    "billing-enforcement": ROOT / "compat/fixtures/billing-enforcement/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
@@ -31,14 +32,16 @@ COVERAGE = ROOT / "spec/compatibility/FIXTURE_COVERAGE.csv"
 EXPECTED_CASE_IDS = {
     "http": {
         "ping",
-        "rate_valid",
-        "balance_unlimited",
-        "send_missing_password",
-        "send_bad_password",
         "send_no_live_connector",
-        "rate_disabled_user",
-        "balance_disabled_group",
-        "send_json_bad_password",
+        "send_bad_password",
+        "send_missing_to",
+        "send_missing_content",
+        "send_all_optional",
+        "send_filter_dest_mismatch",
+        "send_filter_src_mismatch",
+        "send_auth_src_addr_forbidden",
+        "send_insufficient_balance",
+        "send_json_valid",
     },
     "smpp": {
         "bind_transceiver",
@@ -104,6 +107,15 @@ EXPECTED_CASE_IDS = {
         "enabled_final_error_publishes",
         "enabled_retried_error_publishes",
     },
+    "billing-enforcement": {
+        "split_exact_total_authorized_early_only_applied",
+        "split_below_total_rejected_unchanged",
+        "multipart_split_uses_segment_multiplier",
+        "multipart_count_below_rejects_without_balance_mutation",
+        "balance_equality_full_early",
+        "unlimited_quotas_are_not_mutated",
+        "unrated_route_still_decrements_count",
+    },
     "amqp": {
         "submit_sm_httpapi",
         "submit_sm_resp",
@@ -123,17 +135,17 @@ EXPECTED_CASE_IDS = {
         "gsm7_single_160",
         "gsm7_sar_161",
         "gsm7_udh_161",
-        "invalid_dcs_255_fallback_sar_161",
-        "gsm7_reference_rollover_sar_161",
-        "gsm7_max_parts_two_truncates",
+        "gsm7_split_ext_at_153",
         "eight_bit_single_140",
         "eight_bit_sar_141",
         "eight_bit_udh_141",
-        "binary_dcs4_sar_141",
         "ucs2_single_70_units",
         "ucs2_sar_71_units",
         "ucs2_udh_71_units",
-        "ucs2_odd_byte_sar",
+        "ucs2_split_surrogate_at_67",
+        "invalid_dcs_255_fallback_sar_161",
+        "gsm7_reference_rollover_sar_161",
+        "gsm7_max_parts_two_truncates",
     },
     "routing-filters": {
         "transparent_mt", "transparent_mo",
@@ -162,12 +174,13 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "c4ad7b4a9a17e9b255c8f3d970b7b39cd420d07041347e6ff0e2eaa9fae97115"
+EXPECTED_COVERAGE_SHA256 = "cee9477e89a27503b5c8f09387aa17688778c383b3527cdcc46401f9bd828c30"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
 EXPECTED_SMPP_CLIENT_RESPONSE_PUBLISH_CASES_SHA256 = "2713290bcdf3e284a23e9ff672ac699ee5609a40f6022e041d9113bc60ce0c8d"
-EXPECTED_SEGMENTATION_CASES_SHA256 = "63be2a1a22afcebee9fc1da771be622c6a82e3adcaed82383dc20f49f24cc44f"
+EXPECTED_SEGMENTATION_CASES_SHA256 = "060eab0465a214b1573bb3438272e40fc9c6eb947e6aacd6cefc229ca7ef410b"
+EXPECTED_BILLING_ENFORCEMENT_CASES_SHA256 = "90eedbd9a5add4ce95a4c28a2fa2fd4528744aff9f28af168b87b69e46e1bf44"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
 EXPECTED_MULTI_CONNECTOR_CASES_SHA256 = "4856bb235a509d3c1ac6593e1d57d9bc8856cc8023fb865942591cc7812cbff2"
@@ -362,6 +375,30 @@ def validate_smpp_client_response_publish(document: dict) -> None:
         except Exception as exc:
             raise AssertionError(f"{context}: malformed pickle opcode stream: {exc}") from exc
         require(bool(opcodes) and opcodes[-1][0].name == "STOP", f"{context}: pickle missing STOP")
+
+
+def validate_billing_enforcement(document: dict) -> None:
+    cases_digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(cases_digest == EXPECTED_BILLING_ENFORCEMENT_CASES_SHA256, "billing-enforcement: trusted corpus fingerprint")
+    require(document.get("cases_sha256") == cases_digest, "billing-enforcement: embedded corpus fingerprint")
+    require(
+        document.get("source") == [
+            "jasmin/protocols/http/endpoints/send.py:319-355",
+            "jasmin/protocols/smpp/factory.py:448-466",
+            "jasmin/routing/router.py:319-363",
+        ],
+        "billing-enforcement: source boundary",
+    )
+    for case in document["cases"]:
+        context = f"billing-enforcement/{case['id']}"
+        require(case["input"]["segments"] > 0, f"{context}: segment count")
+        bill = case["bill"]
+        require(bill["submit_sm_amount_per_segment"] >= 0, f"{context}: early amount")
+        require(bill["submit_sm_resp_amount_per_segment"] >= 0, f"{context}: late amount")
+        require(bill["decrement_submit_sm_count_per_segment"] >= 0, f"{context}: count amount")
+        require(isinstance(case["expected"]["accepted"], bool), f"{context}: accepted type")
 
 
 def validate_amqp(document: dict) -> None:
@@ -579,6 +616,7 @@ def main() -> int:
     validate_smpp_client_readiness(documents["smpp-client-readiness"])
     validate_smpp_client_error_retry(documents["smpp-client-error-retry"])
     validate_smpp_client_response_publish(documents["smpp-client-response-publish"])
+    validate_billing_enforcement(documents["billing-enforcement"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])
