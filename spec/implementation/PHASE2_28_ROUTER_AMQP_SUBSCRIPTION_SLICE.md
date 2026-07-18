@@ -35,6 +35,10 @@ properties before a later process-lifecycle/recovery slice.
   deduplication, or durable ledger semantics (A-009/B-010).
 - Claiming all Jasmin exchange/queue topology is complete; this slice covers only
   the two RouterPB subscriptions reached by `addAmqpBroker`.
+- Migrating vhosts created by the earlier, unverified experimental Go helper,
+  which declared the same names durable. No production process currently wires
+  that helper; an experimental vhost must be recreated or explicitly migrated
+  before adopting the frozen legacy non-durable declarations.
 - Changing the frozen Python implementation.
 
 ## Legacy contract

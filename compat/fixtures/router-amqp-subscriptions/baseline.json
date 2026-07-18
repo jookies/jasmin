@@ -1,0 +1,101 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "operations": [
+          {
+            "arguments": null,
+            "auto_delete": false,
+            "durable": false,
+            "exchange": "messaging",
+            "internal": false,
+            "no_wait": false,
+            "operation": "exchange_declare",
+            "passive": false,
+            "type": "topic"
+          },
+          {
+            "arguments": null,
+            "auto_delete": false,
+            "durable": false,
+            "exclusive": false,
+            "no_wait": false,
+            "operation": "queue_declare",
+            "queue": "RouterPB_deliver_sm_all"
+          },
+          {
+            "arguments": null,
+            "exchange": "messaging",
+            "no_wait": false,
+            "operation": "queue_bind",
+            "queue": "RouterPB_deliver_sm_all",
+            "routing_key": "deliver.sm.*"
+          },
+          {
+            "arguments": null,
+            "auto_ack": false,
+            "consumer_tag": "RouterPB-delivers",
+            "exclusive": false,
+            "no_local": false,
+            "no_wait": false,
+            "operation": "basic_consume",
+            "queue": "RouterPB_deliver_sm_all"
+          },
+          {
+            "arguments": null,
+            "auto_delete": false,
+            "durable": false,
+            "exchange": "billing",
+            "internal": false,
+            "no_wait": false,
+            "operation": "exchange_declare",
+            "passive": false,
+            "type": "topic"
+          },
+          {
+            "arguments": null,
+            "auto_delete": false,
+            "durable": false,
+            "exclusive": false,
+            "no_wait": false,
+            "operation": "queue_declare",
+            "queue": "RouterPB_bill_request_submit_sm_resp_all"
+          },
+          {
+            "arguments": null,
+            "exchange": "billing",
+            "no_wait": false,
+            "operation": "queue_bind",
+            "queue": "RouterPB_bill_request_submit_sm_resp_all",
+            "routing_key": "bill_request.submit_sm_resp.*"
+          },
+          {
+            "arguments": null,
+            "auto_ack": false,
+            "consumer_tag": "RouterPB-billrequests",
+            "exclusive": false,
+            "no_local": false,
+            "no_wait": false,
+            "operation": "basic_consume",
+            "queue": "RouterPB_bill_request_submit_sm_resp_all"
+          }
+        ],
+        "queue_lookups": [
+          "RouterPB-delivers",
+          "RouterPB-billrequests"
+        ]
+      },
+      "id": "router_pb_add_amqp_broker",
+      "input": {
+        "connected": true
+      }
+    }
+  ],
+  "cases_sha256": "156f8890326e8871e8901448367845edcbcf0527c46f499290993fe383b9c4b0",
+  "schema_version": 1,
+  "source": [
+    "jasmin/routing/router.py:75-109",
+    "jasmin/queues/factory.py:200-219"
+  ]
+}

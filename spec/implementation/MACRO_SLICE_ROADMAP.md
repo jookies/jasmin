@@ -9,7 +9,7 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 **Goal:** Full HTTP `/send` to SMPP outbound flow.
 - **1.1: HTTP Interface Parity** (H-001 to H-009) - **COMPLETE**
 - **1.2: Advanced Segmentation & Encoding** (HE-001 to HE-006) - **COMPLETE**
-- **1.3: Router & Billing Integration** (A-001, A-002, A-008, A-009, B-001 to B-011) - **IN PROGRESS (atomic submit, late-response billing, and explicit settlement slices)**
+- **1.3: Router & Billing Integration** (A-001, A-002, A-008, A-009, B-001 to B-011) - **IN PROGRESS (atomic submit, late-response billing, explicit settlement, and RouterPB subscription topology slices)**
 - **1.4: SMPP Outbound Stability** (SC-001, SC-002, SC-003, SC-007) - **PLANNED**
 
 ### Macro 2: Delivery Receipts (DLR Path)
@@ -30,6 +30,6 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 ## Progress Metrics
 - Functional flows completed: 0 / 4
 - Total matrix rows: 204
-- Untouched (INVENTORIED): 126
-- Partial (GO-PARTIAL): 60
+- Untouched (INVENTORIED): 124
+- Partial (GO-PARTIAL): 62
 - Complete (MATCH/GO-COMPLETE): 18

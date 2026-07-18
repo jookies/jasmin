@@ -6,10 +6,10 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
-| A-001 | exchanges | `messaging`, `billing`, type/durability/declaration properties | INVENTORIED |
+| A-001 | exchanges | `messaging`, `billing`, type/durability/declaration properties | GO-PARTIAL |
 | A-002 | submit route | `submit.sm.<CID>` queue/binding/properties/body | GO-PARTIAL |
 | A-003 | submit response | optional `submit.sm.resp.<CID>` properties/body | GO-PARTIAL |
-| A-004 | MO ingest | `deliver.sm.<CID>` and router wildcard binding | INVENTORIED |
+| A-004 | MO ingest | `deliver.sm.<CID>` and router wildcard binding | GO-PARTIAL |
 | A-005 | MO throwers | `deliver_sm_thrower.http` / `.smpps` | GO-PARTIAL |
 | A-006 | DLR lookup | every `dlr.*` routing key and payload/property set | GO-PARTIAL |
 | A-007 | DLR throwers | `dlr_thrower.http` / `.smpps` | GO-PARTIAL |
@@ -55,10 +55,12 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 - Legacy import: trusted offline Python exporter to canonical versioned data; Go never writes old pickle profiles.
 
 `GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows
-this includes envelope/routing validation and, for A-008/A-009, the late-billing
+this includes envelope/routing validation, the exact non-durable RouterPB
+`messaging`/`billing` exchange and fixed queue/binding/manual-consumer declaration
+sequence for A-001/A-004/A-009, and, for A-008/A-009, the late-billing
 decision plus an explicit single-settlement handle that ACKs after successful
 mutation or rejects without requeue for the frozen finite-balance cases. It does
-not imply live broker topology, QoS, consumer recovery, malformed-message
+not imply complete process wiring or all Jasmin topology, QoS, consumer recovery, malformed-message
 policy, retry/redelivery, deduplication, or pickle-bridge parity. For Redis rows
 it is typed key/hash projection or opaque multipart metadata only; it does not
 imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle

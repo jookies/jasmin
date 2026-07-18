@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jasmin.example/compat/router-amqp-subscriptions-golden.schema.json",
+  "title": "Frozen RouterPB AMQP subscription declaration corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "cases_sha256", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+    "cases_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "input", "expected"],
+        "properties": {
+          "id": {"const": "router_pb_add_amqp_broker"},
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["connected"],
+            "properties": {"connected": {"const": true}}
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operations", "queue_lookups"],
+            "properties": {
+              "queue_lookups": {
+                "type": "array",
+                "prefixItems": [
+                  {"const": "RouterPB-delivers"},
+                  {"const": "RouterPB-billrequests"}
+                ],
+                "items": false
+              },
+              "operations": {
+                "type": "array",
+                "minItems": 8,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "required": ["operation"],
+                  "properties": {
+                    "operation": {"enum": ["exchange_declare", "queue_declare", "queue_bind", "basic_consume"]},
+                    "exchange": {"type": "string"},
+                    "type": {"type": "string"},
+                    "queue": {"type": "string"},
+                    "routing_key": {"type": "string"},
+                    "consumer_tag": {"type": "string"},
+                    "passive": {"type": "boolean"},
+                    "durable": {"type": "boolean"},
+                    "auto_delete": {"type": "boolean"},
+                    "internal": {"type": "boolean"},
+                    "exclusive": {"type": "boolean"},
+                    "auto_ack": {"type": "boolean"},
+                    "no_local": {"type": "boolean"},
+                    "no_wait": {"type": "boolean"},
+                    "arguments": {"type": "null"}
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

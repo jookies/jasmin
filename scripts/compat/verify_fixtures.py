@@ -22,6 +22,7 @@ FIXTURES = {
     "smpp-client-response-publish": ROOT / "compat/fixtures/smpp-client-response-publish/baseline.json",
     "billing-enforcement": ROOT / "compat/fixtures/billing-enforcement/baseline.json",
     "late-billing": ROOT / "compat/fixtures/late-billing/baseline.json",
+    "router-amqp-subscriptions": ROOT / "compat/fixtures/router-amqp-subscriptions/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
     "segmentation": ROOT / "compat/fixtures/segmentation/baseline.json",
@@ -126,6 +127,7 @@ EXPECTED_CASE_IDS = {
         "opaque_user_id_acks_and_decrements",
         "unlimited_balance_has_no_terminal_action",
     },
+    "router-amqp-subscriptions": {"router_pb_add_amqp_broker"},
     "amqp": {
         "submit_sm_httpapi",
         "submit_sm_resp",
@@ -184,7 +186,7 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "fabf5338300323f1a5b7db2af88b5c0b57e0b0cca5f4a8758c34e3b149f7baa5"
+EXPECTED_COVERAGE_SHA256 = "9d0e8104adc58fe5419274e2c4a9177e8738fa51b26928df199409bc5521d337"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
@@ -192,6 +194,7 @@ EXPECTED_SMPP_CLIENT_RESPONSE_PUBLISH_CASES_SHA256 = "2713290bcdf3e284a23e9ff672
 EXPECTED_SEGMENTATION_CASES_SHA256 = "060eab0465a214b1573bb3438272e40fc9c6eb947e6aacd6cefc229ca7ef410b"
 EXPECTED_BILLING_ENFORCEMENT_CASES_SHA256 = "90eedbd9a5add4ce95a4c28a2fa2fd4528744aff9f28af168b87b69e46e1bf44"
 EXPECTED_LATE_BILLING_CASES_SHA256 = "f7ac07abb075b893294a62089ef2448c8cbe202e5317fdd3ab7e659885afcb8e"
+EXPECTED_ROUTER_AMQP_SUBSCRIPTIONS_CASES_SHA256 = "156f8890326e8871e8901448367845edcbcf0527c46f499290993fe383b9c4b0"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
 EXPECTED_MULTI_CONNECTOR_CASES_SHA256 = "4856bb235a509d3c1ac6593e1d57d9bc8856cc8023fb865942591cc7812cbff2"
@@ -432,6 +435,41 @@ def validate_late_billing(document: dict) -> None:
         require(case["expected"]["action"] in {"ack", "reject", "none"}, f"{context}: action")
 
 
+def validate_router_amqp_subscriptions(document: dict) -> None:
+    cases_digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(
+        cases_digest == EXPECTED_ROUTER_AMQP_SUBSCRIPTIONS_CASES_SHA256,
+        "router-amqp-subscriptions: trusted corpus fingerprint",
+    )
+    require(document.get("cases_sha256") == cases_digest, "router-amqp-subscriptions: embedded corpus fingerprint")
+    require(
+        document.get("source") == [
+            "jasmin/routing/router.py:75-109",
+            "jasmin/queues/factory.py:200-219",
+        ],
+        "router-amqp-subscriptions: source boundary",
+    )
+    case = document["cases"][0]
+    operations = case["expected"]["operations"]
+    require(len(operations) == 8, "router-amqp-subscriptions: operation count")
+    require(
+        [operation["operation"] for operation in operations]
+        == ["exchange_declare", "queue_declare", "queue_bind", "basic_consume"] * 2,
+        "router-amqp-subscriptions: operation order",
+    )
+    require(
+        case["expected"]["queue_lookups"] == ["RouterPB-delivers", "RouterPB-billrequests"],
+        "router-amqp-subscriptions: queue lookups",
+    )
+    for operation in operations:
+        if operation["operation"] in {"exchange_declare", "queue_declare"}:
+            require(operation["durable"] is False, "router-amqp-subscriptions: durable default")
+        if operation["operation"] == "basic_consume":
+            require(operation["auto_ack"] is False, "router-amqp-subscriptions: manual ack")
+
+
 def validate_amqp(document: dict) -> None:
     require(
         document.get("capture_transport") == "rabbitmq-publish-consume",
@@ -649,6 +687,7 @@ def main() -> int:
     validate_smpp_client_response_publish(documents["smpp-client-response-publish"])
     validate_billing_enforcement(documents["billing-enforcement"])
     validate_late_billing(documents["late-billing"])
+    validate_router_amqp_subscriptions(documents["router-amqp-subscriptions"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])
     validate_segmentation(documents["segmentation"])
