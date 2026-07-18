@@ -98,3 +98,12 @@ Important operation order:
 - `internal/core/billing/atomic_test.go`
 - `internal/core/submit_service.go`
 - `internal/core/submit_service_test.go`
+
+## Verification
+
+- Terminal candidate: `f82a12695158c0548152f013ceb5a3c4bde9a439`
+- Exact-SHA GitHub Actions: run `29641886661`, `4 / 4` successful
+- Local gates: focused `x20`, full Go, race, vet, build, fixture/schema/integrity/unit, secret scan, and clean workspace passed
+- Ralph: normal council timed out without a synthesized verdict; degraded recovery used two independent local symbol-scoped critics, with findings verified by the main orchestrator
+
+LoopKey: c766c44be033
