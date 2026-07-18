@@ -66,11 +66,15 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | B-011 | HTTP/SMPP parity | equivalent message produces same bill/route/segments | INVENTORIED |
 
 The `billing-enforcement` corpus captures the public HTTP/SMPP caller
-preconditions and `RouterPB.chargeUserForSubmitSms` quota post-state. The Go
-subset performs that authorization and early mutation atomically and composes
-it with routing, interception, segmentation, and an injected opaque AMQP
-envelope builder. These rows remain `GO-PARTIAL`: protocol-specific error
-mapping, late-response consumption, persistence/redelivery, live topology, and
-a production Python-pickle producer are not claimed.
+preconditions and `RouterPB.chargeUserForSubmitSms` quota post-state. The
+`late-billing` corpus separately captures the frozen
+`bill_request_submit_sm_resp_callback` ACK/reject decision and balance
+post-state, including its unlimited-balance no-terminal-action behavior. The Go
+subset performs submit authorization/early mutation and late finite-balance
+mutation atomically, and composes the early path with routing, interception,
+segmentation, and an injected opaque AMQP envelope builder. These rows remain
+`GO-PARTIAL`: protocol-specific error mapping, live broker ACK/reject execution,
+persistence/redelivery/deduplication, live topology, and a production
+Python-pickle producer are not claimed.
 
 No improved ledger behavior is considered parity. Ledger tests and schemas are separate from the legacy compatibility engine.

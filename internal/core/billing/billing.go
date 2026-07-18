@@ -13,6 +13,7 @@ var (
 	ErrInsufficientBalance = errors.New("insufficient balance")
 	ErrInsufficientCount   = errors.New("insufficient submit_sm_count")
 	ErrBillingStateChanged = errors.New("billing state changed after calculation")
+	ErrUnlimitedBalance    = errors.New("unlimited balance has no late charge transition")
 )
 
 type User struct {
@@ -245,6 +246,26 @@ func (u *User) ApplyBill(bill Bill) error {
 			*u.group.submitSmCountQuota -= bill.DecrementSubmitSmCount
 		}
 	}
+	return nil
+}
+
+// ApplyLateCharge atomically reproduces the finite-balance mutation performed
+// by RouterPB.bill_request_submit_sm_resp_callback. An unlimited balance is
+// reported explicitly so the orchestration layer can preserve the legacy
+// callback's lack of a terminal ACK/reject action for that branch.
+func (u *User) ApplyLateCharge(amount float64) error {
+	if math.IsNaN(amount) || math.IsInf(amount, 0) || amount < 0 {
+		return ErrInvalidRate
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.balance == nil {
+		return ErrUnlimitedBalance
+	}
+	if *u.balance < amount {
+		return ErrInsufficientBalance
+	}
+	*u.balance -= amount
 	return nil
 }
 

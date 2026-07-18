@@ -38,6 +38,10 @@ PAIRS = {
         ROOT / "compat/fixtures/schema/billing-enforcement-golden.schema.json",
         ROOT / "compat/fixtures/billing-enforcement/baseline.json",
     ),
+    "late-billing": (
+        ROOT / "compat/fixtures/schema/late-billing-golden.schema.json",
+        ROOT / "compat/fixtures/late-billing/baseline.json",
+    ),
     "amqp": (
         ROOT / "compat/fixtures/schema/amqp-content-golden.schema.json",
         ROOT / "compat/fixtures/amqp/baseline.json",

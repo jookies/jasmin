@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jasmin.example/compat/late-billing-golden.schema.json",
+  "title": "Frozen RouterPB late submit response billing corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "cases_sha256", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 3, "items": {"type": "string"}},
+    "cases_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "input", "expected"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "input": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["routing_key", "message_id", "user_id", "amount", "balance"],
+            "properties": {
+              "routing_key": {"type": "string", "minLength": 1},
+              "message_id": {"type": "string", "minLength": 1},
+              "user_id": {"type": "string", "minLength": 1},
+              "amount": {"type": "string", "minLength": 1},
+              "balance": {
+                "oneOf": [
+                  {"type": "number"},
+                  {"const": "missing"},
+                  {"type": "null"}
+                ]
+              }
+            }
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "balance_after"],
+            "properties": {
+              "action": {"enum": ["ack", "reject", "none"]},
+              "balance_after": {"type": ["number", "null"]}
+            }
+          }
+        }
+      }
+    }
+  }
+}

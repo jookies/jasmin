@@ -54,4 +54,4 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 - NoSQL: deferred until a measured access pattern requires it.
 - Legacy import: trusted offline Python exporter to canonical versioned data; Go never writes old pickle profiles.
 
-`GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows this is envelope/routing only; it does not imply broker topology, ACK/retry, state-machine, or pickle-bridge parity. For Redis rows it is typed key/hash projection or opaque multipart metadata only; it does not imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle ownership.
+`GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows this includes envelope/routing validation and, for A-008, the pure late-billing decision/state transition; it does not imply live broker topology, consume loops, ACK/retry execution, recovery, or pickle-bridge parity. For Redis rows it is typed key/hash projection or opaque multipart metadata only; it does not imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle ownership.
