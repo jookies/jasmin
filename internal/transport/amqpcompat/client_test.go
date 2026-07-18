@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func TestAMQPTopology(t *testing.T) {
@@ -117,13 +117,14 @@ func TestAMQPPubSubRoundTrip(t *testing.T) {
 	// Receive
 	select {
 	case received := <-msgs:
-		if received.Properties().MessageID() != "msg-123" {
-			t.Errorf("got message ID %q, want msg-123", received.Properties().MessageID())
+		envelope := received.Envelope()
+		if envelope.Properties().MessageID() != "msg-123" {
+			t.Errorf("got message ID %q, want msg-123", envelope.Properties().MessageID())
 		}
-		if string(received.Body()) != "hello world" {
-			t.Errorf("got body %q, want hello world", string(received.Body()))
+		if string(envelope.Body()) != "hello world" {
+			t.Errorf("got body %q, want hello world", string(envelope.Body()))
 		}
-		h := received.Properties().Headers()
+		h := envelope.Properties().Headers()
 		if val, ok := h["header-1"]; !ok {
 			t.Error("missing header-1")
 		} else {
@@ -131,6 +132,9 @@ func TestAMQPPubSubRoundTrip(t *testing.T) {
 			if s != "value-1" {
 				t.Errorf("got header value %q, want value-1", s)
 			}
+		}
+		if err := received.Ack(); err != nil {
+			t.Fatalf("Ack: %v", err)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for message")

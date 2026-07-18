@@ -14,7 +14,7 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 | A-006 | DLR lookup | every `dlr.*` routing key and payload/property set | GO-PARTIAL |
 | A-007 | DLR throwers | `dlr_thrower.http` / `.smpps` | GO-PARTIAL |
 | A-008 | billing | `bill_request.submit_sm_resp.<UID>` and amount/IDs | GO-PARTIAL |
-| A-009 | ACK/reject | success/failure/retry/requeue timing per consumer | INVENTORIED |
+| A-009 | ACK/reject | success/failure/retry/requeue timing per consumer | GO-PARTIAL |
 | A-010 | QoS/prefetch | configured counts and concurrency effects | INVENTORIED |
 | A-011 | expiry | message age/expiration and terminal handling | INVENTORIED |
 | A-012 | reconnect | declarations, consumer recovery and in-flight delivery | INVENTORIED |
@@ -54,4 +54,12 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 - NoSQL: deferred until a measured access pattern requires it.
 - Legacy import: trusted offline Python exporter to canonical versioned data; Go never writes old pickle profiles.
 
-`GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows this includes envelope/routing validation and, for A-008, the pure late-billing decision/state transition; it does not imply live broker topology, consume loops, ACK/retry execution, recovery, or pickle-bridge parity. For Redis rows it is typed key/hash projection or opaque multipart metadata only; it does not imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle ownership.
+`GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows
+this includes envelope/routing validation and, for A-008/A-009, the late-billing
+decision plus an explicit single-settlement handle that ACKs after successful
+mutation or rejects without requeue for the frozen finite-balance cases. It does
+not imply live broker topology, QoS, consumer recovery, malformed-message
+policy, retry/redelivery, deduplication, or pickle-bridge parity. For Redis rows
+it is typed key/hash projection or opaque multipart metadata only; it does not
+imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle
+ownership.

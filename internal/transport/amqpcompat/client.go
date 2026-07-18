@@ -2,9 +2,14 @@ package amqpcompat
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+var ErrDeliverySettled = errors.New("AMQP delivery already settled")
 
 // Publisher sends messages to an exchange.
 type Publisher struct {
@@ -40,7 +45,55 @@ func (p *Publisher) Publish(ctx context.Context, exchange string, routingKey str
 	)
 }
 
-// Consumer receives messages from a queue.
+// Delivery owns one decoded envelope and its explicit broker settlement.
+// Decoding never acknowledges the broker delivery implicitly.
+type Delivery struct {
+	envelope Envelope
+	raw      amqp.Delivery
+
+	mu      sync.Mutex
+	settled bool
+}
+
+func newDelivery(raw amqp.Delivery) (*Delivery, error) {
+	props, err := NewProperties(raw.MessageId, fromAMQPHeaders(raw.Headers))
+	if err != nil {
+		return nil, err
+	}
+	envelope, err := NewEnvelope(raw.RoutingKey, props, raw.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &Delivery{envelope: envelope, raw: raw}, nil
+}
+
+func (delivery *Delivery) Envelope() Envelope {
+	return delivery.envelope
+}
+
+func (delivery *Delivery) Ack() error {
+	return delivery.settle(func() error { return delivery.raw.Ack(false) })
+}
+
+func (delivery *Delivery) Reject(requeue bool) error {
+	return delivery.settle(func() error { return delivery.raw.Reject(requeue) })
+}
+
+func (delivery *Delivery) settle(operation func() error) error {
+	delivery.mu.Lock()
+	defer delivery.mu.Unlock()
+	if delivery.settled {
+		return ErrDeliverySettled
+	}
+	delivery.settled = true
+	if err := operation(); err != nil {
+		return fmt.Errorf("settle AMQP delivery: %w", err)
+	}
+	return nil
+}
+
+// Consumer receives unsettled messages from a queue. The downstream owner must
+// explicitly ACK or reject each delivered handle after processing completes.
 type Consumer struct {
 	conn *amqp.Connection
 	ch   *amqp.Channel
@@ -58,7 +111,7 @@ func (c *Consumer) Close() error {
 	return c.ch.Close()
 }
 
-func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan Envelope, error) {
+func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan *Delivery, error) {
 	deliveries, err := c.ch.Consume(
 		queue,
 		"",    // consumer
@@ -74,7 +127,7 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan Envelope, 
 
 	notifyClose := c.ch.NotifyClose(make(chan *amqp.Error, 1))
 
-	out := make(chan Envelope)
+	out := make(chan *Delivery)
 	go func() {
 		defer close(out)
 		for {
@@ -92,16 +145,15 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan Envelope, 
 				if !ok {
 					return
 				}
-				props, err := NewProperties(d.MessageId, fromAMQPHeaders(d.Headers))
+				delivery, err := newDelivery(d)
 				if err != nil {
 					continue
 				}
-				env, err := NewEnvelope(d.RoutingKey, props, d.Body)
-				if err != nil {
-					continue
+				select {
+				case out <- delivery:
+				case <-ctx.Done():
+					return
 				}
-				out <- env
-				d.Ack(false)
 			}
 		}
 	}()

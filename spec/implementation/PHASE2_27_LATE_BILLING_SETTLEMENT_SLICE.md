@@ -32,8 +32,9 @@ downstream processing completes.
 - Declaring the live billing exchange, queue, or wildcard binding (A-001).
 - QoS/prefetch, reconnect/recovery, consumer cancellation, retry/redelivery,
   deduplication, or durable ledger semantics (A-010/A-012/B-010).
-- Settling malformed or internally failed messages: as in the frozen callback,
-  an exception before a terminal action remains unsettled for outer supervision.
+- Defining a terminal policy for malformed deliveries: decode or processing
+  failures remain unsettled, and this bounded API only returns processing errors
+  to its direct caller.
 - Fixing the frozen unlimited-balance no-terminal-action behavior.
 - Wiring a production process/container or claiming full A-008/A-009 parity.
 - Changing the frozen Python implementation or fixture case set.
@@ -82,5 +83,7 @@ Important behavior:
 - `internal/transport/amqpcompat/client_test.go`
 - `internal/core/late_billing_delivery.go`
 - `internal/core/late_billing_delivery_test.go`
+- `scripts/compat/verify_fixtures.py`
+- `spec/compatibility/FIXTURE_COVERAGE.csv`
 - `spec/compatibility/AMQP_REDIS_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`

@@ -107,13 +107,13 @@ billing-enforcement,multipart_count_below_rejects_without_balance_mutation,B-002
 billing-enforcement,balance_equality_full_early,B-004;B-006,partial,Equality boundary succeeds and applies full early amount
 billing-enforcement,unlimited_quotas_are_not_mutated,B-003,partial,None quotas remain unlimited and unchanged
 billing-enforcement,unrated_route_still_decrements_count,B-001;B-002;B-003,partial,Zero rate skips balance while count is decremented
-late-billing,missing_user_rejects,B-007;A-008,partial,Unknown user rejects the late billing delivery
-late-billing,insufficient_balance_rejects_unchanged,B-007;A-008,partial,Insufficient finite balance rejects without mutation
-late-billing,exact_balance_acks_and_decrements,B-007;A-008,partial,Equality boundary charges and ACKs
-late-billing,sufficient_balance_acks_and_decrements,B-007;A-008,partial,Sufficient finite balance applies the late amount
-late-billing,zero_amount_acks_without_delta,B-007;A-008,partial,Zero late amount ACKs without balance change
-late-billing,opaque_user_id_acks_and_decrements,B-007;A-008,partial,Opaque legacy user ID resolves through the production directory and charges
-late-billing,unlimited_balance_has_no_terminal_action,B-003;B-007;A-008,partial,Frozen callback leaves unlimited balance without ACK or reject
+late-billing,missing_user_rejects,B-007;A-008;A-009,partial,Unknown user rejects the late billing delivery
+late-billing,insufficient_balance_rejects_unchanged,B-007;A-008;A-009,partial,Insufficient finite balance rejects without mutation
+late-billing,exact_balance_acks_and_decrements,B-007;A-008;A-009,partial,Equality boundary charges and ACKs
+late-billing,sufficient_balance_acks_and_decrements,B-007;A-008;A-009,partial,Sufficient finite balance applies the late amount
+late-billing,zero_amount_acks_without_delta,B-007;A-008;A-009,partial,Zero late amount ACKs without balance change
+late-billing,opaque_user_id_acks_and_decrements,B-007;A-008;A-009,partial,Opaque legacy user ID resolves through the production directory and charges
+late-billing,unlimited_balance_has_no_terminal_action,B-003;B-007;A-008;A-009,partial,Frozen callback leaves unlimited balance without ACK or reject
 smpp-client-pacing,default_config,SC-004,partial,Frozen legacy oracle case
 smpp-client-pacing,non_numeric_rejected,SC-004,partial,Frozen legacy oracle case
 smpp-client-pacing,unlimited_zero,SC-004,partial,Frozen legacy oracle case
