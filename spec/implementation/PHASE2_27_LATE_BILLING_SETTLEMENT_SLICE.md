@@ -87,3 +87,14 @@ Important behavior:
 - `spec/compatibility/FIXTURE_COVERAGE.csv`
 - `spec/compatibility/AMQP_REDIS_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification
+
+- Published implementation candidate: `f1f71423c425ac306fb9dc8bbc257c0496552668`
+- Exact-SHA GitHub Actions: run `29653973072`, `4 / 4` successful
+- Oracle/test harness: 7 frozen late-billing cases; aggregate regeneration passed twice with zero diff and fixture-tree SHA-256 `360dd6611fcc99d0506afd5c83a1495dd2868ce1cd1df7ce71145f1a022c88bd`
+- Production implementation: focused `x20`, full Go, race, vet, and build passed; explicit settlement is tested with 64 concurrent alternating ACK/reject callers and exactly one broker attempt
+- Integrity: 14 JSON schemas, 24 Python verifier tests, 179 coverage rows, manifest `1039 / 55`, matrix recount `204 = 126 INVENTORIED + 60 GO-PARTIAL + 18 MATCH`, frozen-tree, secret, and workspace gates passed
+- Ralph: stable candidate `9764dc07201dec622e9d01859a7fcdf31627a275aaa3265a4e61d5213310612a` received a synthesized `ralph-code` PASS. One direct local critic made a falsified multi-settlement claim despite the mutex; the main orchestrator rejected it using the passing 64-caller race test, while the second focused local critic returned PASS
+
+LoopKey: 7146a0bc93cb
