@@ -242,6 +242,25 @@ func TestSubmitServiceInvalidEnvelopeRouteDoesNotCharge(t *testing.T) {
 	}
 }
 
+func TestSubmitServiceEnvelopeCountMismatchDoesNotCharge(t *testing.T) {
+	user := fundedUser(t)
+	builder := &recordingBuilder{count: 1}
+	publisher := &recordingPublisher{}
+	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, publisher)
+
+	_, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username:    "alice",
+		Destination: "1",
+		Content:     strings.Repeat("A", 161),
+	})
+	if !errors.Is(err, core.ErrInvalidEnvelopeSet) {
+		t.Fatalf("error=%v want envelope/part count mismatch", err)
+	}
+	if len(publisher.bodies) != 0 || user.Balance() != 10 {
+		t.Fatalf("mismatch published=%d balance=%v", len(publisher.bodies), user.Balance())
+	}
+}
+
 type wrongRouteBuilder struct{}
 
 func (wrongRouteBuilder) BuildSubmitEnvelopes(_ context.Context, request core.SubmitEnvelopeRequest) ([]amqpcompat.Envelope, error) {

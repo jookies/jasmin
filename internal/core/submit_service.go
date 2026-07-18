@@ -171,7 +171,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	if err != nil {
 		return "", err
 	}
-	if err := validateSubmitEnvelopes(envelopes, route.Connector().ID()); err != nil {
+	if err := validateSubmitEnvelopes(envelopes, route.Connector().ID(), len(parts)); err != nil {
 		return "", err
 	}
 
@@ -199,9 +199,9 @@ func submitPayload(request SubmitRequest) ([]byte, error) {
 	return []byte(request.Content), nil
 }
 
-func validateSubmitEnvelopes(envelopes []amqpcompat.Envelope, connectorID string) error {
-	if len(envelopes) == 0 {
-		return fmt.Errorf("%w: empty set", ErrInvalidEnvelopeSet)
+func validateSubmitEnvelopes(envelopes []amqpcompat.Envelope, connectorID string, expectedCount int) error {
+	if expectedCount <= 0 || len(envelopes) == 0 || len(envelopes) != expectedCount {
+		return fmt.Errorf("%w: got %d envelopes for %d parts", ErrInvalidEnvelopeSet, len(envelopes), expectedCount)
 	}
 	for index, envelope := range envelopes {
 		route := envelope.Route()
