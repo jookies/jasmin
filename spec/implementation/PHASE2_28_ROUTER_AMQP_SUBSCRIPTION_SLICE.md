@@ -98,3 +98,5 @@ Expected sequence:
 - `internal/transport/amqpcompat/topology_test.go`
 - `spec/compatibility/AMQP_REDIS_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+LoopKey: fdd811f77404
