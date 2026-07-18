@@ -90,3 +90,14 @@ Important behavior:
 - `internal/core/billing/late_charge_test.go`
 - `internal/core/late_billing_service.go`
 - `internal/core/late_billing_service_test.go`
+
+## Verification
+
+- Published implementation candidate: `0b4151f4b1098ac87dce9d7b7d5ac6ac7d388dd7`
+- Exact-SHA GitHub Actions: run `29649117659`, `4 / 4` successful
+- Oracle/test harness: 7 late-billing cases, 179 total coverage rows, aggregate regeneration zero-diff, and updated corpus reproduced twice
+- Production implementation: focused `x20`, full Go, race, vet, build, and 5-second billing fuzz gate passed (`2,646,128` executions)
+- Integrity: 14 JSON schemas, 21 Python verifier tests, matrix recount (`204 = 127 INVENTORIED + 59 GO-PARTIAL + 18 MATCH`), secret scan, and workspace-contamination gate passed
+- Ralph: first audit found opaque legacy user-ID and dual-index defects; both were fixed, all invalidated gates reran, and focused final `ralph-code` audit passed with no critical or warning finding
+
+LoopKey: 70ce0ade64b5
