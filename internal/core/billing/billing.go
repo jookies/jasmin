@@ -12,6 +12,7 @@ var (
 	ErrInvalidPercent      = errors.New("invalid early decrement percent")
 	ErrInsufficientBalance = errors.New("insufficient balance")
 	ErrInsufficientCount   = errors.New("insufficient submit_sm_count")
+	ErrBillingStateChanged = errors.New("billing state changed after calculation")
 )
 
 type User struct {
@@ -262,7 +263,37 @@ func (u *User) AuthorizeAndApplySubmit(bill Bill) error {
 		group.mu.Lock()
 		defer group.mu.Unlock()
 	}
+	return u.authorizeAndApplySubmitLocked(group, bill)
+}
 
+// AuthorizeAndApplyCalculatedSubmit verifies that a bill calculated before an
+// external envelope-build boundary still matches the user's current billing
+// configuration, then authorizes and applies it under the same lock set.
+func (u *User) AuthorizeAndApplyCalculatedSubmit(routeRate float64, segments int, expected Bill) error {
+	if err := ValidateParams(routeRate, nil); err != nil {
+		return err
+	}
+	if segments <= 0 {
+		return ErrInvalidRate
+	}
+	if err := validateBill(expected); err != nil {
+		return err
+	}
+
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	group := u.group
+	if group != nil {
+		group.mu.Lock()
+		defer group.mu.Unlock()
+	}
+	if current := calculateBillLocked(routeRate, segments, u); current != expected {
+		return ErrBillingStateChanged
+	}
+	return u.authorizeAndApplySubmitLocked(group, expected)
+}
+
+func (u *User) authorizeAndApplySubmitLocked(group *Group, bill Bill) error {
 	requiredBalance := bill.SubmitSmAmount + bill.SubmitSmRespAmount
 	if u.balance != nil && *u.balance < requiredBalance {
 		return ErrInsufficientBalance
@@ -305,6 +336,10 @@ type Bill struct {
 func CalculateBill(routeRate float64, segments int, u *User) Bill {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	return calculateBillLocked(routeRate, segments, u)
+}
+
+func calculateBillLocked(routeRate float64, segments int, u *User) Bill {
 	bill := Bill{}
 
 	// B-001/B-006/B-007: Rate calculation

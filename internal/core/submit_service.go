@@ -45,7 +45,7 @@ type SubmitEnvelopeRequest struct {
 }
 
 type SubmitEnvelopeBuilder interface {
-	BuildSubmitEnvelopes(ctx context.Context, request SubmitEnvelopeRequest) ([]amqpcompat.Envelope, error)
+	BuildSubmitEnvelope(ctx context.Context, request SubmitEnvelopeRequest, part segmentation.Part) (amqpcompat.Envelope, error)
 }
 
 type SubmitServiceDependencies struct {
@@ -155,7 +155,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	if priority < 0 || priority > 3 {
 		return "", fmt.Errorf("%w: priority %d", ErrInvalidParameter, priority)
 	}
-	envelopes, err := service.dependencies.EnvelopeBuilder.BuildSubmitEnvelopes(ctx, SubmitEnvelopeRequest{
+	envelopeRequest := SubmitEnvelopeRequest{
 		MessageID:       messageID,
 		Username:        request.Username,
 		UserID:          user.UID(),
@@ -167,15 +167,23 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		Bill:            bill,
 		Parts:           parts,
 		CustomTLVs:      cloneTLVs(request.CustomTLVs),
-	})
-	if err != nil {
-		return "", err
 	}
-	if err := validateSubmitEnvelopes(envelopes, route.Connector().ID(), len(parts)); err != nil {
-		return "", err
+	envelopes := make([]amqpcompat.Envelope, 0, len(parts))
+	for index, part := range parts {
+		if part.Sequence() != uint8(index+1) {
+			return "", fmt.Errorf("%w: part %d has sequence %d", ErrInvalidEnvelopeSet, index, part.Sequence())
+		}
+		envelope, err := service.dependencies.EnvelopeBuilder.BuildSubmitEnvelope(ctx, envelopeRequest, part)
+		if err != nil {
+			return "", err
+		}
+		if err := validateSubmitEnvelope(envelope, route.Connector().ID(), index); err != nil {
+			return "", err
+		}
+		envelopes = append(envelopes, envelope)
 	}
 
-	if err := user.AuthorizeAndApplySubmit(bill); err != nil {
+	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), bill); err != nil {
 		return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
 	}
 	for _, envelope := range envelopes {
@@ -199,15 +207,10 @@ func submitPayload(request SubmitRequest) ([]byte, error) {
 	return []byte(request.Content), nil
 }
 
-func validateSubmitEnvelopes(envelopes []amqpcompat.Envelope, connectorID string, expectedCount int) error {
-	if expectedCount <= 0 || len(envelopes) == 0 || len(envelopes) != expectedCount {
-		return fmt.Errorf("%w: got %d envelopes for %d parts", ErrInvalidEnvelopeSet, len(envelopes), expectedCount)
-	}
-	for index, envelope := range envelopes {
-		route := envelope.Route()
-		if route.Kind() != amqpcompat.RouteSubmitSM || route.Target() != connectorID {
-			return fmt.Errorf("%w: envelope %d routes to %q", ErrInvalidEnvelopeSet, index, envelope.RoutingKey())
-		}
+func validateSubmitEnvelope(envelope amqpcompat.Envelope, connectorID string, index int) error {
+	route := envelope.Route()
+	if route.Kind() != amqpcompat.RouteSubmitSM || route.Target() != connectorID {
+		return fmt.Errorf("%w: envelope %d routes to %q", ErrInvalidEnvelopeSet, index, envelope.RoutingKey())
 	}
 	return nil
 }

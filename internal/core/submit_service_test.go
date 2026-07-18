@@ -12,6 +12,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/jasmin/internal/core/segmentation"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
 
@@ -20,33 +21,32 @@ var errPublish = errors.New("publish failed")
 var errIntercept = errors.New("intercept failed")
 
 type recordingBuilder struct {
-	request core.SubmitEnvelopeRequest
-	count   int
-	err     error
+	request   core.SubmitEnvelopeRequest
+	sequences []uint8
+	errAt     int
+	hook      func()
 }
 
-func (builder *recordingBuilder) BuildSubmitEnvelopes(_ context.Context, request core.SubmitEnvelopeRequest) ([]amqpcompat.Envelope, error) {
+func (builder *recordingBuilder) BuildSubmitEnvelope(_ context.Context, request core.SubmitEnvelopeRequest, part segmentation.Part) (amqpcompat.Envelope, error) {
 	builder.request = request
-	if builder.err != nil {
-		return nil, builder.err
+	builder.sequences = append(builder.sequences, part.Sequence())
+	if builder.hook != nil {
+		hook := builder.hook
+		builder.hook = nil
+		hook()
 	}
-	result := make([]amqpcompat.Envelope, 0, builder.count)
-	for index := 0; index < builder.count; index++ {
-		properties, err := amqpcompat.NewProperties(request.MessageID, nil)
-		if err != nil {
-			return nil, err
-		}
-		envelope, err := amqpcompat.NewEnvelope(
-			"submit.sm."+request.ConnectorID,
-			properties,
-			[]byte{byte(index + 1)},
-		)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, envelope)
+	if builder.errAt > 0 && len(builder.sequences) == builder.errAt {
+		return amqpcompat.Envelope{}, errBuild
 	}
-	return result, nil
+	properties, err := amqpcompat.NewProperties(request.MessageID, nil)
+	if err != nil {
+		return amqpcompat.Envelope{}, err
+	}
+	return amqpcompat.NewEnvelope(
+		"submit.sm."+request.ConnectorID,
+		properties,
+		[]byte{part.Sequence()},
+	)
 }
 
 type recordingPublisher struct {
@@ -87,7 +87,7 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 	user.SetSubmitSmCountQuota(5)
-	builder := &recordingBuilder{count: 2}
+	builder := &recordingBuilder{}
 	publisher := &recordingPublisher{}
 	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, publisher)
 
@@ -107,6 +107,9 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 	}
 	if len(builder.request.Parts) != 2 {
 		t.Fatalf("parts=%d want=2", len(builder.request.Parts))
+	}
+	if len(builder.sequences) != 2 || builder.sequences[0] != 1 || builder.sequences[1] != 2 {
+		t.Fatalf("builder sequences=%v want=[1 2]", builder.sequences)
 	}
 	if builder.request.Bill.SubmitSmAmount != 1 || builder.request.Bill.SubmitSmRespAmount != 1 || builder.request.Bill.DecrementSubmitSmCount != 2 {
 		t.Fatalf("bill=%+v", builder.request.Bill)
@@ -130,7 +133,7 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 
 func TestSubmitServiceBuildFailureDoesNotCharge(t *testing.T) {
 	user := fundedUser(t)
-	builder := &recordingBuilder{err: errBuild}
+	builder := &recordingBuilder{errAt: 1}
 	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, &recordingPublisher{})
 	_, err := service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
 	if !errors.Is(err, errBuild) {
@@ -143,7 +146,7 @@ func TestSubmitServiceBuildFailureDoesNotCharge(t *testing.T) {
 
 func TestSubmitServicePublishFailureKeepsLegacyEarlyCharge(t *testing.T) {
 	user := fundedUser(t)
-	builder := &recordingBuilder{count: 1}
+	builder := &recordingBuilder{}
 	publisher := &recordingPublisher{failAt: 1}
 	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, publisher)
 	_, err := service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
@@ -157,7 +160,7 @@ func TestSubmitServicePublishFailureKeepsLegacyEarlyCharge(t *testing.T) {
 
 func TestSubmitServiceNoRouteDoesNotBuildOrCharge(t *testing.T) {
 	user := fundedUser(t)
-	builder := &recordingBuilder{count: 1}
+	builder := &recordingBuilder{}
 	service := newSubmitService(t, user, routeTable(t, false), emptyInterceptors(), fixedRunner{}, builder, &recordingPublisher{})
 	_, err := service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
 	if !errors.Is(err, core.ErrNoRouteMatched) {
@@ -180,7 +183,7 @@ func TestSubmitServiceInterceptorRejectDoesNotRouteOrCharge(t *testing.T) {
 		t.Fatal(err)
 	}
 	table := tableBuilder.Build()
-	builder := &recordingBuilder{count: 1}
+	builder := &recordingBuilder{}
 	service := newSubmitService(t, user, routeTable(t, true), table, fixedRunner{action: interceptor.ActionReject}, builder, &recordingPublisher{})
 	_, err = service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
 	if !errors.Is(err, core.ErrFilterRejected) {
@@ -201,7 +204,7 @@ func TestSubmitServiceInterceptorErrorDoesNotBuildOrCharge(t *testing.T) {
 	if err := tableBuilder.Add(1, entry); err != nil {
 		t.Fatal(err)
 	}
-	builder := &recordingBuilder{count: 1}
+	builder := &recordingBuilder{}
 	service := newSubmitService(t, user, routeTable(t, true), tableBuilder.Build(), fixedRunner{err: errIntercept}, builder, &recordingPublisher{})
 	_, err = service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
 	if !errors.Is(err, errIntercept) {
@@ -217,7 +220,7 @@ func TestSubmitServiceQuotaFailureDoesNotPublishOrMutate(t *testing.T) {
 	if err := user.SetBalance(0.5); err != nil {
 		t.Fatal(err)
 	}
-	builder := &recordingBuilder{count: 1}
+	builder := &recordingBuilder{}
 	publisher := &recordingPublisher{}
 	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, publisher)
 	_, err := service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
@@ -242,31 +245,32 @@ func TestSubmitServiceInvalidEnvelopeRouteDoesNotCharge(t *testing.T) {
 	}
 }
 
-func TestSubmitServiceEnvelopeCountMismatchDoesNotCharge(t *testing.T) {
-	user := fundedUser(t)
-	builder := &recordingBuilder{count: 1}
+func TestSubmitServiceRejectsBillStaleAfterEnvelopeBuild(t *testing.T) {
+	user := billing.NewUser(1)
+	builder := &recordingBuilder{hook: func() {
+		if err := user.SetBalance(0); err != nil {
+			t.Fatal(err)
+		}
+		user.SetSubmitSmCountQuota(0)
+	}}
 	publisher := &recordingPublisher{}
 	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, publisher)
 
-	_, err := service.Submit(context.Background(), core.SubmitRequest{
-		Username:    "alice",
-		Destination: "1",
-		Content:     strings.Repeat("A", 161),
-	})
-	if !errors.Is(err, core.ErrInvalidEnvelopeSet) {
-		t.Fatalf("error=%v want envelope/part count mismatch", err)
+	_, err := service.Submit(context.Background(), core.SubmitRequest{Username: "alice", Destination: "1", Content: "hello"})
+	if !errors.Is(err, core.ErrQuotaExceeded) {
+		t.Fatalf("error=%v want stale-bill quota failure", err)
 	}
-	if len(publisher.bodies) != 0 || user.Balance() != 10 {
-		t.Fatalf("mismatch published=%d balance=%v", len(publisher.bodies), user.Balance())
+	if len(publisher.bodies) != 0 || user.Balance() != 0 {
+		t.Fatalf("stale bill published=%d balance=%v", len(publisher.bodies), user.Balance())
 	}
 }
 
 type wrongRouteBuilder struct{}
 
-func (wrongRouteBuilder) BuildSubmitEnvelopes(_ context.Context, request core.SubmitEnvelopeRequest) ([]amqpcompat.Envelope, error) {
+func (wrongRouteBuilder) BuildSubmitEnvelope(_ context.Context, request core.SubmitEnvelopeRequest, _ segmentation.Part) (amqpcompat.Envelope, error) {
 	properties, _ := amqpcompat.NewProperties(request.MessageID, nil)
 	envelope, _ := amqpcompat.NewEnvelope("submit.sm.other", properties, []byte("x"))
-	return []amqpcompat.Envelope{envelope}, nil
+	return envelope, nil
 }
 
 func newSubmitService(
