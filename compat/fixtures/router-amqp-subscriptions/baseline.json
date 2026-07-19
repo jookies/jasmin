@@ -5,6 +5,12 @@
       "expected": {
         "operations": [
           {
+            "global": false,
+            "operation": "basic_qos",
+            "prefetch_count": 1,
+            "prefetch_size": 0
+          },
+          {
             "arguments": null,
             "auto_delete": false,
             "durable": false,

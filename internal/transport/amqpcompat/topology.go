@@ -21,6 +21,7 @@ type topologyChannel interface {
 	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, arguments amqp.Table) error
 	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, arguments amqp.Table) (amqp.Queue, error)
 	QueueBind(name, key, exchange string, noWait bool, arguments amqp.Table) error
+	Qos(prefetchCount, prefetchSize int, global bool) error
 	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, arguments amqp.Table) (<-chan amqp.Delivery, error)
 	Close() error
 }
@@ -80,6 +81,11 @@ func (topology *Topology) OpenRouterSubscriptions(ctx context.Context) (*RouterS
 }
 
 func declareRouterSubscriptions(ctx context.Context, channel topologyChannel) (*RouterSubscriptions, error) {
+	// Set QoS to prefetch 1 to match Jasmin's delivery semantics and prevent consumer overload.
+	if err := channel.Qos(1, 0, false); err != nil {
+		return nil, fmt.Errorf("set QoS: %w", err)
+	}
+
 	if err := declareExchange(ctx, channel, "messaging"); err != nil {
 		return nil, err
 	}

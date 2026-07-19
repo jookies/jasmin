@@ -24,19 +24,28 @@ func (channel *cancelOnBillingConsumeChannel) Consume(queue, consumer string, au
 	return deliveries, err
 }
 
+func (channel *cancelOnBillingConsumeChannel) Qos(prefetchCount, prefetchSize int, global bool) error {
+	return channel.recordingTopologyChannel.Qos(prefetchCount, prefetchSize, global)
+}
+
 func TestOpenRouterSubscriptionsStopsAndClosesOnEveryOperationFailure(t *testing.T) {
-	expectedContext := []string{
-		"declare exchange messaging",
-		"declare queue RouterPB_deliver_sm_all",
-		"bind queue RouterPB_deliver_sm_all",
-		"consume queue RouterPB_deliver_sm_all",
-		"declare exchange billing",
-		"declare queue RouterPB_bill_request_submit_sm_resp_all",
-		"bind queue RouterPB_bill_request_submit_sm_resp_all",
-		"consume queue RouterPB_bill_request_submit_sm_resp_all",
+	expectedContext := []struct {
+		operation string
+		context   string
+	}{
+		{"set qos", "set QoS"},
+		{"declare exchange messaging", "declare exchange messaging"},
+		{"declare queue RouterPB_deliver_sm_all", "declare queue RouterPB_deliver_sm_all"},
+		{"bind queue RouterPB_deliver_sm_all", "bind queue RouterPB_deliver_sm_all"},
+		{"consume queue RouterPB_deliver_sm_all", "consume queue RouterPB_deliver_sm_all"},
+		{"declare exchange billing", "declare exchange billing"},
+		{"declare queue RouterPB_bill_request_submit_sm_resp_all", "declare queue RouterPB_bill_request_submit_sm_resp_all"},
+		{"bind queue RouterPB_bill_request_submit_sm_resp_all", "bind queue RouterPB_bill_request_submit_sm_resp_all"},
+		{"consume queue RouterPB_bill_request_submit_sm_resp_all", "consume queue RouterPB_bill_request_submit_sm_resp_all"},
 	}
 	for operation := 1; operation <= len(expectedContext); operation++ {
-		t.Run(expectedContext[operation-1], func(t *testing.T) {
+		testCase := expectedContext[operation-1]
+		t.Run(testCase.operation, func(t *testing.T) {
 			channel := newRecordingTopologyChannel()
 			channel.failAt = operation
 			topology := newTopology(func() (topologyChannel, error) { return channel, nil })
@@ -47,8 +56,8 @@ func TestOpenRouterSubscriptionsStopsAndClosesOnEveryOperationFailure(t *testing
 			if !errors.Is(err, errTopologyFixture) {
 				t.Fatalf("error=%v want wrapped fixture failure", err)
 			}
-			if !strings.Contains(err.Error(), expectedContext[operation-1]) {
-				t.Fatalf("error=%q missing operation context %q", err, expectedContext[operation-1])
+			if !strings.Contains(err.Error(), testCase.context) {
+				t.Fatalf("error=%q missing operation context %q", err, testCase.context)
 			}
 			if got := len(channel.operations); got != operation {
 				t.Fatalf("operations=%d want %d", got, operation)

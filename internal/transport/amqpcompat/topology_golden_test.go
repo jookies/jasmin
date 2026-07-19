@@ -67,6 +67,17 @@ func (channel *recordingTopologyChannel) QueueBind(name, key, exchange string, n
 	})
 }
 
+func (channel *recordingTopologyChannel) Qos(prefetchCount, prefetchSize int, global bool) error {
+	channel.operations = append(channel.operations, map[string]any{
+		"operation": "basic_qos", "prefetch_count": prefetchCount,
+		"prefetch_size": prefetchSize, "global": global,
+	})
+	if channel.failAt > 0 && len(channel.operations) == channel.failAt {
+		return errTopologyFixture
+	}
+	return nil
+}
+
 func (channel *recordingTopologyChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, arguments amqp.Table) (<-chan amqp.Delivery, error) {
 	if err := channel.record(map[string]any{
 		"operation": "basic_consume", "queue": queue, "consumer_tag": consumer,
