@@ -30,6 +30,8 @@ re-attachment after network or broker failure.
 4. `Stop()` cancels all active consumers and shuts down the connection gracefully.
 5. Focused tests with mocked AMQP client pass race and leak detectors.
 
+LoopKey: 1601d71c607f
+
 ## Affected paths
 
 - `internal/core/router/service.go`
