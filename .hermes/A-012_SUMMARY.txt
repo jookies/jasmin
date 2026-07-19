@@ -1,0 +1,153 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║ A-012 AMQP Reconnection & Topology Redeclaration Contract                  ║
+║ Jasmin-Go Rewrite: Legacy Python/Twisted Behavior Inventory               ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+DISCOVERY DATE: 2026-07-19
+STATUS: Inventory Complete
+
+───────────────────────────────────────────────────────────────────────────
+
+KEY FINDINGS:
+
+1. TOPOLOGY REDECLARATION: ✅ YES, ON EVERY RECONNECT
+   ─────────────────────────────────────────────────
+   • Exchanges redeclared: YES (by each consuming component)
+   • Queues redeclared: YES (via named_queue_declare wrapper)
+   • Bindings redeclared: YES (via queue_bind)
+   • Timing: Immediately after channelReady deferred fires
+   
+   Mechanism:
+   - Factory resets channelReady deferred on reconnect
+   - Each component (Router, Throwers, Managers) waits on channelReady
+   - Upon firing, component redeclares all topology
+   - AMQP operations are idempotent (same params = no error)
+
+
+2. CONSUMER RECOVERY: ❌ NO AUTOMATIC RECOVERY
+   ──────────────────────────────────────────
+   • Consumers automatically restored: NO
+   • Consumer setup: Called once in addAmqpBroker() at startup
+   • Recovery behavior: Consumers NOT re-established on reconnect
+   • Impact: Consumers can be stranded after reconnection
+   
+   Design Gap:
+   - No mechanism re-calls subscribe/addAmqpBroker on reconnect
+   - Application must detect reconnect and manually restore consumers
+   - No error handling observed for lost consumers
+
+
+3. IN-FLIGHT MESSAGE HANDLING: ⚠️ PARTIAL (TOPOLOGY YES, CONSUMER NO)
+   ──────────────────────────────────────────────────────────────
+   • Unack'd message retention: YES (held in queue by broker)
+   • Redelivery on reconnect: CONDITIONAL
+     - Topology redeclared: YES ✅
+     - Consumer re-established: NO ❌
+     - Net effect: Message stays in queue but undelivered (stranded)
+   
+   Acknowledgment Model:
+   - All consumers use no_ack=False (manual ACK required)
+   - Messages can be explicitly rejected/requeued with basic_reject()
+   - Connection loss = no ACK sent = message retained by broker
+
+
+───────────────────────────────────────────────────────────────────────────
+
+REDECLARATION CONTRACT SUMMARY:
+
+┌─ Element ─────────┬─ Redeclared? ─┬─ Method ────────────────┬─ Timing ──┐
+│ Exchanges         │ ✅ YES        │ exchange_declare()      │ On ready  │
+│ Queues            │ ✅ YES        │ named_queue_declare()   │ On ready  │
+│ Bindings          │ ✅ YES        │ queue_bind()            │ On ready  │
+│ Consumers         │ ❌ NO         │ basic_consume()         │ Once only │
+└───────────────────┴───────────────┴─────────────────────────┴───────────┘
+
+
+───────────────────────────────────────────────────────────────────────────
+
+RECONNECTION FLOW:
+
+Connection Lost/Failed
+         ↓
+   (delay: 10 sec default)
+         ↓
+   reConnect() called
+         ↓
+   preConnect() resets channelReady deferred
+         ↓
+   connector.connect() establishes new TCP connection
+         ↓
+   Channel opened → _channel_open() → channelReady.callback()
+         ↓
+   Components waiting on channelReady wake up
+         ↓
+   Topology redeclared ✅
+   BUT consumers NOT re-established ❌
+
+
+───────────────────────────────────────────────────────────────────────────
+
+CONFIGURATION:
+
+File: jasmin/queues/configs.py
+
+Reconnection settings:
+  reconnectOnConnectionLoss = True (default)
+  reconnectOnConnectionFailure = True (default)
+  reconnectOnConnectionLossDelay = 10 seconds (configurable)
+  reconnectOnConnectionFailureDelay = 10 seconds (configurable)
+
+Heartbeat:
+  heartbeat = 0 (DISABLED by default) — not checking connection health actively
+
+
+───────────────────────────────────────────────────────────────────────────
+
+IMPLICATIONS FOR GO REWRITE:
+
+Do replicate:
+  ✅ Topology redeclaration on every reconnect
+  ✅ Idempotent exchange/queue/binding declarations
+  ✅ Channel readiness signaling (like channelReady)
+  ✅ Configurable reconnect delays
+  ✅ Unack'd message retention
+
+Do NOT replicate (gaps in legacy):
+  ❌ Lack of automatic consumer recovery
+  ❌ Consumers being stranded on reconnect
+  ❌ Heartbeat disabled by default
+
+Improvements for Go version:
+  • Implement automatic consumer re-establishment on reconnect
+  • Track in-flight messages explicitly for recovery
+  • Enable heartbeat by default for faster connection failure detection
+  • Implement automatic re-subscription callbacks on reconnect
+
+
+───────────────────────────────────────────────────────────────────────────
+
+CRITICAL CODE REFERENCES:
+
+Factory lifecycle:
+  jasmin/queues/factory.py:44-64     preConnect() [resets channelReady]
+  jasmin/queues/factory.py:84-118    reconnection trigger logic
+  jasmin/queues/factory.py:119-125   reConnect() method
+  jasmin/queues/factory.py:175-181   _channel_open() [fires channelReady]
+
+Topology redeclaration (pattern repeated in all components):
+  jasmin/routing/router.py:76-104    RouterPB.addAmqpBroker()
+  jasmin/routing/throwers.py:161-183 Thrower.addAmqpBroker()
+  jasmin/managers/dlr.py:63-72       DLRLookup.subscribe()
+  jasmin/managers/clients.py:240-395 SMPPClientManager consumer setup
+
+Consumer setup (one-time, not recovered):
+  jasmin/queues/factory.py:157-165   named_queue_declare() wrapper
+  All basic_consume() calls use no_ack=False
+
+
+───────────────────────────────────────────────────────────────────────────
+
+DOCUMENT LOCATION:
+
+Detailed inventory: .hermes/A-012_AMQP_RECONNECTION_INVENTORY.md
+(Contains full code citations, pathways analyzed, evidence links)

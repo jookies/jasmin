@@ -6,23 +6,71 @@ import (
 	"io"
 	"sync"
 	"time"
+
+	"github.com/rabbitmq/amqp091-go"
+	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
+
+// connectionState holds the active AMQP connection and its subscriptions.
+type connectionState struct {
+	conn        io.Closer
+	subs        io.Closer
+	notifyClose <-chan *amqp091.Error
+}
+
+// amqpConnector abstracts the AMQP connection and subscription process for testing.
+type amqpConnector interface {
+	ConnectAndSubscribe(ctx context.Context, amqpURL string) (*connectionState, error)
+}
+
+// defaultConnector is the production implementation of amqpConnector.
+type defaultConnector struct{}
+
+func (c *defaultConnector) ConnectAndSubscribe(ctx context.Context, amqpURL string) (*connectionState, error) {
+	conn, err := amqp091.Dial(amqpURL)
+	if err != nil {
+		return nil, err
+	}
+
+	topology := amqpcompat.NewTopology(conn)
+	subs, err := topology.OpenRouterSubscriptions(ctx)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// Register for connection closure notifications.
+	// We use a buffered channel to avoid blocking the AMQP client.
+	notifyClose := conn.NotifyClose(make(chan *amqp091.Error, 1))
+
+	return &connectionState{
+		conn:        conn,
+		subs:        subs,
+		notifyClose: notifyClose,
+	}, nil
+}
 
 // RouterService manages the lifecycle of the Jasmin router service,
 // including its AMQP connections and subscriptions.
 type RouterService struct {
-	amqpURL string
-	
+	amqpURL   string
+	connector amqpConnector
+
 	mu      sync.Mutex
 	running bool
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
+
+	// notifyClose allows testing the reconnect loop by simulating connection loss.
+	notifyClose chan error
 }
 
 // NewRouterService creates a new RouterService with the given AMQP URL.
 func NewRouterService(amqpURL string) *RouterService {
 	return &RouterService{
-		amqpURL: amqpURL,
+		amqpURL:     amqpURL,
+		connector:   &defaultConnector{},
+		notifyClose: make(chan error, 1),
 	}
 }
 
@@ -41,7 +89,7 @@ func (s *RouterService) Start(ctx context.Context) error {
 	s.running = true
 
 	// Initial connection attempt
-	conn, ch, err := s.connectAndSubscribe(ctx)
+	state, err := s.connector.ConnectAndSubscribe(ctx, s.amqpURL)
 	if err != nil {
 		cancel()
 		s.running = false
@@ -49,7 +97,7 @@ func (s *RouterService) Start(ctx context.Context) error {
 	}
 
 	s.wg.Add(1)
-	go s.runManager(runCtx, conn, ch)
+	go s.runManager(runCtx, state)
 
 	return nil
 }
@@ -70,72 +118,72 @@ func (s *RouterService) Stop() {
 
 	s.mu.Lock()
 	s.running = false
+	s.cancel = nil
 	s.mu.Unlock()
 }
 
-func (s *RouterService) runManager(ctx context.Context, conn io.Closer, ch io.Closer) {
+func (s *RouterService) runManager(ctx context.Context, initialState *connectionState) {
 	defer s.wg.Done()
 
-	// Initial handles are passed in. If they fail, we enter the reconnect loop.
-	currentConn := conn
-	currentCh := ch
+	currentState := initialState
 
-	// Error channel for monitoring connection health
-	// In a real implementation, we would listen to NotifyClose on the AMQP channel/connection.
-	// For this slice, we focus on the lifecycle and reconnect loop structure.
-	
 	backoff := time.Second
-	maxBackoff := 30 * time.Second
+	const maxBackoff = 30 * time.Second
 
 	for {
-		// Placeholder for health monitoring
-		// If health check fails or ctx.Done(), cleanup and decide next step
-		
+		// Wait for closure
+		var closeErr error
 		select {
 		case <-ctx.Done():
-			if currentCh != nil {
-				currentCh.Close()
-			}
-			if currentConn != nil {
-				currentConn.Close()
-			}
+			s.cleanup(currentState)
 			return
+		case err := <-s.notifyClose:
+			closeErr = err
+		case amqpErr := <-currentState.notifyClose:
+			if amqpErr != nil {
+				closeErr = amqpErr
+			} else {
+				closeErr = fmt.Errorf("AMQP connection closed")
+			}
 		}
-		
-		// If we reached here, a reconnect is needed
-		if currentCh != nil {
-			currentCh.Close()
-		}
-		if currentConn != nil {
-			currentConn.Close()
-		}
-		
+
+		// Connection lost, perform cleanup and attempt reconnect
+		s.cleanup(currentState)
+		currentState = nil
+		_ = closeErr // Could log this
+
+		// Reconnect loop
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(backoff):
-				newConn, newCh, err := s.connectAndSubscribe(ctx)
+				newState, err := s.connector.ConnectAndSubscribe(ctx, s.amqpURL)
 				if err == nil {
-					currentConn = newConn
-					currentCh = newCh
+					currentState = newState
 					backoff = time.Second // Reset backoff on success
-					break
+					goto connected
 				}
-				
+
 				backoff *= 2
 				if backoff > maxBackoff {
 					backoff = maxBackoff
 				}
 			}
 		}
+	connected:
+		// Successfully reconnected, continue monitoring
 	}
 }
 
-func (s *RouterService) connectAndSubscribe(ctx context.Context) (io.Closer, io.Closer, error) {
-	// This would use amqpcompat.Dial and OpenRouterSubscriptions.
-	// For the initial implementation and testing, we use the boundary defined in Phase 2.28.
-	
-	// Real implementation details will be added as AMQP client integration matures.
-	return nil, nil, fmt.Errorf("AMQP client implementation pending")
+func (s *RouterService) cleanup(state *connectionState) {
+	if state == nil {
+		return
+	}
+	if state.subs != nil {
+		state.subs.Close()
+	}
+	if state.conn != nil {
+		state.conn.Close()
+	}
 }
