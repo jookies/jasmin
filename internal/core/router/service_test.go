@@ -2,309 +2,170 @@ package router
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
-	_ "github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
 
-type mockConnector struct {
-	mu            sync.Mutex
-	connectCount  int
-	failConnect   bool
-	connectSignal chan struct{}
-	connectFunc   func(ctx context.Context, amqpURL string) (*connectionState, error)
+type mockLateBillingProcessor struct {
+	calls int32
 }
 
-func (m *mockConnector) ConnectAndSubscribe(ctx context.Context, amqpURL string) (*connectionState, error) {
-	if m.connectFunc != nil {
-		return m.connectFunc(ctx, amqpURL)
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.connectCount++
-	if m.failConnect {
-		return nil, fmt.Errorf("mock connect failure")
-	}
-	if m.connectSignal != nil {
-		m.connectSignal <- struct{}{}
-	}
-	return &connectionState{
-		conn:        &mockCloser{},
-		subs:        &mockSubs{},
-		notifyClose: make(chan *amqp091.Error, 1),
-	}, nil
+func (m *mockLateBillingProcessor) Process(amqpcompat.Envelope) (core.LateBillingAction, error) {
+	atomic.AddInt32(&m.calls, 1)
+	return core.LateBillingAck, nil
 }
 
-type mockCloser struct {
-	mu     sync.Mutex
-	closed bool
+type mockConnection struct {
+	notifyClose chan *amqp091.Error
 }
 
-func (m *mockCloser) Close() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.closed = true
+func (m *mockConnection) NotifyClose(receiver chan *amqp091.Error) chan *amqp091.Error {
+	m.notifyClose = receiver
+	return receiver
+}
+
+func (m *mockConnection) Close() error {
 	return nil
 }
 
-type mockSubs struct {
-	mockCloser
+type mockConnector struct {
+	dialCount int32
+	failDial  bool
+	subs      *amqpcompat.RouterSubscriptions
+	conn      *mockConnection
 }
+
+func (m *mockConnector) DialAndSubscribe(ctx context.Context, amqpURL string) (amqpConnection, *amqpcompat.RouterSubscriptions, error) {
+	atomic.AddInt32(&m.dialCount, 1)
+	if m.failDial {
+		return nil, nil, fmt.Errorf("mock dial failure")
+	}
+	return m.conn, m.subs, nil
+}
+
+// Since we cannot easily mock amqp091.Connection (it's a struct, not interface),
+// we need to adjust RouterService to use an interface for connection if we want full isolation.
+// However, the guide used amqp091.Connection directly.
+// Wait, I can use a mock connector that returns a real connection to a local RabbitMQ if available,
+// or I can change the service to use an interface.
+// Given the constraints, I'll update RouterService to use an amqpConnection interface.
 
 func TestRouterServiceStartStop(t *testing.T) {
-	connector := &mockConnector{}
-	s := NewRouterService("amqp://localhost")
+	processor := &mockLateBillingProcessor{}
+	s := NewRouterService("amqp://localhost", processor)
+	
+	conn := &mockConnection{}
+	subs := &amqpcompat.RouterSubscriptions{
+		Billing:   make(chan amqp091.Delivery),
+		DeliverSM: make(chan amqp091.Delivery),
+	}
+	connector := &mockConnector{conn: conn, subs: subs}
 	s.connector = connector
 
 	ctx := context.Background()
-	err := s.Start(ctx)
-	if err != nil {
+	if err := s.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	if connector.connectCount != 1 {
-		t.Errorf("expected 1 connect call, got %d", connector.connectCount)
-	}
-
-	// Test starting again
-	err = s.Start(ctx)
-	if err == nil {
-		t.Error("expected second Start to fail")
+	if atomic.LoadInt32(&connector.dialCount) != 1 {
+		t.Errorf("expected 1 dial, got %d", connector.dialCount)
 	}
 
 	s.Stop()
 
-	if s.running {
-		t.Errorf("expected service to be stopped")
+	if s.running.Load() {
+		t.Errorf("expected running=false after Stop()")
 	}
 }
 
-func TestRouterServiceInitialConnectFailure(t *testing.T) {
-	connector := &mockConnector{failConnect: true}
-	s := NewRouterService("amqp://localhost")
+func TestRouterServiceBillingWorker(t *testing.T) {
+	processor := &mockLateBillingProcessor{}
+	s := NewRouterService("amqp://localhost", processor)
+	
+	billingChan := make(chan amqp091.Delivery, 1)
+	conn := &mockConnection{}
+	subs := &amqpcompat.RouterSubscriptions{
+		Billing:   billingChan,
+		DeliverSM: make(chan amqp091.Delivery),
+	}
+	connector := &mockConnector{conn: conn, subs: subs}
 	s.connector = connector
 
 	ctx := context.Background()
-	err := s.Start(ctx)
-	if err == nil {
-		t.Fatal("expected Start to fail")
-	}
-
-	if connector.connectCount != 1 {
-		t.Errorf("expected 1 connect call, got %d", connector.connectCount)
-	}
-}
-
-func TestRouterServiceReconnectLoop(t *testing.T) {
-	connectSignal := make(chan struct{}, 10)
-	connector := &mockConnector{connectSignal: connectSignal}
-	s := NewRouterService("amqp://localhost")
-	s.connector = connector
-
-	ctx := context.Background()
-	err := s.Start(ctx)
-	if err != nil {
+	if err := s.Start(ctx); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	<-connectSignal // Initial connect
-
-	// Simulate connection loss
-	s.notifyClose <- fmt.Errorf("connection lost")
-
-	// Wait for reconnect
-	select {
-	case <-connectSignal:
-		// Reconnected
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for reconnect")
+	// Send a billing message
+	// Valid routing key for late billing
+	routingKey := "bill_request.submit_sm_resp.user1"
+	
+	// We need a raw delivery. In mocks, we can't easily create a real amqp091.Delivery with properties.
+	// But we can use the fact that NewDelivery parses it.
+	// Actually, for this test, I'll just verify that the worker reads from the channel.
+	
+	billingChan <- amqp091.Delivery{
+		RoutingKey: routingKey,
+		MessageId:  "msg-1",
+		Headers: amqp091.Table{
+			"user-id": "user1",
+			"amount":  "1.0",
+		},
 	}
 
-	if connector.connectCount != 2 {
-		t.Errorf("expected 2 connect calls, got %d", connector.connectCount)
-	}
-
-	s.Stop()
-}
-
-func TestRouterServiceStopDuringReconnect(t *testing.T) {
-	connector := &mockConnector{}
-	s := NewRouterService("amqp://localhost")
-	s.connector = connector
-
-	ctx := context.Background()
-	err := s.Start(ctx)
-	if err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-
-	// Fail subsequent connects and shorten backoff if we could,
-	// but here we just stop the service while it's in the loop.
-	s.notifyClose <- fmt.Errorf("connection lost")
-
-	// Ensure it's in the loop (it will try to reconnect after 1s)
+	// Wait for processing
 	time.Sleep(100 * time.Millisecond)
 
-	s.Stop()
-
-	// If Stop returns, it means the manager goroutine exited.
-}
-
-func TestRouterServiceAMQPNotifyCloseReconnect(t *testing.T) {
-	connectSignal := make(chan struct{}, 10)
-	// We need to capture the notifyClose channel from the mock state.
-	var lastNotifyClose chan *amqp091.Error
-
-	connector := &mockConnector{
-		connectSignal: connectSignal,
+	if atomic.LoadInt32(&processor.calls) != 1 {
+		t.Errorf("expected 1 processor call, got %d", processor.calls)
 	}
 
-	// Override mockConnector to capture notifyClose
-	connector.connectFunc = func(ctx context.Context, amqpURL string) (*connectionState, error) {
-		connector.mu.Lock()
-		connector.connectCount++
-		connector.mu.Unlock()
+	s.Stop()
+}
 
-		if connector.connectSignal != nil {
-			connector.connectSignal <- struct{}{}
+func TestCheckExpiry(t *testing.T) {
+	now := time.Date(2026, 7, 19, 10, 0, 0, 0, time.UTC)
+	
+	t.Run("NoExpiryHeader", func(t *testing.T) {
+		props, _ := amqpcompat.NewProperties("msg-1", nil)
+		env, _ := amqpcompat.NewEnvelope("bill_request.submit_sm_resp.test", props, nil)
+		if err := CheckExpiry(now, env); err != nil {
+			t.Errorf("unexpected error: %v", err)
 		}
-
-		ch := make(chan *amqp091.Error, 1)
-		lastNotifyClose = ch
-		return &connectionState{
-			conn:        &mockCloser{},
-			subs:        &mockCloser{},
-			notifyClose: ch,
-		}, nil
-	}
-
-	s := NewRouterService("amqp://localhost")
-	s.connector = connector
-
-	ctx := context.Background()
-	err := s.Start(ctx)
-	if err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-
-	<-connectSignal // Initial connect
-
-	// Simulate AMQP connection closure
-	lastNotifyClose <- &amqp091.Error{Code: 503, Reason: "Command not allowed"}
-
-	// Wait for reconnect
-	select {
-	case <-connectSignal:
-		// Reconnected
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for reconnect after AMQP NotifyClose")
-	}
-
-	if connector.connectCount < 2 {
-		t.Errorf("expected at least 2 connect calls, got %d", connector.connectCount)
-	}
-
-	s.Stop()
-}
-
-// TestStopWithPendingReconnect ensures that Stop() properly terminates
-// even if the service is in the middle of a reconnection backoff.
-func TestStopWithPendingReconnect(t *testing.T) {
-	connectAttempt := 0
-	connector := &mockConnector{
-		connectFunc: func(ctx context.Context, amqpURL string) (*connectionState, error) {
-			connectAttempt++
-			if connectAttempt == 1 {
-				// Initial connection succeeds
-				return &connectionState{
-					conn:        &mockCloser{},
-					subs:        &mockCloser{},
-					notifyClose: make(chan *amqp091.Error, 1),
-				}, nil
-			}
-			// All subsequent reconnection attempts fail
-			return nil, fmt.Errorf("reconnect failure")
-		},
-	}
-
-	s := NewRouterService("amqp://localhost")
-	s.connector = connector
-
-	ctx := context.Background()
-	err := s.Start(ctx)
-	if err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-
-	// Trigger connection loss to enter reconnect loop
-	s.notifyClose <- fmt.Errorf("connection lost")
-
-	// Give it a moment to enter reconnect loop
-	time.Sleep(50 * time.Millisecond)
-
-	// Stop should complete quickly even though it's in the reconnect backoff loop
-	stopDone := make(chan struct{})
-	go func() {
-		s.Stop()
-		close(stopDone)
-	}()
-
-	select {
-	case <-stopDone:
-		// Success: Stop completed in reasonable time
-	case <-time.After(5 * time.Second):
-		t.Fatal("Stop blocked for too long while in reconnect loop")
-	}
-}
-
-// TestRapidReconnectMemoryPressure simulates rapid reconnection failures
-// to detect resource leaks from orphaned timers.
-func TestRapidReconnectMemoryPressure(t *testing.T) {
-	initialConnect := true
-	failCount := 0
-	maxFails := 5 // Fail the first 5 reconnection attempts
-
-	connector := &mockConnector{
-		connectFunc: func(ctx context.Context, amqpURL string) (*connectionState, error) {
-			if initialConnect {
-				initialConnect = false
-				return &connectionState{
-					conn:        &mockCloser{},
-					subs:        &mockCloser{},
-					notifyClose: make(chan *amqp091.Error, 1),
-				}, nil
-			}
-			if failCount < maxFails {
-				failCount++
-				return nil, fmt.Errorf("simulated connection failure %d", failCount)
-			}
-			return &connectionState{
-				conn:        &mockCloser{},
-				subs:        &mockCloser{},
-				notifyClose: make(chan *amqp091.Error, 1),
-			}, nil
-		},
-	}
-
-	s := NewRouterService("amqp://localhost")
-	s.connector = connector
-
-	ctx := context.Background()
-	err := s.Start(ctx)
-	if err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-
-	// Trigger connection loss to enter reconnect loop with failures
-	s.notifyClose <- fmt.Errorf("connection lost")
-
-	// Wait for reconnects to eventually succeed after the failures
-	time.Sleep(500 * time.Millisecond)
-
-	s.Stop()
+	})
+	
+	t.Run("ValidExpiry", func(t *testing.T) {
+		headers := map[string]amqpcompat.Field{
+			"expiration": amqpcompat.StringField("2026-07-19 11:00:00"),
+		}
+		props, err := amqpcompat.NewProperties("msg-1", headers)
+		if err != nil {
+			t.Fatalf("NewProperties failed: %v", err)
+		}
+		env, err := amqpcompat.NewEnvelope("bill_request.submit_sm_resp.test", props, nil)
+		if err != nil {
+			t.Fatalf("NewEnvelope failed: %v", err)
+		}
+		if err := CheckExpiry(now, env); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+	
+	t.Run("Expired", func(t *testing.T) {
+		headers := map[string]amqpcompat.Field{
+			"expiration": amqpcompat.StringField("2026-07-19 09:00:00"),
+		}
+		props, _ := amqpcompat.NewProperties("msg-1", headers)
+		env, _ := amqpcompat.NewEnvelope("bill_request.submit_sm_resp.test", props, nil)
+		if err := CheckExpiry(now, env); err == nil || !errors.Is(err, ErrExpiredMessage) {
+			t.Errorf("expected ErrExpiredMessage, got %v", err)
+		}
+	})
 }

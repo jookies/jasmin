@@ -3,187 +3,233 @@ package router
 import (
 	"context"
 	"fmt"
-	"io"
+	"math"
+	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
 
-// connectionState holds the active AMQP connection and its subscriptions.
-type connectionState struct {
-	conn        io.Closer
-	subs        io.Closer
-	notifyClose <-chan *amqp091.Error
+type amqpConnection interface {
+	NotifyClose(receiver chan *amqp091.Error) chan *amqp091.Error
+	Close() error
 }
 
-// amqpConnector abstracts the AMQP connection and subscription process for testing.
+// amqpConnector abstracts AMQP connection and subscription for testing.
 type amqpConnector interface {
-	ConnectAndSubscribe(ctx context.Context, amqpURL string) (*connectionState, error)
+	DialAndSubscribe(ctx context.Context, amqpURL string) (amqpConnection, *amqpcompat.RouterSubscriptions, error)
 }
 
-// defaultConnector is the production implementation of amqpConnector.
+// defaultConnector is the production implementation.
 type defaultConnector struct{}
 
-func (c *defaultConnector) ConnectAndSubscribe(ctx context.Context, amqpURL string) (*connectionState, error) {
+func (c *defaultConnector) DialAndSubscribe(ctx context.Context, amqpURL string) (amqpConnection, *amqpcompat.RouterSubscriptions, error) {
 	conn, err := amqp091.Dial(amqpURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	topology := amqpcompat.NewTopology(conn)
 	subs, err := topology.OpenRouterSubscriptions(ctx)
 	if err != nil {
 		conn.Close()
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Register for connection closure notifications.
-	// We use a buffered channel to avoid blocking the AMQP client.
-	notifyClose := conn.NotifyClose(make(chan *amqp091.Error, 1))
-
-	return &connectionState{
-		conn:        conn,
-		subs:        subs,
-		notifyClose: notifyClose,
-	}, nil
+	return conn, subs, nil
 }
 
 // RouterService manages the lifecycle of the Jasmin router service,
-// including its AMQP connections and subscriptions.
+// including its AMQP connections and message processing workers.
 type RouterService struct {
 	amqpURL   string
 	connector amqpConnector
+	
+	// Processors
+	lateBilling core.LateBillingDecisionProcessor
 
+	// Lifecycle flags
 	mu      sync.Mutex
-	running bool
+	started bool
 	cancel  context.CancelFunc
-	wg      sync.WaitGroup
+	running atomic.Bool
 
-	// notifyClose allows testing the reconnect loop by simulating connection loss.
-	notifyClose chan error
+	wg sync.WaitGroup
 }
 
-// NewRouterService creates a new RouterService with the given AMQP URL.
-func NewRouterService(amqpURL string) *RouterService {
+const (
+	minBackoff   = time.Second
+	maxBackoff   = 30 * time.Second
+	jitterFactor = 0.1
+)
+
+// NewRouterService creates a new RouterService.
+func NewRouterService(amqpURL string, lateBilling core.LateBillingDecisionProcessor) *RouterService {
 	return &RouterService{
 		amqpURL:     amqpURL,
 		connector:   &defaultConnector{},
-		notifyClose: make(chan error, 1),
+		lateBilling: lateBilling,
 	}
 }
 
-// Start begins the router service and its background management loops.
-// It returns an error if the initial startup fails.
+// Start begins the router service and its background management loop.
 func (s *RouterService) Start(ctx context.Context) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.running {
-		return fmt.Errorf("router service already running")
+	if s.started {
+		s.mu.Unlock()
+		return fmt.Errorf("router service already started")
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	s.running = true
+	s.started = true
+	s.mu.Unlock()
 
-	// Initial connection attempt
-	state, err := s.connector.ConnectAndSubscribe(ctx, s.amqpURL)
+	conn, subs, err := s.connector.DialAndSubscribe(ctx, s.amqpURL)
 	if err != nil {
+		s.mu.Lock()
+		s.started = false
+		s.cancel = nil
+		s.mu.Unlock()
 		cancel()
-		s.running = false
 		return fmt.Errorf("initial AMQP connection failed: %w", err)
 	}
 
+	s.running.Store(true)
 	s.wg.Add(1)
-	go s.runManager(runCtx, state)
+	go s.runManager(runCtx, conn, subs)
 
 	return nil
 }
 
-// Stop gracefully shuts down the router service and waits for cleanup.
+// Stop gracefully shuts down the router service.
 func (s *RouterService) Stop() {
 	s.mu.Lock()
-	cancel := s.cancel
-	running := s.running
-	s.mu.Unlock()
-
-	if !running || cancel == nil {
+	if !s.started {
+		s.mu.Unlock()
 		return
 	}
-
-	cancel()
-	s.wg.Wait()
-
-	s.mu.Lock()
-	s.running = false
-	s.cancel = nil
+	cancel := s.cancel
+	s.running.Store(false)
 	s.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	s.wg.Wait()
 }
 
-func (s *RouterService) runManager(ctx context.Context, initialState *connectionState) {
+func (s *RouterService) runManager(ctx context.Context, conn amqpConnection, subs *amqpcompat.RouterSubscriptions) {
 	defer s.wg.Done()
-
-	currentState := initialState
-
-	backoff := time.Second
-	const maxBackoff = 30 * time.Second
-
+	
 	for {
-		// Wait for closure
-		var closeErr error
+		// Start workers for this connection
+		workerCtx, workerCancel := context.WithCancel(ctx)
+		var workerWg sync.WaitGroup
+		
+		workerWg.Add(2)
+		go s.billingWorker(workerCtx, &workerWg, subs.Billing)
+		go s.deliverSMWorker(workerCtx, &workerWg, subs.DeliverSM)
+
+		notifyClose := conn.NotifyClose(make(chan *amqp091.Error, 1))
+
 		select {
 		case <-ctx.Done():
-			s.cleanup(currentState)
+			workerCancel()
+			workerWg.Wait()
+			s.cleanupResources(conn, subs)
 			return
-		case err := <-s.notifyClose:
-			closeErr = err
-		case amqpErr := <-currentState.notifyClose:
-			if amqpErr != nil {
-				closeErr = amqpErr
-			} else {
-				closeErr = fmt.Errorf("AMQP connection closed")
-			}
+
+		case <-notifyClose:
+			workerCancel()
+			workerWg.Wait()
+			s.cleanupResources(conn, subs)
+			conn = nil
+			subs = nil
 		}
 
-		// Connection lost, perform cleanup and attempt reconnect
-		s.cleanup(currentState)
-		currentState = nil
-		_ = closeErr // Could log this
-
-		// Reconnect loop
+		// Reconnect logic
+		backoff := minBackoff
 		for {
+			if err := ctx.Err(); err != nil {
+				return
+			}
+
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(backoff):
-				newState, err := s.connector.ConnectAndSubscribe(ctx, s.amqpURL)
+			case <-time.After(s.addJitter(backoff)):
+				newConn, newSubs, err := s.connector.DialAndSubscribe(ctx, s.amqpURL)
 				if err == nil {
-					currentState = newState
-					backoff = time.Second // Reset backoff on success
+					conn = newConn
+					subs = newSubs
 					goto connected
 				}
-
-				backoff *= 2
-				if backoff > maxBackoff {
-					backoff = maxBackoff
-				}
+				backoff = s.increaseBackoff(backoff)
 			}
 		}
 	connected:
-		// Successfully reconnected, continue monitoring
+		// Re-enter loop with new connection
 	}
 }
 
-func (s *RouterService) cleanup(state *connectionState) {
-	if state == nil {
-		return
+func (s *RouterService) billingWorker(ctx context.Context, wg *sync.WaitGroup, deliveries <-chan amqp091.Delivery) {
+	defer wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case d, ok := <-deliveries:
+			if !ok {
+				return
+			}
+			delivery, err := amqpcompat.NewDelivery(d)
+			if err != nil {
+				continue
+			}
+			_ = s.processBillingDelivery(ctx, s.lateBilling, delivery)
+		}
 	}
-	if state.subs != nil {
-		state.subs.Close()
+}
+
+func (s *RouterService) deliverSMWorker(ctx context.Context, wg *sync.WaitGroup, deliveries <-chan amqp091.Delivery) {
+	defer wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case d, ok := <-deliveries:
+			if !ok {
+				return
+			}
+			delivery, err := amqpcompat.NewDelivery(d)
+			if err != nil {
+				continue
+			}
+			_ = s.processDeliverSM(ctx, delivery)
+		}
 	}
-	if state.conn != nil {
-		state.conn.Close()
+}
+
+func (s *RouterService) cleanupResources(conn amqpConnection, subs *amqpcompat.RouterSubscriptions) {
+	if subs != nil {
+		subs.Close()
 	}
+	if conn != nil {
+		conn.Close()
+	}
+}
+
+func (s *RouterService) addJitter(backoff time.Duration) time.Duration {
+	jitter := time.Duration(float64(backoff) * jitterFactor * (2*rand.Float64() - 1))
+	return backoff + jitter
+}
+
+func (s *RouterService) increaseBackoff(backoff time.Duration) time.Duration {
+	next := time.Duration(math.Min(float64(backoff*2), float64(maxBackoff)))
+	return next
 }

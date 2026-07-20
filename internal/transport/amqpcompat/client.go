@@ -55,7 +55,7 @@ type Delivery struct {
 	settled bool
 }
 
-func newDelivery(raw amqp.Delivery) (*Delivery, error) {
+func NewDelivery(raw amqp.Delivery) (*Delivery, error) {
 	props, err := NewProperties(raw.MessageId, fromAMQPHeaders(raw.Headers))
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan *Delivery,
 				if !ok {
 					return
 				}
-				delivery, err := newDelivery(d)
+				delivery, err := NewDelivery(d)
 				if err != nil {
 					continue
 				}

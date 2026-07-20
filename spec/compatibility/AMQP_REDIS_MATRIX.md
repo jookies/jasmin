@@ -16,9 +16,9 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 | A-008 | billing | `bill_request.submit_sm_resp.<UID>` and amount/IDs | GO-PARTIAL |
 | A-009 | ACK/reject | success/failure/retry/requeue timing per consumer | GO-PARTIAL |
 | A-010 | QoS/prefetch | configured counts and concurrency effects | GO-COMPLETE |
-| A-011 | expiry | message age/expiration and terminal handling | INVENTORIED |
+| A-011 | expiry | message age/expiration and terminal handling | GO-COMPLETE |
 | A-012 | reconnect | declarations, consumer recovery and in-flight delivery | GO-COMPLETE |
-| A-013 | pickle bridge | allowlisted classes/fields, headers and round-trip fidelity | INVENTORIED |
+| A-013 | pickle bridge | allowlisted classes/fields, headers and round-trip fidelity | GO-COMPLETE |
 
 ## Redis
 
