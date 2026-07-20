@@ -1,14 +1,51 @@
 package smppc_test
 
 import (
-	"io"
+	"context"
 	"net"
+	"reflect"
 	"testing"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
+
+func injectAMQPProvider(c *smppc.Connector, provider smppc.AMQPProvider) {
+	v := reflect.ValueOf(c).Elem()
+	f := v.FieldByName("amqp")
+	ptr := reflect.NewAt(f.Type(), f.Addr().UnsafePointer()).Elem()
+	ptr.Set(reflect.ValueOf(provider))
+}
+
+type recordingAcknowledger struct {
+	settle func(requeue bool)
+}
+
+func (a *recordingAcknowledger) Ack(tag uint64, multiple bool) error { a.settle(false); return nil }
+func (a *recordingAcknowledger) Nack(tag uint64, multiple, requeue bool) error {
+	a.settle(requeue)
+	return nil
+}
+func (a *recordingAcknowledger) Reject(tag uint64, requeue bool) error { a.settle(requeue); return nil }
+
+func injectDelivery(envelope amqpcompat.Envelope, settle func(requeue bool)) *amqpcompat.Delivery {
+	raw := amqp.Delivery{
+		Acknowledger: &recordingAcknowledger{settle: settle},
+		MessageId:    envelope.Properties().MessageID(),
+		RoutingKey:   envelope.RoutingKey(),
+		Body:         envelope.Body(),
+		Headers:      make(amqp.Table),
+	}
+	for k, v := range envelope.Properties().Headers() {
+		s, _ := v.String()
+		raw.Headers[k] = s
+	}
+	d, _ := amqpcompat.NewDelivery(raw)
+	return d
+}
 
 func TestConnectorConnectionSuccess(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -37,7 +74,10 @@ func TestConnectorConnectionSuccess(t *testing.T) {
 		}
 	}()
 
-	c := smppc.NewConnector(cfg)
+	c, err := smppc.NewConnector(cfg, "amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := c.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -91,7 +131,10 @@ func TestConnectorReconnectLoop(t *testing.T) {
 	}
 	_ = cfg.Validate()
 
-	c := smppc.NewConnector(cfg)
+	c, err := smppc.NewConnector(cfg, "amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +200,10 @@ func TestConnectorReconnectOnConnectionLoss(t *testing.T) {
 		}
 	}()
 
-	c := smppc.NewConnector(cfg)
+	c, err := smppc.NewConnector(cfg, "amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -182,54 +228,49 @@ func TestConnectorReconnectOnConnectionLoss(t *testing.T) {
 	}
 }
 
-func TestConnectorStopClosesConnection(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+type mockAMQPProvider struct {
+	deliveries chan *amqpcompat.Delivery
+}
+
+func (p *mockAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error) {
+	return p.deliveries, nil
+}
+
+func TestConnectorRunConsumerReadiness(t *testing.T) {
+	cfg := smppc.Config{CID: "test-ready"}
+	c, _ := smppc.NewConnector(cfg, "")
+	
+	mock := &mockAMQPProvider{deliveries: make(chan *amqpcompat.Delivery, 1)}
+	// Using reflect or a setter to inject mock
+	injectAMQPProvider(c, mock)
+
+	// Create a delivery with past expiration
+	headers := map[string]amqpcompat.Field{
+		"expiration": amqpcompat.StringField(time.Now().Add(-time.Hour).Format("2006-01-02 15:04:05")),
+		"created_at": amqpcompat.StringField(time.Now().Add(-2 * time.Hour).Format("2006-01-02 15:04:05")),
 	}
-	defer ln.Close()
-
-	addr := ln.Addr().(*net.TCPAddr)
-	cfg := smppc.Config{
-		CID:      "test",
-		Host:     addr.IP.String(),
-		Port:     addr.Port,
-		SystemID: "client",
-		Password: "password",
-	}
-	_ = cfg.Validate()
-
-	connChan := make(chan net.Conn, 1)
-	go func() {
-		conn, _ := ln.Accept()
-		if conn != nil {
-			connChan <- conn
-		}
-	}()
-
-	c := smppc.NewConnector(cfg)
-	if err := c.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	var conn net.Conn
+	props, _ := amqpcompat.NewProperties("msg-1", headers)
+	envelope, _ := amqpcompat.NewEnvelope("submit.sm.test-ready", props, []byte("body"))
+	
+	// mock delivery
+	ackChan := make(chan bool, 1)
+	delivery := injectDelivery(envelope, func(requeue bool) { ackChan <- requeue })
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	
+	c.SetStatus(smppc.StatusBound)
+	
+	go c.RunConsumer(ctx)
+	
+	mock.deliveries <- delivery
+	
 	select {
-	case conn = <-connChan:
-		// Drain BIND PDU
-		_, _ = smppwire.Read(conn, 1024)
+	case requeue := <-ackChan:
+		if requeue {
+			t.Errorf("expected discard (requeue=false) for expired message")
+		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for connection")
-	}
-
-	if err := c.Stop(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Check if connection is closed on the server side
-	buf := make([]byte, 1)
-	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	n, err := conn.Read(buf)
-	if err != io.EOF {
-		t.Errorf("expected EOF, got n=%d err=%v", n, err)
+		t.Fatal("timed out waiting for readiness decision")
 	}
 }

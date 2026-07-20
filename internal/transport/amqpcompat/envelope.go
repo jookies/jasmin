@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const (
@@ -307,6 +308,37 @@ func NewProperties(messageID string, headers map[string]Field, options ...Proper
 }
 
 func (properties Properties) MessageID() string { return properties.messageID }
+
+func (properties Properties) CreatedAt() (time.Time, bool) {
+	field, ok := properties.headers["created_at"]
+	if !ok {
+		return time.Time{}, false
+	}
+	text, ok := field.String()
+	if !ok {
+		return time.Time{}, false
+	}
+	// Jasmin format
+	t, err := time.Parse("2006-01-02 15:04:05", text)
+	return t, err == nil
+}
+
+func (properties Properties) Expiration() (time.Time, bool) {
+	field, ok := properties.headers["expiration"]
+	if !ok {
+		return time.Time{}, false
+	}
+	text, ok := field.String()
+	if !ok {
+		return time.Time{}, false
+	}
+	// Try RFC3339 then Jasmin format
+	t, err := time.Parse(time.RFC3339, text)
+	if err != nil {
+		t, err = time.Parse("2006-01-02 15:04:05", text)
+	}
+	return t, err == nil
+}
 
 func (properties Properties) ReplyTo() (string, bool) {
 	return properties.replyTo, properties.hasReplyTo

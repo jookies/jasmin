@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rabbitmq/amqp091-go"
+	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
@@ -19,20 +21,84 @@ const (
 	StatusUnbinding    Status = "UNBINDING"
 )
 
+type AMQPProvider interface {
+	Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error)
+}
+
+type defaultAMQPProvider struct{}
+
+func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error) {
+	conn, err := amqp091.Dial(amqpURL)
+	if err != nil {
+		return nil, err
+	}
+
+	topology := amqpcompat.NewTopology(conn)
+	// Connector queues in Jasmin are non-durable, non-exclusive, non-auto-delete.
+	// Exchange is "messaging".
+	err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid))
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	consumer, err := amqpcompat.NewConsumer(conn)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	deliveries, err := consumer.Consume(ctx, amqpcompat.ConnectorSubmitQueue(cid))
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	// We need to close the connection when the consumer is done.
+	// Since amqpcompat.Consumer.Consume starts a goroutine that returns a channel,
+	// we should wrap it to close the connection when the channel is closed.
+	out := make(chan *amqpcompat.Delivery)
+	go func() {
+		defer conn.Close()
+		defer consumer.Close()
+		defer close(out)
+		for d := range deliveries {
+			select {
+			case out <- d:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, nil
+}
+
 type Connector struct {
-	cfg    Config
-	status Status
-	mu     sync.RWMutex
+	cfg       Config
+	status    Status
+	amqpURL   string
+	amqp      AMQPProvider
+	readiness *ReadinessPolicy
+	mu        sync.RWMutex
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
 
-func NewConnector(cfg Config) *Connector {
-	return &Connector{
-		cfg:    cfg.Clone(),
-		status: StatusDisconnected,
+func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
+	readiness, err := NewReadinessPolicy(DefaultReadinessConfig())
+	if err != nil {
+		return nil, err
 	}
+
+	return &Connector{
+		cfg:       cfg.Clone(),
+		status:    StatusDisconnected,
+		amqpURL:   amqpURL,
+		amqp:      &defaultAMQPProvider{},
+		readiness: readiness,
+	}, nil
 }
 
 func (c *Connector) Config() Config {
@@ -45,6 +111,10 @@ func (c *Connector) Status() Status {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.status
+}
+
+func (c *Connector) SetStatus(s Status) {
+	c.setStatus(s)
 }
 
 func (c *Connector) setStatus(s Status) {
@@ -90,14 +160,7 @@ func (c *Connector) loop(ctx context.Context) {
 		err := c.connectAndBind(ctx)
 		if err == nil {
 			// Connected and Bound!
-			// In this phase, we don't have a receiver loop yet, so we just stay bound
-			// until connection is lost or ctx is cancelled.
-			// Actually, we should wait for connection loss.
-			// For now, let's just wait on ctx.Done.
-			select {
-			case <-ctx.Done():
-				return
-			}
+			c.runConsumer(ctx)
 		}
 
 		// Reconnect logic
@@ -106,6 +169,70 @@ func (c *Connector) loop(ctx context.Context) {
 			return
 		case <-time.After(time.Duration(c.cfg.ConFailDelay * float64(time.Second))):
 			c.setStatus(StatusConnecting)
+		}
+	}
+}
+
+func (c *Connector) RunConsumer(ctx context.Context) {
+	c.runConsumer(ctx)
+}
+
+func (c *Connector) runConsumer(ctx context.Context) {
+	c.mu.RLock()
+	amqpURL := c.amqpURL
+	cid := c.cfg.CID
+	readiness := c.readiness
+	c.mu.RUnlock()
+
+	deliveries, err := c.amqp.Consume(ctx, amqpURL, cid)
+	if err != nil {
+		fmt.Printf("ERROR: [%s] Failed to start AMQP consumer: %v\n", cid, err)
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case d, ok := <-deliveries:
+			if !ok {
+				return
+			}
+
+			// SC-005: Readiness check
+			createdAt, _ := d.Envelope().Properties().CreatedAt()
+			expiration, _ := d.Envelope().Properties().Expiration()
+			var expPtr *time.Time
+			if !expiration.IsZero() {
+				expPtr = &expiration
+			}
+
+			decision, err := readiness.Decide(ReadinessInput{
+				Now:        time.Now().UTC(),
+				CreatedAt:  createdAt,
+				Expiration: expPtr,
+				Connected:  true, // If we are here, we are connected
+				Bound:      c.Status() == StatusBound,
+			})
+
+			if err != nil {
+				// Internal error, requeue for safety
+				_ = d.Reject(true)
+				continue
+			}
+
+			switch decision.Action {
+			case ReadinessProceed:
+				// @TODO: Implement Phase 2.33 submission
+				fmt.Printf("DEBUG: [%s] Proceed with message %s\n", cid, d.Envelope().Properties().MessageID())
+				_ = d.Ack()
+			case ReadinessRequeue:
+				fmt.Printf("DEBUG: [%s] Requeue message %s (delay %v)\n", cid, d.Envelope().Properties().MessageID(), decision.RequeueDelay)
+				_ = d.Reject(true)
+			case ReadinessDiscard:
+				fmt.Printf("DEBUG: [%s] Discard expired message %s\n", cid, d.Envelope().Properties().MessageID())
+				_ = d.Reject(false)
+			}
 		}
 	}
 }

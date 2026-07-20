@@ -7,7 +7,7 @@ import (
 )
 
 func TestManagerLifecycle(t *testing.T) {
-	m := smppc.NewManager()
+	m := smppc.NewManager("amqp://guest:guest@localhost:5672/")
 	cfg := smppc.Config{
 		CID:      "smpp-1",
 		Host:     "127.0.0.1",
@@ -53,9 +53,9 @@ func TestManagerLifecycle(t *testing.T) {
 
 func TestManagerDefensivelyCopiesThroughput(t *testing.T) {
 	throughput := 2.0
-	m := smppc.NewManager()
+	m := smppc.NewManager("amqp://guest:guest@localhost:5672/")
 	cfg := smppc.Config{
-		CID: "smpp-copy", Host: "127.0.0.1", Port: 2775, SystemID: "jookies",
+		CID:      "smpp-copy", Host: "127.0.0.1", Port: 2775, SystemID: "jookies",
 		SubmitSMThroughput: &throughput,
 	}
 	if err := m.Add(cfg); err != nil {
@@ -81,7 +81,10 @@ func TestConnectorState(t *testing.T) {
 		Port:     2775,
 		SystemID: "jookies",
 	}
-	c := smppc.NewConnector(cfg)
+	c, err := smppc.NewConnector(cfg, "amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if c.Status() != smppc.StatusDisconnected {
 		t.Errorf("got status %v, want DISCONNECTED", c.Status())

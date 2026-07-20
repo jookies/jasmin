@@ -17,6 +17,14 @@ const (
 	RouterBillingConsumerTag   = "RouterPB-billrequests"
 )
 
+func ConnectorSubmitQueue(cid string) string {
+	return "submit.sm." + cid
+}
+
+func ConnectorSubmitRoutingKey(cid string) string {
+	return "submit.sm." + cid
+}
+
 type topologyChannel interface {
 	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, arguments amqp.Table) error
 	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, arguments amqp.Table) (amqp.Queue, error)

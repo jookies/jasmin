@@ -56,7 +56,7 @@ func validRawDelivery(acknowledger amqp.Acknowledger) amqp.Delivery {
 
 func TestDeliveryRequiresExplicitSingleSettlement(t *testing.T) {
 	acknowledger := &recordingAcknowledger{}
-	delivery, err := newDelivery(validRawDelivery(acknowledger))
+	delivery, err := NewDelivery(validRawDelivery(acknowledger))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestDeliveryRequiresExplicitSingleSettlement(t *testing.T) {
 
 func TestDeliveryRejectsWithoutRequeue(t *testing.T) {
 	acknowledger := &recordingAcknowledger{}
-	delivery, err := newDelivery(validRawDelivery(acknowledger))
+	delivery, err := NewDelivery(validRawDelivery(acknowledger))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestDeliveryRejectsWithoutRequeue(t *testing.T) {
 func TestDeliveryBrokerFailureStillConsumesSettlementAttempt(t *testing.T) {
 	brokerErr := errors.New("channel closed")
 	acknowledger := &recordingAcknowledger{err: brokerErr}
-	delivery, err := newDelivery(validRawDelivery(acknowledger))
+	delivery, err := NewDelivery(validRawDelivery(acknowledger))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestDeliveryBrokerFailureStillConsumesSettlementAttempt(t *testing.T) {
 
 func TestConcurrentSettlementHasExactlyOneBrokerAttempt(t *testing.T) {
 	acknowledger := &recordingAcknowledger{}
-	delivery, err := newDelivery(validRawDelivery(acknowledger))
+	delivery, err := NewDelivery(validRawDelivery(acknowledger))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestInvalidRawDeliveryRemainsUnsettled(t *testing.T) {
 	acknowledger := &recordingAcknowledger{}
 	raw := validRawDelivery(acknowledger)
 	raw.RoutingKey = "unknown.route"
-	if _, err := newDelivery(raw); err == nil {
+	if _, err := NewDelivery(raw); err == nil {
 		t.Fatal("expected decode error")
 	}
 	if acknowledger.ackCalls != 0 || acknowledger.rejectCalls != 0 || acknowledger.nackCalls != 0 {

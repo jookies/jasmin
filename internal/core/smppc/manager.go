@@ -12,12 +12,14 @@ var (
 )
 
 type Manager struct {
+	amqpURL    string
 	connectors map[string]*Connector
 	mu         sync.RWMutex
 }
 
-func NewManager() *Manager {
+func NewManager(amqpURL string) *Manager {
 	return &Manager{
+		amqpURL:    amqpURL,
 		connectors: make(map[string]*Connector),
 	}
 }
@@ -34,7 +36,11 @@ func (m *Manager) Add(cfg Config) error {
 		return ErrAlreadyExists
 	}
 
-	m.connectors[cfg.CID] = NewConnector(cfg)
+	c, err := NewConnector(cfg, m.amqpURL)
+	if err != nil {
+		return err
+	}
+	m.connectors[cfg.CID] = c
 	return nil
 }
 
