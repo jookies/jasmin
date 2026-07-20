@@ -41,3 +41,6 @@ Implement the core SMPP session management within `smppc.Connector`. This includ
 - `internal/core/smppc/connector_test.go`
 - `internal/core/smppc/session.go` (new)
 - `spec/compatibility/SMPP_MATRIX.md` (Update S-005, SP-002 status)
+
+LoopKey: 4ef5f977293e
+Verification: 26 tests passed in internal/core/smppc (correlation, timers, settlement).

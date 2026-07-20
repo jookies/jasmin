@@ -82,6 +82,7 @@ type Connector struct {
 	readiness *ReadinessPolicy
 	mu        sync.RWMutex
 
+	session *Session
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
@@ -111,6 +112,12 @@ func (c *Connector) Status() Status {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.status
+}
+
+func (c *Connector) Session() *Session {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.session
 }
 
 func (c *Connector) SetStatus(s Status) {
@@ -159,8 +166,14 @@ func (c *Connector) loop(ctx context.Context) {
 	for {
 		err := c.connectAndBind(ctx)
 		if err == nil {
+			session := c.Session()
 			// Connected and Bound!
-			c.runConsumer(ctx)
+			if session != nil {
+				sessionCtx, cancel := context.WithCancel(ctx)
+				go session.Run(sessionCtx)
+				c.runConsumer(sessionCtx, session)
+				cancel()
+			}
 		}
 
 		// Reconnect logic
@@ -173,11 +186,11 @@ func (c *Connector) loop(ctx context.Context) {
 	}
 }
 
-func (c *Connector) RunConsumer(ctx context.Context) {
-	c.runConsumer(ctx)
+func (c *Connector) RunConsumer(ctx context.Context, session *Session) {
+	c.runConsumer(ctx, session)
 }
 
-func (c *Connector) runConsumer(ctx context.Context) {
+func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 	c.mu.RLock()
 	amqpURL := c.amqpURL
 	cid := c.cfg.CID
@@ -223,9 +236,15 @@ func (c *Connector) runConsumer(ctx context.Context) {
 
 			switch decision.Action {
 			case ReadinessProceed:
-				// @TODO: Implement Phase 2.33 submission
-				fmt.Printf("DEBUG: [%s] Proceed with message %s\n", cid, d.Envelope().Properties().MessageID())
-				_ = d.Ack()
+				if session == nil {
+					fmt.Printf("ERROR: [%s] ReadinessProceed with nil session\n", cid)
+					_ = d.Reject(true)
+					continue
+				}
+				err := session.Submit(ctx, d)
+				if err != nil {
+					_ = d.Reject(true)
+				}
 			case ReadinessRequeue:
 				fmt.Printf("DEBUG: [%s] Requeue message %s (delay %v)\n", cid, d.Envelope().Properties().MessageID(), decision.RequeueDelay)
 				_ = d.Reject(true)
@@ -266,9 +285,19 @@ func (c *Connector) connectAndBind(ctx context.Context) error {
 		return err
 	}
 
+	// Setup Session
+	retry, _ := NewErrorRetryPolicy(DefaultErrorRetryRules())
+	session := NewSession(conn, c.cfg, retry, c.readiness, func(err error) {
+		fmt.Printf("DEBUG: [%s] Session closed: %v\n", c.cfg.CID, err)
+	})
+
+	c.mu.Lock()
+	c.session = session
+	c.mu.Unlock()
+
 	c.setStatus(StatusBound)
 
-	// Detect connection loss
+	// Wait for connection loss or context cancellation
 	errChan := make(chan error, 1)
 	go func() {
 		buf := make([]byte, 1)

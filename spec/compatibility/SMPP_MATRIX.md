@@ -11,19 +11,17 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | S-002 | bind TX/RX/TRX | success, wrong password/system_id, disabled user/group, IP restriction | INVENTORIED |
 | S-003 | bind state | allowed commands by state and exact status codes | INVENTORIED |
 | S-004 | limits | max bindings, duplicate sessions, ban/unbind behavior | INVENTORIED |
-| S-005 | timers | response, enquire_link, inactivity, session-init and reconnect timers | INVENTORIED |
+| S-005 | timers | response, enquire_link, inactivity, session-init and reconnect timers | GO-PARTIAL |
 | S-006 | unbind/disconnect | graceful and abrupt paths, pending request behavior | INVENTORIED |
 | S-007 | TLS | handshake, verification/config errors and reconnect | INVENTORIED |
 
 ## PDU contract
 
-| ID | PDU/feature | Cases to fixture | Status |
-|---|---|---|---|
 | SP-001 | `submit_sm` | mandatory/default fields, TON/NPI, esm_class, protocol, priority, schedule/validity | GO-PARTIAL |
-| SP-002 | `submit_sm_resp` | success/error mapping, SMSC ID, ACK/requeue/retry | GO-PARTIAL |
+| SP-002 | `submit_sm_resp` | success/error mapping, SMSC ID, correlation, ACK/requeue/retry | GO-PARTIAL |
 | SP-003 | `deliver_sm` | MO versus DLR detection, receipt fields and payload | GO-PARTIAL |
 | SP-004 | `data_sm` | configured DLR/MO behavior and response | INVENTORIED |
-| SP-005 | `enquire_link` | request/response and timeout | INVENTORIED |
+| SP-005 | `enquire_link` | request/response and timeout | GO-PARTIAL |
 | SP-006 | standard TLV | message_payload, receipts, SAR and known optionals | GO-PARTIAL |
 | SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | INVENTORIED |
 | SP-008 | unknown TLV/PDU | legacy accept/reject/error behavior | GO-PARTIAL |
@@ -47,8 +45,8 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SC-002 | lifecycle | add/remove/list/start/stop and state transitions | INVENTORIED |
 | SC-003 | reconnect | initial/reconnect delay, retry and state/stats | INVENTORIED |
 | SC-004 | throughput | submit pacing and queue behavior | GO-PARTIAL |
-| SC-005 | readiness | listener's expiration-first decision, disconnected/unbound readiness checks, strict maximum-age boundary, legacy modulo-day age component, and configured delayed/immediate requeue selection. Integrated with live AMQP consumer and StatusBound check. | GO-PARTIAL |
-| SC-006 | error retry | exact statuses, counts and delays including throttled/system/message-queue/schedule errors | GO-PARTIAL |
+| SC-005 | readiness | expiration decision, disconnected/unbound checks, age boundary, and integrated live AMQP/Session settlement. | GO-PARTIAL |
+| SC-006 | error retry | statuses, counts and delays. Integrated with Session correlation and AMQP settlement. | GO-PARTIAL |
 | SC-007 | failover | connector availability and ordered selection | INVENTORIED |
 | SC-008 | submit response publish | optional `submit.sm.resp.<CID>` event/properties | GO-PARTIAL |
 

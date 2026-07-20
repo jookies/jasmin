@@ -10,6 +10,8 @@ const (
 	CommandDeliverSM       uint32 = 0x00000005
 	CommandBindTransceiver uint32 = 0x00000009
 	CommandSubmitSMResp    uint32 = 0x80000004
+	CommandEnquireLink     uint32 = 0x00000015
+	CommandEnquireLinkResp uint32 = 0x80000015
 
 	HeaderSize     uint32 = 16
 	DefaultMaxSize uint32 = 1 << 20

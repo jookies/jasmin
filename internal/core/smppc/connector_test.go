@@ -261,7 +261,7 @@ func TestConnectorRunConsumerReadiness(t *testing.T) {
 	
 	c.SetStatus(smppc.StatusBound)
 	
-	go c.RunConsumer(ctx)
+	go c.RunConsumer(ctx, nil)
 	
 	mock.deliveries <- delivery
 	
