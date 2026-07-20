@@ -43,3 +43,11 @@ Close the audited gap between fixture-backed outbound libraries and an executabl
 - `compat/fixtures/router-amqp-subscriptions/baseline.json`
 - `spec/compatibility/AMQP_REDIS_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification status
+
+- Frozen oracle tree remained pinned at `0aac58e466d583d0f0436df7b8afa3dc96191263` (`201` files; SHA-256 `8e7c1439068bfbbdef29a1bcc6b2c155db36a8763a1012ded059a05b9e6c87c6`).
+- Aggregate fixture regeneration produced the eight-operation RouterPB fixture (`cases_sha256=156f8890326e8871e8901448367845edcbcf0527c46f499290993fe383b9c4b0`) and the verifier accepted `180` coverage rows.
+- Production encoder test exercises the real sidecar and asserts protocol-2 `SubmitSM`/`SubmitSmBill` plus opaque UID/bill identity.
+- Live RabbitMQ tests cross HTTP → routed submit → exact AMQP properties/body → shared late billing and verify mandatory unroutable handling.
+- Full Go, race, vet, build, secret scan, final council, publication, and exact-SHA CI evidence are required before a LoopKey may be appended.

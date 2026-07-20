@@ -1,15 +1,16 @@
 package picklecompat
- 
- import (
- 	"context"
- 	"encoding/base64"
- 	"encoding/json"
- 	"fmt"
- 	"io"
- 	"os"
- 	"os/exec"
- 	"sync"
- )
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+)
 
 type Bridge struct {
 	cmd    *exec.Cmd
@@ -23,17 +24,13 @@ func NewBridge(ctx context.Context, pythonPath string) (*Bridge, error) {
 		pythonPath = "python3"
 	}
 
-	// Attempt to find script in common locations
-	scriptPath := "scripts/pickle_bridge.py"
-	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		// Try parent directories (for tests)
-		scriptPath = "../../../scripts/pickle_bridge.py"
-		if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("could not find pickle_bridge.py")
-		}
+	scriptPath, rootDir, err := locateBridgeScript()
+	if err != nil {
+		return nil, err
 	}
 
 	cmd := exec.CommandContext(ctx, pythonPath, scriptPath)
+	cmd.Dir = rootDir
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -52,6 +49,29 @@ func NewBridge(ctx context.Context, pythonPath string) (*Bridge, error) {
 		stdin:  stdin,
 		stdout: json.NewDecoder(stdoutPipe),
 	}, nil
+}
+
+func locateBridgeScript() (scriptPath, rootDir string, err error) {
+	current, err := os.Getwd()
+	if err != nil {
+		return "", "", fmt.Errorf("resolve working directory: %w", err)
+	}
+	for {
+		candidate := filepath.Join(current, "scripts", "pickle_bridge.py")
+		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+			absolute, absErr := filepath.Abs(candidate)
+			if absErr != nil {
+				return "", "", absErr
+			}
+			return absolute, current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", "", fmt.Errorf("could not find scripts/pickle_bridge.py from working directory")
 }
 
 func (b *Bridge) Close() error {
@@ -120,4 +140,44 @@ func (b *Bridge) Encode(ctx context.Context, obj any) ([]byte, error) {
 	}
 
 	return base64.StdEncoding.DecodeString(res.Data)
+}
+
+// EncodeSubmitSM invokes the bridge's fixed allowlisted protocol-2 encoder.
+// Unlike Encode, callers cannot select an arbitrary Python class.
+func (b *Bridge) EncodeSubmitSM(ctx context.Context, request SubmitSMEncodeRequest) (SubmitSMEncodeResult, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if err := ctx.Err(); err != nil {
+		return SubmitSMEncodeResult{}, err
+	}
+	if err := json.NewEncoder(b.stdin).Encode(bridgeRequest{Action: "encode_submit_sm", Result: request}); err != nil {
+		return SubmitSMEncodeResult{}, err
+	}
+	var response bridgeResponse
+	if err := b.stdout.Decode(&response); err != nil {
+		return SubmitSMEncodeResult{}, err
+	}
+	if response.Status != "ok" {
+		return SubmitSMEncodeResult{}, fmt.Errorf("bridge error: %s", response.Message)
+	}
+	var wire struct {
+		Body string  `json:"body"`
+		Bill *string `json:"bill"`
+	}
+	if err := json.Unmarshal(response.Result, &wire); err != nil {
+		return SubmitSMEncodeResult{}, fmt.Errorf("decode SubmitSM bridge response: %w", err)
+	}
+	body, err := base64.StdEncoding.DecodeString(wire.Body)
+	if err != nil {
+		return SubmitSMEncodeResult{}, fmt.Errorf("decode SubmitSM body: %w", err)
+	}
+	result := SubmitSMEncodeResult{Body: body}
+	if wire.Bill != nil {
+		result.Bill, err = base64.StdEncoding.DecodeString(*wire.Bill)
+		if err != nil {
+			return SubmitSMEncodeResult{}, fmt.Errorf("decode SubmitSM bill: %w", err)
+		}
+	}
+	return result, nil
 }

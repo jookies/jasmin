@@ -2,6 +2,7 @@ package amqpcompat_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -74,6 +75,22 @@ func TestAMQPPubSubRoundTrip(t *testing.T) {
 	if err := topology.Declare(ctx); err != nil {
 		t.Fatal(err)
 	}
+	admin, err := conn.Channel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.QueueDelete(qName, false, false, false); err != nil {
+		admin.Close()
+		t.Fatal(err)
+	}
+	admin.Close()
+	defer func() {
+		cleanup, cleanupErr := conn.Channel()
+		if cleanupErr == nil {
+			_, _ = cleanup.QueueDelete(qName, false, false, false)
+			_ = cleanup.Close()
+		}
+	}()
 	if err := topology.DeclareQueue(ctx, qName, "messaging", "submit.sm.#"); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +110,7 @@ func TestAMQPPubSubRoundTrip(t *testing.T) {
 	// Prepare message
 	props, err := amqpcompat.NewProperties("msg-123", map[string]amqpcompat.Field{
 		"header-1": amqpcompat.StringField("value-1"),
-	})
+	}, amqpcompat.WithReplyTo("submit.sm.resp.user-opaque"), amqpcompat.WithPriority(2))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,10 +150,80 @@ func TestAMQPPubSubRoundTrip(t *testing.T) {
 				t.Errorf("got header value %q, want value-1", s)
 			}
 		}
+		if replyTo, ok := envelope.Properties().ReplyTo(); !ok || replyTo != "submit.sm.resp.user-opaque" {
+			t.Errorf("got reply-to (%q,%v), want submit.sm.resp.user-opaque", replyTo, ok)
+		}
+		if priority, ok := envelope.Properties().Priority(); !ok || priority != 2 {
+			t.Errorf("got priority (%d,%v), want 2", priority, ok)
+		}
 		if err := received.Ack(); err != nil {
 			t.Fatalf("Ack: %v", err)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for message")
+	}
+}
+
+func TestDeliveryPreservesReplyToAndPriority(t *testing.T) {
+	raw := amqp.Delivery{
+		MessageId:  "msg-properties",
+		RoutingKey: "submit.sm.connector-a",
+		ReplyTo:    "submit.sm.resp.user-opaque",
+		Priority:   3,
+		Body:       []byte("payload"),
+	}
+	delivery, err := amqpcompat.NewDelivery(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	properties := delivery.Envelope().Properties()
+	if replyTo, ok := properties.ReplyTo(); !ok || replyTo != raw.ReplyTo {
+		t.Fatalf("reply-to = (%q,%v), want %q", replyTo, ok, raw.ReplyTo)
+	}
+	if priority, ok := properties.Priority(); !ok || priority != raw.Priority {
+		t.Fatalf("priority = (%d,%v), want %d", priority, ok, raw.Priority)
+	}
+}
+
+func TestPublisherRejectsUnroutableMandatoryMessage(t *testing.T) {
+	url := os.Getenv("AMQP_URL")
+	if url == "" {
+		t.Skip("AMQP_URL is not set; live RabbitMQ integration is opt-in")
+	}
+	conn, err := amqp.Dial(url)
+	if err != nil {
+		t.Fatalf("RabbitMQ unavailable with AMQP_URL set: %v", err)
+	}
+	defer conn.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := amqpcompat.NewTopology(conn).Declare(ctx); err != nil {
+		t.Fatal(err)
+	}
+	const exchange = "macro13-unroutable-test"
+	admin, err := conn.Channel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := admin.ExchangeDeclare(exchange, "topic", false, true, false, false, nil); err != nil {
+		admin.Close()
+		t.Fatal(err)
+	}
+	defer admin.Close()
+	publisher, err := amqpcompat.NewPublisher(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer publisher.Close()
+	properties, err := amqpcompat.NewProperties("unroutable-message", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := amqpcompat.NewEnvelope("submit.sm.missing-connector", properties, []byte("payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := publisher.Publish(ctx, exchange, envelope.RoutingKey(), envelope); !errors.Is(err, amqpcompat.ErrPublishReturned) {
+		t.Fatalf("publish error = %v, want ErrPublishReturned", err)
 	}
 }

@@ -59,13 +59,24 @@ func (manager *Manager) AddUserWithID(username, userID string, user *User) error
 }
 
 func (manager *Manager) GetUser(username string) (*User, error) {
+	user, _, err := manager.GetUserIdentity(username)
+	return user, err
+}
+
+// GetUserIdentity returns the billing user together with its opaque legacy
+// external UID. The UID must be used in AMQP reply/billing routing keys.
+func (manager *Manager) GetUserIdentity(username string) (*User, string, error) {
 	manager.mu.RLock()
 	defer manager.mu.RUnlock()
 	user, ok := manager.users[username]
 	if !ok || user == nil {
-		return nil, ErrUserNotFound
+		return nil, "", ErrUserNotFound
 	}
-	return user, nil
+	userID := manager.userIDs[username]
+	if userID == "" {
+		return nil, "", ErrUserNotFound
+	}
+	return user, userID, nil
 }
 
 func (manager *Manager) GetUserByID(userID string) (*User, error) {

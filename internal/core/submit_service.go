@@ -23,7 +23,7 @@ var (
 )
 
 type BillingUserDirectory interface {
-	GetUser(username string) (*billing.User, error)
+	GetUserIdentity(username string) (*billing.User, string, error)
 }
 
 type AMQPPublisher interface {
@@ -32,13 +32,22 @@ type AMQPPublisher interface {
 
 type SubmitEnvelopeRequest struct {
 	MessageID       string
+	BillID          string
+	CreatedAt       time.Time
 	Username        string
-	UserID          int64
+	UserID          string
 	ConnectorID     string
 	SourceAddr      []byte
 	DestinationAddr []byte
 	DataCoding      uint8
 	Priority        uint8
+	ScheduleAt      *time.Time
+	ValidityPeriod  *time.Duration
+	DLR             bool
+	DLRURL          string
+	DLRLevel        int
+	DLRMethod       string
+	SourceConnector string
 	Bill            billing.Bill
 	Parts           []segmentation.Part
 	CustomTLVs      map[uint16][]byte
@@ -56,6 +65,7 @@ type SubmitServiceDependencies struct {
 	EnvelopeBuilder   SubmitEnvelopeBuilder
 	Publisher         AMQPPublisher
 	NewMessageID      func() (string, error)
+	NewBillID         func() (string, error)
 	NewReference      func() (uint16, error)
 	Now               func() time.Time
 }
@@ -72,6 +82,9 @@ func NewSubmitService(dependencies SubmitServiceDependencies) (*SubmitService, e
 	if dependencies.NewMessageID == nil {
 		dependencies.NewMessageID = randomUUID
 	}
+	if dependencies.NewBillID == nil {
+		dependencies.NewBillID = randomUUID
+	}
 	if dependencies.NewReference == nil {
 		dependencies.NewReference = randomReference
 	}
@@ -82,7 +95,7 @@ func NewSubmitService(dependencies SubmitServiceDependencies) (*SubmitService, e
 }
 
 func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest) (string, error) {
-	user, err := service.dependencies.BillingUsers.GetUser(request.Username)
+	user, externalUserID, err := service.dependencies.BillingUsers.GetUserIdentity(request.Username)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrAuthentication, err)
 	}
@@ -92,6 +105,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		return "", fmt.Errorf("%w: %v", ErrInvalidParameter, err)
 	}
 	state := user.GetState()
+	createdAt := service.dependencies.Now()
 	var groupID int64
 	if state.GID != nil {
 		groupID = *state.GID
@@ -104,7 +118,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		DestinationAddr: routingfilter.BytesField{Present: true, Value: []byte(request.Destination)},
 		ShortMessage:    routingfilter.BytesField{Present: request.HexContent == "", Value: payload},
 		MessagePayload:  routingfilter.BytesField{Present: request.HexContent != "", Value: payload},
-		Timestamp:       service.dependencies.Now(),
+		Timestamp:       createdAt,
 		Tags:            append([]string(nil), request.Tags...),
 	})
 	if err != nil {
@@ -146,8 +160,13 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		return "", err
 	}
 	parts := segmented.Parts()
-	bill := billing.CalculateBill(route.Rate(), len(parts), user)
+	aggregateBill := billing.CalculateBill(route.Rate(), len(parts), user)
+	perPartBill := billing.CalculateBill(route.Rate(), 1, user)
 	messageID, err := service.dependencies.NewMessageID()
+	if err != nil {
+		return "", err
+	}
+	billID, err := service.dependencies.NewBillID()
 	if err != nil {
 		return "", err
 	}
@@ -157,14 +176,23 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	}
 	envelopeRequest := SubmitEnvelopeRequest{
 		MessageID:       messageID,
+		BillID:          billID,
+		CreatedAt:       createdAt,
 		Username:        request.Username,
-		UserID:          user.UID(),
+		UserID:          externalUserID,
 		ConnectorID:     route.Connector().ID(),
 		SourceAddr:      intercepted.Routable.SourceAddr().Value,
 		DestinationAddr: intercepted.Routable.DestinationAddr().Value,
 		DataCoding:      uint8(request.Coding),
 		Priority:        uint8(priority),
-		Bill:            bill,
+		ScheduleAt:      cloneTime(request.SDT),
+		ValidityPeriod:  cloneDuration(request.ValidityPeriod),
+		DLR:             request.DLR,
+		DLRURL:          request.DLRUrl,
+		DLRLevel:        request.DLRLevel,
+		DLRMethod:       request.DLRMethod,
+		SourceConnector: "httpapi",
+		Bill:            perPartBill,
 		Parts:           parts,
 		CustomTLVs:      cloneTLVs(request.CustomTLVs),
 	}
@@ -183,7 +211,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		envelopes = append(envelopes, envelope)
 	}
 
-	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), bill); err != nil {
+	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), aggregateBill); err != nil {
 		return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
 	}
 	for _, envelope := range envelopes {
@@ -240,4 +268,20 @@ func cloneTLVs(values map[uint16][]byte) map[uint16][]byte {
 		copy[tag] = append([]byte(nil), value...)
 	}
 	return copy
+}
+
+func cloneTime(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
+}
+
+func cloneDuration(value *time.Duration) *time.Duration {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }

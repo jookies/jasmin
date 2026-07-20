@@ -187,7 +187,7 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 			writePlainError(w, http.StatusBadRequest, msg)
 			return
 		}
-		if errors.Is(err, core.ErrNoLiveConnector) || errors.Is(err, core.ErrQuotaExceeded) {
+		if errors.Is(err, core.ErrNoLiveConnector) || errors.Is(err, core.ErrNoRouteMatched) || errors.Is(err, core.ErrQuotaExceeded) {
 			writePlainError(w, http.StatusInternalServerError, "Cannot send submit_sm, check SMPPClientManagerPB log file for details")
 			return
 		}

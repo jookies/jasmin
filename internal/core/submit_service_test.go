@@ -111,8 +111,11 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 	if len(builder.sequences) != 2 || builder.sequences[0] != 1 || builder.sequences[1] != 2 {
 		t.Fatalf("builder sequences=%v want=[1 2]", builder.sequences)
 	}
-	if builder.request.Bill.SubmitSmAmount != 1 || builder.request.Bill.SubmitSmRespAmount != 1 || builder.request.Bill.DecrementSubmitSmCount != 2 {
-		t.Fatalf("bill=%+v", builder.request.Bill)
+	if builder.request.Bill.SubmitSmAmount != 0.5 || builder.request.Bill.SubmitSmRespAmount != 0.5 || builder.request.Bill.DecrementSubmitSmCount != 1 {
+		t.Fatalf("per-part bill=%+v", builder.request.Bill)
+	}
+	if builder.request.UserID != "user-opaque" {
+		t.Fatalf("external user ID=%q want=user-opaque", builder.request.UserID)
 	}
 	if len(publisher.bodies) != 2 || publisher.bodies[0][0] != 1 || publisher.bodies[1][0] != 2 {
 		t.Fatalf("published bodies=%v", publisher.bodies)
@@ -284,7 +287,7 @@ func newSubmitService(
 ) *core.SubmitService {
 	t.Helper()
 	users := billing.NewManager()
-	if err := users.AddUser("alice", user); err != nil {
+	if err := users.AddUserWithID("alice", "user-opaque", user); err != nil {
 		t.Fatal(err)
 	}
 	service, err := core.NewSubmitService(core.SubmitServiceDependencies{

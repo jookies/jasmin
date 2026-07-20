@@ -132,6 +132,18 @@ func TestEmptyHexContentIsPresent(t *testing.T) {
 	}
 }
 
+func TestSendMapsNoRouteToLegacyServerError(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{err: core.ErrNoRouteMatched}
+	response := serveForm(httpcompat.Dependencies{Authenticator: auth, Submitter: submit}, http.MethodPost, "/send", validSendForm())
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+	if response.Body.String() != `Error "Cannot send submit_sm, check SMPPClientManagerPB log file for details"` {
+		t.Fatalf("body = %q", response.Body.String())
+	}
+}
+
 func TestPingSuppressesAutomaticContentType(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	response := httptest.NewRecorder()

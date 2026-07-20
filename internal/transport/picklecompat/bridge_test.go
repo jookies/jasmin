@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -122,5 +123,66 @@ func TestAMQPFixtureDecoding(t *testing.T) {
 	}
 	if string(smResp.Params.MessageID) != "0000436949" {
 		t.Errorf("got message id %q, want 0000436949", string(smResp.Params.MessageID))
+	}
+}
+
+func TestEncodeSubmitSMUsesProtocol2AndOpaqueBillIdentity(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required for the production encoder test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	bridge, err := picklecompat.NewBridge(ctx, pythonPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.Close()
+
+	encoded, err := bridge.EncodeSubmitSM(ctx, picklecompat.SubmitSMEncodeRequest{
+		Sequence:               3,
+		SourceAddr:             picklecompat.Bytes("1111"),
+		DestinationAddr:        picklecompat.Bytes("2222"),
+		ShortMessage:           picklecompat.Bytes("hello"),
+		DataCoding:             0,
+		Priority:               2,
+		RegisteredDelivery:     true,
+		IncludeBill:            true,
+		BillID:                 "bill-production-1",
+		UserID:                 "opaque-user-id",
+		Username:               "alice",
+		SubmitSMAmount:         0.25,
+		SubmitSMRespAmount:     0.75,
+		DecrementSubmitSMCount: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded.Body) < 2 || encoded.Body[0] != 0x80 || encoded.Body[1] != 0x02 {
+		t.Fatal("SubmitSM is not protocol-2 pickle")
+	}
+	if len(encoded.Bill) < 2 || encoded.Bill[0] != 0x80 || encoded.Bill[1] != 0x02 {
+		t.Fatal("SubmitSmBill is not protocol-2 pickle")
+	}
+
+	decodedBody, err := bridge.Decode(ctx, encoded.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var submit picklecompat.SubmitSM
+	if err := json.Unmarshal(decodedBody, &submit); err != nil {
+		t.Fatal(err)
+	}
+	if submit.ClassName != "smpp.pdu.operations.SubmitSM" || string(submit.Params.ShortMessage) != "hello" {
+		t.Fatalf("decoded SubmitSM=%+v", submit)
+	}
+	decodedBill, err := bridge.Decode(ctx, encoded.Bill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"jasmin.routing.Bills.SubmitSmBill", "opaque-user-id", "bill-production-1"} {
+		if !strings.Contains(string(decodedBill), fragment) {
+			t.Fatalf("decoded bill missing %q: %s", fragment, decodedBill)
+		}
 	}
 }

@@ -24,16 +24,11 @@ func (channel *cancelOnBillingConsumeChannel) Consume(queue, consumer string, au
 	return deliveries, err
 }
 
-func (channel *cancelOnBillingConsumeChannel) Qos(prefetchCount, prefetchSize int, global bool) error {
-	return channel.recordingTopologyChannel.Qos(prefetchCount, prefetchSize, global)
-}
-
 func TestOpenRouterSubscriptionsStopsAndClosesOnEveryOperationFailure(t *testing.T) {
 	expectedContext := []struct {
 		operation string
 		context   string
 	}{
-		{"set qos", "set QoS"},
 		{"declare exchange messaging", "declare exchange messaging"},
 		{"declare queue RouterPB_deliver_sm_all", "declare queue RouterPB_deliver_sm_all"},
 		{"bind queue RouterPB_deliver_sm_all", "bind queue RouterPB_deliver_sm_all"},

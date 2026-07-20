@@ -9,40 +9,115 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-var ErrDeliverySettled = errors.New("AMQP delivery already settled")
+var (
+	ErrDeliverySettled = errors.New("AMQP delivery already settled")
+	ErrPublishNacked   = errors.New("AMQP publication negatively acknowledged")
+	ErrPublishReturned = errors.New("AMQP publication returned as unroutable")
+)
 
-// Publisher sends messages to an exchange.
+// Publisher sends persistent messages with broker confirms and mandatory
+// routing. Publish calls are serialized so confirmations and basic.return
+// notifications cannot be attributed to the wrong envelope.
 type Publisher struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+	conn    *amqp.Connection
+	ch      *amqp.Channel
+	returns <-chan amqp.Return
+	mu      sync.Mutex
 }
 
 func NewPublisher(conn *amqp.Connection) (*Publisher, error) {
+	if conn == nil {
+		return nil, errors.New("nil AMQP connection")
+	}
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
-	return &Publisher{conn: conn, ch: ch}, nil
+	if err := ch.Confirm(false); err != nil {
+		_ = ch.Close()
+		return nil, fmt.Errorf("enable AMQP publisher confirms: %w", err)
+	}
+	returns := ch.NotifyReturn(make(chan amqp.Return, 1))
+	return &Publisher{conn: conn, ch: ch, returns: returns}, nil
 }
 
 func (p *Publisher) Close() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	return p.ch.Close()
 }
 
 func (p *Publisher) Publish(ctx context.Context, exchange string, routingKey string, msg Envelope) error {
-	return p.ch.PublishWithContext(ctx,
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	properties := msg.Properties()
+	publishing := amqp.Publishing{
+		MessageId:    properties.MessageID(),
+		Body:         msg.Body(),
+		ContentType:  "application/octet-stream",
+		DeliveryMode: amqp.Persistent,
+		Headers:      toAMQPHeaders(properties.Headers()),
+	}
+	if replyTo, ok := properties.ReplyTo(); ok {
+		publishing.ReplyTo = replyTo
+	}
+	if priority, ok := properties.Priority(); ok {
+		publishing.Priority = priority
+	}
+
+	confirmation, err := p.ch.PublishWithDeferredConfirmWithContext(
+		ctx,
 		exchange,
 		routingKey,
-		false, // mandatory
+		true,  // mandatory: never silently drop an unroutable submit
 		false, // immediate
-		amqp.Publishing{
-			MessageId:    msg.Properties().MessageID(),
-			Body:         msg.Body(),
-			ContentType:  "application/octet-stream",
-			DeliveryMode: amqp.Persistent,
-			Headers:      toAMQPHeaders(msg.Properties().Headers()),
-		},
+		publishing,
 	)
+	if err != nil {
+		return fmt.Errorf("publish AMQP envelope: %w", err)
+	}
+	if confirmation == nil {
+		return errors.New("AMQP publisher confirm was not registered")
+	}
+
+	for {
+		select {
+		case returned, ok := <-p.returns:
+			if !ok {
+				return errors.New("AMQP return channel closed")
+			}
+			// A caller can time out after the broker accepted a previous publish
+			// but before its basic.return reaches this listener. Ignore that stale
+			// return instead of attributing it to the next serialized publication.
+			if returned.MessageId != properties.MessageID() {
+				continue
+			}
+			return fmt.Errorf("%w: %d %s exchange=%q routing-key=%q message-id=%q",
+				ErrPublishReturned, returned.ReplyCode, returned.ReplyText,
+				returned.Exchange, returned.RoutingKey, returned.MessageId)
+		case <-confirmation.Done():
+			if !confirmation.Acked() {
+				return fmt.Errorf("%w: message-id=%q", ErrPublishNacked, properties.MessageID())
+			}
+			// Channel.dispatch processes basic.return and basic.ack serially on
+			// the connection reader goroutine and synchronously writes returns to
+			// this buffered channel. A return for this serialized publication is
+			// therefore already available once its ACK becomes observable.
+			select {
+			case returned, ok := <-p.returns:
+				if ok {
+					return fmt.Errorf("%w: %d %s exchange=%q routing-key=%q message-id=%q",
+						ErrPublishReturned, returned.ReplyCode, returned.ReplyText,
+						returned.Exchange, returned.RoutingKey, returned.MessageId)
+				}
+			default:
+			}
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // Delivery owns one decoded envelope and its explicit broker settlement.
@@ -56,7 +131,16 @@ type Delivery struct {
 }
 
 func NewDelivery(raw amqp.Delivery) (*Delivery, error) {
-	props, err := NewProperties(raw.MessageId, fromAMQPHeaders(raw.Headers))
+	options := make([]PropertyOption, 0, 2)
+	if raw.ReplyTo != "" {
+		options = append(options, WithReplyTo(raw.ReplyTo))
+	}
+	// AMQP does not expose a presence bit for priority. Preserve zero as absent,
+	// matching legacy fixtures where priority is omitted unless explicitly set.
+	if raw.Priority != 0 {
+		options = append(options, WithPriority(raw.Priority))
+	}
+	props, err := NewProperties(raw.MessageId, fromAMQPHeaders(raw.Headers), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +184,19 @@ type Consumer struct {
 }
 
 func NewConsumer(conn *amqp.Connection) (*Consumer, error) {
+	if conn == nil {
+		return nil, errors.New("nil AMQP connection")
+	}
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, err
+	}
+	// Legacy SMPP connector consumers set basic.qos(prefetch_count=1) before
+	// attaching submit.sm.<CID>. Keep this on the connector consumer channel;
+	// RouterPB.addAmqpBroker has a distinct eight-operation oracle with no QoS.
+	if err := ch.Qos(1, 0, false); err != nil {
+		_ = ch.Close()
+		return nil, fmt.Errorf("set AMQP consumer QoS: %w", err)
 	}
 	return &Consumer{conn: conn, ch: ch}, nil
 }

@@ -48,9 +48,9 @@ type PythonClass struct {
 type SubmitSM struct {
 	PythonClass
 	Params struct {
-		SourceAddr      Bytes `json:"source_addr"`
-		DestinationAddr Bytes `json:"destination_addr"`
-		ShortMessage    Bytes `json:"short_message"`
+		SourceAddr      Bytes   `json:"source_addr"`
+		DestinationAddr Bytes   `json:"destination_addr"`
+		ShortMessage    Bytes   `json:"short_message"`
 		ServiceType     *string `json:"service_type"`
 		ESMClass        *int    `json:"esm_class"`
 		ProtocolID      *int    `json:"protocol_id"`
@@ -81,4 +81,45 @@ type DeliverSM struct {
 type Content struct {
 	PythonClass
 	PDU any `json:"pdu"`
+}
+
+// SubmitSMEncodeRequest is the allowlisted input for the production
+// protocol-2 SubmitSM encoder. It intentionally contains only fields accepted
+// by the frozen legacy boundary.
+type SubmitSMEncodeRequest struct {
+	Sequence               int                 `json:"sequence"`
+	SourceAddr             Bytes               `json:"source_addr"`
+	DestinationAddr        Bytes               `json:"destination_addr"`
+	ShortMessage           Bytes               `json:"short_message"`
+	DataCoding             uint8               `json:"data_coding"`
+	Priority               uint8               `json:"priority"`
+	ScheduleAt             string              `json:"schedule_at,omitempty"`
+	ValidityUntil          string              `json:"validity_until,omitempty"`
+	RegisteredDelivery     bool                `json:"registered_delivery"`
+	UDH                    bool                `json:"udh"`
+	SAR                    *SubmitSMSAR        `json:"sar,omitempty"`
+	CustomTLVs             []SubmitSMCustomTLV `json:"custom_tlvs,omitempty"`
+	IncludeBill            bool                `json:"include_bill"`
+	BillID                 string              `json:"bill_id"`
+	UserID                 string              `json:"user_id"`
+	Username               string              `json:"username"`
+	SubmitSMAmount         float64             `json:"submit_sm_amount"`
+	SubmitSMRespAmount     float64             `json:"submit_sm_resp_amount"`
+	DecrementSubmitSMCount int                 `json:"decrement_submit_sm_count"`
+}
+
+type SubmitSMSAR struct {
+	Reference uint16 `json:"reference"`
+	Total     uint8  `json:"total"`
+	Sequence  uint8  `json:"sequence"`
+}
+
+type SubmitSMCustomTLV struct {
+	Tag   uint16 `json:"tag"`
+	Value Bytes  `json:"value"`
+}
+
+type SubmitSMEncodeResult struct {
+	Body []byte
+	Bill []byte
 }

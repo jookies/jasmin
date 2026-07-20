@@ -30,6 +30,6 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 ## Progress Metrics
 - Functional flows completed: 0 / 4
 - Total matrix rows: 204
-- Untouched (INVENTORIED): 124
-- Partial (GO-PARTIAL): 61
-- Complete (MATCH/GO-COMPLETE): 19
+- Untouched (INVENTORIED): 118
+- Partial (GO-PARTIAL): 65
+- Complete (MATCH/GO-COMPLETE): 21
