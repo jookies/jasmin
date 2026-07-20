@@ -1,0 +1,45 @@
+# Phase 2.33A — Outbound Production Wiring and CI Recovery
+
+## Goal
+
+Close the audited gap between fixture-backed outbound libraries and an executable Go HTTP → routing/billing → RabbitMQ path, while restoring the exact frozen-fixture CI gate broken by the misplaced RouterPB QoS operation.
+
+## Scope
+
+- Provide a concrete protocol-2 `SubmitSM`/`SubmitSmBill` envelope builder through the allowlisted Python bridge.
+- Preserve opaque external user IDs, per-part billing, AMQP `reply-to`, priority, headers, and mandatory publisher-confirm behavior.
+- Add a fail-fast outbound runtime and `cmd/jasmin-go-httpapi` composition root that owns RabbitMQ, bridge, HTTP dependencies, and the shared late-billing service.
+- Add a real RabbitMQ HTTP → submit queue → late-billing integration test.
+- Move `prefetch_count=1` to the SMPP connector consumer channel, where the legacy manager applies it, and restore RouterPB's frozen eight-operation subscription fixture.
+- Correct HTTP mapping for the real submit service's no-route error.
+
+## Non-goals
+
+- Completing SMPP Session timer/correlation defects still inventoried after Phase 2.33.
+- Starting an SMPP connector process from the HTTP executable.
+- DLR/MO processing, persistence, TLS, deployment manifests, or full configuration parity.
+- Claiming full A-010 parity: configurable counts and concurrency effects remain unproven.
+
+## Acceptance criteria
+
+1. A real HTTP `/send` request publishes a protocol-2 `smpp.pdu.operations.SubmitSM` to `submit.sm.<CID>` with opaque UID routing and exact Basic.Properties.
+2. The same runtime's late-billing consumer mutates the same in-memory user registry and settles the billing delivery.
+3. Mandatory unroutable publication returns `ErrPublishReturned`; routed publication is broker-confirmed.
+4. The executable rejects unknown/invalid configuration and shuts down owned resources.
+5. `capture_all.sh` regenerates frozen fixtures byte-for-byte; integrity/schema/unit checks pass.
+6. Focused live RabbitMQ, full Go, race, vet, build, secret scan, and final Ralph audit pass.
+7. The published exact SHA reaches all 4/4 GitHub Actions jobs; local/remote SHA match and workspace is clean before LoopKey.
+
+## Affected paths
+
+- `cmd/jasmin-go-httpapi/`
+- `internal/app/outbound/`
+- `internal/core/billing/manager.go`
+- `internal/core/submit_service.go`
+- `internal/transport/amqpcompat/`
+- `internal/transport/httpcompat/handler.go`
+- `internal/transport/picklecompat/`
+- `scripts/pickle_bridge.py`
+- `compat/fixtures/router-amqp-subscriptions/baseline.json`
+- `spec/compatibility/AMQP_REDIS_MATRIX.md`
+- `spec/implementation/MACRO_SLICE_ROADMAP.md`
