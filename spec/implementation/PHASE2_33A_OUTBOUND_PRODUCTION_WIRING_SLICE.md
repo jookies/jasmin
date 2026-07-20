@@ -52,3 +52,7 @@ Close the audited gap between fixture-backed outbound libraries and an executabl
 - Production encoder test exercises the real sidecar and asserts protocol-2 `SubmitSM`/`SubmitSmBill` plus opaque UID/bill identity.
 - Live RabbitMQ tests cross HTTP → routed submit → exact AMQP properties/body → shared late billing and verify mandatory unroutable handling.
 - Full Go, race, vet, build, secret scan, final council, publication, and exact-SHA CI evidence are required before a LoopKey may be appended.
+
+Published implementation: `e729bf8ff46fd6822ccef3466e7592db47e893bc`; exact-SHA GitHub Actions run `29778350440` passed 4/4 jobs. The Ralph MoA synthesis timed out and both fallback local critics failed the strict output quality gate; the orchestrator independently verified the concrete multipart finding, changed production to reject multipart before charge/publish, and reran all invalidated local/live/remote gates.
+
+LoopKey: b69cbc1d2949
