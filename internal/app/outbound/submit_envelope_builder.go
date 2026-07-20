@@ -13,7 +13,10 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
 
-var ErrInvalidSubmitEnvelope = errors.New("invalid production submit envelope")
+var (
+	ErrInvalidSubmitEnvelope          = errors.New("invalid production submit envelope")
+	ErrMultipartProductionUnsupported = errors.New("multipart production publication requires an atomic outbox")
+)
 
 type SubmitSMEncoder interface {
 	EncodeSubmitSM(context.Context, picklecompat.SubmitSMEncodeRequest) (picklecompat.SubmitSMEncodeResult, error)
@@ -38,6 +41,9 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 	request core.SubmitEnvelopeRequest,
 	part segmentation.Part,
 ) (amqpcompat.Envelope, error) {
+	if len(request.Parts) > 1 {
+		return amqpcompat.Envelope{}, ErrMultipartProductionUnsupported
+	}
 	if request.MessageID == "" || request.BillID == "" || request.UserID == "" ||
 		request.Username == "" || request.ConnectorID == "" || len(request.DestinationAddr) == 0 ||
 		request.CreatedAt.IsZero() {

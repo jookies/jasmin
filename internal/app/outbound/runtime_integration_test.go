@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -31,6 +32,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	balance := 10.0
 	count := 10
 	early := 50
+	connectorID := fmt.Sprintf("macro13-e2e-%d", time.Now().UnixNano())
 	config := outbound.Config{
 		ListenAddress: "127.0.0.1:0",
 		AMQPURL:       amqpURL,
@@ -43,7 +45,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 			SubmitSMCount:                &count,
 			EarlyDecrementBalancePercent: &early,
 		}},
-		Routes: []outbound.RouteConfig{{ConnectorID: "macro13-e2e", Rate: 1, Default: true}},
+		Routes: []outbound.RouteConfig{{ConnectorID: connectorID, Rate: 1, Default: true}},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -70,10 +72,12 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	if deliverSMQueue.Consumers != 0 {
 		t.Fatalf("outbound runtime must not consume deliver.sm queue; consumers=%d", deliverSMQueue.Consumers)
 	}
-	deliveries, err := channel.Consume("submit.sm.macro13-e2e", "macro13-e2e-test", false, true, false, false, nil)
+	queueName := "submit.sm." + connectorID
+	deliveries, err := channel.Consume(queueName, "macro13-e2e-test", false, true, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer channel.QueueDelete(queueName, false, false, false)
 
 	server := httptest.NewServer(runtime.Handler)
 	defer server.Close()
@@ -93,6 +97,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	if response.StatusCode != http.StatusOK || !strings.HasPrefix(string(body), `Success "`) {
 		t.Fatalf("send response=%d %q", response.StatusCode, body)
 	}
+	messageID := strings.TrimSuffix(strings.TrimPrefix(string(body), `Success "`), `"`)
 
 	var delivery amqp.Delivery
 	select {
@@ -101,7 +106,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 		t.Fatal("timed out waiting for outbound SubmitSM")
 	}
 	defer delivery.Ack(false)
-	if delivery.RoutingKey != "submit.sm.macro13-e2e" || delivery.ReplyTo != "submit.sm.resp.user-opaque" || delivery.Priority != 2 {
+	if delivery.RoutingKey != queueName || delivery.MessageId != messageID || delivery.ReplyTo != "submit.sm.resp.user-opaque" || delivery.Priority != 2 || delivery.ContentType != "application/octet-stream" || delivery.DeliveryMode != amqp.Persistent {
 		t.Fatalf("delivery route/properties=%q %q %d", delivery.RoutingKey, delivery.ReplyTo, delivery.Priority)
 	}
 	if delivery.Headers["source_connector"] != "httpapi" {
@@ -137,6 +142,27 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	}
 
 	assertBalance(t, server.URL, "9.5", "9")
+
+	multipartResponse, err := http.PostForm(server.URL+"/send", url.Values{
+		"username": {"alice"}, "password": {"secret"}, "to": {"15551230000"},
+		"from": {"1111"}, "content": {strings.Repeat("a", 161)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, multipartResponse.Body)
+	multipartResponse.Body.Close()
+	if multipartResponse.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("multipart status=%d, want fail-closed 500", multipartResponse.StatusCode)
+	}
+	assertBalance(t, server.URL, "9.5", "9")
+	select {
+	case unexpected := <-deliveries:
+		_ = unexpected.Reject(false)
+		t.Fatal("multipart rejection published an unexpected PDU")
+	case <-time.After(200 * time.Millisecond):
+	}
+
 	publisher, err := amqpcompat.NewPublisher(connection)
 	if err != nil {
 		t.Fatal(err)
