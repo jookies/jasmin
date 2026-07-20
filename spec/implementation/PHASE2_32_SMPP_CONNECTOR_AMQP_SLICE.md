@@ -40,7 +40,8 @@ Connect the `smppc.Connector` to the live AMQP `messaging` exchange and integrat
 6. Integration tests prove the consumer starts/stops correctly across connector restarts.
 7. Ralph audit confirms no races in the new consumer/readiness logic.
 
-## Affected Paths
+## LoopKey
+d7a18c33569f
 
 - `internal/core/smppc/connector.go`
 - `internal/core/smppc/manager.go`
