@@ -32,56 +32,94 @@ type AMQPProvider interface {
 
 type defaultAMQPProvider struct{}
 
+func dialAMQPTransport(
+	ctx context.Context,
+	timeout time.Duration,
+	dialContext func(context.Context, string, string) (net.Conn, error),
+	network, address string,
+) (net.Conn, func() bool, error) {
+	connection, err := dialContext(ctx, network, address)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := connection.SetDeadline(time.Now().Add(timeout)); err != nil {
+		_ = connection.Close()
+		return nil, nil, err
+	}
+	stopContextClose := context.AfterFunc(ctx, func() { _ = connection.Close() })
+	return connection, stopContextClose, nil
+}
+
 func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error) {
+	const connectionTimeout = 30 * time.Second
+	var rawConnection net.Conn
 	var stopContextClose func() bool
 	config := amqp091.Config{Dial: func(network, address string) (net.Conn, error) {
-		dialer := net.Dialer{}
-		connection, err := dialer.DialContext(ctx, network, address)
+		dialer := net.Dialer{Timeout: connectionTimeout}
+		connection, stop, err := dialAMQPTransport(ctx, connectionTimeout, dialer.DialContext, network, address)
 		if err != nil {
 			return nil, err
 		}
-		stopContextClose = context.AfterFunc(ctx, func() { _ = connection.Close() })
+		rawConnection = connection
+		stopContextClose = stop
 		return connection, nil
 	}}
 	conn, err := amqp091.DialConfig(amqpURL, config)
 	if err != nil {
+		if rawConnection != nil {
+			_ = rawConnection.Close()
+		}
+		if conn != nil {
+			_ = conn.Close()
+		}
 		if stopContextClose != nil {
 			stopContextClose()
 		}
 		return nil, err
 	}
-	topology := amqpcompat.NewTopology(conn)
-	if err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid)); err != nil {
+	closeSetup := func() {
+		if rawConnection != nil {
+			_ = rawConnection.Close()
+		}
+		_ = conn.Close()
 		if stopContextClose != nil {
 			stopContextClose()
 		}
-		_ = conn.Close()
+	}
+	topology := amqpcompat.NewTopology(conn)
+	if err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid)); err != nil {
+		closeSetup()
 		return nil, err
 	}
 	consumer, err := amqpcompat.NewConsumer(conn)
 	if err != nil {
-		if stopContextClose != nil {
-			stopContextClose()
-		}
-		_ = conn.Close()
+		closeSetup()
 		return nil, err
 	}
 	deliveries, err := consumer.Consume(ctx, amqpcompat.ConnectorSubmitQueue(cid))
 	if err != nil {
-		if stopContextClose != nil {
-			stopContextClose()
+		if rawConnection != nil {
+			_ = rawConnection.Close()
 		}
 		_ = consumer.Close()
 		_ = conn.Close()
+		if stopContextClose != nil {
+			stopContextClose()
+		}
 		return nil, err
 	}
 	out := make(chan *amqpcompat.Delivery)
 	go func() {
-		if stopContextClose != nil {
-			defer stopContextClose()
-		}
-		defer conn.Close()
-		defer consumer.Close()
+		defer func() {
+			if rawConnection != nil {
+				_ = rawConnection.Close()
+			}
+			_ = consumer.Close()
+			_ = conn.Close()
+			if stopContextClose != nil {
+				stopContextClose()
+			}
+		}()
 		defer close(out)
 		for d := range deliveries {
 			select {

@@ -1,6 +1,7 @@
 package smppc
 
 import (
+	"context"
 	"net"
 	"sync"
 	"testing"
@@ -78,5 +79,74 @@ func TestSequenceWrapStaysInRangeAndSkipsLiveCorrelations(t *testing.T) {
 	}
 	if sequence == 0 || sequence > maxSequenceNumber {
 		t.Fatalf("sequence outside SMPP range: %#x", sequence)
+	}
+}
+
+func TestDefaultAMQPProviderClosesRawConnectionOnTLSConfigError(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		connection, acceptErr := listener.Accept()
+		if acceptErr == nil {
+			accepted <- connection
+		}
+	}()
+
+	provider := &defaultAMQPProvider{}
+	url := "amqps://guest:guest@" + listener.Addr().String() + "/?cacertfile=/definitely/missing.pem"
+	if _, err := provider.Consume(context.Background(), url, "tls-error"); err == nil {
+		t.Fatal("Consume succeeded with a missing CA file")
+	}
+
+	var serverConnection net.Conn
+	select {
+	case serverConnection = <-accepted:
+		defer serverConnection.Close()
+	case <-time.After(time.Second):
+		t.Fatal("AMQP provider did not establish the raw TCP connection")
+	}
+	if err := serverConnection.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	buffer := make([]byte, 1)
+	if _, err := serverConnection.Read(buffer); err == nil {
+		t.Fatal("raw AMQP connection remained readable after setup error")
+	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+		t.Fatal("raw AMQP connection leaked after setup error")
+	}
+}
+
+func TestAMQPTransportHandshakeDeadlineFires(t *testing.T) {
+	client, server := net.Pipe()
+	defer server.Close()
+	connection, stopContextClose, err := dialAMQPTransport(
+		context.Background(),
+		20*time.Millisecond,
+		func(context.Context, string, string) (net.Conn, error) { return client, nil },
+		"tcp",
+		"unused",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	defer stopContextClose()
+
+	started := time.Now()
+	buffer := make([]byte, 1)
+	_, err = connection.Read(buffer)
+	if err == nil {
+		t.Fatal("silent AMQP peer did not trigger the handshake deadline")
+	}
+	timeout, ok := err.(net.Error)
+	if !ok || !timeout.Timeout() {
+		t.Fatalf("handshake read error = %v, want timeout", err)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("handshake deadline fired after %s, want under 1s", elapsed)
 	}
 }
