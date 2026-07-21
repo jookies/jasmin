@@ -109,7 +109,7 @@ class MacroWrapperTests(unittest.TestCase):
             shutil.copy2(WRAPPER, clone / "scripts/compat/run_go_macro_tests.sh")
             subprocess.run(["git", "add", "scripts/compat/run_go_macro_tests.sh"], cwd=clone, check=True)
             subprocess.run(["git", "-c", "user.name=Wave0 Test", "-c", "user.email=wave0@example.invalid",
-                            "commit", "-qm", "test publication candidate"], cwd=clone, check=True)
+                            "commit", "--allow-empty", "-qm", "test publication candidate"], cwd=clone, check=True)
             parent = td / "evidence-parent"; parent.mkdir()
             private_key = td / "private.pem"; public_key = td / "public.pem"
             subprocess.run([
