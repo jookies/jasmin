@@ -23,6 +23,16 @@ type pendingRequest struct {
 	timer    *time.Timer
 }
 
+type SubmitDecoder interface {
+	DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, error)
+}
+
+type rawSubmitDecoder struct{}
+
+func (rawSubmitDecoder) DecodeSubmitSM(_ context.Context, body []byte) (smppwire.SubmitSMBody, error) {
+	return smppwire.SubmitSMBody{ShortMessage: append([]byte(nil), body...)}, nil
+}
+
 // Session owns one SMPP connection and, when driven by Connector.runConsumer,
 // exactly one AMQP consumer generation. AbortConsumerGeneration is irreversible;
 // a replacement consumer must use a newly connected Session.
@@ -42,10 +52,17 @@ type Session struct {
 
 	retry     *ErrorRetryPolicy
 	readiness *ReadinessPolicy
+	decoder   SubmitDecoder
 	onClose   func(error)
 }
 
+// NewSession preserves the pre-decoder constructor for focused compatibility
+// tests. Production connector composition must use NewSessionWithDecoder.
 func NewSession(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *ReadinessPolicy, onClose func(error)) *Session {
+	return NewSessionWithDecoder(conn, cfg, retry, readiness, rawSubmitDecoder{}, onClose)
+}
+
+func NewSessionWithDecoder(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *ReadinessPolicy, decoder SubmitDecoder, onClose func(error)) *Session {
 	return &Session{
 		conn:            conn,
 		cfg:             cfg.Clone(),
@@ -54,6 +71,7 @@ func NewSession(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *R
 		pendingControls: make(map[uint32]*time.Timer),
 		retry:           retry,
 		readiness:       readiness,
+		decoder:         decoder,
 		onClose:         onClose,
 		closed:          make(chan struct{}),
 	}
@@ -289,9 +307,18 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		return err
 	}
 
+	if s.decoder == nil {
+		s.settleDeliveryFailure(d)
+		return errors.New("SubmitSM decoder is required")
+	}
+	body, err := s.decoder.DecodeSubmitSM(ctx, d.Envelope().Body())
+	if err != nil {
+		s.settleDeliveryFailure(d)
+		return fmt.Errorf("decode legacy SubmitSM envelope: %w", err)
+	}
 	pdu := smppwire.PDU{
 		Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM},
-		SM:     &smppwire.SMBody{ShortMessage: d.Envelope().Body()},
+		SM:     &body,
 	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()

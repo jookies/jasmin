@@ -89,6 +89,10 @@ type SMBody struct {
 	Optional              OptionalParameters
 }
 
+// SubmitSMBody names the canonical outbound submit_sm body while preserving
+// SMBody compatibility for deliver_sm and existing callers.
+type SubmitSMBody = SMBody
+
 type OptionalParameters struct {
 	SARMessageReference *uint16
 	SARTotalSegments    *byte

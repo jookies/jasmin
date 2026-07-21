@@ -150,6 +150,7 @@ type Connector struct {
 	amqp        AMQPProvider
 	readiness   *ReadinessPolicy
 	pacer       *Pacer
+	decoder     SubmitDecoder
 	mu          sync.RWMutex
 	lifecycleMu sync.Mutex
 
@@ -159,7 +160,20 @@ type Connector struct {
 	wg      sync.WaitGroup
 }
 
+// NewConnector preserves the pre-decoder constructor for compatibility tests.
+// Production composition must use NewConnectorWithDecoder.
 func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
+	return newConnector(cfg, amqpURL, rawSubmitDecoder{})
+}
+
+func NewConnectorWithDecoder(cfg Config, amqpURL string, decoder SubmitDecoder) (*Connector, error) {
+	if decoder == nil {
+		return nil, errors.New("SubmitSM decoder is required")
+	}
+	return newConnector(cfg, amqpURL, decoder)
+}
+
+func newConnector(cfg Config, amqpURL string, decoder SubmitDecoder) (*Connector, error) {
 	clonedConfig := cfg.Clone()
 	readiness, err := NewReadinessPolicy(DefaultReadinessConfig())
 	if err != nil {
@@ -176,6 +190,7 @@ func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
 		amqp:      &defaultAMQPProvider{},
 		readiness: readiness,
 		pacer:     pacer,
+		decoder:   decoder,
 	}, nil
 }
 
@@ -522,7 +537,7 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	session := NewSession(conn, cfg, retry, c.readiness, nil)
+	session := NewSessionWithDecoder(conn, cfg, retry, c.readiness, c.decoder, nil)
 	owned = false
 	return session, nil
 }

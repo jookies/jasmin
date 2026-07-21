@@ -4,6 +4,7 @@ import pickle
 import base64
 import os
 import re
+import io
 from datetime import date, datetime, time
 from enum import Enum
 
@@ -80,6 +81,127 @@ def deserialize(obj):
         return [deserialize(i) for i in obj]
     return obj
 
+
+class SubmitSMUnpickler(pickle.Unpickler):
+    """Restricted protocol-2 loader for the connector's trusted SubmitSM boundary."""
+    def find_class(self, module, name):
+        allowed = (
+            (module == "smpp.pdu.operations" and name == "SubmitSM")
+            or module == "smpp.pdu.pdu_types"
+            or (module == "_codecs" and name == "encode")
+            or (module in ("__builtin__", "builtins") and name in ("set", "frozenset"))
+            or (module == "datetime" and name in ("datetime", "timezone", "timedelta"))
+        )
+        if not allowed:
+            raise pickle.UnpicklingError("forbidden global %s.%s" % (module, name))
+        return super().find_class(module, name)
+
+
+def _encoded_byte(encoder, value, name):
+    if value is None:
+        return 0
+    encoded = encoder().encode(value, name)
+    if len(encoded) != 1:
+        raise ValueError("%s did not encode to one byte" % name)
+    return encoded[0]
+
+
+def _raw_byte(value, name):
+    if value is None:
+        return 0
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value > 255:
+        raise ValueError("%s is outside uint8" % name)
+    return value
+
+
+def _binary(value, name, maximum):
+    if value is None:
+        return b""
+    if not isinstance(value, bytes) or len(value) > maximum:
+        raise ValueError("%s is not bounded bytes" % name)
+    return value
+
+
+def _time_bytes(value, name):
+    if value is None:
+        return b""
+    from smpp.pdu.pdu_encoding import TimeEncoder
+    encoded = TimeEncoder().encode(value, name)
+    if not encoded.endswith(b"\x00") or len(encoded) > 17:
+        raise ValueError("%s has invalid SMPP time encoding" % name)
+    return encoded[:-1]
+
+
+def decode_submit_sm(data):
+    from smpp.pdu.operations import SubmitSM
+    from smpp.pdu.pdu_encoding import (
+        AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder, EsmClassEncoder,
+        PriorityFlagEncoder, RegisteredDeliveryEncoder, ReplaceIfPresentFlagEncoder,
+    )
+
+    obj = SubmitSMUnpickler(io.BytesIO(data)).load()
+    if obj.__class__ is not SubmitSM:
+        raise pickle.UnpicklingError("root object is not allowlisted SubmitSM")
+    params = obj.params
+    if not isinstance(params, dict):
+        raise ValueError("SubmitSM params are not a mapping")
+
+    result = {
+        "service_type": _binary(params.get("service_type"), "service_type", 5),
+        "source_addr_ton": _encoded_byte(AddrTonEncoder, params.get("source_addr_ton"), "source_addr_ton"),
+        "source_addr_npi": _encoded_byte(AddrNpiEncoder, params.get("source_addr_npi"), "source_addr_npi"),
+        "source_addr": _binary(params.get("source_addr"), "source_addr", 20),
+        "dest_addr_ton": _encoded_byte(AddrTonEncoder, params.get("dest_addr_ton"), "dest_addr_ton"),
+        "dest_addr_npi": _encoded_byte(AddrNpiEncoder, params.get("dest_addr_npi"), "dest_addr_npi"),
+        "destination_addr": _binary(params.get("destination_addr"), "destination_addr", 20),
+        "esm_class": _encoded_byte(EsmClassEncoder, params.get("esm_class"), "esm_class"),
+        "protocol_id": _raw_byte(params.get("protocol_id"), "protocol_id"),
+        "priority_flag": _encoded_byte(PriorityFlagEncoder, params.get("priority_flag"), "priority_flag"),
+        "schedule_delivery_time": _time_bytes(params.get("schedule_delivery_time"), "schedule_delivery_time"),
+        "validity_period": _time_bytes(params.get("validity_period"), "validity_period"),
+        "registered_delivery": _encoded_byte(RegisteredDeliveryEncoder, params.get("registered_delivery"), "registered_delivery"),
+        "replace_if_present_flag": _encoded_byte(ReplaceIfPresentFlagEncoder, params.get("replace_if_present_flag"), "replace_if_present_flag"),
+        "data_coding": _encoded_byte(DataCodingEncoder, params.get("data_coding"), "data_coding"),
+        "sm_default_msg_id": _raw_byte(params.get("sm_default_msg_id"), "sm_default_msg_id"),
+        "short_message": _binary(params.get("short_message"), "short_message", 255),
+        "optional_tlvs": [],
+        "dropped_unknown_tlvs": 0,
+    }
+    for key, tag, size in (
+        ("sar_msg_ref_num", 0x020c, 2),
+        ("sar_total_segments", 0x020e, 1),
+        ("sar_segment_seqnum", 0x020f, 1),
+    ):
+        value = params.get(key)
+        if value is not None:
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value >= 1 << (size * 8):
+                raise ValueError("%s is outside its wire width" % key)
+            result["optional_tlvs"].append({"tag": tag, "value": value.to_bytes(size, "big")})
+    payload = params.get("message_payload")
+    if payload is not None:
+        result["optional_tlvs"].append({"tag": 0x0424, "value": _binary(payload, "message_payload", 65535)})
+
+    for item in getattr(obj, "custom_tlvs", []):
+        if not isinstance(item, tuple) or len(item) != 4:
+            raise ValueError("malformed custom TLV")
+        tag, declared, _, value = item
+        if isinstance(tag, bool) or not isinstance(tag, int) or tag < 0 or tag > 65535:
+            raise ValueError("custom TLV tag is outside uint16")
+        value = _binary(value, "custom TLV value", 65535)
+        if declared != len(value):
+            raise ValueError("custom TLV length mismatch")
+        if tag in (0x020c, 0x020e, 0x020f, 0x0424):
+            result["optional_tlvs"].append({"tag": tag, "value": value})
+        else:
+            # Q-016: legacy accepts unknown vendor TLVs but drops them on re-encode.
+            result["dropped_unknown_tlvs"] += 1
+
+    present_sar = {item["tag"] for item in result["optional_tlvs"] if item["tag"] in (0x020c, 0x020e, 0x020f)}
+    if present_sar and present_sar != {0x020c, 0x020e, 0x020f}:
+        raise ValueError("incomplete SAR option set")
+    return serialize(result)
+
+
 def run():
     import logging
     # A bridge invocation must not mutate the caller's working tree. Diagnostics
@@ -95,6 +217,9 @@ def run():
                 obj = pickle.loads(data)
                 res = json.dumps({"status": "ok", "result": serialize(obj)})
                 print(res)
+            elif action == "decode_submit_sm":
+                data = base64.b64decode(req["data"], validate=True)
+                print(json.dumps({"status": "ok", "result": decode_submit_sm(data)}))
             elif action == "encode":
                 obj = deserialize(req["result"])
                 data = pickle.dumps(obj)
