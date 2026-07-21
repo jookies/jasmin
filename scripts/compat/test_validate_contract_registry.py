@@ -106,10 +106,15 @@ class RepositoryRegistryTests(unittest.TestCase):
             "openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048",
             "-out", str(private_key),
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        trusted_public_key = parent / "trusted-public.pem"
         subprocess.run([
             "openssl", "pkey", "-in", str(private_key), "-pubout",
-            "-out", str(clone / "spec/compatibility/CANDIDATE_EVIDENCE_ATTESTOR.pem"),
+            "-out", str(trusted_public_key),
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        shutil.copyfile(
+            trusted_public_key,
+            clone / "spec/compatibility/CANDIDATE_EVIDENCE_ATTESTOR.pem",
+        )
         subprocess.run(["git", "init", "-q"], cwd=clone, check=True)
         subprocess.run(["git", "config", "user.name", "Wave0 Test"], cwd=clone, check=True)
         subprocess.run(["git", "config", "user.email", "wave0@example.invalid"], cwd=clone, check=True)
@@ -255,14 +260,17 @@ class RepositoryRegistryTests(unittest.TestCase):
                 "output_file": "registry.out", "output_sha256": hashlib.sha256(output).hexdigest(),
             }
             (evidence / "registry.out").write_bytes(output)
+            trusted_public_key = temp / "trusted-public.pem"
+            with self.assertRaisesRegex(RegistryError, "outside the candidate repository"):
+                validate_evidence(clone, evidence, ownership)
             evidence_link = temp / "evidence-link"
             evidence_link.symlink_to(evidence, target_is_directory=True)
             with self.assertRaisesRegex(RegistryError, "symlink"):
-                validate_evidence(clone, evidence_link, ownership)
+                validate_evidence(clone, evidence_link, ownership, trusted_public_key=trusted_public_key)
             marker = evidence / ".runner-origin"
             marker.unlink(); marker.symlink_to(evidence / "registry.out")
             with self.assertRaisesRegex(RegistryError, "atomically generated"):
-                validate_evidence(clone, evidence, ownership)
+                validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
             marker.unlink(); marker.touch()
             evidence_json = evidence / "registry.json"
             signature = evidence / "registry.json.sig"
@@ -276,20 +284,20 @@ class RepositoryRegistryTests(unittest.TestCase):
 
             evidence_json.write_text(json.dumps(base))
             with self.assertRaisesRegex(RegistryError, "signature is missing"):
-                validate_evidence(clone, evidence, ownership)
+                validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
             write_signed(base)
             evidence_json.write_text(evidence_json.read_text() + " ")
             with self.assertRaisesRegex(RegistryError, "signature is invalid"):
-                validate_evidence(clone, evidence, ownership)
+                validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
             stale = dict(base); stale["commit_sha"] = "0" * 40
             write_signed(stale)
             with self.assertRaisesRegex(RegistryError, "stale"):
-                validate_evidence(clone, evidence, ownership)
+                validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
             for results in ({"tests": 0, "skipped": 0, "failed": 0}, {"tests": 1, "skipped": 1, "failed": 0}):
                 candidate = dict(base); candidate["results"] = results
                 write_signed(candidate)
                 with self.assertRaises(RegistryError):
-                    validate_evidence(clone, evidence, ownership)
+                    validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
             write_signed(base)
             close_file = evidence / "CLOSE_MACROS"
             close_signature = evidence / "CLOSE_MACROS.sig"
@@ -299,13 +307,13 @@ class RepositoryRegistryTests(unittest.TestCase):
                 "-out", str(close_signature), str(close_file),
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             with self.assertRaisesRegex(RegistryError, "outbound-a/candidate") as caught:
-                validate_evidence(clone, evidence, ownership)
+                validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
             self.assertIn("outbound-b/candidate", str(caught.exception))
             close_file.unlink(); close_signature.unlink()
             dirty = clone / "spec/compatibility/SURFACES.md"
             dirty.write_text(dirty.read_text() + "\n")
             with self.assertRaisesRegex(RegistryError, "clean index/worktree"):
-                validate_evidence(clone, evidence, ownership)
+                validate_evidence(clone, evidence, ownership, trusted_public_key=trusted_public_key)
 
 
 if __name__ == "__main__":

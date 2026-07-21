@@ -17,11 +17,15 @@ def main() -> int:
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--scope")
     parser.add_argument("--mode")
+    parser.add_argument("--trusted-public-key", type=Path)
     args = parser.parse_args()
     if bool(args.scope) != bool(args.mode) or (args.scope and not args.evidence_dir):
         parser.error("--scope and --mode require each other and --evidence-dir")
     try:
-        registry = validate_repository(args.repo.resolve(), args.evidence_dir, scope=args.scope, mode=args.mode)
+        registry = validate_repository(
+            args.repo.resolve(), args.evidence_dir, scope=args.scope, mode=args.mode,
+            trusted_public_key=args.trusted_public_key,
+        )
     except (RegistryError, OSError, ValueError) as exc:
         print(f"contract registry: FAIL: {exc}")
         return 1

@@ -20,6 +20,7 @@ compose_bin=${GO_MACRO_TEST_DOCKER_BIN:-docker}
 compose_file=${GO_MACRO_TEST_COMPOSE_FILE:-compat/compose.yaml}
 evidence_target=${GO_MACRO_EVIDENCE_DIR:-}
 attest_private=${GO_MACRO_ATTEST_PRIVATE_KEY:-}
+attest_public=${GO_MACRO_ATTEST_PUBLIC_KEY:-}
 
 if [ -n "${PYTHON_PATH:-}" ] && { [ ! -f "$PYTHON_PATH" ] || [ ! -x "$PYTHON_PATH" ]; }; then
   echo "FAIL: PYTHON_PATH must name an executable Python interpreter: $PYTHON_PATH" >&2
@@ -64,15 +65,16 @@ if [ -n "$evidence_target" ]; then
     echo "FAIL: evidence output directory must not already exist" >&2
     exit 65
   fi
-  if [ -z "$attest_private" ] || [ ! -f "$attest_private" ] || [ -L "$attest_private" ]; then
-    echo "FAIL: GO_MACRO_ATTEST_PRIVATE_KEY must name the trusted regular private key" >&2
+  if [ -z "$attest_private" ] || [ ! -f "$attest_private" ] || [ -L "$attest_private" ] \
+      || [ -z "$attest_public" ] || [ ! -f "$attest_public" ] || [ -L "$attest_public" ]; then
+    echo "FAIL: GO_MACRO_ATTEST_PRIVATE_KEY and GO_MACRO_ATTEST_PUBLIC_KEY must name trusted regular files" >&2
     exit 65
   fi
   derived_public=$(mktemp "${TMPDIR:-/tmp}/jasmin-go-attestor.XXXXXX") || exit 1
   if ! openssl pkey -in "$attest_private" -pubout -out "$derived_public" >/dev/null 2>&1 \
-      || ! cmp -s "$derived_public" spec/compatibility/CANDIDATE_EVIDENCE_ATTESTOR.pem; then
+      || ! cmp -s "$derived_public" "$attest_public"; then
     rm -f "$derived_public"
-    echo "FAIL: attestation private key does not match repository trust anchor" >&2
+    echo "FAIL: attestation private key does not match externally supplied trust anchor" >&2
     exit 65
   fi
   rm -f "$derived_public"
@@ -82,6 +84,7 @@ project="jasmin-go-${scope//[^a-zA-Z0-9]/-}-${mode}-$$"
 started=0
 active_pid=""
 active_pgid=""
+in_cleanup=0
 output=$(mktemp "${TMPDIR:-/tmp}/jasmin-go-macro.XXXXXX") || exit 1
 terminate_active() {
   signal=$1
@@ -102,33 +105,51 @@ terminate_active() {
   active_pid=""
   active_pgid=""
 }
+run_tracked() {
+  "$@" &
+  active_pid=$!
+  active_pgid=$(ps -o pgid= -p "$active_pid" | tr -d ' ')
+  [ -n "$active_pgid" ] || active_pgid=$active_pid
+  wait "$active_pid"
+  tracked_rc=$?
+  active_pid=""
+  active_pgid=""
+  return "$tracked_rc"
+}
 cleanup() {
-  rc=$?
+  exit_status=$?
   trap - EXIT
+  in_cleanup=1
   terminate_active TERM
   if [ "$started" -eq 1 ]; then
-    "$compose_bin" compose -p "$project" -f "$compose_file" down --volumes --remove-orphans >/dev/null 2>&1 || {
+    run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" down --volumes --remove-orphans >/dev/null 2>&1 || {
       cleanup_rc=$?
-      [ "$rc" -ne 0 ] || rc=$cleanup_rc
+      [ "$exit_status" -ne 0 ] || exit_status=$cleanup_rc
     }
   fi
   rm -f "$output"
-  exit "$rc"
+  exit "$exit_status"
 }
 on_signal() {
   signal=$1; code=$2
   trap - "$signal"
   terminate_active "$signal"
+  if [ "$in_cleanup" -eq 1 ]; then
+    trap - EXIT
+    rm -f "$output"
+  fi
   exit "$code"
 }
 trap cleanup EXIT
 trap 'on_signal INT 130' INT
 trap 'on_signal TERM 143' TERM
 
+set -m
+
 if [ "$services" = "rabbitmq-redis" ]; then
-  "$compose_bin" compose -p "$project" -f "$compose_file" config --quiet || exit $?
+  run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" config --quiet || exit $?
   started=1
-  "$compose_bin" compose -p "$project" -f "$compose_file" up -d rabbitmq redis || exit $?
+  run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" up -d rabbitmq redis || exit $?
 elif [ "$services" != "none" ]; then
   echo "FAIL: unsupported or unavailable service set '$services'" >&2
   exit 78
@@ -152,7 +173,6 @@ run_gate() {
 }
 
 old_ifs=$IFS; IFS=';'; set -- $commands; IFS=$old_ifs
-set -m
 for gate in "$@"; do
   echo "+ $gate" | tee -a "$output"
   (
@@ -209,7 +229,8 @@ PY
   openssl dgst -sha256 -sign "$attest_private" -out "$stage/$json_name.sig" "$stage/$json_name" \
     || { rm -rf "$stage"; exit 1; }
   "$python_bin" scripts/compat/validate_contract_registry.py \
-    --evidence-dir "$stage" --scope "$scope" --mode "$mode" >/dev/null \
+    --evidence-dir "$stage" --scope "$scope" --mode "$mode" \
+    --trusted-public-key "$attest_public" >/dev/null \
     || { rm -rf "$stage"; exit 1; }
   mv "$stage" "$evidence_target" || { rm -rf "$stage"; exit 1; }
 fi

@@ -56,7 +56,7 @@ class MacroWrapperTests(unittest.TestCase):
             target = Path(td) / "evidence"
             result = self.run_wrapper("registry", "focused", env={"GO_MACRO_EVIDENCE_DIR": str(target)})
             self.assertEqual(65, result.returncode, result.stdout + result.stderr)
-            self.assertIn("GO_MACRO_ATTEST_PRIVATE_KEY", result.stderr)
+            self.assertIn("GO_MACRO_ATTEST", result.stderr)
             self.assertFalse(target.exists())
 
             wrong_key = Path(td) / "wrong.pem"
@@ -69,7 +69,25 @@ class MacroWrapperTests(unittest.TestCase):
                 "GO_MACRO_ATTEST_PRIVATE_KEY": str(wrong_key),
             })
             self.assertEqual(65, result.returncode, result.stdout + result.stderr)
-            self.assertIn("does not match repository trust anchor", result.stderr)
+            self.assertIn("GO_MACRO_ATTEST_PUBLIC_KEY", result.stderr)
+            self.assertFalse(target.exists())
+
+            wrong_public = Path(td) / "wrong-public.pem"
+            subprocess.run([
+                "openssl", "pkey", "-in", str(wrong_key), "-pubout", "-out", str(wrong_public),
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            other_key = Path(td) / "other.pem"
+            subprocess.run([
+                "openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048",
+                "-out", str(other_key),
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            result = self.run_wrapper("registry", "focused", env={
+                "GO_MACRO_EVIDENCE_DIR": str(target),
+                "GO_MACRO_ATTEST_PRIVATE_KEY": str(other_key),
+                "GO_MACRO_ATTEST_PUBLIC_KEY": str(wrong_public),
+            })
+            self.assertEqual(65, result.returncode, result.stdout + result.stderr)
+            self.assertIn("does not match externally supplied trust anchor", result.stderr)
             self.assertFalse(target.exists())
 
     def test_cleanup_failure_propagates(self):
@@ -123,6 +141,39 @@ exit 0
             stdout, stderr = proc.communicate(timeout=5)
             self.assertEqual(143, proc.returncode, stdout + stderr)
             self.assertIn(" down --volumes --remove-orphans", log.read_text())
+
+    def test_term_kills_blocking_compose_up_process_group(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td); log = td / "docker.log"; marker = td / "compose.started"
+            fake = td / "docker"; matrix = td / "matrix.csv"
+            fake.write_text(f'''#!/bin/sh
+ echo "$*" >> "{log}"
+ case "$*" in
+   *" up -d "*) trap '' TERM INT; touch "{marker}"; sleep 60;;
+ esac
+ exit 0
+ '''); fake.chmod(0o755)
+            with matrix.open("w", newline="") as handle:
+                writer = csv.writer(handle, lineterminator="\n")
+                writer.writerow(HEADER)
+                writer.writerow(("outbound-a", "focused", "rabbitmq-redis", "go test -json ./fake", "example.invalid/fake::TestNeverRuns", ""))
+            env = os.environ.copy()
+            env.update({"GO_MACRO_TEST_PYTHON": sys.executable,
+                        "GO_MACRO_TEST_DOCKER_BIN": str(fake),
+                        "GO_MACRO_TEST_MATRIX": str(matrix),
+                        "PYTHON_PATH": os.environ.get("PYTHON_PATH", sys.executable)})
+            proc = subprocess.Popen([str(WRAPPER), "outbound-a", "focused"], cwd=ROOT, env=env,
+                                    text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and not marker.exists():
+                time.sleep(0.02)
+            if not marker.exists():
+                proc.kill(); self.fail("wrapper never entered blocking compose up")
+            started = time.monotonic()
+            proc.terminate()
+            stdout, stderr = proc.communicate(timeout=7)
+            self.assertLess(time.monotonic() - started, 5)
+            self.assertEqual(143, proc.returncode, stdout + stderr)
 
     def test_term_kills_blocking_gate_process_group_and_cleans_up(self):
         with tempfile.TemporaryDirectory() as td:

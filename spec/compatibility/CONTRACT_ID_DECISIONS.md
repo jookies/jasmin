@@ -34,10 +34,13 @@ exact committed SHA and tree. Evidence must conform to
 `CANDIDATE_EVIDENCE.schema.json`, have non-empty commands and mandatory tests,
 positive test count, zero skipped/failed tests, and an output file whose SHA-256
 matches the record. Every evidence JSON must have a detached RSA/SHA-256
-signature verifiable by the repository-pinned
-`CANDIDATE_EVIDENCE_ATTESTOR.pem`; `run_go_macro_tests.sh` refuses an unsigned
-run or a private key that does not match that trust anchor, validates the staged
-evidence, and only then publishes the directory atomically. `CLOSE_MACROS` and
+signature verifiable by an operator/CI-supplied public key outside the candidate
+repository. `CANDIDATE_EVIDENCE_ATTESTOR.pem` is a documented reference key,
+not a security trust anchor: candidate evidence validation fails closed unless
+`--trusted-public-key` / `GO_MACRO_ATTEST_PUBLIC_KEY` names an external regular
+file. `run_go_macro_tests.sh` also refuses an unsigned run or a private key that
+does not match that external trust anchor, validates the staged evidence, and
+only then publishes the directory atomically. `CLOSE_MACROS` and
 its detached signature are also required together. Closure requires candidate
 evidence for every scope of the primary macro (MS-1 requires both `outbound-a`
 and `outbound-b`) and every transitive cross-macro dependency. Stale, forged,
