@@ -3,6 +3,7 @@ package smppc
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -11,72 +12,270 @@ var (
 	ErrAlreadyExists = errors.New("connector already exists")
 )
 
+type ConnectorFactory func(Config, string) (*Connector, error)
+
+type managedConnector struct {
+	connector *Connector
+	desired   bool
+}
+
+type ManagedStatus struct {
+	CID      string
+	Desired  bool
+	Observed Status
+	Config   Config
+}
+
+type ManagerStats struct {
+	Total        int
+	Desired      int
+	Disconnected int
+	Connecting   int
+	Bound        int
+	Unbinding    int
+}
+
 type Manager struct {
 	amqpURL    string
-	connectors map[string]*Connector
+	factory    ConnectorFactory
+	connectors map[string]*managedConnector
 	mu         sync.RWMutex
 }
 
 func NewManager(amqpURL string) *Manager {
-	return &Manager{
-		amqpURL:    amqpURL,
-		connectors: make(map[string]*Connector),
+	return NewManagerWithFactory(amqpURL, NewConnector)
+}
+
+func NewManagerWithFactory(amqpURL string, factory ConnectorFactory) *Manager {
+	if factory == nil {
+		factory = NewConnector
 	}
+	return &Manager{amqpURL: amqpURL, factory: factory, connectors: make(map[string]*managedConnector)}
 }
 
 func (m *Manager) Add(cfg Config) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if _, ok := m.connectors[cfg.CID]; ok {
-		return ErrAlreadyExists
-	}
-
-	c, err := NewConnector(cfg, m.amqpURL)
+	connector, err := m.factory(cfg.Clone(), m.amqpURL)
 	if err != nil {
 		return err
 	}
-	m.connectors[cfg.CID] = c
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.connectors[cfg.CID]; ok {
+		return ErrAlreadyExists
+	}
+	m.connectors[cfg.CID] = &managedConnector{connector: connector}
 	return nil
 }
 
 func (m *Manager) Remove(cid string) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	c, ok := m.connectors[cid]; if !ok {
+	entry, ok := m.connectors[cid]
+	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
-
-	if c.Status() != StatusDisconnected {
-		return fmt.Errorf("connector must be disconnected before removal")
+	if entry.desired || entry.connector.Status() != StatusDisconnected {
+		m.mu.Unlock()
+		return fmt.Errorf("connector must be stopped before removal")
 	}
-
 	delete(m.connectors, cid)
+	m.mu.Unlock()
 	return nil
 }
 
 func (m *Manager) Get(cid string) (*Connector, error) {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	c, ok := m.connectors[cid]; if !ok {
+	entry, ok := m.connectors[cid]
+	m.mu.RUnlock()
+	if !ok {
 		return nil, ErrNotFound
 	}
-	return c, nil
+	return entry.connector, nil
 }
 
 func (m *Manager) List() []Config {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	list := make([]Config, 0, len(m.connectors))
-	for _, c := range m.connectors {
-		list = append(list, c.Config())
+	for _, entry := range m.connectors {
+		list = append(list, entry.connector.Config())
 	}
+	m.mu.RUnlock()
+	sort.Slice(list, func(i, j int) bool { return list[i].CID < list[j].CID })
 	return list
+}
+
+func (m *Manager) Start(cid string) error {
+	m.mu.Lock()
+	entry, ok := m.connectors[cid]
+	if !ok {
+		m.mu.Unlock()
+		return ErrNotFound
+	}
+	entry.desired = true
+	connector := entry.connector
+	m.mu.Unlock()
+	if err := connector.Start(); err != nil {
+		m.mu.Lock()
+		if current := m.connectors[cid]; current == entry {
+			current.desired = false
+		}
+		m.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) Stop(cid string) error {
+	m.mu.Lock()
+	entry, ok := m.connectors[cid]
+	if !ok {
+		m.mu.Unlock()
+		return ErrNotFound
+	}
+	entry.desired = false
+	connector := entry.connector
+	m.mu.Unlock()
+	// Connector.Stop may block on network/session shutdown. Never hold manager.mu.
+	return connector.Stop()
+}
+
+func (m *Manager) Update(cfg Config) error {
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	m.mu.RLock()
+	old, ok := m.connectors[cfg.CID]
+	m.mu.RUnlock()
+	if !ok {
+		return ErrNotFound
+	}
+	// Build first so an invalid replacement cannot disturb the current connector.
+	replacement, err := m.factory(cfg.Clone(), m.amqpURL)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	if m.connectors[cfg.CID] != old {
+		m.mu.Unlock()
+		return errors.New("connector changed concurrently")
+	}
+	desired := old.desired
+	m.mu.Unlock()
+	if err := old.connector.Stop(); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	if m.connectors[cfg.CID] != old {
+		m.mu.Unlock()
+		return errors.New("connector changed concurrently")
+	}
+	m.connectors[cfg.CID] = &managedConnector{connector: replacement, desired: desired}
+	m.mu.Unlock()
+	if desired {
+		return replacement.Start()
+	}
+	return nil
+}
+
+func (m *Manager) Status(cid string) (ManagedStatus, error) {
+	m.mu.RLock()
+	entry, ok := m.connectors[cid]
+	if !ok {
+		m.mu.RUnlock()
+		return ManagedStatus{}, ErrNotFound
+	}
+	desired, connector := entry.desired, entry.connector
+	m.mu.RUnlock()
+	return ManagedStatus{CID: cid, Desired: desired, Observed: connector.Status(), Config: connector.Config()}, nil
+}
+
+func (m *Manager) Stats() ManagerStats {
+	m.mu.RLock()
+	entries := make([]*managedConnector, 0, len(m.connectors))
+	for _, entry := range m.connectors {
+		entries = append(entries, entry)
+	}
+	m.mu.RUnlock()
+	stats := ManagerStats{Total: len(entries)}
+	for _, entry := range entries {
+		if entry.desired {
+			stats.Desired++
+		}
+		switch entry.connector.Status() {
+		case StatusDisconnected:
+			stats.Disconnected++
+		case StatusConnecting:
+			stats.Connecting++
+		case StatusBound:
+			stats.Bound++
+		case StatusUnbinding:
+			stats.Unbinding++
+		}
+	}
+	return stats
+}
+
+func (m *Manager) Reconcile() error {
+	m.mu.RLock()
+	ids := make([]string, 0, len(m.connectors))
+	for cid := range m.connectors {
+		ids = append(ids, cid)
+	}
+	m.mu.RUnlock()
+	sort.Strings(ids)
+	var errs []error
+	for _, cid := range ids {
+		status, err := m.Status(cid)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if status.Desired && status.Observed == StatusDisconnected {
+			if err := m.Start(cid); err != nil {
+				errs = append(errs, fmt.Errorf("start %s: %w", cid, err))
+			}
+		} else if !status.Desired && status.Observed != StatusDisconnected {
+			if err := m.Stop(cid); err != nil {
+				errs = append(errs, fmt.Errorf("stop %s: %w", cid, err))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (m *Manager) StartAll() error {
+	m.mu.RLock()
+	ids := make([]string, 0, len(m.connectors))
+	for cid := range m.connectors {
+		ids = append(ids, cid)
+	}
+	m.mu.RUnlock()
+	sort.Strings(ids)
+	var errs []error
+	for _, cid := range ids {
+		if err := m.Start(cid); err != nil {
+			errs = append(errs, fmt.Errorf("start %s: %w", cid, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (m *Manager) StopAll() error {
+	m.mu.RLock()
+	ids := make([]string, 0, len(m.connectors))
+	for cid := range m.connectors {
+		ids = append(ids, cid)
+	}
+	m.mu.RUnlock()
+	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
+	var errs []error
+	for _, cid := range ids {
+		if err := m.Stop(cid); err != nil {
+			errs = append(errs, fmt.Errorf("stop %s: %w", cid, err))
+		}
+	}
+	return errors.Join(errs...)
 }

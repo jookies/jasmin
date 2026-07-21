@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/gateway"
 )
 
 func main() {
@@ -26,11 +26,11 @@ func run() error {
 	checkConfig := flag.Bool("check-config", false, "validate configuration and exit")
 	flag.Parse()
 
-	config, err := outbound.LoadConfig(*configPath)
+	config, err := gateway.LoadConfig(*configPath)
 	if err != nil {
 		return err
 	}
-	if err := outbound.ValidateConfig(config); err != nil {
+	if err := gateway.ValidateConfig(config); err != nil {
 		return err
 	}
 	if *checkConfig {
@@ -40,14 +40,14 @@ func run() error {
 
 	lifetime, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	runtime, err := outbound.NewRuntime(lifetime, config)
+	runtime, err := gateway.NewRuntime(lifetime, config)
 	if err != nil {
 		return err
 	}
 	defer runtime.Close()
 
 	server := &http.Server{
-		Addr:              config.ListenAddress,
+		Addr:              config.Outbound.ListenAddress,
 		Handler:           runtime.Handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -58,7 +58,7 @@ func run() error {
 	go func() {
 		errCh <- server.ListenAndServe()
 	}()
-	log.Printf("jasmin-go-httpapi listening on %s", config.ListenAddress)
+	log.Printf("jasmin-go-httpapi listening on %s", config.Outbound.ListenAddress)
 
 	select {
 	case <-lifetime.Done():
