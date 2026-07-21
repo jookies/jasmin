@@ -223,7 +223,7 @@ row_id,primary_macro,primary_task,dependency_tasks,subcontract_boundary
 
 - Registry implementation: `3f20c2d677edabf8506804a705efdcfc44115020`.
 - Parser/process-group hardening: `89fadd53e378e919dd0979acffc1a27d446ac223`.
-- Local isolated-clone gate: 25 Python unit tests PASS; registry wrapper 17/17 PASS; manifest 1039 tests; 183 fixture coverage rows valid.
+- Local isolated-clone gate: 26 Python unit tests PASS; registry wrapper 18/18 PASS; manifest 1039 tests; 183 fixture coverage rows valid.
 - Exact-SHA GitHub Actions run `29825328365`: 4/4 jobs PASS.
 - Authoritative totals: 205 rows = 129 `INVENTORIED` + 55 `GO-PARTIAL` + 18 `MATCH` + 3 `GO-COMPLETE`; 184 unfinished.
 

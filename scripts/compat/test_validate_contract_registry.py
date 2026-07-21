@@ -113,6 +113,12 @@ class RepositoryRegistryTests(unittest.TestCase):
         subprocess.run(["git", "init", "-q"], cwd=clone, check=True)
         subprocess.run(["git", "config", "user.name", "Wave0 Test"], cwd=clone, check=True)
         subprocess.run(["git", "config", "user.email", "wave0@example.invalid"], cwd=clone, check=True)
+        # `git commit` may launch detached auto-maintenance on CI.  A detached
+        # writer can race TemporaryDirectory cleanup and recreate entries under
+        # `.git` after shutil has traversed it.  Test repositories are tiny and
+        # require no automatic maintenance, so disable both trigger paths.
+        subprocess.run(["git", "config", "gc.auto", "0"], cwd=clone, check=True)
+        subprocess.run(["git", "config", "maintenance.auto", "false"], cwd=clone, check=True)
         subprocess.run(["git", "add", "-A"], cwd=clone, check=True)
         subprocess.run(["git", "commit", "-qm", "test candidate"], cwd=clone, check=True)
         return clone, private_key
@@ -122,6 +128,22 @@ class RepositoryRegistryTests(unittest.TestCase):
         self.assertEqual(len(registry.rows), 205)
         self.assertEqual(len(registry.unfinished_ids), 184)
         self.assertEqual(sum(r.status in FINISHED_STATUSES for r in registry.rows.values()), 21)
+
+    def test_clean_clone_disables_detached_git_maintenance(self):
+        with tempfile.TemporaryDirectory() as td:
+            clone, _ = self.make_clean_clone(Path(td))
+            self.assertEqual(
+                "0",
+                subprocess.check_output(
+                    ["git", "config", "--get", "gc.auto"], cwd=clone, text=True,
+                ).strip(),
+            )
+            self.assertEqual(
+                "false",
+                subprocess.check_output(
+                    ["git", "config", "--get", "maintenance.auto"], cwd=clone, text=True,
+                ).strip(),
+            )
 
     def test_cutover_headers_are_exact(self):
         read_csv_strict(ROOT / "spec/compatibility/CUTOVER_EDGES.csv", EDGES_HEADER)
