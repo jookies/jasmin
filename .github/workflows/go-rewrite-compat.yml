@@ -40,12 +40,16 @@ jobs:
       - name: Install compatibility validation tools
         run: python -m pip install --disable-pip-version-check --require-hashes -r compat/requirements-tools.txt
       - name: Compile compatibility tools
+        working-directory: ${{ github.workspace }}
         run: |
           docker compose -f compat/compose.yaml config --quiet
-          bash -n scripts/compat/run_baseline_tests.sh scripts/compat/capture_all.sh
+          bash -n scripts/compat/run_baseline_tests.sh scripts/compat/capture_all.sh scripts/compat/run_go_macro_tests.sh
           python -m py_compile scripts/build_test_manifest.py scripts/compat/*.py
       - name: Verify inventories and fixtures
+        working-directory: ${{ github.workspace }}
         run: |
+          python scripts/compat/validate_contract_registry.py --repo "${GITHUB_WORKSPACE}"
+          ./scripts/compat/run_go_macro_tests.sh registry focused
           python scripts/build_test_manifest.py --check
           python scripts/compat/verify_baseline_tree.py
           python scripts/compat/verify_fixtures.py

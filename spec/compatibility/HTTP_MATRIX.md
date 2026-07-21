@@ -16,8 +16,8 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 | H-007 | `/send` quotas | balance, submit count, throughput and multipart segment count | MATCH |
 | H-008 | `/send` success | status, exact `Success "<uuid>"` body and UUID shape | MATCH |
 | H-009 | `/send` errors | validation order and exact status/body for 400/403/412/500 paths | MATCH |
-| H-010 | `/rate` | auth, destination route, unit rate, segment count, JSON shape | GO-PARTIAL |
-| H-011 | `/balance` | balance/count JSON and exact `ND` representation | GO-PARTIAL |
+| H-010 | `/rate` | auth, destination route, unit rate, segment count, JSON shape | INVENTORIED |
+| H-011 | `/balance` | balance/count JSON and exact `ND` representation | INVENTORIED |
 | H-012 | `/ping` | exact `Jasmin/PONG` body | MATCH |
 | H-013 | `/metrics` | names, HELP/TYPE, labels, values and content type | INVENTORIED |
 

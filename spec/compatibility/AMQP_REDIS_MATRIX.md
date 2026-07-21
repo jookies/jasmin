@@ -15,7 +15,7 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 | A-007 | DLR throwers | `dlr_thrower.http` / `.smpps` | GO-PARTIAL |
 | A-008 | billing | `bill_request.submit_sm_resp.<UID>` and amount/IDs | GO-PARTIAL |
 | A-009 | ACK/reject | success/failure/retry/requeue timing per consumer | GO-PARTIAL |
-| A-010 | QoS/prefetch | configured counts and concurrency effects | GO-PARTIAL |
+| A-010 | QoS/prefetch | configured counts and concurrency effects | INVENTORIED |
 | A-011 | expiry | message age/expiration and terminal handling | GO-COMPLETE |
 | A-012 | reconnect | declarations, consumer recovery and in-flight delivery | GO-COMPLETE |
 | A-013 | pickle bridge | allowlisted classes/fields, headers and round-trip fidelity | GO-COMPLETE |
@@ -66,9 +66,10 @@ it is typed key/hash projection or opaque multipart metadata only; it does not
 imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle
 ownership.
 
-For `A-010`, the Go connector consumer now applies `basic.qos` with
+For `A-010`, the Go connector consumer applies `basic.qos` with
 `prefetch_count=1`, `prefetch_size=0`, and `global=false` on the same channel
 that consumes `submit.sm.<CID>`, matching `jasmin/managers/clients.py:244-245`.
 RouterPB's separate eight-operation subscription oracle intentionally has no
 QoS operation. Configurable counts and measured concurrency effects remain
-unproven, so the row stays `GO-PARTIAL`.
+unproven and there is no registered executable differential mapping for the
+row-level contract, so the authoritative status is `INVENTORIED`.

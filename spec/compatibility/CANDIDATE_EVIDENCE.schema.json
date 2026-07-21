@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jasmin-go.invalid/spec/compatibility/CANDIDATE_EVIDENCE.schema.json",
+  "title": "Jasmin-Go exact clean-candidate macro evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "commit_sha", "tree_hash", "scope", "mode", "commands", "required_tests", "cross_macro_gates", "results", "output_file", "output_sha256"],
+  "properties": {
+    "schema_version": {"const": "candidate-evidence-v1"},
+    "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "tree_hash": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "scope": {"enum": ["registry", "outbound-a", "outbound-b", "control", "dlr", "mo", "routing", "smpps", "pb", "jcli", "rest", "core-ops", "full"]},
+    "mode": {"enum": ["focused", "candidate", "release"]},
+    "commands": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "required_tests": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "cross_macro_gates": {"type": "array", "uniqueItems": true, "items": {"enum": ["MS-1", "MS-2", "MS-3", "MS-4", "MS-5", "MS-6", "MS-7", "MS-8", "MS-9"]}},
+    "results": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tests", "skipped", "failed"],
+      "properties": {
+        "tests": {"type": "integer", "minimum": 1},
+        "skipped": {"type": "integer", "const": 0},
+        "failed": {"type": "integer", "const": 0}
+      }
+    },
+    "output_file": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.out$"},
+    "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

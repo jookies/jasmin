@@ -74,6 +74,8 @@ PAIRS = {
 
 
 def main() -> int:
+    candidate_evidence_schema = ROOT / "spec/compatibility/CANDIDATE_EVIDENCE.schema.json"
+    Draft202012Validator.check_schema(json.loads(candidate_evidence_schema.read_text(encoding="utf-8")))
     for surface, (schema_path, fixture_path) in PAIRS.items():
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         document = json.loads(fixture_path.read_text(encoding="utf-8"))
@@ -84,7 +86,7 @@ def main() -> int:
                 pointer = "/" + "/".join(str(part) for part in error.absolute_path)
                 print(f"{surface}{pointer}: {error.message}")
             return 1
-    print(f"json_schemas=valid surfaces={','.join(PAIRS)}")
+    print(f"json_schemas=valid surfaces={','.join(PAIRS)},candidate-evidence")
     return 0
 
 

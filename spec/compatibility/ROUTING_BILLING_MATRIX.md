@@ -9,7 +9,7 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 |---|---|---|---|
 | RT-001 | MO/MT routables | connector/user/message fields, PDU reference, datetime and type restrictions | INVENTORIED |
 | RT-002 | tags | add/remove/has/get, duplicate/type behavior | INVENTORIED |
-| RT-003 | locked fields | locking and interceptor mutation rejection | GO-PARTIAL |
+| RT-003 | locked fields | locking and interceptor mutation rejection | INVENTORIED |
 | RF-001 | Transparent | unconditional match | GO-PARTIAL |
 | RF-002 | Connector | MO-only source connector and type validation | GO-PARTIAL |
 | RF-003 | User | MT-only user identity | GO-PARTIAL |
@@ -36,18 +36,18 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | RR-007 | RandomRoundrobin MO/MT | legacy random choice and eligible connector set | GO-PARTIAL |
 | RR-008 | Failover MO/MT | connector order, availability predicate and exhaustion | GO-PARTIAL |
 | RR-009 | connector types | valid destinations for MO versus MT | GO-PARTIAL |
-| RR-010 | BestQualityMTRoute | document upstream stub/non-working status | GO-PARTIAL |
+| RR-010 | BestQualityMTRoute | document upstream stub/non-working status | INVENTORIED |
 
 ## Interceptors
 
 | ID | Contract | Required fixture | Status |
 |---|---|---|---|
-| RI-001 | table order | descending order, first match and order-0 default | GO-PARTIAL |
-| RI-002 | script inputs | `routable`, `smpp_status`, `http_status` globals | GO-PARTIAL |
-| RI-003 | mutation | PDU fields, tags and locked fields | GO-PARTIAL |
-| RI-004 | rejection | HTTP/SMPP status overrides and return forms | GO-PARTIAL |
-| RI-005 | failure | syntax/runtime/timeout/PB failure behavior | GO-PARTIAL |
-| RI-006 | sidecar | legacy Python execution remains isolated and resource-bounded in compatibility mode | GO-PARTIAL |
+| RI-001 | table order | descending order, first match and order-0 default | INVENTORIED |
+| RI-002 | script inputs | `routable`, `smpp_status`, `http_status` globals | INVENTORIED |
+| RI-003 | mutation | PDU fields, tags and locked fields | INVENTORIED |
+| RI-004 | rejection | HTTP/SMPP status overrides and return forms | INVENTORIED |
+| RI-005 | failure | syntax/runtime/timeout/PB failure behavior | INVENTORIED |
+| RI-006 | sidecar | legacy Python execution remains isolated and resource-bounded in compatibility mode | INVENTORIED |
 
 ## Billing and quotas
 
@@ -60,7 +60,7 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | B-005 | insufficient count | boundary and protocol error mapping | GO-PARTIAL |
 | B-006 | early decrement | 1–100 percent and enqueue-time delta | GO-PARTIAL |
 | B-007 | late decrement | successful `submit_sm_resp` remainder and error behavior | GO-PARTIAL |
-
+| B-008 | float operation order | exact IEEE-754 bits, visible values, split arithmetic, and equality/ULP quota boundaries | INVENTORIED |
 | B-009 | persistence timer | quota mutation dirty flag, periodic persistence and crash window | INVENTORIED |
 | B-010 | redelivery | duplicate/reordered billing events and exact legacy delta | INVENTORIED |
 | B-011 | HTTP/SMPP parity | equivalent message produces same bill/route/segments | INVENTORIED |

@@ -17,12 +17,10 @@
 - Ветка: `go-rewrite`.
 - Опубликованный HEAD: `c21bbc18254ee0d279e8d8f26bfbdc9dee857003`.
 - Phase 2.34: опубликована, exact-SHA CI 4/4 PASS, workspace clean.
-- Authoritative registry: 204 строки.
-  - `MATCH`: 18.
-  - `GO-COMPLETE`: 3.
-  - `GO-PARTIAL`: 66.
-  - `INVENTORIED`: 117.
-  - Незавершено: 183/204.
+- Authoritative registry before Wave 0 decision: 204 rows; after adding `B-008`: 205.
+  - Before Wave 0: `MATCH=18`, `GO-COMPLETE=3`, `GO-PARTIAL=66`, `INVENTORIED=117`.
+  - After the `B-008` decision and coverage-based downgrades: `MATCH=18`, `GO-COMPLETE=3`, `GO-PARTIAL=55`, `INVENTORIED=129`.
+  - Незавершено: 184/205, computed dynamically rather than treated as a validator constant.
 - Functional flows: 0/4 завершены.
 - `FIXTURE_COVERAGE.csv`: 183 case mappings, но fixtures касаются только 75/204 уникальных contract IDs; 124 незавершённых IDs не имеют oracle fixture.
 - 11 строк имеют `GO-PARTIAL`, но не представлены в coverage registry: `RT-003`, `RR-010`, `RI-001`–`RI-006`, `A-010`, `H-010`, `H-011`.
@@ -90,13 +88,13 @@
 
 ---
 
-## 3. Полное разбиение текущих оставшихся 183 rows
+## 3. Полное разбиение текущих оставшихся rows
 
 Число 183 — проверенный baseline до решения `B-008`, а не hardcoded validator constant. Expected unfinished/primary total всегда вычисляется из authoritative matrices. Если Task 0.1 добавляет новый `B-008`, тот же атомарный change обновляет authoritative total, macro/task ownership, partition counts и coverage; validator не принимает промежуточное состояние.
 
 | Macro | Строк | Назначение |
 |---|---:|---|
-| MS-1 Outbound MT closure | 38 | Настоящий `/send` → SMSC → response/billing/DLR state |
+| MS-1 Outbound MT closure | 39 | Настоящий `/send` → SMSC → response/billing/DLR state |
 | MS-2 DLR | 12 | Receipt correlation и callbacks |
 | MS-3 MO | 7 | Inbound assembly и egress |
 | MS-4 SMPP server | 9 | Bind/session/submit/delivery parity |
@@ -105,7 +103,7 @@
 | MS-7 jCli | 18 | Transcript-compatible admin facade |
 | MS-8 REST | 10 | `/secure/*`, batch, scheduling |
 | MS-9 Config/Ops/Deploy | 34 | Config, daemons, metrics, deployment |
-| **Всего** | **183** | Без дублей и пропусков |
+| **Всего** | **184** | Без дублей и пропусков; derived dynamically by the validator |
 
 Authoritative ownership должен храниться не в prose-списках ниже, а в integrator-owned `spec/compatibility/ROW_OWNERSHIP.csv`:
 
@@ -117,7 +115,7 @@ row_id,primary_macro,primary_task,dependency_tasks,subcontract_boundary
 
 **Взаимоисключающая primary-macro partition:**
 
-- **MS-1 (38):** `H-010`, `H-011`; `A-001`–`A-003`, `A-008`–`A-010`; `S-001`, `S-005`–`S-007`; `SP-001`, `SP-002`, `SP-005`–`SP-008`; `SE-001`–`SE-003`; `SC-001`–`SC-008`; `B-001`–`B-007`, `B-009`, `B-010`.
+- **MS-1 (39):** `H-010`, `H-011`; `A-001`–`A-003`, `A-008`–`A-010`; `S-001`, `S-005`–`S-007`; `SP-001`, `SP-002`, `SP-005`–`SP-008`; `SE-001`–`SE-003`; `SC-001`–`SC-008`; `B-001`–`B-010`.
 - **MS-2 (12):** `SP-003`, `A-006`, `A-007`, `RD-001`, `RD-002`, `RD-004`, `RD-005`, `HC-003`–`HC-007`.
 - **MS-3 (7):** `A-004`, `A-005`, `RD-003`, `SP-004`, `SE-006`, `HC-001`, `HC-002`.
 - **MS-4 (9):** `S-002`–`S-004`, `SS-001`–`SS-005`, `B-011`.
@@ -132,7 +130,7 @@ row_id,primary_macro,primary_task,dependency_tasks,subcontract_boundary
 - Task 1.1: `S-001`, `SP-001`, `SP-005`–`SP-008`, `SE-001`–`SE-003`.
 - Task 1.2: `H-010`, `H-011`, `A-001`, `SC-001`, `SC-002`.
 - Task 1.3: `SP-002`, `SC-005`, `SC-006`, `SC-008`, `A-003`, `A-008`, `A-009`, `B-007`, `B-009`, `B-010`.
-- Task 1.4: `A-002`, `B-001`–`B-006`.
+- Task 1.4: `A-002`, `B-001`–`B-006`, `B-008`.
 - Task 1.5: `SC-003`, `SC-004`, `SC-007`, `S-005`–`S-007`, `A-010`.
 - Task 2.1: `P-001`–`P-010`.
 - Task 3.1: `SP-003`, `RD-001`, `RD-002`, `RD-004`, `RD-005`.
@@ -372,7 +370,7 @@ DB transaction: get/create logical part + durable send attempt intent → commit
 
 ## Task 1.4: Multipart MT atomicity
 
-**Primary rows:** `A-002`, `B-001`–`B-006`. **Dependencies:** Task 1.1 owns `SP-001`/`SE-001`–`SE-003`; existing complete `SE-004`/`SE-005` are regression dependencies; Task 1.3 owns `B-007`/`B-010`.
+**Primary rows:** `A-002`, `B-001`–`B-006`, `B-008`. **Dependencies:** Task 1.1 owns `SP-001`/`SE-001`–`SE-003`; existing complete `SE-004`/`SE-005` are regression dependencies; Task 1.3 owns `B-007`/`B-010`.
 
 **Objective:** Убрать production single-part restriction без aggregate/per-part billing confusion.
 
@@ -968,4 +966,4 @@ HTTP /send
 → exact early/late billing post-state
 ```
 
-После его публикации следующий bounded macro добавляет multipart, retries, reconnect/failover и crash/redelivery closure, завершая **outbound production-flow gate**. Полный 38-row MS-1 closure публикуется только после Task 3.1 и повторного composite gate для `SP-006`/`SP-008`.
+После его публикации следующий bounded macro добавляет multipart, retries, reconnect/failover и crash/redelivery closure, завершая **outbound production-flow gate**. Полный 39-row MS-1 closure публикуется только после Task 3.1 и повторного composite gate для `SP-006`/`SP-008`.

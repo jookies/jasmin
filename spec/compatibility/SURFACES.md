@@ -1,7 +1,7 @@
 # Compatibility surface registry
 
 Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
-Statuses: `UNINVENTORIED`, `INVENTORIED`, `FIXTURED`, `IMPLEMENTED`, `MATCH`, `APPROVED_DEVIATION`, `BLOCKED`.
+Statuses: `INVENTORIED`, `GO-PARTIAL`, `MATCH`, `GO-COMPLETE`, `APPROVED_DEVIATION`, `BLOCKED`.
 
 | ID | Surface | Strictness | Oracle/source | Initial status |
 |---|---|---|---|---|
@@ -29,4 +29,8 @@ Statuses: `UNINVENTORIED`, `INVENTORIED`, `FIXTURED`, `IMPLEMENTED`, `MATCH`, `A
 
 ## Completion rule
 
-A parity release is blocked while any required row remains `UNINVENTORIED`, `INVENTORIED`, `FIXTURED`, `IMPLEMENTED` or `BLOCKED`. Every approved deviation must include owner approval, migration notes and a reproducible differential fixture.
+A parity release is blocked while any required row remains `INVENTORIED`,
+`GO-PARTIAL` or `BLOCKED`. The finished set is exactly `MATCH`,
+`GO-COMPLETE`, and `APPROVED_DEVIATION`. Every approved deviation must include
+owner approval, migration notes, repository-relative approval evidence, a
+rollback invariant, and a reproducible differential fixture.
