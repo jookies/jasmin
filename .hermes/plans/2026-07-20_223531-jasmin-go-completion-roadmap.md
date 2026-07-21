@@ -22,8 +22,8 @@
   - After the `B-008` decision and coverage-based downgrades: `MATCH=18`, `GO-COMPLETE=3`, `GO-PARTIAL=55`, `INVENTORIED=129`.
   - Незавершено: 184/205, computed dynamically rather than treated as a validator constant.
 - Functional flows: 0/4 завершены.
-- `FIXTURE_COVERAGE.csv`: 183 case mappings, но fixtures касаются только 75/204 уникальных contract IDs; 124 незавершённых IDs не имеют oracle fixture.
-- 11 строк имеют `GO-PARTIAL`, но не представлены в coverage registry: `RT-003`, `RR-010`, `RI-001`–`RI-006`, `A-010`, `H-010`, `H-011`.
+- `FIXTURE_COVERAGE.csv`: 183 case mappings, но fixtures касаются только 75/205 уникальных contract IDs; 125 незавершённых IDs не имеют oracle fixture.
+- До Wave 0 11 строк имели `GO-PARTIAL` без coverage mapping: `RT-003`, `RR-010`, `RI-001`–`RI-006`, `A-010`, `H-010`, `H-011`. Wave 0 понизила их до `INVENTORIED`; теперь `GO-PARTIAL` без executable coverage отсутствуют.
 
 ### Release A — Core Cutover Ready
 
@@ -218,6 +218,16 @@ row_id,primary_macro,primary_task,dependency_tasks,subcontract_boundary
 10. Commit: `test: validate compatibility contract registry`.
 
 **Exit gate:** Counts выводятся из matrices автоматически; roadmap/CUTOVER_GRAPH не могут расходиться с registry.
+
+### Verification — Wave 0
+
+- Registry implementation: `3f20c2d677edabf8506804a705efdcfc44115020`.
+- Parser/process-group hardening: `89fadd53e378e919dd0979acffc1a27d446ac223`.
+- Local isolated-clone gate: 25 Python unit tests PASS; registry wrapper 17/17 PASS; manifest 1039 tests; 183 fixture coverage rows valid.
+- Exact-SHA GitHub Actions run `29825328365`: 4/4 jobs PASS.
+- Authoritative totals: 205 rows = 129 `INVENTORIED` + 55 `GO-PARTIAL` + 18 `MATCH` + 3 `GO-COMPLETE`; 184 unfinished.
+
+Implementation candidate LoopKey: 17b1d63ef332
 
 ---
 
