@@ -9,7 +9,15 @@ import json
 from io import BytesIO
 from pathlib import Path
 
-from smpp.pdu.operations import BindTransceiver, DeliverSM, SubmitSM, SubmitSMResp
+from smpp.pdu.operations import (
+    BindTransceiver,
+    BindTransceiverResp,
+    DeliverSM,
+    EnquireLink,
+    EnquireLinkResp,
+    SubmitSM,
+    SubmitSMResp,
+)
 from smpp.pdu.pdu_encoding import PDUEncoder
 from smpp.pdu.pdu_types import CommandStatus
 
@@ -87,6 +95,17 @@ def capture(output: Path) -> None:
             BindTransceiver(seqNum=1, system_id="client", password="secret", system_type=""),
             encoder,
         ),
+        encoded_case(
+            "bind_transceiver_resp_ok",
+            BindTransceiverResp(
+                seqNum=1,
+                status=CommandStatus.ESME_ROK,
+                system_id="smsc",
+            ),
+            encoder,
+        ),
+        encoded_case("enquire_link", EnquireLink(seqNum=2), encoder),
+        encoded_case("enquire_link_resp", EnquireLinkResp(seqNum=2), encoder),
         encoded_case(
             "submit_sm_ascii",
             SubmitSM(

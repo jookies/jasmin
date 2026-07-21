@@ -2,14 +2,19 @@ package smppc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/rabbitmq/amqp091-go"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	amqp091 "github.com/rabbitmq/amqp091-go"
+)
+
+var (
+	ErrBindResponse = errors.New("invalid SMPP bind_transceiver_resp")
 )
 
 type Status string
@@ -28,37 +33,53 @@ type AMQPProvider interface {
 type defaultAMQPProvider struct{}
 
 func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error) {
-	conn, err := amqp091.Dial(amqpURL)
+	var stopContextClose func() bool
+	config := amqp091.Config{Dial: func(network, address string) (net.Conn, error) {
+		dialer := net.Dialer{}
+		connection, err := dialer.DialContext(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		stopContextClose = context.AfterFunc(ctx, func() { _ = connection.Close() })
+		return connection, nil
+	}}
+	conn, err := amqp091.DialConfig(amqpURL, config)
 	if err != nil {
+		if stopContextClose != nil {
+			stopContextClose()
+		}
 		return nil, err
 	}
-
 	topology := amqpcompat.NewTopology(conn)
-	// Connector queues in Jasmin are non-durable, non-exclusive, non-auto-delete.
-	// Exchange is "messaging".
-	err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid))
-	if err != nil {
-		conn.Close()
+	if err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid)); err != nil {
+		if stopContextClose != nil {
+			stopContextClose()
+		}
+		_ = conn.Close()
 		return nil, err
 	}
-
 	consumer, err := amqpcompat.NewConsumer(conn)
 	if err != nil {
-		conn.Close()
+		if stopContextClose != nil {
+			stopContextClose()
+		}
+		_ = conn.Close()
 		return nil, err
 	}
-
 	deliveries, err := consumer.Consume(ctx, amqpcompat.ConnectorSubmitQueue(cid))
 	if err != nil {
-		conn.Close()
+		if stopContextClose != nil {
+			stopContextClose()
+		}
+		_ = consumer.Close()
+		_ = conn.Close()
 		return nil, err
 	}
-
-	// We need to close the connection when the consumer is done.
-	// Since amqpcompat.Consumer.Consume starts a goroutine that returns a channel,
-	// we should wrap it to close the connection when the channel is closed.
 	out := make(chan *amqpcompat.Delivery)
 	go func() {
+		if stopContextClose != nil {
+			defer stopContextClose()
+		}
 		defer conn.Close()
 		defer consumer.Close()
 		defer close(out)
@@ -70,21 +91,22 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 			}
 		}
 	}()
-
 	return out, nil
 }
 
 type Connector struct {
-	cfg       Config
-	status    Status
-	amqpURL   string
-	amqp      AMQPProvider
-	readiness *ReadinessPolicy
-	mu        sync.RWMutex
+	cfg         Config
+	status      Status
+	amqpURL     string
+	amqp        AMQPProvider
+	readiness   *ReadinessPolicy
+	mu          sync.RWMutex
+	lifecycleMu sync.Mutex
 
 	session *Session
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	cancel  context.CancelFunc
+	running bool
+	wg      sync.WaitGroup
 }
 
 func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
@@ -92,7 +114,6 @@ func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Connector{
 		cfg:       cfg.Clone(),
 		status:    StatusDisconnected,
@@ -120,69 +141,126 @@ func (c *Connector) Session() *Session {
 	return c.session
 }
 
-func (c *Connector) SetStatus(s Status) {
-	c.setStatus(s)
-}
+func (c *Connector) SetStatus(status Status) { c.setStatus(status) }
 
-func (c *Connector) setStatus(s Status) {
+func (c *Connector) setStatus(status Status) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.status = s
+	c.status = status
+	c.mu.Unlock()
 }
 
 func (c *Connector) Start() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	if c.status != StatusDisconnected {
+	if c.running {
 		return nil
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
+	c.running = true
 	c.status = StatusConnecting
-
 	c.wg.Add(1)
 	go c.loop(ctx)
-
 	return nil
 }
 
 func (c *Connector) Stop() error {
+	c.lifecycleMu.Lock()
+	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
-	if c.cancel != nil {
-		c.cancel()
-	}
+	cancel := c.cancel
+	c.cancel = nil
 	c.mu.Unlock()
-
+	if cancel != nil {
+		cancel()
+	}
 	c.wg.Wait()
-	c.setStatus(StatusDisconnected)
+	c.mu.Lock()
+	c.session = nil
+	c.status = StatusDisconnected
+	c.mu.Unlock()
 	return nil
 }
 
 func (c *Connector) loop(ctx context.Context) {
-	defer c.wg.Done()
-
+	defer func() {
+		c.mu.Lock()
+		c.session = nil
+		c.cancel = nil
+		c.running = false
+		c.status = StatusDisconnected
+		c.mu.Unlock()
+		c.wg.Done()
+	}()
 	for {
-		err := c.connectAndBind(ctx)
-		if err == nil {
-			session := c.Session()
-			// Connected and Bound!
-			if session != nil {
-				sessionCtx, cancel := context.WithCancel(ctx)
-				go session.Run(sessionCtx)
-				c.runConsumer(sessionCtx, session)
-				cancel()
+		c.setStatus(StatusConnecting)
+		session, err := c.connectAndBind(ctx)
+		if err != nil {
+			if !waitContext(ctx, seconds(c.Config().ConFailDelay)) {
+				return
 			}
+			continue
 		}
 
-		// Reconnect logic
+		c.mu.Lock()
+		c.session = session
+		c.status = StatusBound
+		c.mu.Unlock()
+
+		sessionCtx, cancel := context.WithCancel(ctx)
+		sessionDone := make(chan error, 1)
+		consumerDone := make(chan struct{})
+		var workers sync.WaitGroup
+		workers.Add(2)
+		go func() {
+			defer workers.Done()
+			sessionDone <- session.Run(sessionCtx)
+		}()
+		go func() {
+			defer workers.Done()
+			c.runConsumer(sessionCtx, session)
+			close(consumerDone)
+		}()
+
 		select {
 		case <-ctx.Done():
-			return
-		case <-time.After(time.Duration(c.cfg.ConFailDelay * float64(time.Second))):
-			c.setStatus(StatusConnecting)
+		case <-sessionDone:
+		case <-consumerDone:
 		}
+		cancel()
+		_ = session.conn.Close()
+		workers.Wait()
+
+		c.mu.Lock()
+		if c.session == session {
+			c.session = nil
+		}
+		c.status = StatusDisconnected
+		c.mu.Unlock()
+		if ctx.Err() != nil || !waitContext(ctx, seconds(c.Config().ConLossDelay)) {
+			return
+		}
+	}
+}
+
+func waitContext(ctx context.Context, delay time.Duration) bool {
+	if delay <= 0 {
+		select {
+		case <-ctx.Done():
+			return false
+		default:
+			return true
+		}
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
 
@@ -195,128 +273,109 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 	amqpURL := c.amqpURL
 	cid := c.cfg.CID
 	readiness := c.readiness
+	provider := c.amqp
 	c.mu.RUnlock()
 
-	deliveries, err := c.amqp.Consume(ctx, amqpURL, cid)
+	deliveries, err := provider.Consume(ctx, amqpURL, cid)
 	if err != nil {
-		fmt.Printf("ERROR: [%s] Failed to start AMQP consumer: %v\n", cid, err)
 		return
 	}
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case d, ok := <-deliveries:
+		case delivery, ok := <-deliveries:
 			if !ok {
 				return
 			}
-
-			// SC-005: Readiness check
-			createdAt, _ := d.Envelope().Properties().CreatedAt()
-			expiration, _ := d.Envelope().Properties().Expiration()
-			var expPtr *time.Time
+			createdAt, _ := delivery.Envelope().Properties().CreatedAt()
+			expiration, _ := delivery.Envelope().Properties().Expiration()
+			var expirationPtr *time.Time
 			if !expiration.IsZero() {
-				expPtr = &expiration
+				expirationPtr = &expiration
 			}
-
-			decision, err := readiness.Decide(ReadinessInput{
+			decision, decideErr := readiness.Decide(ReadinessInput{
 				Now:        time.Now().UTC(),
 				CreatedAt:  createdAt,
-				Expiration: expPtr,
-				Connected:  true, // If we are here, we are connected
+				Expiration: expirationPtr,
+				Connected:  true,
 				Bound:      c.Status() == StatusBound,
 			})
-
-			if err != nil {
-				// Internal error, requeue for safety
-				_ = d.Reject(true)
+			if decideErr != nil {
+				_ = delivery.Reject(true)
 				continue
 			}
-
 			switch decision.Action {
 			case ReadinessProceed:
 				if session == nil {
-					fmt.Printf("ERROR: [%s] ReadinessProceed with nil session\n", cid)
-					_ = d.Reject(true)
+					_ = delivery.Reject(true)
 					continue
 				}
-				err := session.Submit(ctx, d)
-				if err != nil {
-					_ = d.Reject(true)
-				}
+				// Submit owns settlement even when it returns an encode/write error.
+				_ = session.Submit(ctx, delivery)
 			case ReadinessRequeue:
-				fmt.Printf("DEBUG: [%s] Requeue message %s (delay %v)\n", cid, d.Envelope().Properties().MessageID(), decision.RequeueDelay)
-				_ = d.Reject(true)
+				_ = delivery.Reject(true)
 			case ReadinessDiscard:
-				fmt.Printf("DEBUG: [%s] Discard expired message %s\n", cid, d.Envelope().Properties().MessageID())
-				_ = d.Reject(false)
+				_ = delivery.Reject(false)
 			}
 		}
 	}
 }
 
-func (c *Connector) connectAndBind(ctx context.Context) error {
+func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
+	cfg := c.Config()
 	dialer := net.Dialer{}
-	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", c.cfg.Host, c.cfg.Port))
+	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer conn.Close()
-
-	// Prepare BIND PDU
-	pdu := smppwire.PDU{
-		Header: smppwire.Header{
-			CommandID:      smppwire.CommandBindTransceiver,
-			SequenceNumber: 1, // Fixed for now
-		},
-		Bind: &smppwire.BindBody{
-			SystemID: []byte(c.cfg.SystemID),
-			Password: []byte(c.cfg.Password),
-		},
-	}
-
-	wire, err := smppwire.Encode(pdu)
-	if err != nil {
-		return err
-	}
-
-	if _, err := conn.Write(wire); err != nil {
-		return err
-	}
-
-	// Setup Session
-	retry, _ := NewErrorRetryPolicy(DefaultErrorRetryRules())
-	session := NewSession(conn, c.cfg, retry, c.readiness, func(err error) {
-		fmt.Printf("DEBUG: [%s] Session closed: %v\n", c.cfg.CID, err)
-	})
-
-	c.mu.Lock()
-	c.session = session
-	c.mu.Unlock()
-
-	c.setStatus(StatusBound)
-
-	// Wait for connection loss or context cancellation
-	errChan := make(chan error, 1)
-	go func() {
-		buf := make([]byte, 1)
-		_, err := conn.Read(buf)
-		if err == nil {
-			// This shouldn't happen if we are just waiting,
-			// unless server sends something unexpected.
-			// For now, treat any data as "keep-alive" or ignore.
-			// But EOF or error means connection lost.
+	owned := true
+	stopContextClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer func() {
+		stopContextClose()
+		if owned {
+			_ = conn.Close()
 		}
-		errChan <- err
 	}()
 
-	select {
-	case <-ctx.Done():
-		c.setStatus(StatusDisconnected)
-		return ctx.Err()
-	case err := <-errChan:
-		c.setStatus(StatusDisconnected)
-		return err
+	bindSequence := uint32(1)
+	request := smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandBindTransceiver, SequenceNumber: bindSequence},
+		Bind: &smppwire.BindBody{
+			SystemID:         []byte(cfg.SystemID),
+			Password:         []byte(cfg.Password),
+			SystemType:       []byte(cfg.SystemType),
+			InterfaceVersion: 0x34,
+			AddressTON:       byte(cfg.AddrTON),
+			AddressNPI:       byte(cfg.AddrNPI),
+			AddressRange:     []byte(cfg.AddressRange),
+		},
 	}
+	wire, err := smppwire.Encode(request)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.TrxTimeout > 0 {
+		_ = conn.SetDeadline(time.Now().Add(seconds(cfg.TrxTimeout)))
+	}
+	if err = writeFrame(conn, wire); err != nil {
+		return nil, err
+	}
+	response, err := smppwire.Read(conn, smppwire.DefaultMaxSize)
+	if err != nil {
+		return nil, err
+	}
+	_ = conn.SetDeadline(time.Time{})
+	if response.Header.CommandID != smppwire.CommandBindTransceiverResp ||
+		response.Header.SequenceNumber != bindSequence || response.Header.CommandStatus != 0 {
+		return nil, fmt.Errorf("%w: command=%#x status=%#x sequence=%d", ErrBindResponse,
+			response.Header.CommandID, response.Header.CommandStatus, response.Header.SequenceNumber)
+	}
+	retry, err := NewErrorRetryPolicy(DefaultErrorRetryRules())
+	if err != nil {
+		return nil, err
+	}
+	session := NewSession(conn, cfg, retry, c.readiness, nil)
+	owned = false
+	return session, nil
 }

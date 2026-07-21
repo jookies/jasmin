@@ -22,6 +22,7 @@ from verify_fixtures import (
     validate_routing_filters,
     validate_routing_tables,
     validate_segmentation,
+    validate_smpp,
     validate_smpp_client_pacing,
     validate_smpp_client_readiness,
     validate_smpp_client_response_publish,
@@ -37,6 +38,7 @@ HTTP_FIXTURE = ROOT / "compat/fixtures/http/baseline.json"
 SEGMENTATION_FIXTURE = ROOT / "compat/fixtures/segmentation/baseline.json"
 ROUTING_FILTER_FIXTURE = ROOT / "compat/fixtures/routing-filters/baseline.json"
 ROUTING_TABLE_FIXTURE = ROOT / "compat/fixtures/routing-tables/baseline.json"
+SMPP_FIXTURE = ROOT / "compat/fixtures/smpp/baseline.json"
 SMPP_CLIENT_PACING_FIXTURE = ROOT / "compat/fixtures/smpp-client-pacing/baseline.json"
 SMPP_CLIENT_READINESS_FIXTURE = ROOT / "compat/fixtures/smpp-client-readiness/baseline.json"
 SMPP_CLIENT_RESPONSE_PUBLISH_FIXTURE = ROOT / "compat/fixtures/smpp-client-response-publish/baseline.json"
@@ -147,6 +149,25 @@ class SegmentationFixtureValidationTests(unittest.TestCase):
         forged["cases"][0]["source"] = "forged-but-self-consistent-source"
         with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
             validate_segmentation(forged)
+
+
+class SMPPFixtureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = json.loads(SMPP_FIXTURE.read_text(encoding="utf-8"))
+
+    def test_committed_oracle_corpus_is_valid(self) -> None:
+        validate_smpp(self.document)
+
+    def test_self_consistent_wire_edit_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        case = next(case for case in forged["cases"] if case["id"] == "enquire_link")
+        wire = bytearray.fromhex(case["wire_hex"])
+        wire[-1] = 3
+        case["wire_hex"] = wire.hex()
+        case["roundtrip_wire_hex"] = wire.hex()
+        case["decoded"]["sequence_number"] = 3
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_smpp(forged)
 
 
 class SMPPClientPacingFixtureValidationTests(unittest.TestCase):

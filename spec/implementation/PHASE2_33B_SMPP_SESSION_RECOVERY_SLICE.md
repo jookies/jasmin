@@ -68,6 +68,7 @@ Repair the audited gap between the Phase 2.33 fixture-level session API and a li
 - `internal/transport/smppwire/golden_test.go`
 - `internal/core/smppc/session.go`
 - `internal/core/smppc/session_test.go`
+- `internal/core/smppc/session_internal_test.go`
 - `internal/core/smppc/connector.go`
 - `internal/core/smppc/connector_test.go`
 - `spec/compatibility/SMPP_MATRIX.md`

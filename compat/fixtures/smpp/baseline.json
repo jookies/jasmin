@@ -49,6 +49,49 @@
     },
     {
       "decoded": {
+        "command_id": "CommandId.bind_transceiver_resp",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {
+          "system_id": {
+            "base64": "c21zYw==",
+            "hex": "736d7363",
+            "type": "bytes",
+            "utf8": "smsc"
+          }
+        },
+        "sequence_number": 1
+      },
+      "direction": "encode",
+      "id": "bind_transceiver_resp_ok",
+      "roundtrip_wire_hex": "00000015800000090000000000000001736d736300",
+      "wire_hex": "00000015800000090000000000000001736d736300"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.enquire_link",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {},
+        "sequence_number": 2
+      },
+      "direction": "encode",
+      "id": "enquire_link",
+      "roundtrip_wire_hex": "00000010000000150000000000000002",
+      "wire_hex": "00000010000000150000000000000002"
+    },
+    {
+      "decoded": {
+        "command_id": "CommandId.enquire_link_resp",
+        "command_status": "CommandStatus.ESME_ROK",
+        "parameters": {},
+        "sequence_number": 2
+      },
+      "direction": "encode",
+      "id": "enquire_link_resp",
+      "roundtrip_wire_hex": "00000010800000150000000000000002",
+      "wire_hex": "00000010800000150000000000000002"
+    },
+    {
+      "decoded": {
         "command_id": "CommandId.submit_sm",
         "command_status": "CommandStatus.ESME_ROK",
         "parameters": {

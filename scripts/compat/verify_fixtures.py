@@ -47,6 +47,9 @@ EXPECTED_CASE_IDS = {
     },
     "smpp": {
         "bind_transceiver",
+        "bind_transceiver_resp_ok",
+        "enquire_link",
+        "enquire_link_resp",
         "submit_sm_ascii",
         "submit_sm_sar_part",
         "deliver_sm_mo",
@@ -186,7 +189,8 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "9d0e8104adc58fe5419274e2c4a9177e8738fa51b26928df199409bc5521d337"
+EXPECTED_COVERAGE_SHA256 = "bf15a54ca9fea95273ceede886fbb638ca9ce23e04247adbf0d26399c210475d"
+EXPECTED_SMPP_CASES_SHA256 = "2aaae22f3ef9f3149df1f3ba357004d75eda423f1a7d44ae73bf922676db68a3"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
@@ -244,6 +248,10 @@ def validate_http(document: dict) -> None:
 
 
 def validate_smpp(document: dict) -> None:
+    cases_digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(cases_digest == EXPECTED_SMPP_CASES_SHA256, "smpp: trusted corpus fingerprint")
     for case in document["cases"]:
         wire = bytes.fromhex(case["wire_hex"])
         require(len(wire) >= 16, f"smpp/{case['id']}: PDU shorter than header")

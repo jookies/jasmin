@@ -53,6 +53,14 @@ func Encode(pdu PDU) ([]byte, error) {
 	switch pdu.Header.CommandID {
 	case CommandBindTransceiver:
 		body, err = encodeBind(pdu.Bind)
+	case CommandBindTransceiverResp:
+		if pdu.BindResponse == nil && pdu.Header.CommandStatus != 0 {
+			body = nil
+		} else {
+			body, err = encodeBindResponse(pdu.BindResponse)
+		}
+	case CommandEnquireLink, CommandEnquireLinkResp:
+		body = nil
 	case CommandSubmitSM, CommandDeliverSM:
 		if pdu.decodedMessagePayload {
 			return nil, &LegacyMessagePayloadError{Size: len(pdu.SM.Optional.MessagePayload)}
@@ -95,6 +103,16 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 	switch header.CommandID {
 	case CommandBindTransceiver:
 		pdu.Bind, err = decodeBind(cursor)
+	case CommandBindTransceiverResp:
+		if cursor.remaining() == 0 && header.CommandStatus != 0 {
+			// Error bind responses may be header-only. Preserve the absence of the
+			// optional system_id so Decode -> Encode remains byte-exact.
+			pdu.BindResponse = nil
+		} else {
+			pdu.BindResponse, err = decodeBindResponse(cursor)
+		}
+	case CommandEnquireLink, CommandEnquireLinkResp:
+		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor)
 	case CommandSubmitSMResp:
@@ -160,6 +178,25 @@ func encodeBind(body *BindBody) ([]byte, error) {
 	output.WriteByte(body.AddressTON)
 	output.WriteByte(body.AddressNPI)
 	if err := writeCString(&output, "address_range", body.AddressRange); err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
+}
+
+func decodeBindResponse(c *cursor) (*BindResponseBody, error) {
+	systemID, err := c.cstring()
+	if err != nil {
+		return nil, fieldError("system_id", err)
+	}
+	return &BindResponseBody{SystemID: systemID}, nil
+}
+
+func encodeBindResponse(body *BindResponseBody) ([]byte, error) {
+	if body == nil {
+		return nil, errors.New("bind response body is required")
+	}
+	var output bytes.Buffer
+	if err := writeCString(&output, "system_id", body.SystemID); err != nil {
 		return nil, err
 	}
 	return output.Bytes(), nil

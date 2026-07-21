@@ -58,6 +58,26 @@ func TestDecodeRejectsInvalidFrameBoundaries(t *testing.T) {
 	}
 }
 
+func TestFailedBindResponseMayHaveEmptyBody(t *testing.T) {
+	wire := headerOnly(16, smppwire.CommandBindTransceiverResp)
+	binary.BigEndian.PutUint32(wire[8:12], 0x0000000e)
+	binary.BigEndian.PutUint32(wire[12:16], 1)
+	pdu, err := smppwire.Decode(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pdu.BindResponse != nil {
+		t.Fatalf("bind response = %#v, want absent body", pdu.BindResponse)
+	}
+	roundTrip, err := smppwire.Encode(pdu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(roundTrip, wire) {
+		t.Fatalf("round-trip = %x, want %x", roundTrip, wire)
+	}
+}
+
 func TestReadRejectsOversizeBeforeBodyAllocation(t *testing.T) {
 	_, err := smppwire.Read(bytes.NewReader(headerOnly(1025, smppwire.CommandSubmitSM)), 1024)
 	if !errors.Is(err, smppwire.ErrFrameTooLarge) {

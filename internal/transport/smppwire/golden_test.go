@@ -38,8 +38,8 @@ type goldenBytes struct {
 
 func TestGoldenDecodeAndRoundTrip(t *testing.T) {
 	document := loadSMPPGolden(t)
-	if len(document.Cases) != 7 {
-		t.Fatalf("fixture cases = %d, want 7", len(document.Cases))
+	if len(document.Cases) != 10 {
+		t.Fatalf("fixture cases = %d, want 10", len(document.Cases))
 	}
 
 	for _, tc := range document.Cases {
@@ -96,8 +96,8 @@ func TestGoldenTypedEncoding(t *testing.T) {
 			}
 		})
 	}
-	if encoded != 5 {
-		t.Fatalf("encode-direction cases = %d, want 5", encoded)
+	if encoded != 8 {
+		t.Fatalf("encode-direction cases = %d, want 8", encoded)
 	}
 }
 
@@ -118,6 +118,10 @@ func typedPDUFromGolden(t *testing.T, tc goldenCase) smppwire.PDU {
 			InterfaceVersion: byte(parameterInt(t, tc, "interface_version")),
 			AddressRange:     parameterBytes(t, tc, "address_range"),
 		}
+	case "CommandId.bind_transceiver_resp":
+		pdu.BindResponse = &smppwire.BindResponseBody{SystemID: parameterBytes(t, tc, "system_id")}
+	case "CommandId.enquire_link", "CommandId.enquire_link_resp":
+		// Header-only control PDUs.
 	case "CommandId.submit_sm", "CommandId.deliver_sm":
 		body := &smppwire.SMBody{
 			ServiceType:        parameterBytes(t, tc, "service_type"),
@@ -172,6 +176,13 @@ func assertSemanticProjection(t *testing.T, pdu smppwire.PDU, tc goldenCase) {
 		}
 		assertBytes(t, "system_id", pdu.Bind.SystemID, parameterBytes(t, tc, "system_id"))
 		assertBytes(t, "password", pdu.Bind.Password, parameterBytes(t, tc, "password"))
+	case "CommandId.bind_transceiver_resp":
+		if pdu.BindResponse == nil {
+			t.Fatal("Bind response body is nil")
+		}
+		assertBytes(t, "system_id", pdu.BindResponse.SystemID, parameterBytes(t, tc, "system_id"))
+	case "CommandId.enquire_link", "CommandId.enquire_link_resp":
+		// Header-only control PDUs have no semantic body.
 	case "CommandId.submit_sm", "CommandId.deliver_sm":
 		if pdu.SM == nil {
 			t.Fatal("SM body is nil")
@@ -247,10 +258,13 @@ func assertRawSMControls(t *testing.T, body *smppwire.SMBody, caseID string) {
 func commandID(t *testing.T, value string) uint32 {
 	t.Helper()
 	ids := map[string]uint32{
-		"CommandId.bind_transceiver": smppwire.CommandBindTransceiver,
-		"CommandId.submit_sm":        smppwire.CommandSubmitSM,
-		"CommandId.deliver_sm":       smppwire.CommandDeliverSM,
-		"CommandId.submit_sm_resp":   smppwire.CommandSubmitSMResp,
+		"CommandId.bind_transceiver":      smppwire.CommandBindTransceiver,
+		"CommandId.bind_transceiver_resp": smppwire.CommandBindTransceiverResp,
+		"CommandId.submit_sm":             smppwire.CommandSubmitSM,
+		"CommandId.deliver_sm":            smppwire.CommandDeliverSM,
+		"CommandId.submit_sm_resp":        smppwire.CommandSubmitSMResp,
+		"CommandId.enquire_link":          smppwire.CommandEnquireLink,
+		"CommandId.enquire_link_resp":     smppwire.CommandEnquireLinkResp,
 	}
 	id, ok := ids[value]
 	if !ok {

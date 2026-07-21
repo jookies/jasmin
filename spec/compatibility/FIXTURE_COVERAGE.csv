@@ -11,6 +11,9 @@ http,send_auth_src_addr_forbidden,H-004,full,Authorization check for source addr
 http,send_insufficient_balance,H-007,full,Quota check: balance
 http,send_json_valid,H-001;H-002,full,Valid JSON submission
 smpp,bind_transceiver,S-001;S-002,partial,Canonical bind wire only
+smpp,bind_transceiver_resp_ok,S-002;SC-003,partial,Successful transceiver bind response wire
+smpp,enquire_link,S-005;SP-005,partial,Canonical enquire_link request wire
+smpp,enquire_link_resp,S-005;SP-005,partial,Canonical enquire_link response wire
 smpp,submit_sm_ascii,SP-001,partial,Canonical defaults and ASCII payload
 smpp,submit_sm_sar_part,SP-006;SE-004,partial,One fixed SAR segment
 smpp,deliver_sm_mo,SP-003,partial,Canonical MO wire

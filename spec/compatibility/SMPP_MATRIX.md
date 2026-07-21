@@ -45,8 +45,8 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SC-002 | lifecycle | add/remove/list/start/stop and state transitions | INVENTORIED |
 | SC-003 | reconnect | initial/reconnect delay, retry and state/stats | INVENTORIED |
 | SC-004 | throughput | submit pacing and queue behavior | GO-PARTIAL |
-| SC-005 | readiness | expiration decision, disconnected/unbound checks, age boundary, and integrated live AMQP/Session settlement. | GO-PARTIAL |
-| SC-006 | error retry | statuses, counts and delays. Integrated with Session correlation and AMQP settlement. | GO-PARTIAL |
+| SC-005 | readiness | expiration decision, disconnected/unbound checks, age boundary, and settlement boundary | GO-PARTIAL |
+| SC-006 | error retry | statuses, counts, delays, and retry-attempt boundary | GO-PARTIAL |
 | SC-007 | failover | connector availability and ordered selection | INVENTORIED |
 | SC-008 | submit response publish | optional `submit.sm.resp.<CID>` event/properties | GO-PARTIAL |
 
@@ -93,3 +93,19 @@ created-at property set, selects the `messaging` exchange/request `reply-to` key
 and preserves supplied opaque protocol-2 response bytes. Live AMQP publish,
 status-to-pickle generation, confirms/recovery, queue ownership, and arbitrary
 routing keys remain inventoried.
+
+For `S-005` and `SP-005`, Phase 2.33B adds frozen-oracle wire fixtures for
+`enquire_link` and `enquire_link_resp`, one serialized session writer, periodic
+request emission, sequence-matched response handling, missed-response termination,
+and context-safe shutdown. Exact separation of the legacy response, enquire,
+inactivity, and read timers, arbitrary timer reconfiguration, and full reconnect
+statistics remain inventoried.
+
+For `SP-002`, `SC-003`, and `SC-005`, Phase 2.33B additionally proves
+successful sequence-matched bind-response gating, a single post-bind connection
+reader, pending-request cleanup, and exactly-once settlement attempts on successful
+response, timeout, write failure, cancellation, and connection loss. `SC-006`
+remains a standalone policy projection: status mapping, attempt state, and delayed
+requeue are not yet connected to Session settlement. Response publication,
+DLR/billing side effects, and protocol-2 AMQP `SubmitSM` semantic decoding remain
+inventoried.
