@@ -71,3 +71,13 @@ Close the production-wiring subset deferred by Phase 2.33B by applying the alrea
 - `internal/transport/amqpcompat/client.go`
 - `spec/compatibility/SMPP_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification
+
+- Published implementation candidate `c21bbc18254ee0d279e8d8f26bfbdc9dee857003` and the documentation-only completion-roadmap descendant `540bd1a1b83b6f5c612b22e3637e3890c70aa73e` passed focused `smppc` tests 20 times, full Go, race, vet, build, and both 10-second pacing fuzz gates (`1,679,596` and `1,678,803` executions).
+- The frozen oracle remained pinned at `0aac58e466d583d0f0436df7b8afa3dc96191263` (`201` files; SHA-256 `8e7c1439068bfbbdef29a1bcc6b2c155db36a8763a1012ded059a05b9e6c87c6`). Manifest (`1,039` tests / `55` files / `13` surfaces), fixture integrity (`183` coverage rows), schemas, `28` Python verifier tests, fixture diff, candidate secret scan, and workspace-contamination checks passed.
+- Matrix recount remained `204 = 117 INVENTORIED + 66 GO-PARTIAL + 18 MATCH + 3 GO-COMPLETE`; `SC-004` correctly remains `GO-PARTIAL` because dynamic configuration, management lifecycle, retry/statistics, and full callback parity are outside this slice.
+- Final Ralph code council inspected tree `dc2d69932d323f8274755a1ee186c3095f7ba8ed` and returned `PASS` with no critical, high, or medium findings; its independent focused adversarial test also passed.
+- Exact-SHA GitHub Actions runs `29802541568` (implementation) and `29808177672` (audited roadmap descendant) each passed `4/4` jobs. Local HEAD, tracking ref, and the public `go-rewrite` branch matched with a clean workspace before this documentation-only finalization.
+
+Implementation candidate LoopKey: f7e222febeb8
