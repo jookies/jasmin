@@ -59,7 +59,11 @@ if [ "$scope" != registry ] && { [ -z "${PYTHON_PATH:-}" ] || [ ! -x "$PYTHON_PA
 fi
 
 if [ -n "$evidence_target" ]; then
-  evidence_target=$($python_bin -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$evidence_target") || exit 65
+  evidence_target=$($python_bin - "$evidence_target" <<'PY'
+import pathlib, sys
+print(pathlib.Path(sys.argv[1]).resolve(strict=False))
+PY
+  ) || exit 65
   case "$evidence_target" in "$repo"|"$repo"/*) echo "FAIL: evidence directory must be outside repository" >&2; exit 65;; esac
   if [ -e "$evidence_target" ]; then
     echo "FAIL: evidence output directory must not already exist" >&2
@@ -70,6 +74,20 @@ if [ -n "$evidence_target" ]; then
     echo "FAIL: GO_MACRO_ATTEST_PRIVATE_KEY and GO_MACRO_ATTEST_PUBLIC_KEY must name trusted regular files" >&2
     exit 65
   fi
+  attest_public=$($python_bin - "$attest_public" "$repo" <<'PY'
+import pathlib, stat, sys
+key = pathlib.Path(sys.argv[1]).resolve(strict=True)
+repo = pathlib.Path(sys.argv[2]).resolve(strict=True)
+if not stat.S_ISREG(key.stat().st_mode):
+    raise SystemExit("trusted public key is not a regular file")
+try:
+    key.relative_to(repo)
+except ValueError:
+    print(key)
+else:
+    raise SystemExit("trusted public key must be outside the candidate repository")
+PY
+  ) || { echo "FAIL: GO_MACRO_ATTEST_PUBLIC_KEY must resolve outside the candidate repository" >&2; exit 65; }
   derived_public=$(mktemp "${TMPDIR:-/tmp}/jasmin-go-attestor.XXXXXX") || exit 1
   if ! openssl pkey -in "$attest_private" -pubout -out "$derived_public" >/dev/null 2>&1 \
       || ! cmp -s "$derived_public" "$attest_public"; then
@@ -78,6 +96,21 @@ if [ -n "$evidence_target" ]; then
     exit 65
   fi
   rm -f "$derived_public"
+  evidence_parent=$(dirname "$evidence_target")
+  mkdir -p "$evidence_parent" || exit 65
+  evidence_parent=$($python_bin - "$evidence_parent" "$repo" <<'PY'
+import pathlib, sys
+parent = pathlib.Path(sys.argv[1]).resolve(strict=True)
+repo = pathlib.Path(sys.argv[2]).resolve(strict=True)
+try:
+    parent.relative_to(repo)
+except ValueError:
+    print(parent)
+else:
+    raise SystemExit("evidence parent must be outside repository")
+PY
+  ) || { echo "FAIL: evidence parent must resolve outside repository" >&2; exit 65; }
+  evidence_target="$evidence_parent/$(basename "$evidence_target")"
 fi
 
 project="jasmin-go-${scope//[^a-zA-Z0-9]/-}-${mode}-$$"
@@ -188,7 +221,6 @@ for gate in "$@"; do
   active_pgid=""
   [ "$rc" -eq 0 ] || exit "$rc"
 done
-set +m
 
 results=$($python_bin - "$output" "$required_tests" <<'PY'
 import json,sys
@@ -208,9 +240,7 @@ fi
 digest=$(shasum -a 256 "$output" | cut -d ' ' -f 1)
 
 if [ -n "$evidence_target" ]; then
-  parent=$(dirname "$evidence_target")
-  mkdir -p "$parent" || exit 1
-  stage=$(mktemp -d "$parent/.jasmin-go-evidence.XXXXXX") || exit 1
+  stage=$(mktemp -d "${TMPDIR:-/tmp}/jasmin-go-evidence.XXXXXX") || exit 1
   out_name="$scope-$mode.out"
   json_name="$scope-$mode.json"
   cp "$output" "$stage/$out_name" || { rm -rf "$stage"; exit 1; }
@@ -232,7 +262,32 @@ PY
     --evidence-dir "$stage" --scope "$scope" --mode "$mode" \
     --trusted-public-key "$attest_public" >/dev/null \
     || { rm -rf "$stage"; exit 1; }
-  mv "$stage" "$evidence_target" || { rm -rf "$stage"; exit 1; }
+  "$python_bin" - "$stage" "$evidence_target" "$repo" <<'PY'
+import os, pathlib, sys
+stage = pathlib.Path(sys.argv[1])
+target = pathlib.Path(sys.argv[2])
+repo = pathlib.Path(sys.argv[3]).resolve(strict=True)
+parent = target.parent.resolve(strict=True)
+try:
+    parent.relative_to(repo)
+except ValueError:
+    pass
+else:
+    raise SystemExit("evidence parent changed into candidate repository")
+flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+fd = os.open(parent, flags)
+try:
+    try:
+        os.stat(target.name, dir_fd=fd, follow_symlinks=False)
+    except FileNotFoundError:
+        pass
+    else:
+        raise SystemExit("evidence output directory already exists")
+    os.rename(stage, target.name, dst_dir_fd=fd)
+finally:
+    os.close(fd)
+PY
+  [ "$?" -eq 0 ] || { rm -rf "$stage"; echo "FAIL: evidence parent changed or publication was unsafe" >&2; exit 65; }
 fi
 
 printf '{"scope":"%s","mode":"%s","tests":%d,"skipped":%d,"failed":%d,"output_sha256":"%s"}\n' "$scope" "$mode" "$tests" "$skipped" "$failed" "$digest"

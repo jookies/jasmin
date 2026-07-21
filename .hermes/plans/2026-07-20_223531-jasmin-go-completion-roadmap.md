@@ -222,13 +222,14 @@ row_id,primary_macro,primary_task,dependency_tasks,subcontract_boundary
 ### Verification — Wave 0
 
 - Registry implementation: `3f20c2d677edabf8506804a705efdcfc44115020`.
-- Parser/process-group hardening: `89fadd53e378e919dd0979acffc1a27d446ac223`.
-- Local isolated-clone gate: 27 Python unit tests PASS; registry wrapper 18/18 PASS; manifest 1039 tests; 183 fixture coverage rows valid.
-- Boundary audit corrections require externally supplied attestation trust, so a candidate cannot replace its own verifier key, and track Compose config/up/down in killable process groups; adversarial trust-key and blocking-startup tests cover both findings.
-- Exact-SHA GitHub Actions run `29825328365`: 4/4 jobs PASS.
+- Parser/process-group hardening: `89fadd53e378e919dd0979acffc1a27d446ac223`; external-trust baseline: `9276939e047551abdec9af6a2d73f52302e4020f`.
+- Boundary-correction packet `e84a37a9fa208c2892f2bd20c0b317524b007b57f579734da06e53c5b26ddb61` rejects candidate-local public keys before tests, anchors evidence publication against symlink-parent/TOCTOU swaps, and supervises Compose `config/up/down` plus test process groups.
+- Local gate: 32 Python unit tests PASS; registry wrapper 18/18 PASS; `bash -n` PASS; manifest 1039 tests; 183 fixture coverage rows valid.
+- Ralph boundary review produced three concrete trust/process findings; all three received RED reproductions, evidence-backed corrections, and full invalidated-gate reruns with no unresolved finding retained.
+- Exact-SHA GitHub Actions run `29844271767` for the external-trust parent `9276939e047551abdec9af6a2d73f52302e4020f`: 4/4 jobs PASS. The boundary-correction descendant requires its own exact-SHA publication gate.
 - Authoritative totals: 205 rows = 129 `INVENTORIED` + 55 `GO-PARTIAL` + 18 `MATCH` + 3 `GO-COMPLETE`; 184 unfinished.
 
-Implementation candidate LoopKey: 17b1d63ef332
+Implementation candidate LoopKey: 76bf6c11e8b5
 
 ---
 
