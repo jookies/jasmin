@@ -433,14 +433,14 @@ type mockAMQPProvider struct {
 	consumeCalls chan struct{}
 }
 
-func (p *mockAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error) {
+func (p *mockAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (smppc.AMQPDeliveryStream, error) {
 	if p.consumeCalls != nil {
 		select {
 		case p.consumeCalls <- struct{}{}:
 		default:
 		}
 	}
-	return p.deliveries, nil
+	return smppc.AMQPDeliveryStream{Deliveries: p.deliveries}, nil
 }
 
 func TestConnectorStartDuringReconnectBackoffDoesNotCreateSecondSupervisor(t *testing.T) {

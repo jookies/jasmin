@@ -3,6 +3,7 @@ package smppc
 import (
 	"context"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -79,6 +80,26 @@ func TestSequenceWrapStaysInRangeAndSkipsLiveCorrelations(t *testing.T) {
 	}
 	if sequence == 0 || sequence > maxSequenceNumber {
 		t.Fatalf("sequence outside SMPP range: %#x", sequence)
+	}
+}
+
+func TestDefaultAMQPProviderDoneClosesOnConsumerContextCancellation(t *testing.T) {
+	url := os.Getenv("AMQP_URL")
+	if url == "" {
+		t.Skip("AMQP_URL is not set")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	provider := &defaultAMQPProvider{}
+	stream, err := provider.Consume(ctx, url, "test-provider-liveness")
+	if err != nil {
+		cancel()
+		t.Fatalf("Consume: %v", err)
+	}
+	cancel()
+	select {
+	case <-stream.Done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("default provider did not close Done after consumer cancellation")
 	}
 }
 

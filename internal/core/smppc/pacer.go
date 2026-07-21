@@ -121,8 +121,16 @@ func (p *Pacer) Wait(ctx context.Context) error {
 	if err := p.clock.Wait(ctx, delay); err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	completedAt := p.clock.Now().Truncate(time.Microsecond)
 	if _, err := legacyWallUnixMicros(completedAt); err != nil {
+		return err
+	}
+	// The pacing admission linearizes at the cursor write. Recheck immediately
+	// before it so a timer/cancellation tie cannot consume a slot.
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	p.last = completedAt

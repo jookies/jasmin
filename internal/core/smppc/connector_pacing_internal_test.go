@@ -14,10 +14,11 @@ import (
 
 type pacingAMQPProvider struct {
 	deliveries <-chan *amqpcompat.Delivery
+	done       <-chan struct{}
 }
 
-func (p *pacingAMQPProvider) Consume(context.Context, string, string) (<-chan *amqpcompat.Delivery, error) {
-	return p.deliveries, nil
+func (p *pacingAMQPProvider) Consume(context.Context, string, string) (AMQPDeliveryStream, error) {
+	return AMQPDeliveryStream{Deliveries: p.deliveries, Done: p.done}, nil
 }
 
 type pacingSettlement struct {
@@ -296,7 +297,6 @@ func TestConnectorPacedSubmitStillSettlesOnCorrelatedResponse(t *testing.T) {
 	settled := make(chan pacingSettlement, 2)
 	deliveries <- newPacingDelivery(t, "submit-1", nil, settled)
 	deliveries <- newPacingDelivery(t, "submit-2", nil, settled)
-	close(deliveries)
 	consumerDone := make(chan struct{})
 	go func() {
 		connector.runConsumer(sessionCtx, session)
@@ -329,6 +329,7 @@ func TestConnectorPacedSubmitStillSettlesOnCorrelatedResponse(t *testing.T) {
 			t.Fatalf("submit %d was not settled by correlated response", index)
 		}
 	}
+	close(deliveries)
 	select {
 	case <-consumerDone:
 	case <-time.After(time.Second):

@@ -18,7 +18,7 @@ Close the production-wiring subset deferred by Phase 2.33B by applying the alrea
 
 - Keep the frozen Python oracle and `capture_smpp_client_pacing_golden.py` behavior unchanged; reuse the existing trusted pacing corpus and generic no-skip production-Pacer differential harness.
 - Regenerate the complete fixture set twice through the approved container contour and require exact byte identity plus zero committed-fixture diff.
-- Add RED connector-consumer tests proving pacing placement before readiness, one pacing call per delivery, delayed second submission, disabled-throughput behavior, cancellation while waiting, and exact settlement ownership.
+- Add RED connector-consumer tests proving pacing placement before readiness, one pacing call per delivery, delayed second submission, disabled-throughput behavior, cancellation while waiting, AMQP consumer-liveness loss, and exact settlement ownership.
 - Extend the full bind → consume → paced submit → correlated response integration test so it proves that the configured production pacer gates real SMPP writes while the response still owns final ACK.
 
 ### Production implementation
@@ -26,6 +26,7 @@ Close the production-wiring subset deferred by Phase 2.33B by applying the alrea
 - Construct one `Pacer` from the connector's defensively cloned `EffectiveSubmitSMThroughput` in `NewConnector`; reject impossible pacing configuration before lifecycle startup.
 - Store the pacer on the connector and invoke it after the Go transport has accepted a concrete envelope but before expiry parsing and `ReadinessPolicy.Decide`. Legacy reads `message-id` and unpickles the body before pacing; parity for malformed pre-pacing properties/pickle remains outside this slice.
 - On pacing cancellation/error, make one explicit requeue settlement attempt for the already-delivered AMQP message and terminate that consumer invocation; do not pass settlement ownership to `Session.Submit`.
+- Carry a separate AMQP consumer-liveness signal through pacing and submission. If the generation is lost, cancel admission, fence the session, abandon local delivery handles without broker settlement, and close the SMPP socket so an in-flight blocked write cannot later emit a stale submit.
 - Preserve `Session.Submit` as the sole settlement owner after successful pacing/readiness and preserve the concrete consumer's `prefetch_count=1` topology.
 - Keep pacing state connector-local and shared across reconnects within the connector object's lifetime; configuration mutation/restart parity remains outside this slice.
 
@@ -51,7 +52,7 @@ Close the production-wiring subset deferred by Phase 2.33B by applying the alrea
 2. The generic no-skip Go differential harness continues to execute every pacing fixture through the production `Pacer`.
 3. RED-to-GREEN connector tests prove pacing occurs once per received delivery and before expiry/readiness, including a delivery that is ultimately discarded but still advances pacing state.
 4. Two accepted deliveries cannot produce SMPP submit writes faster than the configured production pacing decision; disabled throughput adds no wait.
-5. Cancellation while pacing unblocks connector stop, performs one requeue settlement attempt for the owned delivery, performs no SMPP write, and does not advance pacing state.
+5. Parent cancellation while pacing unblocks connector stop, performs one requeue settlement attempt for the still-owned delivery, performs no SMPP write, and does not advance pacing state. AMQP consumer loss cancels pacing but performs no settlement against the dead generation and cannot produce a stale SMPP write.
 6. After successful pacing, `Session.Submit` remains the only settlement owner: correlated success and each existing failure path make exactly one settlement attempt under the existing session contract; broker confirmation/redelivery is not claimed.
 7. Focused connector/pacer tests pass 20 times, followed by full Go, race, vet, build, both pacing fuzz targets, Python verifier/schema/unit, `TEST_MANIFEST.csv --check`, fixture diff, secret scan, and workspace-contamination gates.
 8. A stable candidate receives final Ralph code audit with no unresolved high-severity finding.
@@ -61,10 +62,12 @@ Close the production-wiring subset deferred by Phase 2.33B by applying the alrea
 
 - `spec/implementation/PHASE2_34_SMPP_CONNECTOR_PACING_INTEGRATION_SLICE.md`
 - `internal/core/smppc/connector.go`
+- `internal/core/smppc/session.go`
 - `internal/core/smppc/connector_test.go`
 - `internal/core/smppc/connector_pacing_internal_test.go` (new)
 - `internal/core/smppc/connector_pacing_additional_test.go` (new)
-- `internal/core/smppc/pacer.go` (only if an integration-safe test seam or error contract is required)
+- `internal/core/smppc/pacer.go`
 - `internal/core/smppc/pacer_test.go` (only for an invalidated pacing invariant)
+- `internal/transport/amqpcompat/client.go`
 - `spec/compatibility/SMPP_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`

@@ -163,6 +163,13 @@ func (delivery *Delivery) Reject(requeue bool) error {
 	return delivery.settle(func() error { return delivery.raw.Reject(requeue) })
 }
 
+// Abandon marks this local handle terminal without issuing a broker settlement.
+// It is used after the consumer generation is known unusable and the broker owns
+// redelivery through connection/channel teardown.
+func (delivery *Delivery) Abandon() error {
+	return delivery.settle(func() error { return nil })
+}
+
 func (delivery *Delivery) settle(operation func() error) error {
 	delivery.mu.Lock()
 	defer delivery.mu.Unlock()

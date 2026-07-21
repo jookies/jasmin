@@ -14,6 +14,7 @@ import (
 )
 
 var ErrSessionClosed = errors.New("SMPP session closed")
+var ErrAMQPConsumerLost = errors.New("AMQP consumer generation lost")
 
 const maxSequenceNumber uint32 = 0x7fffffff
 
@@ -22,6 +23,9 @@ type pendingRequest struct {
 	timer    *time.Timer
 }
 
+// Session owns one SMPP connection and, when driven by Connector.runConsumer,
+// exactly one AMQP consumer generation. AbortConsumerGeneration is irreversible;
+// a replacement consumer must use a newly connected Session.
 type Session struct {
 	conn                 net.Conn
 	cfg                  Config
@@ -32,6 +36,7 @@ type Session struct {
 	writeMu              sync.Mutex
 	cleanup              sync.Once
 	closed               chan struct{}
+	consumerLost         bool
 	inactivityTimer      *time.Timer
 	inactivityGeneration uint64
 
@@ -52,6 +57,63 @@ func NewSession(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *R
 		onClose:         onClose,
 		closed:          make(chan struct{}),
 	}
+}
+
+// AbortConsumerGeneration permanently fences this SMPP session from the AMQP
+// consumer generation that fed it. Pending local delivery handles are abandoned
+// without broker settlement, then the socket is closed to interrupt any in-flight
+// write before the broker can redeliver the same message to a new generation.
+func (s *Session) AbortConsumerGeneration() {
+	s.mu.Lock()
+	if s.consumerLost {
+		s.mu.Unlock()
+		_ = s.conn.Close()
+		return
+	}
+	s.consumerLost = true
+	pending := s.pending
+	s.pending = make(map[uint32]*pendingRequest)
+	s.mu.Unlock()
+
+	for _, request := range pending {
+		stopTimer(request.timer)
+		_ = request.delivery.Abandon()
+	}
+	_ = s.conn.Close()
+}
+
+func (s *Session) settleDeliveryReject(delivery *amqpcompat.Delivery, requeue bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.consumerLost {
+		_ = delivery.Abandon()
+		return
+	}
+	_ = delivery.Reject(requeue)
+}
+
+func (s *Session) settleDeliveryFailure(delivery *amqpcompat.Delivery) {
+	s.settleDeliveryReject(delivery, true)
+}
+
+func (s *Session) settleDeliveryResponse(delivery *amqpcompat.Delivery, success bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.consumerLost {
+		_ = delivery.Abandon()
+		return
+	}
+	if success {
+		_ = delivery.Ack()
+		return
+	}
+	_ = delivery.Reject(true)
+}
+
+func (s *Session) consumerGenerationLost() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.consumerLost
 }
 
 func (s *Session) nextSequenceLocked() (uint32, error) {
@@ -223,7 +285,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
-		_ = d.Reject(true)
+		s.settleDeliveryFailure(d)
 		return err
 	}
 
@@ -234,29 +296,34 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 	if err := ctx.Err(); err != nil {
-		_ = d.Reject(true)
+		s.settleDeliveryFailure(d)
 		return err
 	}
 
 	s.mu.Lock()
+	if s.consumerLost {
+		s.mu.Unlock()
+		s.settleDeliveryFailure(d)
+		return ErrAMQPConsumerLost
+	}
 	select {
 	case <-s.closed:
 		s.mu.Unlock()
-		_ = d.Reject(true)
+		s.settleDeliveryFailure(d)
 		return ErrSessionClosed
 	default:
 	}
 	seq, err := s.nextSequenceLocked()
 	if err != nil {
 		s.mu.Unlock()
-		_ = d.Reject(true)
+		s.settleDeliveryFailure(d)
 		return err
 	}
 	pdu.Header.SequenceNumber = seq
 	wire, err := smppwire.Encode(pdu)
 	if err != nil {
 		s.mu.Unlock()
-		_ = d.Reject(true)
+		s.settleDeliveryFailure(d)
 		return err
 	}
 	pending := &pendingRequest{delivery: d}
@@ -267,9 +334,12 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	if err != nil {
 		if owned := s.takePending(seq); owned != nil {
 			stopTimer(owned.timer)
-			_ = owned.delivery.Reject(true)
+			s.settleDeliveryFailure(owned.delivery)
 		}
 		_ = s.conn.Close()
+		if s.consumerGenerationLost() {
+			return ErrAMQPConsumerLost
+		}
 		return err
 	}
 
@@ -332,11 +402,7 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 		return
 	}
 	stopTimer(pending.timer)
-	if pdu.Header.CommandStatus == 0 {
-		_ = pending.delivery.Ack()
-		return
-	}
-	_ = pending.delivery.Reject(true)
+	s.settleDeliveryResponse(pending.delivery, pdu.Header.CommandStatus == 0)
 }
 
 func (s *Session) handleTimeout(seq uint32) {
@@ -344,7 +410,7 @@ func (s *Session) handleTimeout(seq uint32) {
 	if pending == nil {
 		return
 	}
-	_ = pending.delivery.Reject(true)
+	s.settleDeliveryFailure(pending.delivery)
 	_ = s.conn.Close()
 }
 
@@ -382,7 +448,7 @@ func (s *Session) cleanupSession(err error) {
 
 		for _, request := range pending {
 			stopTimer(request.timer)
-			_ = request.delivery.Reject(true)
+			s.settleDeliveryFailure(request.delivery)
 		}
 		for _, timer := range pendingControls {
 			stopTimer(timer)

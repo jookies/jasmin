@@ -2,7 +2,7 @@
 
 ## Goal
 
-Repair the audited gap between the Phase 2.33 fixture-level session API and a live connector-owned SMPP session before starting Phase 2.34 pacing integration. The bounded result must have one connection reader, valid bind/enquire-link control PDUs, deterministic connection ownership, and exactly-once settlement of pending AMQP deliveries on response, timeout, write failure, cancellation, or connection loss.
+Repair the audited gap between the Phase 2.33 fixture-level session API and a live connector-owned SMPP session before starting Phase 2.34 pacing integration. The bounded result must have one connection reader, valid bind/enquire-link control PDUs, deterministic connection ownership, and exactly one terminal settlement attempt for pending AMQP deliveries on response, timeout, write failure, cancellation, or connection loss; broker confirmation/redelivery is not claimed.
 
 ## Selection evidence
 

@@ -27,7 +27,16 @@ const (
 )
 
 type AMQPProvider interface {
-	Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error)
+	Consume(ctx context.Context, amqpURL, cid string) (AMQPDeliveryStream, error)
+}
+
+// AMQPDeliveryStream separates delivery availability from consumer liveness.
+// Done closes when the provider begins terminating this generation, before
+// AMQP resource cleanup. It is a conservative local ownership fence; closure
+// does not itself claim that the broker has completed requeue/redelivery.
+type AMQPDeliveryStream struct {
+	Deliveries <-chan *amqpcompat.Delivery
+	Done       <-chan struct{}
 }
 
 type defaultAMQPProvider struct{}
@@ -50,7 +59,7 @@ func dialAMQPTransport(
 	return connection, stopContextClose, nil
 }
 
-func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (<-chan *amqpcompat.Delivery, error) {
+func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) (AMQPDeliveryStream, error) {
 	const connectionTimeout = 30 * time.Second
 	var rawConnection net.Conn
 	var stopContextClose func() bool
@@ -75,7 +84,7 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 		if stopContextClose != nil {
 			stopContextClose()
 		}
-		return nil, err
+		return AMQPDeliveryStream{}, err
 	}
 	closeSetup := func() {
 		if rawConnection != nil {
@@ -89,12 +98,12 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 	topology := amqpcompat.NewTopology(conn)
 	if err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid)); err != nil {
 		closeSetup()
-		return nil, err
+		return AMQPDeliveryStream{}, err
 	}
 	consumer, err := amqpcompat.NewConsumer(conn)
 	if err != nil {
 		closeSetup()
-		return nil, err
+		return AMQPDeliveryStream{}, err
 	}
 	deliveries, err := consumer.Consume(ctx, amqpcompat.ConnectorSubmitQueue(cid))
 	if err != nil {
@@ -106,11 +115,13 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 		if stopContextClose != nil {
 			stopContextClose()
 		}
-		return nil, err
+		return AMQPDeliveryStream{}, err
 	}
 	out := make(chan *amqpcompat.Delivery)
+	done := make(chan struct{})
 	go func() {
 		defer func() {
+			close(done)
 			if rawConnection != nil {
 				_ = rawConnection.Close()
 			}
@@ -119,8 +130,8 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 			if stopContextClose != nil {
 				stopContextClose()
 			}
+			close(out)
 		}()
-		defer close(out)
 		for d := range deliveries {
 			select {
 			case out <- d:
@@ -129,7 +140,7 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 			}
 		}
 	}()
-	return out, nil
+	return AMQPDeliveryStream{Deliveries: out, Done: done}, nil
 }
 
 type Connector struct {
@@ -322,25 +333,106 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 	provider := c.amqp
 	c.mu.RUnlock()
 
-	deliveries, err := provider.Consume(ctx, amqpURL, cid)
+	stream, err := provider.Consume(ctx, amqpURL, cid)
 	if err != nil {
 		return
 	}
+	if stream.Deliveries == nil {
+		return
+	}
+	consumerCtx, cancelConsumer := context.WithCancel(ctx)
+	var generationMu sync.Mutex
+	generationLost := false
+	fenceGenerationLocked := func() {
+		if generationLost {
+			return
+		}
+		generationLost = true
+		if session != nil {
+			session.AbortConsumerGeneration()
+		}
+	}
+	consumerLost := func() bool {
+		generationMu.Lock()
+		defer generationMu.Unlock()
+		if !generationLost {
+			select {
+			case <-stream.Done:
+				fenceGenerationLocked()
+			default:
+			}
+		}
+		return generationLost
+	}
+	settleReject := func(delivery *amqpcompat.Delivery, requeue bool) {
+		generationMu.Lock()
+		defer generationMu.Unlock()
+		if !generationLost {
+			select {
+			case <-stream.Done:
+				fenceGenerationLocked()
+			default:
+			}
+		}
+		if generationLost {
+			_ = delivery.Abandon()
+			return
+		}
+		if session != nil {
+			session.settleDeliveryReject(delivery, requeue)
+			return
+		}
+		_ = delivery.Reject(requeue)
+	}
+	livenessDone := make(chan struct{})
+	go func() {
+		defer close(livenessDone)
+		select {
+		case <-consumerCtx.Done():
+		case <-stream.Done:
+			generationMu.Lock()
+			fenceGenerationLocked()
+			generationMu.Unlock()
+			cancelConsumer()
+		}
+	}()
+	defer func() {
+		cancelConsumer()
+		<-livenessDone
+	}()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-consumerCtx.Done():
+			// If broker loss and parent cancellation become ready together,
+			// observe Done here rather than allowing the watcher select to
+			// choose cancellation and skip the irreversible generation fence.
+			_ = consumerLost()
 			return
-		case delivery, ok := <-deliveries:
+		case delivery, ok := <-stream.Deliveries:
 			if !ok {
+				// A closed delivery stream is itself terminal for this consumer
+				// generation, even if the liveness watcher loses a select race
+				// against the deferred consumer-context cancellation.
+				generationMu.Lock()
+				fenceGenerationLocked()
+				generationMu.Unlock()
 				return
 			}
-			// The legacy listener paces each consumed delivery before type,
-			// expiry, connection, and bind-readiness checks, and advances its
-			// pacing timestamp even when a later check discards the message.
+			if consumerLost() {
+				return
+			}
+			// After legacy message-id extraction and deserialization, the listener
+			// paces before type, expiry, connection, and bind-readiness checks.
+			// The Go transport has already accepted an envelope at this boundary;
+			// malformed pre-pacing pickle/property parity is intentionally outside
+			// this slice. A later readiness discard still consumes the pacing slot.
 			// Until pacing succeeds, the connector owns AMQP settlement; after
 			// readiness succeeds, Session.Submit takes ownership on entry.
-			if err := pacer.Wait(ctx); err != nil {
-				_ = delivery.Reject(true)
+			if err := pacer.Wait(consumerCtx); err != nil {
+				settleReject(delivery, true)
+				return
+			}
+			if consumerLost() {
 				return
 			}
 			createdAt, _ := delivery.Envelope().Properties().CreatedAt()
@@ -357,21 +449,21 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 				Bound:      c.Status() == StatusBound,
 			})
 			if decideErr != nil {
-				_ = delivery.Reject(true)
+				settleReject(delivery, true)
 				continue
 			}
 			switch decision.Action {
 			case ReadinessProceed:
 				if session == nil {
-					_ = delivery.Reject(true)
+					settleReject(delivery, true)
 					continue
 				}
 				// Submit owns settlement even when it returns an encode/write error.
-				_ = session.Submit(ctx, delivery)
+				_ = session.Submit(consumerCtx, delivery)
 			case ReadinessRequeue:
-				_ = delivery.Reject(true)
+				settleReject(delivery, true)
 			case ReadinessDiscard:
-				_ = delivery.Reject(false)
+				settleReject(delivery, false)
 			}
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -169,6 +170,293 @@ func TestNewConnectorOwnsEffectivePacingConfiguration(t *testing.T) {
 	}
 }
 
+func TestPacerCancellationWinningTimerBoundaryDoesNotAdvanceCursor(t *testing.T) {
+	type cancelNilClock struct {
+		now    time.Time
+		cancel context.CancelFunc
+	}
+	clock := &cancelNilClock{now: time.Unix(100, 0).UTC()}
+	ctx, cancel := context.WithCancel(context.Background())
+	clock.cancel = cancel
+	pacer, err := newPacer(2, pacingClockFunc{
+		now: func() time.Time { return clock.now },
+		wait: func(context.Context, time.Duration) error {
+			clock.cancel()
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := pacer.Wait(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Wait error = %v, want context.Canceled", err)
+	}
+	if !pacer.last.IsZero() {
+		t.Fatalf("timer/cancel boundary advanced cursor to %s", pacer.last)
+	}
+}
+
+type pacingClockFunc struct {
+	now  func() time.Time
+	wait func(context.Context, time.Duration) error
+}
+
+func (c pacingClockFunc) Now() time.Time { return c.now() }
+func (c pacingClockFunc) Wait(ctx context.Context, delay time.Duration) error {
+	return c.wait(ctx, delay)
+}
+
+func TestConnectorConsumerLossDuringPacingCannotSubmitOrSettleStaleDelivery(t *testing.T) {
+	throughput := 2.0
+	connector, err := NewConnector(Config{CID: "consumer-loss-pacing", SubmitSMThroughput: &throughput}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{}, 1)
+	canceled := make(chan struct{}, 1)
+	release := make(chan struct{})
+	clock := pacingClockFunc{
+		now: func() time.Time { return time.Unix(100, 0).UTC() },
+		wait: func(ctx context.Context, _ time.Duration) error {
+			started <- struct{}{}
+			<-ctx.Done()
+			canceled <- struct{}{}
+			<-release
+			// Adversarial timer winner: the clock reports success after the
+			// consumer-liveness context has already been canceled.
+			return nil
+		},
+	}
+	connector.pacer, err = newPacer(throughput, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connector.setStatus(StatusBound)
+
+	deliveries := make(chan *amqpcompat.Delivery, 1)
+	consumerDone := make(chan struct{})
+	settled := make(chan pacingSettlement, 1)
+	deliveries <- newPacingDelivery(t, "stale-owned", nil, settled)
+	connector.amqp = &pacingAMQPProvider{deliveries: deliveries, done: consumerDone}
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := NewSession(client, Config{}, nil, nil, nil)
+
+	runDone := make(chan struct{})
+	go func() {
+		connector.runConsumer(context.Background(), session)
+		close(runDone)
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("consumer did not enter pacing wait")
+	}
+	close(consumerDone)
+	select {
+	case <-canceled:
+	case <-time.After(time.Second):
+		t.Fatal("consumer loss did not cancel pacing context")
+	}
+	close(release)
+	select {
+	case <-runDone:
+	case <-time.After(time.Second):
+		t.Fatal("consumer did not stop after ownership loss")
+	}
+	select {
+	case settlement := <-settled:
+		t.Fatalf("stale broker delivery received explicit settlement: %+v", settlement)
+	default:
+	}
+	if !connector.pacer.last.IsZero() {
+		t.Fatalf("consumer loss advanced pacing cursor to %s", connector.pacer.last)
+	}
+	if err := server.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err == nil {
+		if n, readErr := server.Read(make([]byte, 1)); readErr == nil || n != 0 {
+			t.Fatalf("consumer loss allowed stale SMPP socket data: bytes=%d error=%v", n, readErr)
+		}
+	}
+}
+
+type abortableBlockingConn struct {
+	net.Conn
+	started   chan struct{}
+	closed    chan struct{}
+	startOnce sync.Once
+	closeOnce sync.Once
+}
+
+func newAbortableBlockingConn(conn net.Conn) *abortableBlockingConn {
+	return &abortableBlockingConn{Conn: conn, started: make(chan struct{}), closed: make(chan struct{})}
+}
+
+func (c *abortableBlockingConn) Write([]byte) (int, error) {
+	c.startOnce.Do(func() { close(c.started) })
+	<-c.closed
+	return 0, net.ErrClosed
+}
+
+func (c *abortableBlockingConn) Close() error {
+	c.closeOnce.Do(func() {
+		close(c.closed)
+		_ = c.Conn.Close()
+	})
+	return nil
+}
+
+func TestConnectorClosedDeliveryStreamAlwaysFencesSession(t *testing.T) {
+	for attempt := 0; attempt < 10_000; attempt++ {
+		connector, err := NewConnector(Config{CID: "closed-stream-fence"}, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		deliveries := make(chan *amqpcompat.Delivery)
+		done := make(chan struct{})
+		close(done)
+		close(deliveries)
+		connector.amqp = &pacingAMQPProvider{deliveries: deliveries, done: done}
+		client, server := net.Pipe()
+		session := NewSession(client, Config{}, nil, nil, nil)
+		connector.runConsumer(context.Background(), session)
+		if !session.consumerGenerationLost() {
+			_ = client.Close()
+			_ = server.Close()
+			t.Fatalf("attempt %d: closed stream did not fence session", attempt)
+		}
+		_ = client.Close()
+		_ = server.Close()
+	}
+}
+
+func TestConnectorConsumerLossDuringReadinessCannotSettleDeadGeneration(t *testing.T) {
+	throughput := 2.0
+	connector, err := NewConnector(Config{CID: "consumer-loss-readiness", SubmitSMThroughput: &throughput}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	clock := pacingClockFunc{
+		now: func() time.Time { return time.Unix(100, 0).UTC() },
+		wait: func(context.Context, time.Duration) error {
+			started <- struct{}{}
+			<-release
+			return nil
+		},
+	}
+	connector.pacer, err = newPacer(throughput, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connector.setStatus(StatusDisconnected) // readiness will choose requeue.
+
+	deliveries := make(chan *amqpcompat.Delivery, 1)
+	consumerDone := make(chan struct{})
+	settled := make(chan pacingSettlement, 1)
+	delivery := newPacingDelivery(t, "readiness-stale", nil, settled)
+	deliveries <- delivery
+	connector.amqp = &pacingAMQPProvider{deliveries: deliveries, done: consumerDone}
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := NewSession(client, Config{}, nil, nil, nil)
+
+	runDone := make(chan struct{})
+	go func() {
+		connector.runConsumer(context.Background(), session)
+		close(runDone)
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("delivery did not reach pacing gate")
+	}
+	connector.mu.Lock() // release pacing into a blocked Status/readiness read.
+	close(release)
+	// The connector mutex keeps the worker inside the current delivery after
+	// pacing; allow it to reach the blocked Status read before losing ownership.
+	time.Sleep(20 * time.Millisecond)
+	close(consumerDone)
+	deadline := time.Now().Add(time.Second)
+	for !session.consumerGenerationLost() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !session.consumerGenerationLost() {
+		connector.mu.Unlock()
+		t.Fatal("consumer generation was not fenced during readiness")
+	}
+	connector.mu.Unlock()
+	select {
+	case <-runDone:
+	case <-time.After(time.Second):
+		t.Fatal("consumer did not exit after readiness-generation loss")
+	}
+	select {
+	case settlement := <-settled:
+		t.Fatalf("dead generation received readiness settlement: %+v", settlement)
+	default:
+	}
+	if err := delivery.Ack(); !errors.Is(err, amqpcompat.ErrDeliverySettled) {
+		t.Fatalf("delivery was not locally abandoned: Ack error = %v", err)
+	}
+}
+
+func TestConnectorConsumerLossAbortsInFlightSubmitWrite(t *testing.T) {
+	throughput := 2.0
+	connector, err := NewConnector(Config{CID: "consumer-loss-write", SubmitSMThroughput: &throughput}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := &fakePacingClock{now: time.Unix(100, 0).UTC()}
+	connector.pacer, err = newPacer(throughput, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connector.setStatus(StatusBound)
+
+	deliveries := make(chan *amqpcompat.Delivery, 1)
+	consumerDone := make(chan struct{})
+	settled := make(chan pacingSettlement, 1)
+	delivery := newPacingDelivery(t, "in-flight-stale", nil, settled)
+	deliveries <- delivery
+	connector.amqp = &pacingAMQPProvider{deliveries: deliveries, done: consumerDone}
+	client, server := net.Pipe()
+	defer server.Close()
+	blockingConn := newAbortableBlockingConn(client)
+	defer blockingConn.Close()
+	session := NewSession(blockingConn, Config{}, nil, nil, nil)
+
+	runDone := make(chan struct{})
+	go func() {
+		connector.runConsumer(context.Background(), session)
+		close(runDone)
+	}()
+	select {
+	case <-blockingConn.started:
+	case <-time.After(time.Second):
+		t.Fatal("submit did not enter blocked SMPP write")
+	}
+	close(consumerDone)
+	select {
+	case <-runDone:
+	case <-time.After(time.Second):
+		t.Fatal("consumer loss did not abort in-flight SMPP write")
+	}
+	select {
+	case settlement := <-settled:
+		t.Fatalf("dead consumer generation received settlement: %+v", settlement)
+	default:
+	}
+	if err := delivery.Ack(); !errors.Is(err, amqpcompat.ErrDeliverySettled) {
+		t.Fatalf("delivery was not locally abandoned: Ack error = %v", err)
+	}
+	if !session.consumerGenerationLost() {
+		t.Fatal("session was not fenced after AMQP consumer loss")
+	}
+}
+
 func TestConnectorProductionPacerGatesRealSubmitWrites(t *testing.T) {
 	throughput := 10.0
 	connector, err := NewConnector(Config{CID: "real-pacing", SubmitSMThroughput: &throughput}, "")
@@ -196,7 +484,6 @@ func TestConnectorProductionPacerGatesRealSubmitWrites(t *testing.T) {
 	settled := make(chan pacingSettlement, 2)
 	deliveries <- newPacingDelivery(t, "real-submit-1", nil, settled)
 	deliveries <- newPacingDelivery(t, "real-submit-2", nil, settled)
-	close(deliveries)
 	consumerDone := make(chan struct{})
 	go func() {
 		connector.runConsumer(sessionCtx, session)
@@ -241,6 +528,7 @@ func TestConnectorProductionPacerGatesRealSubmitWrites(t *testing.T) {
 			t.Fatalf("submit %d was not settled", index)
 		}
 	}
+	close(deliveries)
 	select {
 	case <-consumerDone:
 	case <-time.After(time.Second):

@@ -72,9 +72,11 @@ For `SC-004`, the fixture-proven subset is connector throughput configuration
 for ordinary JSON numbers and strings plus the serialized pacing-delay
 decision. Phase 2.34 connects that production pacer to each concrete
 `submit.sm.<CID>` delivery before readiness, including disabled throughput,
-context-cancellable admission, explicit requeue on pacing cancellation, socket
-submission, and correlated-response settlement under the existing
-`prefetch_count=1` boundary. Python's boolean-as-integer/non-finite numeric
+context-cancellable admission, consumer-generation fencing that aborts in-flight
+socket writes without stale submission or dead-generation settlement, one
+explicit requeue attempt on parent cancellation while the AMQP generation
+remains live, socket submission, and correlated-response settlement under the
+existing `prefetch_count=1` boundary. Python's boolean-as-integer/non-finite numeric
 quirks, dynamic configuration, configurable windows, throughput statistics,
 and distributed/failover pacing remain inventoried.
 
@@ -109,8 +111,9 @@ statistics remain inventoried.
 
 For `SP-002`, `SC-003`, and `SC-005`, Phase 2.33B additionally proves
 successful sequence-matched bind-response gating, a single post-bind connection
-reader, pending-request cleanup, and exactly-once settlement attempts on successful
-response, timeout, write failure, cancellation, and connection loss. `SC-006`
+reader, pending-request cleanup, and exactly one terminal settlement attempt on
+successful response, timeout, write failure, cancellation, and connection loss;
+broker confirmation and redelivery are not guaranteed. `SC-006`
 remains a standalone policy projection: status mapping, attempt state, and delayed
 requeue are not yet connected to Session settlement. Response publication,
 DLR/billing side effects, and protocol-2 AMQP `SubmitSM` semantic decoding remain
