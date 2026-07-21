@@ -73,3 +73,12 @@ Repair the audited gap between the Phase 2.33 fixture-level session API and a li
 - `internal/core/smppc/connector_test.go`
 - `spec/compatibility/SMPP_MATRIX.md`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification
+
+- Implementation candidate `25a6a894fefe1053ec8c58effed996508b19e218` passed focused `smppc`/`smppwire` tests 20 times, full Go, race, vet, build, a 10-second SMPP wire fuzz gate (`4,734,751` executions), manifest (`1,039` tests / `55` files / `13` surfaces), fixture integrity (`183` coverage rows), schemas, `28` Python verifier tests, diff checks, and a candidate-diff secret scan.
+- The frozen oracle remained pinned at `0aac58e466d583d0f0436df7b8afa3dc96191263` (`201` files; SHA-256 `8e7c1439068bfbbdef29a1bcc6b2c155db36a8763a1012ded059a05b9e6c87c6`). Two published aggregate regenerations remained byte-for-byte reproducible.
+- Exact-SHA GitHub Actions run `29793271549` passed `4/4` jobs. Local HEAD, tracking ref, and remote branch matched with a clean workspace before documentation finalization.
+- The final Ralph council found no production concurrency/session blocker, but correctly rejected the candidate because the authoritative `SC-003` row remained `INVENTORIED` despite fixture-backed partial reconnect coverage and this slice's explicit scope. The documentation-only finalization changes `SC-003` to `GO-PARTIAL` and recounts all matrices to `204 = 117 INVENTORIED + 66 GO-PARTIAL + 18 MATCH + 3 GO-COMPLETE`; unsupported configuration, management lifecycle, retry/statistics, and failover surfaces remain unpromoted.
+
+Implementation candidate LoopKey: eef95be58efc

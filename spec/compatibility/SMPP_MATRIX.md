@@ -43,7 +43,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 |---|---|---|---|
 | SC-001 | configuration | every field/default and runtime-update versus restart-required fields | INVENTORIED |
 | SC-002 | lifecycle | add/remove/list/start/stop and state transitions | INVENTORIED |
-| SC-003 | reconnect | initial/reconnect delay, retry and state/stats | INVENTORIED |
+| SC-003 | reconnect | initial/reconnect delay, retry and state/stats | GO-PARTIAL |
 | SC-004 | throughput | submit pacing and queue behavior | GO-PARTIAL |
 | SC-005 | readiness | expiration decision, disconnected/unbound checks, age boundary, and settlement boundary | GO-PARTIAL |
 | SC-006 | error retry | statuses, counts, delays, and retry-attempt boundary | GO-PARTIAL |
