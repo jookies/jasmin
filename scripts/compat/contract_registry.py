@@ -144,7 +144,7 @@ def parse_matrix(path: Path) -> list[ContractRow]:
         cells = _markdown_cells(line)
         stripped = line.strip()
         id_like = bool(ID_LIKE_RE.search(line) or ID_RE.search(line))
-        if stripped.startswith("|") and id_like and cells is None:
+        if cells is None and id_like and "|" in stripped:
             raise RegistryError(f"{path}:{line_no}: malformed ID-like Markdown row")
         if not cells:
             continue

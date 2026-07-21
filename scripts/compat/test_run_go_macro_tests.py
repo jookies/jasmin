@@ -124,6 +124,44 @@ exit 0
             self.assertEqual(143, proc.returncode, stdout + stderr)
             self.assertIn(" down --volumes --remove-orphans", log.read_text())
 
+    def test_term_kills_blocking_gate_process_group_and_cleans_up(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td); log = td / "docker.log"; marker = td / "gate.started"
+            fake = td / "docker"; fake_go = td / "go"; matrix = td / "matrix.csv"
+            fake.write_text(f'''#!/bin/sh
+echo "$*" >> "{log}"
+exit 0
+'''); fake.chmod(0o755)
+            fake_go.write_text(f'''#!/bin/sh
+trap '' TERM INT
+touch "{marker}"
+sleep 60
+'''); fake_go.chmod(0o755)
+            with matrix.open("w", newline="") as handle:
+                writer = csv.writer(handle, lineterminator="\n")
+                writer.writerow(HEADER)
+                writer.writerow(("outbound-a", "focused", "rabbitmq-redis", "go test -json ./fake", "example.invalid/fake::TestBlocking", ""))
+            env = os.environ.copy()
+            env.update({"GO_MACRO_TEST_PYTHON": sys.executable,
+                        "GO_MACRO_TEST_DOCKER_BIN": str(fake),
+                        "GO_MACRO_TEST_MATRIX": str(matrix),
+                        "GO_MACRO_TEST_GO_BIN": str(fake_go),
+                        "PYTHON_PATH": os.environ.get("PYTHON_PATH", sys.executable)})
+            proc = subprocess.Popen([str(WRAPPER), "outbound-a", "focused"], cwd=ROOT, env=env,
+                                    text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and not marker.exists():
+                time.sleep(0.02)
+            if not marker.exists():
+                proc.kill(); self.fail("wrapper never entered blocking gate")
+            time.sleep(0.1)
+            started = time.monotonic()
+            proc.terminate()
+            stdout, stderr = proc.communicate(timeout=7)
+            self.assertLess(time.monotonic() - started, 5)
+            self.assertEqual(143, proc.returncode, stdout + stderr)
+            self.assertIn(" down --volumes --remove-orphans", log.read_text())
+
     def test_go_skip_and_zero_tests_never_produce_evidence(self):
         payloads = {
             "skip": [

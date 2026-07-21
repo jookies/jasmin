@@ -34,6 +34,8 @@ class MatrixParserTests(unittest.TestCase):
             self.matrix("| ID | Area | Status |\n|---|---|---|\n| Operations | MATCH | H-012 |\n")
         with self.assertRaisesRegex(RegistryError, "malformed ID-like"):
             self.matrix("| ID | Area | Status |\n|---|---|---|\n| A-011 | queue | INVENTORIED\n")
+        with self.assertRaisesRegex(RegistryError, "malformed ID-like"):
+            self.matrix("| ID | Area | Status |\n|---|---|---|\nA-011 | queue | INVENTORIED |\n")
 
     def test_rejects_duplicate_or_unknown_status(self):
         with self.assertRaises(RegistryError):

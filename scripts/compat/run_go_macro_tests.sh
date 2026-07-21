@@ -80,10 +80,32 @@ fi
 
 project="jasmin-go-${scope//[^a-zA-Z0-9]/-}-${mode}-$$"
 started=0
+active_pid=""
+active_pgid=""
 output=$(mktemp "${TMPDIR:-/tmp}/jasmin-go-macro.XXXXXX") || exit 1
+terminate_active() {
+  signal=$1
+  if [ -z "$active_pid" ]; then
+    return 0
+  fi
+  target=${active_pgid:-$active_pid}
+  kill -s "$signal" -- "-$target" 2>/dev/null || kill -s "$signal" "$active_pid" 2>/dev/null || true
+  attempts=0
+  while [ "$attempts" -lt 20 ] && kill -0 -- "-$target" 2>/dev/null; do
+    sleep 0.1
+    attempts=$((attempts + 1))
+  done
+  if kill -0 -- "-$target" 2>/dev/null; then
+    kill -KILL -- "-$target" 2>/dev/null || kill -KILL "$active_pid" 2>/dev/null || true
+  fi
+  wait "$active_pid" 2>/dev/null || true
+  active_pid=""
+  active_pgid=""
+}
 cleanup() {
   rc=$?
   trap - EXIT
+  terminate_active TERM
   if [ "$started" -eq 1 ]; then
     "$compose_bin" compose -p "$project" -f "$compose_file" down --volumes --remove-orphans >/dev/null 2>&1 || {
       cleanup_rc=$?
@@ -96,6 +118,7 @@ cleanup() {
 on_signal() {
   signal=$1; code=$2
   trap - "$signal"
+  terminate_active "$signal"
   exit "$code"
 }
 trap cleanup EXIT
@@ -129,12 +152,23 @@ run_gate() {
 }
 
 old_ifs=$IFS; IFS=';'; set -- $commands; IFS=$old_ifs
+set -m
 for gate in "$@"; do
   echo "+ $gate" | tee -a "$output"
-  run_gate "$gate" 2>&1 | tee -a "$output"
-  rc=${PIPESTATUS[0]}
+  (
+    set -o pipefail
+    run_gate "$gate" 2>&1 | tee -a "$output"
+  ) &
+  active_pid=$!
+  active_pgid=$(ps -o pgid= -p "$active_pid" | tr -d ' ')
+  [ -n "$active_pgid" ] || active_pgid=$active_pid
+  wait "$active_pid"
+  rc=$?
+  active_pid=""
+  active_pgid=""
   [ "$rc" -eq 0 ] || exit "$rc"
 done
+set +m
 
 results=$($python_bin - "$output" "$required_tests" <<'PY'
 import json,sys
