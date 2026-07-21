@@ -69,16 +69,22 @@ subset of the row, while session, routing, lifecycle, or remaining PDU behavior
 is still unimplemented. It must not be interpreted as full row parity.
 
 For `SC-004`, the fixture-proven subset is connector throughput configuration
-for ordinary JSON numbers and strings plus the standalone serialized
-pacing-delay decision. Python's boolean-as-integer/non-finite numeric quirks,
-AMQP ownership, socket submission, ACK/requeue behavior, and response
-correlation remain inventoried.
+for ordinary JSON numbers and strings plus the serialized pacing-delay
+decision. Phase 2.34 connects that production pacer to each concrete
+`submit.sm.<CID>` delivery before readiness, including disabled throughput,
+context-cancellable admission, explicit requeue on pacing cancellation, socket
+submission, and correlated-response settlement under the existing
+`prefetch_count=1` boundary. Python's boolean-as-integer/non-finite numeric
+quirks, dynamic configuration, configurable windows, throughput statistics,
+and distributed/failover pacing remain inventoried.
 
 For `SC-005`, the fixture-proven subset is the listener's expiration-first
 decision, disconnected/unbound readiness checks, strict maximum-age boundary,
 legacy modulo-day age component, and configured delayed/immediate requeue
-selection. AMQP consumer ownership, timer execution, ACK/reject side effects,
-and socket submission remain inventoried.
+selection. Phase 2.34 additionally proves the concrete consumer's
+pacing-before-readiness order and direct discard/requeue/submit settlement
+boundary. Delayed readiness timer execution, runtime policy updates, and the
+remaining retry lifecycle remain inventoried.
 
 For `SC-006`, the fixture-proven subset is the listener's default retry-status
 map, exact current-attempt/count boundary, configured delay selection, final ACK

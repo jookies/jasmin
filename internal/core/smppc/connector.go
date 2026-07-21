@@ -138,6 +138,7 @@ type Connector struct {
 	amqpURL     string
 	amqp        AMQPProvider
 	readiness   *ReadinessPolicy
+	pacer       *Pacer
 	mu          sync.RWMutex
 	lifecycleMu sync.Mutex
 
@@ -148,16 +149,22 @@ type Connector struct {
 }
 
 func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
+	clonedConfig := cfg.Clone()
 	readiness, err := NewReadinessPolicy(DefaultReadinessConfig())
 	if err != nil {
 		return nil, err
 	}
+	pacer, err := NewPacer(clonedConfig.EffectiveSubmitSMThroughput())
+	if err != nil {
+		return nil, err
+	}
 	return &Connector{
-		cfg:       cfg.Clone(),
+		cfg:       clonedConfig,
 		status:    StatusDisconnected,
 		amqpURL:   amqpURL,
 		amqp:      &defaultAMQPProvider{},
 		readiness: readiness,
+		pacer:     pacer,
 	}, nil
 }
 
@@ -311,6 +318,7 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 	amqpURL := c.amqpURL
 	cid := c.cfg.CID
 	readiness := c.readiness
+	pacer := c.pacer
 	provider := c.amqp
 	c.mu.RUnlock()
 
@@ -324,6 +332,15 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 			return
 		case delivery, ok := <-deliveries:
 			if !ok {
+				return
+			}
+			// The legacy listener paces each consumed delivery before type,
+			// expiry, connection, and bind-readiness checks, and advances its
+			// pacing timestamp even when a later check discards the message.
+			// Until pacing succeeds, the connector owns AMQP settlement; after
+			// readiness succeeds, Session.Submit takes ownership on entry.
+			if err := pacer.Wait(ctx); err != nil {
+				_ = delivery.Reject(true)
 				return
 			}
 			createdAt, _ := delivery.Envelope().Properties().CreatedAt()
