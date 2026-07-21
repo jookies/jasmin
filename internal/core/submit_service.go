@@ -30,6 +30,13 @@ type AMQPPublisher interface {
 	Publish(ctx context.Context, exchange, routingKey string, message amqpcompat.Envelope) error
 }
 
+// SubmitPublicationBoundary atomically accepts a complete logical submit for
+// durable publication. submittransaction.Service implements this interface.
+// Keeping this interface in core avoids coupling admission to PostgreSQL.
+type SubmitPublicationBoundary interface {
+	AdmitSubmit(context.Context, []amqpcompat.Envelope) error
+}
+
 type SubmitEnvelopeRequest struct {
 	MessageID       string
 	BillID          string
@@ -64,6 +71,7 @@ type SubmitServiceDependencies struct {
 	BillingUsers      BillingUserDirectory
 	EnvelopeBuilder   SubmitEnvelopeBuilder
 	Publisher         AMQPPublisher
+	Transaction       SubmitPublicationBoundary
 	NewMessageID      func() (string, error)
 	NewBillID         func() (string, error)
 	NewReference      func() (uint16, error)
@@ -76,7 +84,8 @@ type SubmitService struct {
 
 func NewSubmitService(dependencies SubmitServiceDependencies) (*SubmitService, error) {
 	if dependencies.InterceptorTable == nil || dependencies.RoutingTable == nil ||
-		dependencies.BillingUsers == nil || dependencies.EnvelopeBuilder == nil || dependencies.Publisher == nil {
+		dependencies.BillingUsers == nil || dependencies.EnvelopeBuilder == nil ||
+		(dependencies.Publisher == nil && dependencies.Transaction == nil) {
 		return nil, ErrInvalidSubmitConfig
 	}
 	if dependencies.NewMessageID == nil {
@@ -214,11 +223,19 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), aggregateBill); err != nil {
 		return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
 	}
-	for _, envelope := range envelopes {
-		if err := service.dependencies.Publisher.Publish(ctx, "messaging", envelope.RoutingKey(), envelope); err != nil {
+	if service.dependencies.Transaction != nil {
+		if err := service.dependencies.Transaction.AdmitSubmit(ctx, envelopes); err != nil {
 			// Legacy HTTP/SMPP paths charge before invoking the client manager and
-			// do not refund on downstream failure.
+			// never refund on a downstream/durable-admission failure.
 			return "", err
+		}
+	} else {
+		for _, envelope := range envelopes {
+			if err := service.dependencies.Publisher.Publish(ctx, "messaging", envelope.RoutingKey(), envelope); err != nil {
+				// Explicit compatibility fallback for non-production callers. The
+				// no-refund behavior is intentionally preserved.
+				return "", err
+			}
 		}
 	}
 	return messageID, nil
