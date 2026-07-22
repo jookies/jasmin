@@ -41,15 +41,17 @@ class MacroWrapperTests(unittest.TestCase):
             self.assertIn('"skipped":0', result.stdout)
             self.assertFalse(marker.exists())
 
-    def test_unconfigured_scope_fails_without_docker(self):
+    def test_outbound_b_candidate_is_configured_before_docker(self):
         with tempfile.TemporaryDirectory() as td:
             marker = Path(td) / "docker-called"; fake = Path(td) / "docker"
             fake.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 99\n"); fake.chmod(0o755)
-            result = self.run_wrapper("outbound-b", "candidate", env={"GO_MACRO_TEST_DOCKER_BIN": str(fake)})
-            self.assertEqual(78, result.returncode)
-            self.assertIn("not yet configured", result.stderr)
-            self.assertIn("PostgreSQL and SMSC", result.stderr)
-            self.assertFalse(marker.exists())
+            result = self.run_wrapper("outbound-b", "candidate", env={
+                "GO_MACRO_TEST_DOCKER_BIN": str(fake),
+                "PYTHON_PATH": os.environ.get("PYTHON_PATH", sys.executable),
+            })
+            self.assertEqual(99, result.returncode)
+            self.assertNotIn("not yet configured", result.stderr)
+            self.assertTrue(marker.exists())
 
     def test_candidate_runner_refuses_evidence_publication_before_gates(self):
         with tempfile.TemporaryDirectory() as td:

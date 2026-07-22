@@ -54,3 +54,14 @@ Remove the production single-part restriction while preserving one aggregate HTT
 - matching unit/integration tests under `internal/`
 - `spec/compatibility/{GO_MACRO_TESTS.csv,AMQP_REDIS_MATRIX.md,ROUTING_BILLING_MATRIX.md}`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification
+
+- Published executable parent `dcdb3313518cdea876cfef5a40a11c4245e63768` (tree `74bcb80d4a10c43542835f1894556015016f972b`) passed exact-SHA GitHub Actions run `29923159045` with `4/4` jobs.
+- The final runner-policy correction configures the required `outbound-b` focused/candidate/release modes instead of leaving the declared Task 1.4 gate unavailable. Exact pre-documentation candidate patch: `b8f6a0c5bbdd5d0c3b16bf52a8a31ad4c427a4959ad47e4b72a3341b1ab1a59d`.
+- `outbound-b candidate`: `281` tests, `0` skipped, `0` failed; output SHA-256 `ac3281b3d5951573170c270ebdad4519dfa1bfee5a753350e4c028755b03ef65`. Focused affected packages passed `20` times.
+- Full `go test ./...`, `go test -race ./...`, `go vet ./...`, and `go build ./...` passed. All `58` Python compatibility tests, fixture integrity, JSON Schemas, the `1,039`-test manifest, and the `205`-row registry passed.
+- The exact-candidate Ralph code council returned `PASS` with no unresolved High or Medium finding after auditing multipart identity, transactional admission, exact part/result correlation, per-part billing, stale-return filtering, and ambiguous-attempt fencing.
+- Matrix totals remain `205 = 129 INVENTORIED + 55 GO-PARTIAL + 18 MATCH + 3 GO-COMPLETE`; no row is promoted because authoritative balances, inbound DLR aggregation, complete float/error parity, connector failover, and exactly-once external SMSC delivery remain outside this slice.
+
+Implementation candidate LoopKey: 2541e45c94af
