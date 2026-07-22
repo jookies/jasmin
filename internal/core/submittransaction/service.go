@@ -34,6 +34,13 @@ func NewProductionService(repository Repository, now func() time.Time) (*Service
 	return NewService(repository, now)
 }
 
+func (service *Service) AggregateStatus(ctx context.Context, messageID string) (AggregateStatus, error) {
+	if messageID == "" {
+		return AggregateStatus{}, fmt.Errorf("%w: empty aggregate message ID", ErrInvalidInput)
+	}
+	return service.repository.AggregateStatus(ctx, messageID)
+}
+
 // AdmitSubmit persists every logical part and its publication event atomically.
 // Repeating the same stable keys is idempotent. The caller intentionally keeps
 // the legacy no-refund rule: authorization/debit happens before this boundary

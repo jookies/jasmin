@@ -105,10 +105,6 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		"user-id":          amqpcompat.StringField(request.UserID),
 		"bill-id":          amqpcompat.StringField(request.BillID),
 		"late-bill-amount": amqpcompat.StringField(strconv.FormatFloat(request.Bill.SubmitSmRespAmount, 'f', -1, 64)),
-		// MessageID remains the aggregate ID; these headers carry the stable
-		// per-part identity into the SMPPc transaction boundary.
-		"part-number": amqpcompat.IntegerField(int64(part.Sequence())),
-		"total-parts": amqpcompat.IntegerField(int64(len(request.Parts))),
 	}
 	if request.ValidityPeriod != nil {
 		headers["expiration"] = amqpcompat.StringField(legacyDateTime(request.CreatedAt.Add(*request.ValidityPeriod)))

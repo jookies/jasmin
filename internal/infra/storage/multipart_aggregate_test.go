@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,9 +20,11 @@ func TestMultipartAggregateStatusAcrossRecoveryAndResults(t *testing.T) {
 	}
 	envelopes := make([]amqpcompat.Envelope, 2)
 	for index := range envelopes {
-		properties, propErr := amqpcompat.NewProperties("aggregate-status", map[string]amqpcompat.Field{
-			"part-number": amqpcompat.IntegerField(int64(index + 1)),
-			"total-parts": amqpcompat.IntegerField(2),
+		partNumber := index + 1
+		properties, propErr := amqpcompat.NewProperties(fmt.Sprintf("aggregate-status/%06d", partNumber), map[string]amqpcompat.Field{
+			"aggregate-message-id": amqpcompat.StringField("aggregate-status"),
+			"part-number":          amqpcompat.IntegerField(int64(partNumber)),
+			"part-count":           amqpcompat.IntegerField(2),
 		})
 		if propErr != nil {
 			t.Fatal(propErr)
