@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS submit_results (
  committed_at INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS submit_results_final_part ON submit_results(part_key) WHERE kind <> 'RETRY';
-CREATE UNIQUE INDEX IF NOT EXISTS submit_results_smsc_id ON submit_results(smsc_message_id) WHERE smsc_message_id IS NOT NULL AND smsc_message_id <> '';
+DROP INDEX IF EXISTS submit_results_smsc_id;
+CREATE INDEX IF NOT EXISTS submit_results_smsc_id_lookup ON submit_results(smsc_message_id) WHERE smsc_message_id IS NOT NULL AND smsc_message_id <> '';
 CREATE TABLE IF NOT EXISTS submit_outbox (
  event_key TEXT PRIMARY KEY, part_key TEXT NOT NULL REFERENCES submit_parts(part_key), kind TEXT NOT NULL,
  exchange_name TEXT NOT NULL, routing_key TEXT NOT NULL, payload BLOB NOT NULL,
@@ -151,11 +152,16 @@ func (r *SQLiteSubmitTransactionRepository) BeginAttempt(ctx context.Context, pa
 		if err != nil {
 			return submittransaction.SendAttempt{}, false, err
 		}
-		attempt.PartKey = partKey
-		attempt.CreatedAt = time.Unix(0, created).UTC()
-		attempt.SentAt = timePtr(sent)
-		attempt.ResolvedAt = timePtr(resolved)
-		return attempt, false, tx.Commit()
+		if _, err = tx.ExecContext(ctx, `UPDATE submit_attempts SET state=?,resolved_at=? WHERE id=? AND state IN (?,?)`, submittransaction.AttemptUnknownAfterSend, nanos(now), attempt.ID, submittransaction.AttemptIntent, submittransaction.AttemptSent); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE part_key=? AND state=?`, submittransaction.PartUnknownAfterSend, partKey, submittransaction.PartAttempting); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
+		if err = tx.Commit(); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
+		return submittransaction.SendAttempt{}, false, submittransaction.ErrAttemptFenced
 	}
 	var number int
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(attempt_number),0)+1 FROM submit_attempts WHERE part_key=?`, partKey).Scan(&number); err != nil {
@@ -193,6 +199,29 @@ func (r *SQLiteSubmitTransactionRepository) MarkAttemptSent(ctx context.Context,
 		return submittransaction.ErrAttemptNotFound
 	}
 	return nil
+}
+
+func (r *SQLiteSubmitTransactionRepository) MarkAttemptUnknownAfterSend(ctx context.Context, attemptID int64, now time.Time) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE submit_attempts SET state=?,resolved_at=? WHERE id=? AND state IN (?,?)`, submittransaction.AttemptUnknownAfterSend, nanos(now), attemptID, submittransaction.AttemptIntent, submittransaction.AttemptSent)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return submittransaction.ErrAttemptNotFound
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE state=? AND part_key=(SELECT part_key FROM submit_attempts WHERE id=?)`, submittransaction.PartUnknownAfterSend, submittransaction.PartAttempting, attemptID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *SQLiteSubmitTransactionRepository) RecoverUnresolved(ctx context.Context, now time.Time) (int64, error) {

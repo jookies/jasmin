@@ -125,7 +125,16 @@ func (r *PostgresSubmitTransactionRepository) BeginAttempt(ctx context.Context, 
 		if err != nil {
 			return a, false, err
 		}
-		return a, false, tx.Commit()
+		if _, err = tx.ExecContext(ctx, `UPDATE submit_attempts SET state=$1,resolved_at=$2 WHERE id=$3 AND state IN ($4,$5)`, submittransaction.AttemptUnknownAfterSend, now, a.ID, submittransaction.AttemptIntent, submittransaction.AttemptSent); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=$1 WHERE part_key=$2 AND state=$3`, submittransaction.PartUnknownAfterSend, partKey, submittransaction.PartAttempting); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
+		if err = tx.Commit(); err != nil {
+			return submittransaction.SendAttempt{}, false, err
+		}
+		return submittransaction.SendAttempt{}, false, submittransaction.ErrAttemptFenced
 	}
 	var number int
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(attempt_number),0)+1 FROM submit_attempts WHERE part_key=$1`, partKey).Scan(&number); err != nil {
@@ -150,6 +159,28 @@ func (r *PostgresSubmitTransactionRepository) MarkAttemptSent(ctx context.Contex
 		return submittransaction.ErrAttemptNotFound
 	}
 	return nil
+}
+func (r *PostgresSubmitTransactionRepository) MarkAttemptUnknownAfterSend(ctx context.Context, id int64, now time.Time) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE submit_attempts SET state=$1,resolved_at=$2 WHERE id=$3 AND state IN ($4,$5)`, submittransaction.AttemptUnknownAfterSend, now, id, submittransaction.AttemptIntent, submittransaction.AttemptSent)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return submittransaction.ErrAttemptNotFound
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts p SET state=$1 WHERE p.state=$2 AND p.part_key=(SELECT a.part_key FROM submit_attempts a WHERE a.id=$3)`, submittransaction.PartUnknownAfterSend, submittransaction.PartAttempting, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 func (r *PostgresSubmitTransactionRepository) RecoverUnresolved(ctx context.Context, now time.Time) (int64, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

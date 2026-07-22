@@ -314,3 +314,119 @@ func TestRetryResultAllowsNextAttemptAndFinalResult(t *testing.T) {
 		t.Fatalf("result rows=%d want=2", results)
 	}
 }
+
+func TestSMSCMessageIDMayRepeatAcrossConnectorParts(t *testing.T) {
+	repository, db := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	service, _ := submittransaction.NewService(repository, func() time.Time { return now })
+	ctx := context.Background()
+	for _, item := range []struct{ messageID, connectorID string }{{"message-a", "connector-a"}, {"message-b", "connector-b"}} {
+		if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{submitEnvelope(t, item.messageID, item.connectorID)}); err != nil {
+			t.Fatal(err)
+		}
+		partKey := item.messageID + "/000001"
+		attempt, committed, err := service.BeginAttempt(ctx, partKey)
+		if err != nil || committed {
+			t.Fatalf("begin %s=(%+v,%v,%v)", partKey, attempt, committed, err)
+		}
+		fresh, err := service.CommitResponse(ctx, submittransaction.Result{
+			PartKey: partKey, AttemptID: attempt.ID, Kind: submittransaction.ResultSuccess,
+			SMPPStatus: "ESME_ROK", SMSCMessageID: "1",
+		})
+		if err != nil || !fresh {
+			t.Fatalf("commit %s=(%v,%v)", partKey, fresh, err)
+		}
+	}
+	var results int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM submit_results WHERE smsc_message_id='1'`).Scan(&results); err != nil {
+		t.Fatal(err)
+	}
+	if results != 2 {
+		t.Fatalf("same opaque SMSC id results=%d want=2", results)
+	}
+}
+
+func TestUnknownAfterSendAllocatesNewAttemptIdentity(t *testing.T) {
+	repository, db := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	service, _ := submittransaction.NewService(repository, func() time.Time { return now })
+	ctx := context.Background()
+	if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{submitEnvelope(t, "message-timeout", "connector-a")}); err != nil {
+		t.Fatal(err)
+	}
+	partKey := "message-timeout/000001"
+	first, _, err := service.BeginAttempt(ctx, partKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.MarkSent(ctx, first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.MarkUnknownAfterSend(ctx, first.ID); err != nil {
+		t.Fatal(err)
+	}
+	second, committed, err := service.BeginAttempt(ctx, partKey)
+	if err != nil || committed || second.Number != 2 || second.ID == first.ID {
+		t.Fatalf("second attempt=%+v committed=%v err=%v first=%+v", second, committed, err, first)
+	}
+	var attemptState, partState string
+	if err := db.QueryRow(`SELECT state FROM submit_attempts WHERE id=?`, first.ID).Scan(&attemptState); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT state FROM submit_parts WHERE part_key=?`, partKey).Scan(&partState); err != nil {
+		t.Fatal(err)
+	}
+	if attemptState != string(submittransaction.AttemptUnknownAfterSend) || partState != string(submittransaction.PartAttempting) {
+		t.Fatalf("states after new attempt: old=%s part=%s", attemptState, partState)
+	}
+}
+
+func TestActiveAttemptIsFencedBeforeRedeliveryWriteAuthority(t *testing.T) {
+	repository, _ := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	service, _ := submittransaction.NewService(repository, func() time.Time { return now })
+	ctx := context.Background()
+	if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{submitEnvelope(t, "message-active", "connector-a")}); err != nil {
+		t.Fatal(err)
+	}
+	partKey := "message-active/000001"
+	first, _, err := service.BeginAttempt(ctx, partKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.MarkSent(ctx, first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.BeginAttempt(ctx, partKey); !errors.Is(err, submittransaction.ErrAttemptFenced) {
+		t.Fatalf("active redelivery error=%v want ErrAttemptFenced", err)
+	}
+	second, committed, err := service.BeginAttempt(ctx, partKey)
+	if err != nil || committed || second.Number != 2 || second.ID == first.ID {
+		t.Fatalf("post-fence attempt=%+v committed=%v err=%v", second, committed, err)
+	}
+}
+
+func TestSQLiteInitDropsLegacyUniqueSMSCMessageIDIndex(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, _ := NewSQLiteSubmitTransactionRepository(db)
+	if err := repository.Init(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`DROP INDEX submit_results_smsc_id_lookup; CREATE UNIQUE INDEX submit_results_smsc_id ON submit_results(smsc_message_id) WHERE smsc_message_id IS NOT NULL AND smsc_message_id <> '';`); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Init(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var legacyIndexes int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_index_list('submit_results') WHERE name='submit_results_smsc_id'`).Scan(&legacyIndexes); err != nil {
+		t.Fatal(err)
+	}
+	if legacyIndexes != 0 {
+		t.Fatal("legacy globally unique SMSC message-id index survived Init upgrade")
+	}
+}

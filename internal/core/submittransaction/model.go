@@ -13,6 +13,7 @@ var (
 	ErrInvalidInput               = errors.New("invalid submit transaction input")
 	ErrPartNotFound               = errors.New("submit logical part not found")
 	ErrAttemptNotFound            = errors.New("submit attempt not found")
+	ErrAttemptFenced              = errors.New("active submit attempt fenced before redelivery")
 	ErrProductionRequiresPostgres = errors.New("production submit transactions require PostgreSQL")
 )
 

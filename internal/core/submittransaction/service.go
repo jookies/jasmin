@@ -78,6 +78,17 @@ func (service *Service) MarkSent(ctx context.Context, attemptID int64) error {
 	return service.repository.MarkAttemptSent(ctx, attemptID, service.now().UTC())
 }
 
+// MarkUnknownAfterSend closes one unresolved attempt after a timeout,
+// connection loss, or ambiguous write failure. A subsequent broker redelivery
+// receives a new monotonically numbered attempt instead of reusing the same
+// durable identity for another external socket write.
+func (service *Service) MarkUnknownAfterSend(ctx context.Context, attemptID int64) error {
+	if attemptID <= 0 {
+		return ErrInvalidInput
+	}
+	return service.repository.MarkAttemptUnknownAfterSend(ctx, attemptID, service.now().UTC())
+}
+
 func (service *Service) Recover(ctx context.Context) (int64, error) {
 	return service.repository.RecoverUnresolved(ctx, service.now().UTC())
 }

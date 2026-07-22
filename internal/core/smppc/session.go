@@ -116,12 +116,24 @@ func (s *Session) AbortConsumerGeneration() {
 	pending := s.pending
 	s.pending = make(map[uint32]*pendingRequest)
 	s.mu.Unlock()
+	// Interrupt any in-flight write before waiting on the durable fence. The new
+	// generation cannot safely reuse an attempt that may have reached the SMSC.
+	_ = s.conn.Close()
 
 	for _, request := range pending {
 		stopTimer(request.timer)
+		_ = s.markPendingUnknown(request)
 		_ = request.delivery.Abandon()
 	}
-	_ = s.conn.Close()
+}
+
+func (s *Session) markPendingUnknown(request *pendingRequest) error {
+	if request == nil || s.transactions == nil || request.attempt.ID <= 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.transactions.MarkUnknownAfterSend(ctx, request.attempt.ID)
 }
 
 func (s *Session) settleDeliveryReject(delivery *amqpcompat.Delivery, requeue bool) {
@@ -405,6 +417,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	if err != nil {
 		if owned := s.takePending(seq); owned != nil {
 			stopTimer(owned.timer)
+			_ = s.markPendingUnknown(owned)
 			s.settleDeliveryFailure(owned.delivery)
 		}
 		_ = s.conn.Close()
@@ -557,6 +570,7 @@ func (s *Session) handleTimeout(seq uint32) {
 	if pending == nil {
 		return
 	}
+	_ = s.markPendingUnknown(pending)
 	s.settleDeliveryFailure(pending.delivery)
 	_ = s.conn.Close()
 }
@@ -595,6 +609,7 @@ func (s *Session) cleanupSession(err error) {
 
 		for _, request := range pending {
 			stopTimer(request.timer)
+			_ = s.markPendingUnknown(request)
 			s.settleDeliveryFailure(request.delivery)
 		}
 		for _, timer := range pendingControls {

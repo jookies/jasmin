@@ -12,6 +12,7 @@ type Repository interface {
 	Admit(context.Context, []LogicalPart, []OutboxEvent) error
 	BeginAttempt(context.Context, string, time.Time) (SendAttempt, bool, error)
 	MarkAttemptSent(context.Context, int64, time.Time) error
+	MarkAttemptUnknownAfterSend(context.Context, int64, time.Time) error
 	RecoverUnresolved(context.Context, time.Time) (int64, error)
 	CommitResult(context.Context, ResultCommit) (bool, error)
 	ClaimOutbox(context.Context, string, int, time.Time, time.Duration) ([]OutboxEvent, error)

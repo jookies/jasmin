@@ -33,7 +33,11 @@ CREATE TABLE IF NOT EXISTS submit_results (
 CREATE UNIQUE INDEX IF NOT EXISTS submit_results_final_part
     ON submit_results(part_key)
     WHERE kind <> 'RETRY';
-CREATE UNIQUE INDEX IF NOT EXISTS submit_results_smsc_message_id
+-- SMSC message IDs are opaque and may repeat across connectors, accounts, or
+-- SMSC restarts. Result idempotency is owned by attempt_id/final part keys;
+-- this is a lookup index, never a global uniqueness constraint.
+DROP INDEX IF EXISTS submit_results_smsc_message_id;
+CREATE INDEX IF NOT EXISTS submit_results_smsc_message_id_lookup
     ON submit_results(smsc_message_id)
     WHERE smsc_message_id IS NOT NULL AND smsc_message_id <> '';
 
