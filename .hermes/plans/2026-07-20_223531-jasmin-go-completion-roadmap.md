@@ -222,14 +222,14 @@ row_id,primary_macro,primary_task,dependency_tasks,subcontract_boundary
 ### Verification — Wave 0
 
 - Registry implementation: `3f20c2d677edabf8506804a705efdcfc44115020`.
-- Parser/process-group hardening: `89fadd53e378e919dd0979acffc1a27d446ac223`; external-trust baseline: `9276939e047551abdec9af6a2d73f52302e4020f`.
-- Boundary-correction packet `e84a37a9fa208c2892f2bd20c0b317524b007b57f579734da06e53c5b26ddb61` rejects candidate-local public keys before tests, anchors evidence publication against symlink-parent/TOCTOU swaps, and supervises Compose `config/up/down` plus test process groups.
-- Local gate: 32 Python unit tests PASS; registry wrapper 18/18 PASS; `bash -n` PASS; manifest 1039 tests; 183 fixture coverage rows valid.
-- Ralph boundary review produced three concrete trust/process findings; all three received RED reproductions, evidence-backed corrections, and full invalidated-gate reruns with no unresolved finding retained.
-- Exact-SHA GitHub Actions run `29844271767` for the external-trust parent `9276939e047551abdec9af6a2d73f52302e4020f`: 4/4 jobs PASS. The boundary-correction descendant requires its own exact-SHA publication gate.
+- Parser/process-group hardening: `89fadd53e378e919dd0979acffc1a27d446ac223`; external-trust baseline: `9276939e047551abdec9af6a2d73f52302e4020f`; clean-clone correction baseline: `c5cd9f3ab00990992e293793529087e529f99c78`.
+- The correction series rejects candidate-local trust anchors, supervises Compose `config/up/down` plus test process groups, and checks append-only baselines across full retained merge history. The final correction removes signing/publication and private-key handling from the candidate-owned macro runner: `GO_MACRO_EVIDENCE_DIR` now fails before policy parsing or any gate execution, so closure evidence can only come from a future operator-controlled immutable/read-only executor.
+- Local gate: 30 Python unit tests PASS, including RED-to-GREEN adversarial regressions for linear and merge-history contract/edge deletion and fail-closed candidate evidence publication; registry wrapper PASS; `bash -n` PASS. Manifest, schemas, fixture coverage, and remaining candidate gates are revalidated before publication.
+- Ralph boundary review produced six concrete trust/process findings across two rounds. The remaining transient-mutation High is resolved fail-closed by disabling candidate-side evidence signing/publication; macro closure remains unavailable until an external immutable executor exists.
+- Exact-SHA GitHub Actions run `29862289454` for `c5cd9f3ab00990992e293793529087e529f99c78` passed 4/4 jobs. The final boundary-correction descendant requires its own exact-SHA publication gate.
 - Authoritative totals: 205 rows = 129 `INVENTORIED` + 55 `GO-PARTIAL` + 18 `MATCH` + 3 `GO-COMPLETE`; 184 unfinished.
 
-Implementation candidate LoopKey: 76bf6c11e8b5
+Implementation candidate verification is pending final exact-SHA publication; no terminal LoopKey is claimed here.
 
 ---
 

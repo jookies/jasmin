@@ -115,8 +115,14 @@ def _git_file(root: Path, revision: str, relative: str) -> str | None:
 def _historical_versions(root: Path, relative: str) -> tuple[str, ...]:
     if not (root / ".git").exists():
         return ()
+    history = subprocess.run(
+        ("git", "rev-list", "--full-history", "HEAD", "--", relative), cwd=root, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+    )
+    if history.returncode != 0:
+        return ()
     return tuple(
-        content for revision in ("HEAD", "HEAD^")
+        content for revision in history.stdout.splitlines()
         if (content := _git_file(root, revision, relative)) is not None
     )
 

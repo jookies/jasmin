@@ -211,6 +211,33 @@ class RepositoryRegistryTests(unittest.TestCase):
             baseline = json.loads(baseline_path.read_text())
             baseline["matrices"]["HTTP_MATRIX.md"].remove("HE-006")
             baseline_path.write_text(json.dumps(baseline, indent=2) + "\n")
+            subprocess.run(["git", "add", "."], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "-qm", "delete historical contract"], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "--allow-empty", "-qm", "unrelated follow-up"], cwd=clone, check=True)
+            with self.assertRaisesRegex(RegistryError, "append-only"):
+                load_registry(clone)
+
+    def test_contract_baseline_rejects_deletion_hidden_by_merge_simplification(self):
+        with tempfile.TemporaryDirectory() as td:
+            clone, _ = self.make_clean_clone(Path(td))
+            matrix = clone / "spec/compatibility/HTTP_MATRIX.md"
+            baseline_path = clone / "spec/compatibility/CONTRACT_ID_BASELINE.json"
+            original_matrix = matrix.read_bytes(); original_baseline = baseline_path.read_bytes()
+            main_branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=clone, text=True).strip()
+            subprocess.run(["git", "checkout", "-qb", "historical-contract"], cwd=clone, check=True)
+            matrix.write_text(matrix.read_text() + "| X-999 | historical-only | merge history guard | INVENTORIED |\n")
+            baseline = json.loads(baseline_path.read_text())
+            baseline["matrices"]["HTTP_MATRIX.md"].append("X-999")
+            baseline_path.write_text(json.dumps(baseline, indent=2) + "\n")
+            subprocess.run(["git", "add", "."], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "-qm", "add historical contract"], cwd=clone, check=True)
+            subprocess.run(["git", "checkout", "-q", main_branch], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "--allow-empty", "-qm", "unrelated main change"], cwd=clone, check=True)
+            subprocess.run(["git", "merge", "--no-commit", "--no-ff", "historical-contract"], cwd=clone, check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            matrix.write_bytes(original_matrix); baseline_path.write_bytes(original_baseline)
+            subprocess.run(["git", "add", "."], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "-qm", "merge without historical contract"], cwd=clone, check=True)
             with self.assertRaisesRegex(RegistryError, "append-only"):
                 load_registry(clone)
 
@@ -231,6 +258,9 @@ class RepositoryRegistryTests(unittest.TestCase):
             baseline = json.loads(baseline_path.read_text())
             baseline["edges"] = [row for row in baseline["edges"] if row["edge_id"] != "result-effects"]
             baseline_path.write_text(json.dumps(baseline, indent=2) + "\n")
+            subprocess.run(["git", "add", "."], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "-qm", "delete historical edge"], cwd=clone, check=True)
+            subprocess.run(["git", "commit", "--allow-empty", "-qm", "unrelated follow-up"], cwd=clone, check=True)
             with self.assertRaisesRegex(RegistryError, "append-only"):
                 validate_repository(clone)
 

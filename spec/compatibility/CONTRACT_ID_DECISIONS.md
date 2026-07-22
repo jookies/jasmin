@@ -38,9 +38,11 @@ signature verifiable by an operator/CI-supplied public key outside the candidate
 repository. `CANDIDATE_EVIDENCE_ATTESTOR.pem` is a documented reference key,
 not a security trust anchor: candidate evidence validation fails closed unless
 `--trusted-public-key` / `GO_MACRO_ATTEST_PUBLIC_KEY` names an external regular
-file. `run_go_macro_tests.sh` also refuses an unsigned run or a private key that
-does not match that external trust anchor, validates the staged evidence, and
-only then publishes the directory atomically. `CLOSE_MACROS` and
+file. The candidate-owned `run_go_macro_tests.sh` never accepts an attestation private
+key and refuses `GO_MACRO_EVIDENCE_DIR` before policy parsing or any gate runs.
+Candidate evidence must instead be executed, assembled, signed, validated, and
+published by an operator/CI-controlled immutable or read-only executor outside
+the candidate trust boundary. `CLOSE_MACROS` and
 its detached signature are also required together. Closure requires candidate
 evidence for every scope of the primary macro (MS-1 requires both `outbound-a`
 and `outbound-b`) and every transitive cross-macro dependency. Stale, forged,
@@ -48,8 +50,16 @@ skipped, zero-test, package-failed, missing-output, and missing-gate evidence
 fails closed.
 
 `CONTRACT_ID_BASELINE.json` and `CUTOVER_EDGE_BASELINE.json` are append-only.
-Validation compares the worktree form with tracked `HEAD` and `HEAD^` history,
-so deleting a row from both its source manifest and its current baseline cannot
-silently shrink the contract universe or the Release A cutover topology. A new
+Validation compares the worktree form with every retained revision that changed
+the baseline, not only a one-parent window. Fixture-integrity CI performs a full
+history checkout so a coordinated deletion followed by unrelated commits cannot
+silently shrink the contract universe or Release A cutover topology. A new
 contract or manifest version is additive; retirement requires an explicit
 future tombstone/approval mechanism rather than deletion.
+
+Normal macro runs supervise setup, tests, and teardown as process groups, but
+their stdout is test telemetry rather than closure evidence. This fail-closed
+split prevents a candidate-controlled gate from receiving the attestation key
+or publishing a signed transcript after transiently mutating and restoring its
+writable checkout. Until the external immutable executor exists, macro closure
+remains unavailable rather than being inferred from candidate-produced output.
