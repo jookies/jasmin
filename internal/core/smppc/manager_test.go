@@ -55,7 +55,7 @@ func TestManagerDefensivelyCopiesThroughput(t *testing.T) {
 	throughput := 2.0
 	m := smppc.NewManager("amqp://guest:guest@localhost:5672/")
 	cfg := smppc.Config{
-		CID:      "smpp-copy", Host: "127.0.0.1", Port: 2775, SystemID: "jookies",
+		CID: "smpp-copy", Host: "127.0.0.1", Port: 2775, SystemID: "jookies",
 		SubmitSMThroughput: &throughput,
 	}
 	if err := m.Add(cfg); err != nil {

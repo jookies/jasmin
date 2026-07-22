@@ -134,6 +134,39 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 	}
 }
 
+func TestSubmitServiceGSM0338ExtensionAffectsMultipartBoundary(t *testing.T) {
+	user := fundedUser(t)
+	builder := &recordingBuilder{}
+	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, &recordingPublisher{})
+	if _, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username: "alice", Destination: "15551230000", Content: strings.Repeat("^", 81), Coding: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(builder.request.Parts) != 2 {
+		t.Fatalf("parts=%d want=2 for 162 GSM septets", len(builder.request.Parts))
+	}
+	first := builder.request.Parts[0].Payload()
+	if len(first) != 153 || first[0] != 0x1b || first[1] != 0x14 {
+		t.Fatalf("first GSM part len/prefix=(%d,%x)", len(first), first[:min(2, len(first))])
+	}
+}
+
+func TestSubmitServiceGSM0338ReplacesUnsupportedRune(t *testing.T) {
+	user := fundedUser(t)
+	builder := &recordingBuilder{}
+	service := newSubmitService(t, user, routeTable(t, true), emptyInterceptors(), fixedRunner{}, builder, &recordingPublisher{})
+	if _, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username: "alice", Destination: "15551230000", Content: "A🙂B", Coding: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	payload := builder.request.Parts[0].Payload()
+	if string(payload) != "A?B" {
+		t.Fatalf("GSM replacement payload=%x", payload)
+	}
+}
+
 func TestSubmitServiceBuildFailureDoesNotCharge(t *testing.T) {
 	user := fundedUser(t)
 	builder := &recordingBuilder{errAt: 1}

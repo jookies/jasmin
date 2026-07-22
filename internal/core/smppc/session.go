@@ -472,10 +472,49 @@ func (s *Session) handleControlTimeout(seq uint32) {
 	_ = s.conn.Close()
 }
 
+func (s *Session) Unbind(ctx context.Context) error {
+	s.mu.Lock()
+	select {
+	case <-s.closed:
+		s.mu.Unlock()
+		return ErrSessionClosed
+	default:
+	}
+	sequence, err := s.nextSequenceLocked()
+	if err != nil {
+		s.mu.Unlock()
+		return err
+	}
+	s.pendingControls[sequence] = time.AfterFunc(seconds(s.cfg.TrxTimeout), func() {
+		s.handleControlTimeout(sequence)
+	})
+	s.mu.Unlock()
+	if err := s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbind, SequenceNumber: sequence}}); err != nil {
+		if timer, matched := s.takePendingControl(sequence); matched {
+			stopTimer(timer)
+		}
+		return err
+	}
+	select {
+	case <-s.closed:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (s *Session) handlePDU(pdu smppwire.PDU) error {
 	switch pdu.Header.CommandID {
 	case smppwire.CommandSubmitSMResp:
 		s.handleResponse(pdu)
+	case smppwire.CommandUnbind:
+		_ = s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbindResp, SequenceNumber: pdu.Header.SequenceNumber}})
+		return io.EOF
+	case smppwire.CommandUnbindResp:
+		if timer, matched := s.takePendingControl(pdu.Header.SequenceNumber); matched {
+			stopTimer(timer)
+		}
+		return io.EOF
 	case smppwire.CommandEnquireLink:
 		return s.writePDU(smppwire.PDU{Header: smppwire.Header{
 			CommandID:      smppwire.CommandEnquireLinkResp,

@@ -64,6 +64,29 @@ type LogicalPart struct {
 	CreatedAt   time.Time
 }
 
+type AggregateStatus struct {
+	MessageID        string
+	TotalParts       int
+	Pending          int
+	Attempting       int
+	UnknownAfterSend int
+	ResultCommitted  int
+	State            PartState
+}
+
+func (status AggregateStatus) DerivedState() PartState {
+	if status.UnknownAfterSend > 0 {
+		return PartUnknownAfterSend
+	}
+	if status.TotalParts > 0 && status.ResultCommitted == status.TotalParts {
+		return PartResultCommitted
+	}
+	if status.Attempting > 0 {
+		return PartAttempting
+	}
+	return PartPending
+}
+
 type SendAttempt struct {
 	ID         int64
 	PartKey    string

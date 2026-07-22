@@ -203,6 +203,10 @@ type Consumer struct {
 }
 
 func NewConsumer(conn *amqp.Connection) (*Consumer, error) {
+	return NewConsumerWithPrefetch(conn, 1)
+}
+
+func NewConsumerWithPrefetch(conn *amqp.Connection, prefetch int) (*Consumer, error) {
 	if conn == nil {
 		return nil, errors.New("nil AMQP connection")
 	}
@@ -210,10 +214,13 @@ func NewConsumer(conn *amqp.Connection) (*Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Legacy SMPP connector consumers set basic.qos(prefetch_count=1) before
-	// attaching submit.sm.<CID>. Keep this on the connector consumer channel;
-	// RouterPB.addAmqpBroker has a distinct eight-operation oracle with no QoS.
-	if err := ch.Qos(1, 0, false); err != nil {
+	if prefetch < 1 || prefetch > 65535 {
+		_ = ch.Close()
+		return nil, fmt.Errorf("invalid AMQP prefetch count %d", prefetch)
+	}
+	// Legacy SMPP connector consumers set basic.qos before attaching
+	// submit.sm.<CID>. RouterPB has a distinct topology path with no QoS.
+	if err := ch.Qos(prefetch, 0, false); err != nil {
 		_ = ch.Close()
 		return nil, fmt.Errorf("set AMQP consumer QoS: %w", err)
 	}

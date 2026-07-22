@@ -21,10 +21,10 @@ const (
 )
 
 var (
-	ErrInvalidPolicy      = errors.New("invalid route policy")
-	ErrNotImplemented     = errors.New("route policy not implemented")
-	ErrNoConnectors       = errors.New("route cannot have zero connectors")
-	ErrIndex              = errors.New("connector index out of range")
+	ErrInvalidPolicy  = errors.New("invalid route policy")
+	ErrNotImplemented = errors.New("route policy not implemented")
+	ErrNoConnectors   = errors.New("route cannot have zero connectors")
+	ErrIndex          = errors.New("connector index out of range")
 )
 
 type Route struct {
@@ -122,14 +122,22 @@ type Attempt struct {
 }
 
 func (a *Attempt) Next() (routingtable.Connector, bool) {
+	return a.NextAvailable(nil)
+}
+
+// NextAvailable preserves configured failover order while skipping connectors
+// that are not currently observed as available. A nil predicate accepts all.
+func (a *Attempt) NextAvailable(available func(routingtable.Connector) bool) (routingtable.Connector, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.next >= len(a.connectors) {
-		return routingtable.Connector{}, false
+	for a.next < len(a.connectors) {
+		connector := a.connectors[a.next]
+		a.next++
+		if available == nil || available(connector) {
+			return connector, true
+		}
 	}
-	c := a.connectors[a.next]
-	a.next++
-	return c, true
+	return routingtable.Connector{}, false
 }
 func (a *Attempt) String() string {
 	return fmt.Sprintf("failover-attempt(%d/%d)", a.next, len(a.connectors))

@@ -10,6 +10,7 @@ import (
 // single database transactions and enforce all stable keys with unique indexes.
 type Repository interface {
 	Admit(context.Context, []LogicalPart, []OutboxEvent) error
+	AggregateStatus(context.Context, string) (AggregateStatus, error)
 	BeginAttempt(context.Context, string, time.Time) (SendAttempt, bool, error)
 	MarkAttemptSent(context.Context, int64, time.Time) error
 	MarkAttemptUnknownAfterSend(context.Context, int64, time.Time) error

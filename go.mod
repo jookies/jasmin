@@ -8,6 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/mattn/go-sqlite3 v1.14.48
 	github.com/rabbitmq/amqp091-go v1.12.0
+	github.com/warthog618/sms v0.3.0
 	go.starlark.net v0.0.0-20260708150628-5395d018f003
 )
 

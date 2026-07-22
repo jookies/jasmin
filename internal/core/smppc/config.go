@@ -46,10 +46,17 @@ type Config struct {
 	ConFailDelay  float64 `json:"con_fail_delay"`
 	ReconnectLoss bool    `json:"reconnect_on_connection_loss"`
 
+	// Transport security. Certificate verification is enabled by default.
+	TLSEnabled            bool   `json:"tls_enabled"`
+	TLSServerName         string `json:"tls_server_name,omitempty"`
+	TLSCAFile             string `json:"tls_ca_file,omitempty"`
+	TLSInsecureSkipVerify bool   `json:"tls_insecure_skip_verify,omitempty"`
+
 	// Other
 	Priority           int      `json:"priority"`
 	LogLevel           string   `json:"log_level"`
 	SubmitSMThroughput *float64 `json:"submit_sm_throughput,omitempty"`
+	PrefetchCount      int      `json:"prefetch_count,omitempty"`
 }
 
 func (c *Config) Validate() error {
@@ -102,6 +109,15 @@ func (c *Config) Validate() error {
 		if err := validateThroughput(*c.SubmitSMThroughput); err != nil {
 			return err
 		}
+	}
+	if !c.TLSEnabled && (c.TLSServerName != "" || c.TLSCAFile != "" || c.TLSInsecureSkipVerify) {
+		return errors.New("TLS options require tls_enabled")
+	}
+	if c.PrefetchCount < 0 || c.PrefetchCount > 65535 {
+		return fmt.Errorf("prefetch_count must be between 1 and 65535")
+	}
+	if c.PrefetchCount == 0 {
+		c.PrefetchCount = 1
 	}
 
 	return nil

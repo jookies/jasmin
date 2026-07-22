@@ -8,8 +8,10 @@ import (
 const (
 	CommandSubmitSM            uint32 = 0x00000004
 	CommandDeliverSM           uint32 = 0x00000005
+	CommandUnbind              uint32 = 0x00000006
 	CommandBindTransceiver     uint32 = 0x00000009
 	CommandSubmitSMResp        uint32 = 0x80000004
+	CommandUnbindResp          uint32 = 0x80000006
 	CommandBindTransceiverResp uint32 = 0x80000009
 	CommandEnquireLink         uint32 = 0x00000015
 	CommandEnquireLinkResp     uint32 = 0x80000015

@@ -89,6 +89,28 @@ func (r *PostgresSubmitTransactionRepository) Admit(ctx context.Context, parts [
 	}
 	return tx.Commit()
 }
+
+func (r *PostgresSubmitTransactionRepository) AggregateStatus(ctx context.Context, messageID string) (submittransaction.AggregateStatus, error) {
+	status := submittransaction.AggregateStatus{MessageID: messageID}
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*),
+ COUNT(*) FILTER (WHERE state=$2),
+ COUNT(*) FILTER (WHERE state=$3),
+ COUNT(*) FILTER (WHERE state=$4),
+ COUNT(*) FILTER (WHERE state=$5)
+ FROM submit_parts WHERE message_id=$1`, messageID,
+		submittransaction.PartPending, submittransaction.PartAttempting,
+		submittransaction.PartUnknownAfterSend, submittransaction.PartResultCommitted,
+	).Scan(&status.TotalParts, &status.Pending, &status.Attempting, &status.UnknownAfterSend, &status.ResultCommitted)
+	if err != nil {
+		return submittransaction.AggregateStatus{}, err
+	}
+	if status.TotalParts == 0 {
+		return submittransaction.AggregateStatus{}, submittransaction.ErrPartNotFound
+	}
+	status.State = status.DerivedState()
+	return status, nil
+}
+
 func insertPostgresEvent(ctx context.Context, tx *sql.Tx, event submittransaction.OutboxEvent) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO submit_outbox(event_key,part_key,kind,exchange_name,routing_key,payload,created_at,available_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(event_key) DO NOTHING`, event.Key, event.PartKey, event.Kind, event.Exchange, event.RoutingKey, event.Payload, event.CreatedAt, event.AvailableAt)
 	if err == nil && event.Kind == submittransaction.EventLateBilling {

@@ -222,6 +222,11 @@ func (m *Manager) Status(cid string) (ManagedStatus, error) {
 	return ManagedStatus{CID: cid, Desired: desired, Observed: connector.Status(), Config: connector.Config()}, nil
 }
 
+func (m *Manager) Available(cid string) bool {
+	status, err := m.Status(cid)
+	return err == nil && status.Desired && status.Observed == StatusBound
+}
+
 func (m *Manager) Stats() ManagerStats {
 	m.mu.RLock()
 	entries := make([]*managedConnector, 0, len(m.connectors))

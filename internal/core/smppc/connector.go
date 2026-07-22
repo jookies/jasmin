@@ -2,9 +2,12 @@ package smppc
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -40,7 +43,7 @@ type AMQPDeliveryStream struct {
 	Done       <-chan struct{}
 }
 
-type defaultAMQPProvider struct{}
+type defaultAMQPProvider struct{ prefetch int }
 
 func dialAMQPTransport(
 	ctx context.Context,
@@ -101,7 +104,11 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 		closeSetup()
 		return AMQPDeliveryStream{}, err
 	}
-	consumer, err := amqpcompat.NewConsumer(conn)
+	prefetch := p.prefetch
+	if prefetch < 1 {
+		prefetch = 1
+	}
+	consumer, err := amqpcompat.NewConsumerWithPrefetch(conn, prefetch)
 	if err != nil {
 		closeSetup()
 		return AMQPDeliveryStream{}, err
@@ -203,7 +210,7 @@ func newConnector(cfg Config, amqpURL string, decoder SubmitDecoder) (*Connector
 		cfg:       clonedConfig,
 		status:    StatusDisconnected,
 		amqpURL:   amqpURL,
-		amqp:      &defaultAMQPProvider{},
+		amqp:      &defaultAMQPProvider{prefetch: clonedConfig.PrefetchCount},
 		readiness: readiness,
 		pacer:     pacer,
 		decoder:   decoder,
@@ -258,8 +265,25 @@ func (c *Connector) Stop() error {
 	defer c.lifecycleMu.Unlock()
 	c.mu.Lock()
 	cancel := c.cancel
+	session := c.session
+	bound := c.status == StatusBound && session != nil
+	if bound {
+		c.status = StatusUnbinding
+	}
 	c.cancel = nil
+	cfg := c.cfg.Clone()
 	c.mu.Unlock()
+	var unbindErr error
+	if bound {
+		timeout := seconds(cfg.TrxTimeout)
+		const maximumUnbindGrace = 250 * time.Millisecond
+		if timeout <= 0 || timeout > maximumUnbindGrace {
+			timeout = maximumUnbindGrace
+		}
+		unbindCtx, stopUnbind := context.WithTimeout(context.Background(), timeout)
+		unbindErr = session.Unbind(unbindCtx)
+		stopUnbind()
+	}
 	if cancel != nil {
 		cancel()
 	}
@@ -268,7 +292,10 @@ func (c *Connector) Stop() error {
 	c.session = nil
 	c.status = StatusDisconnected
 	c.mu.Unlock()
-	return nil
+	if errors.Is(unbindErr, ErrSessionClosed) || errors.Is(unbindErr, context.Canceled) || errors.Is(unbindErr, context.DeadlineExceeded) {
+		return nil
+	}
+	return unbindErr
 }
 
 func (c *Connector) loop(ctx context.Context) {
@@ -500,10 +527,48 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 	}
 }
 
+func dialSMPP(ctx context.Context, cfg Config) (net.Conn, error) {
+	address := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	dialer := net.Dialer{}
+	raw, err := dialer.DialContext(ctx, "tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.TLSEnabled {
+		return raw, nil
+	}
+	serverName := cfg.TLSServerName
+	if serverName == "" {
+		serverName = cfg.Host
+	}
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName, InsecureSkipVerify: cfg.TLSInsecureSkipVerify} // #nosec G402 -- explicit config opt-out
+	if cfg.TLSCAFile != "" {
+		pem, readErr := os.ReadFile(cfg.TLSCAFile)
+		if readErr != nil {
+			_ = raw.Close()
+			return nil, fmt.Errorf("read SMPP TLS CA: %w", readErr)
+		}
+		roots, rootErr := x509.SystemCertPool()
+		if rootErr != nil || roots == nil {
+			roots = x509.NewCertPool()
+		}
+		if !roots.AppendCertsFromPEM(pem) {
+			_ = raw.Close()
+			return nil, errors.New("SMPP TLS CA file contains no certificates")
+		}
+		tlsConfig.RootCAs = roots
+	}
+	secured := tls.Client(raw, tlsConfig)
+	if err := secured.HandshakeContext(ctx); err != nil {
+		_ = secured.Close()
+		return nil, fmt.Errorf("SMPP TLS handshake: %w", err)
+	}
+	return secured, nil
+}
+
 func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	cfg := c.Config()
-	dialer := net.Dialer{}
-	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
+	conn, err := dialSMPP(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}

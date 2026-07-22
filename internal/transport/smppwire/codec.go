@@ -59,7 +59,7 @@ func Encode(pdu PDU) ([]byte, error) {
 		} else {
 			body, err = encodeBindResponse(pdu.BindResponse)
 		}
-	case CommandEnquireLink, CommandEnquireLinkResp:
+	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp:
 		body = nil
 	case CommandSubmitSM, CommandDeliverSM:
 		if pdu.decodedMessagePayload {
@@ -111,7 +111,7 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 		} else {
 			pdu.BindResponse, err = decodeBindResponse(cursor)
 		}
-	case CommandEnquireLink, CommandEnquireLinkResp:
+	case CommandEnquireLink, CommandEnquireLinkResp, CommandUnbind, CommandUnbindResp:
 		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor)

@@ -110,6 +110,27 @@ func (r *SQLiteSubmitTransactionRepository) Admit(ctx context.Context, parts []s
 	return tx.Commit()
 }
 
+func (r *SQLiteSubmitTransactionRepository) AggregateStatus(ctx context.Context, messageID string) (submittransaction.AggregateStatus, error) {
+	status := submittransaction.AggregateStatus{MessageID: messageID}
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*),
+ SUM(CASE WHEN state=? THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state=? THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state=? THEN 1 ELSE 0 END),
+ SUM(CASE WHEN state=? THEN 1 ELSE 0 END)
+ FROM submit_parts WHERE message_id=?`,
+		submittransaction.PartPending, submittransaction.PartAttempting,
+		submittransaction.PartUnknownAfterSend, submittransaction.PartResultCommitted, messageID,
+	).Scan(&status.TotalParts, &status.Pending, &status.Attempting, &status.UnknownAfterSend, &status.ResultCommitted)
+	if err != nil {
+		return submittransaction.AggregateStatus{}, err
+	}
+	if status.TotalParts == 0 {
+		return submittransaction.AggregateStatus{}, submittransaction.ErrPartNotFound
+	}
+	status.State = status.DerivedState()
+	return status, nil
+}
+
 func insertSQLiteEvent(ctx context.Context, tx *sql.Tx, event submittransaction.OutboxEvent) error {
 	_, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO submit_outbox(event_key,part_key,kind,exchange_name,routing_key,payload,created_at,available_at) VALUES(?,?,?,?,?,?,?,?)`, event.Key, event.PartKey, event.Kind, event.Exchange, event.RoutingKey, event.Payload, nanos(event.CreatedAt), nanos(event.AvailableAt))
 	if err == nil && event.Kind == submittransaction.EventLateBilling {

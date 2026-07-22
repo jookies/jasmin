@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/warthog618/sms/encoding/gsm7"
+
 	"github.com/pumpitspace/jasmin/internal/core/billing"
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
@@ -112,6 +114,9 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	payload, err := submitPayload(request)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+	}
+	if request.HexContent == "" && request.Coding == 0 {
+		payload = encodeLegacyGSM0338(payload)
 	}
 	state := user.GetState()
 	createdAt := service.dependencies.Now()
@@ -250,6 +255,22 @@ func submitPayload(request SubmitRequest) ([]byte, error) {
 		return payload, nil
 	}
 	return []byte(request.Content), nil
+}
+
+// encodeLegacyGSM0338 mirrors Python's text.encode("gsm0338", "replace"):
+// extension-table runes consume ESC plus one septet and unsupported runes are
+// replaced with '?'. These unpacked septets are the legacy segmentation input.
+func encodeLegacyGSM0338(payload []byte) []byte {
+	encoded := make([]byte, 0, len(payload))
+	for _, value := range string(payload) {
+		part, err := gsm7.Encode([]byte(string(value)))
+		if err != nil {
+			encoded = append(encoded, 0x3f)
+			continue
+		}
+		encoded = append(encoded, part...)
+	}
+	return encoded
 }
 
 func validateSubmitEnvelope(envelope amqpcompat.Envelope, connectorID string, index int) error {
