@@ -155,6 +155,37 @@ func TestSQLiteSubmitTransactionIdempotentResponseAndRecovery(t *testing.T) {
 	}
 }
 
+func TestSQLiteCommitResponseRejectsAttemptOwnedByDifferentPart(t *testing.T) {
+	repository, db := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	service, _ := submittransaction.NewService(repository, func() time.Time { return now })
+	ctx := context.Background()
+	if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{
+		multipartEnvelope(t, "cross-part", "connector-a", 1, 2),
+		multipartEnvelope(t, "cross-part", "connector-a", 2, 2),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	attempt, _, err := service.BeginAttempt(ctx, "cross-part/000001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := service.CommitResponse(ctx, submittransaction.Result{
+		PartKey: "cross-part/000002", AttemptID: attempt.ID,
+		Kind: submittransaction.ResultSuccess, SMPPStatus: "ESME_ROK",
+	})
+	if fresh || !errors.Is(err, submittransaction.ErrAttemptNotFound) {
+		t.Fatalf("cross-part commit=(%v,%v), want false ErrAttemptNotFound", fresh, err)
+	}
+	var results int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM submit_results`).Scan(&results); err != nil {
+		t.Fatal(err)
+	}
+	if results != 0 {
+		t.Fatalf("cross-part commit persisted %d results", results)
+	}
+}
+
 type recordingPublisher struct {
 	failAt int
 	calls  []string

@@ -247,6 +247,12 @@ func (r *SQLiteSubmitTransactionRepository) CommitResult(ctx context.Context, co
 		return false, err
 	}
 	defer tx.Rollback()
+	var attemptPart string
+	if err = tx.QueryRowContext(ctx, `SELECT part_key FROM submit_attempts WHERE id=? AND part_key=?`, commit.Result.AttemptID, commit.Result.PartKey).Scan(&attemptPart); errors.Is(err, sql.ErrNoRows) {
+		return false, submittransaction.ErrAttemptNotFound
+	} else if err != nil {
+		return false, err
+	}
 	result, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO submit_results(part_key,attempt_id,kind,smpp_status,smsc_message_id,committed_at) VALUES(?,?,?,?,?,?)`, commit.Result.PartKey, commit.Result.AttemptID, commit.Result.Kind, commit.Result.SMPPStatus, nullString(commit.Result.SMSCMessageID), nanos(commit.Result.CommittedAt))
 	if err != nil {
 		return false, err
@@ -255,15 +261,27 @@ func (r *SQLiteSubmitTransactionRepository) CommitResult(ctx context.Context, co
 	if count == 0 {
 		return false, nil
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE submit_attempts SET state=?,resolved_at=? WHERE id=? AND part_key=?`, submittransaction.AttemptResultCommitted, nanos(commit.Result.CommittedAt), commit.Result.AttemptID, commit.Result.PartKey); err != nil {
+	attemptUpdate, err := tx.ExecContext(ctx, `UPDATE submit_attempts SET state=?,resolved_at=? WHERE id=? AND part_key=?`, submittransaction.AttemptResultCommitted, nanos(commit.Result.CommittedAt), commit.Result.AttemptID, commit.Result.PartKey)
+	if err != nil {
 		return false, err
+	}
+	if updated, rowsErr := attemptUpdate.RowsAffected(); rowsErr != nil {
+		return false, rowsErr
+	} else if updated != 1 {
+		return false, submittransaction.ErrAttemptNotFound
 	}
 	partState := submittransaction.PartResultCommitted
 	if commit.Result.Kind == submittransaction.ResultRetry {
 		partState = submittransaction.PartPending
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE part_key=?`, partState, commit.Result.PartKey); err != nil {
+	partUpdate, err := tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE part_key=?`, partState, commit.Result.PartKey)
+	if err != nil {
 		return false, err
+	}
+	if updated, rowsErr := partUpdate.RowsAffected(); rowsErr != nil {
+		return false, rowsErr
+	} else if updated != 1 {
+		return false, submittransaction.ErrPartNotFound
 	}
 	for _, event := range commit.Events {
 		if err = insertSQLiteEvent(ctx, tx, event); err != nil {

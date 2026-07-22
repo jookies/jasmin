@@ -157,13 +157,14 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 }
 
 func newLateBillingIntent(input DurableResponseInput) (amqpcompat.Envelope, error) {
-	if input.UserID == "" || input.BillID == "" {
+	if input.UserID == "" || input.BillID == "" || input.PartKey == "" {
 		return amqpcompat.Envelope{}, fmt.Errorf("%w: missing late billing identity", ErrInvalidSubmitResponsePublication)
 	}
-	properties, err := amqpcompat.NewProperties(input.BillID, map[string]amqpcompat.Field{
+	eventKey := input.PartKey + ":20-late-billing"
+	properties, err := amqpcompat.NewProperties(eventKey, map[string]amqpcompat.Field{
 		"user-id":   amqpcompat.StringField(input.UserID),
 		"amount":    amqpcompat.StringField(input.LateBillAmount),
-		"event-key": amqpcompat.StringField(input.PartKey + ":20-late-billing"),
+		"event-key": amqpcompat.StringField(eventKey),
 	})
 	if err != nil {
 		return amqpcompat.Envelope{}, err

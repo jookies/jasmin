@@ -204,6 +204,12 @@ func (r *PostgresSubmitTransactionRepository) CommitResult(ctx context.Context, 
 		return false, err
 	}
 	defer tx.Rollback()
+	var attemptPart string
+	if err = tx.QueryRowContext(ctx, `SELECT part_key FROM submit_attempts WHERE id=$1 AND part_key=$2 FOR UPDATE`, commit.Result.AttemptID, commit.Result.PartKey).Scan(&attemptPart); errors.Is(err, sql.ErrNoRows) {
+		return false, submittransaction.ErrAttemptNotFound
+	} else if err != nil {
+		return false, err
+	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO submit_results(part_key,attempt_id,kind,smpp_status,smsc_message_id,committed_at) VALUES($1,$2,$3,$4,NULLIF($5,''),$6) ON CONFLICT(attempt_id) DO NOTHING`, commit.Result.PartKey, commit.Result.AttemptID, commit.Result.Kind, commit.Result.SMPPStatus, commit.Result.SMSCMessageID, commit.Result.CommittedAt)
 	if err != nil {
 		return false, err
@@ -212,15 +218,27 @@ func (r *PostgresSubmitTransactionRepository) CommitResult(ctx context.Context, 
 	if count == 0 {
 		return false, nil
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE submit_attempts SET state=$1,resolved_at=$2 WHERE id=$3 AND part_key=$4`, submittransaction.AttemptResultCommitted, commit.Result.CommittedAt, commit.Result.AttemptID, commit.Result.PartKey); err != nil {
+	attemptUpdate, err := tx.ExecContext(ctx, `UPDATE submit_attempts SET state=$1,resolved_at=$2 WHERE id=$3 AND part_key=$4`, submittransaction.AttemptResultCommitted, commit.Result.CommittedAt, commit.Result.AttemptID, commit.Result.PartKey)
+	if err != nil {
 		return false, err
+	}
+	if updated, rowsErr := attemptUpdate.RowsAffected(); rowsErr != nil {
+		return false, rowsErr
+	} else if updated != 1 {
+		return false, submittransaction.ErrAttemptNotFound
 	}
 	partState := submittransaction.PartResultCommitted
 	if commit.Result.Kind == submittransaction.ResultRetry {
 		partState = submittransaction.PartPending
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=$1 WHERE part_key=$2`, partState, commit.Result.PartKey); err != nil {
+	partUpdate, err := tx.ExecContext(ctx, `UPDATE submit_parts SET state=$1 WHERE part_key=$2`, partState, commit.Result.PartKey)
+	if err != nil {
 		return false, err
+	}
+	if updated, rowsErr := partUpdate.RowsAffected(); rowsErr != nil {
+		return false, rowsErr
+	} else if updated != 1 {
+		return false, submittransaction.ErrPartNotFound
 	}
 	for _, event := range commit.Events {
 		if err = insertPostgresEvent(ctx, tx, event); err != nil {

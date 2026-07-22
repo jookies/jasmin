@@ -111,3 +111,29 @@ func TestSubmitResponsePublicationIsConcurrentAndImmutable(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestLateBillingIntentUsesPartSpecificPublicationIdentity(t *testing.T) {
+	first, err := newLateBillingIntent(DurableResponseInput{
+		PartKey: "aggregate/000001", UserID: "user-1", BillID: "bill-1", LateBillAmount: "0.75",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := newLateBillingIntent(DurableResponseInput{
+		PartKey: "aggregate/000002", UserID: "user-1", BillID: "bill-1", LateBillAmount: "0.75",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstID := first.Properties().MessageID()
+	secondID := second.Properties().MessageID()
+	if firstID != "aggregate/000001:20-late-billing" || secondID != "aggregate/000002:20-late-billing" {
+		t.Fatalf("late-billing IDs=(%q,%q)", firstID, secondID)
+	}
+	if firstID == secondID {
+		t.Fatal("distinct part events reused one AMQP message-id")
+	}
+	if string(first.Body()) != "bill-1" || string(second.Body()) != "bill-1" {
+		t.Fatalf("legacy bill bodies=(%q,%q)", first.Body(), second.Body())
+	}
+}

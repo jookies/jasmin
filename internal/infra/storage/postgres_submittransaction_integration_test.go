@@ -178,3 +178,48 @@ func TestPostgresActiveAttemptIsFencedBeforeRedelivery(t *testing.T) {
 		t.Fatalf("post-fence attempt=%+v committed=%v err=%v", second, committed, err)
 	}
 }
+
+func TestPostgresCommitResponseRejectsAttemptOwnedByDifferentPart(t *testing.T) {
+	dsn := os.Getenv("TEST_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("TEST_POSTGRES_DSN is not set")
+	}
+	ctx := context.Background()
+	repository, err := OpenPostgresSubmitTransactionRepository(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = repository.Close() })
+	if err := repository.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.db.ExecContext(ctx, `TRUNCATE submit_billing_intents,submit_outbox,submit_results,submit_attempts,submit_parts RESTART IDENTITY CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	service, _ := submittransaction.NewProductionService(repository, func() time.Time { return now })
+	if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{
+		multipartEnvelope(t, "pg-cross-part", "connector-a", 1, 2),
+		multipartEnvelope(t, "pg-cross-part", "connector-a", 2, 2),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	attempt, _, err := service.BeginAttempt(ctx, "pg-cross-part/000001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := service.CommitResponse(ctx, submittransaction.Result{
+		PartKey: "pg-cross-part/000002", AttemptID: attempt.ID,
+		Kind: submittransaction.ResultSuccess, SMPPStatus: "ESME_ROK",
+	})
+	if fresh || !errors.Is(err, submittransaction.ErrAttemptNotFound) {
+		t.Fatalf("cross-part commit=(%v,%v), want false ErrAttemptNotFound", fresh, err)
+	}
+	var results int
+	if err := repository.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM submit_results`).Scan(&results); err != nil {
+		t.Fatal(err)
+	}
+	if results != 0 {
+		t.Fatalf("cross-part commit persisted %d results", results)
+	}
+}
