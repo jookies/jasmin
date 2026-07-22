@@ -63,14 +63,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
 	}
 	runtime.bridge = bridge
-	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
-		Bridge: bridge, Transactions: transactions, Repository: repository,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("start outbound runtime: %w", err)
-	}
-	runtime.Handler = outboundRuntime.Handler
-	runtime.outbound = outboundRuntime
 	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
 		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)
 		if connectorErr != nil {
@@ -87,6 +79,14 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("add connector %q: %w", connector.CID, err)
 		}
 	}
+	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
+		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("start outbound runtime: %w", err)
+	}
+	runtime.Handler = outboundRuntime.Handler
+	runtime.outbound = outboundRuntime
 	if err := manager.StartAll(); err != nil {
 		return nil, fmt.Errorf("start connectors: %w", err)
 	}

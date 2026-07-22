@@ -74,6 +74,7 @@ type SubmitServiceDependencies struct {
 	EnvelopeBuilder   SubmitEnvelopeBuilder
 	Publisher         AMQPPublisher
 	Transaction       SubmitPublicationBoundary
+	SelectConnector   func(primaryConnectorID string) (string, bool)
 	NewMessageID      func() (string, error)
 	NewBillID         func() (string, error)
 	NewReference      func() (uint16, error)
@@ -153,6 +154,14 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	if !found {
 		return "", ErrNoRouteMatched
 	}
+	connectorID := route.Connector().ID()
+	if service.dependencies.SelectConnector != nil {
+		selected, available := service.dependencies.SelectConnector(connectorID)
+		if !available {
+			return "", ErrNoRouteMatched
+		}
+		connectorID = selected
+	}
 
 	reference, err := service.dependencies.NewReference()
 	if err != nil {
@@ -194,7 +203,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		CreatedAt:       createdAt,
 		Username:        request.Username,
 		UserID:          externalUserID,
-		ConnectorID:     route.Connector().ID(),
+		ConnectorID:     connectorID,
 		SourceAddr:      intercepted.Routable.SourceAddr().Value,
 		DestinationAddr: intercepted.Routable.DestinationAddr().Value,
 		DataCoding:      uint8(request.Coding),
@@ -219,7 +228,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		if err != nil {
 			return "", err
 		}
-		if err := validateSubmitEnvelope(envelope, route.Connector().ID(), index); err != nil {
+		if err := validateSubmitEnvelope(envelope, connectorID, index); err != nil {
 			return "", err
 		}
 		envelopes = append(envelopes, envelope)

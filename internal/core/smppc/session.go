@@ -511,9 +511,11 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 		_ = s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbindResp, SequenceNumber: pdu.Header.SequenceNumber}})
 		return io.EOF
 	case smppwire.CommandUnbindResp:
-		if timer, matched := s.takePendingControl(pdu.Header.SequenceNumber); matched {
-			stopTimer(timer)
+		timer, matched := s.takePendingControl(pdu.Header.SequenceNumber)
+		if !matched {
+			return nil
 		}
+		stopTimer(timer)
 		return io.EOF
 	case smppwire.CommandEnquireLink:
 		return s.writePDU(smppwire.PDU{Header: smppwire.Header{

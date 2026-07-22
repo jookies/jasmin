@@ -78,8 +78,10 @@ func ValidateConfig(config Config) error {
 		configured[connector.CID] = struct{}{}
 	}
 	for _, route := range config.Outbound.Routes {
-		if _, exists := configured[route.ConnectorID]; !exists {
-			return fmt.Errorf("%w: route references missing connector %q", ErrInvalidConfig, route.ConnectorID)
+		for _, connectorID := range route.ConnectorCandidates() {
+			if _, exists := configured[connectorID]; !exists {
+				return fmt.Errorf("%w: route references missing connector %q", ErrInvalidConfig, connectorID)
+			}
 		}
 	}
 	required := config.RequiredConnectorIDs

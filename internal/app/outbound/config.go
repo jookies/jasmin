@@ -43,10 +43,21 @@ type UserConfig struct {
 }
 
 type RouteConfig struct {
-	ConnectorID string  `json:"connector_id"`
-	Rate        float64 `json:"rate"`
-	Default     bool    `json:"default"`
-	Order       int     `json:"order"`
+	ConnectorID  string   `json:"connector_id"`
+	ConnectorIDs []string `json:"connector_ids,omitempty"`
+	Rate         float64  `json:"rate"`
+	Default      bool     `json:"default"`
+	Order        int      `json:"order"`
+}
+
+func (route RouteConfig) ConnectorCandidates() []string {
+	if len(route.ConnectorIDs) > 0 {
+		return append([]string(nil), route.ConnectorIDs...)
+	}
+	if route.ConnectorID == "" {
+		return nil
+	}
+	return []string{route.ConnectorID}
 }
 
 type runtimeDirectory struct {

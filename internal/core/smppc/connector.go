@@ -276,9 +276,8 @@ func (c *Connector) Stop() error {
 	var unbindErr error
 	if bound {
 		timeout := seconds(cfg.TrxTimeout)
-		const maximumUnbindGrace = 250 * time.Millisecond
-		if timeout <= 0 || timeout > maximumUnbindGrace {
-			timeout = maximumUnbindGrace
+		if timeout <= 0 {
+			timeout = 250 * time.Millisecond
 		}
 		unbindCtx, stopUnbind := context.WithTimeout(context.Background(), timeout)
 		unbindErr = session.Unbind(unbindCtx)

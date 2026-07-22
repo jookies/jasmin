@@ -69,3 +69,22 @@ func TestRuntimeDirectoryUsesOpaqueIdentityAndConstantTimeDigestComparison(t *te
 		t.Fatalf("external ID=%q", externalID)
 	}
 }
+
+func TestConnectorSelectorUsesOrderedAvailabilityAndExhausts(t *testing.T) {
+	routes := []RouteConfig{{ConnectorIDs: []string{"first", "second", "third"}, Rate: 1, Default: true}}
+	_, connectorIDs, _, err := buildRoutes(routes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(connectorIDs) != 3 {
+		t.Fatalf("declared connectors=%v", connectorIDs)
+	}
+	selector := connectorSelector(routes, func(connectorID string) bool { return connectorID != "first" })
+	if selected, ok := selector("first"); !ok || selected != "second" {
+		t.Fatalf("selected=(%q,%v)", selected, ok)
+	}
+	selector = connectorSelector(routes, func(string) bool { return false })
+	if selected, ok := selector("first"); ok || selected != "" {
+		t.Fatalf("exhaustion=(%q,%v)", selected, ok)
+	}
+}

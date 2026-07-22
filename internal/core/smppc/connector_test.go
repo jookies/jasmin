@@ -655,6 +655,21 @@ func TestConnectorStopCancelsStalledAMQPHandshake(t *testing.T) {
 		t.Fatal("connector did not begin AMQP handshake")
 	}
 	stopped := make(chan error, 1)
+	unbindHandled := make(chan error, 1)
+	go func() {
+		request, readErr := smppwire.Read(smppServer, 1024)
+		if readErr != nil {
+			unbindHandled <- readErr
+			return
+		}
+		response, encodeErr := smppwire.Encode(smppwire.PDU{Header: smppwire.Header{
+			CommandID: smppwire.CommandUnbindResp, SequenceNumber: request.Header.SequenceNumber,
+		}})
+		if encodeErr == nil {
+			_, encodeErr = smppServer.Write(response)
+		}
+		unbindHandled <- encodeErr
+	}()
 	go func() { stopped <- connector.Stop() }()
 	select {
 	case err := <-stopped:
@@ -663,6 +678,9 @@ func TestConnectorStopCancelsStalledAMQPHandshake(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("Stop did not cancel stalled AMQP handshake")
+	}
+	if err := <-unbindHandled; err != nil {
+		t.Fatal(err)
 	}
 }
 

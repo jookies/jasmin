@@ -1,6 +1,13 @@
 package smppc
 
-import "testing"
+import (
+	"context"
+	"net"
+	"testing"
+	"time"
+
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+)
 
 func TestManagerAvailabilityUsesDesiredAndObservedState(t *testing.T) {
 	manager := NewManagerWithFactory("", func(cfg Config, amqpURL string) (*Connector, error) {
@@ -51,5 +58,41 @@ func TestConfigTLSAndPrefetchValidation(t *testing.T) {
 	}
 	if valid.PrefetchCount != 32 {
 		t.Fatalf("prefetch=%d", valid.PrefetchCount)
+	}
+}
+
+func TestConnectorStopHonorsConfiguredUnbindTimeout(t *testing.T) {
+	client, server := net.Pipe()
+	defer server.Close()
+	retry, _ := NewErrorRetryPolicy(DefaultErrorRetryRules())
+	readiness, _ := NewReadinessPolicy(DefaultReadinessConfig())
+	session := NewSession(client, Config{TrxTimeout: 1}, retry, readiness, nil)
+	go func() { _ = session.Run(context.Background()) }()
+	connector := &Connector{cfg: Config{TrxTimeout: 1}, session: session, status: StatusBound}
+	peerDone := make(chan error, 1)
+	go func() {
+		request, err := smppwire.Read(server, smppwire.DefaultMaxSize)
+		if err != nil {
+			peerDone <- err
+			return
+		}
+		time.Sleep(300 * time.Millisecond)
+		response, err := smppwire.Encode(smppwire.PDU{Header: smppwire.Header{
+			CommandID: smppwire.CommandUnbindResp, SequenceNumber: request.Header.SequenceNumber,
+		}})
+		if err == nil {
+			_, err = server.Write(response)
+		}
+		peerDone <- err
+	}()
+	started := time.Now()
+	if err := connector.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(started); elapsed < 300*time.Millisecond || elapsed >= time.Second {
+		t.Fatalf("Stop elapsed=%s, want configured graceful wait", elapsed)
+	}
+	if err := <-peerDone; err != nil {
+		t.Fatal(err)
 	}
 }

@@ -41,9 +41,10 @@ type Runtime struct {
 }
 
 type RuntimeDependencies struct {
-	Bridge       *picklecompat.Bridge
-	Transactions *submittransaction.Service
-	Repository   submittransaction.Repository
+	Bridge             *picklecompat.Bridge
+	Transactions       *submittransaction.Service
+	Repository         submittransaction.Repository
+	ConnectorAvailable func(string) bool
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -143,6 +144,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		BillingUsers:     directory.users,
 		EnvelopeBuilder:  envelopeBuilder,
 		Transaction:      dependencies.Transactions,
+		SelectConnector:  connectorSelector(config.Routes, dependencies.ConnectorAvailable),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)
@@ -264,6 +266,11 @@ func validateConfig(config Config) error {
 	if len(config.Users) == 0 || len(config.Routes) == 0 {
 		return fmt.Errorf("%w: at least one user and route are required", ErrInvalidRuntimeConfig)
 	}
+	for index, route := range config.Routes {
+		if len(route.ConnectorCandidates()) == 0 {
+			return fmt.Errorf("%w: route %d has no connectors", ErrInvalidRuntimeConfig, index)
+		}
+	}
 	return nil
 }
 
@@ -276,7 +283,22 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 	defaultRate := 0.0
 	bestOrder := -1
 	for index, entry := range configs {
-		connector := routingtable.Connector{IDValue: entry.ConnectorID, TypeValue: routingtable.SMPPC}
+		candidates := entry.ConnectorCandidates()
+		if len(candidates) == 0 {
+			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d has no connectors", ErrInvalidRuntimeConfig, index)
+		}
+		seenCandidates := make(map[string]struct{}, len(candidates))
+		for _, connectorID := range candidates {
+			if connectorID == "" {
+				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d has empty connector", ErrInvalidRuntimeConfig, index)
+			}
+			if _, duplicate := seenCandidates[connectorID]; duplicate {
+				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d repeats connector %q", ErrInvalidRuntimeConfig, index, connectorID)
+			}
+			seenCandidates[connectorID] = struct{}{}
+			connectors[connectorID] = struct{}{}
+		}
+		connector := routingtable.Connector{IDValue: candidates[0], TypeValue: routingtable.SMPPC}
 		var route routingtable.Route
 		if entry.Default {
 			route, err = routingtable.NewDefaultRoute(connector, entry.Rate)
@@ -295,7 +317,6 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 		if err := builder.Add(entry.Order, route); err != nil {
 			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %v", ErrInvalidRuntimeConfig, index, err)
 		}
-		connectors[entry.ConnectorID] = struct{}{}
 		if entry.Order > bestOrder {
 			bestOrder = entry.Order
 			defaultRate = entry.Rate
@@ -307,4 +328,25 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 	}
 	sort.Strings(connectorIDs)
 	return builder.Build(), connectorIDs, defaultRate, nil
+}
+
+func connectorSelector(routes []RouteConfig, available func(string) bool) func(string) (string, bool) {
+	if available == nil {
+		return nil
+	}
+	pools := make(map[string][]string, len(routes))
+	for _, route := range routes {
+		candidates := route.ConnectorCandidates()
+		if len(candidates) > 0 {
+			pools[candidates[0]] = candidates
+		}
+	}
+	return func(primary string) (string, bool) {
+		for _, connectorID := range pools[primary] {
+			if available(connectorID) {
+				return connectorID, true
+			}
+		}
+		return "", false
+	}
 }

@@ -51,3 +51,33 @@ func TestSessionGracefulUnbindRoundTrip(t *testing.T) {
 		t.Fatal("session did not stop after unbind response")
 	}
 }
+
+func TestSessionIgnoresUnsolicitedUnbindResponse(t *testing.T) {
+	client, server := net.Pipe()
+	defer server.Close()
+	retry, _ := smppc.NewErrorRetryPolicy(smppc.DefaultErrorRetryRules())
+	readiness, _ := smppc.NewReadinessPolicy(smppc.DefaultReadinessConfig())
+	session := smppc.NewSession(client, smppc.Config{TrxTimeout: 1}, retry, readiness, nil)
+	runDone := make(chan error, 1)
+	go func() { runDone <- session.Run(context.Background()) }()
+	response, err := smppwire.Encode(smppwire.PDU{Header: smppwire.Header{
+		CommandID: smppwire.CommandUnbindResp, SequenceNumber: 777,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.Write(response); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-runDone:
+		t.Fatalf("unsolicited unbind_resp stopped session: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	_ = server.Close()
+	select {
+	case <-runDone:
+	case <-time.After(time.Second):
+		t.Fatal("session did not stop after transport close")
+	}
+}
