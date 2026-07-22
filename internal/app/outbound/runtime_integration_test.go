@@ -2,6 +2,7 @@ package outbound_test
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +23,15 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
 
+func randomExternalID(t *testing.T) string {
+	t.Helper()
+	var token [8]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		t.Fatal(err)
+	}
+	return "u" + hex.EncodeToString(token[:])[1:]
+}
+
 func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	amqpURL := os.Getenv("AMQP_URL")
 	pythonPath := os.Getenv("PYTHON_PATH")
@@ -33,7 +43,9 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	balance := 10.0
 	count := 10
 	early := 50
-	connectorID := fmt.Sprintf("macro13-e2e-%d", time.Now().UnixNano())
+	runID := time.Now().UnixNano()
+	connectorID := fmt.Sprintf("macro13-e2e-%d", runID)
+	externalID := randomExternalID(t)
 	config := outbound.Config{
 		ListenAddress: "127.0.0.1:0",
 		AMQPURL:       amqpURL,
@@ -41,7 +53,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 		PostgresDSN:   postgresDSN,
 		Users: []outbound.UserConfig{{
 			Username:                     "alice",
-			ExternalID:                   "user-opaque",
+			ExternalID:                   externalID,
 			PasswordSHA256:               hex.EncodeToString(passwordHash[:]),
 			Balance:                      &balance,
 			SubmitSMCount:                &count,
@@ -108,7 +120,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 		t.Fatal("timed out waiting for outbound SubmitSM")
 	}
 	defer delivery.Ack(false)
-	if delivery.RoutingKey != queueName || delivery.MessageId != messageID || delivery.ReplyTo != "submit.sm.resp.user-opaque" || delivery.Priority != 2 || delivery.ContentType != "application/octet-stream" || delivery.DeliveryMode != amqp.Persistent {
+	if delivery.RoutingKey != queueName || delivery.MessageId != messageID || delivery.ReplyTo != "submit.sm.resp."+externalID || delivery.Priority != 2 || delivery.ContentType != "application/octet-stream" || delivery.DeliveryMode != amqp.Persistent {
 		t.Fatalf("delivery route/properties=%q %q %d", delivery.RoutingKey, delivery.ReplyTo, delivery.Priority)
 	}
 	if delivery.Headers["source_connector"] != "httpapi" {
@@ -139,7 +151,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(decodedBill), "jasmin.routing.Bills.SubmitSmBill") || !strings.Contains(string(decodedBill), "user-opaque") {
+	if !strings.Contains(string(decodedBill), "jasmin.routing.Bills.SubmitSmBill") || !strings.Contains(string(decodedBill), externalID) {
 		t.Fatalf("decoded bill=%s", decodedBill)
 	}
 
@@ -171,13 +183,13 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	}
 	defer publisher.Close()
 	properties, err := amqpcompat.NewProperties("orphan-late-bill-e2e", map[string]amqpcompat.Field{
-		"user-id": amqpcompat.StringField("user-opaque"),
+		"user-id": amqpcompat.StringField(externalID),
 		"amount":  amqpcompat.StringField("0.5"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope, err := amqpcompat.NewEnvelope("bill_request.submit_sm_resp.user-opaque", properties, []byte("orphan-late-bill-e2e"))
+	envelope, err := amqpcompat.NewEnvelope("bill_request.submit_sm_resp."+externalID, properties, []byte("orphan-late-bill-e2e"))
 	if err != nil {
 		t.Fatal(err)
 	}

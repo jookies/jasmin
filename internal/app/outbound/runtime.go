@@ -2,6 +2,8 @@ package outbound
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -173,7 +175,11 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		RateReader:    directory,
 		Submitter:     submitService,
 	})
-	dispatcher, err := submittransaction.NewDispatcher(dependencies.Repository, publisher, "gateway-outbox", 32, 30*time.Second, nil)
+	outboxOwner, err := newOutboxOwner()
+	if err != nil {
+		return nil, fmt.Errorf("create submit outbox owner: %w", err)
+	}
+	dispatcher, err := submittransaction.NewDispatcher(dependencies.Repository, publisher, outboxOwner, 32, 30*time.Second, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create submit outbox dispatcher: %w", err)
 	}
@@ -190,6 +196,14 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
 	return runtime, nil
+}
+
+func newOutboxOwner() (string, error) {
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return "", err
+	}
+	return "gateway-outbox-" + hex.EncodeToString(token[:]), nil
 }
 
 func (runtime *Runtime) runOutbox(ctx context.Context, dispatcher *submittransaction.Dispatcher) {

@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS submit_outbox (
  dispatched_at INTEGER, lock_owner TEXT, locked_until INTEGER, last_error TEXT
 );
 CREATE INDEX IF NOT EXISTS submit_outbox_pending ON submit_outbox(dispatched_at, available_at, created_at, event_key);
+CREATE INDEX IF NOT EXISTS submit_outbox_part_order_pending ON submit_outbox(part_key, created_at, event_key) WHERE dispatched_at IS NULL;
 CREATE TABLE IF NOT EXISTS submit_billing_intents (
  event_key TEXT PRIMARY KEY REFERENCES submit_outbox(event_key), part_key TEXT NOT NULL REFERENCES submit_parts(part_key),
  applied_at INTEGER
@@ -255,7 +256,15 @@ func (r *SQLiteSubmitTransactionRepository) ClaimOutbox(ctx context.Context, own
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, `SELECT event_key,part_key,kind,exchange_name,routing_key,payload,created_at,available_at,attempts FROM submit_outbox WHERE dispatched_at IS NULL AND available_at<=? AND (locked_until IS NULL OR locked_until<=?) ORDER BY created_at,event_key LIMIT ?`, nanos(now), nanos(now), limit)
+	rows, err := tx.QueryContext(ctx, `SELECT candidate.event_key,candidate.part_key,candidate.kind,candidate.exchange_name,candidate.routing_key,candidate.payload,candidate.created_at,candidate.available_at,candidate.attempts
+	 FROM submit_outbox AS candidate
+	 WHERE candidate.dispatched_at IS NULL AND candidate.available_at<=? AND (candidate.locked_until IS NULL OR candidate.locked_until<=?)
+	 AND NOT EXISTS (
+	  SELECT 1 FROM submit_outbox AS predecessor
+	  WHERE predecessor.part_key=candidate.part_key AND predecessor.dispatched_at IS NULL
+	  AND (predecessor.created_at<candidate.created_at OR (predecessor.created_at=candidate.created_at AND predecessor.event_key<candidate.event_key))
+	 )
+	 ORDER BY candidate.created_at,candidate.event_key LIMIT ?`, nanos(now), nanos(now), limit)
 	if err != nil {
 		return nil, err
 	}

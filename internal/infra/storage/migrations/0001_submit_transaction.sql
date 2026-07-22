@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS submit_outbox (
 CREATE INDEX IF NOT EXISTS submit_outbox_pending
     ON submit_outbox(available_at, created_at, event_key)
     WHERE dispatched_at IS NULL;
+CREATE INDEX IF NOT EXISTS submit_outbox_part_order_pending
+    ON submit_outbox(part_key, created_at, event_key)
+    WHERE dispatched_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS submit_billing_intents (
     event_key text PRIMARY KEY REFERENCES submit_outbox(event_key),

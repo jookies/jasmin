@@ -205,7 +205,15 @@ func (r *PostgresSubmitTransactionRepository) ClaimOutbox(ctx context.Context, o
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, `SELECT event_key,part_key,kind,exchange_name,routing_key,payload,created_at,available_at,attempts FROM submit_outbox WHERE dispatched_at IS NULL AND available_at<=$1 AND (locked_until IS NULL OR locked_until<=$1) ORDER BY created_at,event_key FOR UPDATE SKIP LOCKED LIMIT $2`, now, limit)
+	rows, err := tx.QueryContext(ctx, `SELECT candidate.event_key,candidate.part_key,candidate.kind,candidate.exchange_name,candidate.routing_key,candidate.payload,candidate.created_at,candidate.available_at,candidate.attempts
+	 FROM submit_outbox AS candidate
+	 WHERE candidate.dispatched_at IS NULL AND candidate.available_at<=$1 AND (candidate.locked_until IS NULL OR candidate.locked_until<=$1)
+	 AND NOT EXISTS (
+	  SELECT 1 FROM submit_outbox AS predecessor
+	  WHERE predecessor.part_key=candidate.part_key AND predecessor.dispatched_at IS NULL
+	  AND (predecessor.created_at<candidate.created_at OR (predecessor.created_at=candidate.created_at AND predecessor.event_key<candidate.event_key))
+	 )
+	 ORDER BY candidate.created_at,candidate.event_key FOR UPDATE OF candidate SKIP LOCKED LIMIT $2`, now, limit)
 	if err != nil {
 		return nil, err
 	}

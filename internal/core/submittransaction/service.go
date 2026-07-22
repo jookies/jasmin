@@ -153,7 +153,8 @@ func NewDispatcher(repository Repository, publisher ConfirmingPublisher, owner s
 // DispatchOnce provides explicit at-least-once delivery. Publication uses a
 // broker-confirming publisher; a crash after confirm but before dispatched mark
 // causes replay with the same event/message key and must be deduplicated by the
-// consumer. Ordering is repository order (created_at, key), one event at a time.
+// consumer. Events are attempted in repository order, but one unavailable or
+// malformed destination must not head-of-line block unrelated claimed events.
 func (dispatcher *Dispatcher) DispatchOnce(ctx context.Context) (int, error) {
 	now := dispatcher.now().UTC()
 	events, err := dispatcher.repository.ClaimOutbox(ctx, dispatcher.owner, dispatcher.batchSize, now, dispatcher.lease)
@@ -161,28 +162,55 @@ func (dispatcher *Dispatcher) DispatchOnce(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	published := 0
-	for index, event := range events {
+	var dispatchErrors []error
+	failedParts := make(map[string]error)
+	for _, event := range events {
+		if predecessorErr := failedParts[event.PartKey]; predecessorErr != nil {
+			blockedErr := fmt.Errorf("predecessor for part %q was not dispatched: %w", event.PartKey, predecessorErr)
+			if releaseErr := dispatcher.releaseClaimed(event, dispatcher.now().UTC().Add(time.Second), blockedErr); releaseErr != nil {
+				dispatchErrors = append(dispatchErrors, releaseErr)
+			}
+			continue
+		}
 		envelope, restoreErr := RestoreEnvelope(event.Payload)
 		if restoreErr != nil {
-			dispatcher.releaseClaimed(ctx, events[index:], now, restoreErr)
-			return published, restoreErr
+			eventErr := fmt.Errorf("restore outbox event %q: %w", event.Key, restoreErr)
+			failedParts[event.PartKey] = eventErr
+			if releaseErr := dispatcher.releaseClaimed(event, dispatcher.now().UTC().Add(time.Second), eventErr); releaseErr != nil {
+				dispatchErrors = append(dispatchErrors, releaseErr)
+			}
+			dispatchErrors = append(dispatchErrors, eventErr)
+			continue
 		}
 		if publishErr := dispatcher.publisher.Publish(ctx, event.Exchange, event.RoutingKey, envelope); publishErr != nil {
-			dispatcher.releaseClaimed(ctx, events[index:], now, publishErr)
-			return published, publishErr
+			eventErr := fmt.Errorf("publish outbox event %q: %w", event.Key, publishErr)
+			failedParts[event.PartKey] = eventErr
+			if releaseErr := dispatcher.releaseClaimed(event, dispatcher.now().UTC().Add(time.Second), eventErr); releaseErr != nil {
+				dispatchErrors = append(dispatchErrors, releaseErr)
+			}
+			dispatchErrors = append(dispatchErrors, eventErr)
+			continue
 		}
 		if markErr := dispatcher.repository.MarkOutboxDispatched(ctx, event.Key, dispatcher.owner, dispatcher.now().UTC()); markErr != nil {
 			// Confirmed but unmarked is deliberately replayable (at-least-once).
-			dispatcher.releaseClaimed(ctx, events[index:], now, markErr)
-			return published, markErr
+			eventErr := fmt.Errorf("mark outbox event %q dispatched: %w", event.Key, markErr)
+			failedParts[event.PartKey] = eventErr
+			if releaseErr := dispatcher.releaseClaimed(event, dispatcher.now().UTC().Add(time.Second), eventErr); releaseErr != nil {
+				dispatchErrors = append(dispatchErrors, releaseErr)
+			}
+			dispatchErrors = append(dispatchErrors, eventErr)
+			continue
 		}
 		published++
 	}
-	return published, nil
+	return published, errors.Join(dispatchErrors...)
 }
 
-func (dispatcher *Dispatcher) releaseClaimed(ctx context.Context, events []OutboxEvent, now time.Time, cause error) {
-	for _, event := range events {
-		_ = dispatcher.repository.ReleaseOutbox(ctx, event.Key, dispatcher.owner, now, cause)
+func (dispatcher *Dispatcher) releaseClaimed(event OutboxEvent, availableAt time.Time, cause error) error {
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := dispatcher.repository.ReleaseOutbox(cleanupCtx, event.Key, dispatcher.owner, availableAt, cause); err != nil {
+		return fmt.Errorf("release outbox event %q: %w", event.Key, err)
 	}
+	return nil
 }

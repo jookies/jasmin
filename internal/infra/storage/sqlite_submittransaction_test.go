@@ -120,16 +120,88 @@ func TestOutboxPublishFailureRecoveryAndOrdering(t *testing.T) {
 	}
 	failing := &recordingPublisher{failAt: 1}
 	dispatcher, _ := submittransaction.NewDispatcher(repository, failing, "worker-1", 10, time.Minute, func() time.Time { return now })
-	if count, err := dispatcher.DispatchOnce(ctx); err == nil || count != 0 {
+	if count, err := dispatcher.DispatchOnce(ctx); err == nil || count != 1 {
 		t.Fatalf("failed dispatch=(%d,%v)", count, err)
+	}
+	if want := []string{"submit.sm.a", "submit.sm.b"}; !reflect.DeepEqual(failing.calls, want) {
+		t.Fatalf("failed batch calls=%v want %v; one poison event must not block the next event", failing.calls, want)
 	}
 	success := &recordingPublisher{}
 	dispatcher, _ = submittransaction.NewDispatcher(repository, success, "worker-2", 10, time.Minute, func() time.Time { return now.Add(time.Second) })
-	if count, err := dispatcher.DispatchOnce(ctx); err != nil || count != 2 {
+	if count, err := dispatcher.DispatchOnce(ctx); err != nil || count != 1 {
 		t.Fatalf("recovery dispatch=(%d,%v)", count, err)
 	}
-	if want := []string{"submit.sm.a", "submit.sm.b"}; !reflect.DeepEqual(success.calls, want) {
+	if want := []string{"submit.sm.a"}; !reflect.DeepEqual(success.calls, want) {
 		t.Fatalf("order=%v want %v", success.calls, want)
+	}
+}
+
+func admitOrderedOutbox(t *testing.T, repository *SQLiteSubmitTransactionRepository, now time.Time) {
+	t.Helper()
+	envelope := submitEnvelope(t, "ordered-message", "connector-a")
+	payload, err := submittransaction.SnapshotEnvelope(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	partKey := "ordered-message/000001"
+	part := submittransaction.LogicalPart{
+		Key: partKey, MessageID: "ordered-message", PartNumber: 1, ConnectorID: "connector-a",
+		State: submittransaction.PartPending, CreatedAt: now,
+	}
+	events := []submittransaction.OutboxEvent{
+		{Key: partKey + ":00-first", PartKey: partKey, Kind: submittransaction.EventSubmitRequest, Exchange: "messaging", RoutingKey: "submit.sm.first", Payload: payload, CreatedAt: now, AvailableAt: now},
+		{Key: partKey + ":01-second", PartKey: partKey, Kind: submittransaction.EventSubmitResponse, Exchange: "messaging", RoutingKey: "submit.sm.second", Payload: payload, CreatedAt: now, AvailableAt: now},
+	}
+	if err := repository.Admit(context.Background(), []submittransaction.LogicalPart{part}, events); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutboxRetryDelayedPredecessorBlocksSamePartAcrossBatches(t *testing.T) {
+	repository, _ := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	admitOrderedOutbox(t, repository, now)
+
+	failing := &recordingPublisher{failAt: 1}
+	first, _ := submittransaction.NewDispatcher(repository, failing, "worker-1", 1, time.Minute, func() time.Time { return now })
+	if count, err := first.DispatchOnce(context.Background()); err == nil || count != 0 {
+		t.Fatalf("first dispatch=(%d,%v)", count, err)
+	}
+
+	beforeRetry := &recordingPublisher{}
+	second, _ := submittransaction.NewDispatcher(repository, beforeRetry, "worker-2", 1, time.Minute, func() time.Time { return now.Add(500 * time.Millisecond) })
+	if count, err := second.DispatchOnce(context.Background()); err != nil || count != 0 {
+		t.Fatalf("predecessor delay dispatch=(%d,%v)", count, err)
+	}
+	if len(beforeRetry.calls) != 0 {
+		t.Fatalf("same-part successor bypassed delayed predecessor: %v", beforeRetry.calls)
+	}
+
+	afterRetry := &recordingPublisher{}
+	retry, _ := submittransaction.NewDispatcher(repository, afterRetry, "worker-3", 1, time.Minute, func() time.Time { return now.Add(time.Second) })
+	if count, err := retry.DispatchOnce(context.Background()); err != nil || count != 1 {
+		t.Fatalf("retry predecessor=(%d,%v)", count, err)
+	}
+	if count, err := retry.DispatchOnce(context.Background()); err != nil || count != 1 {
+		t.Fatalf("successor after predecessor=(%d,%v)", count, err)
+	}
+	if want := []string{"submit.sm.first", "submit.sm.second"}; !reflect.DeepEqual(afterRetry.calls, want) {
+		t.Fatalf("same-part order=%v want %v", afterRetry.calls, want)
+	}
+}
+
+func TestOutboxClaimedPredecessorBlocksSecondOwner(t *testing.T) {
+	repository, _ := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	admitOrderedOutbox(t, repository, now)
+
+	claimed, err := repository.ClaimOutbox(context.Background(), "worker-1", 1, now, time.Minute)
+	if err != nil || len(claimed) != 1 || claimed[0].RoutingKey != "submit.sm.first" {
+		t.Fatalf("first claim=%v err=%v", claimed, err)
+	}
+	second, err := repository.ClaimOutbox(context.Background(), "worker-2", 1, now, time.Minute)
+	if err != nil || len(second) != 0 {
+		t.Fatalf("second owner bypassed claimed predecessor: events=%v err=%v", second, err)
 	}
 }
 
@@ -184,8 +256,16 @@ func TestDurableResponseDuplicateCreatesOneResponseAndLateBillingIntent(t *testi
 	}
 	publisher := &recordingPublisher{}
 	dispatcher, _ := submittransaction.NewDispatcher(repository, publisher, "response-worker", 10, time.Minute, func() time.Time { return now })
-	if count, err := dispatcher.DispatchOnce(ctx); err != nil || count != 3 {
-		t.Fatalf("dispatch=(%d,%v)", count, err)
+	published := 0
+	for range 3 {
+		count, err := dispatcher.DispatchOnce(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		published += count
+	}
+	if published != 3 {
+		t.Fatalf("published=%d, want 3", published)
 	}
 	want := []string{"submit.sm.connector-a", "submit.sm.resp.user-1", "bill_request.submit_sm_resp.user-1"}
 	if !reflect.DeepEqual(publisher.calls, want) {

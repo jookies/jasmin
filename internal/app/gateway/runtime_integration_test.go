@@ -2,6 +2,7 @@ package gateway_test
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -29,6 +30,15 @@ import (
 type fakeSMSCResult struct {
 	submit smppwire.PDU
 	err    error
+}
+
+func randomExternalID(t *testing.T) string {
+	t.Helper()
+	var token [8]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		t.Fatal(err)
+	}
+	return "u" + hex.EncodeToString(token[:])[1:]
 }
 
 func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
@@ -66,7 +76,9 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	responseKey := "submit.sm.resp.user-opaque"
+	runID := time.Now().UnixNano()
+	externalID := randomExternalID(t)
+	responseKey := "submit.sm.resp." + externalID
 	if err := channel.QueueBind(responseQueue.Name, responseKey, "messaging", false, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -80,13 +92,13 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 	count := 10
 	early := 50
 	port := listener.Addr().(*net.TCPAddr).Port
-	connectorID := "wave1a-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	connectorID := "wave1a-" + strconv.FormatInt(runID, 10)
 	config := gateway.Config{
 		Role: gateway.RoleHTTPAndSMPPc,
 		Outbound: outbound.Config{
 			ListenAddress: "127.0.0.1:0", AMQPURL: amqpURL, PythonPath: pythonPath, PostgresDSN: postgresDSN,
 			Users: []outbound.UserConfig{{
-				Username: "alice", ExternalID: "user-opaque", PasswordSHA256: hex.EncodeToString(passwordHash[:]),
+				Username: "alice", ExternalID: externalID, PasswordSHA256: hex.EncodeToString(passwordHash[:]),
 				Balance: &balance, SubmitSMCount: &count, EarlyDecrementBalancePercent: &early,
 			}},
 			Routes: []outbound.RouteConfig{{ConnectorID: connectorID, Rate: 1, Default: true}},
