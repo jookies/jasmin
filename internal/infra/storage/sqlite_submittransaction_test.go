@@ -192,3 +192,45 @@ func TestDurableResponseDuplicateCreatesOneResponseAndLateBillingIntent(t *testi
 		t.Fatalf("order=%v want %v", publisher.calls, want)
 	}
 }
+
+func TestRetryResultAllowsNextAttemptAndFinalResult(t *testing.T) {
+	repository, db := newSubmitStore(t)
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	service, err := submittransaction.NewService(repository, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{submitEnvelope(t, "message-retry", "connector-a")}); err != nil {
+		t.Fatal(err)
+	}
+	partKey := "message-retry/000001"
+	first, committed, err := service.BeginAttempt(ctx, partKey)
+	if err != nil || committed || first.Number != 1 {
+		t.Fatalf("first attempt=%+v committed=%v err=%v", first, committed, err)
+	}
+	if fresh, err := service.CommitResponse(ctx, submittransaction.Result{
+		PartKey: partKey, AttemptID: first.ID, Kind: submittransaction.ResultRetry, SMPPStatus: "ESME_RSYSERR",
+	}); err != nil || !fresh {
+		t.Fatalf("retry commit=(%v,%v)", fresh, err)
+	}
+	second, committed, err := service.BeginAttempt(ctx, partKey)
+	if err != nil || committed || second.Number != 2 {
+		t.Fatalf("second attempt=%+v committed=%v err=%v", second, committed, err)
+	}
+	if fresh, err := service.CommitResponse(ctx, submittransaction.Result{
+		PartKey: partKey, AttemptID: second.ID, Kind: submittransaction.ResultSuccess, SMPPStatus: "ESME_ROK", SMSCMessageID: "smsc-final",
+	}); err != nil || !fresh {
+		t.Fatalf("final commit=(%v,%v)", fresh, err)
+	}
+	if _, committed, err := service.BeginAttempt(ctx, partKey); err != nil || !committed {
+		t.Fatalf("post-final committed=%v err=%v", committed, err)
+	}
+	var results int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM submit_results WHERE part_key=?`, partKey).Scan(&results); err != nil {
+		t.Fatal(err)
+	}
+	if results != 2 {
+		t.Fatalf("result rows=%d want=2", results)
+	}
+}

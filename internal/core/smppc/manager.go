@@ -40,6 +40,8 @@ type Manager struct {
 	factory    ConnectorFactory
 	connectors map[string]*managedConnector
 	mu         sync.RWMutex
+	opMu       sync.Mutex
+	operations map[string]*sync.Mutex
 }
 
 func NewManager(amqpURL string) *Manager {
@@ -50,7 +52,21 @@ func NewManagerWithFactory(amqpURL string, factory ConnectorFactory) *Manager {
 	if factory == nil {
 		factory = NewConnector
 	}
-	return &Manager{amqpURL: amqpURL, factory: factory, connectors: make(map[string]*managedConnector)}
+	return &Manager{amqpURL: amqpURL, factory: factory, connectors: make(map[string]*managedConnector), operations: make(map[string]*sync.Mutex)}
+}
+
+// operationLock serializes every lifecycle transition for one CID without
+// holding the manager map lock across network startup/shutdown.
+func (m *Manager) operationLock(cid string) func() {
+	m.opMu.Lock()
+	lock := m.operations[cid]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		m.operations[cid] = lock
+	}
+	m.opMu.Unlock()
+	lock.Lock()
+	return lock.Unlock
 }
 
 func (m *Manager) Add(cfg Config) error {
@@ -108,6 +124,12 @@ func (m *Manager) List() []Config {
 }
 
 func (m *Manager) Start(cid string) error {
+	unlock := m.operationLock(cid)
+	defer unlock()
+	return m.start(cid)
+}
+
+func (m *Manager) start(cid string) error {
 	m.mu.Lock()
 	entry, ok := m.connectors[cid]
 	if !ok {
@@ -129,6 +151,12 @@ func (m *Manager) Start(cid string) error {
 }
 
 func (m *Manager) Stop(cid string) error {
+	unlock := m.operationLock(cid)
+	defer unlock()
+	return m.stop(cid)
+}
+
+func (m *Manager) stop(cid string) error {
 	m.mu.Lock()
 	entry, ok := m.connectors[cid]
 	if !ok {
@@ -146,6 +174,8 @@ func (m *Manager) Update(cfg Config) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	unlock := m.operationLock(cfg.CID)
+	defer unlock()
 	m.mu.RLock()
 	old, ok := m.connectors[cfg.CID]
 	m.mu.RUnlock()
@@ -228,20 +258,23 @@ func (m *Manager) Reconcile() error {
 	sort.Strings(ids)
 	var errs []error
 	for _, cid := range ids {
+		unlock := m.operationLock(cid)
 		status, err := m.Status(cid)
 		if err != nil {
 			errs = append(errs, err)
+			unlock()
 			continue
 		}
 		if status.Desired && status.Observed == StatusDisconnected {
-			if err := m.Start(cid); err != nil {
+			if err := m.start(cid); err != nil {
 				errs = append(errs, fmt.Errorf("start %s: %w", cid, err))
 			}
 		} else if !status.Desired && status.Observed != StatusDisconnected {
-			if err := m.Stop(cid); err != nil {
+			if err := m.stop(cid); err != nil {
 				errs = append(errs, fmt.Errorf("stop %s: %w", cid, err))
 			}
 		}
+		unlock()
 	}
 	return errors.Join(errs...)
 }

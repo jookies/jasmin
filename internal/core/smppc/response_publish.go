@@ -75,6 +75,7 @@ type DurableResponseInput struct {
 	BillID         string
 	LateBillAmount string
 	RetryAttempt   int
+	RetryEnvelope  *amqpcompat.Envelope
 }
 
 type DurableResponseLifecycle struct {
@@ -106,13 +107,14 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 	}
 	kind := submittransaction.ResultFailure
 	action := SubmitResponseAck
-	availableAt := lifecycle.now().UTC()
+	now := lifecycle.now().UTC()
+	availableAt := now
 	if input.Status == "ESME_ROK" {
 		kind = submittransaction.ResultSuccess
 	} else if decision.Action == ErrorRetryRequeue {
 		kind = submittransaction.ResultRetry
 		action = SubmitResponseRequeue
-		availableAt = availableAt.Add(decision.RequeueDelay)
+		availableAt = now.Add(decision.RequeueDelay)
 	}
 	events := make([]submittransaction.OutboxEvent, 0, 2)
 	publication, err := NewSubmitResponsePublication(input.ReplyEnabled, action, input.ReplyTo, input.MessageID, input.CreatedAt, input.Body)
@@ -120,7 +122,18 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 		return false, err
 	}
 	if publication != nil {
-		event, err := submittransaction.NewEnvelopeEvent(input.PartKey+":10-response", input.PartKey, submittransaction.EventSubmitResponse, SubmitResponseExchange, *publication, availableAt)
+		eventKey := fmt.Sprintf("%s:10-response-attempt-%06d", input.PartKey, input.RetryAttempt)
+		event, err := submittransaction.NewEnvelopeEvent(eventKey, input.PartKey, submittransaction.EventSubmitResponse, SubmitResponseExchange, *publication, now)
+		if err != nil {
+			return false, err
+		}
+		events = append(events, event)
+	}
+	if kind == submittransaction.ResultRetry {
+		if input.RetryEnvelope == nil {
+			return false, fmt.Errorf("%w: retry requires original submit envelope", ErrInvalidSubmitResponsePublication)
+		}
+		event, err := submittransaction.NewEnvelopeEvent(fmt.Sprintf("%s:retry-%06d", input.PartKey, input.RetryAttempt), input.PartKey, submittransaction.EventSubmitRequest, "messaging", *input.RetryEnvelope, availableAt)
 		if err != nil {
 			return false, err
 		}
@@ -148,8 +161,9 @@ func newLateBillingIntent(input DurableResponseInput) (amqpcompat.Envelope, erro
 		return amqpcompat.Envelope{}, fmt.Errorf("%w: missing late billing identity", ErrInvalidSubmitResponsePublication)
 	}
 	properties, err := amqpcompat.NewProperties(input.BillID, map[string]amqpcompat.Field{
-		"user-id": amqpcompat.StringField(input.UserID),
-		"amount":  amqpcompat.StringField(input.LateBillAmount),
+		"user-id":   amqpcompat.StringField(input.UserID),
+		"amount":    amqpcompat.StringField(input.LateBillAmount),
+		"event-key": amqpcompat.StringField(input.PartKey + ":20-late-billing"),
 	})
 	if err != nil {
 		return amqpcompat.Envelope{}, err

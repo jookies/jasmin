@@ -39,6 +39,28 @@ func OpenPostgresSubmitTransactionRepository(ctx context.Context, dsn string) (*
 }
 func (r *PostgresSubmitTransactionRepository) Close() error                { return r.db.Close() }
 func (r *PostgresSubmitTransactionRepository) ProductionSubmitRepository() {}
+
+func (r *PostgresSubmitTransactionRepository) BillingApplied(ctx context.Context, eventKey string) (bool, error) {
+	var applied bool
+	err := r.db.QueryRowContext(ctx, `SELECT applied_at IS NOT NULL FROM submit_billing_intents WHERE event_key=$1`, eventKey).Scan(&applied)
+	return applied, err
+}
+
+func (r *PostgresSubmitTransactionRepository) MarkBillingApplied(ctx context.Context, eventKey string, appliedAt time.Time) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE submit_billing_intents SET applied_at=COALESCE(applied_at,$2) WHERE event_key=$1`, eventKey, appliedAt.UTC())
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return fmt.Errorf("billing intent %q not found", eventKey)
+	}
+	return nil
+}
+
 func (r *PostgresSubmitTransactionRepository) Migrate(ctx context.Context) error {
 	migration, err := submitTransactionMigrations.ReadFile("migrations/0001_submit_transaction.sql")
 	if err != nil {
@@ -151,7 +173,7 @@ func (r *PostgresSubmitTransactionRepository) CommitResult(ctx context.Context, 
 		return false, err
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `INSERT INTO submit_results(part_key,attempt_id,kind,smpp_status,smsc_message_id,committed_at) VALUES($1,$2,$3,$4,NULLIF($5,''),$6) ON CONFLICT(part_key) DO NOTHING`, commit.Result.PartKey, commit.Result.AttemptID, commit.Result.Kind, commit.Result.SMPPStatus, commit.Result.SMSCMessageID, commit.Result.CommittedAt)
+	result, err := tx.ExecContext(ctx, `INSERT INTO submit_results(part_key,attempt_id,kind,smpp_status,smsc_message_id,committed_at) VALUES($1,$2,$3,$4,NULLIF($5,''),$6) ON CONFLICT(attempt_id) DO NOTHING`, commit.Result.PartKey, commit.Result.AttemptID, commit.Result.Kind, commit.Result.SMPPStatus, commit.Result.SMSCMessageID, commit.Result.CommittedAt)
 	if err != nil {
 		return false, err
 	}
@@ -162,7 +184,11 @@ func (r *PostgresSubmitTransactionRepository) CommitResult(ctx context.Context, 
 	if _, err = tx.ExecContext(ctx, `UPDATE submit_attempts SET state=$1,resolved_at=$2 WHERE id=$3 AND part_key=$4`, submittransaction.AttemptResultCommitted, commit.Result.CommittedAt, commit.Result.AttemptID, commit.Result.PartKey); err != nil {
 		return false, err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=$1 WHERE part_key=$2`, submittransaction.PartResultCommitted, commit.Result.PartKey); err != nil {
+	partState := submittransaction.PartResultCommitted
+	if commit.Result.Kind == submittransaction.ResultRetry {
+		partState = submittransaction.PartPending
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=$1 WHERE part_key=$2`, partState, commit.Result.PartKey); err != nil {
 		return false, err
 	}
 	for _, event := range commit.Events {

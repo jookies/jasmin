@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -62,8 +63,9 @@ func ValidateConfig(config Config) error {
 	if len(config.Connectors) == 0 {
 		return fmt.Errorf("%w: at least one SMPPc connector is required", ErrInvalidConfig)
 	}
-	if config.BindTimeoutSeconds < 0 {
-		return fmt.Errorf("%w: negative bind timeout", ErrInvalidConfig)
+	if math.IsNaN(config.BindTimeoutSeconds) || math.IsInf(config.BindTimeoutSeconds, 0) || config.BindTimeoutSeconds < 0 ||
+		config.BindTimeoutSeconds*float64(time.Second) >= float64(math.MaxInt64) {
+		return fmt.Errorf("%w: bind timeout must be finite, non-negative and representable", ErrInvalidConfig)
 	}
 	configured := make(map[string]struct{}, len(config.Connectors))
 	for index, connector := range config.Connectors {

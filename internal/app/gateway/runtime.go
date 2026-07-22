@@ -11,45 +11,76 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/jasmin/internal/infra/storage"
+	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
 
 type ManagerFactory func(string) *smppc.Manager
 
 type Runtime struct {
-	Handler   http.Handler
-	manager   *smppc.Manager
-	outbound  *outbound.Runtime
-	closeOnce sync.Once
-	closeErr  error
+	Handler      http.Handler
+	manager      *smppc.Manager
+	outbound     *outbound.Runtime
+	bridge       *picklecompat.Bridge
+	store        *storage.PostgresSubmitTransactionRepository
+	workerCancel context.CancelFunc
+	closeOnce    sync.Once
+	closeErr     error
 }
 
-func NewRuntime(ctx context.Context, config Config) (*Runtime, error) {
-	return newRuntime(ctx, config, smppc.NewManager, outbound.NewRuntime)
-}
-
-type outboundFactory func(context.Context, outbound.Config) (*outbound.Runtime, error)
-
-func newRuntime(ctx context.Context, config Config, managers ManagerFactory, outbounds outboundFactory) (_ *Runtime, resultErr error) {
+func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ValidateConfig(config); err != nil {
 		return nil, err
 	}
-	outboundRuntime, err := outbounds(ctx, config.Outbound)
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	repository, err := storage.OpenPostgresSubmitTransactionRepository(ctx, config.Outbound.PostgresDSN)
 	if err != nil {
-		return nil, fmt.Errorf("start outbound runtime: %w", err)
+		workerCancel()
+		return nil, err
 	}
-	runtime := &Runtime{Handler: outboundRuntime.Handler, outbound: outboundRuntime}
+	runtime := &Runtime{store: repository, workerCancel: workerCancel}
 	defer func() {
 		if resultErr != nil {
 			_ = runtime.Close()
 		}
 	}()
-	manager := managers(config.Outbound.AMQPURL)
-	if manager == nil {
-		return nil, errors.New("gateway manager factory returned nil")
+	if err = repository.Migrate(ctx); err != nil {
+		return nil, fmt.Errorf("migrate submit transaction store: %w", err)
 	}
+	transactions, err := submittransaction.NewProductionService(repository, nil)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = transactions.Recover(ctx); err != nil {
+		return nil, fmt.Errorf("recover unresolved submit attempts: %w", err)
+	}
+	bridge, err := picklecompat.NewBridge(workerCtx, config.Outbound.PythonPath)
+	if err != nil {
+		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
+	}
+	runtime.bridge = bridge
+	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
+		Bridge: bridge, Transactions: transactions, Repository: repository,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("start outbound runtime: %w", err)
+	}
+	runtime.Handler = outboundRuntime.Handler
+	runtime.outbound = outboundRuntime
+	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
+		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)
+		if connectorErr != nil {
+			return nil, connectorErr
+		}
+		if connectorErr = connector.ConfigureDurability(transactions); connectorErr != nil {
+			return nil, connectorErr
+		}
+		return connector, nil
+	})
 	runtime.manager = manager
 	for _, connector := range config.Connectors {
 		if err := manager.Add(connector); err != nil {
@@ -78,13 +109,28 @@ func (runtime *Runtime) Close() error {
 	}
 	runtime.closeOnce.Do(func() {
 		var errs []error
+		// Admission is stopped by the executable before Runtime.Close. Stop the
+		// outbox/consumers and confirming publisher before fencing connectors.
+		if runtime.outbound != nil {
+			if err := runtime.outbound.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		if runtime.manager != nil {
 			if err := runtime.manager.StopAll(); err != nil {
 				errs = append(errs, err)
 			}
 		}
-		if runtime.outbound != nil {
-			if err := runtime.outbound.Close(); err != nil {
+		if runtime.workerCancel != nil {
+			runtime.workerCancel()
+		}
+		if runtime.bridge != nil {
+			if err := runtime.bridge.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if runtime.store != nil {
+			if err := runtime.store.Close(); err != nil {
 				errs = append(errs, err)
 			}
 		}

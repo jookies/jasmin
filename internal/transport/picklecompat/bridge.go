@@ -94,6 +94,24 @@ type bridgeResponse struct {
 	Data    string          `json:"data,omitempty"`
 }
 
+// decodeResponse makes bridge reads context-cancellable. A timed-out request
+// kills the subprocess before releasing the serialization mutex, so no later
+// request can consume an abandoned response.
+func (b *Bridge) decodeResponse(ctx context.Context, response *bridgeResponse) error {
+	done := make(chan error, 1)
+	go func() { done <- b.stdout.Decode(response) }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		if b.cmd != nil && b.cmd.Process != nil {
+			_ = b.cmd.Process.Kill()
+		}
+		<-done
+		return ctx.Err()
+	}
+}
+
 func (b *Bridge) Decode(ctx context.Context, data []byte) (json.RawMessage, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -107,7 +125,7 @@ func (b *Bridge) Decode(ctx context.Context, data []byte) (json.RawMessage, erro
 	}
 
 	var res bridgeResponse
-	if err := b.stdout.Decode(&res); err != nil {
+	if err := b.decodeResponse(ctx, &res); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +149,7 @@ func (b *Bridge) Encode(ctx context.Context, obj any) ([]byte, error) {
 	}
 
 	var res bridgeResponse
-	if err := b.stdout.Decode(&res); err != nil {
+	if err := b.decodeResponse(ctx, &res); err != nil {
 		return nil, err
 	}
 
@@ -140,6 +158,37 @@ func (b *Bridge) Encode(ctx context.Context, obj any) ([]byte, error) {
 	}
 
 	return base64.StdEncoding.DecodeString(res.Data)
+}
+
+// EncodeSubmitSMResponse creates the exact protocol-2 SubmitSMResp object used
+// by the legacy response listener. The action is fixed; callers cannot choose a
+// Python class or arbitrary constructor.
+func (b *Bridge) EncodeSubmitSMResponse(ctx context.Context, commandStatus, sequence uint32, messageID []byte) ([]byte, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	request := bridgeRequest{Action: "encode_submit_sm_resp", Result: map[string]any{
+		"command_status": commandStatus,
+		"sequence":       sequence,
+		"message_id":     base64.StdEncoding.EncodeToString(messageID),
+	}}
+	if err := json.NewEncoder(b.stdin).Encode(request); err != nil {
+		return nil, fmt.Errorf("send SubmitSMResp bridge request: %w", err)
+	}
+	var response bridgeResponse
+	if err := b.decodeResponse(ctx, &response); err != nil {
+		return nil, fmt.Errorf("read SubmitSMResp bridge response: %w", err)
+	}
+	if response.Status != "ok" {
+		return nil, fmt.Errorf("SubmitSMResp bridge error: %s", response.Message)
+	}
+	data, err := base64.StdEncoding.DecodeString(response.Data)
+	if err != nil {
+		return nil, fmt.Errorf("decode SubmitSMResp body: %w", err)
+	}
+	return data, nil
 }
 
 // EncodeSubmitSM invokes the bridge's fixed allowlisted protocol-2 encoder.
@@ -155,7 +204,7 @@ func (b *Bridge) EncodeSubmitSM(ctx context.Context, request SubmitSMEncodeReque
 		return SubmitSMEncodeResult{}, err
 	}
 	var response bridgeResponse
-	if err := b.stdout.Decode(&response); err != nil {
+	if err := b.decodeResponse(ctx, &response); err != nil {
 		return SubmitSMEncodeResult{}, err
 	}
 	if response.Status != "ok" {

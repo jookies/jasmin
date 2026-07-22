@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
@@ -102,6 +103,11 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		"created_at":       amqpcompat.StringField(legacyDateTime(request.CreatedAt)),
 		"source_connector": amqpcompat.StringField(sourceConnector(request.SourceConnector)),
 		"submit_sm_bill":   amqpcompat.BytesField(encoded.Bill),
+		// Durable response metadata mirrors fields already present in the
+		// allowlisted bill pickle, avoiding unsafe bill unpickling in Session.
+		"user-id":          amqpcompat.StringField(request.UserID),
+		"bill-id":          amqpcompat.StringField(request.BillID),
+		"late-bill-amount": amqpcompat.StringField(strconv.FormatFloat(request.Bill.SubmitSmRespAmount, 'f', -1, 64)),
 	}
 	if request.ValidityPeriod != nil {
 		headers["expiration"] = amqpcompat.StringField(legacyDateTime(request.CreatedAt.Add(*request.ValidityPeriod)))

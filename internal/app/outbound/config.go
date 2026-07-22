@@ -28,6 +28,7 @@ type Config struct {
 	ListenAddress string        `json:"listen_address"`
 	AMQPURL       string        `json:"amqp_url"`
 	PythonPath    string        `json:"python_path"`
+	PostgresDSN   string        `json:"postgres_dsn"`
 	Users         []UserConfig  `json:"users"`
 	Routes        []RouteConfig `json:"routes"`
 }

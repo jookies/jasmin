@@ -26,6 +26,27 @@ func (r *SQLiteSubmitTransactionRepository) Init(ctx context.Context) error {
 	return err
 }
 
+func (r *SQLiteSubmitTransactionRepository) BillingApplied(ctx context.Context, eventKey string) (bool, error) {
+	var applied bool
+	err := r.db.QueryRowContext(ctx, `SELECT applied_at IS NOT NULL FROM submit_billing_intents WHERE event_key=?`, eventKey).Scan(&applied)
+	return applied, err
+}
+
+func (r *SQLiteSubmitTransactionRepository) MarkBillingApplied(ctx context.Context, eventKey string, appliedAt time.Time) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE submit_billing_intents SET applied_at=COALESCE(applied_at,?) WHERE event_key=?`, nanos(appliedAt.UTC()), eventKey)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return fmt.Errorf("billing intent %q not found", eventKey)
+	}
+	return nil
+}
+
 const sqliteSubmitTransactionSchema = `
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
@@ -41,10 +62,11 @@ CREATE TABLE IF NOT EXISTS submit_attempts (
  sent_at INTEGER, resolved_at INTEGER, UNIQUE(part_key, attempt_number)
 );
 CREATE TABLE IF NOT EXISTS submit_results (
- part_key TEXT PRIMARY KEY REFERENCES submit_parts(part_key), attempt_id INTEGER NOT NULL UNIQUE REFERENCES submit_attempts(id),
+ attempt_id INTEGER PRIMARY KEY REFERENCES submit_attempts(id), part_key TEXT NOT NULL REFERENCES submit_parts(part_key),
  kind TEXT NOT NULL, smpp_status TEXT NOT NULL DEFAULT '', smsc_message_id TEXT,
  committed_at INTEGER NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS submit_results_final_part ON submit_results(part_key) WHERE kind <> 'RETRY';
 CREATE UNIQUE INDEX IF NOT EXISTS submit_results_smsc_id ON submit_results(smsc_message_id) WHERE smsc_message_id IS NOT NULL AND smsc_message_id <> '';
 CREATE TABLE IF NOT EXISTS submit_outbox (
  event_key TEXT PRIMARY KEY, part_key TEXT NOT NULL REFERENCES submit_parts(part_key), kind TEXT NOT NULL,
@@ -206,7 +228,11 @@ func (r *SQLiteSubmitTransactionRepository) CommitResult(ctx context.Context, co
 	if _, err = tx.ExecContext(ctx, `UPDATE submit_attempts SET state=?,resolved_at=? WHERE id=? AND part_key=?`, submittransaction.AttemptResultCommitted, nanos(commit.Result.CommittedAt), commit.Result.AttemptID, commit.Result.PartKey); err != nil {
 		return false, err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE part_key=?`, submittransaction.PartResultCommitted, commit.Result.PartKey); err != nil {
+	partState := submittransaction.PartResultCommitted
+	if commit.Result.Kind == submittransaction.ResultRetry {
+		partState = submittransaction.PartPending
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE submit_parts SET state=? WHERE part_key=?`, partState, commit.Result.PartKey); err != nil {
 		return false, err
 	}
 	for _, event := range commit.Events {

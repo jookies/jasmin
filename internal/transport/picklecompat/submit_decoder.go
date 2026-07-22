@@ -12,6 +12,16 @@ import (
 )
 
 var ErrInvalidSubmitSM = errors.New("invalid legacy SubmitSM envelope")
+var ErrSubmitSMPoison = errors.New("poison legacy SubmitSM envelope")
+var ErrSubmitSMTransient = errors.New("transient SubmitSM bridge failure")
+
+func poisonSubmitError(format string, args ...any) error {
+	return fmt.Errorf("%w: %w: %s", ErrInvalidSubmitSM, ErrSubmitSMPoison, fmt.Sprintf(format, args...))
+}
+
+func transientSubmitError(format string, args ...any) error {
+	return fmt.Errorf("%w: %w: %s", ErrInvalidSubmitSM, ErrSubmitSMTransient, fmt.Sprintf(format, args...))
+}
 
 type submitSMWire struct {
 	ServiceType          Bytes                 `json:"service_type"`
@@ -45,31 +55,31 @@ type submitSMOptionalTLV struct {
 // deliberately absent from the projection (KNOWN_QUIRKS Q-016).
 func (b *Bridge) DecodeSubmitSM(ctx context.Context, data []byte) (smppwire.SubmitSMBody, error) {
 	if b == nil {
-		return smppwire.SubmitSMBody{}, fmt.Errorf("%w: nil bridge", ErrInvalidSubmitSM)
+		return smppwire.SubmitSMBody{}, transientSubmitError("nil bridge")
 	}
 	if err := ctx.Err(); err != nil {
 		return smppwire.SubmitSMBody{}, err
 	}
 	if len(data) == 0 || len(data) > int(smppwire.DefaultMaxSize) {
-		return smppwire.SubmitSMBody{}, fmt.Errorf("%w: pickle size %d", ErrInvalidSubmitSM, len(data))
+		return smppwire.SubmitSMBody{}, poisonSubmitError("pickle size %d", len(data))
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	request := bridgeRequest{Action: "decode_submit_sm", Data: base64.StdEncoding.EncodeToString(data)}
 	if err := json.NewEncoder(b.stdin).Encode(request); err != nil {
-		return smppwire.SubmitSMBody{}, fmt.Errorf("%w: send bridge request: %v", ErrInvalidSubmitSM, err)
+		return smppwire.SubmitSMBody{}, transientSubmitError("send bridge request: %v", err)
 	}
 	var response bridgeResponse
-	if err := b.stdout.Decode(&response); err != nil {
-		return smppwire.SubmitSMBody{}, fmt.Errorf("%w: read bridge response: %v", ErrInvalidSubmitSM, err)
+	if err := b.decodeResponse(ctx, &response); err != nil {
+		return smppwire.SubmitSMBody{}, transientSubmitError("read bridge response: %v", err)
 	}
 	if response.Status != "ok" {
-		return smppwire.SubmitSMBody{}, fmt.Errorf("%w: %s", ErrInvalidSubmitSM, response.Message)
+		return smppwire.SubmitSMBody{}, poisonSubmitError("%s", response.Message)
 	}
 	var wire submitSMWire
 	if err := json.Unmarshal(response.Result, &wire); err != nil {
-		return smppwire.SubmitSMBody{}, fmt.Errorf("%w: decode projection: %v", ErrInvalidSubmitSM, err)
+		return smppwire.SubmitSMBody{}, transientSubmitError("decode projection: %v", err)
 	}
 	body := smppwire.SubmitSMBody{
 		ServiceType:           cloneBytes(wire.ServiceType),
@@ -164,6 +174,13 @@ func validateSubmitSMBody(body smppwire.SubmitSMBody) error {
 	}
 	if count != 0 && count != 3 {
 		return fmt.Errorf("%w: incomplete SAR option set", ErrInvalidSubmitSM)
+	}
+	if count == 3 {
+		total := *sar.SARTotalSegments
+		sequence := *sar.SARSegmentSequence
+		if total == 0 || sequence == 0 || sequence > total {
+			return poisonSubmitError("invalid SAR total/sequence")
+		}
 	}
 	return nil
 }

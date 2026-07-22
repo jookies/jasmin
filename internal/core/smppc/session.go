@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
@@ -21,10 +23,17 @@ const maxSequenceNumber uint32 = 0x7fffffff
 type pendingRequest struct {
 	delivery *amqpcompat.Delivery
 	timer    *time.Timer
+	attempt  submittransaction.SendAttempt
+	partKey  string
+	envelope amqpcompat.Envelope
 }
 
 type SubmitDecoder interface {
 	DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, error)
+}
+
+type SubmitResponseEncoder interface {
+	EncodeSubmitSMResponse(context.Context, uint32, uint32, []byte) ([]byte, error)
 }
 
 type rawSubmitDecoder struct{}
@@ -50,10 +59,13 @@ type Session struct {
 	inactivityTimer      *time.Timer
 	inactivityGeneration uint64
 
-	retry     *ErrorRetryPolicy
-	readiness *ReadinessPolicy
-	decoder   SubmitDecoder
-	onClose   func(error)
+	retry           *ErrorRetryPolicy
+	readiness       *ReadinessPolicy
+	decoder         SubmitDecoder
+	responseEncoder SubmitResponseEncoder
+	transactions    *submittransaction.Service
+	responses       *DurableResponseLifecycle
+	onClose         func(error)
 }
 
 // NewSession preserves the pre-decoder constructor for focused compatibility
@@ -63,6 +75,15 @@ func NewSession(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *R
 }
 
 func NewSessionWithDecoder(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *ReadinessPolicy, decoder SubmitDecoder, onClose func(error)) *Session {
+	return NewSessionWithDurability(conn, cfg, retry, readiness, decoder, nil, onClose)
+}
+
+func NewSessionWithDurability(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, readiness *ReadinessPolicy, decoder SubmitDecoder, transactions *submittransaction.Service, onClose func(error)) *Session {
+	var responses *DurableResponseLifecycle
+	if transactions != nil && retry != nil {
+		responses, _ = NewDurableResponseLifecycle(transactions, retry, nil)
+	}
+	responseEncoder, _ := decoder.(SubmitResponseEncoder)
 	return &Session{
 		conn:            conn,
 		cfg:             cfg.Clone(),
@@ -72,6 +93,9 @@ func NewSessionWithDecoder(conn net.Conn, cfg Config, retry *ErrorRetryPolicy, r
 		retry:           retry,
 		readiness:       readiness,
 		decoder:         decoder,
+		responseEncoder: responseEncoder,
+		transactions:    transactions,
+		responses:       responses,
 		onClose:         onClose,
 		closed:          make(chan struct{}),
 	}
@@ -313,8 +337,28 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	}
 	body, err := s.decoder.DecodeSubmitSM(ctx, d.Envelope().Body())
 	if err != nil {
-		s.settleDeliveryFailure(d)
+		if errors.Is(err, picklecompat.ErrSubmitSMPoison) {
+			s.settleDeliveryReject(d, false)
+		} else {
+			s.settleDeliveryFailure(d)
+		}
 		return fmt.Errorf("decode legacy SubmitSM envelope: %w", err)
+	}
+	envelope := d.Envelope()
+	var attempt submittransaction.SendAttempt
+	partKey := envelope.Properties().MessageID() + "/000001"
+	if s.transactions != nil {
+		var committed bool
+		var beginErr error
+		attempt, committed, beginErr = s.transactions.BeginAttempt(ctx, partKey)
+		if beginErr != nil {
+			s.settleDeliveryFailure(d)
+			return fmt.Errorf("commit send intent: %w", beginErr)
+		}
+		if committed {
+			s.settleDeliveryResponse(d, true)
+			return nil
+		}
 	}
 	pdu := smppwire.PDU{
 		Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM},
@@ -353,7 +397,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		s.settleDeliveryFailure(d)
 		return err
 	}
-	pending := &pendingRequest{delivery: d}
+	pending := &pendingRequest{delivery: d, attempt: attempt, partKey: partKey, envelope: envelope}
 	s.pending[seq] = pending
 	s.mu.Unlock()
 
@@ -368,6 +412,11 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 			return ErrAMQPConsumerLost
 		}
 		return err
+	}
+	if s.transactions != nil {
+		// The write is already externally ambiguous. MarkSent is deliberately
+		// best-effort; recovery maps both INTENT and SENT to UNKNOWN_AFTER_SEND.
+		_ = s.transactions.MarkSent(context.Background(), attempt.ID)
 	}
 
 	s.mu.Lock()
@@ -429,7 +478,78 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 		return
 	}
 	stopTimer(pending.timer)
-	s.settleDeliveryResponse(pending.delivery, pdu.Header.CommandStatus == 0)
+	if s.transactions == nil || s.responses == nil {
+		s.settleDeliveryResponse(pending.delivery, pdu.Header.CommandStatus == 0)
+		return
+	}
+	properties := pending.envelope.Properties()
+	replyTo, replyEnabled := properties.ReplyTo()
+	headers := properties.Headers()
+	createdAt, _ := headerString(headers, "created_at")
+	userID, _ := headerString(headers, "user-id")
+	billID, _ := headerString(headers, "bill-id")
+	lateBillAmount, _ := headerString(headers, "late-bill-amount")
+	var smscMessageID []byte
+	if pdu.SubmitResponse != nil {
+		smscMessageID = append([]byte(nil), pdu.SubmitResponse.MessageID...)
+	}
+	var responseBody []byte
+	if replyEnabled {
+		if s.responseEncoder == nil {
+			s.settleDeliveryFailure(pending.delivery)
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		var err error
+		responseBody, err = s.responseEncoder.EncodeSubmitSMResponse(ctx, pdu.Header.CommandStatus, pdu.Header.SequenceNumber, smscMessageID)
+		cancel()
+		if err != nil {
+			s.settleDeliveryFailure(pending.delivery)
+			return
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	_, err := s.responses.Commit(ctx, DurableResponseInput{
+		PartKey: pending.partKey, AttemptID: pending.attempt.ID,
+		Status: smppStatusName(pdu.Header.CommandStatus), SMSCMessageID: string(smscMessageID),
+		ReplyEnabled: replyEnabled, ReplyTo: replyTo, MessageID: properties.MessageID(),
+		CreatedAt: createdAt, Body: responseBody, UserID: userID, BillID: billID,
+		LateBillAmount: lateBillAmount, RetryAttempt: pending.attempt.Number,
+		RetryEnvelope: &pending.envelope,
+	})
+	cancel()
+	if err != nil {
+		s.settleDeliveryFailure(pending.delivery)
+		return
+	}
+	// Fresh and duplicate commits both mean the durable boundary owns all local
+	// effects. ACK only after that boundary, never directly on socket response.
+	s.settleDeliveryResponse(pending.delivery, true)
+}
+
+func headerString(headers map[string]amqpcompat.Field, name string) (string, bool) {
+	field, ok := headers[name]
+	if !ok {
+		return "", false
+	}
+	return field.String()
+}
+
+func smppStatusName(status uint32) string {
+	switch status {
+	case 0:
+		return "ESME_ROK"
+	case 0x08:
+		return "ESME_RSYSERR"
+	case 0x14:
+		return "ESME_RMSGQFUL"
+	case 0x58:
+		return "ESME_RTHROTTLED"
+	case 0x61:
+		return "ESME_RINVSCHED"
+	default:
+		return fmt.Sprintf("ESME_%08X", status)
+	}
 }
 
 func (s *Session) handleTimeout(seq uint32) {

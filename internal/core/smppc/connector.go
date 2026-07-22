@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 	amqp091 "github.com/rabbitmq/amqp091-go"
@@ -144,15 +145,16 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 }
 
 type Connector struct {
-	cfg         Config
-	status      Status
-	amqpURL     string
-	amqp        AMQPProvider
-	readiness   *ReadinessPolicy
-	pacer       *Pacer
-	decoder     SubmitDecoder
-	mu          sync.RWMutex
-	lifecycleMu sync.Mutex
+	cfg          Config
+	status       Status
+	amqpURL      string
+	amqp         AMQPProvider
+	readiness    *ReadinessPolicy
+	pacer        *Pacer
+	decoder      SubmitDecoder
+	transactions *submittransaction.Service
+	mu           sync.RWMutex
+	lifecycleMu  sync.Mutex
 
 	session *Session
 	cancel  context.CancelFunc
@@ -171,6 +173,20 @@ func NewConnectorWithDecoder(cfg Config, amqpURL string, decoder SubmitDecoder) 
 		return nil, errors.New("SubmitSM decoder is required")
 	}
 	return newConnector(cfg, amqpURL, decoder)
+}
+
+// ConfigureDurability is called by the production factory before Start.
+func (c *Connector) ConfigureDurability(transactions *submittransaction.Service) error {
+	if transactions == nil {
+		return errors.New("submit transaction service is required")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.running {
+		return errors.New("cannot configure durability after connector start")
+	}
+	c.transactions = transactions
+	return nil
 }
 
 func newConnector(cfg Config, amqpURL string, decoder SubmitDecoder) (*Connector, error) {
@@ -537,7 +553,10 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	session := NewSessionWithDecoder(conn, cfg, retry, c.readiness, c.decoder, nil)
+	c.mu.RLock()
+	transactions := c.transactions
+	c.mu.RUnlock()
+	session := NewSessionWithDurability(conn, cfg, retry, c.readiness, c.decoder, transactions, nil)
 	owned = false
 	return session, nil
 }

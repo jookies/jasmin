@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"sync"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -13,6 +15,8 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/jasmin/internal/infra/storage"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
@@ -23,15 +27,70 @@ import (
 type Runtime struct {
 	Handler http.Handler
 
-	directory  *runtimeDirectory
-	publisher  *amqpcompat.Publisher
-	bridge     *picklecompat.Bridge
-	connection *amqp.Connection
-	billing    *lateBillingConsumer
+	directory    *runtimeDirectory
+	publisher    *amqpcompat.Publisher
+	bridge       *picklecompat.Bridge
+	connection   *amqp.Connection
+	billing      *lateBillingConsumer
+	outboxCancel context.CancelFunc
+	outboxWG     sync.WaitGroup
+	ownedBridge  bool
+	ownedStore   *storage.PostgresSubmitTransactionRepository
 }
 
-func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error) {
+type RuntimeDependencies struct {
+	Bridge       *picklecompat.Bridge
+	Transactions *submittransaction.Service
+	Repository   submittransaction.Repository
+}
+
+// NewRuntime is the standalone production composition. It never falls back to
+// SQLite: PostgreSQL is opened, migrated and recovered before AMQP workers.
+func NewRuntime(ctx context.Context, config Config) (*Runtime, error) {
 	if err := validateConfig(config); err != nil {
+		return nil, err
+	}
+	repository, err := storage.OpenPostgresSubmitTransactionRepository(ctx, config.PostgresDSN)
+	if err != nil {
+		return nil, err
+	}
+	if err = repository.Migrate(ctx); err != nil {
+		_ = repository.Close()
+		return nil, fmt.Errorf("migrate submit transaction store: %w", err)
+	}
+	transactions, err := submittransaction.NewProductionService(repository, nil)
+	if err != nil {
+		_ = repository.Close()
+		return nil, err
+	}
+	if _, err = transactions.Recover(ctx); err != nil {
+		_ = repository.Close()
+		return nil, fmt.Errorf("recover submit attempts: %w", err)
+	}
+	bridge, err := picklecompat.NewBridge(ctx, config.PythonPath)
+	if err != nil {
+		_ = repository.Close()
+		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
+	}
+	runtime, err := NewRuntimeWithDependencies(ctx, config, RuntimeDependencies{Bridge: bridge, Transactions: transactions, Repository: repository})
+	if err != nil {
+		_ = bridge.Close()
+		_ = repository.Close()
+		return nil, err
+	}
+	runtime.ownedBridge = true
+	runtime.ownedStore = repository
+	return runtime, nil
+}
+
+func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies RuntimeDependencies) (_ *Runtime, resultErr error) {
+	if err := validateConfig(config); err != nil {
+		return nil, err
+	}
+	if dependencies.Bridge == nil || dependencies.Transactions == nil || dependencies.Repository == nil {
+		return nil, fmt.Errorf("%w: bridge, transactions and PostgreSQL repository are required", ErrInvalidRuntimeConfig)
+	}
+	if _, err := submittransaction.RequireProductionRepository(dependencies.Repository); err != nil {
 		return nil, err
 	}
 	directory, err := newRuntimeDirectory(config)
@@ -72,16 +131,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			_ = publisher.Close()
 		}
 	}()
-	bridge, err := picklecompat.NewBridge(ctx, config.PythonPath)
-	if err != nil {
-		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
-	}
-	defer func() {
-		if resultErr != nil {
-			_ = bridge.Close()
-		}
-	}()
-	envelopeBuilder, err := NewSubmitEnvelopeBuilder(bridge)
+	envelopeBuilder, err := NewSubmitEnvelopeBuilder(dependencies.Bridge)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +140,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		RoutingTable:     &routes,
 		BillingUsers:     directory.users,
 		EnvelopeBuilder:  envelopeBuilder,
-		Publisher:        publisher,
+		Transaction:      dependencies.Transactions,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)
@@ -99,7 +149,15 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if err != nil {
 		return nil, fmt.Errorf("create late billing service: %w", err)
 	}
-	billingConsumer, err := newLateBillingConsumer(ctx, connection, lateBilling)
+	billingRepository, ok := dependencies.Repository.(billingApplicationRepository)
+	if !ok {
+		return nil, fmt.Errorf("PostgreSQL repository does not implement durable billing application ledger")
+	}
+	durableLateBilling, err := newDurableLateBillingProcessor(lateBilling, billingRepository)
+	if err != nil {
+		return nil, err
+	}
+	billingConsumer, err := newLateBillingConsumer(ctx, connection, durableLateBilling)
 	if err != nil {
 		return nil, fmt.Errorf("start late billing consumer: %w", err)
 	}
@@ -115,14 +173,37 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		RateReader:    directory,
 		Submitter:     submitService,
 	})
-	return &Runtime{
-		Handler:    handler,
-		directory:  directory,
-		publisher:  publisher,
-		bridge:     bridge,
-		connection: connection,
-		billing:    billingConsumer,
-	}, nil
+	dispatcher, err := submittransaction.NewDispatcher(dependencies.Repository, publisher, "gateway-outbox", 32, 30*time.Second, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create submit outbox dispatcher: %w", err)
+	}
+	outboxCtx, outboxCancel := context.WithCancel(ctx)
+	runtime := &Runtime{
+		Handler:      handler,
+		directory:    directory,
+		publisher:    publisher,
+		bridge:       dependencies.Bridge,
+		connection:   connection,
+		billing:      billingConsumer,
+		outboxCancel: outboxCancel,
+	}
+	runtime.outboxWG.Add(1)
+	go runtime.runOutbox(outboxCtx, dispatcher)
+	return runtime, nil
+}
+
+func (runtime *Runtime) runOutbox(ctx context.Context, dispatcher *submittransaction.Dispatcher) {
+	defer runtime.outboxWG.Done()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		_, _ = dispatcher.DispatchOnce(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 func (runtime *Runtime) Close() error {
@@ -130,6 +211,10 @@ func (runtime *Runtime) Close() error {
 		return nil
 	}
 	var errs []error
+	if runtime.outboxCancel != nil {
+		runtime.outboxCancel()
+		runtime.outboxWG.Wait()
+	}
 	if runtime.billing != nil {
 		if err := runtime.billing.Close(); err != nil && !errors.Is(err, amqp.ErrClosed) {
 			errs = append(errs, err)
@@ -140,7 +225,7 @@ func (runtime *Runtime) Close() error {
 			errs = append(errs, err)
 		}
 	}
-	if runtime.bridge != nil {
+	if runtime.ownedBridge && runtime.bridge != nil {
 		if err := runtime.bridge.Close(); err != nil {
 			errs = append(errs, err)
 		}
@@ -150,12 +235,17 @@ func (runtime *Runtime) Close() error {
 			errs = append(errs, err)
 		}
 	}
+	if runtime.ownedStore != nil {
+		if err := runtime.ownedStore.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	return errors.Join(errs...)
 }
 
 func validateConfig(config Config) error {
-	if config.ListenAddress == "" || config.AMQPURL == "" {
-		return fmt.Errorf("%w: listen_address and amqp_url are required", ErrInvalidRuntimeConfig)
+	if config.ListenAddress == "" || config.AMQPURL == "" || config.PythonPath == "" || config.PostgresDSN == "" {
+		return fmt.Errorf("%w: listen_address, amqp_url, python_path and postgres_dsn are required", ErrInvalidRuntimeConfig)
 	}
 	if len(config.Users) == 0 || len(config.Routes) == 0 {
 		return fmt.Errorf("%w: at least one user and route are required", ErrInvalidRuntimeConfig)

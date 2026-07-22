@@ -139,7 +139,12 @@ def decode_submit_sm(data):
         PriorityFlagEncoder, RegisteredDeliveryEncoder, ReplaceIfPresentFlagEncoder,
     )
 
-    obj = SubmitSMUnpickler(io.BytesIO(data)).load()
+    if not data.startswith(b"\x80\x02"):
+        raise pickle.UnpicklingError("SubmitSM boundary requires protocol 2")
+    stream = io.BytesIO(data)
+    obj = SubmitSMUnpickler(stream).load()
+    if stream.read(1):
+        raise pickle.UnpicklingError("trailing bytes after SubmitSM pickle")
     if obj.__class__ is not SubmitSM:
         raise pickle.UnpicklingError("root object is not allowlisted SubmitSM")
     params = obj.params
@@ -199,6 +204,11 @@ def decode_submit_sm(data):
     present_sar = {item["tag"] for item in result["optional_tlvs"] if item["tag"] in (0x020c, 0x020e, 0x020f)}
     if present_sar and present_sar != {0x020c, 0x020e, 0x020f}:
         raise ValueError("incomplete SAR option set")
+    if present_sar:
+        total = next(item["value"][0] for item in result["optional_tlvs"] if item["tag"] == 0x020e)
+        sequence = next(item["value"][0] for item in result["optional_tlvs"] if item["tag"] == 0x020f)
+        if total == 0 or sequence == 0 or sequence > total:
+            raise ValueError("invalid SAR total/sequence")
     return serialize(result)
 
 
@@ -225,6 +235,26 @@ def run():
                 data = pickle.dumps(obj)
                 res = json.dumps({"status": "ok", "data": base64.b64encode(data).decode('ascii')})
                 print(res)
+            elif action == "encode_submit_sm_resp":
+                from io import BytesIO
+                from smpp.pdu.operations import SubmitSMResp
+                from smpp.pdu.pdu_encoding import CommandStatusEncoder
+
+                payload = req["result"]
+                status_code = int(payload["command_status"])
+                if status_code < 0 or status_code > 0xffffffff:
+                    raise ValueError("command_status is outside uint32")
+                sequence = int(payload["sequence"])
+                if sequence < 1 or sequence > 0x7fffffff:
+                    raise ValueError("sequence is outside SMPP range")
+                status = CommandStatusEncoder().decode(BytesIO(status_code.to_bytes(4, "big")))
+                kwargs = {}
+                message_id = base64.b64decode(payload.get("message_id", ""), validate=True)
+                if status_code == 0:
+                    kwargs["message_id"] = message_id.decode("latin1")
+                response = SubmitSMResp(seqNum=sequence, status=status, **kwargs)
+                data = pickle.dumps(response, protocol=2)
+                print(json.dumps({"status": "ok", "data": base64.b64encode(data).decode("ascii")}))
             elif action == "encode_submit_sm":
                 from datetime import datetime
                 from io import BytesIO

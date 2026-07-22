@@ -126,10 +126,22 @@ trap 'on_signal TERM 143' TERM
 
 set -m
 
-if [ "$services" = "rabbitmq-redis" ]; then
+if [ "$services" = "rabbitmq-redis" ] || [ "$services" = "postgres-rabbitmq-redis-smsc" ]; then
   run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" config --quiet || exit $?
   started=1
-  run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" up -d rabbitmq redis || exit $?
+  if [ "$services" = "postgres-rabbitmq-redis-smsc" ]; then
+    run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" up -d --wait --wait-timeout 120 rabbitmq redis postgres || exit $?
+  else
+    run_tracked "$compose_bin" compose -p "$project" -f "$compose_file" up -d --wait --wait-timeout 120 rabbitmq redis || exit $?
+  fi
+  rabbit_port=$($compose_bin compose -p "$project" -f "$compose_file" port rabbitmq 5672 | "$python_bin" -c 'import sys; print(sys.stdin.read().strip().rsplit(":",1)[-1])') || exit 1
+  redis_port=$($compose_bin compose -p "$project" -f "$compose_file" port rabbitmq 6379 | "$python_bin" -c 'import sys; print(sys.stdin.read().strip().rsplit(":",1)[-1])') || exit 1
+  export AMQP_URL="amqp://guest:guest@127.0.0.1:$rabbit_port/"
+  export REDIS_URL="redis://127.0.0.1:$redis_port/0"
+  if [ "$services" = "postgres-rabbitmq-redis-smsc" ]; then
+    postgres_port=$($compose_bin compose -p "$project" -f "$compose_file" port rabbitmq 5432 | "$python_bin" -c 'import sys; print(sys.stdin.read().strip().rsplit(":",1)[-1])') || exit 1
+    export TEST_POSTGRES_DSN="postgres://jasmin:jasmin@127.0.0.1:$postgres_port/jasmin?sslmode=disable"
+  fi
 elif [ "$services" != "none" ]; then
   echo "FAIL: unsupported or unavailable service set '$services'" >&2
   exit 78

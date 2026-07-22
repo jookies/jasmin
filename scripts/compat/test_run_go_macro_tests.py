@@ -45,7 +45,7 @@ class MacroWrapperTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             marker = Path(td) / "docker-called"; fake = Path(td) / "docker"
             fake.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 99\n"); fake.chmod(0o755)
-            result = self.run_wrapper("outbound-a", "candidate", env={"GO_MACRO_TEST_DOCKER_BIN": str(fake)})
+            result = self.run_wrapper("outbound-b", "candidate", env={"GO_MACRO_TEST_DOCKER_BIN": str(fake)})
             self.assertEqual(78, result.returncode)
             self.assertIn("not yet configured", result.stderr)
             self.assertIn("PostgreSQL and SMSC", result.stderr)
@@ -86,7 +86,7 @@ exit 0
                 "PYTHON_PATH": os.environ.get("PYTHON_PATH", sys.executable),
             })
             self.assertEqual(23, result.returncode, result.stdout + result.stderr)
-            text = log.read_text(); self.assertIn(" up -d rabbitmq redis", text); self.assertIn(" down --volumes --remove-orphans", text)
+            text = log.read_text(); self.assertIn(" up -d --wait --wait-timeout 120 rabbitmq redis", text); self.assertIn(" down --volumes --remove-orphans", text)
 
     def test_term_preserves_signal_status_and_cleans_up(self):
         with tempfile.TemporaryDirectory() as td:
@@ -110,7 +110,7 @@ exit 0
                                     text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             deadline = time.monotonic() + 5
             while time.monotonic() < deadline:
-                if log.exists() and " up -d rabbitmq redis" in log.read_text():
+                if log.exists() and " up -d --wait --wait-timeout 120 rabbitmq redis" in log.read_text():
                     break
                 time.sleep(0.02)
             else:

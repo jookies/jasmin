@@ -25,6 +25,28 @@ services:
       retries: 40
     tmpfs:
       - /var/lib/rabbitmq
+    ports:
+      - "127.0.0.1::5672"
+      - "127.0.0.1::6379"
+      - "127.0.0.1::5432"
+
+  postgres:
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    network_mode: "service:rabbitmq"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: jasmin
+      POSTGRES_PASSWORD: jasmin
+      POSTGRES_DB: jasmin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jasmin -d jasmin"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs:
+      - /var/lib/postgresql/data
 
   baseline-tests:
     build:

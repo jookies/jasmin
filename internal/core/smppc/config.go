@@ -3,6 +3,8 @@ package smppc
 import (
 	"errors"
 	"fmt"
+	"math"
+	"time"
 )
 
 type BindType string
@@ -64,11 +66,20 @@ func (c *Config) Validate() error {
 		return errors.New("missing system_id")
 	}
 	switch c.Bind {
-	case BindTransceiver, BindTransmitter, BindReceiver:
+	case BindTransceiver:
 	case "":
 		c.Bind = BindTransceiver // Default
 	default:
-		return fmt.Errorf("invalid bind type: %s", c.Bind)
+		return fmt.Errorf("unsupported bind type: %s (only transceiver is implemented)", c.Bind)
+	}
+	for name, value := range map[string]float64{
+		"trx_to": c.TrxTimeout, "res_to": c.ResTimeout, "pdu_to": c.PDUTimeout,
+		"con_loss_delay": c.ConLossDelay, "con_fail_delay": c.ConFailDelay,
+	} {
+		nanos := value * float64(time.Second)
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || math.IsInf(nanos, 0) || nanos >= float64(math.MaxInt64) {
+			return fmt.Errorf("%s must be finite, non-negative and representable", name)
+		}
 	}
 
 	// Defaults for timeouts

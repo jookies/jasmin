@@ -248,6 +248,10 @@ func (c *Consumer) Consume(ctx context.Context, queue string) (<-chan *Delivery,
 				}
 				delivery, err := NewDelivery(d)
 				if err != nil {
+					// The consumer owns every raw delivery it receives. Malformed
+					// properties/routing are poison, not an unsettled message that can
+					// remain stuck until channel teardown.
+					_ = d.Reject(false)
 					continue
 				}
 				select {

@@ -25,8 +25,9 @@ import (
 func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	amqpURL := os.Getenv("AMQP_URL")
 	pythonPath := os.Getenv("PYTHON_PATH")
-	if amqpURL == "" || pythonPath == "" {
-		t.Skip("AMQP_URL and PYTHON_PATH are required for live Macro 1.3 E2E")
+	postgresDSN := os.Getenv("TEST_POSTGRES_DSN")
+	if amqpURL == "" || pythonPath == "" || postgresDSN == "" {
+		t.Skip("AMQP_URL, PYTHON_PATH and TEST_POSTGRES_DSN are required for live Macro 1.3 E2E")
 	}
 	passwordHash := sha256.Sum256([]byte("secret"))
 	balance := 10.0
@@ -37,6 +38,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 		ListenAddress: "127.0.0.1:0",
 		AMQPURL:       amqpURL,
 		PythonPath:    pythonPath,
+		PostgresDSN:   postgresDSN,
 		Users: []outbound.UserConfig{{
 			Username:                     "alice",
 			ExternalID:                   "user-opaque",
@@ -168,30 +170,24 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer publisher.Close()
-	properties, err := amqpcompat.NewProperties("late-bill-e2e", map[string]amqpcompat.Field{
+	properties, err := amqpcompat.NewProperties("orphan-late-bill-e2e", map[string]amqpcompat.Field{
 		"user-id": amqpcompat.StringField("user-opaque"),
 		"amount":  amqpcompat.StringField("0.5"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	envelope, err := amqpcompat.NewEnvelope("bill_request.submit_sm_resp.user-opaque", properties, []byte("late-bill-e2e"))
+	envelope, err := amqpcompat.NewEnvelope("bill_request.submit_sm_resp.user-opaque", properties, []byte("orphan-late-bill-e2e"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := publisher.Publish(ctx, "billing", envelope.RoutingKey(), envelope); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		if balanceValue(t, server.URL) == "9" {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("late billing did not update balance")
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
+	// An orphan legacy billing delivery has no durable intent and is poison:
+	// it must be rejected without mutating balance or entering a requeue loop.
+	time.Sleep(200 * time.Millisecond)
+	assertBalance(t, server.URL, "9.5", "9")
 }
 
 func assertBalance(t *testing.T, serverURL, wantBalance, wantCount string) {

@@ -23,13 +23,16 @@ CREATE TABLE IF NOT EXISTS submit_attempts (
 );
 
 CREATE TABLE IF NOT EXISTS submit_results (
-    part_key text PRIMARY KEY REFERENCES submit_parts(part_key),
-    attempt_id bigint NOT NULL UNIQUE REFERENCES submit_attempts(id),
+    attempt_id bigint PRIMARY KEY REFERENCES submit_attempts(id),
+    part_key text NOT NULL REFERENCES submit_parts(part_key),
     kind text NOT NULL CHECK (kind IN ('SUCCESS','RETRY','FAILURE','TIMEOUT')),
     smpp_status text NOT NULL DEFAULT '',
     smsc_message_id text,
     committed_at timestamptz NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS submit_results_final_part
+    ON submit_results(part_key)
+    WHERE kind <> 'RETRY';
 CREATE UNIQUE INDEX IF NOT EXISTS submit_results_smsc_message_id
     ON submit_results(smsc_message_id)
     WHERE smsc_message_id IS NOT NULL AND smsc_message_id <> '';

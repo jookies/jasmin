@@ -15,7 +15,7 @@ func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {
 	config := gateway.Config{
 		Role: gateway.RoleHTTPAndSMPPc,
 		Outbound: outbound.Config{
-			ListenAddress: "127.0.0.1:0", AMQPURL: "amqp://localhost", PythonPath: "python3",
+			ListenAddress: "127.0.0.1:0", AMQPURL: "amqp://localhost", PythonPath: "python3", PostgresDSN: "postgres://localhost/test",
 			Users:  []outbound.UserConfig{{Username: "alice", ExternalID: "user1", PasswordSHA256: hex.EncodeToString(hash[:])}},
 			Routes: []outbound.RouteConfig{{ConnectorID: "missing", Default: true}},
 		},
