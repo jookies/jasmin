@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -56,8 +57,9 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	smscResult := make(chan fakeSMSCResult, 1)
-	go runFakeSMSC(listener, "smsc-"+strconv.FormatInt(time.Now().UnixNano(), 10), smscResult)
+	smscResult := make(chan fakeSMSCResult, 2)
+	smscMessageID := "smsc-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	go runFakeSMSC(listener, smscMessageID, smscResult)
 
 	broker, err := amqp.Dial(amqpURL)
 	if err != nil {
@@ -119,7 +121,7 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 
 	response, err := http.PostForm(server.URL+"/send", url.Values{
 		"username": {"alice"}, "password": {"secret"}, "to": {"15551230000"},
-		"from": {"1111"}, "content": {"hello-wave1a"}, "priority": {"2"},
+		"from": {"1111"}, "content": {strings.Repeat("A", 161)}, "priority": {"2"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -131,26 +133,41 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 	}
 	messageID := strings.TrimSuffix(strings.TrimPrefix(string(body), `Success "`), `"`)
 
-	select {
-	case result := <-smscResult:
-		if result.err != nil {
-			t.Fatal(result.err)
+	for part := 1; part <= 2; part++ {
+		select {
+		case result := <-smscResult:
+			if result.err != nil {
+				t.Fatal(result.err)
+			}
+			if result.submit.SM == nil || string(result.submit.SM.DestinationAddress) != "15551230000" {
+				t.Fatalf("fake SMSC received %+v", result.submit.SM)
+			}
+			if result.submit.SM.Optional.SARTotalSegments == nil || *result.submit.SM.Optional.SARTotalSegments != 2 || result.submit.SM.Optional.SARSegmentSequence == nil || *result.submit.SM.Optional.SARSegmentSequence != uint8(part) {
+				t.Fatalf("part %d SAR=%+v", part, result.submit.SM.Optional)
+			}
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for decoded multipart submit_sm")
 		}
-		if result.submit.SM == nil || string(result.submit.SM.DestinationAddress) != "15551230000" || string(result.submit.SM.ShortMessage) != "hello-wave1a" {
-			t.Fatalf("fake SMSC received %+v", result.submit.SM)
-		}
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for decoded submit_sm")
 	}
 
-	select {
-	case delivery := <-responses:
-		if delivery.MessageId != messageID || delivery.RoutingKey != responseKey || len(delivery.Body) < 2 || delivery.Body[0] != 0x80 || delivery.Body[1] != 0x02 {
-			t.Fatalf("response message-id=%q route=%q body-prefix=%x", delivery.MessageId, delivery.RoutingKey, delivery.Body[:min(2, len(delivery.Body))])
+	seenResponseIDs := make(map[string]struct{}, 2)
+	for part := 1; part <= 2; part++ {
+		select {
+		case delivery := <-responses:
+			if delivery.RoutingKey != responseKey || len(delivery.Body) < 2 || delivery.Body[0] != 0x80 || delivery.Body[1] != 0x02 {
+				t.Fatalf("response message-id=%q route=%q body-prefix=%x", delivery.MessageId, delivery.RoutingKey, delivery.Body[:min(2, len(delivery.Body))])
+			}
+			seenResponseIDs[delivery.MessageId] = struct{}{}
+			_ = delivery.Ack(false)
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for durable multipart submit_sm_resp publication")
 		}
-		_ = delivery.Ack(false)
-	case <-ctx.Done():
-		t.Fatal("timed out waiting for durable submit_sm_resp publication")
+	}
+	for part := 1; part <= 2; part++ {
+		want := fmt.Sprintf("%s/%06d", messageID, part)
+		if _, ok := seenResponseIDs[want]; !ok {
+			t.Fatalf("missing response message-id %q; got=%v", want, seenResponseIDs)
+		}
 	}
 
 	db, err := sql.Open("pgx", postgresDSN)
@@ -166,7 +183,7 @@ SELECT
  (SELECT count(*) FROM submit_results r JOIN submit_parts p ON p.part_key=r.part_key WHERE p.message_id=$1),
  (SELECT count(*) FROM submit_billing_intents b JOIN submit_parts p ON p.part_key=b.part_key WHERE p.message_id=$1 AND b.applied_at IS NOT NULL),
  (SELECT count(*) FROM submit_outbox o JOIN submit_parts p ON p.part_key=o.part_key WHERE p.message_id=$1 AND o.dispatched_at IS NULL)`, messageID).Scan(&results, &billing, &undispatched)
-		if err == nil && results == 1 && billing == 1 && undispatched == 0 {
+		if err == nil && results == 2 && billing == 2 && undispatched == 0 {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -174,7 +191,31 @@ SELECT
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	waitBalance(t, server.URL, "9")
+	rows, err := db.QueryContext(ctx, `SELECT p.part_number,r.smsc_message_id FROM submit_results r JOIN submit_parts p ON p.part_key=r.part_key WHERE p.message_id=$1 ORDER BY p.part_number`, messageID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	wantSMSCIDs := map[int]string{1: smscMessageID + "-1", 2: smscMessageID + "-2"}
+	seenMappings := 0
+	for rows.Next() {
+		var partNumber int
+		var smscMessageID string
+		if err := rows.Scan(&partNumber, &smscMessageID); err != nil {
+			t.Fatal(err)
+		}
+		if smscMessageID != wantSMSCIDs[partNumber] {
+			t.Fatalf("part %d SMSC message ID=%q want=%q", partNumber, smscMessageID, wantSMSCIDs[partNumber])
+		}
+		seenMappings++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if seenMappings != 2 {
+		t.Fatalf("part/result mappings=%d want=2", seenMappings)
+	}
+	waitBalance(t, server.URL, "8")
 }
 
 func runFakeSMSC(listener net.Listener, messageID string, result chan<- fakeSMSCResult) {
@@ -201,24 +242,26 @@ func runFakeSMSC(listener net.Listener, messageID string, result chan<- fakeSMSC
 		result <- fakeSMSCResult{err: err}
 		return
 	}
-	submit, err := smppwire.Read(conn, smppwire.DefaultMaxSize)
-	if err != nil {
-		result <- fakeSMSCResult{err: err}
-		return
+	for part := 1; part <= 2; part++ {
+		submit, err := smppwire.Read(conn, smppwire.DefaultMaxSize)
+		if err != nil {
+			result <- fakeSMSCResult{err: err}
+			return
+		}
+		response, err := smppwire.Encode(smppwire.PDU{
+			Header:         smppwire.Header{CommandID: smppwire.CommandSubmitSMResp, SequenceNumber: submit.Header.SequenceNumber},
+			SubmitResponse: &smppwire.SubmitResponseBody{MessageID: []byte(messageID + "-" + strconv.Itoa(part))},
+		})
+		if err != nil {
+			result <- fakeSMSCResult{err: err}
+			return
+		}
+		if _, err = conn.Write(response); err != nil {
+			result <- fakeSMSCResult{err: err}
+			return
+		}
+		result <- fakeSMSCResult{submit: submit}
 	}
-	response, err := smppwire.Encode(smppwire.PDU{
-		Header:         smppwire.Header{CommandID: smppwire.CommandSubmitSMResp, SequenceNumber: submit.Header.SequenceNumber},
-		SubmitResponse: &smppwire.SubmitResponseBody{MessageID: []byte(messageID)},
-	})
-	if err != nil {
-		result <- fakeSMSCResult{err: err}
-		return
-	}
-	if _, err = conn.Write(response); err != nil {
-		result <- fakeSMSCResult{err: err}
-		return
-	}
-	result <- fakeSMSCResult{submit: submit}
 }
 
 func waitBalance(t *testing.T, serverURL, want string) {

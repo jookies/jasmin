@@ -70,11 +70,13 @@ preconditions and `RouterPB.chargeUserForSubmitSms` quota post-state. The
 `late-billing` corpus separately captures the frozen
 `bill_request_submit_sm_resp_callback` ACK/reject decision and balance
 post-state, including its unlimited-balance no-terminal-action behavior. The Go
-subset performs submit authorization/early mutation and late finite-balance
-mutation atomically, and composes the early path with routing, interception,
-segmentation, and an injected opaque AMQP envelope builder. These rows remain
-`GO-PARTIAL`: protocol-specific error mapping, live broker ACK/reject execution,
-persistence/redelivery/deduplication, live topology, and a production
-Python-pickle producer are not claimed.
+subset performs aggregate submit authorization/early mutation once, projects
+per-part bills, atomically admits every generated part to the durable outbox,
+and applies each successful per-part late finite-balance mutation exactly once
+locally. The live HTTP → RabbitMQ → SMPPc → SMSC test now covers two-part SAR
+submission and two independently committed responses. These rows remain
+`GO-PARTIAL`: the full float-operation-order oracle (`B-008`), protocol-specific
+error mapping, inbound DLR aggregation, persistent authoritative user balances,
+and exactly-once external SMSC delivery are not claimed.
 
 No improved ledger behavior is considered parity. Ledger tests and schemas are separate from the legacy compatibility engine.

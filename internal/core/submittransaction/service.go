@@ -45,23 +45,61 @@ func (service *Service) AdmitSubmit(ctx context.Context, envelopes []amqpcompat.
 	now := service.now().UTC()
 	parts := make([]LogicalPart, 0, len(envelopes))
 	events := make([]OutboxEvent, 0, len(envelopes))
+	seenParts := make(map[int]struct{}, len(envelopes))
+	var aggregateID string
 	for index, envelope := range envelopes {
 		if envelope.Route().Kind() != amqpcompat.RouteSubmitSM {
 			return fmt.Errorf("%w: envelope %d is not submit", ErrInvalidInput, index)
 		}
 		messageID := envelope.Properties().MessageID()
-		key := fmt.Sprintf("%s/%06d", messageID, index+1)
+		headers := envelope.Properties().Headers()
+		partNumber, partCount, envelopeAggregate, metadataErr := submitPartMetadata(headers, messageID, len(envelopes))
+		if metadataErr != nil {
+			return fmt.Errorf("%w: envelope %d: %v", ErrInvalidInput, index, metadataErr)
+		}
+		if partCount != len(envelopes) {
+			return fmt.Errorf("%w: envelope %d part-count=%d want=%d", ErrInvalidInput, index, partCount, len(envelopes))
+		}
+		if aggregateID == "" {
+			aggregateID = envelopeAggregate
+		} else if aggregateID != envelopeAggregate {
+			return fmt.Errorf("%w: mixed aggregate message IDs", ErrInvalidInput)
+		}
+		if _, duplicate := seenParts[partNumber]; duplicate {
+			return fmt.Errorf("%w: duplicate part-number %d", ErrInvalidInput, partNumber)
+		}
+		seenParts[partNumber] = struct{}{}
+		key := fmt.Sprintf("%s/%06d", envelopeAggregate, partNumber)
 		payload, err := SnapshotEnvelope(envelope)
 		if err != nil {
 			return err
 		}
-		headers := envelope.Properties().Headers()
 		userID, _ := fieldString(headers, "user-id")
 		billID, _ := fieldString(headers, "bill-id")
-		parts = append(parts, LogicalPart{Key: key, MessageID: messageID, PartNumber: index + 1, ConnectorID: envelope.Route().Target(), UserID: userID, BillID: billID, State: PartPending, CreatedAt: now})
+		parts = append(parts, LogicalPart{Key: key, MessageID: envelopeAggregate, PartNumber: partNumber, ConnectorID: envelope.Route().Target(), UserID: userID, BillID: billID, State: PartPending, CreatedAt: now})
 		events = append(events, OutboxEvent{Key: key + ":00-submit", PartKey: key, Kind: EventSubmitRequest, Exchange: "messaging", RoutingKey: envelope.RoutingKey(), Payload: payload, CreatedAt: now, AvailableAt: now})
 	}
 	return service.repository.Admit(ctx, parts, events)
+}
+
+func submitPartMetadata(headers map[string]amqpcompat.Field, messageID string, envelopeCount int) (int, int, string, error) {
+	aggregate, aggregateOK := fieldString(headers, "aggregate-message-id")
+	partNumberValue, partNumberOK := fieldInteger(headers, "part-number")
+	partCountValue, partCountOK := fieldInteger(headers, "part-count")
+	if !aggregateOK && !partNumberOK && !partCountOK && envelopeCount == 1 {
+		return 1, 1, messageID, nil
+	}
+	if !aggregateOK || aggregate == "" || !partNumberOK || !partCountOK || partNumberValue < 1 || partCountValue < 1 || partNumberValue > partCountValue {
+		return 0, 0, "", errors.New("missing or invalid aggregate/part metadata")
+	}
+	expectedMessageID := aggregate
+	if partCountValue > 1 {
+		expectedMessageID = fmt.Sprintf("%s/%06d", aggregate, partNumberValue)
+	}
+	if messageID != expectedMessageID {
+		return 0, 0, "", errors.New("message-id does not match aggregate/part identity")
+	}
+	return int(partNumberValue), int(partCountValue), aggregate, nil
 }
 
 func (service *Service) BeginAttempt(ctx context.Context, partKey string) (SendAttempt, bool, error) {
@@ -134,6 +172,14 @@ func fieldString(headers map[string]amqpcompat.Field, name string) (string, bool
 		return "", false
 	}
 	return field.String()
+}
+
+func fieldInteger(headers map[string]amqpcompat.Field, name string) (int64, bool) {
+	field, ok := headers[name]
+	if !ok {
+		return 0, false
+	}
+	return field.Integer()
 }
 
 var ErrOutboxStopped = errors.New("submit outbox dispatcher stopped")

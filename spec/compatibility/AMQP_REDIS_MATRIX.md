@@ -55,13 +55,15 @@ Baseline: `0aac58e466d583d0f0436df7b8afa3dc96191263`.
 - Legacy import: trusted offline Python exporter to canonical versioned data; Go never writes old pickle profiles.
 
 `GO-PARTIAL` means only a fixture-proven subset is implemented. For AMQP rows
-this includes envelope/routing validation, the exact non-durable RouterPB
+this includes envelope/routing validation, atomic durable admission of a
+contiguous multipart submit set, explicit aggregate/part identity, independent
+per-part SMPP response correlation, the exact non-durable RouterPB
 `messaging`/`billing` exchange and fixed queue/binding/manual-consumer declaration
 sequence for A-001/A-004/A-009, and, for A-008/A-009, the late-billing
 decision plus an explicit single-settlement handle that ACKs after successful
 mutation or rejects without requeue for the frozen finite-balance cases. It does
 not imply complete process wiring or all Jasmin topology, QoS, consumer recovery, malformed-message
-policy, retry/redelivery, deduplication, or pickle-bridge parity. For Redis rows
+policy, aggregate DLR-state closure, retry/redelivery, deduplication, or complete pickle-bridge parity. For Redis rows
 it is typed key/hash projection or opaque multipart metadata only; it does not
 imply live Redis commands, TTL lifecycle, deletion, assembly, or pickle
 ownership.

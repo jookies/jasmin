@@ -104,18 +104,30 @@ func (p *Publisher) Publish(ctx context.Context, exchange string, routingKey str
 			// the connection reader goroutine and synchronously writes returns to
 			// this buffered channel. A return for this serialized publication is
 			// therefore already available once its ACK becomes observable.
-			select {
-			case returned, ok := <-p.returns:
-				if ok {
-					return fmt.Errorf("%w: %d %s exchange=%q routing-key=%q message-id=%q",
-						ErrPublishReturned, returned.ReplyCode, returned.ReplyText,
-						returned.Exchange, returned.RoutingKey, returned.MessageId)
-				}
-			default:
+			if returned, matched := drainMatchingReturn(p.returns, properties.MessageID()); matched {
+				return fmt.Errorf("%w: %d %s exchange=%q routing-key=%q message-id=%q",
+					ErrPublishReturned, returned.ReplyCode, returned.ReplyText,
+					returned.Exchange, returned.RoutingKey, returned.MessageId)
 			}
 			return nil
 		case <-ctx.Done():
 			return ctx.Err()
+		}
+	}
+}
+
+func drainMatchingReturn(returns <-chan amqp.Return, messageID string) (amqp.Return, bool) {
+	for {
+		select {
+		case returned, ok := <-returns:
+			if !ok {
+				return amqp.Return{}, false
+			}
+			if returned.MessageId == messageID {
+				return returned, true
+			}
+		default:
+			return amqp.Return{}, false
 		}
 	}
 }

@@ -164,17 +164,28 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = io.Copy(io.Discard, multipartResponse.Body)
+	multipartBody, _ := io.ReadAll(multipartResponse.Body)
 	multipartResponse.Body.Close()
-	if multipartResponse.StatusCode != http.StatusInternalServerError {
-		t.Fatalf("multipart status=%d, want fail-closed 500", multipartResponse.StatusCode)
+	if multipartResponse.StatusCode != http.StatusOK || !strings.HasPrefix(string(multipartBody), `Success "`) {
+		t.Fatalf("multipart response=%d %q", multipartResponse.StatusCode, multipartBody)
 	}
-	assertBalance(t, server.URL, "9.5", "9")
-	select {
-	case unexpected := <-deliveries:
-		_ = unexpected.Reject(false)
-		t.Fatal("multipart rejection published an unexpected PDU")
-	case <-time.After(200 * time.Millisecond):
+	multipartAggregateID := strings.TrimSuffix(strings.TrimPrefix(string(multipartBody), `Success "`), `"`)
+	assertBalance(t, server.URL, "8.5", "7")
+	for part := 1; part <= 2; part++ {
+		select {
+		case multipart := <-deliveries:
+			wantMessageID := fmt.Sprintf("%s/%06d", multipartAggregateID, part)
+			if multipart.MessageId != wantMessageID || multipart.RoutingKey != queueName || multipart.Headers["aggregate-message-id"] != multipartAggregateID {
+				t.Fatalf("multipart part %d properties=%q/%q", part, multipart.MessageId, multipart.RoutingKey)
+			}
+			partNumber, ok := multipart.Headers["part-number"].(int64)
+			if !ok || partNumber != int64(part) {
+				t.Fatalf("multipart part-number=%T(%v) want=%d", multipart.Headers["part-number"], multipart.Headers["part-number"], part)
+			}
+			_ = multipart.Ack(false)
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for durable multipart publication")
+		}
 	}
 
 	publisher, err := amqpcompat.NewPublisher(connection)
@@ -199,7 +210,7 @@ func TestOutboundHTTPToRabbitMQAndLateBilling(t *testing.T) {
 	// An orphan legacy billing delivery has no durable intent and is poison:
 	// it must be rejected without mutating balance or entering a requeue loop.
 	time.Sleep(200 * time.Millisecond)
-	assertBalance(t, server.URL, "9.5", "9")
+	assertBalance(t, server.URL, "8.5", "7")
 }
 
 func assertBalance(t *testing.T, serverURL, wantBalance, wantCount string) {

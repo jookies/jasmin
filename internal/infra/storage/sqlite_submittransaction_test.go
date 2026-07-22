@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -45,6 +46,64 @@ func submitEnvelope(t *testing.T, messageID, connector string) amqpcompat.Envelo
 		t.Fatal(err)
 	}
 	return envelope
+}
+
+func multipartEnvelope(t *testing.T, aggregate, connector string, part, count int) amqpcompat.Envelope {
+	t.Helper()
+	messageID := aggregate
+	if count > 1 {
+		messageID = fmt.Sprintf("%s/%06d", aggregate, part)
+	}
+	properties, err := amqpcompat.NewProperties(messageID, map[string]amqpcompat.Field{
+		"created_at":           amqpcompat.StringField("2026-07-21 12:00:00"),
+		"aggregate-message-id": amqpcompat.StringField(aggregate),
+		"part-number":          amqpcompat.IntegerField(int64(part)),
+		"part-count":           amqpcompat.IntegerField(int64(count)),
+	}, amqpcompat.WithReplyTo("submit.sm.resp.user-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := amqpcompat.NewEnvelope("submit.sm."+connector, properties, []byte{0x80, 2, byte(part)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return envelope
+}
+
+func TestMultipartAdmissionPersistsContiguousPartsAtomically(t *testing.T) {
+	repository, db := newSubmitStore(t)
+	service, _ := submittransaction.NewService(repository, nil)
+	envelopes := []amqpcompat.Envelope{
+		multipartEnvelope(t, "aggregate-1", "connector-a", 1, 2),
+		multipartEnvelope(t, "aggregate-1", "connector-a", 2, 2),
+	}
+	if err := service.AdmitSubmit(context.Background(), envelopes); err != nil {
+		t.Fatal(err)
+	}
+	var parts, events int
+	if err := db.QueryRow(`SELECT count(*) FROM submit_parts WHERE message_id='aggregate-1'`).Scan(&parts); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM submit_outbox WHERE part_key LIKE 'aggregate-1/%'`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if parts != 2 || events != 2 {
+		t.Fatalf("parts=%d events=%d", parts, events)
+	}
+
+	malformed := []amqpcompat.Envelope{
+		multipartEnvelope(t, "aggregate-2", "connector-a", 1, 2),
+		multipartEnvelope(t, "aggregate-2", "connector-a", 1, 2),
+	}
+	if err := service.AdmitSubmit(context.Background(), malformed); !errors.Is(err, submittransaction.ErrInvalidInput) {
+		t.Fatalf("malformed admission error=%v", err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM submit_parts WHERE message_id='aggregate-2'`).Scan(&parts); err != nil {
+		t.Fatal(err)
+	}
+	if parts != 0 {
+		t.Fatalf("malformed admission persisted %d parts", parts)
+	}
 }
 
 func TestSQLiteSubmitTransactionIdempotentResponseAndRecovery(t *testing.T) {
@@ -114,9 +173,10 @@ func TestOutboxPublishFailureRecoveryAndOrdering(t *testing.T) {
 	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
 	service, _ := submittransaction.NewService(repository, func() time.Time { return now })
 	ctx := context.Background()
-	envelopes := []amqpcompat.Envelope{submitEnvelope(t, "message-a", "a"), submitEnvelope(t, "message-b", "b")}
-	if err := service.AdmitSubmit(ctx, envelopes); err != nil {
-		t.Fatal(err)
+	for _, envelope := range []amqpcompat.Envelope{submitEnvelope(t, "message-a", "a"), submitEnvelope(t, "message-b", "b")} {
+		if err := service.AdmitSubmit(ctx, []amqpcompat.Envelope{envelope}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	failing := &recordingPublisher{failAt: 1}
 	dispatcher, _ := submittransaction.NewDispatcher(repository, failing, "worker-1", 10, time.Minute, func() time.Time { return now })

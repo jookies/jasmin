@@ -2,7 +2,7 @@ package outbound_test
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -106,7 +106,7 @@ func TestSubmitEnvelopeBuilderProjectsLegacyPropertiesAndBill(t *testing.T) {
 	}
 }
 
-func TestSubmitEnvelopeBuilderRejectsNonAtomicMultipartProduction(t *testing.T) {
+func TestSubmitEnvelopeBuilderProjectsMultipartIdentityAndLastPartDLR(t *testing.T) {
 	encoder := &recordingEncoder{}
 	builder, err := outbound.NewSubmitEnvelopeBuilder(encoder)
 	if err != nil {
@@ -120,10 +120,33 @@ func TestSubmitEnvelopeBuilderRejectsNonAtomicMultipartProduction(t *testing.T) 
 		t.Fatal(err)
 	}
 	parts := segmented.Parts()
-	if _, err := builder.BuildSubmitEnvelope(context.Background(), core.SubmitEnvelopeRequest{Parts: parts}, parts[0]); !errors.Is(err, outbound.ErrMultipartProductionUnsupported) {
-		t.Fatalf("multipart error=%v", err)
+	request := core.SubmitEnvelopeRequest{
+		MessageID: "aggregate-1", BillID: "bill-1", CreatedAt: time.Now(),
+		Username: "alice", UserID: "user-1", ConnectorID: "connector-a",
+		DestinationAddr: []byte("15551230000"), DLR: true, Parts: parts,
+		Bill: billing.Bill{SubmitSmAmount: 0.5, SubmitSmRespAmount: 0.5, DecrementSubmitSmCount: 1},
 	}
-	if len(encoder.requests) != 0 {
-		t.Fatalf("encoder called %d times for rejected multipart", len(encoder.requests))
+	for index, part := range parts {
+		envelope, err := builder.BuildSubmitEnvelope(context.Background(), request, part)
+		if err != nil {
+			t.Fatalf("part %d: %v", index+1, err)
+		}
+		headers := envelope.Properties().Headers()
+		aggregate, _ := headers["aggregate-message-id"].String()
+		partNumber, _ := headers["part-number"].Integer()
+		partCount, _ := headers["part-count"].Integer()
+		if aggregate != "aggregate-1" || partNumber != int64(index+1) || partCount != int64(len(parts)) {
+			t.Fatalf("part %d metadata=(%q,%d,%d)", index+1, aggregate, partNumber, partCount)
+		}
+		wantMessageID := fmt.Sprintf("aggregate-1/%06d", index+1)
+		if envelope.Properties().MessageID() != wantMessageID {
+			t.Fatalf("part %d message-id=%q want=%q", index+1, envelope.Properties().MessageID(), wantMessageID)
+		}
+	}
+	if len(encoder.requests) != len(parts) {
+		t.Fatalf("encoder calls=%d want=%d", len(encoder.requests), len(parts))
+	}
+	if encoder.requests[0].RegisteredDelivery || !encoder.requests[len(parts)-1].RegisteredDelivery {
+		t.Fatalf("registered delivery first=%v last=%v", encoder.requests[0].RegisteredDelivery, encoder.requests[len(parts)-1].RegisteredDelivery)
 	}
 }

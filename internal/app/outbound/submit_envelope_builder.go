@@ -14,10 +14,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
 
-var (
-	ErrInvalidSubmitEnvelope          = errors.New("invalid production submit envelope")
-	ErrMultipartProductionUnsupported = errors.New("multipart production publication requires an atomic outbox")
-)
+var ErrInvalidSubmitEnvelope = errors.New("invalid production submit envelope")
 
 type SubmitSMEncoder interface {
 	EncodeSubmitSM(context.Context, picklecompat.SubmitSMEncodeRequest) (picklecompat.SubmitSMEncodeResult, error)
@@ -42,9 +39,6 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 	request core.SubmitEnvelopeRequest,
 	part segmentation.Part,
 ) (amqpcompat.Envelope, error) {
-	if len(request.Parts) > 1 {
-		return amqpcompat.Envelope{}, ErrMultipartProductionUnsupported
-	}
 	if request.MessageID == "" || request.BillID == "" || request.UserID == "" ||
 		request.Username == "" || request.ConnectorID == "" || len(request.DestinationAddr) == 0 ||
 		request.CreatedAt.IsZero() {
@@ -100,9 +94,12 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 	}
 
 	headers := map[string]amqpcompat.Field{
-		"created_at":       amqpcompat.StringField(legacyDateTime(request.CreatedAt)),
-		"source_connector": amqpcompat.StringField(sourceConnector(request.SourceConnector)),
-		"submit_sm_bill":   amqpcompat.BytesField(encoded.Bill),
+		"created_at":           amqpcompat.StringField(legacyDateTime(request.CreatedAt)),
+		"source_connector":     amqpcompat.StringField(sourceConnector(request.SourceConnector)),
+		"submit_sm_bill":       amqpcompat.BytesField(encoded.Bill),
+		"aggregate-message-id": amqpcompat.StringField(request.MessageID),
+		"part-number":          amqpcompat.IntegerField(int64(part.Sequence())),
+		"part-count":           amqpcompat.IntegerField(int64(len(request.Parts))),
 		// Durable response metadata mirrors fields already present in the
 		// allowlisted bill pickle, avoiding unsafe bill unpickling in Session.
 		"user-id":          amqpcompat.StringField(request.UserID),
@@ -112,8 +109,12 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 	if request.ValidityPeriod != nil {
 		headers["expiration"] = amqpcompat.StringField(legacyDateTime(request.CreatedAt.Add(*request.ValidityPeriod)))
 	}
+	messageID := request.MessageID
+	if len(request.Parts) > 1 {
+		messageID = fmt.Sprintf("%s/%06d", request.MessageID, part.Sequence())
+	}
 	properties, err := amqpcompat.NewProperties(
-		request.MessageID,
+		messageID,
 		headers,
 		amqpcompat.WithReplyTo("submit.sm.resp."+request.UserID),
 		amqpcompat.WithPriority(request.Priority),

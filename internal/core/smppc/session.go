@@ -358,7 +358,11 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	}
 	envelope := d.Envelope()
 	var attempt submittransaction.SendAttempt
-	partKey := envelope.Properties().MessageID() + "/000001"
+	partKey, err := durablePartKey(envelope)
+	if err != nil {
+		s.settleDeliveryReject(d, false)
+		return err
+	}
 	if s.transactions != nil {
 		var committed bool
 		var beginErr error
@@ -546,6 +550,37 @@ func headerString(headers map[string]amqpcompat.Field, name string) (string, boo
 		return "", false
 	}
 	return field.String()
+}
+
+func headerInteger(headers map[string]amqpcompat.Field, name string) (int64, bool) {
+	field, ok := headers[name]
+	if !ok {
+		return 0, false
+	}
+	return field.Integer()
+}
+
+func durablePartKey(envelope amqpcompat.Envelope) (string, error) {
+	properties := envelope.Properties()
+	messageID := properties.MessageID()
+	headers := properties.Headers()
+	aggregate, aggregateOK := headerString(headers, "aggregate-message-id")
+	partNumber, partNumberOK := headerInteger(headers, "part-number")
+	partCount, partCountOK := headerInteger(headers, "part-count")
+	if !aggregateOK && !partNumberOK && !partCountOK {
+		return messageID + "/000001", nil
+	}
+	if !aggregateOK || aggregate == "" || !partNumberOK || !partCountOK || partNumber < 1 || partCount < 1 || partNumber > partCount {
+		return "", errors.New("invalid durable multipart identity")
+	}
+	expectedMessageID := aggregate
+	if partCount > 1 {
+		expectedMessageID = fmt.Sprintf("%s/%06d", aggregate, partNumber)
+	}
+	if messageID != expectedMessageID {
+		return "", errors.New("message-id does not match durable multipart identity")
+	}
+	return fmt.Sprintf("%s/%06d", aggregate, partNumber), nil
 }
 
 func smppStatusName(status uint32) string {

@@ -87,6 +87,57 @@ func TestPostgresSMSCMessageIDMayRepeatAcrossConnectorParts(t *testing.T) {
 	}
 }
 
+func TestPostgresMultipartAdmissionRollsBackOnSecondOutboxFailure(t *testing.T) {
+	dsn := os.Getenv("TEST_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("TEST_POSTGRES_DSN is not set")
+	}
+	ctx := context.Background()
+	repository, err := OpenPostgresSubmitTransactionRepository(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = repository.Close() })
+	if err := repository.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.db.ExecContext(ctx, `TRUNCATE submit_billing_intents,submit_outbox,submit_results,submit_attempts,submit_parts RESTART IDENTITY CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	const triggerSQL = `
+CREATE OR REPLACE FUNCTION jasmin_test_fail_second_outbox() RETURNS trigger AS $$
+BEGIN
+  IF NEW.part_key LIKE '%/000002' THEN RAISE EXCEPTION 'injected second outbox failure'; END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER jasmin_test_fail_second_outbox BEFORE INSERT ON submit_outbox
+FOR EACH ROW EXECUTE FUNCTION jasmin_test_fail_second_outbox();`
+	if _, err := repository.db.ExecContext(ctx, triggerSQL); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = repository.db.ExecContext(context.Background(), `DROP TRIGGER IF EXISTS jasmin_test_fail_second_outbox ON submit_outbox; DROP FUNCTION IF EXISTS jasmin_test_fail_second_outbox()`)
+	})
+	service, _ := submittransaction.NewProductionService(repository, nil)
+	envelopes := []amqpcompat.Envelope{
+		multipartEnvelope(t, "pg-multipart-rollback", "connector-a", 1, 2),
+		multipartEnvelope(t, "pg-multipart-rollback", "connector-a", 2, 2),
+	}
+	if err := service.AdmitSubmit(ctx, envelopes); err == nil {
+		t.Fatal("injected second outbox failure unexpectedly succeeded")
+	}
+	var parts, events int
+	if err := repository.db.QueryRowContext(ctx, `SELECT count(*) FROM submit_parts WHERE message_id='pg-multipart-rollback'`).Scan(&parts); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.db.QueryRowContext(ctx, `SELECT count(*) FROM submit_outbox WHERE part_key LIKE 'pg-multipart-rollback/%'`).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if parts != 0 || events != 0 {
+		t.Fatalf("rollback leaked parts=%d events=%d", parts, events)
+	}
+}
+
 func TestPostgresActiveAttemptIsFencedBeforeRedelivery(t *testing.T) {
 	dsn := os.Getenv("TEST_POSTGRES_DSN")
 	if dsn == "" {
