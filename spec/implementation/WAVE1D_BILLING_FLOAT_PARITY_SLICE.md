@@ -66,5 +66,9 @@ Close the bounded `B-008` residual on the outbound HTTP submit path by preservin
 - Float-text differential: `5,009` finite binary64 values, including notation thresholds, exactly matched Python 3 `str(float)`.
 - Ralph boundary audit found one Medium mismatch for integral visible amounts (`0` versus Python `0.0`). The correction added Python-compatible fixed/scientific notation and boundary tests; the exact-candidate focused final council returned `PASS` with no remaining High/Medium finding.
 - Registry after promotion: `205` total = `128 INVENTORIED` + `55 GO-PARTIAL` + `19 MATCH` + `3 GO-COMPLETE`; `183` unfinished.
+- Published implementation candidate `ac20e80022cf0cc90d89711a6c41ca4cd5d0b8b5` (tree `395edbdad44e52dc51bf8395065d6b92ce6ee731`) passed exact-SHA GitHub Actions run `29999604912` with `4/4` successful jobs.
+- Post-publication reconstruction rechecked focused billing/core/outbound Go tests, fixture/schema/registry/manifest validation, all `60` Python compatibility tests, the authoritative matrix recount, exact local/tracking/remote equality, and a clean workspace.
 
-Publication is pending exact-SHA GitHub Actions and terminal ref/workspace equality; no terminal LoopKey is claimed here.
+Implementation candidate LoopKey: fd78d0b2074a
+
+This marker identifies the executable implementation evidence only; it is not the terminal publication-tree LoopKey. Terminal closure is determined separately by the main orchestrator's post-publication exact-SHA CI, ref-equality, and clean-workspace gate for the final documentation descendant.
