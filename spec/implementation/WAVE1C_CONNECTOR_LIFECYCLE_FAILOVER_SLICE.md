@@ -59,4 +59,8 @@ Close the bounded Task 1.5 production path from route selection through observed
 - Focused reconnect and correction tests passed `20` times under `-race`; full `go test ./...`, `go test -race ./...`, `go vet ./...`, and `go build ./...` passed.
 - Contract registry remains `205 = 129 INVENTORIED + 55 GO-PARTIAL + 18 MATCH + 3 GO-COMPLETE`; fixture integrity, JSON Schemas, the `1,039`-test manifest, all `58` Python compatibility tests, frozen-fixture diff, and candidate-diff secret scan passed.
 - The exact-candidate Ralph code council identified three High/Medium boundary defects. After one correction batch and invalidated-gate rerun, the focused final council returned `PASS` for the corrected SHA/tree.
-- Publication, corrected exact-SHA `4/4` CI, final local/tracking/remote equality, clean-workspace verification, and the terminal LoopKey remain required.
+- Documentation descendant `ff49b8d99d59f39c5e5988ceb7b620ceeb6ba44a`, which contains corrected executable candidate `c64baaec6065dfe759dd699e4a29547973780fec`, passed exact-SHA GitHub Actions run `29972078425` with `4/4` jobs. Local HEAD, tracking ref, and the public `go-rewrite` branch matched with a clean workspace before this finalization.
+
+Implementation candidate LoopKey: 717debdb07c2
+
+This marker identifies the corrected executable evidence only; it is not the terminal publication-tree LoopKey. Terminal closure is determined separately by the main orchestrator's post-publication exact-SHA CI, ref-equality, and clean-workspace gate for the final documentation descendant.
