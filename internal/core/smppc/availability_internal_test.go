@@ -9,6 +9,155 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
+func boolPointer(value bool) *bool { return &value }
+
+func TestConnectorConnectionFailureRetryFlag(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		retry bool
+	}{
+		{name: "disabled", retry: false},
+		{name: "enabled", retry: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer listener.Close()
+			address := listener.Addr().(*net.TCPAddr)
+			accepted := make(chan struct{}, 4)
+			go func() {
+				for {
+					connection, acceptErr := listener.Accept()
+					if acceptErr != nil {
+						return
+					}
+					accepted <- struct{}{}
+					_ = connection.Close()
+				}
+			}()
+			cfg := Config{
+				CID: "failure-" + test.name, Host: address.IP.String(), Port: address.Port,
+				SystemID: "client", ConFailRetry: boolPointer(test.retry), ConFailDelay: 0.02,
+			}
+			if err := cfg.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			connector, err := NewConnector(cfg, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := connector.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer connector.Stop()
+			select {
+			case <-accepted:
+			case <-time.After(time.Second):
+				t.Fatal("initial connection was not attempted")
+			}
+			select {
+			case <-accepted:
+				if !test.retry {
+					t.Fatal("connection failure retried while disabled")
+				}
+			case <-time.After(100 * time.Millisecond):
+				if test.retry {
+					t.Fatal("connection failure was not retried while enabled")
+				}
+			}
+		})
+	}
+}
+
+func TestConnectorConnectionLossRetryFlag(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		retry bool
+	}{
+		{name: "disabled", retry: false},
+		{name: "enabled", retry: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer listener.Close()
+			address := listener.Addr().(*net.TCPAddr)
+			accepted := make(chan struct{}, 4)
+			go func() {
+				for {
+					connection, acceptErr := listener.Accept()
+					if acceptErr != nil {
+						return
+					}
+					accepted <- struct{}{}
+					request, readErr := smppwire.Read(connection, smppwire.DefaultMaxSize)
+					if readErr == nil {
+						response, encodeErr := smppwire.Encode(smppwire.PDU{
+							Header:       smppwire.Header{CommandID: smppwire.CommandBindTransceiverResp, SequenceNumber: request.Header.SequenceNumber},
+							BindResponse: &smppwire.BindResponseBody{SystemID: []byte("smsc")},
+						})
+						if encodeErr == nil {
+							_, _ = connection.Write(response)
+						}
+					}
+					_ = connection.Close()
+				}
+			}()
+			cfg := Config{
+				CID: "loss-" + test.name, Host: address.IP.String(), Port: address.Port,
+				SystemID: "client", ConFailRetry: boolPointer(false),
+				ConLossRetry: boolPointer(test.retry), ConLossDelay: 0.02,
+			}
+			if err := cfg.Validate(); err != nil {
+				t.Fatal(err)
+			}
+			connector, err := NewConnector(cfg, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := connector.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer connector.Stop()
+			select {
+			case <-accepted:
+			case <-time.After(time.Second):
+				t.Fatal("initial connection was not attempted")
+			}
+			select {
+			case <-accepted:
+				if !test.retry {
+					t.Fatal("connection loss retried while disabled")
+				}
+			case <-time.After(150 * time.Millisecond):
+				if test.retry {
+					t.Fatal("connection loss was not retried while enabled")
+				}
+			}
+		})
+	}
+}
+
+func TestConfigReconnectFlagsDefaultTrueAndCloneIndependently(t *testing.T) {
+	cfg := Config{CID: "flags", Host: "127.0.0.1", Port: 2775, SystemID: "client"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.ConnectionFailureRetryEnabled() || !cfg.ConnectionLossRetryEnabled() {
+		t.Fatal("legacy reconnect flags must default to enabled")
+	}
+	clone := cfg.Clone()
+	*clone.ConFailRetry = false
+	*clone.ConLossRetry = false
+	if !cfg.ConnectionFailureRetryEnabled() || !cfg.ConnectionLossRetryEnabled() {
+		t.Fatal("clone aliases reconnect flag pointers")
+	}
+}
+
 func TestManagerAvailabilityUsesDesiredAndObservedState(t *testing.T) {
 	manager := NewManagerWithFactory("", func(cfg Config, amqpURL string) (*Connector, error) {
 		return NewConnector(cfg, amqpURL)

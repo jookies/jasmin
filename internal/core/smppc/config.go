@@ -40,11 +40,12 @@ type Config struct {
 	ResTimeout float64 `json:"res_to"`
 	PDUTimeout float64 `json:"pdu_to"`
 
-	// Reconnection settings
-	ConLossRetry  bool    `json:"con_loss_retry"`
-	ConLossDelay  float64 `json:"con_loss_delay"`
-	ConFailDelay  float64 `json:"con_fail_delay"`
-	ReconnectLoss bool    `json:"reconnect_on_connection_loss"`
+	// Reconnection settings. Pointers preserve legacy default=true while still
+	// allowing an explicit false value in JSON and programmatic configuration.
+	ConLossRetry *bool   `json:"con_loss_retry,omitempty"`
+	ConFailRetry *bool   `json:"con_fail_retry,omitempty"`
+	ConLossDelay float64 `json:"con_loss_delay"`
+	ConFailDelay float64 `json:"con_fail_delay"`
 
 	// Transport security. Certificate verification is enabled by default.
 	TLSEnabled            bool   `json:"tls_enabled"`
@@ -105,6 +106,14 @@ func (c *Config) Validate() error {
 	if c.ConFailDelay == 0 {
 		c.ConFailDelay = 10
 	}
+	if c.ConLossRetry == nil {
+		value := true
+		c.ConLossRetry = &value
+	}
+	if c.ConFailRetry == nil {
+		value := true
+		c.ConFailRetry = &value
+	}
 	if c.SubmitSMThroughput != nil {
 		if err := validateThroughput(*c.SubmitSMThroughput); err != nil {
 			return err
@@ -130,9 +139,25 @@ func (c Config) EffectiveSubmitSMThroughput() float64 {
 	return *c.SubmitSMThroughput
 }
 
+func (c Config) ConnectionFailureRetryEnabled() bool {
+	return c.ConFailRetry == nil || *c.ConFailRetry
+}
+
+func (c Config) ConnectionLossRetryEnabled() bool {
+	return c.ConLossRetry == nil || *c.ConLossRetry
+}
+
 // Clone returns a config with no shared mutable pointer fields.
 func (c Config) Clone() Config {
 	clone := c
+	if c.ConFailRetry != nil {
+		value := *c.ConFailRetry
+		clone.ConFailRetry = &value
+	}
+	if c.ConLossRetry != nil {
+		value := *c.ConLossRetry
+		clone.ConLossRetry = &value
+	}
 	if c.SubmitSMThroughput != nil {
 		throughput := *c.SubmitSMThroughput
 		clone.SubmitSMThroughput = &throughput

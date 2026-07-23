@@ -311,7 +311,8 @@ func (c *Connector) loop(ctx context.Context) {
 		c.setStatus(StatusConnecting)
 		session, err := c.connectAndBind(ctx)
 		if err != nil {
-			if !waitContext(ctx, seconds(c.Config().ConFailDelay)) {
+			cfg := c.Config()
+			if !cfg.ConnectionFailureRetryEnabled() || !waitContext(ctx, seconds(cfg.ConFailDelay)) {
 				return
 			}
 			continue
@@ -352,7 +353,8 @@ func (c *Connector) loop(ctx context.Context) {
 		}
 		c.status = StatusDisconnected
 		c.mu.Unlock()
-		if ctx.Err() != nil || !waitContext(ctx, seconds(c.Config().ConLossDelay)) {
+		cfg := c.Config()
+		if ctx.Err() != nil || !cfg.ConnectionLossRetryEnabled() || !waitContext(ctx, seconds(cfg.ConLossDelay)) {
 			return
 		}
 	}
