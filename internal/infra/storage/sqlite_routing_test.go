@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
+	"sync"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -130,5 +132,58 @@ func TestSQLiteRouteInitMigratesLegacySchema(t *testing.T) {
 	connectors := routes[0].Connectors()
 	if len(connectors) != 1 || connectors[0].ID() != "legacy-primary" {
 		t.Fatalf("legacy route connectors=%+v", connectors)
+	}
+}
+
+func TestSQLiteRouteInitMigratesLegacySchemaConcurrently(t *testing.T) {
+	for iteration := 0; iteration < 10; iteration++ {
+		path := filepath.Join(t.TempDir(), "routes.db")
+		setup, err := sql.Open("sqlite3", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = setup.Exec(`CREATE TABLE mt_routes (
+			routing_order INTEGER PRIMARY KEY, direction TEXT, connector_id TEXT,
+			connector_type TEXT, rate REAL, is_default INTEGER, filters_json TEXT
+		)`)
+		setup.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		start := make(chan struct{})
+		results := make(chan error, 2)
+		var wg sync.WaitGroup
+		for worker := 0; worker < 2; worker++ {
+			db, err := sql.Open("sqlite3", path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			db.SetMaxOpenConns(1)
+			wg.Add(1)
+			go func(db *sql.DB) {
+				defer wg.Done()
+				defer db.Close()
+				<-start
+				results <- NewSQLiteRouteRepository(db, routingfilter.MT).Init(context.Background())
+			}(db)
+		}
+		close(start)
+		wg.Wait()
+		close(results)
+		for err := range results {
+			if err != nil {
+				t.Fatalf("iteration %d concurrent Init: %v", iteration, err)
+			}
+		}
+		verify, err := sql.Open("sqlite3", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found, err := sqliteColumnExists(context.Background(), verify, "mt_routes", "connector_pool_json")
+		verify.Close()
+		if err != nil || !found {
+			t.Fatalf("iteration %d column found=%v err=%v", iteration, found, err)
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
@@ -49,31 +50,52 @@ func (r *SQLiteRouteRepository) Init(ctx context.Context) error {
 }
 
 func ensureSQLiteColumn(ctx context.Context, db *sql.DB, tableName, columnName, columnType string) error {
+	var lastErr error
+	for attempt := 0; attempt < 6; attempt++ {
+		found, err := sqliteColumnExists(ctx, db, tableName, columnName)
+		if err != nil {
+			return err
+		}
+		if found {
+			return nil
+		}
+		_, lastErr = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, columnName, columnType))
+		if lastErr == nil {
+			return nil
+		}
+		found, inspectErr := sqliteColumnExists(ctx, db, tableName, columnName)
+		if inspectErr == nil && found {
+			return nil
+		}
+		if inspectErr != nil {
+			lastErr = fmt.Errorf("alter column: %v; inspect schema: %w", lastErr, inspectErr)
+		}
+		time.Sleep(time.Duration(1<<attempt) * 10 * time.Millisecond)
+	}
+	return lastErr
+}
+
+func sqliteColumnExists(ctx context.Context, db *sql.DB, tableName, columnName string) (bool, error) {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
 	if err != nil {
-		return err
+		return false, err
 	}
-	found := false
+	defer rows.Close()
 	for rows.Next() {
 		var cid, notNull, primaryKey int
 		var name, dataType string
 		var defaultValue any
 		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
-			rows.Close()
-			return err
+			return false, err
 		}
 		if name == columnName {
-			found = true
+			return true, nil
 		}
 	}
-	if err := rows.Close(); err != nil {
-		return err
+	if err := rows.Err(); err != nil {
+		return false, err
 	}
-	if found {
-		return nil
-	}
-	_, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, columnName, columnType))
-	return err
+	return false, nil
 }
 
 func (r *SQLiteRouteRepository) Save(ctx context.Context, order int, route routingtable.Route) error {
