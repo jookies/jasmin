@@ -50,3 +50,16 @@ Implement the bounded `B-009` timer/dirty-state contract: user MT-quota mutation
 - `internal/core/billing/*`
 - `spec/compatibility/{ROUTING_BILLING_MATRIX.md,FIXTURE_COVERAGE.csv}`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification
+
+- Frozen oracle: `4` billing-persistence cases preserve baseline `0aac58e466d583d0f0436df7b8afa3dc96191263`; fixture/schema/registry checks pass with `195` coverage rows and `205 = 127 INVENTORIED + 56 GO-PARTIAL + 19 MATCH + 3 GO-COMPLETE`.
+- Focused implementation gates: billing package `x20`, completion-relative rearm regression `x20`, and billing race `x5` pass.
+- Full local gates after the audit correction: `go test ./...`, `go test -race ./...`, `go vet ./...`, `go build ./...`, `29` fixture-verifier unit tests, schemas, registry, manifest (`1,039` tests / `55` files), and frozen-tree checks all pass.
+- Ralph boundary audit found one Medium cadence mismatch: `time.Ticker` could queue intervals during a slow write and persist the next dirty user immediately. The old implementation failed the new discriminator by starting the second write about `65µs` after completion; the correction uses a one-shot timer rearmed only after `PersistOnce` returns, binds the fixture's `rearm_count`, and passed the focused final council with no remaining High/Medium finding.
+- Published implementation `727bf87858a7c661ea3ee2df8ad07f878c99c1f7` passed exact-SHA GitHub Actions run `30029391530` with `4/4` jobs. Published correction `b6cc42b297482b695d4797f44a8df346820bc2f2` passed exact-SHA run `30036837910` with `4/4` jobs; local, tracking, and remote refs matched with a clean workspace.
+- Scope remains deliberately partial: PostgreSQL bootstrap/recovery, multi-process fencing, independent group administration, `B-010` redelivery, and `B-011` SMPP-server parity are not claimed.
+
+Implementation candidate LoopKey: 47b5603cb3e8
+
+This marker identifies the executable implementation evidence only; it is not the terminal publication-tree LoopKey. Terminal closure is determined separately by the main orchestrator's post-publication exact-SHA CI, ref-equality, and clean-workspace gate for this final documentation descendant.
