@@ -53,6 +53,9 @@ func NewRuntime(ctx context.Context, config Config) (*Runtime, error) {
 	if err := validateConfig(config); err != nil {
 		return nil, err
 	}
+	if err := validateStandaloneConfig(config); err != nil {
+		return nil, err
+	}
 	repository, err := storage.OpenPostgresSubmitTransactionRepository(ctx, config.PostgresDSN)
 	if err != nil {
 		return nil, err
@@ -257,6 +260,15 @@ func (runtime *Runtime) Close() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func validateStandaloneConfig(config Config) error {
+	for index, route := range config.Routes {
+		if len(route.ConnectorCandidates()) > 1 {
+			return fmt.Errorf("%w: standalone route %d cannot use a connector pool without observed availability", ErrInvalidRuntimeConfig, index)
+		}
+	}
+	return nil
 }
 
 func validateConfig(config Config) error {

@@ -122,6 +122,9 @@ func (c *Config) Validate() error {
 	if !c.TLSEnabled && (c.TLSServerName != "" || c.TLSCAFile != "" || c.TLSInsecureSkipVerify) {
 		return errors.New("TLS options require tls_enabled")
 	}
+	if c.TLSInsecureSkipVerify {
+		return errors.New("SMPP TLS certificate verification cannot be disabled")
+	}
 	if c.PrefetchCount < 0 || c.PrefetchCount > 65535 {
 		return fmt.Errorf("prefetch_count must be between 1 and 65535")
 	}

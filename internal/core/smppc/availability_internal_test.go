@@ -208,6 +208,12 @@ func TestConfigTLSAndPrefetchValidation(t *testing.T) {
 	if valid.PrefetchCount != 32 {
 		t.Fatalf("prefetch=%d", valid.PrefetchCount)
 	}
+	insecure := base
+	insecure.TLSEnabled = true
+	insecure.TLSInsecureSkipVerify = true
+	if err := insecure.Validate(); err == nil {
+		t.Fatal("production SMSC TLS verification bypass accepted")
+	}
 }
 
 func TestConnectorStopHonorsConfiguredUnbindTimeout(t *testing.T) {

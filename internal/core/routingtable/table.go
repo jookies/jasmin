@@ -62,9 +62,20 @@ func (r Route) WithConnectors(connectors []Connector) (Route, error) {
 		return Route{}, fmt.Errorf("%w: connector pool primary", ErrInvalidTableParameter)
 	}
 	seen := make(map[string]struct{}, len(connectors))
+	direction := r.direction
+	if direction == "" {
+		if r.connector.Type() == SMPPC {
+			direction = routingfilter.MT
+		} else {
+			direction = routingfilter.MO
+		}
+	}
 	for _, connector := range connectors {
 		if err := validateConnector(connector); err != nil {
 			return Route{}, err
+		}
+		if !connectorAllowed(direction, connector.Type()) {
+			return Route{}, fmt.Errorf("%w: connector type", ErrInvalidTableParameter)
 		}
 		if _, duplicate := seen[connector.ID()]; duplicate {
 			return Route{}, fmt.Errorf("%w: duplicate connector %q", ErrInvalidTableParameter, connector.ID())
@@ -124,8 +135,10 @@ func (b *Builder) Add(order int, route Route) error {
 	if order < 0 || order > MaxOrder {
 		return fmt.Errorf("%w: order", ErrInvalidTableParameter)
 	}
-	if !connectorAllowed(b.direction, route.connector.TypeValue) {
-		return fmt.Errorf("%w: connector type", ErrInvalidTableParameter)
+	for _, connector := range route.Connectors() {
+		if !connectorAllowed(b.direction, connector.TypeValue) {
+			return fmt.Errorf("%w: connector type", ErrInvalidTableParameter)
+		}
 	}
 	if order == 0 && !route.defaultRoute {
 		return fmt.Errorf("%w: order zero requires default", ErrInvalidTableParameter)

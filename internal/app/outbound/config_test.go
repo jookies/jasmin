@@ -135,3 +135,14 @@ func TestConnectorSelectorKeepsPoolsDistinctForSharedPrimary(t *testing.T) {
 		t.Fatalf("default route selected=(%q,%v)", selected, ok)
 	}
 }
+
+func TestStandaloneRuntimeRejectsPooledRouteWithoutAvailabilitySource(t *testing.T) {
+	config := Config{Routes: []RouteConfig{{ConnectorIDs: []string{"primary", "backup"}, Default: true}}}
+	if err := validateStandaloneConfig(config); err == nil {
+		t.Fatal("standalone runtime accepted failover pool without observed availability source")
+	}
+	config.Routes[0] = RouteConfig{ConnectorID: "primary", Default: true}
+	if err := validateStandaloneConfig(config); err != nil {
+		t.Fatalf("standalone runtime rejected singular route: %v", err)
+	}
+}
