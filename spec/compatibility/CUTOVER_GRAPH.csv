@@ -28,7 +28,7 @@ release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,A-003
 release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,A-008,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,A-009,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,B-007,GO-PARTIAL,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
-release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,B-009,INVENTORIED,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
+release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,B-009,GO-PARTIAL,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,internal/core/billing/persistence.go,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,B-010,INVENTORIED,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,RD-001,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,dlr,yes,,,
 release-a-v1,outbound-mt,result-effects,submit-result-to-billing-dlr-state,RD-002,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,dlr,yes,,,

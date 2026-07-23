@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jasmin.example/compat/billing-persistence-golden.schema.json",
+  "title": "Frozen RouterPB billing persistence timer corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "cases_sha256", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+    "cases_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "cases": {
+      "type": "array", "minItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "input", "expected"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "input": {
+            "type": "object", "additionalProperties": false,
+            "required": ["dirty_before", "persist_result"],
+            "properties": {
+              "dirty_before": {"type": "array", "minItems": 1, "items": {"type": "boolean"}},
+              "persist_result": {"type": "boolean"}
+            }
+          },
+          "expected": {
+            "type": "object", "additionalProperties": false,
+            "required": ["persist_scopes", "dirty_after", "rearm_count"],
+            "properties": {
+              "persist_scopes": {"type": "array", "items": {"enum": ["groups", "users"]}},
+              "dirty_after": {"type": "array", "minItems": 1, "items": {"type": "boolean"}},
+              "rearm_count": {"const": 1}
+            }
+          }
+        }
+      }
+    }
+  }
+}

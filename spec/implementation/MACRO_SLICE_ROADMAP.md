@@ -9,7 +9,7 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 **Goal:** Full HTTP `/send` to SMPP outbound flow.
 - **1.1: HTTP Interface Parity** (H-001 to H-009) - **COMPLETE**
 - **1.2: Advanced Segmentation & Encoding** (HE-001 to HE-006) - **COMPLETE**
-- **1.3: Router & Billing Integration** (A-001, A-002, A-008, A-009, B-001 to B-011) - **IN PROGRESS (Wave 1D closes exact binary64 operation-order parity for B-008; authoritative balance persistence, inbound DLR, protocol error, redelivery, and remaining production-flow closure are still pending)**
+- **1.3: Router & Billing Integration** (A-001, A-002, A-008, A-009, B-001 to B-011) - **IN PROGRESS (Wave 1D closes exact binary64 operation-order parity for B-008; Wave 1E adds fixture-backed quota dirty/timer semantics for B-009, while PostgreSQL authority, inbound DLR, protocol error, redelivery, and remaining production-flow closure are still pending)**
 - **1.4: SMPP Outbound Stability** (SC-001, SC-002, SC-003, SC-004, SC-007) - **IN PROGRESS (Wave 1C implements production pre-admission availability-aware failover, route-pool persistence, independent reconnect controls, graceful unbind, verified SMSC TLS, and connector QoS; rows remain `GO-PARTIAL`/`INVENTORIED` until full legacy timer/configuration and measured concurrency evidence permits promotion)**
 
 ### Macro 2: Delivery Receipts (DLR Path)
@@ -30,6 +30,6 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 ## Progress Metrics
 - Functional flows completed: 0 / 4
 - Total matrix rows: 205
-- Untouched (INVENTORIED): 128
-- Partial (GO-PARTIAL): 55
+- Untouched (INVENTORIED): 127
+- Partial (GO-PARTIAL): 56
 - Complete (MATCH/GO-COMPLETE): 22

@@ -1,0 +1,88 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "dirty_after": [
+          false,
+          false
+        ],
+        "persist_scopes": [],
+        "rearm_count": 1
+      },
+      "id": "clean_tick_only_rearms",
+      "input": {
+        "dirty_before": [
+          false,
+          false
+        ],
+        "persist_result": true
+      }
+    },
+    {
+      "expected": {
+        "dirty_after": [
+          false
+        ],
+        "persist_scopes": [
+          "groups",
+          "users"
+        ],
+        "rearm_count": 1
+      },
+      "id": "one_dirty_persists_groups_then_users",
+      "input": {
+        "dirty_before": [
+          true
+        ],
+        "persist_result": true
+      }
+    },
+    {
+      "expected": {
+        "dirty_after": [
+          false,
+          true
+        ],
+        "persist_scopes": [
+          "groups",
+          "users"
+        ],
+        "rearm_count": 1
+      },
+      "id": "first_dirty_only_is_cleared",
+      "input": {
+        "dirty_before": [
+          true,
+          true
+        ],
+        "persist_result": true
+      }
+    },
+    {
+      "expected": {
+        "dirty_after": [
+          false
+        ],
+        "persist_scopes": [
+          "groups",
+          "users"
+        ],
+        "rearm_count": 1
+      },
+      "id": "legacy_false_return_still_clears",
+      "input": {
+        "dirty_before": [
+          true
+        ],
+        "persist_result": false
+      }
+    }
+  ],
+  "cases_sha256": "9850fe4999c4bf48633765cc1cd70626bdad96029104e9452f8a0e3dd63f1f1c",
+  "schema_version": 1,
+  "source": [
+    "jasmin/routing/router.py:119-151",
+    "tests/routing/test_router.py:1089-1193"
+  ]
+}

@@ -42,6 +42,10 @@ PAIRS = {
         ROOT / "compat/fixtures/schema/late-billing-golden.schema.json",
         ROOT / "compat/fixtures/late-billing/baseline.json",
     ),
+    "billing-persistence": (
+        ROOT / "compat/fixtures/schema/billing-persistence-golden.schema.json",
+        ROOT / "compat/fixtures/billing-persistence/baseline.json",
+    ),
     "router-amqp-subscriptions": (
         ROOT / "compat/fixtures/schema/router-amqp-subscriptions-golden.schema.json",
         ROOT / "compat/fixtures/router-amqp-subscriptions/baseline.json",

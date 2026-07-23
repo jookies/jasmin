@@ -190,3 +190,7 @@ multi-connector-routes,failover_empty_rejected,RR-007;RR-008;SC-007,partial,Froz
 multi-connector-routes,failover_mo_filter_match,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
 multi-connector-routes,failover_mo_filter_miss,RR-007;RR-008;SC-007,partial,Frozen legacy oracle case
 routing-tables,mo_rate_ignored,RR-006,partial,Frozen legacy oracle case
+billing-persistence,clean_tick_only_rearms,B-009,partial,Frozen legacy oracle case
+billing-persistence,one_dirty_persists_groups_then_users,B-009,partial,Frozen legacy oracle case
+billing-persistence,first_dirty_only_is_cleared,B-009,partial,Frozen legacy oracle case
+billing-persistence,legacy_false_return_still_clears,B-009,partial,Frozen legacy oracle case

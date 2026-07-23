@@ -23,6 +23,8 @@ type User struct {
 	earlyDecrementBalancePercent *int
 	submitSmCountQuota           *int
 	group                        *Group
+	quotaVersion                 uint64
+	persistedQuotaVersion        uint64
 }
 
 func (u *User) UID() int64 {
@@ -68,6 +70,8 @@ func (u *User) LoadState(s UserState) {
 	u.balance = cloneFloat64(s.Balance)
 	u.earlyDecrementBalancePercent = cloneInt(s.EarlyDecrementBalancePercent)
 	u.submitSmCountQuota = cloneInt(s.SubmitSmCountQuota)
+	u.quotaVersion = 0
+	u.persistedQuotaVersion = 0
 	// Group is handled separately by the caller via SetGroup
 }
 
@@ -175,6 +179,7 @@ func (u *User) SetBalance(balance float64) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.balance = &balance
+	u.bumpQuotaVersionLocked()
 	return nil
 }
 
@@ -218,6 +223,7 @@ func (u *User) SetEarlyDecrementPercent(percent int) error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.earlyDecrementBalancePercent = &percent
+	u.bumpQuotaVersionLocked()
 	return nil
 }
 
@@ -225,6 +231,7 @@ func (u *User) SetSubmitSmCountQuota(count int) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.submitSmCountQuota = &count
+	u.bumpQuotaVersionLocked()
 }
 
 func (u *User) ApplyBill(bill Bill) error {
@@ -236,6 +243,7 @@ func (u *User) ApplyBill(bill Bill) error {
 	if u.submitSmCountQuota != nil {
 		*u.submitSmCountQuota -= bill.DecrementSubmitSmCount
 	}
+	u.bumpQuotaVersionLocked()
 	if u.group != nil {
 		u.group.mu.Lock()
 		defer u.group.mu.Unlock()
@@ -266,6 +274,7 @@ func (u *User) ApplyLateCharge(amount float64) error {
 		return ErrInsufficientBalance
 	}
 	*u.balance -= amount
+	u.bumpQuotaVersionLocked()
 	return nil
 }
 
@@ -345,7 +354,12 @@ func (u *User) authorizeAndApplySubmitLocked(group *Group, bill Bill) error {
 			*group.submitSmCountQuota -= bill.DecrementSubmitSmCount
 		}
 	}
+	u.bumpQuotaVersionLocked()
 	return nil
+}
+
+func (u *User) bumpQuotaVersionLocked() {
+	u.quotaVersion++
 }
 
 type Bill struct {

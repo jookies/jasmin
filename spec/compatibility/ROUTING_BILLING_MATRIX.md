@@ -61,7 +61,7 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | B-006 | early decrement | 1–100 percent and enqueue-time delta | GO-PARTIAL |
 | B-007 | late decrement | successful `submit_sm_resp` remainder and error behavior | GO-PARTIAL |
 | B-008 | float operation order | exact IEEE-754 bits, visible values, split arithmetic, and equality/ULP quota boundaries | MATCH |
-| B-009 | persistence timer | quota mutation dirty flag, periodic persistence and crash window | INVENTORIED |
+| B-009 | persistence timer | user MT-quota dirty flag, periodic groups→users persistence and crash window | GO-PARTIAL |
 | B-010 | redelivery | duplicate/reordered billing events and exact legacy delta | INVENTORIED |
 | B-011 | HTTP/SMPP parity | equivalent message produces same bill/route/segments | INVENTORIED |
 
@@ -83,5 +83,13 @@ the legacy unit-first split, authorization multiplication, early debit,
 per-part late amount, strict previous/equal/next-ULP boundaries, exact binary64
 post-state, and Python-compatible shortest visible amount text. Persistence,
 redelivery, and SMPP-server parity remain owned by `B-009`–`B-011`.
+
+`B-009` is `GO-PARTIAL`: a frozen timer corpus and generic Go differential now
+cover clean ticks, ordered group/user persistence, first-dirty scan behavior,
+generation-safe dirty clearing, failed writes, concurrent mutations, and
+context-cancellable shutdown. PostgreSQL authoritative bootstrap/recovery and
+multi-process fencing remain unimplemented, so this slice does not claim row
+completion or production-authoritative balances. Independent group-credential
+administration remains outside this user-MT-credential timer slice.
 
 No improved ledger behavior is considered parity. Ledger tests and schemas are separate from the legacy compatibility engine.

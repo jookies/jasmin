@@ -2,7 +2,7 @@
 
 ## Goal
 
-Implement the bounded `B-009` timer/dirty-state contract: quota mutations become dirty, a periodic tick persists the first observed dirty user together with group/user state, and successful persistence clears only the captured mutation generation.
+Implement the bounded `B-009` timer/dirty-state contract: user MT-quota mutations become dirty, a periodic tick persists the first observed dirty user's group then user state, and completed legacy-compatible persistence clears only the captured mutation generation.
 
 ## Scope
 
@@ -27,6 +27,7 @@ Implement the bounded `B-009` timer/dirty-state contract: quota mutations become
 ## Non-goals
 
 - PostgreSQL authoritative quota bootstrap/recovery and multi-process fencing.
+- Independent group-credential administration outside a dirty user MT credential.
 - Duplicate/reordered late-billing event closure (`B-010`).
 - SMPP-server parity (`B-011`).
 - Mutation of `jasmin/` or `tests/`.

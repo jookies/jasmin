@@ -23,6 +23,7 @@ FIXTURES = {
     "smpp-client-response-publish": ROOT / "compat/fixtures/smpp-client-response-publish/baseline.json",
     "billing-enforcement": ROOT / "compat/fixtures/billing-enforcement/baseline.json",
     "late-billing": ROOT / "compat/fixtures/late-billing/baseline.json",
+    "billing-persistence": ROOT / "compat/fixtures/billing-persistence/baseline.json",
     "router-amqp-subscriptions": ROOT / "compat/fixtures/router-amqp-subscriptions/baseline.json",
     "amqp": ROOT / "compat/fixtures/amqp/baseline.json",
     "redis": ROOT / "compat/fixtures/redis/baseline.json",
@@ -139,6 +140,12 @@ EXPECTED_CASE_IDS = {
         "float_late_exact_ulp_acks",
         "float_late_next_ulp_acks",
     },
+    "billing-persistence": {
+        "clean_tick_only_rearms",
+        "one_dirty_persists_groups_then_users",
+        "first_dirty_only_is_cleared",
+        "legacy_false_return_still_clears",
+    },
     "router-amqp-subscriptions": {"router_pb_add_amqp_broker"},
     "amqp": {
         "submit_sm_httpapi",
@@ -198,7 +205,7 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "ea75d047e9d569153d7c921f623d92ee585bcc998b4b97771b9b65d2c8761c2a"
+EXPECTED_COVERAGE_SHA256 = "5eca7738d9eca13a45b66d844bfc94d9b48aba9a36b8a2dff0c521e6ec53fbc6"
 EXPECTED_SMPP_CASES_SHA256 = "2aaae22f3ef9f3149df1f3ba357004d75eda423f1a7d44ae73bf922676db68a3"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
@@ -207,6 +214,7 @@ EXPECTED_SMPP_CLIENT_RESPONSE_PUBLISH_CASES_SHA256 = "2713290bcdf3e284a23e9ff672
 EXPECTED_SEGMENTATION_CASES_SHA256 = "060eab0465a214b1573bb3438272e40fc9c6eb947e6aacd6cefc229ca7ef410b"
 EXPECTED_BILLING_ENFORCEMENT_CASES_SHA256 = "436e691ecd7c4513937257789b99fde5ce04d85d07c1e9fb5e5dbca901062c19"
 EXPECTED_LATE_BILLING_CASES_SHA256 = "ed04091bbc7621ce20c175ce3caf3b2cc9cbffe56c8bee6636a7655dd45f31b1"
+EXPECTED_BILLING_PERSISTENCE_CASES_SHA256 = "9850fe4999c4bf48633765cc1cd70626bdad96029104e9452f8a0e3dd63f1f1c"
 EXPECTED_ROUTER_AMQP_SUBSCRIPTIONS_CASES_SHA256 = "156f8890326e8871e8901448367845edcbcf0527c46f499290993fe383b9c4b0"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
@@ -467,6 +475,26 @@ def validate_late_billing(document: dict) -> None:
         require(case["expected"]["balance_after_bits"] == float_bits(case["expected"]["balance_after"]), f"{context}: post-state bits")
 
 
+def validate_billing_persistence(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(digest == EXPECTED_BILLING_PERSISTENCE_CASES_SHA256, "billing-persistence: trusted corpus fingerprint")
+    require(document.get("cases_sha256") == digest, "billing-persistence: embedded corpus fingerprint")
+    require(
+        document.get("source") == [
+            "jasmin/routing/router.py:119-151",
+            "tests/routing/test_router.py:1089-1193",
+        ],
+        "billing-persistence: source boundary",
+    )
+    for case in document["cases"]:
+        context = f"billing-persistence/{case['id']}"
+        require(case["expected"]["rearm_count"] == 1, f"{context}: rearm")
+        require(len(case["expected"]["dirty_after"]) == len(case["input"]["dirty_before"]), f"{context}: user count")
+        require(case["expected"]["persist_scopes"] in ([], ["groups", "users"]), f"{context}: persistence order")
+
+
 def validate_router_amqp_subscriptions(document: dict) -> None:
     cases_digest = hashlib.sha256(
         json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -719,6 +747,7 @@ def main() -> int:
     validate_smpp_client_response_publish(documents["smpp-client-response-publish"])
     validate_billing_enforcement(documents["billing-enforcement"])
     validate_late_billing(documents["late-billing"])
+    validate_billing_persistence(documents["billing-persistence"])
     validate_router_amqp_subscriptions(documents["router-amqp-subscriptions"])
     validate_amqp(documents["amqp"])
     validate_redis(documents["redis"])

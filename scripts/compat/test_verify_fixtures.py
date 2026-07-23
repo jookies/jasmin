@@ -16,6 +16,7 @@ import verify_fixtures
 from verify_fixtures import (
     validate_amqp,
     validate_billing_enforcement,
+    validate_billing_persistence,
     validate_late_billing,
     validate_router_amqp_subscriptions,
     validate_common,
@@ -33,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[2]
 AMQP_FIXTURE = ROOT / "compat/fixtures/amqp/baseline.json"
 BILLING_ENFORCEMENT_FIXTURE = ROOT / "compat/fixtures/billing-enforcement/baseline.json"
 LATE_BILLING_FIXTURE = ROOT / "compat/fixtures/late-billing/baseline.json"
+BILLING_PERSISTENCE_FIXTURE = ROOT / "compat/fixtures/billing-persistence/baseline.json"
 ROUTER_AMQP_SUBSCRIPTIONS_FIXTURE = ROOT / "compat/fixtures/router-amqp-subscriptions/baseline.json"
 HTTP_FIXTURE = ROOT / "compat/fixtures/http/baseline.json"
 SEGMENTATION_FIXTURE = ROOT / "compat/fixtures/segmentation/baseline.json"
@@ -119,6 +121,23 @@ class LateBillingFixtureValidationTests(unittest.TestCase):
         ).hexdigest()
         with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
             validate_late_billing(forged)
+
+
+class BillingPersistenceFixtureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.document = json.loads(BILLING_PERSISTENCE_FIXTURE.read_text(encoding="utf-8"))
+
+    def test_committed_oracle_corpus_is_valid(self) -> None:
+        validate_billing_persistence(self.document)
+
+    def test_self_consistent_dirty_state_edit_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        forged["cases"][1]["expected"]["dirty_after"][0] = True
+        forged["cases_sha256"] = hashlib.sha256(
+            json.dumps(forged["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_billing_persistence(forged)
 
 
 class RouterAMQPSubscriptionsFixtureValidationTests(unittest.TestCase):
