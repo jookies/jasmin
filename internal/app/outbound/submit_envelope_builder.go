@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
@@ -104,7 +106,7 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		// allowlisted bill pickle, avoiding unsafe bill unpickling in Session.
 		"user-id":          amqpcompat.StringField(request.UserID),
 		"bill-id":          amqpcompat.StringField(request.BillID),
-		"late-bill-amount": amqpcompat.StringField(strconv.FormatFloat(request.Bill.SubmitSmRespAmount, 'f', -1, 64)),
+		"late-bill-amount": amqpcompat.StringField(pythonFloatString(request.Bill.SubmitSmRespAmount)),
 	}
 	if request.ValidityPeriod != nil {
 		headers["expiration"] = amqpcompat.StringField(legacyDateTime(request.CreatedAt.Add(*request.ValidityPeriod)))
@@ -123,6 +125,22 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		return amqpcompat.Envelope{}, err
 	}
 	return amqpcompat.NewEnvelope("submit.sm."+request.ConnectorID, properties, encoded.Body)
+}
+
+// pythonFloatString mirrors Python 3's str(float) formatting contour used by
+// the legacy AMQP producer: shortest round-trippable digits, fixed notation
+// for decimal exponents [-4, 15], and a fractional suffix for integral values.
+func pythonFloatString(value float64) string {
+	abs := math.Abs(value)
+	format := byte('f')
+	if abs != 0 && (abs < 1e-4 || abs >= 1e16) {
+		format = 'g'
+	}
+	text := strconv.FormatFloat(value, format, -1, 64)
+	if format == 'f' && !strings.Contains(text, ".") {
+		text += ".0"
+	}
+	return text
 }
 
 func sortedTLVs(values map[uint16][]byte) []picklecompat.SubmitSMCustomTLV {

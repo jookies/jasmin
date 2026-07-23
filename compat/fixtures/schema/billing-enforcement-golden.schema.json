@@ -46,23 +46,37 @@
           "bill": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["submit_sm_amount_per_segment", "submit_sm_resp_amount_per_segment", "decrement_submit_sm_count_per_segment", "required_total_balance", "required_submit_sm_count"],
+            "required": ["submit_sm_amount_per_segment", "submit_sm_resp_amount_per_segment", "decrement_submit_sm_count_per_segment", "required_total_balance", "required_submit_sm_count", "bits", "late_amount_text"],
             "properties": {
               "submit_sm_amount_per_segment": {"type": "number", "minimum": 0},
               "submit_sm_resp_amount_per_segment": {"type": "number", "minimum": 0},
               "decrement_submit_sm_count_per_segment": {"type": "integer", "minimum": 0},
               "required_total_balance": {"type": "number", "minimum": 0},
-              "required_submit_sm_count": {"type": "integer", "minimum": 0}
+              "required_submit_sm_count": {"type": "integer", "minimum": 0},
+              "late_amount_text": {"type": "string", "minLength": 1},
+              "bits": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["route_rate", "submit_sm_amount_per_segment", "submit_sm_resp_amount_per_segment", "required_total_balance", "early_debit_total"],
+                "properties": {
+                  "route_rate": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+                  "submit_sm_amount_per_segment": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+                  "submit_sm_resp_amount_per_segment": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+                  "required_total_balance": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+                  "early_debit_total": {"type": "string", "pattern": "^[0-9a-f]{16}$"}
+                }
+              }
             }
           },
           "expected": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["accepted", "balance_after", "submit_sm_count_after"],
+            "required": ["accepted", "balance_after", "submit_sm_count_after", "balance_after_bits"],
             "properties": {
               "accepted": {"type": "boolean"},
               "balance_after": {"type": ["number", "null"]},
-              "submit_sm_count_after": {"type": ["integer", "null"]}
+              "submit_sm_count_after": {"type": ["integer", "null"]},
+              "balance_after_bits": {"type": ["string", "null"], "pattern": "^[0-9a-f]{16}$"}
             }
           }
         }

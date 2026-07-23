@@ -3,6 +3,7 @@ package core_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -35,8 +36,9 @@ type lateBillingGolden struct {
 			Balance    json.RawMessage `json:"balance"`
 		} `json:"input"`
 		Expected struct {
-			Action       core.LateBillingAction `json:"action"`
-			BalanceAfter *float64               `json:"balance_after"`
+			Action           core.LateBillingAction `json:"action"`
+			BalanceAfter     *float64               `json:"balance_after"`
+			BalanceAfterBits *string                `json:"balance_after_bits"`
 		} `json:"expected"`
 	} `json:"cases"`
 }
@@ -46,8 +48,8 @@ func TestGoldenLateBillingService(t *testing.T) {
 	if err := json.Unmarshal(loadLateBillingFixture(t), &fixture); err != nil {
 		t.Fatal(err)
 	}
-	if len(fixture.Cases) != 7 {
-		t.Fatalf("cases=%d want 7", len(fixture.Cases))
+	if len(fixture.Cases) != 10 {
+		t.Fatalf("cases=%d want 10", len(fixture.Cases))
 	}
 	for index, test := range fixture.Cases {
 		t.Run(test.ID, func(t *testing.T) {
@@ -92,8 +94,8 @@ func TestGoldenLateBillingService(t *testing.T) {
 				}
 				return
 			}
-			if state.Balance == nil || math.Abs(*state.Balance-*test.Expected.BalanceAfter) > 1e-12 {
-				t.Fatalf("balance=%v want %v", state.Balance, *test.Expected.BalanceAfter)
+			if state.Balance == nil || test.Expected.BalanceAfterBits == nil || fmt.Sprintf("%016x", math.Float64bits(*state.Balance)) != *test.Expected.BalanceAfterBits {
+				t.Fatalf("balance=%v bits=%v want bits=%v", state.Balance, state.Balance, test.Expected.BalanceAfterBits)
 			}
 		})
 	}

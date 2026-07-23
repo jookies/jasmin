@@ -3,6 +3,7 @@ package core_test
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -131,6 +132,40 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 	}
 	if state.SubmitSmCountQuota == nil || *state.SubmitSmCountQuota != 3 {
 		t.Fatalf("count=%v want=3", state.SubmitSmCountQuota)
+	}
+}
+
+func TestSubmitServicePreservesLegacyFloatOrderAcrossAdmissionAndPerPartProjection(t *testing.T) {
+	user := billing.NewUser(7)
+	balance := math.Float64frombits(0x3f9eb851eb851eb7)
+	if err := user.SetBalance(balance); err != nil {
+		t.Fatal(err)
+	}
+	if err := user.SetEarlyDecrementPercent(7); err != nil {
+		t.Fatal(err)
+	}
+	user.SetSubmitSmCountQuota(3)
+	builder := &recordingBuilder{}
+	publisher := &recordingPublisher{}
+	service := newSubmitService(t, user, routeTableWithRate(t, 0.01), emptyInterceptors(), fixedRunner{}, builder, publisher)
+
+	if _, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username: "alice", Destination: "15551230000", Content: strings.Repeat("A", 307), Coding: 0,
+	}); err != nil {
+		t.Fatalf("legacy equality balance rejected: %v", err)
+	}
+	if len(builder.request.Parts) != 3 || len(publisher.bodies) != 3 {
+		t.Fatalf("parts=%d published=%d want=3", len(builder.request.Parts), len(publisher.bodies))
+	}
+	if got := math.Float64bits(builder.request.Bill.SubmitSmAmount); got != 0x3f46f0068db8bac8 {
+		t.Fatalf("unit early bits=%016x", got)
+	}
+	if got := math.Float64bits(builder.request.Bill.SubmitSmRespAmount); got != 0x3f830be0ded288ce {
+		t.Fatalf("unit late bits=%016x", got)
+	}
+	wantBalance := balance - math.Float64frombits(0x3f613404ea4a8c16)
+	if got := math.Float64bits(user.Balance()); got != math.Float64bits(wantBalance) {
+		t.Fatalf("post-debit bits=%016x want=%016x", got, math.Float64bits(wantBalance))
 	}
 }
 
@@ -368,6 +403,24 @@ func routeTable(t *testing.T, withRoute bool) routingtable.Table {
 		if err := builder.Add(0, route); err != nil {
 			t.Fatal(err)
 		}
+	}
+	return builder.Build()
+}
+
+func routeTableWithRate(t *testing.T, rate float64) routingtable.Table {
+	t.Helper()
+	builder, err := routingtable.NewBuilder(routingfilter.MT)
+	if err != nil {
+		t.Fatal(err)
+	}
+	route, err := routingtable.NewDefaultRoute(
+		routingtable.Connector{IDValue: "connector-a", TypeValue: routingtable.SMPPC}, rate,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := builder.Add(0, route); err != nil {
+		t.Fatal(err)
 	}
 	return builder.Build()
 }

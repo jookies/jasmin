@@ -110,6 +110,11 @@ billing-enforcement,multipart_count_below_rejects_without_balance_mutation,B-002
 billing-enforcement,balance_equality_full_early,B-004;B-006,partial,Equality boundary succeeds and applies full early amount
 billing-enforcement,unlimited_quotas_are_not_mutated,B-003,partial,None quotas remain unlimited and unchanged
 billing-enforcement,unrated_route_still_decrements_count,B-001;B-002;B-003,partial,Zero rate skips balance while count is decremented
+billing-enforcement,float_authorization_previous_ulp_rejects,B-008,full,Previous ULP balance rejects under legacy unit-first required-total order
+billing-enforcement,float_authorization_exact_ulp_accepts,B-008,full,Exact legacy required-total ULP accepts and applies exact early debit bits
+billing-enforcement,float_authorization_next_ulp_accepts,B-008,full,Next ULP balance accepts under strict less-than authorization
+billing-enforcement,float_early_debit_unit_first,B-008,full,Unit-first split then segment multiplication preserves exact early-debit bits
+billing-enforcement,float_scientific_late_amount_text,B-008,full,Python shortest scientific notation is frozen for the late amount
 late-billing,missing_user_rejects,B-007;A-008;A-009,partial,Unknown user rejects the late billing delivery
 late-billing,insufficient_balance_rejects_unchanged,B-007;A-008;A-009,partial,Insufficient finite balance rejects without mutation
 late-billing,exact_balance_acks_and_decrements,B-007;A-008;A-009,partial,Equality boundary charges and ACKs
@@ -117,6 +122,9 @@ late-billing,sufficient_balance_acks_and_decrements,B-007;A-008;A-009,partial,Su
 late-billing,zero_amount_acks_without_delta,B-007;A-008;A-009,partial,Zero late amount ACKs without balance change
 late-billing,opaque_user_id_acks_and_decrements,B-007;A-008;A-009,partial,Opaque legacy user ID resolves through the production directory and charges
 late-billing,unlimited_balance_has_no_terminal_action,B-003;B-007;A-008;A-009,partial,Frozen callback leaves unlimited balance without ACK or reject
+late-billing,float_late_previous_ulp_rejects,B-008,full,Previous ULP finite balance rejects without mutation
+late-billing,float_late_exact_ulp_acks,B-008,full,Exact parsed late amount ULP charges and ACKs
+late-billing,float_late_next_ulp_acks,B-008,full,Next ULP finite balance charges with exact post-state bits
 router-amqp-subscriptions,router_pb_add_amqp_broker,A-001;A-004;A-009,partial,Exact RouterPB exchange queue binding consumer-tag and manual-ack declaration sequence
 smpp-client-pacing,default_config,SC-004,partial,Frozen legacy oracle case
 smpp-client-pacing,non_numeric_rejected,SC-004,partial,Frozen legacy oracle case

@@ -60,7 +60,7 @@ Sources: `jasmin/routing/*`, router/HTTP/SMPP integrations and routing tests.
 | B-005 | insufficient count | boundary and protocol error mapping | GO-PARTIAL |
 | B-006 | early decrement | 1–100 percent and enqueue-time delta | GO-PARTIAL |
 | B-007 | late decrement | successful `submit_sm_resp` remainder and error behavior | GO-PARTIAL |
-| B-008 | float operation order | exact IEEE-754 bits, visible values, split arithmetic, and equality/ULP quota boundaries | INVENTORIED |
+| B-008 | float operation order | exact IEEE-754 bits, visible values, split arithmetic, and equality/ULP quota boundaries | MATCH |
 | B-009 | persistence timer | quota mutation dirty flag, periodic persistence and crash window | INVENTORIED |
 | B-010 | redelivery | duplicate/reordered billing events and exact legacy delta | INVENTORIED |
 | B-011 | HTTP/SMPP parity | equivalent message produces same bill/route/segments | INVENTORIED |
@@ -75,8 +75,13 @@ per-part bills, atomically admits every generated part to the durable outbox,
 and applies each successful per-part late finite-balance mutation exactly once
 locally. The live HTTP → RabbitMQ → SMPPc → SMSC test now covers two-part SAR
 submission and two independently committed responses. These rows remain
-`GO-PARTIAL`: the full float-operation-order oracle (`B-008`), protocol-specific
-error mapping, inbound DLR aggregation, persistent authoritative user balances,
+`GO-PARTIAL`: protocol-specific error mapping, inbound DLR aggregation, persistent authoritative user balances,
 and exactly-once external SMSC delivery are not claimed.
+
+`B-008` is `MATCH`: the frozen corpus and production-path differential preserve
+the legacy unit-first split, authorization multiplication, early debit,
+per-part late amount, strict previous/equal/next-ULP boundaries, exact binary64
+post-state, and Python-compatible shortest visible amount text. Persistence,
+redelivery, and SMPP-server parity remain owned by `B-009`–`B-011`.
 
 No improved ledger behavior is considered parity. Ledger tests and schemas are separate from the legacy compatibility engine.

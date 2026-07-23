@@ -8,6 +8,7 @@ import csv
 import hashlib
 import json
 import pickletools
+import struct
 from datetime import datetime
 from pathlib import Path
 
@@ -120,6 +121,11 @@ EXPECTED_CASE_IDS = {
         "balance_equality_full_early",
         "unlimited_quotas_are_not_mutated",
         "unrated_route_still_decrements_count",
+        "float_authorization_previous_ulp_rejects",
+        "float_authorization_exact_ulp_accepts",
+        "float_authorization_next_ulp_accepts",
+        "float_early_debit_unit_first",
+        "float_scientific_late_amount_text",
     },
     "late-billing": {
         "missing_user_rejects",
@@ -129,6 +135,9 @@ EXPECTED_CASE_IDS = {
         "zero_amount_acks_without_delta",
         "opaque_user_id_acks_and_decrements",
         "unlimited_balance_has_no_terminal_action",
+        "float_late_previous_ulp_rejects",
+        "float_late_exact_ulp_acks",
+        "float_late_next_ulp_acks",
     },
     "router-amqp-subscriptions": {"router_pb_add_amqp_broker"},
     "amqp": {
@@ -189,15 +198,15 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "bf15a54ca9fea95273ceede886fbb638ca9ce23e04247adbf0d26399c210475d"
+EXPECTED_COVERAGE_SHA256 = "ea75d047e9d569153d7c921f623d92ee585bcc998b4b97771b9b65d2c8761c2a"
 EXPECTED_SMPP_CASES_SHA256 = "2aaae22f3ef9f3149df1f3ba357004d75eda423f1a7d44ae73bf922676db68a3"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
 EXPECTED_SMPP_CLIENT_RESPONSE_PUBLISH_CASES_SHA256 = "2713290bcdf3e284a23e9ff672ac699ee5609a40f6022e041d9113bc60ce0c8d"
 EXPECTED_SEGMENTATION_CASES_SHA256 = "060eab0465a214b1573bb3438272e40fc9c6eb947e6aacd6cefc229ca7ef410b"
-EXPECTED_BILLING_ENFORCEMENT_CASES_SHA256 = "90eedbd9a5add4ce95a4c28a2fa2fd4528744aff9f28af168b87b69e46e1bf44"
-EXPECTED_LATE_BILLING_CASES_SHA256 = "f7ac07abb075b893294a62089ef2448c8cbe202e5317fdd3ab7e659885afcb8e"
+EXPECTED_BILLING_ENFORCEMENT_CASES_SHA256 = "436e691ecd7c4513937257789b99fde5ce04d85d07c1e9fb5e5dbca901062c19"
+EXPECTED_LATE_BILLING_CASES_SHA256 = "ed04091bbc7621ce20c175ce3caf3b2cc9cbffe56c8bee6636a7655dd45f31b1"
 EXPECTED_ROUTER_AMQP_SUBSCRIPTIONS_CASES_SHA256 = "156f8890326e8871e8901448367845edcbcf0527c46f499290993fe383b9c4b0"
 EXPECTED_ROUTING_FILTER_CORPUS_SHA256 = "424240347ce5c083d61be7bc6d7ea421e8a193cfeb9612466c8c0048c67b7ea0"
 EXPECTED_ROUTING_TABLE_CASES_SHA256 = "1bf5aa6529429add1823d3b1ce29d6be3ffa7495b65f9a54203dc5ce330cb90d"
@@ -216,6 +225,12 @@ EXPECTED_AMQP_CASE_SHA256 = {
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def float_bits(value) -> str | None:
+    if value is None or value == "missing":
+        return None
+    return struct.pack(">d", float(value)).hex()
 
 
 def decode64(value: str, context: str) -> bytes:
@@ -421,6 +436,12 @@ def validate_billing_enforcement(document: dict) -> None:
         require(bill["submit_sm_resp_amount_per_segment"] >= 0, f"{context}: late amount")
         require(bill["decrement_submit_sm_count_per_segment"] >= 0, f"{context}: count amount")
         require(isinstance(case["expected"]["accepted"], bool), f"{context}: accepted type")
+        bits = bill["bits"]
+        require(bits["route_rate"] == float_bits(case["input"]["route_rate"]), f"{context}: route-rate bits")
+        require(bits["submit_sm_amount_per_segment"] == float_bits(bill["submit_sm_amount_per_segment"]), f"{context}: early bits")
+        require(bits["submit_sm_resp_amount_per_segment"] == float_bits(bill["submit_sm_resp_amount_per_segment"]), f"{context}: late bits")
+        require(bits["required_total_balance"] == float_bits(bill["required_total_balance"]), f"{context}: required bits")
+        require(case["expected"]["balance_after_bits"] == float_bits(case["expected"]["balance_after"]), f"{context}: post-state bits")
 
 
 def validate_late_billing(document: dict) -> None:
@@ -441,6 +462,9 @@ def validate_late_billing(document: dict) -> None:
         context = f"late-billing/{case['id']}"
         require(case["input"]["routing_key"].endswith("." + case["input"]["user_id"]), f"{context}: route user")
         require(case["expected"]["action"] in {"ack", "reject", "none"}, f"{context}: action")
+        require(case["input"]["amount_bits"] == float_bits(case["input"]["amount"]), f"{context}: amount bits")
+        require(case["input"]["balance_bits"] == float_bits(case["input"]["balance"]), f"{context}: balance bits")
+        require(case["expected"]["balance_after_bits"] == float_bits(case["expected"]["balance_after"]), f"{context}: post-state bits")
 
 
 def validate_router_amqp_subscriptions(document: dict) -> None:

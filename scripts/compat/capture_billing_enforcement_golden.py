@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import logging
+import struct
 from pathlib import Path
 
 from jasmin.routing.jasminApi import Group, SmppClientConnector, User
@@ -21,6 +22,16 @@ SOURCE = [
     "jasmin/protocols/smpp/factory.py:448-466",
     "jasmin/routing/router.py:319-363",
 ]
+
+
+def float_bits(value):
+    if value is None:
+        return None
+    return struct.pack(">d", float(value)).hex()
+
+
+def float_from_bits(value: int) -> float:
+    return struct.unpack(">d", value.to_bytes(8, "big"))[0]
 
 
 def make_user(spec: dict) -> User:
@@ -80,11 +91,20 @@ def capture_case(case: dict) -> dict:
             "decrement_submit_sm_count_per_segment": bill.getAction("decrement_submit_sm_count"),
             "required_total_balance": required_total_balance,
             "required_submit_sm_count": required_count,
+            "bits": {
+                "route_rate": float_bits(case["route_rate"]),
+                "submit_sm_amount_per_segment": float_bits(bill.getAmount("submit_sm")),
+                "submit_sm_resp_amount_per_segment": float_bits(bill.getAmount("submit_sm_resp")),
+                "required_total_balance": float_bits(required_total_balance),
+                "early_debit_total": float_bits(bill.getAmount("submit_sm") * segments),
+            },
+            "late_amount_text": str(bill.getAmount("submit_sm_resp")),
         },
         "expected": {
             "accepted": result is True,
             "balance_after": quota(user, "balance"),
             "submit_sm_count_after": quota(user, "submit_sm_count"),
+            "balance_after_bits": float_bits(quota(user, "balance")),
         },
     }
 
@@ -132,6 +152,36 @@ def capture(output: Path) -> None:
             "route_rate": 0.0,
             "segments": 2,
             "user": {"uid": "u-7", "balance": 0.0, "early_percent": None, "submit_sm_count": 2},
+        },
+        {
+            "id": "float_authorization_previous_ulp_rejects",
+            "route_rate": 0.01,
+            "segments": 3,
+            "user": {"uid": "u-8", "balance": float_from_bits(0x3F9EB851EB851EB6), "early_percent": 7, "submit_sm_count": 3},
+        },
+        {
+            "id": "float_authorization_exact_ulp_accepts",
+            "route_rate": 0.01,
+            "segments": 3,
+            "user": {"uid": "u-9", "balance": float_from_bits(0x3F9EB851EB851EB7), "early_percent": 7, "submit_sm_count": 3},
+        },
+        {
+            "id": "float_authorization_next_ulp_accepts",
+            "route_rate": 0.01,
+            "segments": 3,
+            "user": {"uid": "u-10", "balance": float_from_bits(0x3F9EB851EB851EB8), "early_percent": 7, "submit_sm_count": 3},
+        },
+        {
+            "id": "float_early_debit_unit_first",
+            "route_rate": 0.1,
+            "segments": 3,
+            "user": {"uid": "u-11", "balance": 1.0, "early_percent": 33, "submit_sm_count": 3},
+        },
+        {
+            "id": "float_scientific_late_amount_text",
+            "route_rate": 1e-7,
+            "segments": 1,
+            "user": {"uid": "u-12", "balance": 1.0, "early_percent": 33, "submit_sm_count": 1},
         },
     ]
     captured = [capture_case(case) for case in cases]

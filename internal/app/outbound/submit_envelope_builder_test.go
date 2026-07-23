@@ -150,3 +150,74 @@ func TestSubmitEnvelopeBuilderProjectsMultipartIdentityAndLastPartDLR(t *testing
 		t.Fatalf("registered delivery first=%v last=%v", encoder.requests[0].RegisteredDelivery, encoder.requests[len(parts)-1].RegisteredDelivery)
 	}
 }
+
+func TestSubmitEnvelopeBuilderUsesPythonCompatibleScientificLateAmount(t *testing.T) {
+	encoder := &recordingEncoder{}
+	builder, err := outbound.NewSubmitEnvelopeBuilder(encoder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	segmented, err := segmentation.Segment(segmentation.Request{
+		Payload: []byte("x"), SplitMethod: segmentation.SplitSAR, MaxParts: 1, Reference: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := segmented.Parts()
+	request := core.SubmitEnvelopeRequest{
+		MessageID: "m", BillID: "b", CreatedAt: time.Now(), Username: "alice", UserID: "u",
+		ConnectorID: "c", DestinationAddr: []byte("1"), Parts: parts,
+		Bill: billing.Bill{SubmitSmAmount: 3.3e-08, SubmitSmRespAmount: 6.7e-08, DecrementSubmitSmCount: 1},
+	}
+	envelope, err := builder.BuildSubmitEnvelope(context.Background(), request, parts[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := envelope.Properties().Headers()["late-bill-amount"].String()
+	if got != "6.7e-08" {
+		t.Fatalf("late amount=%q want=%q", got, "6.7e-08")
+	}
+}
+
+func TestSubmitEnvelopeBuilderUsesPythonCompatibleLateAmountNotationBoundaries(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "zero keeps fractional suffix", amount: 0, want: "0.0"},
+		{name: "integer keeps fractional suffix", amount: 1, want: "1.0"},
+		{name: "fixed lower boundary", amount: 1e-4, want: "0.0001"},
+		{name: "scientific below lower boundary", amount: 1e-5, want: "1e-05"},
+		{name: "fixed upper interior", amount: 1e15, want: "1000000000000000.0"},
+		{name: "scientific upper boundary", amount: 1e16, want: "1e+16"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			encoder := &recordingEncoder{}
+			builder, err := outbound.NewSubmitEnvelopeBuilder(encoder)
+			if err != nil {
+				t.Fatal(err)
+			}
+			segmented, err := segmentation.Segment(segmentation.Request{
+				Payload: []byte("x"), SplitMethod: segmentation.SplitSAR, MaxParts: 1, Reference: 1,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			parts := segmented.Parts()
+			request := core.SubmitEnvelopeRequest{
+				MessageID: "m", BillID: "b", CreatedAt: time.Now(), Username: "alice", UserID: "u",
+				ConnectorID: "c", DestinationAddr: []byte("1"), Parts: parts,
+				Bill: billing.Bill{SubmitSmRespAmount: test.amount, DecrementSubmitSmCount: 1},
+			}
+			envelope, err := builder.BuildSubmitEnvelope(context.Background(), request, parts[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, _ := envelope.Properties().Headers()["late-bill-amount"].String()
+			if got != test.want {
+				t.Fatalf("late amount=%q want=%q", got, test.want)
+			}
+		})
+	}
+}

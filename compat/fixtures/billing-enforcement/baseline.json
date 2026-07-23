@@ -3,7 +3,15 @@
   "cases": [
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "3fe8000000000000",
+          "required_total_balance": "3ff8000000000000",
+          "route_rate": "3ff8000000000000",
+          "submit_sm_amount_per_segment": "3fe8000000000000",
+          "submit_sm_resp_amount_per_segment": "3fe8000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 0,
+        "late_amount_text": "0.75",
         "required_submit_sm_count": 0,
         "required_total_balance": 1.5,
         "submit_sm_amount_per_segment": 0.75,
@@ -12,6 +20,7 @@
       "expected": {
         "accepted": true,
         "balance_after": 0.75,
+        "balance_after_bits": "3fe8000000000000",
         "submit_sm_count_after": null
       },
       "id": "split_exact_total_authorized_early_only_applied",
@@ -28,7 +37,15 @@
     },
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "3fe8000000000000",
+          "required_total_balance": "3ff8000000000000",
+          "route_rate": "3ff8000000000000",
+          "submit_sm_amount_per_segment": "3fe8000000000000",
+          "submit_sm_resp_amount_per_segment": "3fe8000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 0,
+        "late_amount_text": "0.75",
         "required_submit_sm_count": 0,
         "required_total_balance": 1.5,
         "submit_sm_amount_per_segment": 0.75,
@@ -37,6 +54,7 @@
       "expected": {
         "accepted": false,
         "balance_after": 1.49,
+        "balance_after_bits": "3ff7d70a3d70a3d7",
         "submit_sm_count_after": null
       },
       "id": "split_below_total_rejected_unchanged",
@@ -53,7 +71,15 @@
     },
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "3ff8000000000000",
+          "required_total_balance": "4008000000000000",
+          "route_rate": "3ff0000000000000",
+          "submit_sm_amount_per_segment": "3fe0000000000000",
+          "submit_sm_resp_amount_per_segment": "3fe0000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.5",
         "required_submit_sm_count": 3,
         "required_total_balance": 3.0,
         "submit_sm_amount_per_segment": 0.5,
@@ -62,6 +88,7 @@
       "expected": {
         "accepted": true,
         "balance_after": 1.5,
+        "balance_after_bits": "3ff8000000000000",
         "submit_sm_count_after": 0
       },
       "id": "multipart_split_uses_segment_multiplier",
@@ -78,7 +105,15 @@
     },
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "4008000000000000",
+          "required_total_balance": "4008000000000000",
+          "route_rate": "3ff0000000000000",
+          "submit_sm_amount_per_segment": "3ff0000000000000",
+          "submit_sm_resp_amount_per_segment": "0000000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.0",
         "required_submit_sm_count": 3,
         "required_total_balance": 3.0,
         "submit_sm_amount_per_segment": 1.0,
@@ -87,6 +122,7 @@
       "expected": {
         "accepted": false,
         "balance_after": 10.0,
+        "balance_after_bits": "4024000000000000",
         "submit_sm_count_after": 2
       },
       "id": "multipart_count_below_rejects_without_balance_mutation",
@@ -103,7 +139,15 @@
     },
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "4010000000000000",
+          "required_total_balance": "4010000000000000",
+          "route_rate": "4000000000000000",
+          "submit_sm_amount_per_segment": "4000000000000000",
+          "submit_sm_resp_amount_per_segment": "0000000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.0",
         "required_submit_sm_count": 2,
         "required_total_balance": 4.0,
         "submit_sm_amount_per_segment": 2.0,
@@ -112,6 +156,7 @@
       "expected": {
         "accepted": true,
         "balance_after": 0.0,
+        "balance_after_bits": "0000000000000000",
         "submit_sm_count_after": 0
       },
       "id": "balance_equality_full_early",
@@ -128,7 +173,15 @@
     },
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "0000000000000000",
+          "required_total_balance": "0000000000000000",
+          "route_rate": "4022000000000000",
+          "submit_sm_amount_per_segment": "0000000000000000",
+          "submit_sm_resp_amount_per_segment": "0000000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 0,
+        "late_amount_text": "0.0",
         "required_submit_sm_count": 0,
         "required_total_balance": 0.0,
         "submit_sm_amount_per_segment": 0.0,
@@ -137,6 +190,7 @@
       "expected": {
         "accepted": true,
         "balance_after": null,
+        "balance_after_bits": null,
         "submit_sm_count_after": null
       },
       "id": "unlimited_quotas_are_not_mutated",
@@ -153,7 +207,15 @@
     },
     {
       "bill": {
+        "bits": {
+          "early_debit_total": "0000000000000000",
+          "required_total_balance": "0000000000000000",
+          "route_rate": "0000000000000000",
+          "submit_sm_amount_per_segment": "0000000000000000",
+          "submit_sm_resp_amount_per_segment": "0000000000000000"
+        },
         "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.0",
         "required_submit_sm_count": 2,
         "required_total_balance": 0.0,
         "submit_sm_amount_per_segment": 0.0,
@@ -162,6 +224,7 @@
       "expected": {
         "accepted": true,
         "balance_after": 0.0,
+        "balance_after_bits": "0000000000000000",
         "submit_sm_count_after": 0
       },
       "id": "unrated_route_still_decrements_count",
@@ -175,9 +238,179 @@
           "uid": "u-7"
         }
       }
+    },
+    {
+      "bill": {
+        "bits": {
+          "early_debit_total": "3f613404ea4a8c16",
+          "required_total_balance": "3f9eb851eb851eb7",
+          "route_rate": "3f847ae147ae147b",
+          "submit_sm_amount_per_segment": "3f46f0068db8bac8",
+          "submit_sm_resp_amount_per_segment": "3f830be0ded288ce"
+        },
+        "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.0093",
+        "required_submit_sm_count": 3,
+        "required_total_balance": 0.029999999999999995,
+        "submit_sm_amount_per_segment": 0.0007000000000000001,
+        "submit_sm_resp_amount_per_segment": 0.0093
+      },
+      "expected": {
+        "accepted": false,
+        "balance_after": 0.029999999999999992,
+        "balance_after_bits": "3f9eb851eb851eb6",
+        "submit_sm_count_after": 3
+      },
+      "id": "float_authorization_previous_ulp_rejects",
+      "input": {
+        "route_rate": 0.01,
+        "segments": 3,
+        "user": {
+          "balance": 0.029999999999999992,
+          "early_percent": 7,
+          "submit_sm_count": 3,
+          "uid": "u-8"
+        }
+      }
+    },
+    {
+      "bill": {
+        "bits": {
+          "early_debit_total": "3f613404ea4a8c16",
+          "required_total_balance": "3f9eb851eb851eb7",
+          "route_rate": "3f847ae147ae147b",
+          "submit_sm_amount_per_segment": "3f46f0068db8bac8",
+          "submit_sm_resp_amount_per_segment": "3f830be0ded288ce"
+        },
+        "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.0093",
+        "required_submit_sm_count": 3,
+        "required_total_balance": 0.029999999999999995,
+        "submit_sm_amount_per_segment": 0.0007000000000000001,
+        "submit_sm_resp_amount_per_segment": 0.0093
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.027899999999999994,
+        "balance_after_bits": "3f9c91d14e3bcd34",
+        "submit_sm_count_after": 0
+      },
+      "id": "float_authorization_exact_ulp_accepts",
+      "input": {
+        "route_rate": 0.01,
+        "segments": 3,
+        "user": {
+          "balance": 0.029999999999999995,
+          "early_percent": 7,
+          "submit_sm_count": 3,
+          "uid": "u-9"
+        }
+      }
+    },
+    {
+      "bill": {
+        "bits": {
+          "early_debit_total": "3f613404ea4a8c16",
+          "required_total_balance": "3f9eb851eb851eb7",
+          "route_rate": "3f847ae147ae147b",
+          "submit_sm_amount_per_segment": "3f46f0068db8bac8",
+          "submit_sm_resp_amount_per_segment": "3f830be0ded288ce"
+        },
+        "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.0093",
+        "required_submit_sm_count": 3,
+        "required_total_balance": 0.029999999999999995,
+        "submit_sm_amount_per_segment": 0.0007000000000000001,
+        "submit_sm_resp_amount_per_segment": 0.0093
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.027899999999999998,
+        "balance_after_bits": "3f9c91d14e3bcd35",
+        "submit_sm_count_after": 0
+      },
+      "id": "float_authorization_next_ulp_accepts",
+      "input": {
+        "route_rate": 0.01,
+        "segments": 3,
+        "user": {
+          "balance": 0.03,
+          "early_percent": 7,
+          "submit_sm_count": 3,
+          "uid": "u-10"
+        }
+      }
+    },
+    {
+      "bill": {
+        "bits": {
+          "early_debit_total": "3fb95810624dd2f2",
+          "required_total_balance": "3fd3333333333334",
+          "route_rate": "3fb999999999999a",
+          "submit_sm_amount_per_segment": "3fa0e5604189374c",
+          "submit_sm_resp_amount_per_segment": "3fb126e978d4fdf4"
+        },
+        "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "0.067",
+        "required_submit_sm_count": 3,
+        "required_total_balance": 0.30000000000000004,
+        "submit_sm_amount_per_segment": 0.033,
+        "submit_sm_resp_amount_per_segment": 0.067
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.901,
+        "balance_after_bits": "3fecd4fdf3b645a2",
+        "submit_sm_count_after": 0
+      },
+      "id": "float_early_debit_unit_first",
+      "input": {
+        "route_rate": 0.1,
+        "segments": 3,
+        "user": {
+          "balance": 1.0,
+          "early_percent": 33,
+          "submit_sm_count": 3,
+          "uid": "u-11"
+        }
+      }
+    },
+    {
+      "bill": {
+        "bits": {
+          "early_debit_total": "3e61b77c47680d49",
+          "required_total_balance": "3e7ad7f29abcaf48",
+          "route_rate": "3e7ad7f29abcaf48",
+          "submit_sm_amount_per_segment": "3e61b77c47680d49",
+          "submit_sm_resp_amount_per_segment": "3e71fc347708a8a4"
+        },
+        "decrement_submit_sm_count_per_segment": 1,
+        "late_amount_text": "6.7e-08",
+        "required_submit_sm_count": 1,
+        "required_total_balance": 1e-07,
+        "submit_sm_amount_per_segment": 3.3e-08,
+        "submit_sm_resp_amount_per_segment": 6.7e-08
+      },
+      "expected": {
+        "accepted": true,
+        "balance_after": 0.999999967,
+        "balance_after_bits": "3fefffffee4883b9",
+        "submit_sm_count_after": 0
+      },
+      "id": "float_scientific_late_amount_text",
+      "input": {
+        "route_rate": 1e-07,
+        "segments": 1,
+        "user": {
+          "balance": 1.0,
+          "early_percent": 33,
+          "submit_sm_count": 1,
+          "uid": "u-12"
+        }
+      }
     }
   ],
-  "cases_sha256": "90eedbd9a5add4ce95a4c28a2fa2fd4528744aff9f28af168b87b69e46e1bf44",
+  "cases_sha256": "436e691ecd7c4513937257789b99fde5ce04d85d07c1e9fb5e5dbca901062c19",
   "schema_version": 1,
   "source": [
     "jasmin/protocols/http/endpoints/send.py:319-355",

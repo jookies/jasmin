@@ -12,7 +12,7 @@ release-a-v1,outbound-mt,route-bill,canonical-submit-to-durable-parts,B-002,GO-P
 release-a-v1,outbound-mt,route-bill,canonical-submit-to-durable-parts,B-004,GO-PARTIAL,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,route-bill,canonical-submit-to-durable-parts,B-005,GO-PARTIAL,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,route-bill,canonical-submit-to-durable-parts,B-006,GO-PARTIAL,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
-release-a-v1,outbound-mt,route-bill,canonical-submit-to-durable-parts,B-008,INVENTORIED,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
+release-a-v1,outbound-mt,route-bill,canonical-submit-to-durable-parts,B-008,MATCH,yes,,spec/compatibility/ROUTING_BILLING_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,broker-submit,durable-parts-to-smppc-consumer,A-001,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,broker-submit,durable-parts-to-smppc-consumer,A-002,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,outbound-a,yes,,,
 release-a-v1,outbound-mt,broker-submit,durable-parts-to-smppc-consumer,A-009,GO-PARTIAL,yes,,spec/compatibility/AMQP_REDIS_MATRIX.md,,Integrator,outbound-a,yes,,,

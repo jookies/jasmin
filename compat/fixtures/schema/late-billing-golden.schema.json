@@ -22,12 +22,14 @@
           "input": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["routing_key", "message_id", "user_id", "amount", "balance"],
+            "required": ["routing_key", "message_id", "user_id", "amount", "balance", "amount_bits", "balance_bits"],
             "properties": {
               "routing_key": {"type": "string", "minLength": 1},
               "message_id": {"type": "string", "minLength": 1},
               "user_id": {"type": "string", "minLength": 1},
               "amount": {"type": "string", "minLength": 1},
+              "amount_bits": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+              "balance_bits": {"type": ["string", "null"], "pattern": "^[0-9a-f]{16}$"},
               "balance": {
                 "oneOf": [
                   {"type": "number"},
@@ -40,10 +42,11 @@
           "expected": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["action", "balance_after"],
+            "required": ["action", "balance_after", "balance_after_bits"],
             "properties": {
               "action": {"enum": ["ack", "reject", "none"]},
-              "balance_after": {"type": ["number", "null"]}
+              "balance_after": {"type": ["number", "null"]},
+              "balance_after_bits": {"type": ["string", "null"], "pattern": "^[0-9a-f]{16}$"}
             }
           }
         }

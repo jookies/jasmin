@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import logging
+import struct
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,6 +24,16 @@ SOURCE = [
     "jasmin/routing/router.py:235-263",
     "jasmin/managers/content.py:201-212",
 ]
+
+
+def float_bits(value):
+    if value is None or value == "missing":
+        return None
+    return struct.pack(">d", float(value)).hex()
+
+
+def float_from_bits(value: int) -> float:
+    return struct.unpack(">d", value.to_bytes(8, "big"))[0]
 
 
 class _Queue:
@@ -87,10 +98,13 @@ def capture_case(case: dict) -> dict:
             "user_id": case["uid"],
             "amount": case["amount"],
             "balance": case["balance"],
+            "amount_bits": float_bits(case["amount"]),
+            "balance_bits": float_bits(case["balance"]),
         },
         "expected": {
             "action": actions[0] if actions else "none",
             "balance_after": balance_after,
+            "balance_after_bits": float_bits(balance_after),
         },
     }
 
@@ -104,6 +118,9 @@ def capture(output: Path) -> None:
         {"id": "zero_amount_acks_without_delta", "uid": "5", "balance": 2.0, "amount": "0", "message_id": "bill-zero"},
         {"id": "opaque_user_id_acks_and_decrements", "uid": "alice_1", "balance": 2.0, "amount": "0.75", "message_id": "bill-opaque"},
         {"id": "unlimited_balance_has_no_terminal_action", "uid": "6", "balance": None, "amount": "0.75", "message_id": "bill-unlimited"},
+        {"id": "float_late_previous_ulp_rejects", "uid": "7", "balance": float_from_bits(0x3F830BE0DED288CD), "amount": "0.0093", "message_id": "bill-float-prev"},
+        {"id": "float_late_exact_ulp_acks", "uid": "8", "balance": float_from_bits(0x3F830BE0DED288CE), "amount": "0.0093", "message_id": "bill-float-exact"},
+        {"id": "float_late_next_ulp_acks", "uid": "9", "balance": float_from_bits(0x3F830BE0DED288CF), "amount": "0.0093", "message_id": "bill-float-next"},
     ]
     captured = [capture_case(case) for case in cases]
     corpus_sha256 = hashlib.sha256(

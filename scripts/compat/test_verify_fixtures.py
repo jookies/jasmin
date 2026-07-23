@@ -85,6 +85,15 @@ class BillingEnforcementFixtureValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
             validate_billing_enforcement(forged)
 
+    def test_self_consistent_bit_only_edit_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        forged["cases"][0]["bill"]["bits"]["required_total_balance"] = "0000000000000000"
+        forged["cases_sha256"] = hashlib.sha256(
+            json.dumps(forged["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_billing_enforcement(forged)
+
 
 class LateBillingFixtureValidationTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -96,6 +105,15 @@ class LateBillingFixtureValidationTests(unittest.TestCase):
     def test_self_consistent_action_edit_is_rejected(self) -> None:
         forged = copy.deepcopy(self.document)
         forged["cases"][0]["expected"]["action"] = "ack"
+        forged["cases_sha256"] = hashlib.sha256(
+            json.dumps(forged["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        with self.assertRaisesRegex(AssertionError, "trusted corpus fingerprint"):
+            validate_late_billing(forged)
+
+    def test_self_consistent_bit_only_edit_is_rejected(self) -> None:
+        forged = copy.deepcopy(self.document)
+        forged["cases"][1]["input"]["amount_bits"] = "0000000000000000"
         forged["cases_sha256"] = hashlib.sha256(
             json.dumps(forged["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()

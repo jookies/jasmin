@@ -4,12 +4,15 @@
     {
       "expected": {
         "action": "reject",
-        "balance_after": null
+        "balance_after": null,
+        "balance_after_bits": null
       },
       "id": "missing_user_rejects",
       "input": {
         "amount": "0.75",
+        "amount_bits": "3fe8000000000000",
         "balance": "missing",
+        "balance_bits": null,
         "message_id": "bill-missing",
         "routing_key": "bill_request.submit_sm_resp.1",
         "user_id": "1"
@@ -18,12 +21,15 @@
     {
       "expected": {
         "action": "reject",
-        "balance_after": 0.74
+        "balance_after": 0.74,
+        "balance_after_bits": "3fe7ae147ae147ae"
       },
       "id": "insufficient_balance_rejects_unchanged",
       "input": {
         "amount": "0.75",
+        "amount_bits": "3fe8000000000000",
         "balance": 0.74,
+        "balance_bits": "3fe7ae147ae147ae",
         "message_id": "bill-insufficient",
         "routing_key": "bill_request.submit_sm_resp.2",
         "user_id": "2"
@@ -32,12 +38,15 @@
     {
       "expected": {
         "action": "ack",
-        "balance_after": 0.0
+        "balance_after": 0.0,
+        "balance_after_bits": "0000000000000000"
       },
       "id": "exact_balance_acks_and_decrements",
       "input": {
         "amount": "0.75",
+        "amount_bits": "3fe8000000000000",
         "balance": 0.75,
+        "balance_bits": "3fe8000000000000",
         "message_id": "bill-exact",
         "routing_key": "bill_request.submit_sm_resp.3",
         "user_id": "3"
@@ -46,12 +55,15 @@
     {
       "expected": {
         "action": "ack",
-        "balance_after": 1.25
+        "balance_after": 1.25,
+        "balance_after_bits": "3ff4000000000000"
       },
       "id": "sufficient_balance_acks_and_decrements",
       "input": {
         "amount": "0.75",
+        "amount_bits": "3fe8000000000000",
         "balance": 2.0,
+        "balance_bits": "4000000000000000",
         "message_id": "bill-sufficient",
         "routing_key": "bill_request.submit_sm_resp.4",
         "user_id": "4"
@@ -60,12 +72,15 @@
     {
       "expected": {
         "action": "ack",
-        "balance_after": 2.0
+        "balance_after": 2.0,
+        "balance_after_bits": "4000000000000000"
       },
       "id": "zero_amount_acks_without_delta",
       "input": {
         "amount": "0",
+        "amount_bits": "0000000000000000",
         "balance": 2.0,
+        "balance_bits": "4000000000000000",
         "message_id": "bill-zero",
         "routing_key": "bill_request.submit_sm_resp.5",
         "user_id": "5"
@@ -74,12 +89,15 @@
     {
       "expected": {
         "action": "ack",
-        "balance_after": 1.25
+        "balance_after": 1.25,
+        "balance_after_bits": "3ff4000000000000"
       },
       "id": "opaque_user_id_acks_and_decrements",
       "input": {
         "amount": "0.75",
+        "amount_bits": "3fe8000000000000",
         "balance": 2.0,
+        "balance_bits": "4000000000000000",
         "message_id": "bill-opaque",
         "routing_key": "bill_request.submit_sm_resp.alice_1",
         "user_id": "alice_1"
@@ -88,19 +106,73 @@
     {
       "expected": {
         "action": "none",
-        "balance_after": null
+        "balance_after": null,
+        "balance_after_bits": null
       },
       "id": "unlimited_balance_has_no_terminal_action",
       "input": {
         "amount": "0.75",
+        "amount_bits": "3fe8000000000000",
         "balance": null,
+        "balance_bits": null,
         "message_id": "bill-unlimited",
         "routing_key": "bill_request.submit_sm_resp.6",
         "user_id": "6"
       }
+    },
+    {
+      "expected": {
+        "action": "reject",
+        "balance_after": 0.009299999999999998,
+        "balance_after_bits": "3f830be0ded288cd"
+      },
+      "id": "float_late_previous_ulp_rejects",
+      "input": {
+        "amount": "0.0093",
+        "amount_bits": "3f830be0ded288ce",
+        "balance": 0.009299999999999998,
+        "balance_bits": "3f830be0ded288cd",
+        "message_id": "bill-float-prev",
+        "routing_key": "bill_request.submit_sm_resp.7",
+        "user_id": "7"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "balance_after": 0.0,
+        "balance_after_bits": "0000000000000000"
+      },
+      "id": "float_late_exact_ulp_acks",
+      "input": {
+        "amount": "0.0093",
+        "amount_bits": "3f830be0ded288ce",
+        "balance": 0.0093,
+        "balance_bits": "3f830be0ded288ce",
+        "message_id": "bill-float-exact",
+        "routing_key": "bill_request.submit_sm_resp.8",
+        "user_id": "8"
+      }
+    },
+    {
+      "expected": {
+        "action": "ack",
+        "balance_after": 1.734723475976807e-18,
+        "balance_after_bits": "3c40000000000000"
+      },
+      "id": "float_late_next_ulp_acks",
+      "input": {
+        "amount": "0.0093",
+        "amount_bits": "3f830be0ded288ce",
+        "balance": 0.009300000000000001,
+        "balance_bits": "3f830be0ded288cf",
+        "message_id": "bill-float-next",
+        "routing_key": "bill_request.submit_sm_resp.9",
+        "user_id": "9"
+      }
     }
   ],
-  "cases_sha256": "f7ac07abb075b893294a62089ef2448c8cbe202e5317fdd3ab7e659885afcb8e",
+  "cases_sha256": "ed04091bbc7621ce20c175ce3caf3b2cc9cbffe56c8bee6636a7655dd45f31b1",
   "schema_version": 1,
   "source": [
     "jasmin/routing/router.py:97-109",

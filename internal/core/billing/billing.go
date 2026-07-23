@@ -138,7 +138,7 @@ func (g *Group) CanApply(bill Bill) error {
 	defer g.mu.Unlock()
 
 	if g.balance != nil {
-		total := (bill.SubmitSmAmount + bill.SubmitSmRespAmount)
+		total := bill.requiredBalance()
 		if *g.balance < total {
 			return ErrInsufficientBalance
 		}
@@ -192,7 +192,7 @@ func (u *User) CanApply(bill Bill) error {
 	defer u.mu.Unlock()
 
 	if u.balance != nil {
-		total := (bill.SubmitSmAmount + bill.SubmitSmRespAmount)
+		total := bill.requiredBalance()
 		if *u.balance < total {
 			return ErrInsufficientBalance
 		}
@@ -315,7 +315,7 @@ func (u *User) AuthorizeAndApplyCalculatedSubmit(routeRate float64, segments int
 }
 
 func (u *User) authorizeAndApplySubmitLocked(group *Group, bill Bill) error {
-	requiredBalance := bill.SubmitSmAmount + bill.SubmitSmRespAmount
+	requiredBalance := bill.requiredBalance()
 	if u.balance != nil && *u.balance < requiredBalance {
 		return ErrInsufficientBalance
 	}
@@ -352,6 +352,17 @@ type Bill struct {
 	SubmitSmAmount         float64
 	SubmitSmRespAmount     float64
 	DecrementSubmitSmCount int
+	// AuthorizationAmount preserves Bill.getTotalAmounts()*segments in the
+	// legacy unit-first operation order. Zero falls back to the sum for bills
+	// manually constructed by existing callers.
+	AuthorizationAmount float64
+}
+
+func (bill Bill) requiredBalance() float64 {
+	if bill.AuthorizationAmount != 0 || (bill.SubmitSmAmount == 0 && bill.SubmitSmRespAmount == 0) {
+		return bill.AuthorizationAmount
+	}
+	return bill.SubmitSmAmount + bill.SubmitSmRespAmount
 }
 
 func CalculateBill(routeRate float64, segments int, u *User) Bill {
@@ -366,15 +377,19 @@ func calculateBillLocked(routeRate float64, segments int, u *User) Bill {
 	// B-001/B-006/B-007: Rate calculation
 	// Jasmin Rule 1: If route is rated and user's balance is not unlimited (balance != None)
 	if routeRate > 0 && u.balance != nil {
-		totalRate := routeRate * float64(segments)
 		if u.earlyDecrementBalancePercent != nil {
-			// Early decrement percentage applied (B-006, B-007)
+			// Legacy B-008 order: split one unit rate first, then multiply
+			// each projected amount by the segment count.
 			percent := float64(*u.earlyDecrementBalancePercent)
-			bill.SubmitSmAmount = totalRate * percent / 100.0
-			bill.SubmitSmRespAmount = totalRate - bill.SubmitSmAmount
+			unitEarly := routeRate * percent / 100.0
+			unitLate := routeRate - unitEarly
+			bill.AuthorizationAmount = (unitEarly + unitLate) * float64(segments)
+			bill.SubmitSmAmount = unitEarly * float64(segments)
+			bill.SubmitSmRespAmount = unitLate * float64(segments)
 		} else {
 			// Default: 100% early decrement
-			bill.SubmitSmAmount = totalRate
+			bill.AuthorizationAmount = routeRate * float64(segments)
+			bill.SubmitSmAmount = bill.AuthorizationAmount
 			bill.SubmitSmRespAmount = 0
 		}
 	}
@@ -404,6 +419,9 @@ func validateBill(bill Bill) error {
 		return ErrInvalidRate
 	}
 	if math.IsNaN(bill.SubmitSmRespAmount) || math.IsInf(bill.SubmitSmRespAmount, 0) || bill.SubmitSmRespAmount < 0 {
+		return ErrInvalidRate
+	}
+	if math.IsNaN(bill.AuthorizationAmount) || math.IsInf(bill.AuthorizationAmount, 0) || bill.AuthorizationAmount < 0 {
 		return ErrInvalidRate
 	}
 	if bill.DecrementSubmitSmCount < 0 {
