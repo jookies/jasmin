@@ -99,6 +99,9 @@ func TestQuotaPersistenceGolden(t *testing.T) {
 	}
 	for _, testCase := range fixture.Cases {
 		t.Run(testCase.ID, func(t *testing.T) {
+			if testCase.Expected.RearmCount != 1 {
+				t.Fatalf("rearm_count=%d want=1", testCase.Expected.RearmCount)
+			}
 			users := make([]*User, len(testCase.Input.DirtyBefore))
 			for index, dirty := range testCase.Input.DirtyBefore {
 				users[index] = NewUser(int64(index + 1))
@@ -222,6 +225,53 @@ func TestQuotaPersistenceRunContinuesAcrossTicks(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatal("periodic service did not continue to next tick")
 		}
+	}
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("error=%v", err)
+	}
+}
+
+func TestQuotaPersistenceRunRearmsAfterCompletedWrite(t *testing.T) {
+	users := []*User{NewUser(1), NewUser(2)}
+	for _, user := range users {
+		if err := user.SetBalance(2); err != nil {
+			t.Fatal(err)
+		}
+	}
+	interval := 40 * time.Millisecond
+	store := &recordingQuotaStore{
+		result:     true,
+		started:    make(chan struct{}, 1),
+		release:    make(chan struct{}),
+		userWrites: make(chan struct{}, 2),
+	}
+	service, err := NewQuotaPersistenceService(users, store, interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- service.Run(ctx) }()
+	<-store.started
+	time.Sleep(2 * interval)
+	releasedAt := time.Now()
+	close(store.release)
+	select {
+	case <-store.userWrites:
+	case <-time.After(time.Second):
+		t.Fatal("first write did not finish")
+	}
+	select {
+	case <-store.userWrites:
+		t.Fatalf("second write started %s after first completion; want at least %s", time.Since(releasedAt), interval)
+	case <-time.After(interval / 2):
+	}
+	select {
+	case <-store.userWrites:
+	case <-time.After(3 * interval):
+		t.Fatal("second write did not begin after completion-relative rearm")
 	}
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {

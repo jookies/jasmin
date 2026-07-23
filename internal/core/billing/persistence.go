@@ -108,16 +108,17 @@ func (service *QuotaPersistenceService) PersistOnce(ctx context.Context) (bool, 
 }
 
 func (service *QuotaPersistenceService) Run(ctx context.Context) error {
-	ticker := time.NewTicker(service.interval)
-	defer ticker.Stop()
+	timer := time.NewTimer(service.interval)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-timer.C:
 			if _, err := service.PersistOnce(ctx); err != nil {
 				return err
 			}
+			timer.Reset(service.interval)
 		}
 	}
 }
