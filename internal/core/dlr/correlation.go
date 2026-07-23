@@ -43,16 +43,26 @@ type Forward struct {
 	Target     ForwardTarget
 	Status     string // dlr_status (command_status name or receipt state)
 	QueueMsgID string
+	Err        string // pdu_dlr_err (deliver leg; empty on the submit_sm_resp leg)
+
 	// HTTP fields.
-	Level     int // the actual receipt level; always 1 on the submit_sm_resp leg
+	Level     int    // actual receipt level: 1 on the submit_sm_resp leg, 2 on the deliver_sm leg
 	URL       string
 	Method    string
-	Connector string
+	Connector string // resp leg: the DLR connector; deliver leg: the raw SMSC receipt id (Jasmin quirk)
+	// HTTP deliver-leg (level 2) receipt fields.
+	IDSMSC     string // id_smsc: the coded SMSC msgid
+	Sub        string
+	Dlvrd      string
+	SubmitDate string // subdate = pdu_dlr_sdate
+	DoneDate   string // donedate = pdu_dlr_ddate
+	Text       string
+
 	// SMPPs fields.
 	SystemID        string
 	SourceAddr      string
 	DestinationAddr string
-	SubDate         string
+	SubDate         string // stored sub_date from the DLR record
 	SourceAddrTON   string
 	SourceAddrNPI   string
 	DestAddrTON     string
@@ -212,4 +222,144 @@ func (c *Correlator) writeMapping(ctx context.Context, smppMsgID, queueMsgID, co
 		return fmt.Errorf("%w: mapping record: %v", ErrDLRMapInvalid, err)
 	}
 	return c.redis.WriteHashRecord(ctx, rec)
+}
+
+// DeliverReceiptEvent is a deliver_sm delivery receipt arriving for correlation.
+type DeliverReceiptEvent struct {
+	RawDLRID    string    // pdu_dlr_id: the raw SMSC receipt id (used as the http dlr_connector)
+	Base        MsgIDBase // connector dlr_msg_id_bases, to code RawDLRID into the lookup key
+	ConnectorID string    // cid (context/logging)
+	Status      string    // receipt state: DELIVRD, EXPIRED, ...
+	Sub         string
+	Dlvrd       string
+	SubmitDate  string // pdu_dlr_sdate
+	DoneDate    string // pdu_dlr_ddate
+	Err         string
+	Text        string
+}
+
+// OnDeliverReceipt handles the deliver_sm terminal leg (jasmin managers/dlr.py
+// deliver_sm_dlr_callback). It codes the receipt id into the correlation key, resolves
+// queue-msgid → the submit queue id and its DLR record, forwards the level-2 (terminal)
+// receipt when requested, and deletes the DLR record on a final state.
+//
+// Error policy differs from OnSubmitResp: here ErrDLRMapNotFound is RETRYABLE — it covers
+// the race where the terminal receipt arrives before the submit_sm_resp leg wrote the
+// mapping. The caller applies retry-vs-drop per leg, matching Jasmin's per-callback
+// except clauses.
+func (c *Correlator) OnDeliverReceipt(ctx context.Context, ev DeliverReceiptEvent) error {
+	coded, err := CodeReceiptID(ev.RawDLRID, ev.Base)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrDLRMapInvalid, err)
+	}
+	qkey, err := rediscompat.BuildQueueMessageKey(coded)
+	if err != nil {
+		return fmt.Errorf("%w: mapping key: %v", ErrDLRMapInvalid, err)
+	}
+	mapping, err := c.redis.ReadHash(ctx, qkey)
+	if err != nil {
+		if errors.Is(err, rediscompat.ErrKeyNotFound) {
+			return fmt.Errorf("%w: coded %s (raw %s)", ErrDLRMapNotFound, coded, ev.RawDLRID)
+		}
+		return err
+	}
+	// The mapping must be exactly {msgid, connector_type} (Jasmin: len(q) != 2 check).
+	_, hasMsgID := mapping["msgid"]
+	_, hasCT := mapping["connector_type"]
+	if len(mapping) != 2 || !hasMsgID || !hasCT {
+		return fmt.Errorf("%w: malformed mapping for coded %s", ErrDLRMapNotFound, coded)
+	}
+	submitQueueID := mapping["msgid"]
+	connectorType := mapping["connector_type"]
+
+	dlrKey, err := rediscompat.BuildDLRKey(submitQueueID)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrDLRMapInvalid, err)
+	}
+	dlr, err := c.redis.ReadHash(ctx, dlrKey)
+	if err != nil {
+		if errors.Is(err, rediscompat.ErrKeyNotFound) {
+			return fmt.Errorf("%w: dlr for %s", ErrDLRMapNotFound, submitQueueID)
+		}
+		return err
+	}
+	if dlr["sc"] != connectorType {
+		return fmt.Errorf("%w: dlr sc %q != mapping connector_type %q", ErrDLRMapInvalid, dlr["sc"], connectorType)
+	}
+
+	switch connectorType {
+	case "httpapi":
+		return c.onDeliverHTTP(ctx, ev, dlrKey, submitQueueID, coded, dlr)
+	case "smppsapi":
+		return c.onDeliverSMPPS(ctx, ev, dlrKey, submitQueueID, dlr)
+	default:
+		return fmt.Errorf("%w: unknown connector_type %q", ErrDLRMapInvalid, connectorType)
+	}
+}
+
+func (c *Correlator) onDeliverHTTP(ctx context.Context, ev DeliverReceiptEvent, dlrKey rediscompat.Key, submitQueueID, coded string, dlr map[string]string) error {
+	level, err := strconv.Atoi(dlr["level"])
+	if err != nil {
+		return fmt.Errorf("%w: level %q", ErrDLRMapInvalid, dlr["level"])
+	}
+	if level != 2 && level != 3 {
+		return nil // a level-1 request has no terminal-receipt tracking
+	}
+	forward := Forward{
+		Target: ForwardHTTP, Status: ev.Status, QueueMsgID: submitQueueID, Level: 2,
+		URL: dlr["url"], Method: dlr["method"],
+		Connector:  ev.RawDLRID, // dlr_connector = the raw receipt id (Jasmin level-2 quirk)
+		IDSMSC:     coded,
+		Sub:        ev.Sub,
+		Dlvrd:      ev.Dlvrd,
+		SubmitDate: ev.SubmitDate,
+		DoneDate:   ev.DoneDate,
+		Err:        ev.Err,
+		Text:       ev.Text,
+	}
+	if err := c.publisher.PublishDLR(ctx, forward); err != nil {
+		return err
+	}
+	if isFinalState(ev.Status) {
+		return c.redis.Delete(ctx, dlrKey)
+	}
+	return nil
+}
+
+func (c *Correlator) onDeliverSMPPS(ctx context.Context, ev DeliverReceiptEvent, dlrKey rediscompat.Key, submitQueueID string, dlr map[string]string) error {
+	rd := dlr["rd_receipt"]
+	success := isSuccessState(ev.Status)
+	forward := (success && rd == rdReceiptRequested) ||
+		(!success && (rd == rdReceiptRequested || rd == rdReceiptRequestedForFailure))
+	if !forward {
+		return nil
+	}
+	f := Forward{
+		Target: ForwardSMPPS, Status: ev.Status, QueueMsgID: submitQueueID, Err: ev.Err,
+		SystemID: dlr["system_id"], SourceAddr: dlr["source_addr"], DestinationAddr: dlr["destination_addr"],
+		SubDate: dlr["sub_date"], SourceAddrTON: dlr["source_addr_ton"], SourceAddrNPI: dlr["source_addr_npi"],
+		DestAddrTON: dlr["dest_addr_ton"], DestAddrNPI: dlr["dest_addr_npi"],
+	}
+	if err := c.publisher.PublishDLR(ctx, f); err != nil {
+		return err
+	}
+	if isFinalState(ev.Status) {
+		return c.redis.Delete(ctx, dlrKey)
+	}
+	return nil
+}
+
+// isSuccessState reports the deliver_sm receipt success states (jasmin dlr.py:363).
+func isSuccessState(s string) bool {
+	return s == "ACCEPTD" || s == "DELIVRD"
+}
+
+// isFinalState reports the terminal receipt states that remove the DLR map (dlr.py:364).
+func isFinalState(s string) bool {
+	switch s {
+	case "DELIVRD", "EXPIRED", "DELETED", "UNDELIV", "REJECTD":
+		return true
+	default:
+		return false
+	}
 }
