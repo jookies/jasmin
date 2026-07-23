@@ -144,7 +144,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		BillingUsers:     directory.users,
 		EnvelopeBuilder:  envelopeBuilder,
 		Transaction:      dependencies.Transactions,
-		SelectConnector:  connectorSelector(config.Routes, dependencies.ConnectorAvailable),
+		SelectConnector:  connectorSelector(dependencies.ConnectorAvailable),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)
@@ -288,6 +288,7 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d has no connectors", ErrInvalidRuntimeConfig, index)
 		}
 		seenCandidates := make(map[string]struct{}, len(candidates))
+		routeConnectors := make([]routingtable.Connector, 0, len(candidates))
 		for _, connectorID := range candidates {
 			if connectorID == "" {
 				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d has empty connector", ErrInvalidRuntimeConfig, index)
@@ -297,8 +298,9 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 			}
 			seenCandidates[connectorID] = struct{}{}
 			connectors[connectorID] = struct{}{}
+			routeConnectors = append(routeConnectors, routingtable.Connector{IDValue: connectorID, TypeValue: routingtable.SMPPC})
 		}
-		connector := routingtable.Connector{IDValue: candidates[0], TypeValue: routingtable.SMPPC}
+		connector := routeConnectors[0]
 		var route routingtable.Route
 		if entry.Default {
 			route, err = routingtable.NewDefaultRoute(connector, entry.Rate)
@@ -313,6 +315,10 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 		}
 		if err != nil {
 			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %v", ErrInvalidRuntimeConfig, index, err)
+		}
+		route, err = route.WithConnectors(routeConnectors)
+		if err != nil {
+			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d connector pool: %v", ErrInvalidRuntimeConfig, index, err)
 		}
 		if err := builder.Add(entry.Order, route); err != nil {
 			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %v", ErrInvalidRuntimeConfig, index, err)
@@ -330,21 +336,14 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 	return builder.Build(), connectorIDs, defaultRate, nil
 }
 
-func connectorSelector(routes []RouteConfig, available func(string) bool) func(string) (string, bool) {
+func connectorSelector(available func(string) bool) func(routingtable.Route) (string, bool) {
 	if available == nil {
 		return nil
 	}
-	pools := make(map[string][]string, len(routes))
-	for _, route := range routes {
-		candidates := route.ConnectorCandidates()
-		if len(candidates) > 0 {
-			pools[candidates[0]] = candidates
-		}
-	}
-	return func(primary string) (string, bool) {
-		for _, connectorID := range pools[primary] {
-			if available(connectorID) {
-				return connectorID, true
+	return func(route routingtable.Route) (string, bool) {
+		for _, connector := range route.Connectors() {
+			if available(connector.ID()) {
+				return connector.ID(), true
 			}
 		}
 		return "", false

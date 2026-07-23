@@ -45,12 +45,17 @@ func (rawSubmitDecoder) DecodeSubmitSM(_ context.Context, body []byte) (smppwire
 // Session owns one SMPP connection and, when driven by Connector.runConsumer,
 // exactly one AMQP consumer generation. AbortConsumerGeneration is irreversible;
 // a replacement consumer must use a newly connected Session.
+type pendingControl struct {
+	timer                   *time.Timer
+	expectedResponseCommand uint32
+}
+
 type Session struct {
 	conn                 net.Conn
 	cfg                  Config
 	nextSeq              uint32
 	pending              map[uint32]*pendingRequest
-	pendingControls      map[uint32]*time.Timer
+	pendingControls      map[uint32]*pendingControl
 	mu                   sync.Mutex
 	writeMu              sync.Mutex
 	cleanup              sync.Once
@@ -89,7 +94,7 @@ func NewSessionWithDurability(conn net.Conn, cfg Config, retry *ErrorRetryPolicy
 		cfg:             cfg.Clone(),
 		nextSeq:         1, // bind_transceiver uses sequence 1 before session ownership transfers.
 		pending:         make(map[uint32]*pendingRequest),
-		pendingControls: make(map[uint32]*time.Timer),
+		pendingControls: make(map[uint32]*pendingControl),
 		retry:           retry,
 		readiness:       readiness,
 		decoder:         decoder,
@@ -302,7 +307,7 @@ func (s *Session) sendEnquireLink() error {
 		s.mu.Unlock()
 		return err
 	}
-	s.pendingControls[seq] = nil
+	s.pendingControls[seq] = &pendingControl{expectedResponseCommand: smppwire.CommandEnquireLinkResp}
 	s.mu.Unlock()
 
 	wire, err := smppwire.Encode(smppwire.PDU{Header: smppwire.Header{
@@ -313,7 +318,7 @@ func (s *Session) sendEnquireLink() error {
 		err = writeFrame(s.conn, wire)
 	}
 	if err != nil {
-		if ownedTimer, owned := s.takePendingControl(seq); owned {
+		if ownedTimer, owned := s.takePendingControl(seq, smppwire.CommandEnquireLinkResp); owned {
 			stopTimer(ownedTimer)
 		}
 		_ = s.conn.Close()
@@ -321,8 +326,8 @@ func (s *Session) sendEnquireLink() error {
 	}
 
 	s.mu.Lock()
-	if _, pending := s.pendingControls[seq]; pending && s.cfg.ResTimeout > 0 {
-		s.pendingControls[seq] = time.AfterFunc(seconds(s.cfg.ResTimeout), func() { s.handleControlTimeout(seq) })
+	if pending := s.pendingControls[seq]; pending != nil && s.cfg.ResTimeout > 0 {
+		pending.timer = time.AfterFunc(seconds(s.cfg.ResTimeout), func() { s.handleControlTimeout(seq) })
 	}
 	s.mu.Unlock()
 	s.resetInactivityTimer()
@@ -455,18 +460,25 @@ func (s *Session) takePending(seq uint32) *pendingRequest {
 	return pending
 }
 
-func (s *Session) takePendingControl(seq uint32) (*time.Timer, bool) {
+func (s *Session) takePendingControl(seq uint32, responseCommand uint32) (*time.Timer, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	timer, exists := s.pendingControls[seq]
-	if exists {
+	pending, exists := s.pendingControls[seq]
+	if exists && pending.expectedResponseCommand == responseCommand {
 		delete(s.pendingControls, seq)
+		return pending.timer, true
 	}
-	return timer, exists
+	return nil, false
 }
 
 func (s *Session) handleControlTimeout(seq uint32) {
-	if _, exists := s.takePendingControl(seq); !exists {
+	s.mu.Lock()
+	_, exists := s.pendingControls[seq]
+	if exists {
+		delete(s.pendingControls, seq)
+	}
+	s.mu.Unlock()
+	if !exists {
 		return
 	}
 	_ = s.conn.Close()
@@ -485,12 +497,15 @@ func (s *Session) Unbind(ctx context.Context) error {
 		s.mu.Unlock()
 		return err
 	}
-	s.pendingControls[sequence] = time.AfterFunc(seconds(s.cfg.TrxTimeout), func() {
-		s.handleControlTimeout(sequence)
-	})
+	s.pendingControls[sequence] = &pendingControl{
+		expectedResponseCommand: smppwire.CommandUnbindResp,
+		timer: time.AfterFunc(seconds(s.cfg.TrxTimeout), func() {
+			s.handleControlTimeout(sequence)
+		}),
+	}
 	s.mu.Unlock()
 	if err := s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbind, SequenceNumber: sequence}}); err != nil {
-		if timer, matched := s.takePendingControl(sequence); matched {
+		if timer, matched := s.takePendingControl(sequence, smppwire.CommandUnbindResp); matched {
 			stopTimer(timer)
 		}
 		return err
@@ -511,7 +526,7 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 		_ = s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbindResp, SequenceNumber: pdu.Header.SequenceNumber}})
 		return io.EOF
 	case smppwire.CommandUnbindResp:
-		timer, matched := s.takePendingControl(pdu.Header.SequenceNumber)
+		timer, matched := s.takePendingControl(pdu.Header.SequenceNumber, smppwire.CommandUnbindResp)
 		if !matched {
 			return nil
 		}
@@ -523,7 +538,7 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 			SequenceNumber: pdu.Header.SequenceNumber,
 		}})
 	case smppwire.CommandEnquireLinkResp:
-		if timer, matched := s.takePendingControl(pdu.Header.SequenceNumber); matched {
+		if timer, matched := s.takePendingControl(pdu.Header.SequenceNumber, smppwire.CommandEnquireLinkResp); matched {
 			stopTimer(timer)
 		}
 	}
@@ -679,7 +694,7 @@ func (s *Session) cleanupSession(err error) {
 		pending := s.pending
 		pendingControls := s.pendingControls
 		s.pending = make(map[uint32]*pendingRequest)
-		s.pendingControls = make(map[uint32]*time.Timer)
+		s.pendingControls = make(map[uint32]*pendingControl)
 		close(s.closed)
 		s.mu.Unlock()
 
@@ -688,8 +703,8 @@ func (s *Session) cleanupSession(err error) {
 			_ = s.markPendingUnknown(request)
 			s.settleDeliveryFailure(request.delivery)
 		}
-		for _, timer := range pendingControls {
-			stopTimer(timer)
+		for _, control := range pendingControls {
+			stopTimer(control.timer)
 		}
 		if s.onClose != nil {
 			s.onClose(err)

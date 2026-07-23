@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
+	"github.com/pumpitspace/jasmin/internal/core/routingtable"
 )
 
 func TestLoadConfigRejectsUnknownAndTrailingContent(t *testing.T) {
@@ -79,12 +82,56 @@ func TestConnectorSelectorUsesOrderedAvailabilityAndExhausts(t *testing.T) {
 	if len(connectorIDs) != 3 {
 		t.Fatalf("declared connectors=%v", connectorIDs)
 	}
-	selector := connectorSelector(routes, func(connectorID string) bool { return connectorID != "first" })
-	if selected, ok := selector("first"); !ok || selected != "second" {
+	primary := routingtable.Connector{IDValue: "first", TypeValue: routingtable.SMPPC}
+	selectedRoute, err := routingtable.NewDefaultRoute(primary, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectedRoute, err = selectedRoute.WithConnectors([]routingtable.Connector{
+		primary,
+		{IDValue: "second", TypeValue: routingtable.SMPPC},
+		{IDValue: "third", TypeValue: routingtable.SMPPC},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	selector := connectorSelector(func(connectorID string) bool { return connectorID != "first" })
+	if selected, ok := selector(selectedRoute); !ok || selected != "second" {
 		t.Fatalf("selected=(%q,%v)", selected, ok)
 	}
-	selector = connectorSelector(routes, func(string) bool { return false })
-	if selected, ok := selector("first"); ok || selected != "" {
+	selector = connectorSelector(func(string) bool { return false })
+	if selected, ok := selector(selectedRoute); ok || selected != "" {
 		t.Fatalf("exhaustion=(%q,%v)", selected, ok)
+	}
+}
+
+func TestConnectorSelectorKeepsPoolsDistinctForSharedPrimary(t *testing.T) {
+	primary := routingtable.Connector{IDValue: "primary", TypeValue: routingtable.SMPPC}
+	staticRoute, err := routingtable.NewStaticRoute(routingfilter.MT, primary, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staticRoute, err = staticRoute.WithConnectors([]routingtable.Connector{
+		primary, {IDValue: "static-backup", TypeValue: routingtable.SMPPC},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defaultRoute, err := routingtable.NewDefaultRoute(primary, 0.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defaultRoute, err = defaultRoute.WithConnectors([]routingtable.Connector{
+		primary, {IDValue: "default-backup", TypeValue: routingtable.SMPPC},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	selector := connectorSelector(func(connectorID string) bool { return connectorID != "primary" })
+	if selected, ok := selector(staticRoute); !ok || selected != "static-backup" {
+		t.Fatalf("static route selected=(%q,%v)", selected, ok)
+	}
+	if selected, ok := selector(defaultRoute); !ok || selected != "default-backup" {
+		t.Fatalf("default route selected=(%q,%v)", selected, ok)
 	}
 }

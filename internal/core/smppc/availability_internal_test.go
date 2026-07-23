@@ -96,3 +96,23 @@ func TestConnectorStopHonorsConfiguredUnbindTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSessionRejectsCommandMismatchedControlResponse(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := &Session{
+		conn: client,
+		pendingControls: map[uint32]*pendingControl{
+			42: {expectedResponseCommand: smppwire.CommandEnquireLinkResp},
+		},
+	}
+	if err := session.handlePDU(smppwire.PDU{Header: smppwire.Header{
+		CommandID: smppwire.CommandUnbindResp, SequenceNumber: 42,
+	}}); err != nil {
+		t.Fatalf("mismatched response returned error: %v", err)
+	}
+	if _, pending := session.pendingControls[42]; !pending {
+		t.Fatal("mismatched response consumed enquire_link control")
+	}
+}

@@ -74,7 +74,7 @@ type SubmitServiceDependencies struct {
 	EnvelopeBuilder   SubmitEnvelopeBuilder
 	Publisher         AMQPPublisher
 	Transaction       SubmitPublicationBoundary
-	SelectConnector   func(primaryConnectorID string) (string, bool)
+	SelectConnector   func(routingtable.Route) (string, bool)
 	NewMessageID      func() (string, error)
 	NewBillID         func() (string, error)
 	NewReference      func() (uint16, error)
@@ -156,7 +156,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	}
 	connectorID := route.Connector().ID()
 	if service.dependencies.SelectConnector != nil {
-		selected, available := service.dependencies.SelectConnector(connectorID)
+		selected, available := service.dependencies.SelectConnector(route)
 		if !available {
 			return "", ErrNoRouteMatched
 		}

@@ -41,14 +41,39 @@ func (c Connector) Type() ConnectorType { return c.TypeValue }
 type Route struct {
 	direction    routingfilter.Direction
 	connector    Connector
+	connectors   []Connector
 	rate         float64
 	filters      []routingfilter.Filter
 	defaultRoute bool
 }
 
 func (r Route) Connector() Connector { return r.connector }
-func (r Route) Rate() float64        { return r.rate }
-func (r Route) IsDefault() bool      { return r.defaultRoute }
+func (r Route) Connectors() []Connector {
+	if len(r.connectors) == 0 {
+		return []Connector{r.connector}
+	}
+	return append([]Connector(nil), r.connectors...)
+}
+func (r Route) Rate() float64   { return r.rate }
+func (r Route) IsDefault() bool { return r.defaultRoute }
+
+func (r Route) WithConnectors(connectors []Connector) (Route, error) {
+	if len(connectors) == 0 || connectors[0] != r.connector {
+		return Route{}, fmt.Errorf("%w: connector pool primary", ErrInvalidTableParameter)
+	}
+	seen := make(map[string]struct{}, len(connectors))
+	for _, connector := range connectors {
+		if err := validateConnector(connector); err != nil {
+			return Route{}, err
+		}
+		if _, duplicate := seen[connector.ID()]; duplicate {
+			return Route{}, fmt.Errorf("%w: duplicate connector %q", ErrInvalidTableParameter, connector.ID())
+		}
+		seen[connector.ID()] = struct{}{}
+	}
+	r.connectors = append([]Connector(nil), connectors...)
+	return r, nil
+}
 
 func NewStaticRoute(direction routingfilter.Direction, connector Connector, rate float64, filters ...routingfilter.Filter) (Route, error) {
 	if direction != routingfilter.MT && direction != routingfilter.MO {
