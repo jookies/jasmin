@@ -10,7 +10,7 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 - **1.1: HTTP Interface Parity** (H-001 to H-009) - **COMPLETE**
 - **1.2: Advanced Segmentation & Encoding** (HE-001 to HE-006) - **COMPLETE**
 - **1.3: Router & Billing Integration** (A-001, A-002, A-008, A-009, B-001 to B-011) - **IN PROGRESS (fixture-backed atomic submit, durable multipart admission/per-part response billing, explicit settlement, and RouterPB subscription topology are implemented through Wave 1B; cited rows remain `GO-PARTIAL`/`INVENTORIED` until authoritative balance, inbound DLR, float/error, and production-flow closure)**
-- **1.4: SMPP Outbound Stability** (SC-001, SC-002, SC-003, SC-004, SC-007) - **IN PROGRESS (Phase 2.33B repairs session ownership/control PDUs; Phase 2.34 integrates production submit pacing; configuration, management lifecycle, and failover remain)**
+- **1.4: SMPP Outbound Stability** (SC-001, SC-002, SC-003, SC-004, SC-007) - **IN PROGRESS (Wave 1C implements production pre-admission availability-aware failover, route-pool persistence, independent reconnect controls, graceful unbind, verified SMSC TLS, and connector QoS; rows remain `GO-PARTIAL`/`INVENTORIED` until full legacy timer/configuration and measured concurrency evidence permits promotion)**
 
 ### Macro 2: Delivery Receipts (DLR Path)
 **Goal:** Handle SMPP receipts and deliver to HTTP/SMPPS.

@@ -51,3 +51,12 @@ Close the bounded Task 1.5 production path from route selection through observed
 - `internal/transport/{amqpcompat,smppwire}` and tests
 - `spec/compatibility/GO_MACRO_TESTS.csv`
 - `spec/implementation/MACRO_SLICE_ROADMAP.md`
+
+## Verification
+
+- The pre-correction remote candidate `8a0b7bb1308fcc16797a16569e43b14c256546a6` passed exact-SHA GitHub Actions run `29969854699` with `4/4` jobs; the boundary audit then found three in-scope defects rather than treating that green run as closure.
+- Corrected executable candidate: `c64baaec6065dfe759dd699e4a29547973780fec` (tree `11763dcc27e57b5d032b901e7ac5c004ebe5ee07`). It rejects pooled standalone routes without observed availability, forbids disabling SMSC TLS certificate verification, validates every route-pool connector against route direction, and honors independent connection-failure/loss retry flags with legacy default `true`.
+- Focused reconnect and correction tests passed `20` times under `-race`; full `go test ./...`, `go test -race ./...`, `go vet ./...`, and `go build ./...` passed.
+- Contract registry remains `205 = 129 INVENTORIED + 55 GO-PARTIAL + 18 MATCH + 3 GO-COMPLETE`; fixture integrity, JSON Schemas, the `1,039`-test manifest, all `58` Python compatibility tests, frozen-fixture diff, and candidate-diff secret scan passed.
+- The exact-candidate Ralph code council identified three High/Medium boundary defects. After one correction batch and invalidated-gate rerun, the focused final council returned `PASS` for the corrected SHA/tree.
+- Publication, corrected exact-SHA `4/4` CI, final local/tracking/remote equality, clean-workspace verification, and the terminal LoopKey remain required.
