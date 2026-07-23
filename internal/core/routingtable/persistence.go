@@ -7,12 +7,13 @@ import (
 
 // RouteState represents the serializable state of a route.
 type RouteState struct {
-	Direction    routingfilter.Direction      `json:"direction"`
-	ConnectorID  string                       `json:"connector_id"`
+	Direction     routingfilter.Direction     `json:"direction"`
+	ConnectorID   string                      `json:"connector_id"`
 	ConnectorType ConnectorType               `json:"connector_type"`
-	Rate         float64                      `json:"rate"`
-	DefaultRoute bool                         `json:"default_route"`
-	Filters      []routingfilter.FilterState  `json:"filters"`
+	Connectors    []ConnectorState            `json:"connectors,omitempty"`
+	Rate          float64                     `json:"rate"`
+	DefaultRoute  bool                        `json:"default_route"`
+	Filters       []routingfilter.FilterState `json:"filters"`
 }
 
 // GetState returns the serializable state of the route.
@@ -22,13 +23,19 @@ func (r Route) GetState() RouteState {
 		filters = append(filters, routingfilter.GetFilterState(f))
 	}
 
+	connectors := r.Connectors()
+	connectorStates := make([]ConnectorState, 0, len(connectors))
+	for _, connector := range connectors {
+		connectorStates = append(connectorStates, connector.GetState())
+	}
 	return RouteState{
-		Direction:    r.direction,
-		ConnectorID:  r.connector.IDValue,
+		Direction:     r.direction,
+		ConnectorID:   r.connector.IDValue,
 		ConnectorType: r.connector.TypeValue,
-		Rate:         r.rate,
-		DefaultRoute: r.defaultRoute,
-		Filters:      filters,
+		Connectors:    connectorStates,
+		Rate:          r.rate,
+		DefaultRoute:  r.defaultRoute,
+		Filters:       filters,
 	}
 }
 
@@ -37,10 +44,6 @@ func FromRouteState(s RouteState) (Route, error) {
 	connector := Connector{
 		IDValue:   s.ConnectorID,
 		TypeValue: s.ConnectorType,
-	}
-
-	if s.DefaultRoute {
-		return NewDefaultRoute(connector, s.Rate)
 	}
 
 	filters := make([]routingfilter.Filter, 0, len(s.Filters))
@@ -52,7 +55,24 @@ func FromRouteState(s RouteState) (Route, error) {
 		filters = append(filters, f)
 	}
 
-	return NewStaticRoute(s.Direction, connector, s.Rate, filters...)
+	var route Route
+	var err error
+	if s.DefaultRoute {
+		route, err = NewDefaultRoute(connector, s.Rate)
+	} else {
+		route, err = NewStaticRoute(s.Direction, connector, s.Rate, filters...)
+	}
+	if err != nil {
+		return Route{}, err
+	}
+	if len(s.Connectors) == 0 {
+		return route, nil
+	}
+	connectors := make([]Connector, 0, len(s.Connectors))
+	for _, state := range s.Connectors {
+		connectors = append(connectors, FromConnectorState(state))
+	}
+	return route.WithConnectors(connectors)
 }
 
 // ConnectorState represents the serializable state of a connector.

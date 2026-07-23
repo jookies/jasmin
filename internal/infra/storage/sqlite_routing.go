@@ -33,7 +33,8 @@ func (r *SQLiteRouteRepository) Init(ctx context.Context) error {
 			connector_type TEXT,
 			rate REAL,
 			is_default INTEGER,
-			filters_json TEXT
+			filters_json TEXT,
+			connector_pool_json TEXT
 		);
 		CREATE TABLE IF NOT EXISTS connectors (
 			id TEXT PRIMARY KEY,
@@ -41,7 +42,37 @@ func (r *SQLiteRouteRepository) Init(ctx context.Context) error {
 		);
 	`, tableName)
 
-	_, err := r.db.ExecContext(ctx, query)
+	if _, err := r.db.ExecContext(ctx, query); err != nil {
+		return err
+	}
+	return ensureSQLiteColumn(ctx, r.db, tableName, "connector_pool_json", "TEXT")
+}
+
+func ensureSQLiteColumn(ctx context.Context, db *sql.DB, tableName, columnName, columnType string) error {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	if err != nil {
+		return err
+	}
+	found := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, dataType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return err
+		}
+		if name == columnName {
+			found = true
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+	_, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, columnName, columnType))
 	return err
 }
 
@@ -56,20 +87,25 @@ func (r *SQLiteRouteRepository) Save(ctx context.Context, order int, route routi
 	if err != nil {
 		return err
 	}
+	connectorPoolJSON, err := json.Marshal(state.Connectors)
+	if err != nil {
+		return err
+	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO %s (routing_order, direction, connector_id, connector_type, rate, is_default, filters_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO %s (routing_order, direction, connector_id, connector_type, rate, is_default, filters_json, connector_pool_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(routing_order) DO UPDATE SET
 			direction = excluded.direction,
 			connector_id = excluded.connector_id,
 			connector_type = excluded.connector_type,
 			rate = excluded.rate,
 			is_default = excluded.is_default,
-			filters_json = excluded.filters_json
+			filters_json = excluded.filters_json,
+			connector_pool_json = excluded.connector_pool_json
 	`, tableName)
 
-	_, err = r.db.ExecContext(ctx, query, order, state.Direction, state.ConnectorID, state.ConnectorType, state.Rate, state.DefaultRoute, string(filtersJSON))
+	_, err = r.db.ExecContext(ctx, query, order, state.Direction, state.ConnectorID, state.ConnectorType, state.Rate, state.DefaultRoute, string(filtersJSON), string(connectorPoolJSON))
 	return err
 }
 
@@ -79,7 +115,7 @@ func (r *SQLiteRouteRepository) LoadAll(ctx context.Context) (map[int]routingtab
 		tableName = "mt_routes"
 	}
 
-	query := fmt.Sprintf(`SELECT routing_order, direction, connector_id, connector_type, rate, is_default, filters_json FROM %s`, tableName)
+	query := fmt.Sprintf(`SELECT routing_order, direction, connector_id, connector_type, rate, is_default, filters_json, connector_pool_json FROM %s`, tableName)
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -91,12 +127,18 @@ func (r *SQLiteRouteRepository) LoadAll(ctx context.Context) (map[int]routingtab
 		var order int
 		var state routingtable.RouteState
 		var filtersJSON string
-		if err := rows.Scan(&order, &state.Direction, &state.ConnectorID, &state.ConnectorType, &state.Rate, &state.DefaultRoute, &filtersJSON); err != nil {
+		var connectorPoolJSON sql.NullString
+		if err := rows.Scan(&order, &state.Direction, &state.ConnectorID, &state.ConnectorType, &state.Rate, &state.DefaultRoute, &filtersJSON, &connectorPoolJSON); err != nil {
 			return nil, err
 		}
 
 		if err := json.Unmarshal([]byte(filtersJSON), &state.Filters); err != nil {
 			return nil, err
+		}
+		if connectorPoolJSON.Valid && connectorPoolJSON.String != "" {
+			if err := json.Unmarshal([]byte(connectorPoolJSON.String), &state.Connectors); err != nil {
+				return nil, err
+			}
 		}
 
 		route, err := routingtable.FromRouteState(state)
