@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
+	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 )
@@ -28,6 +29,9 @@ type Config struct {
 	// DLRLookup, when present, runs the legacy DLRLookup worker in-process.
 	// An empty amqp_url inherits the outbound broker.
 	DLRLookup *dlrlookup.Config `json:"dlr_lookup,omitempty"`
+	// DLRThrower, when present, runs the legacy DLRThrower worker in-process.
+	// An empty amqp_url inherits the outbound broker.
+	DLRThrower *dlrthrower.Config `json:"dlr_thrower,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -71,6 +75,15 @@ func ValidateConfig(config Config) error {
 		}
 		if err := dlrlookup.ValidateConfig(lookup); err != nil {
 			return fmt.Errorf("%w: dlr_lookup: %v", ErrInvalidConfig, err)
+		}
+	}
+	if config.DLRThrower != nil {
+		thrower := *config.DLRThrower
+		if thrower.AMQPURL == "" {
+			thrower.AMQPURL = config.Outbound.AMQPURL
+		}
+		if err := dlrthrower.ValidateConfig(thrower); err != nil {
+			return fmt.Errorf("%w: dlr_thrower: %v", ErrInvalidConfig, err)
 		}
 	}
 	if len(config.Connectors) == 0 {
