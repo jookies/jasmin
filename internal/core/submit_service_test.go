@@ -14,7 +14,9 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
+	"math/big"
 )
 
 var errBuild = errors.New("build failed")
@@ -98,7 +100,7 @@ func TestSubmitServiceMultipartBuildChargeAndPublish(t *testing.T) {
 		Content:     strings.Repeat("A", 161),
 		Coding:      0,
 		Priority:    2,
-		CustomTLVs:  map[uint16][]byte{0x1400: {0x01, 0x02}},
+		CustomTLVs:  []tlv.TLV{{Tag: big.NewInt(0x1400), Value: "12"}},
 	})
 	if err != nil {
 		t.Fatal(err)

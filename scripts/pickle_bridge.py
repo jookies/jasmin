@@ -190,15 +190,18 @@ def decode_submit_sm(data):
         if not isinstance(item, tuple) or len(item) != 4:
             raise ValueError("malformed custom TLV")
         tag, declared, _, value = item
-        if isinstance(tag, bool) or not isinstance(tag, int) or tag < 0 or tag > 65535:
-            raise ValueError("custom TLV tag is outside uint16")
-        value = _binary(value, "custom TLV value", 65535)
-        if declared != len(value):
-            raise ValueError("custom TLV length mismatch")
-        if tag in (0x020c, 0x020e, 0x020f, 0x0424):
-            result["optional_tlvs"].append({"tag": tag, "value": value})
+        if isinstance(tag, bool) or not isinstance(tag, int) or tag < 0:
+            raise ValueError("custom TLV tag is not a non-negative integer")
+        if (tag & 0xFFFF) in (0x020c, 0x020e, 0x020f, 0x0424):
+            # Allowlisted tags must arrive as strict pre-encoded octets.
+            value = _binary(value, "custom TLV value", 65535)
+            if declared is not None and declared != len(value):
+                raise ValueError("custom TLV length mismatch")
+            result["optional_tlvs"].append({"tag": tag & 0xFFFF, "value": value})
         else:
-            # Q-016: legacy accepts unknown vendor TLVs but drops them on re-encode.
+            # Q-016: legacy accepts unknown vendor TLVs but drops them on
+            # re-encode. Normalized front-door tuples carry untyped values and
+            # a None length hint, so the drop path takes them shape-unchecked.
             result["dropped_unknown_tlvs"] += 1
 
     present_sar = {item["tag"] for item in result["optional_tlvs"] if item["tag"] in (0x020c, 0x020e, 0x020f)}
@@ -305,10 +308,19 @@ def run():
                     kwargs["sar_segment_seqnum"] = int(sar["sequence"])
 
                 pdu = SubmitSM(**kwargs)
+                # Each entry is the Python tuple shape [tag, length, type, value]
+                # produced by the Go front door (tlv.Normalize output). Values
+                # arrived through deserialize(), so bytes wrappers are already
+                # Python bytes; everything else (str/int/float/bool/None) is
+                # carried verbatim and the legacy listener resolves, validates,
+                # and wire-encodes exactly as for Python-published submits.
                 custom_tlvs = []
                 for item in payload.get("custom_tlvs", []):
-                    value = item["value"]
-                    custom_tlvs.append((int(item["tag"]), len(value), "octet_string", value))
+                    if not isinstance(item, list) or len(item) != 4:
+                        raise ValueError("malformed custom TLV tuple")
+                    if isinstance(item[0], bool) or not isinstance(item[0], int):
+                        raise ValueError("custom TLV tag is not an integer")
+                    custom_tlvs.append(tuple(item))
                 if custom_tlvs:
                     pdu.custom_tlvs = custom_tlvs
 

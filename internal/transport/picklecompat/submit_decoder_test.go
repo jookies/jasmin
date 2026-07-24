@@ -10,6 +10,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"math/big"
 )
 
 func TestDecodeSubmitSMProjectsCanonicalWireBody(t *testing.T) {
@@ -32,7 +33,7 @@ func TestDecodeSubmitSMProjectsCanonicalWireBody(t *testing.T) {
 		ScheduleAt: "2026-07-21T10:11:12Z", ValidityUntil: "2026-07-22T10:11:12Z",
 		RegisteredDelivery: true, UDH: true,
 		SAR:         &picklecompat.SubmitSMSAR{Reference: 0x1234, Total: 3, Sequence: 2},
-		CustomTLVs:  []picklecompat.SubmitSMCustomTLV{{Tag: 0x1403, Value: picklecompat.Bytes("vendor")}},
+		CustomTLVs:  []picklecompat.SubmitSMCustomTLV{{Tag: big.NewInt(0x1403), Value: []byte("vendor")}},
 		IncludeBill: false,
 	})
 	if err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
 
@@ -59,7 +60,7 @@ type SubmitEnvelopeRequest struct {
 	SourceConnector string
 	Bill            billing.Bill
 	Parts           []segmentation.Part
-	CustomTLVs      map[uint16][]byte
+	CustomTLVs      []tlv.TLV
 }
 
 type SubmitEnvelopeBuilder interface {
@@ -309,12 +310,13 @@ func randomReference() (uint16, error) {
 	return uint16(value[0])<<8 | uint16(value[1]), nil
 }
 
-func cloneTLVs(values map[uint16][]byte) map[uint16][]byte {
-	copy := make(map[uint16][]byte, len(values))
-	for tag, value := range values {
-		copy[tag] = append([]byte(nil), value...)
+// cloneTLVs copies the tuple list; fields (tag, length hint, value) are shared
+// as immutable, mirroring Python's shared tuples.
+func cloneTLVs(values []tlv.TLV) []tlv.TLV {
+	if values == nil {
+		return nil
 	}
-	return copy
+	return append([]tlv.TLV(nil), values...)
 }
 
 func cloneTime(value *time.Time) *time.Time {

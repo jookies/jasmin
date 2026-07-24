@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
@@ -85,7 +85,7 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 	if _, _, ok := part.UDH(); ok {
 		encodeRequest.UDH = true
 	}
-	encodeRequest.CustomTLVs = sortedTLVs(request.CustomTLVs)
+	encodeRequest.CustomTLVs = tupleTLVs(request.CustomTLVs)
 
 	encoded, err := builder.encoder.EncodeSubmitSM(ctx, encodeRequest)
 	if err != nil {
@@ -143,18 +143,20 @@ func pythonFloatString(value float64) string {
 	return text
 }
 
-func sortedTLVs(values map[uint16][]byte) []picklecompat.SubmitSMCustomTLV {
-	tags := make([]int, 0, len(values))
-	for tag := range values {
-		tags = append(tags, int(tag))
+// tupleTLVs projects the normalized tuples into the bridge's Python-tuple
+// shape, preserving caller order — the legacy listener resolves, validates,
+// and encodes them at submit time, so order here is wire order.
+func tupleTLVs(values []tlv.TLV) []picklecompat.SubmitSMCustomTLV {
+	if len(values) == 0 {
+		return nil
 	}
-	sort.Ints(tags)
-	result := make([]picklecompat.SubmitSMCustomTLV, 0, len(tags))
-	for _, rawTag := range tags {
-		tag := uint16(rawTag)
+	result := make([]picklecompat.SubmitSMCustomTLV, 0, len(values))
+	for _, value := range values {
 		result = append(result, picklecompat.SubmitSMCustomTLV{
-			Tag:   tag,
-			Value: picklecompat.Bytes(append([]byte(nil), values[tag]...)),
+			Tag:    value.Tag,
+			Length: value.Length,
+			Type:   value.Type,
+			Value:  value.Value,
 		})
 	}
 	return result

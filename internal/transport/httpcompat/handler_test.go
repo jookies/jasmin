@@ -13,6 +13,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
+	"math/big"
 )
 
 type authSpy struct {
@@ -107,7 +108,7 @@ func TestSendPassesNormalizedRequestToPort(t *testing.T) {
 	}
 	want := core.SubmitRequest{
 		Username: "nathalie", Password: "correct", Destination: "06155423", Content: "hello",
-		DLRMethod: "POST", Coding: 0, CustomTLVs: make(map[uint16][]byte),
+		DLRMethod: "POST", Coding: 0,
 	}
 	if !reflect.DeepEqual(submit.request, want) {
 		t.Fatalf("submit request = %#v, want %#v", submit.request, want)
@@ -191,4 +192,98 @@ func serveForm(dependencies httpcompat.Dependencies, method, path string, form u
 	response := httptest.NewRecorder()
 	httpcompat.NewHandler(dependencies).ServeHTTP(response, request)
 	return response
+}
+
+func TestSendCustomTLVsFromQueryPreserveDocumentOrder(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{id: "message-123"}
+	form := validSendForm()
+	form.Set("custom_tlvs", `{"0x1500": "b", "0x1400": "a"}`)
+	response := serveForm(httpcompat.Dependencies{Authenticator: auth, Submitter: submit}, http.MethodPost, "/send", form)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("response = %d %q", response.Code, response.Body.String())
+	}
+	tlvs := submit.request.CustomTLVs
+	if len(tlvs) != 2 || tlvs[0].Tag.Cmp(big.NewInt(0x1500)) != 0 || tlvs[1].Tag.Cmp(big.NewInt(0x1400)) != 0 {
+		t.Fatalf("TLVs must keep document order: %+v", tlvs)
+	}
+	if tlvs[0].Value != "b" || tlvs[1].Value != "a" || tlvs[0].Type != "" {
+		t.Fatalf("TLV tuples = %+v", tlvs)
+	}
+}
+
+func TestSendCustomTLVsFromJSONBodyPreserveDocumentOrder(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{id: "message-123"}
+	body := `{"username": "nathalie", "password": "correct", "to": "06155423", "content": "hello",` +
+		` "custom_tlvs": {"0x1401:OctetString": "1401778070000018542", "0x1400": "1707167205648943173"}}`
+	request := httptest.NewRequest(http.MethodPost, "/send", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	httpcompat.NewHandler(httpcompat.Dependencies{Authenticator: auth, Submitter: submit}).ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("response = %d %q", response.Code, response.Body.String())
+	}
+	tlvs := submit.request.CustomTLVs
+	if len(tlvs) != 2 || tlvs[0].Tag.Cmp(big.NewInt(0x1401)) != 0 || tlvs[1].Tag.Cmp(big.NewInt(0x1400)) != 0 {
+		t.Fatalf("TLVs must keep body document order: %+v", tlvs)
+	}
+	if tlvs[0].Type != "OctetString" || tlvs[0].Value != "1401778070000018542" ||
+		tlvs[1].Type != "" || tlvs[1].Value != "1707167205648943173" {
+		t.Fatalf("TLV tuples = %+v", tlvs)
+	}
+}
+
+func TestSendCustomTLVsBadTagMapsToLegacyUnknownError(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{}
+	form := validSendForm()
+	form.Set("custom_tlvs", `{"banana": 1}`)
+	response := serveForm(httpcompat.Dependencies{Authenticator: auth, Submitter: submit}, http.MethodPost, "/send", form)
+
+	// The legacy endpoint raises out of route_routable and answers with the
+	// generic exception envelope: 500 + Error "Unknown error: ...".
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+	if want := `Error "Unknown error: invalid integer tag \"banana\""`; response.Body.String() != want {
+		t.Fatalf("body = %q, want %q", response.Body.String(), want)
+	}
+	if submit.calls != 0 {
+		t.Fatalf("submit calls = %d, want 0", submit.calls)
+	}
+}
+
+func TestSendCustomTLVsMalformedJSONIsSilentlyEmpty(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{id: "message-123"}
+	form := validSendForm()
+	form.Set("custom_tlvs", `{"banana": 1, `)
+	response := serveForm(httpcompat.Dependencies{Authenticator: auth, Submitter: submit}, http.MethodPost, "/send", form)
+
+	// json.loads failure is swallowed by the oracle (empty TLV set), even with
+	// a bad tag earlier in the text.
+	if response.Code != http.StatusOK {
+		t.Fatalf("response = %d %q", response.Code, response.Body.String())
+	}
+	if submit.request.CustomTLVs != nil {
+		t.Fatalf("TLVs = %+v, want none", submit.request.CustomTLVs)
+	}
+}
+
+func TestSendAuthenticationRunsBeforeCustomTLVs(t *testing.T) {
+	auth := &authSpy{err: core.ErrAuthentication}
+	submit := &submitSpy{}
+	form := validSendForm()
+	form.Set("custom_tlvs", `{"banana": 1}`)
+	response := serveForm(httpcompat.Dependencies{Authenticator: auth, Submitter: submit}, http.MethodPost, "/send", form)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 (auth failure wins over TLV error)", response.Code)
+	}
+	if submit.calls != 0 {
+		t.Fatalf("submit calls = %d, want 0", submit.calls)
+	}
 }

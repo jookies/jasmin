@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"math/big"
 )
 
 const baselineCommit = "0aac58e466d583d0f0436df7b8afa3dc96191263"
@@ -212,9 +214,7 @@ func TestEmptyPayloadIsSinglePart(t *testing.T) {
 }
 
 func TestCustomTLVPropagation(t *testing.T) {
-	tlvs := map[uint16][]byte{
-		0x1234: []byte("hello"),
-	}
+	tlvs := []tlv.TLV{{Tag: big.NewInt(0x1234), Value: "hello"}}
 	req := segmentation.Request{
 		Payload:     []byte("world"),
 		DataCoding:  0,
@@ -231,8 +231,8 @@ func TestCustomTLVPropagation(t *testing.T) {
 		t.Fatal("expected 1 part")
 	}
 	got := parts[0].CustomTLVs()
-	if !bytes.Equal(got[0x1234], []byte("hello")) {
-		t.Fatal("TLV not propagated correctly")
+	if len(got) != 1 || got[0].Tag.Cmp(big.NewInt(0x1234)) != 0 || got[0].Value != "hello" {
+		t.Fatalf("TLV not propagated correctly: %+v", got)
 	}
 }
 
