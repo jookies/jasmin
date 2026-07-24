@@ -95,6 +95,20 @@ type SMBody struct {
 	// populates it — unknown wire TLVs stay unretained per KNOWN_QUIRKS Q-016,
 	// so an encode/decode round trip does not preserve this field.
 	VendorTLVs []byte
+	// CapturedVendorTLVs are wire TLVs outside the legacy library's known-tag
+	// set, captured on decode exactly like the fork's decoder patch
+	// (install_pdu_decoder_patch): raw octets, wire order, duplicates kept.
+	// Decode-only: encode ignores this field, so re-encoding still omits
+	// unknown TLVs per KNOWN_QUIRKS Q-016 — capture is for MO/DLR forwarding.
+	CapturedVendorTLVs []CapturedVendorTLV
+}
+
+// CapturedVendorTLV is one captured vendor-range wire TLV. The legacy capture
+// shape is (tag, length, 'OctetString', bytes); length is always len(Value)
+// because the wire framing supplies exactly the declared byte count.
+type CapturedVendorTLV struct {
+	Tag   uint16
+	Value []byte
 }
 
 // SubmitSMBody names the canonical outbound submit_sm body while preserving

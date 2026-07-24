@@ -260,7 +260,7 @@ func decodeSM(c *cursor) (*SMBody, bool, error) {
 	if body.ShortMessage, err = c.take(int(messageLength)); err != nil {
 		return nil, false, fieldError("short_message", err)
 	}
-	messagePayload, err := decodeTLVs(c, &body.Optional)
+	messagePayload, err := decodeTLVs(c, body)
 	if err != nil {
 		return nil, false, err
 	}
@@ -339,7 +339,8 @@ func encodeSubmitResponse(body *SubmitResponseBody) ([]byte, error) {
 	return output.Bytes(), nil
 }
 
-func decodeTLVs(c *cursor, optional *OptionalParameters) (bool, error) {
+func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
+	optional := &body.Optional
 	messagePayload := false
 	for c.remaining() != 0 {
 		if c.remaining() < 4 {
@@ -386,7 +387,15 @@ func decodeTLVs(c *cursor, optional *OptionalParameters) (bool, error) {
 			optional.MessageState = &v
 		default:
 			// Frozen compatibility behavior accepts unknown optionals but does not
-			// retain them for re-encoding (KNOWN_QUIRKS Q-016).
+			// retain them for re-encoding (KNOWN_QUIRKS Q-016). Tags outside the
+			// legacy library's known set are additionally captured for MO/DLR
+			// forwarding, mirroring the fork's decoder patch; known-but-unhandled
+			// standard optionals stay dropped (standard tlv_params forwarding is
+			// a separate slice).
+			if !legacyKnownWireTag(tag) {
+				body.CapturedVendorTLVs = append(body.CapturedVendorTLVs,
+					CapturedVendorTLV{Tag: tag, Value: append([]byte(nil), value...)})
+			}
 		}
 	}
 	return messagePayload, nil
@@ -533,4 +542,23 @@ func (c *cursor) cstring() ([]byte, error) {
 	value := append([]byte(nil), remaining[:terminator]...)
 	c.offset += terminator + 1
 	return value, nil
+}
+
+// legacyKnownWireTags is smpp.pdu3's tag_name_map wire values (minus the
+// synthetic vendor_specific_bypass). Any wire tag outside this set is what the
+// legacy decoder maps to vendor_specific_bypass — the fork's capture boundary.
+var legacyKnownWireTags = map[uint16]struct{}{
+	0x0005: {}, 0x0006: {}, 0x0007: {}, 0x0008: {}, 0x000D: {}, 0x000E: {},
+	0x000F: {}, 0x0010: {}, 0x0017: {}, 0x0019: {}, 0x001D: {}, 0x001E: {},
+	0x0030: {}, 0x0201: {}, 0x0202: {}, 0x0203: {}, 0x0204: {}, 0x0205: {},
+	0x020A: {}, 0x020B: {}, 0x020C: {}, 0x020D: {}, 0x020E: {}, 0x020F: {},
+	0x0210: {}, 0x0302: {}, 0x0303: {}, 0x0304: {}, 0x0381: {}, 0x0420: {},
+	0x0421: {}, 0x0422: {}, 0x0423: {}, 0x0424: {}, 0x0425: {}, 0x0426: {},
+	0x0427: {}, 0x0501: {}, 0x1201: {}, 0x1203: {}, 0x1204: {}, 0x130C: {},
+	0x1380: {}, 0x1383: {},
+}
+
+func legacyKnownWireTag(tag uint16) bool {
+	_, known := legacyKnownWireTags[tag]
+	return known
 }
