@@ -1,6 +1,7 @@
 package mo
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -30,8 +31,11 @@ func SelectContent(shortMessage, messagePayload []byte) ([]byte, error) {
 // DeliveryFromDeliverSM builds an MO Delivery from a routed deliver_sm for forwarding to an
 // HttpConnector. It selects the content per SelectContent and maps source/destination plus
 // the simple optionals (priority_flag, data_coding, validity_period), which a deliver_sm
-// always carries. TLV forwarding (tlv_params / custom_tlvs) is populated separately by the
-// caller from the PDU's optional and custom parameters.
+// always carries. Vendor TLVs captured on decode (CapturedVendorTLVs) become custom_tlvs
+// entries exactly as the legacy thrower formats them: hex value, wire length, OctetString
+// type — the inbound resolve step is a passthrough for wire-captured tuples, so connector
+// rules never re-type them. Standard-optional tlv_params stay caller-populated (their
+// typed decode is a separate slice).
 func DeliveryFromDeliverSM(sm *smppwire.SMBody, msgID, originConnector, connectorURL, method string) (Delivery, error) {
 	if sm == nil {
 		return Delivery{}, fmt.Errorf("mo: nil deliver_sm body")
@@ -55,6 +59,14 @@ func DeliveryFromDeliverSM(sm *smppwire.SMBody, msgID, originConnector, connecto
 	}
 	if len(sm.ValidityPeriod) > 0 {
 		d.Validity = string(sm.ValidityPeriod)
+	}
+	for _, captured := range sm.CapturedVendorTLVs {
+		d.CustomTLVs = append(d.CustomTLVs, CustomTLV{
+			Tag:    int(captured.Tag),
+			Length: len(captured.Value),
+			Type:   "OctetString", // the legacy decoder patch types every capture this way
+			Value:  hex.EncodeToString(captured.Value),
+		})
 	}
 	return d, nil
 }
