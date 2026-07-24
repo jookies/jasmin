@@ -339,6 +339,16 @@ func encodeSubmitResponse(body *SubmitResponseBody) ([]byte, error) {
 	return output.Bytes(), nil
 }
 
+// DecodeOptionalSection parses a raw optional-TLV section into body using the
+// codec's frozen decode rules (typed standard optionals, vendor capture,
+// legacy validation errors). It exists for projections that rebuild a body
+// from re-encoded parameters rather than a full wire frame.
+func DecodeOptionalSection(data []byte, body *SMBody) error {
+	c := &cursor{data: data}
+	_, err := decodeTLVs(c, body)
+	return err
+}
+
 func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 	optional := &body.Optional
 	messagePayload := false

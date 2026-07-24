@@ -130,3 +130,41 @@ func TestOpenDLRThrowerSubscriptionClosesChannelOnFailure(t *testing.T) {
 		}
 	}
 }
+
+// The legacy deliverSmThrower binds the fixed deliver_sm_thrower queue to
+// deliver_sm_thrower.* with the deliverSmThrower consumer tag.
+func TestOpenMOThrowerSubscriptionDeclaresLegacyTopology(t *testing.T) {
+	channel := newRecordingTopologyChannel()
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+
+	subscription, err := topology.OpenMOThrowerSubscription(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subscription.ConsumerTag != "deliverSmThrower" {
+		t.Fatalf("consumer tag = %q", subscription.ConsumerTag)
+	}
+	want := []map[string]any{
+		{"operation": "exchange_declare", "exchange": "messaging", "type": "topic"},
+		{"operation": "queue_declare", "queue": "deliver_sm_thrower"},
+		{"operation": "queue_bind", "queue": "deliver_sm_thrower", "exchange": "messaging", "routing_key": "deliver_sm_thrower.*"},
+		{"operation": "basic_consume", "queue": "deliver_sm_thrower", "consumer_tag": "deliverSmThrower", "auto_ack": false},
+	}
+	if len(channel.operations) != len(want) {
+		t.Fatalf("operations = %d, want %d: %v", len(channel.operations), len(want), channel.operations)
+	}
+	for index, expected := range want {
+		got := channel.operations[index]
+		for key, value := range expected {
+			if got[key] != value {
+				t.Errorf("operation %d %s = %v, want %v (%v)", index, key, got[key], value, got)
+			}
+		}
+	}
+	if err := subscription.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if channel.closeCalls != 1 {
+		t.Fatalf("close calls = %d", channel.closeCalls)
+	}
+}

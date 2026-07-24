@@ -63,7 +63,7 @@ func TestSendMO_GET_WithOptionals(t *testing.T) {
 	if err := SendMO(context.Background(), srv.Client(), d); err != nil {
 		t.Fatalf("SendMO: %v", err)
 	}
-	if q.Get("priority") != "2" || q.Get("coding") != "8" || q.Get("validity") != "000000000100000R" {
+	if q.Get("priority") != "2" || q.Get("coding") != "\x08" || q.Get("validity") != "000000000100000R" {
 		t.Errorf("optionals wrong: priority=%q coding=%q validity=%q", q.Get("priority"), q.Get("coding"), q.Get("validity"))
 	}
 }

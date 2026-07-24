@@ -67,7 +67,9 @@ func (d Delivery) args() url.Values {
 		v.Set("priority", strconv.Itoa(int(*d.Priority)))
 	}
 	if d.Coding != nil {
-		v.Set("coding", strconv.Itoa(int(*d.Coding)))
+		// The legacy thrower sends DataCodingEncoder().encode(...) — the raw
+		// encoded byte, percent-encoded on the form — not a decimal rendering.
+		v.Set("coding", string([]byte{*d.Coding}))
 	}
 	if d.Validity != "" {
 		v.Set("validity", d.Validity)
