@@ -194,3 +194,12 @@ billing-persistence,clean_tick_only_rearms,B-009,partial,Frozen legacy oracle ca
 billing-persistence,one_dirty_persists_groups_then_users,B-009,partial,Frozen legacy oracle case
 billing-persistence,first_dirty_only_is_cleared,B-009,partial,Frozen legacy oracle case
 billing-persistence,legacy_false_return_still_clears,B-009,partial,Frozen legacy oracle case
+smpps-bind-state,unsupported_deliver_sm_rejected,S-003,partial,Unsupported inbound PDU is rejected with ESME_RSYSERR
+smpps-bind-state,submit_sm_bound_rx_rejected,S-003,partial,submit_sm while BOUND_RX is rejected with ESME_RINVBNDSTS
+smpps-bind-state,data_sm_bound_rx_rejected,S-003,partial,data_sm while BOUND_RX is rejected with ESME_RINVBNDSTS
+smpps-bind-state,bind_transmitter_open_delegated,S-003,partial,Accepted bind command delegates to the vendored server base
+smpps-bind-state,submit_sm_bound_tx_delegated,S-003,partial,Accepted transmit-bound submit delegates to the vendored server base
+smpps-bind-state,data_sm_bound_trx_delegated,S-003,partial,Accepted transceiver-bound data_sm delegates to the vendored server base
+smpps-bind-state,unbind_bound_trx_delegated,S-003,partial,Accepted unbind delegates to the vendored server base
+smpps-bind-state,enquire_link_open_delegated,S-003,partial,Accepted enquire_link delegates to the vendored server base
+smpps-bind-state,unbind_resp_unbound_delegated,S-003,partial,Accepted unbind response delegates to the vendored server base

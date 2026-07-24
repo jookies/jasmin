@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = {
     "http": ROOT / "compat/fixtures/http/baseline.json",
     "smpp": ROOT / "compat/fixtures/smpp/baseline.json",
+    "smpps-bind-state": ROOT / "compat/fixtures/smpps-bind-state/baseline.json",
     "smpp-client-pacing": ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
     "smpp-client-readiness": ROOT / "compat/fixtures/smpp-client-readiness/baseline.json",
     "smpp-client-error-retry": ROOT / "compat/fixtures/smpp-client-error-retry/baseline.json",
@@ -58,6 +59,17 @@ EXPECTED_CASE_IDS = {
         "submit_sm_resp_ok",
         "deliver_sm_dlr_message_payload",
         "submit_sm_unknown_vendor_tlv",
+    },
+    "smpps-bind-state": {
+        "unsupported_deliver_sm_rejected",
+        "submit_sm_bound_rx_rejected",
+        "data_sm_bound_rx_rejected",
+        "bind_transmitter_open_delegated",
+        "submit_sm_bound_tx_delegated",
+        "data_sm_bound_trx_delegated",
+        "unbind_bound_trx_delegated",
+        "enquire_link_open_delegated",
+        "unbind_resp_unbound_delegated",
     },
     "smpp-client-pacing": {
         "default_config",
@@ -205,8 +217,9 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "3ca87003c4ddbd0d16f94ca5ef4533fa7618d11a9319ec070be8b1dfdcfa6dc4"
+EXPECTED_COVERAGE_SHA256 = "2b00d979db6a15a5385ea5307a6f2b34d8cf7862a89c1785fd7021aa3e5af103"
 EXPECTED_SMPP_CASES_SHA256 = "2aaae22f3ef9f3149df1f3ba357004d75eda423f1a7d44ae73bf922676db68a3"
+EXPECTED_SMPPS_BIND_STATE_CASES_SHA256 = "def8505f4faaa56e858d9a496d097642473c42b0154439409ede747d5b65da40"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
@@ -283,6 +296,34 @@ def validate_smpp(document: dict) -> None:
             require(case["roundtrip_wire_hex"] == case["wire_hex"], f"smpp/{case['id']}: encode roundtrip")
         if case.get("roundtrip_wire_hex") is None:
             require(bool(case.get("roundtrip_error")), f"smpp/{case['id']}: missing roundtrip error")
+
+
+def validate_smpps_bind_state(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(digest == EXPECTED_SMPPS_BIND_STATE_CASES_SHA256, "smpps-bind-state: trusted corpus fingerprint")
+    require(
+        document.get("source") == [
+            "jasmin/protocols/smpp/protocol.py:SMPPServerProtocol.PDURequestReceived",
+            "jasmin/protocols/smpp/protocol.py:SMPPServerProtocol.PDUDataRequestReceived",
+        ],
+        "smpps-bind-state: source boundary",
+    )
+    statuses = {
+        "CommandStatus.ESME_ROK": 0,
+        "CommandStatus.ESME_RINVBNDSTS": 4,
+        "CommandStatus.ESME_RSYSERR": 8,
+    }
+    for case in document["cases"]:
+        context = f"smpps-bind-state/{case['id']}"
+        expected = case["expected"]
+        require(expected["command_status"] == statuses[expected["status"]], f"{context}: status wire value")
+        if expected["action"] == "delegate":
+            require(expected["status"] == "CommandStatus.ESME_ROK", f"{context}: delegated status")
+        else:
+            require(expected["action"] == "reject", f"{context}: action")
+            require(expected["status"] != "CommandStatus.ESME_ROK", f"{context}: rejected status")
 
 
 def validate_smpp_client_pacing(document: dict) -> None:
@@ -741,6 +782,7 @@ def main() -> int:
 
     validate_http(documents["http"])
     validate_smpp(documents["smpp"])
+    validate_smpps_bind_state(documents["smpps-bind-state"])
     validate_smpp_client_pacing(documents["smpp-client-pacing"])
     validate_smpp_client_readiness(documents["smpp-client-readiness"])
     validate_smpp_client_error_retry(documents["smpp-client-error-retry"])

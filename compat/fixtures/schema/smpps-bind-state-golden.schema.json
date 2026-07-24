@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pumpitspace.github.io/jasmin-go/schemas/smpps-bind-state-golden.schema.json",
+  "title": "Jasmin SMPPS bind-state oracle fixture",
+  "type": "object",
+  "required": ["schema_version", "baseline_commit", "source", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "jasmin/protocols/smpp/protocol.py:SMPPServerProtocol.PDURequestReceived"},
+        {"const": "jasmin/protocols/smpp/protocol.py:SMPPServerProtocol.PDUDataRequestReceived"}
+      ],
+      "items": false
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "input", "expected"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "input": {
+            "type": "object",
+            "required": ["state", "command", "command_id", "entry_point"],
+            "properties": {
+              "state": {"enum": ["OPEN", "BOUND_RX", "BOUND_TX", "BOUND_TRX", "UNBOUND"]},
+              "command": {"type": "string", "minLength": 1},
+              "command_id": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+              "entry_point": {"enum": ["PDURequestReceived", "PDUDataRequestReceived"]}
+            },
+            "additionalProperties": false
+          },
+          "expected": {
+            "type": "object",
+            "required": ["action", "status", "command_status"],
+            "properties": {
+              "action": {"enum": ["delegate", "reject"]},
+              "status": {"enum": ["CommandStatus.ESME_ROK", "CommandStatus.ESME_RINVBNDSTS", "CommandStatus.ESME_RSYSERR"]},
+              "command_status": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

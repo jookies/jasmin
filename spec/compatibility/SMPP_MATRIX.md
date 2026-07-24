@@ -9,7 +9,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 |---|---|---|---|
 | S-001 | framing | command length/id/status/sequence, partial/coalesced reads, malformed length | GO-PARTIAL |
 | S-002 | bind TX/RX/TRX | success, wrong password/system_id, disabled user/group, IP restriction | INVENTORIED |
-| S-003 | bind state | allowed commands by state and exact status codes | INVENTORIED |
+| S-003 | bind state | allowed commands by state and exact status codes | GO-PARTIAL |
 | S-004 | limits | max bindings, duplicate sessions, ban/unbind behavior | INVENTORIED |
 | S-005 | timers | response, enquire_link, inactivity, session-init and reconnect timers | GO-PARTIAL |
 | S-006 | unbind/disconnect | graceful and abrupt paths, pending request behavior | INVENTORIED |
@@ -117,4 +117,13 @@ broker confirmation and redelivery are not guaranteed. `SC-006`
 remains a standalone policy projection: status mapping, attempt state, and delayed
 requeue are not yet connected to Session settlement. Response publication,
 DLR/billing side effects, and protocol-2 AMQP `SubmitSM` semantic decoding remain
+inventoried.
+
+For `S-003`, the fixture-backed subset invokes Jasmin's concrete
+`PDURequestReceived` and `PDUDataRequestReceived` methods and proves unsupported
+PDU rejection with `ESME_RSYSERR`, `submit_sm`/`data_sm` rejection while
+`BOUND_RX` with `ESME_RINVBNDSTS`, and delegation of the accepted command set to
+the vendored Twisted SMPP server base. The Go helper matches all committed cases.
+Inherited state-machine behavior, duplicate-bind execution, transport/session
+wiring, disconnect semantics, timers, and a runnable SMPPS server remain
 inventoried.
