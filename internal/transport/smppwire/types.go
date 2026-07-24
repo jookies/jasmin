@@ -115,6 +115,12 @@ type CapturedVendorTLV struct {
 // SMBody compatibility for deliver_sm and existing callers.
 type SubmitSMBody = SMBody
 
+// OptionalParameters carries decoded optional TLVs. The fields beyond the
+// original six exist for the legacy tlv_params MO/DLR forwarding and are
+// decode-only for now: encodeTLVs does not re-emit them (re-encode symmetry
+// arrives with the relay slice). Validation mirrors the legacy library:
+// fixed lengths, enum value tables, and callback_num structure errors fail
+// the whole PDU decode exactly where smpp.pdu3 raises.
 type OptionalParameters struct {
 	SARMessageReference *uint16
 	SARTotalSegments    *byte
@@ -122,6 +128,27 @@ type OptionalParameters struct {
 	MessagePayload      []byte
 	ReceiptedMessageID  []byte
 	MessageState        *byte
+
+	UserMessageReference *uint16
+	SourcePort           *uint16
+	DestinationPort      *uint16
+	PayloadType          *byte
+	PrivacyIndicator     *byte
+	LanguageIndicator    *byte
+	CallbackNum          *CallbackNumber
+	// NetworkErrorCode is verbatim octets of any length (the legacy encoder
+	// reads exactly the declared length); non-nil-empty means present-empty.
+	NetworkErrorCode []byte
+}
+
+// CallbackNumber is the decoded callback_num structure: digit mode, TON, NPI,
+// then the remaining octets as digits — validated against the legacy value
+// tables on decode.
+type CallbackNumber struct {
+	DigitMode byte
+	TON       byte
+	NPI       byte
+	Digits    []byte
 }
 
 type SubmitResponseBody struct {
