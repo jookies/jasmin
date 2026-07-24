@@ -10,7 +10,9 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/billing"
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"math/big"
 )
 
 type recordingEncoder struct {
@@ -34,7 +36,7 @@ func TestSubmitEnvelopeBuilderProjectsLegacyPropertiesAndBill(t *testing.T) {
 		SplitMethod: segmentation.SplitSAR,
 		MaxParts:    5,
 		Reference:   42,
-		CustomTLVs:  map[uint16][]byte{0x1401: {0x02}, 0x1400: {0x01}},
+		CustomTLVs:  []tlv.TLV{{Tag: big.NewInt(0x1401), Type: "Int8", Value: "2"}, {Tag: big.NewInt(0x1400), Value: "1"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +64,7 @@ func TestSubmitEnvelopeBuilderProjectsLegacyPropertiesAndBill(t *testing.T) {
 			DecrementSubmitSmCount: 1,
 		},
 		Parts:      parts,
-		CustomTLVs: map[uint16][]byte{0x1401: {0x02}, 0x1400: {0x01}},
+		CustomTLVs: []tlv.TLV{{Tag: big.NewInt(0x1401), Type: "Int8", Value: "2"}, {Tag: big.NewInt(0x1400), Value: "1"}},
 	}
 
 	envelope, err := builder.BuildSubmitEnvelope(context.Background(), request, parts[0])
@@ -98,8 +100,12 @@ func TestSubmitEnvelopeBuilderProjectsLegacyPropertiesAndBill(t *testing.T) {
 	if encoder.requests[0].SAR != nil {
 		t.Fatalf("unexpected SAR=%+v", encoder.requests[0].SAR)
 	}
-	if len(encoder.requests[0].CustomTLVs) != 2 || encoder.requests[0].CustomTLVs[0].Tag != 0x1400 {
-		t.Fatalf("custom TLVs not deterministic: %+v", encoder.requests[0].CustomTLVs)
+	tlvs := encoder.requests[0].CustomTLVs
+	if len(tlvs) != 2 || tlvs[0].Tag.Cmp(big.NewInt(0x1401)) != 0 || tlvs[1].Tag.Cmp(big.NewInt(0x1400)) != 0 {
+		t.Fatalf("custom TLVs must keep caller order: %+v", tlvs)
+	}
+	if tlvs[0].Type != "Int8" || tlvs[0].Value != "2" || tlvs[1].Type != "" || tlvs[1].Value != "1" {
+		t.Fatalf("custom TLV tuples not preserved: %+v", tlvs)
 	}
 	if encoder.requests[0].SubmitSMRespAmount != 0.5 || encoder.requests[0].DecrementSubmitSMCount != 1 {
 		t.Fatalf("bill request=%+v", encoder.requests[0])

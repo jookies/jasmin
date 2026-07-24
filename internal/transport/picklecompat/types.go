@@ -3,6 +3,8 @@ package picklecompat
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"math/big"
 )
 
 // Bytes handles the __type__: bytes wrapper from the bridge
@@ -114,9 +116,31 @@ type SubmitSMSAR struct {
 	Sequence  uint8  `json:"sequence"`
 }
 
+// SubmitSMCustomTLV is one per-message vendor TLV in the Python tuple shape
+// (tag, length, type, value). It marshals as the 4-element JSON array the
+// bridge tuple()izes verbatim onto pdu.custom_tlvs, so the legacy listener
+// performs type resolution, rule validation, and wire encoding exactly as it
+// does for Python-published submits. Order is wire order — never sort.
 type SubmitSMCustomTLV struct {
-	Tag   uint16 `json:"tag"`
-	Value Bytes  `json:"value"`
+	Tag    *big.Int // arbitrary precision, unmasked (Python int); wire masking is the encoder's job
+	Length *int     // dead hint carried for tuple fidelity; Python never reads it
+	Type   string   // "" = untyped (Python None), resolved from connector rules at submit time
+	Value  any      // string, integer kinds, float64, bool, nil, []byte, or JSON-native map/slice
+}
+
+func (t SubmitSMCustomTLV) MarshalJSON() ([]byte, error) {
+	if t.Tag == nil {
+		return nil, fmt.Errorf("custom TLV has nil tag")
+	}
+	var typeField any
+	if t.Type != "" {
+		typeField = t.Type
+	}
+	value := t.Value
+	if b, ok := value.([]byte); ok {
+		value = Bytes(b) // reuse the bridge's {"__type__": "bytes"} wrapper
+	}
+	return json.Marshal([4]any{t.Tag, t.Length, typeField, value})
 }
 
 type SubmitSMEncodeResult struct {

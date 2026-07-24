@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 )
 
 const (
@@ -157,6 +158,17 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 3b. custom_tlvs front door. Runs after authentication, like the legacy
+	// route_routable; a normalization error there escapes as a generic
+	// exception, so parity is 500 with the "Unknown error" envelope.
+	if raw := arguments["custom_tlvs"]; raw != "" {
+		req.CustomTLVs, err = tlv.Normalize(raw)
+		if err != nil {
+			writePlainError(w, http.StatusInternalServerError, fmt.Sprintf("Unknown error: %v", err))
+			return
+		}
+	}
+
 	// 4. Submission
 	if h.dependencies.Submitter == nil {
 		writePlainError(w, http.StatusInternalServerError,
@@ -260,7 +272,6 @@ func mapSubmitRequest(args map[string]string) (core.SubmitRequest, error) {
 		HexContent:  args["hex-content"],
 		From:        args["from"],
 		DLRUrl:      args["dlr-url"],
-		CustomTLVs:  make(map[uint16][]byte),
 	}
 
 	if val := args["coding"]; val != "" {
@@ -305,15 +316,6 @@ func mapSubmitRequest(args map[string]string) (core.SubmitRequest, error) {
 			return req, fmt.Errorf("Argument [sdt] has an invalid value: [%s].", val)
 		}
 		req.SDT = &t
-	}
-
-	for k, v := range args {
-		if strings.HasPrefix(k, "tlv-") {
-			tag, err := strconv.ParseUint(k[4:], 10, 16)
-			if err == nil {
-				req.CustomTLVs[uint16(tag)] = []byte(v)
-			}
-		}
 	}
 
 	return req, nil
@@ -364,13 +366,24 @@ func (h *handler) authenticationFailure(w http.ResponseWriter, username, content
 func requestArguments(r *http.Request) (map[string]string, error) {
 	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if mediaType == "application/json" {
-		var payload map[string]any
+		var payload map[string]json.RawMessage
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&payload); err != nil {
 			return nil, fmt.Errorf("Invalid JSON request")
 		}
 		arguments := make(map[string]string, len(payload))
-		for key, value := range payload {
+		for key, raw := range payload {
+			// custom_tlvs keeps its raw JSON fragment: the legacy endpoint hands
+			// the decoded object to normalize_custom_tlvs, and only the fragment
+			// preserves document order (wire order) across Go's unordered maps.
+			if key == "custom_tlvs" {
+				arguments[key] = string(raw)
+				continue
+			}
+			var value any
+			if err := json.Unmarshal(raw, &value); err != nil {
+				return nil, fmt.Errorf("Invalid JSON request")
+			}
 			switch v := value.(type) {
 			case string:
 				arguments[key] = v

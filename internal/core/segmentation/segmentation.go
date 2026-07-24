@@ -3,6 +3,8 @@ package segmentation
 import (
 	"errors"
 	"fmt"
+
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 )
 
 const MaxPayloadBytes = 1 << 20
@@ -35,7 +37,10 @@ type Request struct {
 	MaxParts    uint8
 	Reference   uint16
 	Is16Bit     bool
-	CustomTLVs  map[uint16][]byte
+	// CustomTLVs are attached to every produced part in caller order — the
+	// legacy factory builds each multipart PDU from the same kwargs, so every
+	// part carries the full vendor TLV set.
+	CustomTLVs []tlv.TLV
 }
 
 type Concatenation struct {
@@ -54,7 +59,7 @@ type Part struct {
 	udh          []byte
 	udhMetadata  Concatenation
 	hasUDH       bool
-	customTLVs   map[uint16][]byte
+	customTLVs   []tlv.TLV
 }
 
 type Result struct {
@@ -234,7 +239,7 @@ func (part Part) UDH() ([]byte, Concatenation, bool) {
 	return cloneBytes(part.udh), part.udhMetadata, part.hasUDH
 }
 
-func (part Part) CustomTLVs() map[uint16][]byte {
+func (part Part) CustomTLVs() []tlv.TLV {
 	return cloneCustomTLVs(part.customTLVs)
 }
 
@@ -253,13 +258,11 @@ func cloneBytes(value []byte) []byte {
 	return append([]byte(nil), value...)
 }
 
-func cloneCustomTLVs(value map[uint16][]byte) map[uint16][]byte {
+// cloneCustomTLVs copies the tuple list; fields are shared as immutable,
+// mirroring Python's shared tuples.
+func cloneCustomTLVs(value []tlv.TLV) []tlv.TLV {
 	if value == nil {
 		return nil
 	}
-	cloned := make(map[uint16][]byte, len(value))
-	for k, v := range value {
-		cloned[k] = cloneBytes(v)
-	}
-	return cloned
+	return append([]tlv.TLV(nil), value...)
 }

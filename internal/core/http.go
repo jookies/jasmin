@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 )
 
 var (
@@ -56,7 +58,10 @@ type SubmitRequest struct {
 	DLRLevel       int
 	DLRMethod      string
 	Tags           []string
-	CustomTLVs     map[uint16][]byte
+	// CustomTLVs is the tlv.Normalize output for the request's custom_tlvs
+	// argument, in caller order (wire order). Types stay unresolved here;
+	// connector rules apply them at submit time, matching the legacy listener.
+	CustomTLVs []tlv.TLV
 }
 
 type Submitter interface {
