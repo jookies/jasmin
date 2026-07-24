@@ -186,6 +186,67 @@ func consumeQueue(ctx context.Context, channel topologyChannel, queue, consumerT
 	return deliveries, nil
 }
 
+// DLRThrower topology constants: the legacy DLRThrower binds a fixed queue to
+// dlr_thrower.* with a fixed consumer tag.
+const (
+	DLRThrowerQueue       = "dlr_thrower"
+	DLRThrowerRoutingKey  = "dlr_thrower.*"
+	DLRThrowerConsumerTag = "DLRThrower"
+)
+
+// DLRThrowerSubscription owns the channel and raw manual-ack delivery stream
+// of the legacy DLRThrower.addAmqpBroker topology.
+type DLRThrowerSubscription struct {
+	Deliveries  <-chan amqp.Delivery
+	ConsumerTag string
+
+	channel topologyChannel
+}
+
+func (subscription *DLRThrowerSubscription) Close() error {
+	if subscription == nil || subscription.channel == nil {
+		return nil
+	}
+	return subscription.channel.Close()
+}
+
+// OpenDLRThrowerSubscription declares and starts the DLRThrower consumer on
+// one owned channel: messaging exchange, the dlr_thrower queue bound to
+// dlr_thrower.*, and a named manual-ack consumer with no QoS.
+func (topology *Topology) OpenDLRThrowerSubscription(ctx context.Context) (*DLRThrowerSubscription, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	channel, err := topology.open()
+	if err != nil {
+		return nil, fmt.Errorf("open DLRThrower topology channel: %w", err)
+	}
+	subscription, err := func() (*DLRThrowerSubscription, error) {
+		if err := declareExchange(ctx, channel, "messaging"); err != nil {
+			return nil, err
+		}
+		if err := declareQueue(ctx, channel, DLRThrowerQueue); err != nil {
+			return nil, err
+		}
+		if err := bindQueue(ctx, channel, DLRThrowerQueue, "messaging", DLRThrowerRoutingKey); err != nil {
+			return nil, err
+		}
+		deliveries, err := consumeQueue(ctx, channel, DLRThrowerQueue, DLRThrowerConsumerTag)
+		if err != nil {
+			return nil, err
+		}
+		return &DLRThrowerSubscription{Deliveries: deliveries, ConsumerTag: DLRThrowerConsumerTag}, nil
+	}()
+	if err != nil {
+		if closeErr := channel.Close(); closeErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("close DLRThrower topology channel: %w", closeErr))
+		}
+		return nil, err
+	}
+	subscription.channel = channel
+	return subscription, nil
+}
+
 // DLRLookupSubscription owns the channel and raw manual-ack delivery stream of
 // the legacy DLRLookup.subscribe topology: the messaging exchange, the
 // DLRLookup-<pid> queue bound to dlr.*, and a named manual-ack consumer with no
