@@ -3,6 +3,7 @@ package dlr
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -47,7 +48,11 @@ func loadThrowerFixtureEnvelope(t *testing.T, caseID string) amqpcompat.Envelope
 		if err != nil {
 			t.Fatal(err)
 		}
-		envelope, err := amqpcompat.NewEnvelope(tc.RoutingKey, properties, []byte(tc.Properties.MessageID))
+		body, err := base64.StdEncoding.DecodeString(tc.Body.WireBase64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		envelope, err := amqpcompat.NewEnvelope(tc.RoutingKey, properties, body)
 		if err != nil {
 			t.Fatal(err)
 		}
