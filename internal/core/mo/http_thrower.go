@@ -34,10 +34,9 @@ type HTTPDoer interface {
 
 // Delivery is a routed MO message to forward to an HttpConnector. Content is the already
 // selected message body (short_message or message_payload — the caller chooses per Jasmin's
-// precedence). Priority and Coding are omitted when nil; Validity when empty.
-//
-// The fork's tlv_params / custom_tlvs forwarding is a separate follow-on and is not built
-// here; this covers the mandatory MO arguments plus the simple optionals.
+// precedence). Priority and Coding are omitted when nil; Validity when empty. TLVParams and
+// CustomTLVs carry the fork's standard-optional and vendor TLV forwarding (omitted when
+// empty); the caller supplies TLVParams in StandardOptionalParams order.
 type Delivery struct {
 	MsgID           string
 	From            string // source_addr
@@ -47,6 +46,8 @@ type Delivery struct {
 	Priority        *byte  // priority_flag value
 	Coding          *byte  // data_coding value
 	Validity        string // validity_period
+	TLVParams       []TLVParam
+	CustomTLVs      []CustomTLV
 	URL             string
 	Method          string
 }
@@ -70,6 +71,12 @@ func (d Delivery) args() url.Values {
 	}
 	if d.Validity != "" {
 		v.Set("validity", d.Validity)
+	}
+	if len(d.TLVParams) > 0 {
+		v.Set("tlv_params", encodeTLVParams(d.TLVParams))
+	}
+	if len(d.CustomTLVs) > 0 {
+		v.Set("custom_tlvs", encodeCustomTLVs(d.CustomTLVs))
 	}
 	return v
 }
