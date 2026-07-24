@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
+	"strings"
 )
 
 // oracleScript replays the legacy inbound sequence on raw deliver_sm wire
@@ -131,5 +133,117 @@ func TestDeliveryFromDeliverSMPopulatesCapturedTLVs(t *testing.T) {
 	}
 	if len(delivery.CustomTLVs) != 2 || delivery.CustomTLVs[0] != want[0] || delivery.CustomTLVs[1] != want[1] {
 		t.Fatalf("custom TLVs = %+v, want %+v", delivery.CustomTLVs, want)
+	}
+}
+
+// tlvParamsOracleScript replays the thrower's tlv_params formatting on raw
+// deliver_sm wire bytes through the legacy patched decoder.
+const tlvParamsOracleScript = `
+import binascii, io, json, sys
+from enum import Enum
+import jasmin.protocols.smpp.operations  # installs patches
+from smpp.pdu.pdu_encoding import PDUEncoder
+
+standard_optional_params = [
+    "user_message_reference", "source_port", "destination_port",
+    "sar_msg_ref_num", "sar_total_segments", "sar_segment_seqnum",
+    "payload_type", "privacy_indicator", "callback_num",
+    "language_indicator", "its_session_info", "network_error_code",
+    "message_state", "receipted_message_id",
+]
+
+wire = binascii.unhexlify(sys.stdin.read().strip())
+try:
+    pdu = PDUEncoder().decode(io.BytesIO(wire))
+except Exception as e:
+    print(json.dumps({"error": type(e).__name__}))
+    sys.exit(0)
+tlv_params = {}
+for name in standard_optional_params:
+    if name in pdu.params and pdu.params[name] is not None:
+        value = pdu.params[name]
+        if isinstance(value, bytes):
+            tlv_params[name] = binascii.hexlify(value).decode()
+        elif isinstance(value, Enum):
+            tlv_params[name] = value.name
+        else:
+            tlv_params[name] = str(value)
+print(json.dumps({"tlv_params": json.dumps(tlv_params)}))
+`
+
+func TestTLVParamsDifferentialAgainstLegacyDecoder(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cases := []struct {
+		name      string
+		tlvHex    string
+		wantError bool
+	}{
+		{name: "integer ports and references", tlvHex: "020400020fa0020a00021f90020b0002270f"},
+		{name: "sar triplet", tlvHex: "020c00021234020e000103020f000102"},
+		{name: "enum params", tlvHex: "00190001010201000103020d000102"},
+		{name: "message state and receipt", tlvHex: "042700010200 1e00066162633132 00"},
+		{name: "callback number ascii digits", tlvHex: "038100080100013132333435"},
+		{name: "callback number binary digits", tlvHex: "038100070100013100ff32"},
+		{name: "network error code any length", tlvHex: "04230003030001"},
+		{name: "network error code empty", tlvHex: "04230000"},
+		{name: "everything combined with vendor tlv", tlvHex: "020400020fa000190001000427000102038100080102063132333435140100026869"},
+		{name: "class-b tag rejects", tlvHex: "138300020a01", wantError: true},
+		{name: "unknown enum byte rejects", tlvHex: "00190001ff", wantError: true},
+		{name: "oversize receipted id rejects", tlvHex: "001e0042" + strings.Repeat("61", 65) + "00", wantError: true},
+		{name: "bad callback npi rejects", tlvHex: "038100080100023132333435", wantError: true},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			frame := deliverFrameWithSection(t, strings.ReplaceAll(testCase.tlvHex, " ", ""))
+
+			command := exec.CommandContext(ctx, pythonPath, "-c", tlvParamsOracleScript)
+			command.Env = append(os.Environ(), "PYTHONPATH=../../..")
+			command.Stdin = bytes.NewReader([]byte(hex.EncodeToString(frame)))
+			output, err := command.Output()
+			if err != nil {
+				t.Fatalf("oracle: %v (%s)", err, output)
+			}
+			var oracle struct {
+				TLVParams string `json:"tlv_params"`
+				Error     string `json:"error"`
+			}
+			if err := json.Unmarshal(bytes.TrimSpace(output), &oracle); err != nil {
+				t.Fatalf("oracle output %q: %v", output, err)
+			}
+
+			pdu, decodeErr := smppwire.Decode(frame)
+			if testCase.wantError {
+				if oracle.Error == "" {
+					t.Fatalf("oracle accepted a frame expected to fail")
+				}
+				if decodeErr == nil {
+					t.Fatalf("Go accepted a frame the legacy decoder rejects (%s)", oracle.Error)
+				}
+				return
+			}
+			if oracle.Error != "" {
+				t.Fatalf("oracle rejected the frame: %s", oracle.Error)
+			}
+			if decodeErr != nil {
+				t.Fatalf("Go rejected a frame the legacy decoder accepts: %v", decodeErr)
+			}
+			delivery, err := DeliveryFromDeliverSM(pdu.SM, "m", "c", "http://cb", "POST")
+			if err != nil {
+				t.Fatal(err)
+			}
+			goJSON := encodeTLVParams(delivery.TLVParams)
+			if len(delivery.TLVParams) == 0 {
+				goJSON = "{}"
+			}
+			if goJSON != oracle.TLVParams {
+				t.Fatalf("tlv_params diverges:\n  go %s\n  py %s", goJSON, oracle.TLVParams)
+			}
+		})
 	}
 }

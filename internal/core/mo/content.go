@@ -60,6 +60,7 @@ func DeliveryFromDeliverSM(sm *smppwire.SMBody, msgID, originConnector, connecto
 	if len(sm.ValidityPeriod) > 0 {
 		d.Validity = string(sm.ValidityPeriod)
 	}
+	d.TLVParams = TLVParamsFromDeliverSM(sm)
 	for _, captured := range sm.CapturedVendorTLVs {
 		d.CustomTLVs = append(d.CustomTLVs, CustomTLV{
 			Tag:    int(captured.Tag),

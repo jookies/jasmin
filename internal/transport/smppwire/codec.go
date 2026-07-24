@@ -378,13 +378,63 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 			if len(value) == 0 || value[len(value)-1] != 0 {
 				return false, fmt.Errorf("%w: receipted_message_id is not NUL terminated", ErrMalformedTLV)
 			}
+			if len(value) > 65 { // the legacy COctetStringEncoder maxSize
+				return false, fmt.Errorf("%w: receipted_message_id longer than 65", ErrMalformedTLV)
+			}
 			optional.ReceiptedMessageID = append([]byte(nil), value[:len(value)-1]...)
 		case tagMessageState:
 			if len(value) != 1 {
 				return false, fixedTLVLengthError(tag, len(value), 1)
 			}
+			if value[0] < 1 || value[0] > 8 {
+				return false, fmt.Errorf("%w: unknown message_state value %#x", ErrMalformedTLV, value[0])
+			}
 			v := value[0]
 			optional.MessageState = &v
+		case tagUserMessageReference:
+			v, err := fixedUint16(tag, value)
+			if err != nil {
+				return false, err
+			}
+			optional.UserMessageReference = &v
+		case tagSourcePort:
+			v, err := fixedUint16(tag, value)
+			if err != nil {
+				return false, err
+			}
+			optional.SourcePort = &v
+		case tagDestinationPort:
+			v, err := fixedUint16(tag, value)
+			if err != nil {
+				return false, err
+			}
+			optional.DestinationPort = &v
+		case tagPayloadType:
+			v, err := enumByte(tag, value, "payload_type", 1)
+			if err != nil {
+				return false, err
+			}
+			optional.PayloadType = &v
+		case tagPrivacyIndicator:
+			v, err := enumByte(tag, value, "privacy_indicator", 3)
+			if err != nil {
+				return false, err
+			}
+			optional.PrivacyIndicator = &v
+		case tagLanguageIndicator:
+			v, err := enumByte(tag, value, "language_indicator", 5)
+			if err != nil {
+				return false, err
+			}
+			optional.LanguageIndicator = &v
+		case tagCallbackNum:
+			number, err := decodeCallbackNumber(value)
+			if err != nil {
+				return false, err
+			}
+			optional.CallbackNum = number
+		case tagNetworkErrorCode:
+			optional.NetworkErrorCode = append([]byte{}, value...)
 		default:
 			// Frozen compatibility behavior accepts unknown optionals but does not
 			// retain them for re-encoding (KNOWN_QUIRKS Q-016). Tags outside the
@@ -392,6 +442,12 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 			// forwarding, mirroring the fork's decoder patch; known-but-unhandled
 			// standard optionals stay dropped (standard tlv_params forwarding is
 			// a separate slice).
+			if legacyUnsupportedWireTag(tag) {
+				// The legacy library knows these tags but has no option
+				// encoder: decode raises "Optional Parameter not allowed"
+				// and the whole PDU fails.
+				return false, fmt.Errorf("%w: optional parameter %#04x not allowed", ErrMalformedTLV, tag)
+			}
 			if !legacyKnownWireTag(tag) {
 				body.CapturedVendorTLVs = append(body.CapturedVendorTLVs,
 					CapturedVendorTLV{Tag: tag, Value: append([]byte(nil), value...)})
@@ -561,4 +617,79 @@ var legacyKnownWireTags = map[uint16]struct{}{
 func legacyKnownWireTag(tag uint16) bool {
 	_, known := legacyKnownWireTags[tag]
 	return known
+}
+
+// The forwarded standard-optional tags decoded beyond the original six.
+const (
+	tagUserMessageReference uint16 = 0x0204
+	tagSourcePort           uint16 = 0x020A
+	tagDestinationPort      uint16 = 0x020B
+	tagPayloadType          uint16 = 0x0019
+	tagPrivacyIndicator     uint16 = 0x0201
+	tagLanguageIndicator    uint16 = 0x020D
+	tagCallbackNum          uint16 = 0x0381
+	tagNetworkErrorCode     uint16 = 0x0423
+)
+
+// legacyUnsupportedWireTags are in the legacy tag_name_map but have no option
+// encoder in OptionEncoder.options: the legacy decode raises "Optional
+// Parameter not allowed" and rejects the PDU.
+var legacyUnsupportedWireTags = map[uint16]struct{}{
+	0x0030: {}, 0x0302: {}, 0x0303: {}, 0x0420: {}, 0x0421: {},
+	0x0501: {}, 0x1204: {}, 0x1380: {}, 0x1383: {},
+}
+
+func legacyUnsupportedWireTag(tag uint16) bool {
+	_, unsupported := legacyUnsupportedWireTags[tag]
+	return unsupported
+}
+
+func fixedUint16(tag uint16, value []byte) (uint16, error) {
+	if len(value) != 2 {
+		return 0, fixedTLVLengthError(tag, len(value), 2)
+	}
+	return binary.BigEndian.Uint16(value), nil
+}
+
+// enumByte validates a one-byte enum against the legacy contiguous value
+// table [0..maxValue]; out-of-table values fail the PDU decode like the
+// legacy "Unknown <name> value" errors.
+func enumByte(tag uint16, value []byte, name string, maxValue byte) (byte, error) {
+	if len(value) != 1 {
+		return 0, fixedTLVLengthError(tag, len(value), 1)
+	}
+	if value[0] > maxValue {
+		return 0, fmt.Errorf("%w: unknown %s value %#x", ErrMalformedTLV, name, value[0])
+	}
+	return value[0], nil
+}
+
+// callbackNPIValues is the legacy addr_npi table — non-contiguous.
+var callbackNPIValues = map[byte]struct{}{
+	0: {}, 1: {}, 3: {}, 4: {}, 6: {}, 8: {}, 9: {}, 10: {}, 14: {}, 18: {},
+}
+
+// decodeCallbackNumber mirrors the legacy CallbackNumEncoder: at least three
+// octets (digit mode, TON, NPI), each validated against its value table, then
+// the remaining octets as digits.
+func decodeCallbackNumber(value []byte) (*CallbackNumber, error) {
+	if len(value) < 3 {
+		return nil, fmt.Errorf("%w: invalid callback_num size %d", ErrMalformedTLV, len(value))
+	}
+	digitMode, ton, npi := value[0], value[1], value[2]
+	if digitMode > 1 {
+		return nil, fmt.Errorf("%w: unknown callback_num_digit_mode_indicator value %#x", ErrMalformedTLV, digitMode)
+	}
+	if ton > 6 {
+		return nil, fmt.Errorf("%w: unknown addr_ton value %#x", ErrMalformedTLV, ton)
+	}
+	if _, ok := callbackNPIValues[npi]; !ok {
+		return nil, fmt.Errorf("%w: unknown addr_npi value %#x", ErrMalformedTLV, npi)
+	}
+	return &CallbackNumber{
+		DigitMode: digitMode,
+		TON:       ton,
+		NPI:       npi,
+		Digits:    append([]byte(nil), value[3:]...),
+	}, nil
 }
