@@ -89,6 +89,12 @@ type SMBody struct {
 	SMDefaultMessageID    byte
 	ShortMessage          []byte
 	Optional              OptionalParameters
+	// VendorTLVs is a pre-encoded vendor custom-TLV section appended verbatim
+	// after the known optional parameters on encode (the position the legacy
+	// patched encoder emits pdu.custom_tlvs). Encode-only: decode never
+	// populates it — unknown wire TLVs stay unretained per KNOWN_QUIRKS Q-016,
+	// so an encode/decode round trip does not preserve this field.
+	VendorTLVs []byte
 }
 
 // SubmitSMBody names the canonical outbound submit_sm body while preserving

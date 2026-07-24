@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 )
 
 type BindType string
@@ -58,6 +60,41 @@ type Config struct {
 	LogLevel           string   `json:"log_level"`
 	SubmitSMThroughput *float64 `json:"submit_sm_throughput,omitempty"`
 	PrefetchCount      int      `json:"prefetch_count,omitempty"`
+
+	// CustomTLVs are the per-connector vendor TLV rules, the legacy smppcc
+	// custom_tlvs config: declared wire type per tag, optional max encoded
+	// byte length (null = unbounded), and required presence.
+	CustomTLVs []CustomTLVRule `json:"custom_tlvs,omitempty"`
+}
+
+// CustomTLVRule mirrors one legacy custom_tlvs dict {tag, type, length, required}.
+type CustomTLVRule struct {
+	Tag      int    `json:"tag"`
+	Type     string `json:"type"`
+	Length   *int   `json:"length"`
+	Required bool   `json:"required"`
+}
+
+// ConnectorTLVRules projects the config rules into the typed pipeline's shape.
+// Tags mask to uint16 exactly where the legacy rule map does (int(tag) & 0xFFFF).
+func (c Config) ConnectorTLVRules() []tlv.ConnectorRule {
+	if len(c.CustomTLVs) == 0 {
+		return nil
+	}
+	rules := make([]tlv.ConnectorRule, 0, len(c.CustomTLVs))
+	for _, rule := range c.CustomTLVs {
+		converted := tlv.ConnectorRule{
+			Tag:      uint16(rule.Tag & 0xFFFF),
+			Type:     rule.Type,
+			Required: rule.Required,
+		}
+		if rule.Length != nil {
+			length := *rule.Length
+			converted.Length = &length
+		}
+		rules = append(rules, converted)
+	}
+	return rules
 }
 
 func (c *Config) Validate() error {
@@ -132,6 +169,20 @@ func (c *Config) Validate() error {
 		c.PrefetchCount = 1
 	}
 
+	// Mirrors the legacy SMPPClientConfig custom_tlvs validation: int tag,
+	// known type name, positive-or-null max length, boolean required.
+	for index, rule := range c.CustomTLVs {
+		switch rule.Type {
+		case tlv.TypeInt1, tlv.TypeInt2, tlv.TypeInt4, tlv.TypeInt8,
+			tlv.TypeOctetString, tlv.TypeCOctetString:
+		default:
+			return fmt.Errorf("custom_tlvs[%d]: type %q is not a valid TLV type", index, rule.Type)
+		}
+		if rule.Length != nil && *rule.Length <= 0 {
+			return fmt.Errorf("custom_tlvs[%d]: length must be a positive max byte count or omitted", index)
+		}
+	}
+
 	return nil
 }
 
@@ -164,6 +215,17 @@ func (c Config) Clone() Config {
 	if c.SubmitSMThroughput != nil {
 		throughput := *c.SubmitSMThroughput
 		clone.SubmitSMThroughput = &throughput
+	}
+	if c.CustomTLVs != nil {
+		clone.CustomTLVs = make([]CustomTLVRule, len(c.CustomTLVs))
+		for index, rule := range c.CustomTLVs {
+			cloned := rule
+			if rule.Length != nil {
+				length := *rule.Length
+				cloned.Length = &length
+			}
+			clone.CustomTLVs[index] = cloned
+		}
 	}
 	return clone
 }

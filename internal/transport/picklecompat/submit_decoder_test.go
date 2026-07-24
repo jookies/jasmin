@@ -39,7 +39,7 @@ func TestDecodeSubmitSMProjectsCanonicalWireBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, err := bridge.DecodeSubmitSM(ctx, encoded.Body)
+	body, tuples, err := bridge.DecodeSubmitSM(ctx, encoded.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,6 +56,15 @@ func TestDecodeSubmitSMProjectsCanonicalWireBody(t *testing.T) {
 		body.Optional.SARTotalSegments == nil || *body.Optional.SARTotalSegments != 3 ||
 		body.Optional.SARSegmentSequence == nil || *body.Optional.SARSegmentSequence != 2 {
 		t.Fatalf("SAR options = %+v", body.Optional)
+	}
+	// The vendor tuple survives the pickle round trip verbatim: unresolved
+	// type (Python None), no length hint, bytes value intact.
+	if len(tuples) != 1 || tuples[0].Tag.Cmp(big.NewInt(0x1403)) != 0 ||
+		tuples[0].Type != "" || tuples[0].Length != nil {
+		t.Fatalf("custom TLV tuples = %+v", tuples)
+	}
+	if value, ok := tuples[0].Value.([]byte); !ok || string(value) != "vendor" {
+		t.Fatalf("custom TLV value = %#v", tuples[0].Value)
 	}
 	pdu := smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM, SequenceNumber: 9}, SM: &body}
 	wire, err := smppwire.Encode(pdu)
@@ -87,7 +96,7 @@ func TestDecodeSubmitSMRejectsUnallowlistedRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = bridge.DecodeSubmitSM(ctx, data)
+	_, _, err = bridge.DecodeSubmitSM(ctx, data)
 	if !errors.Is(err, picklecompat.ErrInvalidSubmitSM) {
 		t.Fatalf("error = %v, want ErrInvalidSubmitSM", err)
 	}

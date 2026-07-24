@@ -170,7 +170,6 @@ def decode_submit_sm(data):
         "sm_default_msg_id": _raw_byte(params.get("sm_default_msg_id"), "sm_default_msg_id"),
         "short_message": _binary(params.get("short_message"), "short_message", 255),
         "optional_tlvs": [],
-        "dropped_unknown_tlvs": 0,
     }
     for key, tag, size in (
         ("sar_msg_ref_num", 0x020c, 2),
@@ -186,23 +185,18 @@ def decode_submit_sm(data):
     if payload is not None:
         result["optional_tlvs"].append({"tag": 0x0424, "value": _binary(payload, "message_payload", 65535)})
 
+    # Project pdu.custom_tlvs verbatim as [tag, length, type, value] entries so
+    # the Go session can resolve connector rules, validate, and wire-encode
+    # them exactly like the legacy listener + patched encoder. The legacy wire
+    # path does not allowlist these tags — even SAR-range tags in custom_tlvs
+    # are emitted verbatim as vendor TLVs — so no tag is routed into
+    # optional_tlvs here. Structural checks stay minimal: the Go side enforces
+    # the legacy crash boundaries and rejects what legacy would reject.
+    result["custom_tlvs"] = []
     for item in getattr(obj, "custom_tlvs", []):
         if not isinstance(item, tuple) or len(item) != 4:
             raise ValueError("malformed custom TLV")
-        tag, declared, _, value = item
-        if isinstance(tag, bool) or not isinstance(tag, int) or tag < 0:
-            raise ValueError("custom TLV tag is not a non-negative integer")
-        if (tag & 0xFFFF) in (0x020c, 0x020e, 0x020f, 0x0424):
-            # Allowlisted tags must arrive as strict pre-encoded octets.
-            value = _binary(value, "custom TLV value", 65535)
-            if declared is not None and declared != len(value):
-                raise ValueError("custom TLV length mismatch")
-            result["optional_tlvs"].append({"tag": tag & 0xFFFF, "value": value})
-        else:
-            # Q-016: legacy accepts unknown vendor TLVs but drops them on
-            # re-encode. Normalized front-door tuples carry untyped values and
-            # a None length hint, so the drop path takes them shape-unchecked.
-            result["dropped_unknown_tlvs"] += 1
+        result["custom_tlvs"].append(list(item))
 
     present_sar = {item["tag"] for item in result["optional_tlvs"] if item["tag"] in (0x020c, 0x020e, 0x020f)}
     if present_sar and present_sar != {0x020c, 0x020e, 0x020f}:

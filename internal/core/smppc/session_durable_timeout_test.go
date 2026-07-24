@@ -11,6 +11,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
@@ -18,8 +19,8 @@ import (
 
 type staticSubmitDecoder struct{}
 
-func (staticSubmitDecoder) DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, error) {
-	return smppwire.SubmitSMBody{DestinationAddress: []byte("15551230000"), ShortMessage: []byte("timeout")}, nil
+func (staticSubmitDecoder) DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, []tlv.TLV, error) {
+	return smppwire.SubmitSMBody{DestinationAddress: []byte("15551230000"), ShortMessage: []byte("timeout")}, nil, nil
 }
 
 func TestDurableSessionTimeoutClosesAttemptBeforeRedelivery(t *testing.T) {

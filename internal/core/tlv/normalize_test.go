@@ -104,7 +104,7 @@ func TestNormalize_JSONDictDuplicateKeys(t *testing.T) {
 	}
 	wantTag(t, got[0].Tag, 5121)
 	wantTag(t, got[1].Tag, 5121)
-	if got[0].Value != "3" || got[1].Value != "2" {
+	if got[0].Value != int64(3) || got[1].Value != int64(2) {
 		t.Errorf("values = %v, %v, want 3, 2", got[0].Value, got[1].Value)
 	}
 }
@@ -116,7 +116,7 @@ func TestNormalize_LegacyFourTuple(t *testing.T) {
 	}
 	e := got[0]
 	wantTag(t, e.Tag, 5121)
-	if e.Type != TypeInt8 || e.Length != nil || e.Value != "1707167205648943173" {
+	if e.Type != TypeInt8 || e.Length != nil || e.Value != int64(1707167205648943173) {
 		t.Errorf("tuple = %+v", e)
 	}
 	// Oracle wire bytes: 19-digit value survives with no precision loss.
@@ -206,7 +206,7 @@ func TestNormalize_ShortTuples(t *testing.T) {
 	wantTag(t, got[0].Tag, 5121)
 	wantTag(t, got[1].Tag, 5122)
 	wantTag(t, got[2].Tag, 5123)
-	if got[0].Value != "x" || got[1].Value != "v2" || got[2].Value != "9" {
+	if got[0].Value != "x" || got[1].Value != "v2" || got[2].Value != int64(9) {
 		t.Errorf("values = %v", []any{got[0].Value, got[1].Value, got[2].Value})
 	}
 	resolved, err := ResolveTLVTypes(got, nil)
@@ -281,7 +281,7 @@ func TestNormalize_DoubleEncodedJSONString(t *testing.T) {
 		t.Fatalf("len = %d, want 1", len(got))
 	}
 	wantTag(t, got[0].Tag, 5121)
-	if got[0].Type != TypeInt8 || got[0].Value != "7" {
+	if got[0].Type != TypeInt8 || got[0].Value != int64(7) {
 		t.Errorf("entry = %+v", got[0])
 	}
 }
@@ -290,8 +290,8 @@ func TestNormalize_NumberCarriage(t *testing.T) {
 	t.Run("negative zero canonicalizes", func(t *testing.T) {
 		// Oracle: json -0 → int 0 → str() "0" on the octet wire (hex 30).
 		got := mustNormalize(t, `[[5121, null, "OctetString", -0]]`)
-		if got[0].Value != "0" {
-			t.Errorf("value = %q, want \"0\"", got[0].Value)
+		if got[0].Value != int64(0) {
+			t.Errorf("value = %#v, want int64(0)", got[0].Value)
 		}
 	})
 
@@ -384,7 +384,7 @@ func TestNormalize_PredecodedListPreservesUseNumber(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := mustNormalize(t, parsed)
-	if got[0].Value != "1707167205648943173" {
-		t.Errorf("value = %#v, want digit string", got[0].Value)
+	if got[0].Value != int64(1707167205648943173) {
+		t.Errorf("value = %#v, want int64", got[0].Value)
 	}
 }
