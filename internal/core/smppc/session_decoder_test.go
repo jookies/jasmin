@@ -8,14 +8,15 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 type failingSubmitDecoder struct{ err error }
 
-func (decoder failingSubmitDecoder) DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, error) {
-	return smppwire.SubmitSMBody{}, decoder.err
+func (decoder failingSubmitDecoder) DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, []tlv.TLV, error) {
+	return smppwire.SubmitSMBody{}, nil, decoder.err
 }
 
 func TestSessionDecodeFailureRequeuesWithoutSMPPWrite(t *testing.T) {

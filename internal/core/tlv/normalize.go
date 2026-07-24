@@ -43,11 +43,12 @@ import (
 //
 // Deliberate divergences from the oracle, each loud rather than silent:
 //
-//   - Integral JSON numbers of any magnitude are carried as canonical decimal strings
-//     (str() of the Python int), so 19-digit vendor IDs survive without float64 precision
-//     loss. Non-integral numbers (3.7, 1e3) are carried as float64, which the frozen
-//     encoder rejects; Python would silently truncate them for Int types and render
-//     repr() text for octet types.
+//   - Integral JSON numbers are carried as Python-int equivalents (int64, then uint64,
+//     then a canonical decimal string beyond uint64), so 19-digit vendor IDs survive
+//     without float64 precision loss and the wire encoder sees an integer exactly where
+//     Python would. Non-integral numbers (3.7, 1e3) are carried as float64, which the
+//     frozen encoder rejects; Python would silently truncate them for Int types and
+//     render repr() text for octet types.
 //   - A 4-tuple's tag converts here with Python int() semantics rather than at encode
 //     time where the oracle converts it; the same inputs succeed or fail across the
 //     front-door flow, one stage earlier.
@@ -240,15 +241,23 @@ func lengthHint(v any) *int {
 }
 
 // normalizeValue prepares a decoded JSON value for the typed pipeline. An integral
-// json.Number becomes its canonical decimal string — str() of the Python int, safe for
-// the encoder at any magnitude — and a non-integral one becomes float64, which the
-// frozen encoder rejects by design. Everything else passes through verbatim.
+// json.Number becomes the Python-int equivalent (int64, then uint64, then a canonical
+// decimal string beyond uint64), so int-vs-string distinctions survive to the wire
+// encoder exactly as they do in Python — the legacy wire path accepts integers where
+// it crashes on strings, and only the resolve step coerces strings. A non-integral
+// number becomes float64. Everything else passes through verbatim.
 func normalizeValue(v any) any {
 	n, ok := v.(json.Number)
 	if !ok {
 		return v
 	}
 	if i, ok := new(big.Int).SetString(string(n), 10); ok {
+		if i.IsInt64() {
+			return i.Int64()
+		}
+		if i.IsUint64() {
+			return i.Uint64()
+		}
 		return i.String()
 	}
 	if f, err := n.Float64(); err == nil {

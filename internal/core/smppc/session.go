@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
@@ -29,7 +30,7 @@ type pendingRequest struct {
 }
 
 type SubmitDecoder interface {
-	DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, error)
+	DecodeSubmitSM(context.Context, []byte) (smppwire.SubmitSMBody, []tlv.TLV, error)
 }
 
 type SubmitResponseEncoder interface {
@@ -38,8 +39,8 @@ type SubmitResponseEncoder interface {
 
 type rawSubmitDecoder struct{}
 
-func (rawSubmitDecoder) DecodeSubmitSM(_ context.Context, body []byte) (smppwire.SubmitSMBody, error) {
-	return smppwire.SubmitSMBody{ShortMessage: append([]byte(nil), body...)}, nil
+func (rawSubmitDecoder) DecodeSubmitSM(_ context.Context, body []byte) (smppwire.SubmitSMBody, []tlv.TLV, error) {
+	return smppwire.SubmitSMBody{ShortMessage: append([]byte(nil), body...)}, nil, nil
 }
 
 // Session owns one SMPP connection and, when driven by Connector.runConsumer,
@@ -352,7 +353,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		s.settleDeliveryFailure(d)
 		return errors.New("SubmitSM decoder is required")
 	}
-	body, err := s.decoder.DecodeSubmitSM(ctx, d.Envelope().Body())
+	body, customTLVs, err := s.decoder.DecodeSubmitSM(ctx, d.Envelope().Body())
 	if err != nil {
 		if errors.Is(err, picklecompat.ErrSubmitSMPoison) {
 			s.settleDeliveryReject(d, false)
@@ -360,6 +361,17 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 			s.settleDeliveryFailure(d)
 		}
 		return fmt.Errorf("decode legacy SubmitSM envelope: %w", err)
+	}
+	if len(customTLVs) > 0 || len(s.cfg.CustomTLVs) > 0 {
+		// The legacy listener's submit-time sequence: resolve connector-declared
+		// types, validate required/max-length rules, then wire-encode. Every
+		// failure is the legacy rejectMessage — settle without requeue.
+		vendorSection, tlvErr := prepareVendorTLVs(customTLVs, s.cfg.ConnectorTLVRules())
+		if tlvErr != nil {
+			s.settleDeliveryReject(d, false)
+			return fmt.Errorf("%w: %w", ErrCustomTLVRejected, tlvErr)
+		}
+		body.VendorTLVs = vendorSection
 	}
 	envelope := d.Envelope()
 	var attempt submittransaction.SendAttempt
@@ -714,4 +726,26 @@ func (s *Session) cleanupSession(err error) {
 
 func (s *Session) String() string {
 	return fmt.Sprintf("SMPP session %s", s.cfg.CID)
+}
+
+// ErrCustomTLVRejected marks a submit rejected by the connector's custom-TLV
+// rules or by a tuple the legacy wire encoder would crash on. The delivery is
+// settled without requeue, matching the legacy listener's rejectMessage.
+var ErrCustomTLVRejected = errors.New("custom TLV rejected")
+
+// prepareVendorTLVs runs the legacy submit-time TLV sequence and returns the
+// encoded vendor section for the outbound PDU.
+func prepareVendorTLVs(tuples []tlv.TLV, rules []tlv.ConnectorRule) ([]byte, error) {
+	resolved, err := tlv.ResolveTLVTypes(tuples, rules)
+	if err != nil {
+		return nil, fmt.Errorf("resolve connector TLV types: %w", err)
+	}
+	if err := tlv.ValidateCustomTLVs(resolved, rules); err != nil {
+		return nil, fmt.Errorf("validate connector TLV rules: %w", err)
+	}
+	section, err := tlv.WireEncodeCustomTLVs(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("wire-encode custom TLVs: %w", err)
+	}
+	return section, nil
 }

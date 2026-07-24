@@ -41,7 +41,7 @@ func TestDecodeSubmitSMRejectsNonProtocol2TrailingAndInvalidSAR(t *testing.T) {
 		"trailing":  append(append([]byte(nil), valid.Body...), 0x00),
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := bridge.DecodeSubmitSM(ctx, body)
+			_, _, err := bridge.DecodeSubmitSM(ctx, body)
 			if !errors.Is(err, picklecompat.ErrSubmitSMPoison) {
 				t.Fatalf("error=%v, want poison", err)
 			}
@@ -56,7 +56,7 @@ func TestDecodeSubmitSMRejectsNonProtocol2TrailingAndInvalidSAR(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = bridge.DecodeSubmitSM(ctx, invalidSAR.Body)
+	_, _, err = bridge.DecodeSubmitSM(ctx, invalidSAR.Body)
 	if !errors.Is(err, picklecompat.ErrSubmitSMPoison) {
 		t.Fatalf("invalid SAR error=%v, want poison", err)
 	}

@@ -277,7 +277,7 @@ func encodeSM(body *SMBody) ([]byte, error) {
 	size := cstringWireSize(body.ServiceType) + cstringWireSize(body.SourceAddress) +
 		cstringWireSize(body.DestinationAddress) + cstringWireSize(body.ScheduleDeliveryTime) +
 		cstringWireSize(body.ValidityPeriod) + 12 + uint64(len(body.ShortMessage)) +
-		optionalWireSize(body.Optional)
+		optionalWireSize(body.Optional) + uint64(len(body.VendorTLVs))
 	if err := ensureBodySize(size); err != nil {
 		return nil, err
 	}
@@ -313,6 +313,7 @@ func encodeSM(body *SMBody) ([]byte, error) {
 	if err := encodeTLVs(&output, body.Optional); err != nil {
 		return nil, err
 	}
+	output.Write(body.VendorTLVs)
 	return output.Bytes(), nil
 }
 
