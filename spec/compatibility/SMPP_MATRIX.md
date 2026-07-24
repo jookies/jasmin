@@ -9,7 +9,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 |---|---|---|---|
 | S-001 | framing | command length/id/status/sequence, partial/coalesced reads, malformed length | GO-PARTIAL |
 | S-002 | bind TX/RX/TRX | success, wrong password/system_id, disabled user/group, IP restriction | INVENTORIED |
-| S-003 | bind state | allowed commands by state and exact status codes | INVENTORIED |
+| S-003 | bind state | allowed commands by state and exact status codes | GO-PARTIAL |
 | S-004 | limits | max bindings, duplicate sessions, ban/unbind behavior | INVENTORIED |
 | S-005 | timers | response, enquire_link, inactivity, session-init and reconnect timers | GO-PARTIAL |
 | S-006 | unbind/disconnect | graceful and abrupt paths, pending request behavior | INVENTORIED |
@@ -23,7 +23,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SP-004 | `data_sm` | configured DLR/MO behavior and response | INVENTORIED |
 | SP-005 | `enquire_link` | request/response and timeout | GO-PARTIAL |
 | SP-006 | standard TLV | message_payload, receipts, SAR and known optionals | GO-PARTIAL |
-| SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | INVENTORIED |
+| SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | GO-PARTIAL |
 | SP-008 | unknown TLV/PDU | legacy accept/reject/error behavior | GO-PARTIAL |
 
 ## Encoding and long messages
@@ -117,4 +117,21 @@ broker confirmation and redelivery are not guaranteed. `SC-006`
 remains a standalone policy projection: status mapping, attempt state, and delayed
 requeue are not yet connected to Session settlement. Response publication,
 DLR/billing side effects, and protocol-2 AMQP `SubmitSM` semantic decoding remain
+inventoried.
+
+For `S-003`, the fixture-backed subset invokes Jasmin's concrete
+`PDURequestReceived` and `PDUDataRequestReceived` methods and proves unsupported
+PDU rejection with `ESME_RSYSERR`, `submit_sm`/`data_sm` rejection while
+`BOUND_RX` with `ESME_RINVBNDSTS`, and delegation of the accepted command set to
+the vendored Twisted SMPP server base. The Go helper matches all committed cases.
+Inherited state-machine behavior, duplicate-bind execution, transport/session
+wiring, disconnect semantics, timers, and a runnable SMPPS server remain
+inventoried.
+
+For `SP-007`, the fixture-backed subset invokes the frozen pure vendor-TLV
+pipeline and proves tag parsing, connector type resolution, Int1/2/4/8 and
+string/raw-byte encoding, ordered SMPP TLV headers, required-tag enforcement,
+encoded max-length boundaries, and duplicate-tag last-wins validation. HTTP/REST
+shape normalization, connector configuration lifecycle, concrete SMPPc/SMPPs
+injection, inbound decoder preservation, and end-to-end PDU forwarding remain
 inventoried.

@@ -55,7 +55,7 @@ release-a-v1,mo,egress,canonical-mo-to-external-mo-consumer,A-005,GO-PARTIAL,yes
 release-a-v1,mo,egress,canonical-mo-to-external-mo-consumer,HC-001,INVENTORIED,yes,,spec/compatibility/HTTP_MATRIX.md,,Integrator,mo,yes,,,
 release-a-v1,mo,egress,canonical-mo-to-external-mo-consumer,HC-002,INVENTORIED,yes,,spec/compatibility/HTTP_MATRIX.md,,Integrator,mo,yes,,,
 release-a-v1,smpps-submit,bind,smpps-socket-to-bound-session,S-002,INVENTORIED,yes,,spec/compatibility/SMPP_MATRIX.md,,Integrator,smpps,yes,,,
-release-a-v1,smpps-submit,bind,smpps-socket-to-bound-session,S-003,INVENTORIED,yes,,spec/compatibility/SMPP_MATRIX.md,,Integrator,smpps,yes,,,
+release-a-v1,smpps-submit,bind,smpps-socket-to-bound-session,S-003,GO-PARTIAL,yes,,spec/compatibility/SMPP_MATRIX.md,,Integrator,smpps,yes,,,
 release-a-v1,smpps-submit,bind,smpps-socket-to-bound-session,S-004,INVENTORIED,yes,,spec/compatibility/SMPP_MATRIX.md,,Integrator,smpps,yes,,,
 release-a-v1,smpps-submit,bind,smpps-socket-to-bound-session,SS-001,INVENTORIED,yes,,spec/compatibility/SMPP_MATRIX.md,,Integrator,smpps,yes,,,
 release-a-v1,smpps-submit,submit,bound-session-to-canonical-submit,SS-002,INVENTORIED,yes,,spec/compatibility/SMPP_MATRIX.md,,Integrator,smpps,yes,,,

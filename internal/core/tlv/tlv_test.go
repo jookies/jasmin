@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"math/big"
 	"testing"
 )
 
@@ -12,25 +13,31 @@ func intp(n int) *int { return &n }
 func TestParseTagKey(t *testing.T) {
 	cases := []struct {
 		in       string
-		wantTag  uint16
+		wantTag  string
 		wantType string
-		wantOK   bool
+		wantErr  bool
 	}{
-		{"0x1401", 0x1401, "", true},
-		{"0x1401:OctetString", 0x1401, "OctetString", true},
-		{"0x1401:Int8", 0x1401, "Int8", true},
-		{"5121", 5121, "", true},
-		{"5121:Int4", 5121, "Int4", true},
-		{"  0x1400  ", 0x1400, "", true},
-		{"0X1401:Int2", 0x1401, "Int2", true}, // uppercase 0X
-		{"0x1401:Bogus", 0, "", false},        // invalid type -> whole key as tag -> unparseable
-		{"notanumber", 0, "", false},
+		{"0x1401", "5121", "", false},
+		{"0x1401:OctetString", "5121", "OctetString", false},
+		{"0x1401:Int8", "5121", "Int8", false},
+		{"5121", "5121", "", false},
+		{"5121:Int4", "5121", "Int4", false},
+		{"  0x1400  ", "5120", "", false},
+		{"0X1401:Int2", "5121", "Int2", false},
+		{"-1", "-1", "", false},
+		{"18446744073709551616", "18446744073709551616", "", false},
+		{"0x1401:Bogus", "", "", true},
+		{"notanumber", "", "", true},
 	}
 	for _, c := range cases {
-		gotTag, gotType, gotOK := ParseTagKey(c.in)
-		if gotTag != c.wantTag || gotType != c.wantType || gotOK != c.wantOK {
-			t.Errorf("ParseTagKey(%q) = (%#x,%q,%v), want (%#x,%q,%v)",
-				c.in, gotTag, gotType, gotOK, c.wantTag, c.wantType, c.wantOK)
+		gotTag, gotType, err := ParseTagKey(c.in)
+		gotTagText := ""
+		if gotTag != nil {
+			gotTagText = gotTag.String()
+		}
+		if gotTagText != c.wantTag || gotType != c.wantType || (err != nil) != c.wantErr {
+			t.Errorf("ParseTagKey(%q) = (%s,%q,%v), want (%s,%q,err=%v)",
+				c.in, gotTagText, gotType, err, c.wantTag, c.wantType, c.wantErr)
 		}
 	}
 }
@@ -68,6 +75,13 @@ func TestEncodeValue_IntegerOverflowAndNegative(t *testing.T) {
 	}
 	if _, err := EncodeValue(-1, TypeInt1); err == nil {
 		t.Error("Int1(-1) negative should error")
+	}
+	huge, ok := new(big.Int).SetString("18446744073709551616", 10)
+	if !ok {
+		t.Fatal("parse huge integer")
+	}
+	if _, err := EncodeValue(huge, TypeInt8); err == nil {
+		t.Error("Int8(2^64) should overflow at the wire boundary")
 	}
 }
 
@@ -114,7 +128,7 @@ func TestEncodeValue_Float64Rejected(t *testing.T) {
 
 func TestEncodeCustomTLVs_ByteExact(t *testing.T) {
 	// Tag 0x1400, OctetString "17": header 0014 0002, body '1''7'.
-	got, err := EncodeCustomTLVs([]TLV{{Tag: 0x1400, Type: TypeOctetString, Value: "17"}})
+	got, err := EncodeCustomTLVs([]TLV{{Tag: big.NewInt(0x1400), Type: TypeOctetString, Value: "17"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,8 +139,8 @@ func TestEncodeCustomTLVs_ByteExact(t *testing.T) {
 
 	// Two TLVs concatenate in order; Int2 body length is 2.
 	got, err = EncodeCustomTLVs([]TLV{
-		{Tag: 0x1401, Type: TypeInt2, Value: 5121},
-		{Tag: 0x1400, Type: TypeCOctetString, Value: "x"},
+		{Tag: big.NewInt(0x1401), Type: TypeInt2, Value: 5121},
+		{Tag: big.NewInt(0x1400), Type: TypeCOctetString, Value: "x"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -152,12 +166,15 @@ func TestResolveTLVTypes(t *testing.T) {
 		{Tag: 0x1400, Type: TypeOctetString},
 	}
 	in := []TLV{
-		{Tag: 0x1401, Value: "1707167205648943173"}, // untyped -> Int8, string coerced to uint64
-		{Tag: 0x1400, Value: "hello"},               // untyped -> OctetString
-		{Tag: 0x9999, Value: "x"},                   // not in rules -> OctetString default
-		{Tag: 0x1401, Type: TypeInt2, Value: 5},     // already typed -> unchanged
+		{Tag: big.NewInt(0x1401), Value: "1707167205648943173"}, // untyped -> Int8, string coerced to uint64
+		{Tag: big.NewInt(0x1400), Value: "hello"},               // untyped -> OctetString
+		{Tag: big.NewInt(0x9999), Value: "x"},                   // not in rules -> OctetString default
+		{Tag: big.NewInt(0x1401), Type: TypeInt2, Value: 5},     // already typed -> unchanged
 	}
-	out := ResolveTLVTypes(in, rules)
+	out, err := ResolveTLVTypes(in, rules)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if out[0].Type != TypeInt8 {
 		t.Errorf("tag 0x1401 type = %q, want Int8", out[0].Type)
@@ -178,7 +195,10 @@ func TestResolveTLVTypes(t *testing.T) {
 
 func TestResolveTLVTypes_HexStringCoercion(t *testing.T) {
 	rules := []ConnectorRule{{Tag: 0x1401, Type: TypeInt2}}
-	out := ResolveTLVTypes([]TLV{{Tag: 0x1401, Value: "0x1401"}}, rules)
+	out, err := ResolveTLVTypes([]TLV{{Tag: big.NewInt(0x1401), Value: "0x1401"}}, rules)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if v, ok := out[0].Value.(uint64); !ok || v != 0x1401 {
 		t.Errorf("hex string value = %v (%T), want uint64 5121", out[0].Value, out[0].Value)
 	}
@@ -198,20 +218,20 @@ func TestValidateCustomTLVs(t *testing.T) {
 	}
 
 	// Present, within max length.
-	if err := ValidateCustomTLVs([]TLV{{Tag: 0x1401, Type: TypeOctetString, Value: "12345"}}, rules); err != nil {
+	if err := ValidateCustomTLVs([]TLV{{Tag: big.NewInt(0x1401), Type: TypeOctetString, Value: "12345"}}, rules); err != nil {
 		t.Errorf("5-byte value within max 5 rejected: %v", err)
 	}
 
 	// Present, exceeds max length.
-	err = ValidateCustomTLVs([]TLV{{Tag: 0x1401, Type: TypeOctetString, Value: "123456"}}, rules)
+	err = ValidateCustomTLVs([]TLV{{Tag: big.NewInt(0x1401), Type: TypeOctetString, Value: "123456"}}, rules)
 	if !errors.As(err, &re) || re.Missing || re.Tag != 0x1401 || re.ActualLen != 6 || re.MaxLen != 5 {
 		t.Errorf("length exceeded: got %v", err)
 	}
 
 	// Unbounded optional tag with a long value passes; required tag also present.
 	long := []TLV{
-		{Tag: 0x1401, Type: TypeOctetString, Value: "12345"},
-		{Tag: 0x1400, Type: TypeOctetString, Value: "a-very-long-vendor-value"},
+		{Tag: big.NewInt(0x1401), Type: TypeOctetString, Value: "12345"},
+		{Tag: big.NewInt(0x1400), Type: TypeOctetString, Value: "a-very-long-vendor-value"},
 	}
 	if err := ValidateCustomTLVs(long, rules); err != nil {
 		t.Errorf("unbounded tag rejected: %v", err)
@@ -221,14 +241,14 @@ func TestValidateCustomTLVs(t *testing.T) {
 func TestValidateCustomTLVs_NonRuleTagPasses(t *testing.T) {
 	// A TLV whose tag is not in the rules is allowed through untouched.
 	rules := []ConnectorRule{{Tag: 0x1401, Type: TypeOctetString, Length: intp(2)}}
-	tlvs := []TLV{{Tag: 0x7777, Type: TypeOctetString, Value: "this-is-long-but-not-ruled"}}
+	tlvs := []TLV{{Tag: big.NewInt(0x7777), Type: TypeOctetString, Value: "this-is-long-but-not-ruled"}}
 	if err := ValidateCustomTLVs(tlvs, rules); err != nil {
 		t.Errorf("non-rule tag should pass: %v", err)
 	}
 }
 
 func TestValidateCustomTLVs_NoRules(t *testing.T) {
-	if err := ValidateCustomTLVs([]TLV{{Tag: 1, Value: "x"}}, nil); err != nil {
+	if err := ValidateCustomTLVs([]TLV{{Tag: big.NewInt(1), Value: "x"}}, nil); err != nil {
 		t.Errorf("no rules should allow everything: %v", err)
 	}
 }
@@ -237,7 +257,7 @@ func TestValidateCustomTLVs_FallsBackToRuleType(t *testing.T) {
 	// An untyped (Type "") present TLV uses the rule's type for its length computation:
 	// Int2 encodes to 2 bytes, within a max of 2.
 	rules := []ConnectorRule{{Tag: 0x1401, Type: TypeInt2, Length: intp(2)}}
-	if err := ValidateCustomTLVs([]TLV{{Tag: 0x1401, Value: 5121}}, rules); err != nil {
+	if err := ValidateCustomTLVs([]TLV{{Tag: big.NewInt(0x1401), Value: 5121}}, rules); err != nil {
 		t.Errorf("Int2 (2 bytes) within max 2 rejected: %v", err)
 	}
 }

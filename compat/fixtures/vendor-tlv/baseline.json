@@ -1,0 +1,750 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "result": {
+          "tag": "5121",
+          "type": null
+        }
+      },
+      "id": "parse_hex_untyped",
+      "input": {
+        "tag_key": " 0x1401 "
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "result": {
+          "tag": "5121",
+          "type": "Int4"
+        }
+      },
+      "id": "parse_decimal_int4",
+      "input": {
+        "tag_key": "5121:Int4"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "ValueError",
+          "message": "invalid literal for int() with base 16: '0x1401:Bogus'"
+        }
+      },
+      "id": "parse_invalid_type_errors",
+      "input": {
+        "tag_key": "0x1401:Bogus"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "result": {
+          "tag": "-1",
+          "type": null
+        }
+      },
+      "id": "parse_negative_tag",
+      "input": {
+        "tag_key": "-1"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "result": {
+          "tag": "18446744073709551616",
+          "type": null
+        }
+      },
+      "id": "parse_arbitrary_precision_tag",
+      "input": {
+        "tag_key": "18446744073709551616"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int8",
+            "value": {
+              "kind": "int",
+              "value": "1707167205648943173"
+            }
+          }
+        ]
+      },
+      "id": "resolve_declared_int8_decimal",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "1707167205648943173"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int2",
+            "value": {
+              "kind": "int",
+              "value": "5121"
+            }
+          }
+        ]
+      },
+      "id": "resolve_declared_int2_hex",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int2"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "0x1401"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "30583",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "abc"
+            }
+          }
+        ]
+      },
+      "id": "resolve_unknown_defaults_octet",
+      "input": {
+        "rules": [],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "30583",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "abc"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int2",
+            "value": {
+              "kind": "int",
+              "value": "5"
+            }
+          }
+        ]
+      },
+      "id": "resolve_explicit_type_wins",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int2",
+            "value": {
+              "kind": "int",
+              "value": "5"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "ValueError",
+          "message": "invalid literal for int() with base 10: 'not-an-int'"
+        }
+      },
+      "id": "resolve_invalid_integer_errors",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int2"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "not-an-int"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int8",
+            "value": {
+              "kind": "int",
+              "value": "-1"
+            }
+          }
+        ]
+      },
+      "id": "resolve_negative_integer",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "-1"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int8",
+            "value": {
+              "kind": "int",
+              "value": "18446744073709551616"
+            }
+          }
+        ]
+      },
+      "id": "resolve_arbitrary_precision_integer",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "18446744073709551616"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
+            "tag": "-1",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "x"
+            }
+          },
+          {
+            "length": null,
+            "tag": "65536",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "y"
+            }
+          }
+        ]
+      },
+      "id": "resolve_preserves_unbounded_tags",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 65535,
+            "type": "OctetString"
+          },
+          {
+            "length": null,
+            "required": false,
+            "tag": 0,
+            "type": "OctetString"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "-1",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "x"
+            }
+          },
+          {
+            "length": null,
+            "tag": "65536",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "y"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "hex": "ff"
+      },
+      "id": "encode_int1_max",
+      "input": {
+        "type": "Int1",
+        "value": {
+          "kind": "int",
+          "value": "255"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "1401"
+      },
+      "id": "encode_int2_big_endian",
+      "input": {
+        "type": "Int2",
+        "value": {
+          "kind": "int",
+          "value": "5121"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "01020304"
+      },
+      "id": "encode_int4_big_endian",
+      "input": {
+        "type": "Int4",
+        "value": {
+          "kind": "int",
+          "value": "16909060"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "17b1138750e6c845"
+      },
+      "id": "encode_int8_vendor_id",
+      "input": {
+        "type": "Int8",
+        "value": {
+          "kind": "int",
+          "value": "1707167205648943173"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "636166c3a9"
+      },
+      "id": "encode_octet_unicode",
+      "input": {
+        "type": "OctetString",
+        "value": {
+          "kind": "string",
+          "value": "caf\u00e9"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "61626300"
+      },
+      "id": "encode_coctet_terminator",
+      "input": {
+        "type": "COctetString",
+        "value": {
+          "kind": "string",
+          "value": "abc"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "deadbeef"
+      },
+      "id": "encode_bytes_verbatim",
+      "input": {
+        "type": "Int2",
+        "value": {
+          "kind": "bytes",
+          "value": "3q2+7w=="
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "error",
+          "message": "'B' format requires 0 <= number <= 255"
+        }
+      },
+      "id": "encode_int1_overflow_errors",
+      "input": {
+        "type": "Int1",
+        "value": {
+          "kind": "int",
+          "value": "256"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "140100021401140000027800"
+      },
+      "id": "encode_custom_order_and_headers",
+      "input": {
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "Int2",
+            "value": {
+              "kind": "int",
+              "value": "5121"
+            }
+          },
+          {
+            "length": null,
+            "tag": "5120",
+            "type": "COctetString",
+            "value": {
+              "kind": "string",
+              "value": "x"
+            }
+          }
+        ]
+      },
+      "operation": "encode_custom"
+    },
+    {
+      "expected": {
+        "hex": "ffff0001780000000179"
+      },
+      "id": "encode_custom_masks_unbounded_tags",
+      "input": {
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "-1",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "x"
+            }
+          },
+          {
+            "length": null,
+            "tag": "65536",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "y"
+            }
+          }
+        ]
+      },
+      "operation": "encode_custom"
+    },
+    {
+      "expected": {
+        "result": {
+          "message": "missing required TLV 0x1401",
+          "ok": false
+        }
+      },
+      "id": "validate_missing_required",
+      "input": {
+        "rules": [
+          {
+            "length": 5,
+            "required": true,
+            "tag": 5121,
+            "type": "OctetString"
+          }
+        ],
+        "tlvs": []
+      },
+      "operation": "validate"
+    },
+    {
+      "expected": {
+        "result": {
+          "message": null,
+          "ok": true
+        }
+      },
+      "id": "validate_exact_max",
+      "input": {
+        "rules": [
+          {
+            "length": 5,
+            "required": true,
+            "tag": 5121,
+            "type": "OctetString"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "12345"
+            }
+          }
+        ]
+      },
+      "operation": "validate"
+    },
+    {
+      "expected": {
+        "result": {
+          "message": "TLV 0x1401 value length 6 exceeds configured max 5",
+          "ok": false
+        }
+      },
+      "id": "validate_over_max",
+      "input": {
+        "rules": [
+          {
+            "length": 5,
+            "required": true,
+            "tag": 5121,
+            "type": "OctetString"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "123456"
+            }
+          }
+        ]
+      },
+      "operation": "validate"
+    },
+    {
+      "expected": {
+        "result": {
+          "message": "TLV 0x1401 value length 4 exceeds configured max 3",
+          "ok": false
+        }
+      },
+      "id": "validate_coctet_counts_nul",
+      "input": {
+        "rules": [
+          {
+            "length": 3,
+            "required": false,
+            "tag": 5121,
+            "type": "COctetString"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "COctetString",
+            "value": {
+              "kind": "string",
+              "value": "abc"
+            }
+          }
+        ]
+      },
+      "operation": "validate"
+    },
+    {
+      "expected": {
+        "result": {
+          "message": null,
+          "ok": true
+        }
+      },
+      "id": "validate_duplicate_last_wins",
+      "input": {
+        "rules": [
+          {
+            "length": 2,
+            "required": true,
+            "tag": 5121,
+            "type": "OctetString"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "too-long"
+            }
+          },
+          {
+            "length": null,
+            "tag": "5121",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "ok"
+            }
+          }
+        ]
+      },
+      "operation": "validate"
+    },
+    {
+      "expected": {
+        "result": {
+          "message": null,
+          "ok": true
+        }
+      },
+      "id": "validate_unknown_tag_allowed",
+      "input": {
+        "rules": [
+          {
+            "length": 2,
+            "required": false,
+            "tag": 5121,
+            "type": "OctetString"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "30583",
+            "type": "OctetString",
+            "value": {
+              "kind": "string",
+              "value": "unbounded"
+            }
+          }
+        ]
+      },
+      "operation": "validate"
+    }
+  ],
+  "schema_version": 1,
+  "source": [
+    "jasmin/tools/tlv_encoder.py:_parse_tag_key",
+    "jasmin/tools/tlv_encoder.py:resolve_tlv_types",
+    "jasmin/tools/tlv_encoder.py:encode_tlv_value",
+    "jasmin/tools/tlv_encoder.py:encode_custom_tlvs",
+    "jasmin/tools/tlv_encoder.py:validate_custom_tlvs"
+  ]
+}

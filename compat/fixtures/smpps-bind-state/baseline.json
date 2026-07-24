@@ -1,0 +1,136 @@
+{
+  "baseline_commit": "0aac58e466d583d0f0436df7b8afa3dc96191263",
+  "cases": [
+    {
+      "expected": {
+        "action": "reject",
+        "command_status": 8,
+        "status": "CommandStatus.ESME_RSYSERR"
+      },
+      "id": "unsupported_deliver_sm_rejected",
+      "input": {
+        "command": "deliver_sm",
+        "command_id": 5,
+        "entry_point": "PDURequestReceived",
+        "state": "BOUND_TRX"
+      }
+    },
+    {
+      "expected": {
+        "action": "reject",
+        "command_status": 4,
+        "status": "CommandStatus.ESME_RINVBNDSTS"
+      },
+      "id": "submit_sm_bound_rx_rejected",
+      "input": {
+        "command": "submit_sm",
+        "command_id": 4,
+        "entry_point": "PDUDataRequestReceived",
+        "state": "BOUND_RX"
+      }
+    },
+    {
+      "expected": {
+        "action": "reject",
+        "command_status": 4,
+        "status": "CommandStatus.ESME_RINVBNDSTS"
+      },
+      "id": "data_sm_bound_rx_rejected",
+      "input": {
+        "command": "data_sm",
+        "command_id": 259,
+        "entry_point": "PDUDataRequestReceived",
+        "state": "BOUND_RX"
+      }
+    },
+    {
+      "expected": {
+        "action": "delegate",
+        "command_status": 0,
+        "status": "CommandStatus.ESME_ROK"
+      },
+      "id": "bind_transmitter_open_delegated",
+      "input": {
+        "command": "bind_transmitter",
+        "command_id": 2,
+        "entry_point": "PDURequestReceived",
+        "state": "OPEN"
+      }
+    },
+    {
+      "expected": {
+        "action": "delegate",
+        "command_status": 0,
+        "status": "CommandStatus.ESME_ROK"
+      },
+      "id": "submit_sm_bound_tx_delegated",
+      "input": {
+        "command": "submit_sm",
+        "command_id": 4,
+        "entry_point": "PDURequestReceived",
+        "state": "BOUND_TX"
+      }
+    },
+    {
+      "expected": {
+        "action": "delegate",
+        "command_status": 0,
+        "status": "CommandStatus.ESME_ROK"
+      },
+      "id": "data_sm_bound_trx_delegated",
+      "input": {
+        "command": "data_sm",
+        "command_id": 259,
+        "entry_point": "PDURequestReceived",
+        "state": "BOUND_TRX"
+      }
+    },
+    {
+      "expected": {
+        "action": "delegate",
+        "command_status": 0,
+        "status": "CommandStatus.ESME_ROK"
+      },
+      "id": "unbind_bound_trx_delegated",
+      "input": {
+        "command": "unbind",
+        "command_id": 6,
+        "entry_point": "PDURequestReceived",
+        "state": "BOUND_TRX"
+      }
+    },
+    {
+      "expected": {
+        "action": "delegate",
+        "command_status": 0,
+        "status": "CommandStatus.ESME_ROK"
+      },
+      "id": "enquire_link_open_delegated",
+      "input": {
+        "command": "enquire_link",
+        "command_id": 21,
+        "entry_point": "PDURequestReceived",
+        "state": "OPEN"
+      }
+    },
+    {
+      "expected": {
+        "action": "delegate",
+        "command_status": 0,
+        "status": "CommandStatus.ESME_ROK"
+      },
+      "id": "unbind_resp_unbound_delegated",
+      "input": {
+        "command": "unbind_resp",
+        "command_id": 2147483654,
+        "entry_point": "PDURequestReceived",
+        "state": "UNBOUND"
+      }
+    }
+  ],
+  "schema_version": 1,
+  "source": [
+    "jasmin/protocols/smpp/protocol.py:SMPPServerProtocol.PDURequestReceived",
+    "jasmin/protocols/smpp/protocol.py:SMPPServerProtocol.PDUDataRequestReceived"
+  ]
+}

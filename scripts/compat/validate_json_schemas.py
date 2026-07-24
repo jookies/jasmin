@@ -18,6 +18,14 @@ PAIRS = {
         ROOT / "compat/fixtures/schema/smpp-golden.schema.json",
         ROOT / "compat/fixtures/smpp/baseline.json",
     ),
+    "smpps-bind-state": (
+        ROOT / "compat/fixtures/schema/smpps-bind-state-golden.schema.json",
+        ROOT / "compat/fixtures/smpps-bind-state/baseline.json",
+    ),
+    "vendor-tlv": (
+        ROOT / "compat/fixtures/schema/vendor-tlv-golden.schema.json",
+        ROOT / "compat/fixtures/vendor-tlv/baseline.json",
+    ),
     "smpp-client-pacing": (
         ROOT / "compat/fixtures/schema/smpp-client-pacing-golden.schema.json",
         ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",

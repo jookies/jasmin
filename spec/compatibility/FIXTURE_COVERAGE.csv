@@ -194,3 +194,41 @@ billing-persistence,clean_tick_only_rearms,B-009,partial,Frozen legacy oracle ca
 billing-persistence,one_dirty_persists_groups_then_users,B-009,partial,Frozen legacy oracle case
 billing-persistence,first_dirty_only_is_cleared,B-009,partial,Frozen legacy oracle case
 billing-persistence,legacy_false_return_still_clears,B-009,partial,Frozen legacy oracle case
+smpps-bind-state,unsupported_deliver_sm_rejected,S-003,partial,Unsupported inbound PDU is rejected with ESME_RSYSERR
+smpps-bind-state,submit_sm_bound_rx_rejected,S-003,partial,submit_sm while BOUND_RX is rejected with ESME_RINVBNDSTS
+smpps-bind-state,data_sm_bound_rx_rejected,S-003,partial,data_sm while BOUND_RX is rejected with ESME_RINVBNDSTS
+smpps-bind-state,bind_transmitter_open_delegated,S-003,partial,Accepted bind command delegates to the vendored server base
+smpps-bind-state,submit_sm_bound_tx_delegated,S-003,partial,Accepted transmit-bound submit delegates to the vendored server base
+smpps-bind-state,data_sm_bound_trx_delegated,S-003,partial,Accepted transceiver-bound data_sm delegates to the vendored server base
+smpps-bind-state,unbind_bound_trx_delegated,S-003,partial,Accepted unbind delegates to the vendored server base
+smpps-bind-state,enquire_link_open_delegated,S-003,partial,Accepted enquire_link delegates to the vendored server base
+smpps-bind-state,unbind_resp_unbound_delegated,S-003,partial,Accepted unbind response delegates to the vendored server base
+vendor-tlv,parse_hex_untyped,SP-007,partial,Hex vendor tag parsing without an explicit type
+vendor-tlv,parse_decimal_int4,SP-007,partial,Decimal vendor tag with an explicit Int4 hint
+vendor-tlv,parse_invalid_type_errors,SP-007,partial,Invalid type suffix preserves the oracle ValueError boundary
+vendor-tlv,parse_negative_tag,SP-007,partial,Negative Python tag remains visible before wire masking
+vendor-tlv,parse_arbitrary_precision_tag,SP-007,partial,Arbitrary-precision Python tag remains visible before wire masking
+vendor-tlv,resolve_declared_int8_decimal,SP-007,partial,Connector rule resolves a 19-digit decimal value to Int8
+vendor-tlv,resolve_declared_int2_hex,SP-007,partial,Connector rule resolves a hexadecimal string to Int2
+vendor-tlv,resolve_unknown_defaults_octet,SP-007,partial,Unknown tags default to OctetString
+vendor-tlv,resolve_explicit_type_wins,SP-007,partial,Per-message explicit type takes precedence over connector config
+vendor-tlv,resolve_invalid_integer_errors,SP-007,partial,Invalid integer text fails instead of passing unresolved data
+vendor-tlv,resolve_negative_integer,SP-007,partial,Negative Python integers remain representable through type resolution before wire rejection
+vendor-tlv,resolve_arbitrary_precision_integer,SP-007,partial,Arbitrary-precision Python integers survive type resolution before width validation
+vendor-tlv,resolve_preserves_unbounded_tags,SP-007,partial,Type resolution masks lookup identity but preserves original negative and out-of-range tags
+vendor-tlv,encode_int1_max,SP-007,partial,Int1 upper-bound wire byte
+vendor-tlv,encode_int2_big_endian,SP-007,partial,Int2 big-endian wire bytes
+vendor-tlv,encode_int4_big_endian,SP-007,partial,Int4 big-endian wire bytes
+vendor-tlv,encode_int8_vendor_id,SP-007,partial,Int8 preserves a 19-digit vendor identifier
+vendor-tlv,encode_octet_unicode,SP-007,partial,OctetString uses UTF-8 bytes
+vendor-tlv,encode_coctet_terminator,SP-007,partial,COctetString includes its terminal NUL
+vendor-tlv,encode_bytes_verbatim,SP-007,partial,Pre-encoded bytes bypass typed conversion
+vendor-tlv,encode_int1_overflow_errors,SP-007,partial,Integer overflow remains an explicit encoding error
+vendor-tlv,encode_custom_order_and_headers,SP-007,partial,Multiple TLVs retain order and exact SMPP headers
+vendor-tlv,encode_custom_masks_unbounded_tags,SP-007,partial,Final wire encoding masks negative and out-of-range tags to unsigned 16-bit headers
+vendor-tlv,validate_missing_required,SP-007,partial,Required connector tag rejection
+vendor-tlv,validate_exact_max,SP-007,partial,Encoded value at the configured maximum is accepted
+vendor-tlv,validate_over_max,SP-007,partial,Encoded value above the configured maximum is rejected
+vendor-tlv,validate_coctet_counts_nul,SP-007,partial,COctetString maximum includes the terminal NUL
+vendor-tlv,validate_duplicate_last_wins,SP-007,partial,Duplicate tags use the last value for connector validation
+vendor-tlv,validate_unknown_tag_allowed,SP-007,partial,Connector rules are constraints rather than a tag whitelist
