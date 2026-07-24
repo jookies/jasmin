@@ -44,9 +44,14 @@ type Forward struct {
 	Status     string // dlr_status (command_status name or receipt state)
 	QueueMsgID string
 	Err        string // pdu_dlr_err (deliver leg; empty on the submit_sm_resp leg)
+	// ErrIsInteger records the legacy smpps err header kind: the submit_sm_resp
+	// leg carries the constructor's integer default (99) while the deliver leg
+	// forwards the receipt's err string. Decode preserves the wire kind so an
+	// encode round trip is exact.
+	ErrIsInteger bool
 
 	// HTTP fields.
-	Level     int    // actual receipt level: 1 on the submit_sm_resp leg, 2 on the deliver_sm leg
+	Level     int // actual receipt level: 1 on the submit_sm_resp leg, 2 on the deliver_sm leg
 	URL       string
 	Method    string
 	Connector string // resp leg: the DLR connector; deliver leg: the raw SMSC receipt id (Jasmin quirk)
