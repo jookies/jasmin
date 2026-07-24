@@ -190,8 +190,13 @@ func TestServiceRejectsUnparseableDeliveries(t *testing.T) {
 		Body:         []byte("x"),
 		Headers:      amqp.Table{},
 	}
-	var observed atomic.Int32
-	service.OnError = func(error) { observed.Add(1) }
+	observed := make(chan error, 1)
+	service.OnError = func(err error) {
+		select {
+		case observed <- err:
+		default:
+		}
+	}
 	service.connect = func(ctx context.Context) (*session, error) {
 		return &session{deliveries: deliveries, publisher: &recordingPublisher{published: make(chan recordedPublish, 1)}, cleanup: func() {}}, nil
 	}
@@ -209,7 +214,9 @@ func TestServiceRejectsUnparseableDeliveries(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("unparseable delivery not settled")
 	}
-	if observed.Load() == 0 {
+	select {
+	case <-observed:
+	case <-time.After(2 * time.Second):
 		t.Fatal("OnError not invoked")
 	}
 }
