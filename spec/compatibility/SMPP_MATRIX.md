@@ -23,7 +23,7 @@ Oracle: `jasmin/protocols/smpp/`, `jasmin/managers/`, SMPP tests and SMSC simula
 | SP-004 | `data_sm` | configured DLR/MO behavior and response | INVENTORIED |
 | SP-005 | `enquire_link` | request/response and timeout | GO-PARTIAL |
 | SP-006 | standard TLV | message_payload, receipts, SAR and known optionals | GO-PARTIAL |
-| SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | INVENTORIED |
+| SP-007 | vendor TLV | configured tag/name/type/value validation and fidelity | GO-PARTIAL |
 | SP-008 | unknown TLV/PDU | legacy accept/reject/error behavior | GO-PARTIAL |
 
 ## Encoding and long messages
@@ -126,4 +126,12 @@ PDU rejection with `ESME_RSYSERR`, `submit_sm`/`data_sm` rejection while
 the vendored Twisted SMPP server base. The Go helper matches all committed cases.
 Inherited state-machine behavior, duplicate-bind execution, transport/session
 wiring, disconnect semantics, timers, and a runnable SMPPS server remain
+inventoried.
+
+For `SP-007`, the fixture-backed subset invokes the frozen pure vendor-TLV
+pipeline and proves tag parsing, connector type resolution, Int1/2/4/8 and
+string/raw-byte encoding, ordered SMPP TLV headers, required-tag enforcement,
+encoded max-length boundaries, and duplicate-tag last-wins validation. HTTP/REST
+shape normalization, connector configuration lifecycle, concrete SMPPc/SMPPs
+injection, inbound decoder preservation, and end-to-end PDU forwarding remain
 inventoried.

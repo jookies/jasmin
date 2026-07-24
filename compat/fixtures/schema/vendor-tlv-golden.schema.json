@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jasmin-go.invalid/schema/vendor-tlv-golden.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "baseline_commit", "source", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
+    "source": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"type": "string"}},
+    "cases": {"type": "array", "minItems": 29, "maxItems": 29, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "typeName": {"enum": ["Int1", "Int2", "Int4", "Int8", "OctetString", "COctetString"]},
+    "tag": {"type": "string", "pattern": "^-?[0-9]+$"},
+    "value": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "value"],
+      "properties": {"kind": {"enum": ["string", "int", "bytes"]}, "value": {"type": "string"}}
+    },
+    "tlv": {
+      "type": "object", "additionalProperties": false, "required": ["tag", "length", "type", "value"],
+      "properties": {
+        "tag": {"$ref": "#/$defs/tag"},
+        "length": {"type": ["integer", "null"], "minimum": 0, "maximum": 65535},
+        "type": {"anyOf": [{"$ref": "#/$defs/typeName"}, {"type": "null"}]},
+        "value": {"$ref": "#/$defs/value"}
+      }
+    },
+    "rule": {
+      "type": "object", "additionalProperties": false, "required": ["tag", "type", "length", "required"],
+      "properties": {
+        "tag": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "type": {"$ref": "#/$defs/typeName"},
+        "length": {"type": ["integer", "null"], "minimum": 1, "maximum": 65535},
+        "required": {"type": "boolean"}
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["class", "message"],
+      "properties": {"class": {"enum": ["ValueError", "error"]}, "message": {"type": "string", "minLength": 1}}
+    },
+    "parseResult": {
+      "type": "object", "additionalProperties": false, "required": ["tag", "type"],
+      "properties": {"tag": {"$ref": "#/$defs/tag"}, "type": {"anyOf": [{"$ref": "#/$defs/typeName"}, {"type": "null"}]}}
+    },
+    "validateResult": {
+      "type": "object", "additionalProperties": false, "required": ["ok", "message"],
+      "properties": {"ok": {"type": "boolean"}, "message": {"type": ["string", "null"]}}
+    },
+    "parseInput": {"type": "object", "additionalProperties": false, "required": ["tag_key"], "properties": {"tag_key": {"type": "string"}}},
+    "resolveInput": {"type": "object", "additionalProperties": false, "required": ["tlvs", "rules"], "properties": {"tlvs": {"type": "array", "items": {"$ref": "#/$defs/tlv"}}, "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}}}},
+    "encodeValueInput": {"type": "object", "additionalProperties": false, "required": ["type", "value"], "properties": {"type": {"anyOf": [{"$ref": "#/$defs/typeName"}, {"type": "null"}]}, "value": {"$ref": "#/$defs/value"}}},
+    "encodeCustomInput": {"type": "object", "additionalProperties": false, "required": ["tlvs"], "properties": {"tlvs": {"type": "array", "items": {"$ref": "#/$defs/tlv"}}}},
+    "validateInput": {"type": "object", "additionalProperties": false, "required": ["tlvs", "rules"], "properties": {"tlvs": {"type": "array", "items": {"$ref": "#/$defs/tlv"}}, "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}}}},
+    "parseExpected": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["result"], "properties": {"result": {"$ref": "#/$defs/parseResult"}}}, {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"$ref": "#/$defs/error"}}}]},
+    "resolveExpected": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["result"], "properties": {"result": {"type": "array", "items": {"$ref": "#/$defs/tlv"}}}}, {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"$ref": "#/$defs/error"}}}]},
+    "encodeExpected": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["hex"], "properties": {"hex": {"type": "string", "pattern": "^[0-9a-f]*$"}}}, {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"$ref": "#/$defs/error"}}}]},
+    "validateExpected": {"oneOf": [{"type": "object", "additionalProperties": false, "required": ["result"], "properties": {"result": {"$ref": "#/$defs/validateResult"}}}, {"type": "object", "additionalProperties": false, "required": ["error"], "properties": {"error": {"$ref": "#/$defs/error"}}}]},
+    "case": {
+      "oneOf": [
+        {"$ref": "#/$defs/parseCase"}, {"$ref": "#/$defs/resolveCase"}, {"$ref": "#/$defs/encodeValueCase"}, {"$ref": "#/$defs/encodeCustomCase"}, {"$ref": "#/$defs/validateCase"}
+      ]
+    },
+    "parseCase": {"type": "object", "additionalProperties": false, "required": ["id", "operation", "input", "expected"], "properties": {"id": {"type": "string", "pattern": "^[a-z0-9_]+$"}, "operation": {"const": "parse_tag"}, "input": {"$ref": "#/$defs/parseInput"}, "expected": {"$ref": "#/$defs/parseExpected"}}},
+    "resolveCase": {"type": "object", "additionalProperties": false, "required": ["id", "operation", "input", "expected"], "properties": {"id": {"type": "string", "pattern": "^[a-z0-9_]+$"}, "operation": {"const": "resolve"}, "input": {"$ref": "#/$defs/resolveInput"}, "expected": {"$ref": "#/$defs/resolveExpected"}}},
+    "encodeValueCase": {"type": "object", "additionalProperties": false, "required": ["id", "operation", "input", "expected"], "properties": {"id": {"type": "string", "pattern": "^[a-z0-9_]+$"}, "operation": {"const": "encode_value"}, "input": {"$ref": "#/$defs/encodeValueInput"}, "expected": {"$ref": "#/$defs/encodeExpected"}}},
+    "encodeCustomCase": {"type": "object", "additionalProperties": false, "required": ["id", "operation", "input", "expected"], "properties": {"id": {"type": "string", "pattern": "^[a-z0-9_]+$"}, "operation": {"const": "encode_custom"}, "input": {"$ref": "#/$defs/encodeCustomInput"}, "expected": {"$ref": "#/$defs/encodeExpected"}}},
+    "validateCase": {"type": "object", "additionalProperties": false, "required": ["id", "operation", "input", "expected"], "properties": {"id": {"type": "string", "pattern": "^[a-z0-9_]+$"}, "operation": {"const": "validate"}, "input": {"$ref": "#/$defs/validateInput"}, "expected": {"$ref": "#/$defs/validateExpected"}}}
+  }
+}

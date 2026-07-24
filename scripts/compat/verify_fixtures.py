@@ -18,6 +18,7 @@ FIXTURES = {
     "http": ROOT / "compat/fixtures/http/baseline.json",
     "smpp": ROOT / "compat/fixtures/smpp/baseline.json",
     "smpps-bind-state": ROOT / "compat/fixtures/smpps-bind-state/baseline.json",
+    "vendor-tlv": ROOT / "compat/fixtures/vendor-tlv/baseline.json",
     "smpp-client-pacing": ROOT / "compat/fixtures/smpp-client-pacing/baseline.json",
     "smpp-client-readiness": ROOT / "compat/fixtures/smpp-client-readiness/baseline.json",
     "smpp-client-error-retry": ROOT / "compat/fixtures/smpp-client-error-retry/baseline.json",
@@ -70,6 +71,21 @@ EXPECTED_CASE_IDS = {
         "unbind_bound_trx_delegated",
         "enquire_link_open_delegated",
         "unbind_resp_unbound_delegated",
+    },
+    "vendor-tlv": {
+        "parse_hex_untyped", "parse_decimal_int4", "parse_invalid_type_errors",
+        "parse_negative_tag", "parse_arbitrary_precision_tag",
+        "resolve_declared_int8_decimal", "resolve_declared_int2_hex",
+        "resolve_unknown_defaults_octet", "resolve_explicit_type_wins",
+        "resolve_invalid_integer_errors", "resolve_negative_integer",
+        "resolve_arbitrary_precision_integer", "encode_int1_max", "encode_int2_big_endian",
+        "resolve_preserves_unbounded_tags",
+        "encode_int4_big_endian", "encode_int8_vendor_id", "encode_octet_unicode",
+        "encode_coctet_terminator", "encode_bytes_verbatim", "encode_int1_overflow_errors",
+        "encode_custom_order_and_headers", "validate_missing_required", "validate_exact_max",
+        "encode_custom_masks_unbounded_tags",
+        "validate_over_max", "validate_coctet_counts_nul", "validate_duplicate_last_wins",
+        "validate_unknown_tag_allowed",
     },
     "smpp-client-pacing": {
         "default_config",
@@ -217,9 +233,10 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "2b00d979db6a15a5385ea5307a6f2b34d8cf7862a89c1785fd7021aa3e5af103"
+EXPECTED_COVERAGE_SHA256 = "924b5836284400b3eead6fe8018d628bc12bfdc42e647e2e38db7a23aee3430b"
 EXPECTED_SMPP_CASES_SHA256 = "2aaae22f3ef9f3149df1f3ba357004d75eda423f1a7d44ae73bf922676db68a3"
 EXPECTED_SMPPS_BIND_STATE_CASES_SHA256 = "def8505f4faaa56e858d9a496d097642473c42b0154439409ede747d5b65da40"
+EXPECTED_VENDOR_TLV_CASES_SHA256 = "8c26cb7643ca78b3eaf1e1e1b58cc01846c05549cd2b1941496da6930f789653"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"
@@ -324,6 +341,37 @@ def validate_smpps_bind_state(document: dict) -> None:
         else:
             require(expected["action"] == "reject", f"{context}: action")
             require(expected["status"] != "CommandStatus.ESME_ROK", f"{context}: rejected status")
+
+
+def validate_vendor_tlv(document: dict) -> None:
+    digest = hashlib.sha256(
+        json.dumps(document["cases"], sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    require(digest == EXPECTED_VENDOR_TLV_CASES_SHA256, "vendor-tlv: trusted corpus fingerprint")
+    require(
+        document.get("source") == [
+            "jasmin/tools/tlv_encoder.py:_parse_tag_key",
+            "jasmin/tools/tlv_encoder.py:resolve_tlv_types",
+            "jasmin/tools/tlv_encoder.py:encode_tlv_value",
+            "jasmin/tools/tlv_encoder.py:encode_custom_tlvs",
+            "jasmin/tools/tlv_encoder.py:validate_custom_tlvs",
+        ],
+        "vendor-tlv: source boundary",
+    )
+    operations = {case["operation"] for case in document["cases"]}
+    require(
+        operations == {"parse_tag", "resolve", "encode_value", "encode_custom", "validate"},
+        "vendor-tlv: operation coverage",
+    )
+    for case in document["cases"]:
+        context = f"vendor-tlv/{case['id']}"
+        expected = case["expected"]
+        require(len(set(expected) & {"result", "hex", "error"}) == 1, f"{context}: one outcome")
+        if "hex" in expected:
+            require(bytes.fromhex(expected["hex"]).hex() == expected["hex"], f"{context}: canonical hex")
+        if "error" in expected:
+            require(expected["error"]["class"] in {"ValueError", "error"}, f"{context}: error class")
+            require(bool(expected["error"]["message"]), f"{context}: error message")
 
 
 def validate_smpp_client_pacing(document: dict) -> None:
@@ -783,6 +831,7 @@ def main() -> int:
     validate_http(documents["http"])
     validate_smpp(documents["smpp"])
     validate_smpps_bind_state(documents["smpps-bind-state"])
+    validate_vendor_tlv(documents["vendor-tlv"])
     validate_smpp_client_pacing(documents["smpp-client-pacing"])
     validate_smpp_client_readiness(documents["smpp-client-readiness"])
     validate_smpp_client_error_retry(documents["smpp-client-error-retry"])

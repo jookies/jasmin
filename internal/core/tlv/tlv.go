@@ -17,6 +17,7 @@ package tlv
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -47,10 +48,10 @@ var validTypes = map[string]bool{
 
 // TLV is one custom (vendor-range) TLV in the Python (tag, length, type, value) shape.
 // Type "" means unresolved (Python None); ResolveTLVTypes fills it in. Value may be a
-// string, an integer (any int/uint width), or []byte (returned verbatim by EncodeValue).
+// string, an integer (Go int/uint widths or *big.Int), or []byte (returned verbatim by EncodeValue).
 type TLV struct {
-	Tag    uint16
-	Length *int // optional hint; encoding ignores it and uses the encoded body length
+	Tag    *big.Int // preserves Python's arbitrary-precision intermediate tag domain
+	Length *int     // optional hint; encoding ignores it and uses the encoded body length
 	Type   string
 	Value  any
 }
@@ -68,7 +69,7 @@ type ConnectorRule struct {
 // "0x1401:Int8", "5121", "5121:Int4". A hint applies only when it names a valid type;
 // otherwise the whole key is treated as the tag string. The tag is hex when 0x-prefixed,
 // else decimal. Returns ok=false when the tag is unparseable (Python raises ValueError).
-func ParseTagKey(tagKey string) (tag uint16, tlvType string, ok bool) {
+func ParseTagKey(tagKey string) (tag *big.Int, tlvType string, err error) {
 	tagKey = strings.TrimSpace(tagKey)
 	tagStr := tagKey
 	if i := strings.Index(tagKey, ":"); i >= 0 {
@@ -82,25 +83,31 @@ func ParseTagKey(tagKey string) (tag uint16, tlvType string, ok bool) {
 	}
 	t, ok := parseTagInt(tagStr)
 	if !ok {
-		return 0, "", false
+		return nil, "", &ValueError{Message: fmt.Sprintf("invalid integer tag %q", tagStr)}
 	}
-	return t, tlvType, true
+	return t, tlvType, nil
 }
 
-// parseTagInt parses a tag as hex (0x-prefixed) or decimal, masking to the 2-byte tag space.
-func parseTagInt(s string) (uint16, bool) {
+// ValueError represents the Python ValueError boundary used by parsing and type resolution.
+type ValueError struct{ Message string }
+
+func (e *ValueError) Error() string { return e.Message }
+
+// WireError represents Python struct.error at an unsigned integer wire-width boundary.
+type WireError struct{ Message string }
+
+func (e *WireError) Error() string { return e.Message }
+
+// parseTagInt preserves Python's arbitrary-precision signed integer domain. Masking is
+// intentionally deferred to connector-rule lookup, validation, and final wire encoding.
+func parseTagInt(s string) (*big.Int, bool) {
 	s = strings.TrimSpace(s)
-	var n uint64
-	var err error
+	base, digits := 10, s
 	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
-		n, err = strconv.ParseUint(s[2:], 16, 64)
-	} else {
-		n, err = strconv.ParseUint(s, 10, 64)
+		base, digits = 16, s[2:]
 	}
-	if err != nil {
-		return 0, false
-	}
-	return uint16(n & 0xFFFF), true
+	n, ok := new(big.Int).SetString(digits, base)
+	return n, ok
 }
 
 // ResolveTLVTypes fills in the type of every TLV whose Type is "" (Python None): a tag found
@@ -108,9 +115,9 @@ func parseTagInt(s string) (uint16, bool) {
 // OctetString. Already-typed TLVs pass through unchanged. When a resolved type is integer
 // and the value is still a string, it is coerced to its integer (hex when 0x-prefixed, else
 // decimal), matching resolve_tlv_types so the encoder receives a number.
-func ResolveTLVTypes(tlvs []TLV, rules []ConnectorRule) []TLV {
+func ResolveTLVTypes(tlvs []TLV, rules []ConnectorRule) ([]TLV, error) {
 	if len(tlvs) == 0 {
-		return tlvs
+		return tlvs, nil
 	}
 	ruleByTag := make(map[uint16]ConnectorRule, len(rules))
 	for _, r := range rules {
@@ -123,21 +130,23 @@ func ResolveTLVTypes(tlvs []TLV, rules []ConnectorRule) []TLV {
 			continue
 		}
 		resolved := t
-		if r, ok := ruleByTag[t.Tag]; ok {
+		if r, ok := ruleByTag[maskedTag(t.Tag)]; ok {
 			resolved.Type = r.Type
 		} else {
 			resolved.Type = TypeOctetString
 		}
 		if _, isInt := intWidths[resolved.Type]; isInt {
 			if s, ok := resolved.Value.(string); ok {
-				if n, ok := coerceIntString(s); ok {
-					resolved.Value = n
+				n, err := coerceIntString(s)
+				if err != nil {
+					return nil, fmt.Errorf("tlv 0x%04X: resolve %s value %q: %w", maskedTag(resolved.Tag), resolved.Type, s, err)
 				}
+				resolved.Value = n
 			}
 		}
 		out = append(out, resolved)
 	}
-	return out
+	return out, nil
 }
 
 // EncodeValue encodes a TLV value per its declared type (encode_tlv_value):
@@ -189,13 +198,13 @@ func EncodeCustomTLVs(tlvs []TLV) ([]byte, error) {
 	for _, t := range tlvs {
 		body, err := EncodeValue(t.Value, t.Type)
 		if err != nil {
-			return nil, fmt.Errorf("tlv 0x%04X: %w", t.Tag, err)
+			return nil, fmt.Errorf("tlv 0x%04X: %w", maskedTag(t.Tag), err)
 		}
 		if len(body) > 0xFFFF {
-			return nil, fmt.Errorf("tlv 0x%04X: body length %d exceeds 65535", t.Tag, len(body))
+			return nil, fmt.Errorf("tlv 0x%04X: body length %d exceeds 65535", maskedTag(t.Tag), len(body))
 		}
 		header := make([]byte, 4)
-		binary.BigEndian.PutUint16(header[0:2], t.Tag)
+		binary.BigEndian.PutUint16(header[0:2], maskedTag(t.Tag))
 		binary.BigEndian.PutUint16(header[2:4], uint16(len(body)))
 		out = append(out, header...)
 		out = append(out, body...)
@@ -229,7 +238,7 @@ func ValidateCustomTLVs(tlvs []TLV, rules []ConnectorRule) error {
 	}
 	byTag := make(map[uint16]TLV, len(tlvs))
 	for _, t := range tlvs {
-		byTag[t.Tag] = t // last wins on duplicate tags, matching the Python dict
+		byTag[maskedTag(t.Tag)] = t // last wins after Python's & 0xFFFF normalization
 	}
 	for _, rule := range rules {
 		present, ok := byTag[rule.Tag]
@@ -261,7 +270,7 @@ func ValidateCustomTLVs(tlvs []TLV, rules []ConnectorRule) error {
 // not fit (mirroring struct.pack's overflow on the unsigned '>B'/'>H'/'>I'/'>Q' formats).
 func packBigEndian(n uint64, width int, typeName string) ([]byte, error) {
 	if width < 8 && n >= uint64(1)<<(8*uint(width)) {
-		return nil, fmt.Errorf("value %d does not fit in %s (%d bytes)", n, typeName, width)
+		return nil, &WireError{Message: fmt.Sprintf("value %d does not fit in %s (%d bytes)", n, typeName, width)}
 	}
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, n)
@@ -299,6 +308,17 @@ func toUint(value any) (uint64, error) {
 		return uint64(v), nil
 	case uint64:
 		return v, nil
+	case *big.Int:
+		if v == nil {
+			return 0, fmt.Errorf("nil big integer")
+		}
+		if v.Sign() < 0 {
+			return 0, &WireError{Message: fmt.Sprintf("negative value %s", v.String())}
+		}
+		if !v.IsUint64() {
+			return 0, &WireError{Message: fmt.Sprintf("value %s exceeds uint64", v.String())}
+		}
+		return v.Uint64(), nil
 	case float64:
 		return 0, fmt.Errorf("float64 value %v is unsafe for an integer TLV; pass int64/uint64 or a string", v)
 	default:
@@ -347,13 +367,32 @@ func strValue(value any) (string, error) {
 }
 
 // coerceIntString parses an integer string for type resolution: hex when 0x-prefixed, else
-// decimal (resolve_tlv_types' `int(value, 16 or 10)`). ok=false leaves the value unchanged.
-func coerceIntString(s string) (uint64, bool) {
+// decimal (resolve_tlv_types' `int(value, 16 or 10)`). Invalid input is returned as an error
+// so callers cannot pass unresolved text into the wire encoder.
+func coerceIntString(s string) (any, error) {
 	s = strings.TrimSpace(s)
+	base := 10
+	digits := s
 	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
-		n, err := strconv.ParseUint(s[2:], 16, 64)
-		return n, err == nil
+		base = 16
+		digits = s[2:]
 	}
-	n, err := strconv.ParseUint(s, 10, 64)
-	return n, err == nil
+	n, ok := new(big.Int).SetString(digits, base)
+	if !ok {
+		return nil, &ValueError{Message: fmt.Sprintf("invalid integer value %q", s)}
+	}
+	if n.IsUint64() {
+		return n.Uint64(), nil
+	}
+	if n.IsInt64() {
+		return n.Int64(), nil
+	}
+	return n, nil
+}
+
+func maskedTag(tag *big.Int) uint16 {
+	if tag == nil {
+		return 0
+	}
+	return uint16(new(big.Int).And(new(big.Int).Set(tag), big.NewInt(0xFFFF)).Uint64())
 }
