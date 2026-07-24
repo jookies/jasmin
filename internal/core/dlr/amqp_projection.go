@@ -99,6 +99,7 @@ func decodeSMPPSForward(messageID, status string, headers map[string]amqpcompat.
 			forward.Err = value
 		} else if value, integerOK := field.Integer(); integerOK {
 			forward.Err = strconv.FormatInt(value, 10)
+			forward.ErrIsInteger = true
 		} else {
 			return Forward{}, fmt.Errorf("%w: header %q has wrong kind", ErrInvalidThrowerEnvelope, "err")
 		}
