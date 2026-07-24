@@ -11,9 +11,9 @@ outbound-b,release,postgres-rabbitmq-redis-smsc,go test -json -count=1 -run ^Tes
 control,focused,postgres-rabbitmq-redis-smsc,,,
 control,candidate,postgres-rabbitmq-redis-smsc,,,
 control,release,postgres-rabbitmq-redis-smsc,,,
-dlr,focused,postgres-rabbitmq-redis-smsc,,,MS-1
-dlr,candidate,postgres-rabbitmq-redis-smsc,,,MS-1
-dlr,release,postgres-rabbitmq-redis-smsc,,,MS-1
+dlr,focused,none,go test -json -count=1 -run ^TestGoldenDLRThrowerProjection$ ./internal/core/dlr,github.com/pumpitspace/jasmin/internal/core/dlr::TestGoldenDLRThrowerProjection,MS-1
+dlr,candidate,none,go test -json -race -count=1 ./internal/core/dlr,github.com/pumpitspace/jasmin/internal/core/dlr::TestGoldenDLRThrowerProjection,MS-1
+dlr,release,none,go test -json -race -count=1 ./internal/core/dlr;go test -json -race -count=1 -run ^TestGoldenRedisState$ ./internal/state/rediscompat;go test -json -race -count=1 -run ^TestGoldenAMQPEnvelopes$ ./internal/transport/amqpcompat;go test -json -race -count=1 -run ^TestGoldenDecodeAndRoundTrip$ ./internal/transport/smppwire,github.com/pumpitspace/jasmin/internal/core/dlr::TestGoldenDLRThrowerProjection;github.com/pumpitspace/jasmin/internal/state/rediscompat::TestGoldenRedisState;github.com/pumpitspace/jasmin/internal/transport/amqpcompat::TestGoldenAMQPEnvelopes;github.com/pumpitspace/jasmin/internal/transport/smppwire::TestGoldenDecodeAndRoundTrip,MS-1
 mo,focused,postgres-rabbitmq-redis-smsc,,,MS-1;MS-2
 mo,candidate,postgres-rabbitmq-redis-smsc,,,MS-1;MS-2
 mo,release,postgres-rabbitmq-redis-smsc,,,MS-1;MS-2

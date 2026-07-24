@@ -14,8 +14,8 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 
 ### Macro 2: Delivery Receipts (DLR Path)
 **Goal:** Handle SMPP receipts and deliver to HTTP/SMPPS.
-- **2.1: Receipt Detection & Correlation** (SP-002, SP-003, RD-001, RD-002)
-- **2.2: Callback Infrastructure** (HC-003 to HC-007, A-006, A-007)
+- **2.1: Receipt Detection & Correlation** (SP-002, SP-003, RD-001, RD-002) - **IN PROGRESS (live Redis projections, SMSC-ID normalization, submit-response and terminal correlation legs exist; AMQP consumer/retry/idempotency closure remains pending)**
+- **2.2: Callback Infrastructure** (HC-003 to HC-007, A-006, A-007) - **IN PROGRESS (frozen HTTP/SMPPS thrower envelopes now project into typed callback/receipt inputs; HTTP retry lifecycle, AMQP consumers/publication and bound SMPPS session delivery remain pending)**
 
 ### Macro 3: Inbound SMS (MO Path)
 **Goal:** Receive SMPP messages and deliver to user callbacks.
@@ -30,6 +30,6 @@ The goal is to replace Python components with Go in a "Strangler" fashion.
 ## Progress Metrics
 - Functional flows completed: 0 / 4
 - Total matrix rows: 205
-- Untouched (INVENTORIED): 127
-- Partial (GO-PARTIAL): 56
+- Untouched (INVENTORIED): 125
+- Partial (GO-PARTIAL): 58
 - Complete (MATCH/GO-COMPLETE): 22

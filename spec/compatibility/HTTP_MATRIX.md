@@ -39,10 +39,10 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 | HC-001 | MO GET | exact fields: id/from/to/origin-connector/content/binary plus optional metadata | INVENTORIED |
 | HC-002 | MO POST | form fields/body and content encoding | INVENTORIED |
 | HC-003 | DLR level 1 | id/status/level/connector fields | INVENTORIED |
-| HC-004 | DLR level 2/3 | SMSC ID, dates, counters, error and text fields | INVENTORIED |
+| HC-004 | DLR level 2/3 | SMSC ID, dates, counters, error and text fields | GO-PARTIAL |
 | HC-005 | ACK | success only on HTTP 200 plus exact `ACK/Jasmin` | INVENTORIED |
 | HC-006 | retry | timeout, connection error, missing ACK, status-specific behavior, max attempts/delay | INVENTORIED |
-| HC-007 | method | legacy GET/POST normalization and validation | INVENTORIED |
+| HC-007 | method | legacy GET/POST normalization and validation | GO-PARTIAL |
 
 ## REST API
 
@@ -66,3 +66,10 @@ Fixtures record request bytes/parameters, response status, headers, body bytes, 
 the matrix row contains additional legacy behaviors that are not implemented
 yet. `MATCH` means the currently inventoried row is covered by an executable
 differential assertion.
+
+For `HC-004` and `HC-007`, the fixture-backed subset decodes the exact level-3
+`dlr_thrower.http` POST envelope into a typed callback and preserves every
+receipt field. The production AMQP consumer, frozen level-1 and callback-
+response oracles, delayed retry/count lifecycle, redirects, GET oracle and
+method/config edge cases remain unimplemented; `HC-003`, `HC-005`, and
+`HC-006` therefore remain `INVENTORIED`.

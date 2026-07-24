@@ -23,8 +23,8 @@ smpp,submit_sm_unknown_vendor_tlv,SP-007;SP-008,partial,Known vendor TLV decode 
 amqp,submit_sm_httpapi,A-002;A-013,partial,Exact Content fields and legacy pickle
 amqp,submit_sm_resp,A-003;A-013,partial,Exact response Content
 amqp,dlr_lookup_submit_sm_resp,A-006;A-013,partial,DLR lookup Content
-amqp,dlr_http_thrower,A-007,partial,HTTP thrower Content
-amqp,dlr_smpps_thrower,A-007,partial,SMPPS thrower Content
+amqp,dlr_http_thrower,A-007;HC-004;HC-007,partial,HTTP level-3 POST thrower Content and typed callback projection
+amqp,dlr_smpps_thrower,A-007,partial,SMPPS thrower Content and typed receipt projection
 amqp,bill_submit_sm_resp,A-008,partial,Billing Content
 amqp,routed_deliver_sm_http,A-005;A-013,partial,Routed MO Content and connector pickle
 redis,http_dlr_request,RD-001,partial,HTTP DLR hash serialization and TTL
