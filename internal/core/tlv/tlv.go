@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // SMPP TLV value-type names (_VALID_TLV_TYPES in the oracle).
@@ -105,6 +106,13 @@ func parseTagInt(s string) (*big.Int, bool) {
 	base, digits := 10, s
 	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
 		base, digits = 16, s[2:]
+		if strings.HasPrefix(digits, "+") || strings.HasPrefix(digits, "-") {
+			return nil, false
+		}
+	}
+	digits, ok := normalizePythonIntDigits(digits, base, base == 16, true)
+	if !ok {
+		return nil, false
 	}
 	n, ok := new(big.Int).SetString(digits, base)
 	return n, ok
@@ -268,9 +276,9 @@ func ValidateCustomTLVs(tlvs []TLV, rules []ConnectorRule) error {
 
 // packBigEndian packs an unsigned integer into width big-endian bytes, erroring when it does
 // not fit (mirroring struct.pack's overflow on the unsigned '>B'/'>H'/'>I'/'>Q' formats).
-func packBigEndian(n uint64, width int, typeName string) ([]byte, error) {
+func packBigEndian(n uint64, width int, _ string) ([]byte, error) {
 	if width < 8 && n >= uint64(1)<<(8*uint(width)) {
-		return nil, &WireError{Message: fmt.Sprintf("value %d does not fit in %s (%d bytes)", n, typeName, width)}
+		return nil, &WireError{Message: "int too large to convert"}
 	}
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, n)
@@ -313,10 +321,10 @@ func toUint(value any) (uint64, error) {
 			return 0, fmt.Errorf("nil big integer")
 		}
 		if v.Sign() < 0 {
-			return 0, &WireError{Message: fmt.Sprintf("negative value %s", v.String())}
+			return 0, &WireError{Message: "int too large to convert"}
 		}
 		if !v.IsUint64() {
-			return 0, &WireError{Message: fmt.Sprintf("value %s exceeds uint64", v.String())}
+			return 0, &WireError{Message: "int too large to convert"}
 		}
 		return v.Uint64(), nil
 	case float64:
@@ -328,7 +336,7 @@ func toUint(value any) (uint64, error) {
 
 func nonNegative(n int64) (uint64, error) {
 	if n < 0 {
-		return 0, fmt.Errorf("negative value %d", n)
+		return 0, &WireError{Message: "int too large to convert"}
 	}
 	return uint64(n), nil
 }
@@ -359,6 +367,11 @@ func strValue(value any) (string, error) {
 		return strconv.FormatUint(uint64(v), 10), nil
 	case uint64:
 		return strconv.FormatUint(v, 10), nil
+	case *big.Int:
+		if v == nil {
+			return "", fmt.Errorf("nil big integer")
+		}
+		return v.String(), nil
 	case float64:
 		return "", fmt.Errorf("float64 value %v is unsafe for a string TLV; pass a string or integer", v)
 	default:
@@ -376,6 +389,13 @@ func coerceIntString(s string) (any, error) {
 	if len(s) >= 2 && (s[0:2] == "0x" || s[0:2] == "0X") {
 		base = 16
 		digits = s[2:]
+		if strings.HasPrefix(digits, "+") || strings.HasPrefix(digits, "-") {
+			return nil, &ValueError{Message: fmt.Sprintf("invalid integer value %q", s)}
+		}
+	}
+	digits, ok := normalizePythonIntDigits(digits, base, base == 16, true)
+	if !ok {
+		return nil, &ValueError{Message: fmt.Sprintf("invalid integer value %q", s)}
 	}
 	n, ok := new(big.Int).SetString(digits, base)
 	if !ok {
@@ -388,6 +408,97 @@ func coerceIntString(s string) (any, error) {
 		return n.Int64(), nil
 	}
 	return n, nil
+}
+
+// normalizePythonIntDigits mirrors the lexical subset accepted by Python int(text, base):
+// Unicode decimal digits and single underscores between digits. Python also permits one
+// underscore immediately after a recognized 0x prefix, which the caller has already removed.
+func normalizePythonIntDigits(s string, base int, allowLeadingUnderscore, allowUnicode bool) (string, bool) {
+	if s == "" {
+		return "", false
+	}
+	var out strings.Builder
+	previousDigit := false
+	seenDigit := false
+	leadingUnderscoreUsed := false
+	for i, r := range s {
+		if r == '+' || r == '-' {
+			if i != 0 {
+				return "", false
+			}
+			out.WriteRune(r)
+			continue
+		}
+		if r == '_' {
+			if i == len(s)-1 {
+				return "", false
+			}
+			if !previousDigit {
+				if !allowLeadingUnderscore || seenDigit || leadingUnderscoreUsed {
+					return "", false
+				}
+				leadingUnderscoreUsed = true
+			}
+			previousDigit = false
+			continue
+		}
+		digit, ok := pythonDigitValue(r, base, allowUnicode)
+		if !ok {
+			return "", false
+		}
+		out.WriteByte("0123456789abcdef"[digit])
+		previousDigit = true
+		seenDigit = true
+	}
+	return out.String(), seenDigit && previousDigit
+}
+
+func pythonDigitValue(r rune, base int, allowUnicode bool) (int, bool) {
+	if r >= '0' && r <= '9' {
+		v := int(r - '0')
+		return v, v < base
+	}
+	if base == 16 {
+		if r >= 'a' && r <= 'f' {
+			return int(r-'a') + 10, true
+		}
+		if r >= 'A' && r <= 'F' {
+			return int(r-'A') + 10, true
+		}
+	}
+	if !allowUnicode || !unicode.Is(unicode.Nd, r) {
+		return 0, false
+	}
+	for _, table := range unicode.Nd.R16 {
+		r16 := uint16(r)
+		if r <= unicode.MaxLatin1 || r <= 0xffff {
+			if r16 >= table.Lo && r16 <= table.Hi && (r16-table.Lo)%table.Stride == 0 {
+				v := int((r16-table.Lo)/table.Stride) % 10
+				return v, v < base
+			}
+		}
+	}
+	for _, table := range unicode.Nd.R32 {
+		r32 := uint32(r)
+		if r32 >= table.Lo && r32 <= table.Hi && (r32-table.Lo)%table.Stride == 0 {
+			v := int((r32-table.Lo)/table.Stride) % 10
+			return v, v < base
+		}
+	}
+	return 0, false
+}
+
+func parsePythonDecimalInt(s string, allowUnicode bool) (*big.Int, bool) {
+	if allowUnicode {
+		s = strings.TrimSpace(s)
+	} else {
+		s = strings.Trim(s, " 	\n\r\v\f")
+	}
+	digits, ok := normalizePythonIntDigits(s, 10, false, allowUnicode)
+	if !ok {
+		return nil, false
+	}
+	return new(big.Int).SetString(digits, 10)
 }
 
 func maskedTag(tag *big.Int) uint16 {

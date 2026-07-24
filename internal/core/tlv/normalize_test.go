@@ -178,6 +178,12 @@ func TestNormalize_FourTupleFields(t *testing.T) {
 		wantValueError(t, `[["0x1401", null, "Int1", 1]]`)
 	})
 
+	t.Run("Python decimal lexical forms", func(t *testing.T) {
+		got := mustNormalize(t, `[["1_000", null, "Int1", 1], ["１２", null, "Int1", 2]]`)
+		wantTag(t, got[0].Tag, 1000)
+		wantTag(t, got[1].Tag, 12)
+	})
+
 	t.Run("null tag errors", func(t *testing.T) {
 		_, err := Normalize(`[[null, null, "Int1", 1]]`)
 		if err == nil {
@@ -216,6 +222,13 @@ func TestNormalize_ShortTuples(t *testing.T) {
 	}
 	// 2/3-tuple string tags are decimal-only (bare int()), unlike dict tags.
 	wantValueError(t, `[["0x14", 1]]`)
+}
+
+func TestNormalize_ByteTagPythonDecimalSyntax(t *testing.T) {
+	got := mustNormalize(t, []any{[]any{[]byte(" 	1_000\r\n"), "x"}})
+	wantTag(t, got[0].Tag, 1000)
+	wantValueError(t, []any{[]any{[]byte("１２"), "x"}})
+	wantValueError(t, []any{[]any{[]byte("\xc2\xa01"), "x"}})
 }
 
 func TestNormalize_ListDictEntries(t *testing.T) {

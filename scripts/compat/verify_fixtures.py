@@ -75,13 +75,19 @@ EXPECTED_CASE_IDS = {
     "vendor-tlv": {
         "parse_hex_untyped", "parse_decimal_int4", "parse_invalid_type_errors",
         "parse_negative_tag", "parse_arbitrary_precision_tag",
+        "parse_decimal_underscores", "parse_hex_underscores", "parse_unicode_decimal_digits",
+        "parse_hex_positive_sign_errors", "parse_hex_negative_sign_errors",
         "resolve_declared_int8_decimal", "resolve_declared_int2_hex",
         "resolve_unknown_defaults_octet", "resolve_explicit_type_wins",
         "resolve_invalid_integer_errors", "resolve_negative_integer",
         "resolve_arbitrary_precision_integer", "encode_int1_max", "encode_int2_big_endian",
+        "resolve_integer_underscores",
+        "resolve_hex_positive_sign_errors", "resolve_hex_negative_sign_errors",
         "resolve_preserves_unbounded_tags",
         "encode_int4_big_endian", "encode_int8_vendor_id", "encode_octet_unicode",
         "encode_coctet_terminator", "encode_bytes_verbatim", "encode_int1_overflow_errors",
+        "encode_octet_arbitrary_precision_integer", "encode_coctet_negative_arbitrary_precision_integer",
+        "encode_untyped_arbitrary_precision_integer", "encode_int8_negative_errors", "encode_int8_overflow_errors",
         "encode_custom_order_and_headers", "validate_missing_required", "validate_exact_max",
         "encode_custom_masks_unbounded_tags",
         "validate_over_max", "validate_coctet_counts_nul", "validate_duplicate_last_wins",
@@ -233,10 +239,10 @@ EXPECTED_CASE_IDS = {
         "failover_mo_mixed_rejected", "failover_empty_rejected", "failover_mo_filter_match", "failover_mo_filter_miss",
     },
 }
-EXPECTED_COVERAGE_SHA256 = "924b5836284400b3eead6fe8018d628bc12bfdc42e647e2e38db7a23aee3430b"
+EXPECTED_COVERAGE_SHA256 = "076003707116ed708f71bebcc1d2b338916d6d9dab2db1ec326b8d3c0cdc3273"
 EXPECTED_SMPP_CASES_SHA256 = "2aaae22f3ef9f3149df1f3ba357004d75eda423f1a7d44ae73bf922676db68a3"
 EXPECTED_SMPPS_BIND_STATE_CASES_SHA256 = "def8505f4faaa56e858d9a496d097642473c42b0154439409ede747d5b65da40"
-EXPECTED_VENDOR_TLV_CASES_SHA256 = "8c26cb7643ca78b3eaf1e1e1b58cc01846c05549cd2b1941496da6930f789653"
+EXPECTED_VENDOR_TLV_CASES_SHA256 = "407a161f148fe5efb30b9ff5b0cd87f867255c23cbc385902896e8feeb0fc962"
 EXPECTED_SMPP_CLIENT_PACING_CASES_SHA256 = "ca2aaaf23cdaa0e5975639ad833013b146d5215d753d783b481fc64161df75e0"
 EXPECTED_SMPP_CLIENT_READINESS_CASES_SHA256 = "4d811b89f63b005301a9dc3f4c7e3e7d45a1a0f6586f24b2f3429a988bea78a5"
 EXPECTED_SMPP_CLIENT_ERROR_RETRY_CASES_SHA256 = "0c4c31809d1f7fe108589853eac365a1efec4092ddb0932667323049c6ba8ad0"

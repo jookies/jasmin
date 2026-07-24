@@ -85,8 +85,8 @@ func TestVendorTLVGoldenDifferential(t *testing.T) {
 	if document.BaselineCommit != "0aac58e466d583d0f0436df7b8afa3dc96191263" {
 		t.Fatalf("unexpected baseline %q", document.BaselineCommit)
 	}
-	if len(document.Cases) != 29 {
-		t.Fatalf("executed cases=%d want=29", len(document.Cases))
+	if len(document.Cases) != 42 {
+		t.Fatalf("executed cases=%d want=42", len(document.Cases))
 	}
 
 	seen := make(map[string]struct{}, len(document.Cases))
@@ -318,7 +318,7 @@ func errorSemantic(message string) string {
 	switch {
 	case strings.Contains(message, "invalid literal"), strings.Contains(message, "invalid integer"):
 		return "invalid-integer"
-	case strings.Contains(message, "requires 0 <= number <="), strings.Contains(message, "does not fit"):
+	case strings.Contains(message, "requires 0 <= number <="), strings.Contains(message, "does not fit"), strings.Contains(message, "int too large to convert"):
 		return "unsigned-width-overflow"
 	default:
 		return message

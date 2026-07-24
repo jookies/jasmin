@@ -208,6 +208,11 @@ vendor-tlv,parse_decimal_int4,SP-007,partial,Decimal vendor tag with an explicit
 vendor-tlv,parse_invalid_type_errors,SP-007,partial,Invalid type suffix preserves the oracle ValueError boundary
 vendor-tlv,parse_negative_tag,SP-007,partial,Negative Python tag remains visible before wire masking
 vendor-tlv,parse_arbitrary_precision_tag,SP-007,partial,Arbitrary-precision Python tag remains visible before wire masking
+vendor-tlv,parse_decimal_underscores,SP-007,partial,Python decimal integer syntax accepts digit separators
+vendor-tlv,parse_hex_underscores,SP-007,partial,Python hexadecimal integer syntax accepts digit separators
+vendor-tlv,parse_unicode_decimal_digits,SP-007,partial,Python integer syntax accepts Unicode decimal digits
+vendor-tlv,parse_hex_positive_sign_errors,SP-007,partial,Python rejects a positive sign after a recognized hexadecimal prefix
+vendor-tlv,parse_hex_negative_sign_errors,SP-007,partial,Python rejects a negative sign after a recognized hexadecimal prefix
 vendor-tlv,resolve_declared_int8_decimal,SP-007,partial,Connector rule resolves a 19-digit decimal value to Int8
 vendor-tlv,resolve_declared_int2_hex,SP-007,partial,Connector rule resolves a hexadecimal string to Int2
 vendor-tlv,resolve_unknown_defaults_octet,SP-007,partial,Unknown tags default to OctetString
@@ -215,6 +220,9 @@ vendor-tlv,resolve_explicit_type_wins,SP-007,partial,Per-message explicit type t
 vendor-tlv,resolve_invalid_integer_errors,SP-007,partial,Invalid integer text fails instead of passing unresolved data
 vendor-tlv,resolve_negative_integer,SP-007,partial,Negative Python integers remain representable through type resolution before wire rejection
 vendor-tlv,resolve_arbitrary_precision_integer,SP-007,partial,Arbitrary-precision Python integers survive type resolution before width validation
+vendor-tlv,resolve_integer_underscores,SP-007,partial,Integer type resolution accepts Python digit separators
+vendor-tlv,resolve_hex_positive_sign_errors,SP-007,partial,Integer type resolution rejects a positive sign after a hexadecimal prefix
+vendor-tlv,resolve_hex_negative_sign_errors,SP-007,partial,Integer type resolution rejects a negative sign after a hexadecimal prefix
 vendor-tlv,resolve_preserves_unbounded_tags,SP-007,partial,Type resolution masks lookup identity but preserves original negative and out-of-range tags
 vendor-tlv,encode_int1_max,SP-007,partial,Int1 upper-bound wire byte
 vendor-tlv,encode_int2_big_endian,SP-007,partial,Int2 big-endian wire bytes
@@ -223,7 +231,12 @@ vendor-tlv,encode_int8_vendor_id,SP-007,partial,Int8 preserves a 19-digit vendor
 vendor-tlv,encode_octet_unicode,SP-007,partial,OctetString uses UTF-8 bytes
 vendor-tlv,encode_coctet_terminator,SP-007,partial,COctetString includes its terminal NUL
 vendor-tlv,encode_bytes_verbatim,SP-007,partial,Pre-encoded bytes bypass typed conversion
+vendor-tlv,encode_octet_arbitrary_precision_integer,SP-007,partial,OctetString renders arbitrary-precision integers as Python decimal text
+vendor-tlv,encode_coctet_negative_arbitrary_precision_integer,SP-007,partial,COctetString renders signed arbitrary-precision integer text plus NUL
+vendor-tlv,encode_untyped_arbitrary_precision_integer,SP-007,partial,Untyped encoding renders arbitrary-precision integers as Python decimal text
 vendor-tlv,encode_int1_overflow_errors,SP-007,partial,Integer overflow remains an explicit encoding error
+vendor-tlv,encode_int8_negative_errors,SP-007,partial,Negative Int8 reaches the unsigned wire-width error boundary
+vendor-tlv,encode_int8_overflow_errors,SP-007,partial,Int8 above uint64 reaches the unsigned wire-width error boundary
 vendor-tlv,encode_custom_order_and_headers,SP-007,partial,Multiple TLVs retain order and exact SMPP headers
 vendor-tlv,encode_custom_masks_unbounded_tags,SP-007,partial,Final wire encoding masks negative and out-of-range tags to unsigned 16-bit headers
 vendor-tlv,validate_missing_required,SP-007,partial,Required connector tag rejection

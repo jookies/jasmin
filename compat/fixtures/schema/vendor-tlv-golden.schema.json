@@ -8,7 +8,7 @@
     "schema_version": {"const": 1},
     "baseline_commit": {"const": "0aac58e466d583d0f0436df7b8afa3dc96191263"},
     "source": {"type": "array", "minItems": 5, "maxItems": 5, "items": {"type": "string"}},
-    "cases": {"type": "array", "minItems": 29, "maxItems": 29, "items": {"$ref": "#/$defs/case"}}
+    "cases": {"type": "array", "minItems": 42, "maxItems": 42, "items": {"$ref": "#/$defs/case"}}
   },
   "$defs": {
     "typeName": {"enum": ["Int1", "Int2", "Int4", "Int8", "OctetString", "COctetString"]},

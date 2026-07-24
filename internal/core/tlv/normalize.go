@@ -275,7 +275,7 @@ func dictTag(v any) (*big.Int, error) {
 func tupleTag(v any) (*big.Int, error) {
 	if s, ok := v.(string); ok {
 		s = strings.TrimSpace(s)
-		if n, ok := new(big.Int).SetString(s, 10); ok {
+		if n, ok := parsePythonDecimalInt(s, true); ok {
 			return n, nil
 		}
 		return nil, &ValueError{Message: fmt.Sprintf("invalid integer tag %q", s)}
@@ -330,8 +330,8 @@ func nonStringTag(v any) (*big.Int, error) {
 		}
 		return new(big.Int).Set(t), nil
 	case []byte:
-		s := strings.TrimSpace(string(t))
-		if n, ok := new(big.Int).SetString(s, 10); ok { // Python int(bytes) is decimal-only
+		s := strings.Trim(string(t), " 	\n\r\v\f")
+		if n, ok := parsePythonDecimalInt(s, false); ok { // Python int(bytes) is ASCII decimal-only
 			return n, nil
 		}
 		return nil, &ValueError{Message: fmt.Sprintf("invalid integer tag %q", s)}

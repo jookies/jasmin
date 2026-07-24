@@ -68,6 +68,71 @@
     },
     {
       "expected": {
+        "result": {
+          "tag": "1000",
+          "type": null
+        }
+      },
+      "id": "parse_decimal_underscores",
+      "input": {
+        "tag_key": "1_000"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "result": {
+          "tag": "5121",
+          "type": null
+        }
+      },
+      "id": "parse_hex_underscores",
+      "input": {
+        "tag_key": "0x1_401"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "result": {
+          "tag": "12",
+          "type": null
+        }
+      },
+      "id": "parse_unicode_decimal_digits",
+      "input": {
+        "tag_key": "\uff11\uff12"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "ValueError",
+          "message": "invalid literal for int() with base 16: '0x+1'"
+        }
+      },
+      "id": "parse_hex_positive_sign_errors",
+      "input": {
+        "tag_key": "0x+1"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "ValueError",
+          "message": "invalid literal for int() with base 16: '0x-1'"
+        }
+      },
+      "id": "parse_hex_negative_sign_errors",
+      "input": {
+        "tag_key": "0x-1"
+      },
+      "operation": "parse_tag"
+    },
+    {
+      "expected": {
         "result": [
           {
             "length": null,
@@ -323,6 +388,106 @@
         "result": [
           {
             "length": null,
+            "tag": "5121",
+            "type": "Int8",
+            "value": {
+              "kind": "int",
+              "value": "1000"
+            }
+          }
+        ]
+      },
+      "id": "resolve_integer_underscores",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "1_000"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "ValueError",
+          "message": "invalid literal for int() with base 16: '0x+1'"
+        }
+      },
+      "id": "resolve_hex_positive_sign_errors",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "0x+1"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "ValueError",
+          "message": "invalid literal for int() with base 16: '0x-1'"
+        }
+      },
+      "id": "resolve_hex_negative_sign_errors",
+      "input": {
+        "rules": [
+          {
+            "length": null,
+            "required": false,
+            "tag": 5121,
+            "type": "Int8"
+          }
+        ],
+        "tlvs": [
+          {
+            "length": null,
+            "tag": "5121",
+            "type": null,
+            "value": {
+              "kind": "string",
+              "value": "0x-1"
+            }
+          }
+        ]
+      },
+      "operation": "resolve"
+    },
+    {
+      "expected": {
+        "result": [
+          {
+            "length": null,
             "tag": "-1",
             "type": "OctetString",
             "value": {
@@ -480,6 +645,48 @@
     },
     {
       "expected": {
+        "hex": "3138343436373434303733373039353531363136"
+      },
+      "id": "encode_octet_arbitrary_precision_integer",
+      "input": {
+        "type": "OctetString",
+        "value": {
+          "kind": "int",
+          "value": "18446744073709551616"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "2d313834343637343430373337303935353136313700"
+      },
+      "id": "encode_coctet_negative_arbitrary_precision_integer",
+      "input": {
+        "type": "COctetString",
+        "value": {
+          "kind": "int",
+          "value": "-18446744073709551617"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "hex": "3138343436373434303733373039353531363136"
+      },
+      "id": "encode_untyped_arbitrary_precision_integer",
+      "input": {
+        "type": null,
+        "value": {
+          "kind": "int",
+          "value": "18446744073709551616"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
         "error": {
           "class": "error",
           "message": "'B' format requires 0 <= number <= 255"
@@ -491,6 +698,40 @@
         "value": {
           "kind": "int",
           "value": "256"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "error",
+          "message": "'Q' format requires 0 <= number <= 18446744073709551615"
+        }
+      },
+      "id": "encode_int8_negative_errors",
+      "input": {
+        "type": "Int8",
+        "value": {
+          "kind": "int",
+          "value": "-1"
+        }
+      },
+      "operation": "encode_value"
+    },
+    {
+      "expected": {
+        "error": {
+          "class": "error",
+          "message": "'Q' format requires 0 <= number <= 18446744073709551615"
+        }
+      },
+      "id": "encode_int8_overflow_errors",
+      "input": {
+        "type": "Int8",
+        "value": {
+          "kind": "int",
+          "value": "18446744073709551616"
         }
       },
       "operation": "encode_value"
