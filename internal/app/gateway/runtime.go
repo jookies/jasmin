@@ -11,6 +11,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
+	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
@@ -28,6 +29,7 @@ type Runtime struct {
 	store        *storage.PostgresSubmitTransactionRepository
 	dlrLookup    *dlrlookup.Service
 	dlrThrower   *dlrthrower.Service
+	moThrower    *mothrower.Service
 	workerCancel context.CancelFunc
 	closeOnce    sync.Once
 	closeErr     error
@@ -114,6 +116,18 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		}
 		runtime.dlrThrower = throwerService
 		go func() { _ = throwerService.Run(workerCtx) }()
+	}
+	if config.MOThrower != nil {
+		moConfig := *config.MOThrower
+		if moConfig.AMQPURL == "" {
+			moConfig.AMQPURL = config.Outbound.AMQPURL
+		}
+		moService, moErr := mothrower.NewService(moConfig, bridge)
+		if moErr != nil {
+			return nil, fmt.Errorf("start MO thrower worker: %w", moErr)
+		}
+		runtime.moThrower = moService
+		go func() { _ = moService.Run(workerCtx) }()
 	}
 	if err := manager.StartAll(); err != nil {
 		return nil, fmt.Errorf("start connectors: %w", err)

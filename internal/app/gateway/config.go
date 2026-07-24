@@ -12,6 +12,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
+	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 )
@@ -32,6 +33,9 @@ type Config struct {
 	// DLRThrower, when present, runs the legacy DLRThrower worker in-process.
 	// An empty amqp_url inherits the outbound broker.
 	DLRThrower *dlrthrower.Config `json:"dlr_thrower,omitempty"`
+	// MOThrower, when present, runs the legacy deliverSmThrower worker
+	// in-process. An empty amqp_url inherits the outbound broker.
+	MOThrower *mothrower.Config `json:"deliver_sm_thrower,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -84,6 +88,15 @@ func ValidateConfig(config Config) error {
 		}
 		if err := dlrthrower.ValidateConfig(thrower); err != nil {
 			return fmt.Errorf("%w: dlr_thrower: %v", ErrInvalidConfig, err)
+		}
+	}
+	if config.MOThrower != nil {
+		thrower := *config.MOThrower
+		if thrower.AMQPURL == "" {
+			thrower.AMQPURL = config.Outbound.AMQPURL
+		}
+		if err := mothrower.ValidateConfig(thrower); err != nil {
+			return fmt.Errorf("%w: deliver_sm_thrower: %v", ErrInvalidConfig, err)
 		}
 	}
 	if len(config.Connectors) == 0 {

@@ -82,6 +82,32 @@ def deserialize(obj):
     return obj
 
 
+class DeliverSMUnpickler(pickle.Unpickler):
+    """Restricted protocol-2 loader for routed deliver_sm bodies."""
+    def find_class(self, module, name):
+        allowed = (
+            (module == "smpp.pdu.operations" and name in ("DeliverSM", "DataSM"))
+            or module == "smpp.pdu.pdu_types"
+            or (module == "_codecs" and name == "encode")
+            or (module in ("__builtin__", "builtins") and name in ("bytes", "set", "frozenset"))
+            or (module == "datetime" and name in ("datetime", "timezone", "timedelta"))
+        )
+        if not allowed:
+            raise pickle.UnpicklingError("forbidden global %s.%s" % (module, name))
+        return super().find_class(module, name)
+
+
+class ConnectorListUnpickler(pickle.Unpickler):
+    """Restricted loader for the dst-connectors header (HttpConnector list)."""
+    def find_class(self, module, name):
+        allowed = (
+            (module == "jasmin.routing.jasminApi" and name in ("Connector", "HttpConnector", "SmppServerSystemIdConnector"))
+        )
+        if not allowed:
+            raise pickle.UnpicklingError("forbidden global %s.%s" % (module, name))
+        return super().find_class(module, name)
+
+
 class SubmitSMUnpickler(pickle.Unpickler):
     """Restricted protocol-2 loader for the connector's trusted SubmitSM boundary."""
     def find_class(self, module, name):
@@ -209,6 +235,92 @@ def decode_submit_sm(data):
     return serialize(result)
 
 
+def decode_routed_deliver_sm(connectors_data, body_data):
+    """Project a RoutedDeliverSmContent's pickled pieces for the MO thrower:
+    the destination-connector list and the deliver_sm PDU as a wire-shaped
+    body plus re-encoded optional TLVs and verbatim custom_tlvs tuples."""
+    from smpp.pdu.operations import DeliverSM, DataSM
+    from smpp.pdu.pdu_encoding import (
+        AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder, EsmClassEncoder,
+        OptionEncoder, PriorityFlagEncoder, RegisteredDeliveryEncoder,
+        ReplaceIfPresentFlagEncoder,
+    )
+    from smpp.pdu.pdu_types import Tag
+    from smpp.pdu.constants import tag_name_map
+
+    stream = io.BytesIO(connectors_data)
+    connectors = ConnectorListUnpickler(stream).load()
+    if stream.read(1):
+        raise pickle.UnpicklingError("trailing bytes after connector list")
+    if not isinstance(connectors, list) or not connectors:
+        raise ValueError("dst-connectors is not a non-empty list")
+    projected_connectors = []
+    for connector in connectors:
+        projected_connectors.append({
+            "cid": str(getattr(connector, "cid", "")),
+            "type": str(getattr(connector, "_type", "")),
+            "baseurl": str(getattr(connector, "baseurl", "")),
+            "method": str(getattr(connector, "method", "")),
+        })
+
+    stream = io.BytesIO(body_data)
+    obj = DeliverSMUnpickler(stream).load()
+    if stream.read(1):
+        raise pickle.UnpicklingError("trailing bytes after deliver_sm pickle")
+    if obj.__class__ not in (DeliverSM, DataSM):
+        raise pickle.UnpicklingError("root object is not an allowlisted deliver pdu")
+    params = obj.params
+    if not isinstance(params, dict):
+        raise ValueError("deliver_sm params are not a mapping")
+
+    result = {
+        "service_type": _binary(params.get("service_type"), "service_type", 5),
+        "source_addr_ton": _encoded_byte(AddrTonEncoder, params.get("source_addr_ton"), "source_addr_ton"),
+        "source_addr_npi": _encoded_byte(AddrNpiEncoder, params.get("source_addr_npi"), "source_addr_npi"),
+        "source_addr": _binary(params.get("source_addr"), "source_addr", 20),
+        "dest_addr_ton": _encoded_byte(AddrTonEncoder, params.get("dest_addr_ton"), "dest_addr_ton"),
+        "dest_addr_npi": _encoded_byte(AddrNpiEncoder, params.get("dest_addr_npi"), "dest_addr_npi"),
+        "destination_addr": _binary(params.get("destination_addr"), "destination_addr", 20),
+        "esm_class": _encoded_byte(EsmClassEncoder, params.get("esm_class"), "esm_class"),
+        "protocol_id": _raw_byte(params.get("protocol_id"), "protocol_id"),
+        "priority_flag": _encoded_byte(PriorityFlagEncoder, params.get("priority_flag"), "priority_flag"),
+        "registered_delivery": _encoded_byte(RegisteredDeliveryEncoder, params.get("registered_delivery"), "registered_delivery"),
+        "replace_if_present_flag": _encoded_byte(ReplaceIfPresentFlagEncoder, params.get("replace_if_present_flag"), "replace_if_present_flag"),
+        "data_coding": _encoded_byte(DataCodingEncoder, params.get("data_coding"), "data_coding"),
+        "sm_default_msg_id": _raw_byte(params.get("sm_default_msg_id"), "sm_default_msg_id"),
+        "short_message": _binary(params.get("short_message"), "short_message", 255),
+        "connectors": projected_connectors,
+    }
+
+    # The legacy thrower sends str(validity_period) — a decoded datetime — not
+    # the SMPP wire text; project the exact string it would send.
+    if params.get("validity_period") is not None:
+        result["validity_str"] = str(params["validity_period"])
+
+    # Re-encode every present optional param through its legacy option encoder
+    # so the Go side parses one wire-shaped section with the frozen codec.
+    option_encoder = OptionEncoder()
+    section = bytearray()
+    for tag_member, encoder in option_encoder.options.items():
+        name = tag_member.name
+        if name == "vendor_specific_bypass" or name not in params or params[name] is None:
+            continue
+        if name in ("schedule_delivery_time", "validity_period"):
+            continue
+        value_bytes = encoder.encode(params[name])
+        wire_tag = tag_name_map[name]
+        section += wire_tag.to_bytes(2, "big") + len(value_bytes).to_bytes(2, "big") + value_bytes
+    result["optional_section"] = bytes(section)
+
+    result["custom_tlvs"] = []
+    for item in getattr(obj, "custom_tlvs", []):
+        if not isinstance(item, tuple) or len(item) != 4:
+            raise ValueError("malformed custom TLV")
+        result["custom_tlvs"].append(list(item))
+
+    return serialize(result)
+
+
 def run():
     import logging
     # A bridge invocation must not mutate the caller's working tree. Diagnostics
@@ -227,6 +339,10 @@ def run():
             elif action == "decode_submit_sm":
                 data = base64.b64decode(req["data"], validate=True)
                 print(json.dumps({"status": "ok", "result": decode_submit_sm(data)}))
+            elif action == "decode_routed_deliver_sm":
+                connectors_data = base64.b64decode(req["connectors"], validate=True)
+                body_data = base64.b64decode(req["data"], validate=True)
+                print(json.dumps({"status": "ok", "result": decode_routed_deliver_sm(connectors_data, body_data)}))
             elif action == "encode":
                 obj = deserialize(req["result"])
                 data = pickle.dumps(obj)
