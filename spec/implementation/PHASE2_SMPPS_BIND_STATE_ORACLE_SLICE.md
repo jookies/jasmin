@@ -31,14 +31,18 @@ Integrate the externally merged `internal/core/smpps/bindstate.go` helper with a
 3. The Go differential harness loads the committed fixture, executes every case with zero skips, and asserts exact allowed/status results for rejection cases plus accepted-command delegation cases.
 4. Focused x20, full Go, race, vet, build, Python verifier/schema/unit, frozen-tree, secret-delta, stable-candidate Ralph, publication, exact-SHA `4 / 4` CI, clean/ref equality, and terminal LoopKey gates pass.
 
-## Local candidate evidence
+## Executable candidate evidence
 
+- Published implementation candidate: `2b239301c3aef4341e473bb0294a0b26cee205a4`.
 - Frozen capture executed through the approved container contour and reproduced twice byte-for-byte; all three fixture copies hashed to `d27ca666a4e45a39b4fc1270be8af0a0db96ca857c90b2dd9f763a05b6734799`.
 - The Go differential ran all `9 / 9` cases and passed focused x20, full Go, race, vet, and build gates.
 - Fixture/schema/registry gates passed with `204` coverage rows and matrix totals `205 = 124 INVENTORIED + 59 GO-PARTIAL + 19 MATCH + 3 GO-COMPLETE`.
 - The complete compatibility Python unit suite passed `64 / 64`; the frozen oracle tree and candidate-delta gitleaks scan passed.
 - Exact candidate packet `a0a6195eeb66cde04a71ef317628d77928170f52cb6f80da7065d0c20f49be3e` received a synthesized `ralph-code` PASS in session `20260724_013944_e7006f` with no Critical, High, or Medium finding.
-- Publication, exact-SHA CI, terminal ref/workspace equality, and final-tree LoopKey are pending and are not claimed by this block.
+- Exact-SHA GitHub Actions run `30080460001` completed successfully with `4 / 4` jobs; local HEAD, tracking ref, and the public `go-rewrite` ref matched with a clean workspace before this documentation update.
+- Implementation candidate LoopKey: `f5382c33ae2d`.
+
+This key binds only the executable candidate and its evidence. The documentation descendant that records this block requires its own exact-SHA CI/ref-equality/clean-workspace terminal gate before the slice is considered published.
 
 ## Affected paths
 
