@@ -37,6 +37,7 @@ const (
 	RouteBillingSubmitSMResponse
 	RouteDeliverSMHTTP
 	RouteDeliverSMSMPPS
+	RouteDLRDeliverSM
 )
 
 func (kind RouteKind) String() string {
@@ -57,6 +58,8 @@ func (kind RouteKind) String() string {
 		return "deliver_sm_http"
 	case RouteDeliverSMSMPPS:
 		return "deliver_sm_smpps"
+	case RouteDLRDeliverSM:
+		return "dlr_deliver_sm"
 	default:
 		return "unknown"
 	}
@@ -80,6 +83,8 @@ func ParseRoutingKey(key string) (Route, error) {
 	switch key {
 	case "dlr.submit_sm_resp":
 		return Route{kind: RouteDLRSubmitSMResponse}, nil
+	case "dlr.deliver_sm":
+		return Route{kind: RouteDLRDeliverSM}, nil
 	case "dlr_thrower.http":
 		return Route{kind: RouteDLRHTTP}, nil
 	case "dlr_thrower.smpps":

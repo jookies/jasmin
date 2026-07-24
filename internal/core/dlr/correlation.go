@@ -27,6 +27,10 @@ var ErrDLRMapNotFound = errors.New("dlr: no DLR map for msgid")
 // level/expiry (Jasmin DLRMapError). The consumer drops the message.
 var ErrDLRMapInvalid = errors.New("dlr: invalid DLR map")
 
+// ErrForwardPublish wraps a failure to publish a correlated forward. The legacy
+// callbacks treat publish failures as generic exceptions — reject, never retried.
+var ErrForwardPublish = errors.New("dlr: forward publish failed")
+
 // ForwardTarget selects the thrower a forwarded receipt goes to.
 type ForwardTarget uint8
 
@@ -159,7 +163,7 @@ func (c *Correlator) onSubmitRespHTTP(ctx context.Context, ev SubmitRespEvent, d
 			URL: fields["url"], Method: fields["method"], Connector: connector,
 		}
 		if err := c.publisher.PublishDLR(ctx, forward); err != nil {
-			return err
+			return fmt.Errorf("%w: %v", ErrForwardPublish, err)
 		}
 		// Remove the request when the SMSC level is all that was asked (level 1), or the
 		// submit failed (no terminal receipt will follow).
@@ -198,7 +202,7 @@ func (c *Correlator) onSubmitRespSMPPS(ctx context.Context, ev SubmitRespEvent, 
 			DestAddrTON: fields["dest_addr_ton"], DestAddrNPI: fields["dest_addr_npi"],
 		}
 		if err := c.publisher.PublishDLR(ctx, f); err != nil {
-			return err
+			return fmt.Errorf("%w: %v", ErrForwardPublish, err)
 		}
 	}
 	if ok {
@@ -231,10 +235,14 @@ func (c *Correlator) writeMapping(ctx context.Context, smppMsgID, queueMsgID, co
 
 // DeliverReceiptEvent is a deliver_sm delivery receipt arriving for correlation.
 type DeliverReceiptEvent struct {
-	RawDLRID    string    // pdu_dlr_id: the raw SMSC receipt id (used as the http dlr_connector)
-	Base        MsgIDBase // connector dlr_msg_id_bases, to code RawDLRID into the lookup key
-	ConnectorID string    // cid (context/logging)
-	Status      string    // receipt state: DELIVRD, EXPIRED, ...
+	RawDLRID string    // pdu_dlr_id: the raw SMSC receipt id (used as the http dlr_connector)
+	Base     MsgIDBase // connector dlr_msg_id_bases, to code RawDLRID into the lookup key
+	// CodedID, when set, is the already-coded lookup id: the legacy dlr.deliver_sm
+	// envelope carries it as message-id, coded by the publishing listener, so the
+	// AMQP consumer path supplies it directly and Base is not consulted.
+	CodedID     string
+	ConnectorID string // cid (context/logging)
+	Status      string // receipt state: DELIVRD, EXPIRED, ...
 	Sub         string
 	Dlvrd       string
 	SubmitDate  string // pdu_dlr_sdate
@@ -253,9 +261,13 @@ type DeliverReceiptEvent struct {
 // mapping. The caller applies retry-vs-drop per leg, matching Jasmin's per-callback
 // except clauses.
 func (c *Correlator) OnDeliverReceipt(ctx context.Context, ev DeliverReceiptEvent) error {
-	coded, err := CodeReceiptID(ev.RawDLRID, ev.Base)
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrDLRMapInvalid, err)
+	coded := ev.CodedID
+	if coded == "" {
+		var err error
+		coded, err = CodeReceiptID(ev.RawDLRID, ev.Base)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrDLRMapInvalid, err)
+		}
 	}
 	qkey, err := rediscompat.BuildQueueMessageKey(coded)
 	if err != nil {
@@ -323,7 +335,7 @@ func (c *Correlator) onDeliverHTTP(ctx context.Context, ev DeliverReceiptEvent, 
 		Text:       ev.Text,
 	}
 	if err := c.publisher.PublishDLR(ctx, forward); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrForwardPublish, err)
 	}
 	if isFinalState(ev.Status) {
 		return c.redis.Delete(ctx, dlrKey)
@@ -346,7 +358,7 @@ func (c *Correlator) onDeliverSMPPS(ctx context.Context, ev DeliverReceiptEvent,
 		DestAddrTON: dlr["dest_addr_ton"], DestAddrNPI: dlr["dest_addr_npi"],
 	}
 	if err := c.publisher.PublishDLR(ctx, f); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrForwardPublish, err)
 	}
 	if isFinalState(ev.Status) {
 		return c.redis.Delete(ctx, dlrKey)
