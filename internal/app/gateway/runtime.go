@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
@@ -24,6 +25,7 @@ type Runtime struct {
 	outbound     *outbound.Runtime
 	bridge       *picklecompat.Bridge
 	store        *storage.PostgresSubmitTransactionRepository
+	dlrLookup    *dlrlookup.Service
 	workerCancel context.CancelFunc
 	closeOnce    sync.Once
 	closeErr     error
@@ -87,6 +89,18 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	}
 	runtime.Handler = outboundRuntime.Handler
 	runtime.outbound = outboundRuntime
+	if config.DLRLookup != nil {
+		lookupConfig := *config.DLRLookup
+		if lookupConfig.AMQPURL == "" {
+			lookupConfig.AMQPURL = config.Outbound.AMQPURL
+		}
+		lookupService, lookupErr := dlrlookup.NewService(lookupConfig)
+		if lookupErr != nil {
+			return nil, fmt.Errorf("start DLR lookup worker: %w", lookupErr)
+		}
+		runtime.dlrLookup = lookupService
+		go func() { _ = lookupService.Run(workerCtx) }()
+	}
 	if err := manager.StartAll(); err != nil {
 		return nil, fmt.Errorf("start connectors: %w", err)
 	}
@@ -123,6 +137,11 @@ func (runtime *Runtime) Close() error {
 		}
 		if runtime.workerCancel != nil {
 			runtime.workerCancel()
+		}
+		if runtime.dlrLookup != nil {
+			if err := runtime.dlrLookup.Close(); err != nil {
+				errs = append(errs, err)
+			}
 		}
 		if runtime.bridge != nil {
 			if err := runtime.bridge.Close(); err != nil {

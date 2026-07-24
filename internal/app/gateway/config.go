@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 )
@@ -24,6 +25,9 @@ type Config struct {
 	Connectors           []smppc.Config  `json:"connectors"`
 	RequiredConnectorIDs []string        `json:"required_connector_ids"`
 	BindTimeoutSeconds   float64         `json:"bind_timeout_seconds"`
+	// DLRLookup, when present, runs the legacy DLRLookup worker in-process.
+	// An empty amqp_url inherits the outbound broker.
+	DLRLookup *dlrlookup.Config `json:"dlr_lookup,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -59,6 +63,15 @@ func ValidateConfig(config Config) error {
 	}
 	if err := outbound.ValidateConfig(config.Outbound); err != nil {
 		return fmt.Errorf("%w: outbound: %v", ErrInvalidConfig, err)
+	}
+	if config.DLRLookup != nil {
+		lookup := *config.DLRLookup
+		if lookup.AMQPURL == "" {
+			lookup.AMQPURL = config.Outbound.AMQPURL
+		}
+		if err := dlrlookup.ValidateConfig(lookup); err != nil {
+			return fmt.Errorf("%w: dlr_lookup: %v", ErrInvalidConfig, err)
+		}
 	}
 	if len(config.Connectors) == 0 {
 		return fmt.Errorf("%w: at least one SMPPc connector is required", ErrInvalidConfig)

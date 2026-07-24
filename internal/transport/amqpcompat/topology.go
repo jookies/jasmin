@@ -21,6 +21,15 @@ func ConnectorSubmitQueue(cid string) string {
 	return "submit.sm." + cid
 }
 
+// DLRLookupRoutingKey is the legacy DLRLookup.subscribe binding.
+const DLRLookupRoutingKey = "dlr.*"
+
+// DLRLookupQueue names the legacy per-pid lookup queue ('DLRLookup-%s' % pid).
+func DLRLookupQueue(pid string) string { return "DLRLookup-" + pid }
+
+// DLRLookupConsumerTag matches the legacy consumer tag, identical to the queue name.
+func DLRLookupConsumerTag(pid string) string { return "DLRLookup-" + pid }
+
 func ConnectorSubmitRoutingKey(cid string) string {
 	return "submit.sm." + cid
 }
@@ -175,6 +184,61 @@ func consumeQueue(ctx context.Context, channel topologyChannel, queue, consumerT
 		return nil, fmt.Errorf("consume queue %s as %s: %w", queue, consumerTag, err)
 	}
 	return deliveries, nil
+}
+
+// DLRLookupSubscription owns the channel and raw manual-ack delivery stream of
+// the legacy DLRLookup.subscribe topology: the messaging exchange, the
+// DLRLookup-<pid> queue bound to dlr.*, and a named manual-ack consumer with no
+// QoS (the legacy subscribe sets none).
+type DLRLookupSubscription struct {
+	Deliveries  <-chan amqp.Delivery
+	ConsumerTag string
+
+	channel topologyChannel
+}
+
+func (subscription *DLRLookupSubscription) Close() error {
+	if subscription == nil || subscription.channel == nil {
+		return nil
+	}
+	return subscription.channel.Close()
+}
+
+// OpenDLRLookupSubscription declares and starts the DLRLookup consumer on one
+// owned channel. It closes the channel if any operation fails.
+func (topology *Topology) OpenDLRLookupSubscription(ctx context.Context, pid string) (*DLRLookupSubscription, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	channel, err := topology.open()
+	if err != nil {
+		return nil, fmt.Errorf("open DLRLookup topology channel: %w", err)
+	}
+	queue, tag := DLRLookupQueue(pid), DLRLookupConsumerTag(pid)
+	subscription, err := func() (*DLRLookupSubscription, error) {
+		if err := declareExchange(ctx, channel, "messaging"); err != nil {
+			return nil, err
+		}
+		if err := declareQueue(ctx, channel, queue); err != nil {
+			return nil, err
+		}
+		if err := bindQueue(ctx, channel, queue, "messaging", DLRLookupRoutingKey); err != nil {
+			return nil, err
+		}
+		deliveries, err := consumeQueue(ctx, channel, queue, tag)
+		if err != nil {
+			return nil, err
+		}
+		return &DLRLookupSubscription{Deliveries: deliveries, ConsumerTag: tag}, nil
+	}()
+	if err != nil {
+		if closeErr := channel.Close(); closeErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("close DLRLookup topology channel: %w", closeErr))
+		}
+		return nil, err
+	}
+	subscription.channel = channel
+	return subscription, nil
 }
 
 // Declare sets up the two legacy topic exchanges with their non-durable defaults.
