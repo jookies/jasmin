@@ -184,7 +184,7 @@ func SMPPSReceiptParamsFromForward(forward Forward) (SMPPSReceiptParams, error) 
 	if forward.QueueMsgID == "" || forward.Status == "" || forward.SubDate == "" || forward.SourceAddr == "" || forward.DestinationAddr == "" {
 		return SMPPSReceiptParams{}, fmt.Errorf("%w: incomplete smpps forward", ErrInvalidThrowerEnvelope)
 	}
-	return SMPPSReceiptParams{MsgID: forward.QueueMsgID, MessageStatus: forward.Status, Err: forward.Err, SubDate: forward.SubDate, SourceAddr: forward.SourceAddr, DestAddr: forward.DestinationAddr, SourceAddrTON: sourceTON, SourceAddrNPI: sourceNPI, DestAddrTON: destTON, DestAddrNPI: destNPI}, nil
+	return SMPPSReceiptParams{MsgID: forward.QueueMsgID, SystemID: forward.SystemID, MessageStatus: forward.Status, Err: forward.Err, SubDate: forward.SubDate, SourceAddr: forward.SourceAddr, DestAddr: forward.DestinationAddr, SourceAddrTON: sourceTON, SourceAddrNPI: sourceNPI, DestAddrTON: destTON, DestAddrNPI: destNPI}, nil
 }
 
 func parseAddrTON(value string) (byte, error) {
