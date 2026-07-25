@@ -51,9 +51,9 @@ func Encode(pdu PDU) ([]byte, error) {
 	var body []byte
 	var err error
 	switch pdu.Header.CommandID {
-	case CommandBindTransceiver:
+	case CommandBindTransceiver, CommandBindReceiver, CommandBindTransmitter:
 		body, err = encodeBind(pdu.Bind)
-	case CommandBindTransceiverResp:
+	case CommandBindTransceiverResp, CommandBindReceiverResp, CommandBindTransmitterResp:
 		if pdu.BindResponse == nil && pdu.Header.CommandStatus != 0 {
 			body = nil
 		} else {
@@ -66,8 +66,13 @@ func Encode(pdu PDU) ([]byte, error) {
 			return nil, &LegacyMessagePayloadError{Size: len(pdu.SM.Optional.MessagePayload)}
 		}
 		body, err = encodeSM(pdu.SM)
-	case CommandSubmitSMResp:
-		body, err = encodeSubmitResponse(pdu.SubmitResponse)
+	case CommandSubmitSMResp, CommandDataSMResp:
+		if pdu.SubmitResponse == nil && pdu.Header.CommandStatus != 0 {
+			// Error responses are header-only (SMPP noBodyOnError).
+			body = nil
+		} else {
+			body, err = encodeSubmitResponse(pdu.SubmitResponse)
+		}
 	default:
 		return nil, fmt.Errorf("%w: %#x", ErrUnsupportedCommand, pdu.Header.CommandID)
 	}
@@ -101,9 +106,9 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 	cursor := newCursor(body)
 	var err error
 	switch header.CommandID {
-	case CommandBindTransceiver:
+	case CommandBindTransceiver, CommandBindReceiver, CommandBindTransmitter:
 		pdu.Bind, err = decodeBind(cursor)
-	case CommandBindTransceiverResp:
+	case CommandBindTransceiverResp, CommandBindReceiverResp, CommandBindTransmitterResp:
 		if cursor.remaining() == 0 && header.CommandStatus != 0 {
 			// Error bind responses may be header-only. Preserve the absence of the
 			// optional system_id so Decode -> Encode remains byte-exact.
@@ -115,8 +120,12 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor)
-	case CommandSubmitSMResp:
-		pdu.SubmitResponse, err = decodeSubmitResponse(cursor)
+	case CommandSubmitSMResp, CommandDataSMResp:
+		if cursor.remaining() == 0 && header.CommandStatus != 0 {
+			pdu.SubmitResponse = nil
+		} else {
+			pdu.SubmitResponse, err = decodeSubmitResponse(cursor)
+		}
 	default:
 		err = fmt.Errorf("%w: %#x", ErrUnsupportedCommand, header.CommandID)
 	}

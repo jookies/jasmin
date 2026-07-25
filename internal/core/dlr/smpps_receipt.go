@@ -35,6 +35,7 @@ var ErrUnknownMessageStatus = errors.New("dlr: unknown message_status")
 // are the ORIGINAL submit values; the receipt swaps source and destination.
 type SMPPSReceiptParams struct {
 	MsgID         string
+	SystemID      string // the bound smpps user to deliver the receipt to
 	MessageStatus string // ESME_* (from submit_sm_resp) or a receipt state (DELIVRD, ...)
 	Err           string
 	SubDate       string // stored submission datetime string
