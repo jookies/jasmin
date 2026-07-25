@@ -104,3 +104,90 @@ func TestSectionsDifferentialAgainstLegacy(t *testing.T) {
 		t.Fatalf("redis diverges:\n  go %+v\n  py %+v", redis, oracle.Redis)
 	}
 }
+
+const listenerOracleScript = `
+import json, sys, tempfile, os
+from jasmin.protocols.smpp.configs import SMPPServerConfig
+from jasmin.protocols.http.configs import HTTPApiConfig
+text = sys.stdin.read()
+path = tempfile.mktemp(suffix=".cfg")
+open(path, "w").write(text)
+s = SMPPServerConfig(path)
+h = HTTPApiConfig(path)
+os.remove(path)
+print(json.dumps({
+    "smpp": {"id": s.id, "bind": s.bind, "port": s.port, "billing": s.billing_feature,
+             "session": s.sessionInitTimerSecs, "elink": s.enquireLinkTimerSecs,
+             "inactivity": s.inactivityTimerSecs, "response": s.responseTimerSecs,
+             "pduread": s.pduReadTimerSecs},
+    "http": {"bind": h.bind, "port": h.port, "billing": h.billing_feature,
+             "privacy": h.log_privacy, "split": h.long_content_split},
+}))
+`
+
+func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	text := "[smpp-server]\nid = smpps_prod\nbind = 127.0.0.1\nport = 2776\nbilling_feature = no\n" +
+		"enquireLinkTimerSecs = 45\ninactivityTimerSecs = 600\npduReadTimerSecs = 15\n" +
+		"[http-api]\nbind = 10.0.0.9\nport = 8080\nlong_content_split = sar\nlog_privacy = yes\n"
+
+	command := exec.CommandContext(ctx, pythonPath, "-c", listenerOracleScript)
+	command.Env = append(os.Environ(), "PYTHONPATH=../..")
+	command.Stdin = bytes.NewReader([]byte(text))
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	var oracle struct {
+		SMPP struct {
+			ID         string `json:"id"`
+			Bind       string `json:"bind"`
+			Port       int    `json:"port"`
+			Billing    bool   `json:"billing"`
+			Session    int    `json:"session"`
+			Elink      int    `json:"elink"`
+			Inactivity int    `json:"inactivity"`
+			Response   int    `json:"response"`
+			PDURead    int    `json:"pduread"`
+		} `json:"smpp"`
+		HTTP struct {
+			Bind    string `json:"bind"`
+			Port    int    `json:"port"`
+			Billing bool   `json:"billing"`
+			Privacy bool   `json:"privacy"`
+			Split   string `json:"split"`
+		} `json:"http"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(output), &oracle); err != nil {
+		t.Fatalf("oracle output %q: %v", output, err)
+	}
+
+	file, err := config.ParseString(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	smpp, err := config.LoadSMPPServer(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if smpp.ID != oracle.SMPP.ID || smpp.Bind != oracle.SMPP.Bind || smpp.Port != oracle.SMPP.Port ||
+		smpp.BillingFeature != oracle.SMPP.Billing || smpp.SessionInitTimerSecs != oracle.SMPP.Session ||
+		smpp.EnquireLinkTimerSecs != oracle.SMPP.Elink || smpp.InactivityTimerSecs != oracle.SMPP.Inactivity ||
+		smpp.ResponseTimerSecs != oracle.SMPP.Response || smpp.PDUReadTimerSecs != oracle.SMPP.PDURead {
+		t.Fatalf("smpp-server diverges:\n  go %+v\n  py %+v", smpp, oracle.SMPP)
+	}
+	api, err := config.LoadHTTPAPI(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if api.Bind != oracle.HTTP.Bind || api.Port != oracle.HTTP.Port || api.BillingFeature != oracle.HTTP.Billing ||
+		api.LogPrivacy != oracle.HTTP.Privacy || api.LongContentSplit != oracle.HTTP.Split {
+		t.Fatalf("http-api diverges:\n  go %+v\n  py %+v", api, oracle.HTTP)
+	}
+}

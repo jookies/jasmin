@@ -106,3 +106,78 @@ func TestLoadRedisURLOverride(t *testing.T) {
 		t.Fatalf("redis url override = %+v", redis)
 	}
 }
+
+func TestLoadSMPPServer(t *testing.T) {
+	file := mustParse(t, "[smpp-server]\nid = smpps_prod\nbind = 127.0.0.1\nport = 2776\nenquireLinkTimerSecs = 45\npduReadTimerSecs = 15\nbilling_feature = no\n")
+	server, err := LoadSMPPServer(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if server.ID != "smpps_prod" || server.Bind != "127.0.0.1" || server.Port != 2776 {
+		t.Fatalf("smpp-server fields = %+v", server)
+	}
+	if server.EnquireLinkTimerSecs != 45 || server.PDUReadTimerSecs != 15 {
+		t.Fatalf("smpp-server timers = %+v", server)
+	}
+	if server.BillingFeature {
+		t.Fatal("billing_feature should be false")
+	}
+	if server.InactivityTimerSecs != 300 || server.ResponseTimerSecs != 60 || server.SessionInitTimerSecs != 30 {
+		t.Fatalf("smpp-server timer defaults = %+v", server)
+	}
+	if server.BindAddr() != "127.0.0.1:2776" {
+		t.Fatalf("bind addr = %q", server.BindAddr())
+	}
+}
+
+func TestLoadSMPPServerDefaults(t *testing.T) {
+	file := mustParse(t, "[x]\ny=1\n")
+	server, err := LoadSMPPServer(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if server.ID != "smpps_01" || server.Bind != "0.0.0.0" || server.Port != 2775 || !server.BillingFeature {
+		t.Fatalf("smpp-server defaults = %+v", server)
+	}
+}
+
+func TestLoadHTTPAPI(t *testing.T) {
+	file := mustParse(t, "[http-api]\nbind = 127.0.0.1\nport = 8080\nlong_content_split = sar\nlog_privacy = yes\n")
+	api, err := LoadHTTPAPI(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if api.Bind != "127.0.0.1" || api.Port != 8080 || api.LongContentSplit != "sar" || !api.LogPrivacy {
+		t.Fatalf("http-api fields = %+v", api)
+	}
+	if api.BindAddr() != "127.0.0.1:8080" {
+		t.Fatalf("bind addr = %q", api.BindAddr())
+	}
+}
+
+func TestLoadHTTPAPIEnvDefaults(t *testing.T) {
+	// The bind/port DEFAULTS read API_BIND/API_PORT when the section omits them.
+	file := mustParse(t, "[other]\nx=1\n")
+	file.getenv = withEnv(map[string]string{"API_BIND": "10.0.0.5", "API_PORT": "1500"})
+	api, err := LoadHTTPAPI(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if api.Bind != "10.0.0.5" || api.Port != 1500 {
+		t.Fatalf("env-default http-api = %+v", api)
+	}
+	// The section value still wins over the env default.
+	file2 := mustParse(t, "[http-api]\nbind = 192.168.1.1\n")
+	file2.getenv = withEnv(map[string]string{"API_BIND": "10.0.0.5"})
+	api2, _ := LoadHTTPAPI(file2)
+	if api2.Bind != "192.168.1.1" {
+		t.Fatalf("section value should win over API_BIND default: %q", api2.Bind)
+	}
+	// And the HTTP_API_BIND section override wins over both.
+	file3 := mustParse(t, "[http-api]\nbind = 192.168.1.1\n")
+	file3.getenv = withEnv(map[string]string{"API_BIND": "10.0.0.5", "HTTP_API_BIND": "172.16.0.1"})
+	api3, _ := LoadHTTPAPI(file3)
+	if api3.Bind != "172.16.0.1" {
+		t.Fatalf("HTTP_API_BIND override should win: %q", api3.Bind)
+	}
+}
