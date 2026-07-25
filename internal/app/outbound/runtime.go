@@ -29,6 +29,7 @@ import (
 type Runtime struct {
 	Handler http.Handler
 
+	submitter    core.Submitter
 	directory    *runtimeDirectory
 	publisher    *amqpcompat.Publisher
 	bridge       *picklecompat.Bridge
@@ -191,6 +192,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	outboxCtx, outboxCancel := context.WithCancel(ctx)
 	runtime := &Runtime{
 		Handler:      handler,
+		submitter:    submitService,
 		directory:    directory,
 		publisher:    publisher,
 		bridge:       dependencies.Bridge,
@@ -201,6 +203,15 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
 	return runtime, nil
+}
+
+// Submitter exposes the composed MT submit pipeline so other ingress paths
+// (the SMPPS server) can share the same routing/billing/publication engine.
+func (runtime *Runtime) Submitter() core.Submitter {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.submitter
 }
 
 func newOutboxOwner() (string, error) {

@@ -14,6 +14,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 )
 
@@ -36,6 +37,9 @@ type Config struct {
 	// MOThrower, when present, runs the legacy deliverSmThrower worker
 	// in-process. An empty amqp_url inherits the outbound broker.
 	MOThrower *mothrower.Config `json:"deliver_sm_thrower,omitempty"`
+	// SMPPS, when present, runs the SMPPS server in-process: it binds ESMEs
+	// and ingests their submit_sm into the shared MT pipeline.
+	SMPPS *smppsserver.Config `json:"smpps,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -97,6 +101,11 @@ func ValidateConfig(config Config) error {
 		}
 		if err := mothrower.ValidateConfig(thrower); err != nil {
 			return fmt.Errorf("%w: deliver_sm_thrower: %v", ErrInvalidConfig, err)
+		}
+	}
+	if config.SMPPS != nil {
+		if err := smppsserver.ValidateConfig(*config.SMPPS); err != nil {
+			return fmt.Errorf("%w: smpps: %v", ErrInvalidConfig, err)
 		}
 	}
 	if len(config.Connectors) == 0 {
