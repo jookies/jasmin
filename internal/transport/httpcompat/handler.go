@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 )
 
@@ -40,6 +41,15 @@ type Dependencies struct {
 	BalanceReader core.BalanceReader
 	RateReader    core.RateReader
 	Submitter     core.Submitter
+
+	// Observability (all optional; nil = no metrics). HTTPStats holds the
+	// httpapi counters this handler increments; the SMPPc/SMPPs registries and
+	// ConnectorIDs let /metrics render the full legacy surface when the gateway
+	// supplies them.
+	HTTPStats    *stats.HTTPStats
+	SMPPcStats   *stats.SMPPcRegistry
+	SMPPsStats   *stats.SMPPsStats
+	ConnectorIDs func() []string
 }
 
 type handler struct {
@@ -53,6 +63,7 @@ func NewHandler(dependencies Dependencies) http.Handler {
 	mux.HandleFunc("/rate", h.rate)
 	mux.HandleFunc("/balance", h.balance)
 	mux.HandleFunc("/send", h.send)
+	mux.HandleFunc("/metrics", h.metrics)
 	return mux
 }
 
@@ -128,11 +139,35 @@ func (h *handler) balance(w http.ResponseWriter, r *http.Request) {
 	writeResponse(w, http.StatusOK, jsonContentType, body)
 }
 
+// metrics renders the /metrics Prometheus surface. GET only, text/plain, always
+// 200 — matching the legacy Metrics resource.
+func (h *handler) metrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	var connectorIDs []string
+	if h.dependencies.ConnectorIDs != nil {
+		connectorIDs = h.dependencies.ConnectorIDs()
+	}
+	body := stats.Render(h.dependencies.HTTPStats, h.dependencies.SMPPcStats, connectorIDs, h.dependencies.SMPPsStats)
+	w.Header().Set("Content-Type", plainContentType)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (h *handler) incHTTP(name string) {
+	if h.dependencies.HTTPStats != nil {
+		h.dependencies.HTTPStats.Inc(name)
+	}
+}
+
 func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodPost {
 		methodNotAllowed(w)
 		return
 	}
+	h.incHTTP("request_count")
 	arguments, err := requestArguments(r)
 	if err != nil {
 		writePlainError(w, http.StatusBadRequest, err.Error())
@@ -200,13 +235,16 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, core.ErrNoLiveConnector) || errors.Is(err, core.ErrNoRouteMatched) || errors.Is(err, core.ErrQuotaExceeded) {
+			h.incHTTP("route_error_count")
 			writePlainError(w, http.StatusInternalServerError, "Cannot send submit_sm, check SMPPClientManagerPB log file for details")
 			return
 		}
+		h.incHTTP("server_error_count")
 		writePlainError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	h.incHTTP("success_count")
 	writeResponse(w, http.StatusOK, plainContentType, fmt.Sprintf(`Success %q`, messageID))
 }
 
@@ -355,6 +393,7 @@ func (h *handler) authenticate(
 }
 
 func (h *handler) authenticationFailure(w http.ResponseWriter, username, contentType string) {
+	h.incHTTP("auth_error_count")
 	message := "Authentication failure for username:" + username
 	if contentType == jsonContentType {
 		writeJSONError(w, http.StatusForbidden, message)

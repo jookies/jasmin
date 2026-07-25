@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
 	"math/big"
 )
@@ -285,5 +286,63 @@ func TestSendAuthenticationRunsBeforeCustomTLVs(t *testing.T) {
 	}
 	if submit.calls != 0 {
 		t.Fatalf("submit calls = %d, want 0", submit.calls)
+	}
+}
+
+func TestMetricsEndpointReflectsHTTPCounters(t *testing.T) {
+	httpStats := &stats.HTTPStats{}
+	auth := &authSpy{}
+	submit := &submitSpy{id: "m-1"}
+	deps := httpcompat.Dependencies{Authenticator: auth, Submitter: submit, HTTPStats: httpStats}
+
+	// A successful send increments request_count and success_count.
+	if resp := serveForm(deps, http.MethodPost, "/send", validSendForm()); resp.Code != http.StatusOK {
+		t.Fatalf("send status = %d", resp.Code)
+	}
+	// A no-route send increments request_count and route_error_count.
+	failing := httpcompat.Dependencies{Authenticator: auth, Submitter: &submitSpy{err: core.ErrNoRouteMatched}, HTTPStats: httpStats}
+	if resp := serveForm(failing, http.MethodPost, "/send", validSendForm()); resp.Code != http.StatusInternalServerError {
+		t.Fatalf("failing send status = %d", resp.Code)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+	httpcompat.NewHandler(deps).ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("/metrics status = %d", response.Code)
+	}
+	if ct := response.Header().Get("Content-Type"); ct != "text/plain" {
+		t.Fatalf("/metrics content-type = %q", ct)
+	}
+	body := response.Body.String()
+	for _, want := range []string{
+		"httpapi_request_count 2",
+		"httpapi_success_count 1",
+		"httpapi_route_error_count 1",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("metrics missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestMetricsAuthErrorCounter(t *testing.T) {
+	httpStats := &stats.HTTPStats{}
+	auth := &authSpy{err: core.ErrAuthentication}
+	deps := httpcompat.Dependencies{Authenticator: auth, Submitter: &submitSpy{}, HTTPStats: httpStats}
+	serveForm(deps, http.MethodPost, "/send", validSendForm())
+
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+	httpcompat.NewHandler(deps).ServeHTTP(response, request)
+	if !strings.Contains(response.Body.String(), "httpapi_auth_error_count 1") {
+		t.Fatalf("auth_error_count not incremented:\n%s", response.Body.String())
+	}
+}
+
+func TestMetricsRejectsNonGET(t *testing.T) {
+	response := serveForm(httpcompat.Dependencies{}, http.MethodPost, "/metrics", url.Values{})
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST /metrics status = %d, want 405", response.Code)
 	}
 }

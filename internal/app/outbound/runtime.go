@@ -17,6 +17,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
@@ -180,6 +181,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		BalanceReader: directory,
 		RateReader:    directory,
 		Submitter:     submitService,
+		HTTPStats:     &stats.HTTPStats{},
 	})
 	outboxOwner, err := newOutboxOwner()
 	if err != nil {
