@@ -249,3 +249,74 @@ func LoadHTTPAPI(file *File) (HTTPAPI, error) {
 func (h HTTPAPI) BindAddr() string {
 	return fmt.Sprintf("%s:%d", h.Bind, h.Port)
 }
+
+// DLR is the parsed 'dlr' section (DLRLookupConfig): the DLRLookup worker's
+// identity and retry policy. It maps directly to the dlrlookup worker config.
+type DLR struct {
+	PID                              string
+	LookupRetryDelay                 int
+	LookupMaxRetries                 int
+	SMPPReceiptOnSuccessSubmitSMResp bool
+	LogPrivacy                       bool
+}
+
+// LoadDLR parses the dlr section.
+func LoadDLR(file *File) (DLR, error) {
+	dlr := DLR{PID: file.Get("dlr", "pid", "main")}
+	var err error
+	if dlr.LookupRetryDelay, err = file.GetInt("dlr", "dlr_lookup_retry_delay", 10); err != nil {
+		return DLR{}, err
+	}
+	if dlr.LookupMaxRetries, err = file.GetInt("dlr", "dlr_lookup_max_retries", 2); err != nil {
+		return DLR{}, err
+	}
+	if dlr.SMPPReceiptOnSuccessSubmitSMResp, err = file.GetBool("dlr", "smpp_receipt_on_success_submit_sm_resp", false); err != nil {
+		return DLR{}, err
+	}
+	if dlr.LogPrivacy, err = file.GetBool("dlr", "log_privacy", false); err != nil {
+		return DLR{}, err
+	}
+	return dlr, nil
+}
+
+// SMListener is the parsed 'sm-listener' section (SMPPClientSMListenerConfig):
+// the outbound listener's submit-not-ready retry policy and receipt publishing.
+type SMListener struct {
+	PublishSubmitSMResp             bool
+	SubmitMaxAgeSMPPcNotReady       int
+	SubmitRetrialDelaySMPPcNotReady int
+	LogPrivacy                      bool
+
+	// DLRLookupRetryDelayQuirk holds what the legacy attribute
+	// self.dlr_lookup_retry_delay actually holds: the value of the
+	// dlr_lookup_max_retries key, NOT dlr_lookup_retry_delay. The legacy
+	// __init__ assigns dlr_lookup_retry_delay twice — the second assignment
+	// (meant for max_retries) overwrites it — so the retry-delay attribute
+	// carries the max-retries value and no max_retries attribute exists
+	// (KNOWN_QUIRKS Q-020). These sm-listener dlr fields are superseded by the
+	// [dlr] section; this preserves the observable value consciously.
+	DLRLookupRetryDelayQuirk int
+}
+
+// LoadSMListener parses the sm-listener section, replicating the Q-020 quirk.
+func LoadSMListener(file *File) (SMListener, error) {
+	listener := SMListener{}
+	var err error
+	if listener.PublishSubmitSMResp, err = file.GetBool("sm-listener", "publish_submit_sm_resp", false); err != nil {
+		return SMListener{}, err
+	}
+	if listener.SubmitMaxAgeSMPPcNotReady, err = file.GetInt("sm-listener", "submit_max_age_smppc_not_ready", 1200); err != nil {
+		return SMListener{}, err
+	}
+	if listener.SubmitRetrialDelaySMPPcNotReady, err = file.GetInt("sm-listener", "submit_retrial_delay_smppc_not_ready", 30); err != nil {
+		return SMListener{}, err
+	}
+	if listener.LogPrivacy, err = file.GetBool("sm-listener", "log_privacy", false); err != nil {
+		return SMListener{}, err
+	}
+	// Q-020: the legacy attribute ends up holding the max_retries value (default 2).
+	if listener.DLRLookupRetryDelayQuirk, err = file.GetInt("sm-listener", "dlr_lookup_max_retries", 2); err != nil {
+		return SMListener{}, err
+	}
+	return listener, nil
+}
