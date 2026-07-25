@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/gateway"
+	"github.com/pumpitspace/jasmin/internal/config"
 )
 
 func main() {
@@ -23,14 +24,24 @@ func main() {
 
 func run() error {
 	configPath := flag.String("config", "", "path to outbound runtime JSON configuration")
+	jasminConfigPath := flag.String("jasmin-cfg", "", "optional jasmin.cfg supplying infrastructure settings (broker, redis, listeners, thrower/dlr/smpps policy); connectors and routes still come from --config")
 	checkConfig := flag.Bool("check-config", false, "validate configuration and exit")
 	flag.Parse()
 
-	config, err := gateway.LoadConfig(*configPath)
+	runtimeConfig, err := gateway.LoadConfig(*configPath)
 	if err != nil {
 		return err
 	}
-	if err := gateway.ValidateConfig(config); err != nil {
+	// An opt-in jasmin.cfg overlays the infrastructure fields before validation;
+	// a JSON-only run skips this entirely and is unaffected.
+	if *jasminConfigPath != "" {
+		jasminConfig, err := config.LoadJasmin(*jasminConfigPath)
+		if err != nil {
+			return err
+		}
+		gateway.ApplyJasmin(&runtimeConfig, jasminConfig)
+	}
+	if err := gateway.ValidateConfig(runtimeConfig); err != nil {
 		return err
 	}
 	if *checkConfig {
@@ -40,14 +51,14 @@ func run() error {
 
 	lifetime, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	runtime, err := gateway.NewRuntime(lifetime, config)
+	runtime, err := gateway.NewRuntime(lifetime, runtimeConfig)
 	if err != nil {
 		return err
 	}
 	defer runtime.Close()
 
 	server := &http.Server{
-		Addr:              config.Outbound.ListenAddress,
+		Addr:              runtimeConfig.Outbound.ListenAddress,
 		Handler:           runtime.Handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -58,7 +69,7 @@ func run() error {
 	go func() {
 		errCh <- server.ListenAndServe()
 	}()
-	log.Printf("jasmin-go-httpapi listening on %s", config.Outbound.ListenAddress)
+	log.Printf("jasmin-go-httpapi listening on %s", runtimeConfig.Outbound.ListenAddress)
 
 	select {
 	case <-lifetime.Done():
