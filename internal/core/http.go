@@ -62,6 +62,10 @@ type SubmitRequest struct {
 	// argument, in caller order (wire order). Types stay unresolved here;
 	// connector rules apply them at submit time, matching the legacy listener.
 	CustomTLVs []tlv.TLV
+	// SourceConnector names the ingress: "httpapi" (default when empty) or
+	// "smppsapi". It flows to the AMQP envelope's source_connector header and
+	// the DLR record's sc field, so a receipt correlates back to the right leg.
+	SourceConnector string
 }
 
 type Submitter interface {

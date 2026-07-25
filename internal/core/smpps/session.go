@@ -96,13 +96,32 @@ func (s *Session) dispatch(ctx context.Context, pdu smppwire.PDU) bool {
 		s.transition(StateUnbound)
 		return false
 	case CommandSubmitSM, CommandDataSM:
-		// Inbound MT ingestion (routing ESME submits) is a separate slice; a
-		// gate-allowed submit is acknowledged with a system error until then,
-		// keeping the session alive rather than silently dropping.
-		return s.writeResponse(responseCommandFor(command), sequence, StatusSystemError, nil) == nil
+		return s.handleSubmit(ctx, pdu)
 	default:
 		return s.writeResponse(responseCommandFor(command), sequence, StatusSystemError, nil) == nil
 	}
+}
+
+// handleSubmit ingests a gate-allowed submit_sm/data_sm through the server's
+// SubmitHandler and answers submit_sm_resp/data_sm_resp with the assigned
+// message id on ESME_ROK, or the mapped error status. With no handler it
+// answers ESME_RSYSERR, keeping the session alive.
+func (s *Session) handleSubmit(ctx context.Context, pdu smppwire.PDU) bool {
+	command := pdu.Header.CommandID
+	sequence := pdu.Header.SequenceNumber
+	respCommand := responseCommandFor(command)
+	if s.server.submit == nil || pdu.SM == nil {
+		return s.writeResponse(respCommand, sequence, StatusSystemError, nil) == nil
+	}
+	s.mu.Lock()
+	systemID := s.systemID
+	s.mu.Unlock()
+
+	messageID, status := s.server.submit.HandleSubmit(ctx, systemID, pdu.SM)
+	if status != StatusROK {
+		return s.writeResponse(respCommand, sequence, status, nil) == nil
+	}
+	return s.writeSubmitResponse(respCommand, sequence, messageID) == nil
 }
 
 // handleBind runs the frozen bind-auth checks and, on success, registers the
@@ -205,6 +224,25 @@ func (s *Session) writeBindResponse(command, sequence, status uint32, systemID s
 		body = &smppwire.BindResponseBody{SystemID: []byte(systemID)}
 	}
 	return s.writeResponse(command, sequence, status, body)
+}
+
+// writeSubmitResponse writes a success submit_sm_resp/data_sm_resp carrying the
+// assigned message id.
+func (s *Session) writeSubmitResponse(command, sequence uint32, messageID string) error {
+	pdu := smppwire.PDU{
+		Header:         smppwire.Header{CommandID: command, CommandStatus: StatusROK, SequenceNumber: sequence},
+		SubmitResponse: &smppwire.SubmitResponseBody{MessageID: []byte(messageID)},
+	}
+	frame, err := smppwire.Encode(pdu)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return errors.New("smpps: session closed")
+	}
+	return writeFrame(s.conn, frame)
 }
 
 func (s *Session) writeResponse(command, sequence, status uint32, bindResponse *smppwire.BindResponseBody) error {

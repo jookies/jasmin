@@ -335,3 +335,96 @@ func TestBindRemovedOnDisconnect(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+type scriptedSubmitHandler struct {
+	messageID string
+	status    uint32
+	gotSystem string
+	gotSM     *smppwire.SMBody
+}
+
+func (h *scriptedSubmitHandler) HandleSubmit(_ context.Context, systemID string, sm *smppwire.SMBody) (string, uint32) {
+	h.gotSystem = systemID
+	h.gotSM = sm
+	return h.messageID, h.status
+}
+
+func TestSubmitFromTransmitterIngestsAndResponds(t *testing.T) {
+	handler := &scriptedSubmitHandler{messageID: "msg-42", status: StatusROK}
+	server, err := NewServer(mapResolver{"u": testUser("p")}, ServerConfig{}, WithSubmitHandler(handler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = server.Serve(ctx, listener) }()
+	t.Cleanup(func() { cancel(); _ = server.Close() })
+
+	conn := dial(t, listener.Addr().String())
+	writePDU(t, conn, bindPDU(CommandBindTransmitter, "u", "p", 1))
+	if readPDU(t, conn).Header.CommandStatus != StatusROK {
+		t.Fatal("bind should succeed")
+	}
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: CommandSubmitSM, SequenceNumber: 5},
+		SM:     &smppwire.SMBody{SourceAddress: []byte("111"), DestinationAddress: []byte("222"), ShortMessage: []byte("hi")},
+	})
+	resp := readPDU(t, conn)
+	if resp.Header.CommandID != smppwire.CommandSubmitSMResp || resp.Header.CommandStatus != StatusROK {
+		t.Fatalf("resp = %#x/%#x", resp.Header.CommandID, resp.Header.CommandStatus)
+	}
+	if resp.Header.SequenceNumber != 5 {
+		t.Fatalf("resp sequence = %d", resp.Header.SequenceNumber)
+	}
+	if resp.SubmitResponse == nil || string(resp.SubmitResponse.MessageID) != "msg-42" {
+		t.Fatalf("submit response = %+v", resp.SubmitResponse)
+	}
+	if handler.gotSystem != "u" || string(handler.gotSM.ShortMessage) != "hi" {
+		t.Fatalf("handler saw system=%q sm=%+v", handler.gotSystem, handler.gotSM)
+	}
+}
+
+func TestSubmitHandlerErrorStatusPropagates(t *testing.T) {
+	const esmeRSubmitFail uint32 = 0x00000045
+	handler := &scriptedSubmitHandler{status: esmeRSubmitFail}
+	server, _ := NewServer(mapResolver{"u": testUser("p")}, ServerConfig{}, WithSubmitHandler(handler))
+	listener, _ := net.Listen("tcp", "127.0.0.1:0")
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = server.Serve(ctx, listener) }()
+	t.Cleanup(func() { cancel(); _ = server.Close() })
+
+	conn := dial(t, listener.Addr().String())
+	writePDU(t, conn, bindPDU(CommandBindTransceiver, "u", "p", 1))
+	readPDU(t, conn)
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: CommandSubmitSM, SequenceNumber: 6},
+		SM:     &smppwire.SMBody{DestinationAddress: []byte("222"), ShortMessage: []byte("x")},
+	})
+	resp := readPDU(t, conn)
+	if resp.Header.CommandStatus != esmeRSubmitFail || resp.SubmitResponse != nil {
+		t.Fatalf("error resp = %#x, body=%+v", resp.Header.CommandStatus, resp.SubmitResponse)
+	}
+	// The session stays open after a submit rejection.
+	writePDU(t, conn, smppwire.PDU{Header: smppwire.Header{CommandID: CommandEnquireLink, SequenceNumber: 7}})
+	if readPDU(t, conn).Header.CommandID != smppwire.CommandEnquireLinkResp {
+		t.Fatal("session should stay open after submit rejection")
+	}
+}
+
+func TestSubmitWithoutHandlerRejectsSystemError(t *testing.T) {
+	// The default server (no handler) answers ESME_RSYSERR, session stays open.
+	_, addr := startServer(t, mapResolver{"u": testUser("p")}, ServerConfig{})
+	conn := dial(t, addr)
+	writePDU(t, conn, bindPDU(CommandBindTransceiver, "u", "p", 1))
+	readPDU(t, conn)
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: CommandSubmitSM, SequenceNumber: 8},
+		SM:     &smppwire.SMBody{DestinationAddress: []byte("222"), ShortMessage: []byte("x")},
+	})
+	if readPDU(t, conn).Header.CommandStatus != StatusSystemError {
+		t.Fatal("no-handler submit must answer ESME_RSYSERR")
+	}
+}
