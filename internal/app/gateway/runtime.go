@@ -13,7 +13,9 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
+	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
@@ -107,12 +109,33 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		runtime.dlrLookup = lookupService
 		go func() { _ = lookupService.Run(workerCtx) }()
 	}
+	// The SMPPS server is built before the DLR thrower so a receipt sink over
+	// its Deliver path can be injected into the thrower — dlr_thrower.smpps
+	// forwards then push a deliver_sm receipt down the sender's bound session.
+	var dlrReceiptSink dlr.SMPPSReceiptSink
+	if config.SMPPS != nil {
+		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter())
+		if smppsErr != nil {
+			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
+		}
+		runtime.smppsServer = smppsService
+		sink, sinkErr := smppsdelivery.NewReceiptSink(smppsService.Server())
+		if sinkErr != nil {
+			return nil, fmt.Errorf("wire SMPPS receipt delivery: %w", sinkErr)
+		}
+		dlrReceiptSink = sink
+		go func() { _ = smppsService.Run(workerCtx) }()
+	}
 	if config.DLRThrower != nil {
 		throwerConfig := *config.DLRThrower
 		if throwerConfig.AMQPURL == "" {
 			throwerConfig.AMQPURL = config.Outbound.AMQPURL
 		}
-		throwerService, throwerErr := dlrthrower.NewService(throwerConfig)
+		var throwerOpts []dlrthrower.Option
+		if dlrReceiptSink != nil {
+			throwerOpts = append(throwerOpts, dlrthrower.WithSMPPSReceiptSink(dlrReceiptSink))
+		}
+		throwerService, throwerErr := dlrthrower.NewService(throwerConfig, throwerOpts...)
 		if throwerErr != nil {
 			return nil, fmt.Errorf("start DLR thrower worker: %w", throwerErr)
 		}
@@ -130,14 +153,6 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		}
 		runtime.moThrower = moService
 		go func() { _ = moService.Run(workerCtx) }()
-	}
-	if config.SMPPS != nil {
-		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter())
-		if smppsErr != nil {
-			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
-		}
-		runtime.smppsServer = smppsService
-		go func() { _ = smppsService.Run(workerCtx) }()
 	}
 	if err := manager.StartAll(); err != nil {
 		return nil, fmt.Errorf("start connectors: %w", err)

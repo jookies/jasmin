@@ -61,15 +61,34 @@ type Service struct {
 	OnError func(error)
 }
 
-func NewService(config Config) (*Service, error) {
+// Option configures optional service dependencies.
+type Option func(*options)
+
+type options struct {
+	smppsSink dlr.SMPPSReceiptSink
+}
+
+// WithSMPPSReceiptSink wires the smpps receipt delivery path: dlr_thrower.smpps
+// forwards push a deliver_sm receipt down the sender's bound session. Without
+// it, smpps forwards fail into the retry path (a deployment with no SMPPS
+// access), the prior behavior.
+func WithSMPPSReceiptSink(sink dlr.SMPPSReceiptSink) Option {
+	return func(o *options) { o.smppsSink = sink }
+}
+
+func NewService(config Config, opts ...Option) (*Service, error) {
 	if err := ValidateConfig(config); err != nil {
 		return nil, err
+	}
+	var settings options
+	for _, opt := range opts {
+		opt(&settings)
 	}
 	timeout := time.Duration(config.HTTPTimeoutSeconds * float64(time.Second))
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	consumer, err := dlr.NewThrowerConsumer(&http.Client{Timeout: timeout}, nil, dlr.ThrowerConsumerConfig{
+	consumer, err := dlr.NewThrowerConsumer(&http.Client{Timeout: timeout}, settings.smppsSink, dlr.ThrowerConsumerConfig{
 		MaxRetries: config.MaxRetries,
 		RetryDelay: time.Duration(config.RetryDelaySeconds * float64(time.Second)),
 	})

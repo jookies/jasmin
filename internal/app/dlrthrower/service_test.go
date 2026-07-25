@@ -134,3 +134,22 @@ func TestValidateConfig(t *testing.T) {
 		}
 	}
 }
+
+type fakeReceiptSink struct{ called int }
+
+func (f *fakeReceiptSink) DeliverReceipt(context.Context, dlr.SMPPSReceiptParams) error {
+	f.called++
+	return nil
+}
+
+func TestWithSMPPSReceiptSinkOptionApplied(t *testing.T) {
+	// The option is accepted and the service constructs with the sink attached;
+	// without it, the service still constructs (sink stays nil).
+	sink := &fakeReceiptSink{}
+	if _, err := NewService(Config{AMQPURL: "amqp://x"}, WithSMPPSReceiptSink(sink)); err != nil {
+		t.Fatalf("with sink: %v", err)
+	}
+	if _, err := NewService(Config{AMQPURL: "amqp://x"}); err != nil {
+		t.Fatalf("without sink: %v", err)
+	}
+}
