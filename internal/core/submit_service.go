@@ -215,7 +215,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		DLRURL:          request.DLRUrl,
 		DLRLevel:        request.DLRLevel,
 		DLRMethod:       request.DLRMethod,
-		SourceConnector: "httpapi",
+		SourceConnector: sourceConnectorOf(request),
 		Bill:            perPartBill,
 		Parts:           parts,
 		CustomTLVs:      cloneTLVs(request.CustomTLVs),
@@ -308,6 +308,15 @@ func randomReference() (uint16, error) {
 		return 0, err
 	}
 	return uint16(value[0])<<8 | uint16(value[1]), nil
+}
+
+// sourceConnectorOf returns the request's ingress name, defaulting to the
+// legacy "httpapi" when unset so existing callers are unchanged.
+func sourceConnectorOf(request SubmitRequest) string {
+	if request.SourceConnector == "smppsapi" {
+		return "smppsapi"
+	}
+	return "httpapi"
 }
 
 // cloneTLVs copies the tuple list; fields (tag, length hint, value) are shared

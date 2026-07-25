@@ -22,6 +22,15 @@ type UserResolver interface {
 	ResolveUser(systemID string) (UserAuth, bool)
 }
 
+// SubmitHandler ingests a bound ESME's submit_sm/data_sm: it runs smpps
+// credential validation and hands the message to the MT pipeline (routing,
+// billing, publication), returning the assigned message id and the SMPP
+// command_status to answer with. A nil handler makes the server answer
+// ESME_RSYSERR — a deployment that binds ESMEs but ingests no MT.
+type SubmitHandler interface {
+	HandleSubmit(ctx context.Context, systemID string, sm *smppwire.SMBody) (messageID string, status uint32)
+}
+
 // ServerConfig carries the listener settings.
 type ServerConfig struct {
 	// EnquireLinkTimeout bounds inactivity before the server drops a session
@@ -36,6 +45,7 @@ type ServerConfig struct {
 type Server struct {
 	cfg      ServerConfig
 	resolver UserResolver
+	submit   SubmitHandler
 
 	mu       sync.Mutex
 	managers map[string]*BindManager // system_id -> its bindings
@@ -46,16 +56,28 @@ type Server struct {
 	wg       sync.WaitGroup
 }
 
-func NewServer(resolver UserResolver, cfg ServerConfig) (*Server, error) {
+func NewServer(resolver UserResolver, cfg ServerConfig, options ...ServerOption) (*Server, error) {
 	if resolver == nil {
 		return nil, errors.New("smpps: nil user resolver")
 	}
-	return &Server{
+	server := &Server{
 		cfg:      cfg,
 		resolver: resolver,
 		managers: make(map[string]*BindManager),
 		sessions: make(map[*Session]struct{}),
-	}, nil
+	}
+	for _, option := range options {
+		option(server)
+	}
+	return server, nil
+}
+
+// ServerOption configures optional server dependencies.
+type ServerOption func(*Server)
+
+// WithSubmitHandler injects the MT-ingestion handler for inbound submit_sm.
+func WithSubmitHandler(handler SubmitHandler) ServerOption {
+	return func(s *Server) { s.submit = handler }
 }
 
 // Serve accepts connections on listener until ctx is cancelled or the listener
