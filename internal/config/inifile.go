@@ -193,3 +193,11 @@ func (f *File) HasSection(section string) bool {
 	_, ok := f.sections[section]
 	return ok
 }
+
+// Lookup exposes the File's environment access for top-level override variables
+// (e.g. CLOUDAMQP_URL, REDIS_URL) that the legacy config classes read directly
+// rather than through a section. It uses the same injectable source as the
+// typed getters, so tests can drive it deterministically.
+func (f *File) Lookup(name string) (string, bool) {
+	return f.getenv(name)
+}
