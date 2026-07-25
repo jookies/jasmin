@@ -13,6 +13,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
@@ -30,6 +31,7 @@ type Runtime struct {
 	dlrLookup    *dlrlookup.Service
 	dlrThrower   *dlrthrower.Service
 	moThrower    *mothrower.Service
+	smppsServer  *smppsserver.Service
 	workerCancel context.CancelFunc
 	closeOnce    sync.Once
 	closeErr     error
@@ -129,6 +131,14 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		runtime.moThrower = moService
 		go func() { _ = moService.Run(workerCtx) }()
 	}
+	if config.SMPPS != nil {
+		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter())
+		if smppsErr != nil {
+			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
+		}
+		runtime.smppsServer = smppsService
+		go func() { _ = smppsService.Run(workerCtx) }()
+	}
 	if err := manager.StartAll(); err != nil {
 		return nil, fmt.Errorf("start connectors: %w", err)
 	}
@@ -153,6 +163,13 @@ func (runtime *Runtime) Close() error {
 		var errs []error
 		// Admission is stopped by the executable before Runtime.Close. Stop the
 		// outbox/consumers and confirming publisher before fencing connectors.
+		// The SMPPS server is MT ingress feeding the outbound submitter, so it
+		// stops first — no new submit reaches the pipeline being torn down.
+		if runtime.smppsServer != nil {
+			if err := runtime.smppsServer.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		if runtime.outbound != nil {
 			if err := runtime.outbound.Close(); err != nil {
 				errs = append(errs, err)
