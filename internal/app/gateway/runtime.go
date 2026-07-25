@@ -18,6 +18,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/mo"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
@@ -90,8 +91,16 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("add connector %q: %w", connector.CID, err)
 		}
 	}
+	// Observability registries are created here and shared by pointer: the HTTP
+	// /metrics handler (built inside the outbound runtime) reads them, and the
+	// SMPPS server increments smppsStats. connectorIDs lists the configured
+	// connector ids in stable order for the smppc metric labels.
+	smppcStats := stats.NewSMPPcRegistry()
+	smppsStats := &stats.SMPPsStats{}
+	connectorIDs := configuredConnectorIDs(config.Connectors)
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
+		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start outbound runtime: %w", err)
@@ -116,7 +125,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	var dlrReceiptSink dlr.SMPPSReceiptSink
 	var moDeliverySink mo.MODeliverySink
 	if config.SMPPS != nil {
-		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter())
+		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter(), smppsserver.WithStats(smppsStats))
 		if smppsErr != nil {
 			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
 		}
@@ -255,4 +264,14 @@ func waitRequiredBound(parent context.Context, manager *smppc.Manager, required 
 		case <-ticker.C:
 		}
 	}
+}
+
+// configuredConnectorIDs returns a stable-order connector-id lister for the
+// smppc /metrics labels.
+func configuredConnectorIDs(connectors []smppc.Config) func() []string {
+	ids := make([]string, 0, len(connectors))
+	for _, connector := range connectors {
+		ids = append(ids, connector.CID)
+	}
+	return func() []string { return append([]string(nil), ids...) }
 }

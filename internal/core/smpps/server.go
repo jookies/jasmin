@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
@@ -46,6 +47,7 @@ type Server struct {
 	cfg      ServerConfig
 	resolver UserResolver
 	submit   SubmitHandler
+	stats    *stats.SMPPsStats
 
 	mu       sync.Mutex
 	managers map[string]*BindManager // system_id -> its bindings
@@ -78,6 +80,19 @@ type ServerOption func(*Server)
 // WithSubmitHandler injects the MT-ingestion handler for inbound submit_sm.
 func WithSubmitHandler(handler SubmitHandler) ServerOption {
 	return func(s *Server) { s.submit = handler }
+}
+
+// WithStats injects the smppsapi counter registry incremented on session and
+// bind lifecycle events (O-004).
+func WithStats(registry *stats.SMPPsStats) ServerOption {
+	return func(s *Server) { s.stats = registry }
+}
+
+// incStat increments an smppsapi counter when a registry is attached.
+func (s *Server) incStat(name string) {
+	if s.stats != nil {
+		s.stats.Inc(name)
+	}
 }
 
 // Serve accepts connections on listener until ctx is cancelled or the listener

@@ -47,6 +47,12 @@ type RuntimeDependencies struct {
 	Transactions       *submittransaction.Service
 	Repository         submittransaction.Repository
 	ConnectorAvailable func(string) bool
+
+	// Observability (optional). When supplied by the gateway, /metrics renders
+	// the smppc/smpps counters and per-connector labels alongside httpapi.
+	SMPPcStats   *stats.SMPPcRegistry
+	SMPPsStats   *stats.SMPPsStats
+	ConnectorIDs func() []string
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -182,6 +188,9 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		RateReader:    directory,
 		Submitter:     submitService,
 		HTTPStats:     &stats.HTTPStats{},
+		SMPPcStats:    dependencies.SMPPcStats,
+		SMPPsStats:    dependencies.SMPPsStats,
+		ConnectorIDs:  dependencies.ConnectorIDs,
 	})
 	outboxOwner, err := newOutboxOwner()
 	if err != nil {
