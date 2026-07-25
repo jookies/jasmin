@@ -476,11 +476,30 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 	return messagePayload, nil
 }
 
+// encodeTLVs re-emits decoded standard optional parameters in the frozen
+// library's deliver_sm optionalParams order (smpp.pdu operations.py), so a
+// decode -> encode round trip of the known optionals is byte-identical to the
+// legacy encoder. Captured vendor TLVs are intentionally NOT re-emitted: the
+// frozen codec drops unknown vendor TLVs on re-encode (KNOWN_QUIRKS Q-016);
+// a forwarder that must carry vendor TLVs sets SMBody.VendorTLVs explicitly.
 func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
+	if optional.UserMessageReference != nil {
+		if err := writeTLV(output, tagUserMessageReference, uint16Bytes(*optional.UserMessageReference)); err != nil {
+			return err
+		}
+	}
+	if optional.SourcePort != nil {
+		if err := writeTLV(output, tagSourcePort, uint16Bytes(*optional.SourcePort)); err != nil {
+			return err
+		}
+	}
+	if optional.DestinationPort != nil {
+		if err := writeTLV(output, tagDestinationPort, uint16Bytes(*optional.DestinationPort)); err != nil {
+			return err
+		}
+	}
 	if optional.SARMessageReference != nil {
-		value := make([]byte, 2)
-		binary.BigEndian.PutUint16(value, *optional.SARMessageReference)
-		if err := writeTLV(output, tagSARMessageRef, value); err != nil {
+		if err := writeTLV(output, tagSARMessageRef, uint16Bytes(*optional.SARMessageReference)); err != nil {
 			return err
 		}
 	}
@@ -494,8 +513,40 @@ func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
 			return err
 		}
 	}
+	if optional.PrivacyIndicator != nil {
+		if err := writeTLV(output, tagPrivacyIndicator, []byte{*optional.PrivacyIndicator}); err != nil {
+			return err
+		}
+	}
+	if optional.PayloadType != nil {
+		if err := writeTLV(output, tagPayloadType, []byte{*optional.PayloadType}); err != nil {
+			return err
+		}
+	}
 	if optional.MessagePayload != nil {
 		if err := writeTLV(output, tagMessagePayload, optional.MessagePayload); err != nil {
+			return err
+		}
+	}
+	if optional.CallbackNum != nil {
+		value := append([]byte{optional.CallbackNum.DigitMode, optional.CallbackNum.TON, optional.CallbackNum.NPI},
+			optional.CallbackNum.Digits...)
+		if err := writeTLV(output, tagCallbackNum, value); err != nil {
+			return err
+		}
+	}
+	if optional.LanguageIndicator != nil {
+		if err := writeTLV(output, tagLanguageIndicator, []byte{*optional.LanguageIndicator}); err != nil {
+			return err
+		}
+	}
+	if optional.NetworkErrorCode != nil {
+		if err := writeTLV(output, tagNetworkErrorCode, optional.NetworkErrorCode); err != nil {
+			return err
+		}
+	}
+	if optional.MessageState != nil {
+		if err := writeTLV(output, tagMessageState, []byte{*optional.MessageState}); err != nil {
 			return err
 		}
 	}
@@ -505,12 +556,13 @@ func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
 			return err
 		}
 	}
-	if optional.MessageState != nil {
-		if err := writeTLV(output, tagMessageState, []byte{*optional.MessageState}); err != nil {
-			return err
-		}
-	}
 	return nil
+}
+
+func uint16Bytes(value uint16) []byte {
+	out := make([]byte, 2)
+	binary.BigEndian.PutUint16(out, value)
+	return out
 }
 
 func writeTLV(output *bytes.Buffer, tag uint16, value []byte) error {
@@ -546,23 +598,41 @@ func cstringWireSize(value []byte) uint64 {
 
 func optionalWireSize(optional OptionalParameters) uint64 {
 	var size uint64
-	if optional.SARMessageReference != nil {
-		size += 6
+	// 2-byte-body optionals: 4 header + 2 body.
+	for _, present := range []bool{
+		optional.UserMessageReference != nil,
+		optional.SourcePort != nil,
+		optional.DestinationPort != nil,
+		optional.SARMessageReference != nil,
+	} {
+		if present {
+			size += 6
+		}
 	}
-	if optional.SARTotalSegments != nil {
-		size += 5
-	}
-	if optional.SARSegmentSequence != nil {
-		size += 5
+	// 1-byte-body optionals: 4 header + 1 body.
+	for _, present := range []bool{
+		optional.SARTotalSegments != nil,
+		optional.SARSegmentSequence != nil,
+		optional.PrivacyIndicator != nil,
+		optional.PayloadType != nil,
+		optional.LanguageIndicator != nil,
+		optional.MessageState != nil,
+	} {
+		if present {
+			size += 5
+		}
 	}
 	if optional.MessagePayload != nil {
 		size += 4 + uint64(len(optional.MessagePayload))
 	}
-	if optional.ReceiptedMessageID != nil {
-		size += 5 + uint64(len(optional.ReceiptedMessageID))
+	if optional.CallbackNum != nil {
+		size += 4 + 3 + uint64(len(optional.CallbackNum.Digits))
 	}
-	if optional.MessageState != nil {
-		size += 5
+	if optional.NetworkErrorCode != nil {
+		size += 4 + uint64(len(optional.NetworkErrorCode))
+	}
+	if optional.ReceiptedMessageID != nil {
+		size += 5 + uint64(len(optional.ReceiptedMessageID)) // 4 header + value + NUL
 	}
 	return size
 }

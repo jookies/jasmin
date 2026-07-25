@@ -105,8 +105,9 @@ type SMBody struct {
 	// CapturedVendorTLVs are wire TLVs outside the legacy library's known-tag
 	// set, captured on decode exactly like the fork's decoder patch
 	// (install_pdu_decoder_patch): raw octets, wire order, duplicates kept.
-	// Decode-only: encode ignores this field, so re-encoding still omits
-	// unknown TLVs per KNOWN_QUIRKS Q-016 — capture is for MO/DLR forwarding.
+	// Decode-only: encode does NOT re-emit them, so re-encoding drops unknown
+	// TLVs per KNOWN_QUIRKS Q-016 — capture is for MO/DLR forwarding, which
+	// projects them as custom_tlvs rather than round-tripping the wire.
 	CapturedVendorTLVs []CapturedVendorTLV
 }
 
@@ -122,12 +123,12 @@ type CapturedVendorTLV struct {
 // SMBody compatibility for deliver_sm and existing callers.
 type SubmitSMBody = SMBody
 
-// OptionalParameters carries decoded optional TLVs. The fields beyond the
-// original six exist for the legacy tlv_params MO/DLR forwarding and are
-// decode-only for now: encodeTLVs does not re-emit them (re-encode symmetry
-// arrives with the relay slice). Validation mirrors the legacy library:
-// fixed lengths, enum value tables, and callback_num structure errors fail
-// the whole PDU decode exactly where smpp.pdu3 raises.
+// OptionalParameters carries decoded optional TLVs. encodeTLVs re-emits every
+// present field in the frozen library's deliver_sm optionalParams order, so a
+// decode -> encode round trip is byte-identical to the patched Python encoder.
+// Validation mirrors the legacy library: fixed lengths, enum value tables, and
+// callback_num structure errors fail the whole PDU decode exactly where
+// smpp.pdu3 raises.
 type OptionalParameters struct {
 	SARMessageReference *uint16
 	SARTotalSegments    *byte
