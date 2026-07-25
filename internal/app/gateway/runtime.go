@@ -16,6 +16,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
+	"github.com/pumpitspace/jasmin/internal/core/mo"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
@@ -113,6 +114,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// its Deliver path can be injected into the thrower — dlr_thrower.smpps
 	// forwards then push a deliver_sm receipt down the sender's bound session.
 	var dlrReceiptSink dlr.SMPPSReceiptSink
+	var moDeliverySink mo.MODeliverySink
 	if config.SMPPS != nil {
 		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter())
 		if smppsErr != nil {
@@ -124,6 +126,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("wire SMPPS receipt delivery: %w", sinkErr)
 		}
 		dlrReceiptSink = sink
+		moSink, moSinkErr := smppsdelivery.NewMOSink(smppsService.Server())
+		if moSinkErr != nil {
+			return nil, fmt.Errorf("wire SMPPS MO delivery: %w", moSinkErr)
+		}
+		moDeliverySink = moSink
 		go func() { _ = smppsService.Run(workerCtx) }()
 	}
 	if config.DLRThrower != nil {
@@ -147,7 +154,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if moConfig.AMQPURL == "" {
 			moConfig.AMQPURL = config.Outbound.AMQPURL
 		}
-		moService, moErr := mothrower.NewService(moConfig, bridge)
+		var moOpts []mothrower.Option
+		if moDeliverySink != nil {
+			moOpts = append(moOpts, mothrower.WithSMPPSDeliverySink(moDeliverySink))
+		}
+		moService, moErr := mothrower.NewService(moConfig, bridge, moOpts...)
 		if moErr != nil {
 			return nil, fmt.Errorf("start MO thrower worker: %w", moErr)
 		}
