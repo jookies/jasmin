@@ -191,3 +191,89 @@ func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
 		t.Fatalf("http-api diverges:\n  go %+v\n  py %+v", api, oracle.HTTP)
 	}
 }
+
+const dlrListenerOracleScript = `
+import json, sys, tempfile, os
+from jasmin.managers.configs import DLRLookupConfig, SMPPClientSMListenerConfig
+text = sys.stdin.read()
+path = tempfile.mktemp(suffix=".cfg")
+open(path, "w").write(text)
+d = DLRLookupConfig(path)
+s = SMPPClientSMListenerConfig(path)
+os.remove(path)
+print(json.dumps({
+    "dlr": {"pid": d.pid, "retry_delay": d.dlr_lookup_retry_delay,
+            "max_retries": d.dlr_lookup_max_retries,
+            "receipt": d.smpp_receipt_on_success_submit_sm_resp},
+    "sml": {"publish": s.publish_submit_sm_resp,
+            "max_age": s.submit_max_age_smppc_not_ready,
+            "retrial_delay": s.submit_retrial_delay_smppc_not_ready,
+            "quirk": s.dlr_lookup_retry_delay,
+            "has_max_retries": hasattr(s, "dlr_lookup_max_retries")},
+}))
+`
+
+func TestDLRAndSMListenerDifferentialAgainstLegacy(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	text := "[dlr]\npid = worker2\ndlr_lookup_retry_delay = 15\ndlr_lookup_max_retries = 5\n" +
+		"smpp_receipt_on_success_submit_sm_resp = yes\n" +
+		"[sm-listener]\npublish_submit_sm_resp = yes\nsubmit_max_age_smppc_not_ready = 900\n" +
+		"dlr_lookup_retry_delay = 10\ndlr_lookup_max_retries = 7\n"
+
+	command := exec.CommandContext(ctx, pythonPath, "-c", dlrListenerOracleScript)
+	command.Env = append(os.Environ(), "PYTHONPATH=../..")
+	command.Stdin = bytes.NewReader([]byte(text))
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	var oracle struct {
+		DLR struct {
+			PID        string `json:"pid"`
+			RetryDelay int    `json:"retry_delay"`
+			MaxRetries int    `json:"max_retries"`
+			Receipt    bool   `json:"receipt"`
+		} `json:"dlr"`
+		SML struct {
+			Publish       bool `json:"publish"`
+			MaxAge        int  `json:"max_age"`
+			RetrialDelay  int  `json:"retrial_delay"`
+			Quirk         int  `json:"quirk"`
+			HasMaxRetries bool `json:"has_max_retries"`
+		} `json:"sml"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(output), &oracle); err != nil {
+		t.Fatalf("oracle output %q: %v", output, err)
+	}
+
+	file, err := config.ParseString(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dlr, err := config.LoadDLR(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dlr.PID != oracle.DLR.PID || dlr.LookupRetryDelay != oracle.DLR.RetryDelay ||
+		dlr.LookupMaxRetries != oracle.DLR.MaxRetries || dlr.SMPPReceiptOnSuccessSubmitSMResp != oracle.DLR.Receipt {
+		t.Fatalf("dlr diverges:\n  go %+v\n  py %+v", dlr, oracle.DLR)
+	}
+	sml, err := config.LoadSMListener(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The oracle confirms the Q-020 bug: quirk holds max_retries (7), no max_retries attr.
+	if oracle.SML.Quirk != 7 || oracle.SML.HasMaxRetries {
+		t.Fatalf("oracle does not exhibit Q-020: %+v", oracle.SML)
+	}
+	if sml.PublishSubmitSMResp != oracle.SML.Publish || sml.SubmitMaxAgeSMPPcNotReady != oracle.SML.MaxAge ||
+		sml.SubmitRetrialDelaySMPPcNotReady != oracle.SML.RetrialDelay || sml.DLRLookupRetryDelayQuirk != oracle.SML.Quirk {
+		t.Fatalf("sm-listener diverges:\n  go %+v\n  py %+v", sml, oracle.SML)
+	}
+}

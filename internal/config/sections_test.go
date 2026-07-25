@@ -181,3 +181,40 @@ func TestLoadHTTPAPIEnvDefaults(t *testing.T) {
 		t.Fatalf("HTTP_API_BIND override should win: %q", api3.Bind)
 	}
 }
+
+func TestLoadDLR(t *testing.T) {
+	file := mustParse(t, "[dlr]\npid = worker2\ndlr_lookup_retry_delay = 15\ndlr_lookup_max_retries = 5\nsmpp_receipt_on_success_submit_sm_resp = yes\n")
+	dlr, err := LoadDLR(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dlr.PID != "worker2" || dlr.LookupRetryDelay != 15 || dlr.LookupMaxRetries != 5 || !dlr.SMPPReceiptOnSuccessSubmitSMResp {
+		t.Fatalf("dlr fields = %+v", dlr)
+	}
+}
+
+func TestLoadDLRDefaults(t *testing.T) {
+	file := mustParse(t, "[x]\ny=1\n")
+	dlr, _ := LoadDLR(file)
+	if dlr.PID != "main" || dlr.LookupRetryDelay != 10 || dlr.LookupMaxRetries != 2 || dlr.SMPPReceiptOnSuccessSubmitSMResp {
+		t.Fatalf("dlr defaults = %+v", dlr)
+	}
+}
+
+func TestLoadSMListenerQuirk(t *testing.T) {
+	// Q-020: sm-listener's retry-delay quirk holds the max_retries value.
+	file := mustParse(t, "[sm-listener]\npublish_submit_sm_resp = yes\ndlr_lookup_retry_delay = 10\ndlr_lookup_max_retries = 7\nsubmit_max_age_smppc_not_ready = 900\n")
+	listener, err := LoadSMListener(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !listener.PublishSubmitSMResp || listener.SubmitMaxAgeSMPPcNotReady != 900 {
+		t.Fatalf("sm-listener fields = %+v", listener)
+	}
+	if listener.DLRLookupRetryDelayQuirk != 7 {
+		t.Fatalf("Q-020: quirk field = %d, want 7 (the max_retries value)", listener.DLRLookupRetryDelayQuirk)
+	}
+	if listener.SubmitRetrialDelaySMPPcNotReady != 30 {
+		t.Fatalf("submit retrial delay default = %d", listener.SubmitRetrialDelaySMPPcNotReady)
+	}
+}
