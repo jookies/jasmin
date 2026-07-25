@@ -61,21 +61,44 @@ type Service struct {
 
 // NewService wires the worker over the routed-content decoder (the trusted
 // pickle bridge owned by the gateway runtime).
-func NewService(config Config, decoder mo.RoutedDecoder) (*Service, error) {
+// Option configures optional service dependencies.
+type Option func(*options)
+
+type options struct {
+	smppsSink mo.MODeliverySink
+}
+
+// WithSMPPSDeliverySink wires MO session delivery: deliver_sm_thrower.smpps
+// forwards push the MO deliver_sm down the destination system_id's bound
+// session. Without it, smpps forwards retry (no SMPPS access), the prior
+// behavior.
+func WithSMPPSDeliverySink(sink mo.MODeliverySink) Option {
+	return func(o *options) { o.smppsSink = sink }
+}
+
+func NewService(config Config, decoder mo.RoutedDecoder, opts ...Option) (*Service, error) {
 	if err := ValidateConfig(config); err != nil {
 		return nil, err
 	}
 	if decoder == nil {
 		return nil, fmt.Errorf("%w: nil routed decoder", ErrInvalidConfig)
 	}
+	var settings options
+	for _, opt := range opts {
+		opt(&settings)
+	}
 	timeout := time.Duration(config.HTTPTimeoutSeconds * float64(time.Second))
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
+	var consumerOpts []mo.ThrowerOption
+	if settings.smppsSink != nil {
+		consumerOpts = append(consumerOpts, mo.WithMODeliverySink(settings.smppsSink))
+	}
 	consumer, err := mo.NewThrowerConsumer(decoder, &http.Client{Timeout: timeout}, mo.ThrowerConsumerConfig{
 		MaxRetries: config.MaxRetries,
 		RetryDelay: time.Duration(config.RetryDelaySeconds * float64(time.Second)),
-	})
+	}, consumerOpts...)
 	if err != nil {
 		return nil, err
 	}

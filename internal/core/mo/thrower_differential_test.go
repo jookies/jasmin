@@ -401,3 +401,113 @@ func TestMOThrowerRejectsNonHTTPAndSMPPSLegs(t *testing.T) {
 		t.Fatalf("settlement = %s", settled)
 	}
 }
+
+type fakeMOSink struct {
+	deliveries []moDelivered
+	failUntil  int // fail this many calls, then succeed
+	calls      int
+}
+
+type moDelivered struct {
+	systemID string
+	content  string
+}
+
+func (f *fakeMOSink) DeliverMO(_ context.Context, systemID string, sm *smppwire.SMBody) error {
+	f.calls++
+	if f.calls <= f.failUntil {
+		return smppwire.ErrTruncatedFrame // any error stands in for a delivery failure
+	}
+	f.deliveries = append(f.deliveries, moDelivered{systemID: systemID, content: string(sm.ShortMessage)})
+	return nil
+}
+
+func smppsRoutedDecoder(connectors []picklecompat.MOConnector) *fakeRoutedDecoder {
+	return &fakeRoutedDecoder{result: picklecompat.RoutedDeliverSM{
+		Connectors: connectors,
+		Body:       smppwire.SMBody{SourceAddress: []byte("111"), DestinationAddress: []byte("222"), ShortMessage: []byte("mo")},
+	}}
+}
+
+func moSMPPSDelivery(t *testing.T, messageID, routeType string) (*amqpcompat.Delivery, chan string) {
+	t.Helper()
+	settlements := make(chan string, 2)
+	raw := amqp.Delivery{
+		Acknowledger: &moSettleRecorder{settlements: settlements},
+		MessageId:    messageID,
+		RoutingKey:   "deliver_sm_thrower.smpps",
+		Body:         []byte("pkl"),
+		Headers:      amqp.Table{"route-type": routeType, "dst-connectors": []byte("pkl"), "src-connector-id": "smpp-01"},
+	}
+	delivery, err := amqpcompat.NewDelivery(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return delivery, settlements
+}
+
+func TestMOThrowerSMPPSSimpleDeliversToSystemID(t *testing.T) {
+	sink := &fakeMOSink{}
+	decoder := smppsRoutedDecoder([]picklecompat.MOConnector{{CID: "alice", Type: "smpps"}})
+	consumer, err := NewThrowerConsumer(decoder, http.DefaultClient, ThrowerConsumerConfig{}, WithMODeliverySink(sink))
+	if err != nil {
+		t.Fatal(err)
+	}
+	delivery, settlements := moSMPPSDelivery(t, "mo-1", "simple")
+	if err := consumer.Handle(context.Background(), delivery); err != nil {
+		t.Fatal(err)
+	}
+	if settled := <-settlements; settled != "ack" {
+		t.Fatalf("settlement = %s", settled)
+	}
+	if len(sink.deliveries) != 1 || sink.deliveries[0].systemID != "alice" || sink.deliveries[0].content != "mo" {
+		t.Fatalf("deliveries = %+v", sink.deliveries)
+	}
+}
+
+func TestMOThrowerSMPPSFailoverAcksOnSecond(t *testing.T) {
+	sink := &fakeMOSink{failUntil: 1} // first connector fails, second succeeds
+	decoder := smppsRoutedDecoder([]picklecompat.MOConnector{
+		{CID: "down", Type: "smpps"}, {CID: "up", Type: "smpps"},
+	})
+	consumer, _ := NewThrowerConsumer(decoder, http.DefaultClient, ThrowerConsumerConfig{}, WithMODeliverySink(sink))
+	delivery, settlements := moSMPPSDelivery(t, "mo-2", "failover")
+	if err := consumer.Handle(context.Background(), delivery); err != nil {
+		t.Fatal(err)
+	}
+	if settled := <-settlements; settled != "ack" {
+		t.Fatalf("settlement = %s", settled)
+	}
+	if len(sink.deliveries) != 1 || sink.deliveries[0].systemID != "up" {
+		t.Fatalf("delivered to %+v, want up", sink.deliveries)
+	}
+}
+
+func TestMOThrowerSMPPSSimpleRetriesOnFailure(t *testing.T) {
+	sink := &fakeMOSink{failUntil: 100}
+	decoder := smppsRoutedDecoder([]picklecompat.MOConnector{{CID: "alice", Type: "smpps"}})
+	consumer, _ := NewThrowerConsumer(decoder, http.DefaultClient, ThrowerConsumerConfig{MaxRetries: 1, RetryDelay: 5 * time.Millisecond}, WithMODeliverySink(sink))
+	delivery, settlements := moSMPPSDelivery(t, "mo-3", "simple")
+	_ = consumer.Handle(context.Background(), delivery)
+	if settled := <-settlements; settled != "requeue" {
+		t.Fatalf("attempt 1 settlement = %s", settled)
+	}
+	delivery2, settlements2 := moSMPPSDelivery(t, "mo-3", "simple")
+	_ = consumer.Handle(context.Background(), delivery2)
+	if settled := <-settlements2; settled != "reject" {
+		t.Fatalf("attempt 2 settlement = %s", settled)
+	}
+}
+
+func TestMOThrowerSMPPSNonSMPPSConnectorRejects(t *testing.T) {
+	sink := &fakeMOSink{}
+	decoder := smppsRoutedDecoder([]picklecompat.MOConnector{{CID: "x", Type: "http"}})
+	consumer, _ := NewThrowerConsumer(decoder, http.DefaultClient, ThrowerConsumerConfig{}, WithMODeliverySink(sink))
+	delivery, settlements := moSMPPSDelivery(t, "mo-4", "simple")
+	if err := consumer.Handle(context.Background(), delivery); err == nil {
+		t.Fatal("want error for non-smpps connector on the smpps leg")
+	}
+	if settled := <-settlements; settled != "reject" {
+		t.Fatalf("settlement = %s", settled)
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 // ErrInvalidMODelivery identifies a deliver_sm_thrower message the legacy
@@ -21,6 +22,14 @@ var ErrInvalidMODelivery = errors.New("mo: invalid thrower delivery")
 // RoutedDecoder projects the routed MO content (implemented by the bridge).
 type RoutedDecoder interface {
 	DecodeRoutedDeliverSM(ctx context.Context, dstConnectors, body []byte) (picklecompat.RoutedDeliverSM, error)
+}
+
+// MODeliverySink pushes an MO deliver_sm down a destination system_id's bound
+// SMPPS session (the legacy smpp_deliver_sm_callback's getNextBindingForDelivery
+// + sendRequest). A nil sink makes deliver_sm_thrower.smpps forwards fail into
+// the retry path, like a deployment without SMPPS access.
+type MODeliverySink interface {
+	DeliverMO(ctx context.Context, systemID string, sm *smppwire.SMBody) error
 }
 
 // ThrowerConsumerConfig mirrors the [deliversm-thrower] retry knobs.
@@ -53,6 +62,7 @@ func (c *ThrowerConsumerConfig) applyDefaults() {
 type ThrowerConsumer struct {
 	decoder RoutedDecoder
 	http    HTTPDoer
+	smpps   MODeliverySink
 	cfg     ThrowerConsumerConfig
 
 	mu       sync.Mutex
@@ -60,7 +70,7 @@ type ThrowerConsumer struct {
 	timers   map[string]*time.Timer
 }
 
-func NewThrowerConsumer(decoder RoutedDecoder, httpClient HTTPDoer, cfg ThrowerConsumerConfig) (*ThrowerConsumer, error) {
+func NewThrowerConsumer(decoder RoutedDecoder, httpClient HTTPDoer, cfg ThrowerConsumerConfig, opts ...ThrowerOption) (*ThrowerConsumer, error) {
 	if decoder == nil {
 		return nil, errors.New("mo: nil routed decoder")
 	}
@@ -68,13 +78,25 @@ func NewThrowerConsumer(decoder RoutedDecoder, httpClient HTTPDoer, cfg ThrowerC
 		return nil, errors.New("mo: nil HTTP client")
 	}
 	cfg.applyDefaults()
-	return &ThrowerConsumer{
+	consumer := &ThrowerConsumer{
 		decoder:  decoder,
 		http:     httpClient,
 		cfg:      cfg,
 		retrials: make(map[string]int),
 		timers:   make(map[string]*time.Timer),
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(consumer)
+	}
+	return consumer, nil
+}
+
+// ThrowerOption configures optional consumer dependencies.
+type ThrowerOption func(*ThrowerConsumer)
+
+// WithMODeliverySink wires SMPPS session delivery for deliver_sm_thrower.smpps.
+func WithMODeliverySink(sink MODeliverySink) ThrowerOption {
+	return func(c *ThrowerConsumer) { c.smpps = sink }
 }
 
 // Handle takes settlement ownership of the delivery.
@@ -93,13 +115,12 @@ func (c *ThrowerConsumer) Handle(ctx context.Context, delivery *amqpcompat.Deliv
 	}
 	c.mu.Unlock()
 
-	if envelope.Route().Kind() == amqpcompat.RouteDeliverSMSMPPS {
-		// No SMPPS session delivery is composed yet; fail into the legacy
-		// retry-then-purge path, like a deployment without SMPPS access.
-		c.retryOrPurge(messageID, delivery)
-		return fmt.Errorf("%w: no SMPPS delivery access attached", ErrInvalidMODelivery)
-	}
-	if envelope.Route().Kind() != amqpcompat.RouteDeliverSMHTTP {
+	switch envelope.Route().Kind() {
+	case amqpcompat.RouteDeliverSMHTTP:
+		// handled below
+	case amqpcompat.RouteDeliverSMSMPPS:
+		return c.handleSMPPS(ctx, delivery, messageID)
+	default:
 		c.settleFinal(messageID)
 		_ = delivery.Reject(false)
 		return fmt.Errorf("%w: routing key %s", ErrInvalidMODelivery, envelope.RoutingKey())
@@ -176,6 +197,81 @@ func (c *ThrowerConsumer) Handle(ctx context.Context, delivery *amqpcompat.Deliv
 		c.settleFinal(messageID)
 		_ = delivery.Reject(false)
 		return fmt.Errorf("mo: every failover connector failed: %w", lastErr)
+	default:
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return fmt.Errorf("%w: route-type %q", ErrInvalidMODelivery, routeType)
+	}
+}
+
+// handleSMPPS ports the legacy smpp_deliver_sm_callback: decode the routed
+// content, require the first destination connector to be smpps, then deliver
+// the deliver_sm to each connector's system_id (dc.cid) through the sink with
+// the same simple/failover policy as the HTTP leg. A nil sink or a bound-less
+// destination fails into the retry-then-purge path.
+func (c *ThrowerConsumer) handleSMPPS(ctx context.Context, delivery *amqpcompat.Delivery, messageID string) error {
+	if c.smpps == nil {
+		// No SMPPS delivery access attached is a deployment condition, checked
+		// before envelope parsing: retry, like the legacy deployment.
+		c.retryOrPurge(messageID, delivery)
+		return fmt.Errorf("%w: no SMPPS delivery access attached", ErrInvalidMODelivery)
+	}
+	envelope := delivery.Envelope()
+	headers := envelope.Properties().Headers()
+	routeType, err := stringHeaderValue(headers, "route-type")
+	if err != nil {
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return err
+	}
+	dstField, ok := headers["dst-connectors"]
+	dstConnectors, isBytes := dstField.Bytes()
+	if !ok || !isBytes {
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return fmt.Errorf("%w: missing dst-connectors header", ErrInvalidMODelivery)
+	}
+	routed, err := c.decoder.DecodeRoutedDeliverSM(ctx, dstConnectors, envelope.Body())
+	if err != nil {
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return err
+	}
+	if routed.Connectors[0].Type != "smpps" {
+		// The legacy callback rejects when the first destination connector is
+		// not smpps.
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return fmt.Errorf("%w: destination connector type %q", ErrInvalidMODelivery, routed.Connectors[0].Type)
+	}
+	body := routed.Body
+	pdu := smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM},
+		SM:     &body,
+	}
+
+	switch routeType {
+	case "simple":
+		// dc.cid is the destination system_id for an SmppServerSystemIdConnector.
+		if err := c.smpps.DeliverMO(ctx, routed.Connectors[0].CID, pdu.SM); err != nil {
+			c.retryOrPurge(messageID, delivery)
+			return err
+		}
+		c.settleFinal(messageID)
+		_ = delivery.Ack()
+		return nil
+	case "failover":
+		var lastErr error
+		for _, connector := range routed.Connectors {
+			if lastErr = c.smpps.DeliverMO(ctx, connector.CID, pdu.SM); lastErr == nil {
+				c.settleFinal(messageID)
+				_ = delivery.Ack()
+				return nil
+			}
+		}
+		c.settleFinal(messageID)
+		_ = delivery.Reject(false)
+		return fmt.Errorf("mo: every failover smpps connector failed: %w", lastErr)
 	default:
 		c.settleFinal(messageID)
 		_ = delivery.Reject(false)
