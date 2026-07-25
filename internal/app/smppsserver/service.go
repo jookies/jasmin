@@ -9,6 +9,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/smpps"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 )
 
 // Config is the gateway's smpps-server section.
@@ -44,12 +45,28 @@ type Service struct {
 // NewService builds the SMPPS server from config, wiring bind auth over the
 // directory and submit ingestion over the shared MT submitter. It binds the
 // listen socket eagerly so a bad address fails fast at construction.
-func NewService(config Config, submitter core.Submitter) (*Service, error) {
+// Option configures optional service dependencies.
+type Option func(*options)
+
+type options struct {
+	stats *stats.SMPPsStats
+}
+
+// WithStats attaches the smppsapi counter registry (O-004).
+func WithStats(registry *stats.SMPPsStats) Option {
+	return func(o *options) { o.stats = registry }
+}
+
+func NewService(config Config, submitter core.Submitter, opts ...Option) (*Service, error) {
 	if err := ValidateConfig(config); err != nil {
 		return nil, err
 	}
 	if submitter == nil {
 		return nil, fmt.Errorf("%w: nil submitter", ErrInvalidConfig)
+	}
+	var settings options
+	for _, opt := range opts {
+		opt(&settings)
 	}
 	directory, err := NewDirectory(config.Users)
 	if err != nil {
@@ -62,7 +79,11 @@ func NewService(config Config, submitter core.Submitter) (*Service, error) {
 	serverConfig := smpps.ServerConfig{
 		EnquireLinkTimeout: time.Duration(config.EnquireLinkTimeoutSeconds * float64(time.Second)),
 	}
-	server, err := smpps.NewServer(directory, serverConfig, smpps.WithSubmitHandler(handler))
+	serverOpts := []smpps.ServerOption{smpps.WithSubmitHandler(handler)}
+	if settings.stats != nil {
+		serverOpts = append(serverOpts, smpps.WithStats(settings.stats))
+	}
+	server, err := smpps.NewServer(directory, serverConfig, serverOpts...)
 	if err != nil {
 		return nil, err
 	}

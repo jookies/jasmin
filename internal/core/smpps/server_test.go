@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
@@ -426,5 +427,49 @@ func TestSubmitWithoutHandlerRejectsSystemError(t *testing.T) {
 	})
 	if readPDU(t, conn).Header.CommandStatus != StatusSystemError {
 		t.Fatal("no-handler submit must answer ESME_RSYSERR")
+	}
+}
+
+func TestSMPPsStatsIncrementOnLifecycle(t *testing.T) {
+	registry := &stats.SMPPsStats{}
+	server, err := NewServer(mapResolver{"u": testUser("p")}, ServerConfig{},
+		WithSubmitHandler(&scriptedSubmitHandler{messageID: "m", status: StatusROK}), WithStats(registry))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = server.Serve(ctx, listener) }()
+	t.Cleanup(func() { cancel(); _ = server.Close() })
+
+	conn := dial(t, listener.Addr().String())
+	writePDU(t, conn, bindPDU(CommandBindTransceiver, "u", "p", 1))
+	readPDU(t, conn)
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: CommandSubmitSM, SequenceNumber: 2},
+		SM:     &smppwire.SMBody{DestinationAddress: []byte("222"), ShortMessage: []byte("x")},
+	})
+	readPDU(t, conn)
+	writePDU(t, conn, smppwire.PDU{Header: smppwire.Header{CommandID: CommandEnquireLink, SequenceNumber: 3}})
+	readPDU(t, conn)
+
+	// Poll until the async session has recorded the events.
+	deadline := time.Now().Add(2 * time.Second)
+	for registry.Get("submit_sm_count") == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("submit_sm_count never incremented")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	for name, want := range map[string]int64{
+		"connect_count": 1, "bind_trx_count": 1, "bound_trx_count": 1,
+		"submit_sm_request_count": 1, "submit_sm_count": 1, "elink_count": 1,
+	} {
+		if got := registry.Get(name); got != want {
+			t.Errorf("%s = %d, want %d", name, got, want)
+		}
 	}
 }

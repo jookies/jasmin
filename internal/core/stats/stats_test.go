@@ -93,3 +93,22 @@ func TestCountersAreConcurrencySafe(t *testing.T) {
 		t.Fatalf("request_count = %d, want 8000", got)
 	}
 }
+
+func TestRenderFullSurfaceOrder(t *testing.T) {
+	// All three sections together render in order: httpapi, smppc (labelled),
+	// smppsapi — the legacy Metrics resource layout.
+	http := &HTTPStats{}
+	http.Inc("request_count")
+	registry := NewSMPPcRegistry()
+	registry.Inc("c1", "bound_count")
+	smpps := &SMPPsStats{}
+	smpps.Inc("connect_count")
+
+	out := string(Render(http, registry, []string{"c1"}, smpps))
+	httpAt := strings.Index(out, "httpapi_request_count")
+	smppcAt := strings.Index(out, `smppc_bound_count{cid="c1"}`)
+	smppsAt := strings.Index(out, "smppsapi_connect_count")
+	if !(httpAt >= 0 && smppcAt > httpAt && smppsAt > smppcAt) {
+		t.Fatalf("section order wrong: http=%d smppc=%d smpps=%d\n%s", httpAt, smppcAt, smppsAt, out)
+	}
+}

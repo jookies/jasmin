@@ -46,6 +46,8 @@ func (s *Session) currentState() SessionState {
 // a fatal protocol error occurs. On exit it removes any binding from the
 // manager, matching the legacy connectionLost cleanup.
 func (s *Session) run(ctx context.Context) {
+	s.server.incStat("connect_count")
+	s.server.incStat("connected_count")
 	defer s.cleanup()
 	for {
 		if ctx.Err() != nil {
@@ -90,8 +92,10 @@ func (s *Session) dispatch(ctx context.Context, pdu smppwire.PDU) bool {
 	case CommandBindReceiver, CommandBindTransmitter, CommandBindTransceiver:
 		return s.handleBind(pdu)
 	case CommandEnquireLink:
+		s.server.incStat("elink_count")
 		return s.writeHeader(smppwire.CommandEnquireLinkResp, sequence, StatusROK) == nil
 	case CommandUnbind:
+		s.server.incStat("unbind_count")
 		_ = s.writeHeader(smppwire.CommandUnbindResp, sequence, StatusROK)
 		s.transition(StateUnbound)
 		return false
@@ -110,6 +114,7 @@ func (s *Session) handleSubmit(ctx context.Context, pdu smppwire.PDU) bool {
 	command := pdu.Header.CommandID
 	sequence := pdu.Header.SequenceNumber
 	respCommand := responseCommandFor(command)
+	s.server.incStat("submit_sm_request_count")
 	if s.server.submit == nil || pdu.SM == nil {
 		return s.writeResponse(respCommand, sequence, StatusSystemError, nil) == nil
 	}
@@ -121,6 +126,7 @@ func (s *Session) handleSubmit(ctx context.Context, pdu smppwire.PDU) bool {
 	if status != StatusROK {
 		return s.writeResponse(respCommand, sequence, status, nil) == nil
 	}
+	s.server.incStat("submit_sm_count")
 	return s.writeSubmitResponse(respCommand, sequence, messageID) == nil
 }
 
@@ -138,6 +144,7 @@ func (s *Session) handleBind(pdu smppwire.PDU) bool {
 	}
 	systemID := string(pdu.Bind.SystemID)
 	password := string(pdu.Bind.Password)
+	s.server.incStat(bindRequestMetric(command))
 
 	user, ok := s.server.resolver.ResolveUser(systemID)
 	if !ok {
@@ -164,9 +171,34 @@ func (s *Session) handleBind(pdu smppwire.PDU) bool {
 	if status != StatusROK {
 		return s.writeBindResponse(respCommand, sequence, status, systemID) == nil
 	}
+	s.server.incStat(boundStateMetric(command))
 	newState, _ := StateForBind(command)
 	s.transition(newState)
 	return s.writeBindResponse(respCommand, sequence, StatusROK, systemID) == nil
+}
+
+// bindRequestMetric maps a bind command to its bind_*_count metric.
+func bindRequestMetric(command uint32) string {
+	switch command {
+	case CommandBindReceiver:
+		return "bind_rx_count"
+	case CommandBindTransmitter:
+		return "bind_tx_count"
+	default:
+		return "bind_trx_count"
+	}
+}
+
+// boundStateMetric maps a bind command to its bound_*_count metric.
+func boundStateMetric(command uint32) string {
+	switch command {
+	case CommandBindReceiver:
+		return "bound_rx_count"
+	case CommandBindTransmitter:
+		return "bound_tx_count"
+	default:
+		return "bound_trx_count"
+	}
 }
 
 // deliver encodes and writes a deliver_sm to this session. It fails when the
@@ -190,7 +222,11 @@ func (s *Session) deliver(ctx context.Context, pdu smppwire.PDU) error {
 	if s.closed {
 		return ErrNoBoundSession
 	}
-	return writeFrame(s.conn, frame)
+	if err := writeFrame(s.conn, frame); err != nil {
+		return err
+	}
+	s.server.incStat("deliver_sm_count")
+	return nil
 }
 
 func (s *Session) transition(state SessionState) {
@@ -202,6 +238,7 @@ func (s *Session) transition(state SessionState) {
 // cleanup removes the binding from its manager and closes the connection, the
 // legacy connectionLost path.
 func (s *Session) cleanup() {
+	s.server.incStat("disconnect_count")
 	s.mu.Lock()
 	manager := s.manager
 	s.closed = true
