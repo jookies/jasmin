@@ -184,7 +184,8 @@ def _project_submit_node(node):
     submit_sm the legacy client sends with its own seqNum."""
     from smpp.pdu.pdu_encoding import (
         AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder, EsmClassEncoder,
-        PriorityFlagEncoder, RegisteredDeliveryEncoder, ReplaceIfPresentFlagEncoder,
+        MoreMessagesToSendEncoder, PriorityFlagEncoder, RegisteredDeliveryEncoder,
+        ReplaceIfPresentFlagEncoder,
     )
     params = node.params
     if not isinstance(params, dict):
@@ -220,6 +221,12 @@ def _project_submit_node(node):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value >= 1 << (size * 8):
                 raise ValueError("%s is outside its wire width" % key)
             result["optional_tlvs"].append({"tag": tag, "value": value.to_bytes(size, "big")})
+    # more_messages_to_send (0x0426) is a MoreMessagesToSend enum on UDH parts;
+    # encode it through the legacy encoder to its 1-byte wire value.
+    more = params.get("more_messages_to_send")
+    if more is not None:
+        result["optional_tlvs"].append(
+            {"tag": 0x0426, "value": bytes([_encoded_byte(MoreMessagesToSendEncoder, more, "more_messages_to_send")])})
     payload = params.get("message_payload")
     if payload is not None:
         result["optional_tlvs"].append({"tag": 0x0424, "value": _binary(payload, "message_payload", 65535)})

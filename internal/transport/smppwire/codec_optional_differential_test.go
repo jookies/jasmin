@@ -33,6 +33,7 @@ if "destination_port" in p: pdu.params["destination_port"] = p["destination_port
 if "sar_msg_ref_num" in p: pdu.params["sar_msg_ref_num"] = p["sar_msg_ref_num"]
 if "sar_total_segments" in p: pdu.params["sar_total_segments"] = p["sar_total_segments"]
 if "sar_segment_seqnum" in p: pdu.params["sar_segment_seqnum"] = p["sar_segment_seqnum"]
+if "more_messages_to_send" in p: pdu.params["more_messages_to_send"] = getattr(pdu_types.MoreMessagesToSend, p["more_messages_to_send"])
 if "privacy_indicator" in p: pdu.params["privacy_indicator"] = getattr(pdu_types.PrivacyIndicator, p["privacy_indicator"])
 if "payload_type" in p: pdu.params["payload_type"] = getattr(pdu_types.PayloadType, p["payload_type"])
 if "message_payload" in p: pdu.params["message_payload"] = binascii.unhexlify(p["message_payload"])
@@ -63,6 +64,14 @@ func TestOptionalReEmissionRoundTripsLegacyEncoder(t *testing.T) {
 			request: map[string]any{"params": map[string]any{
 				"sar_msg_ref_num": 0x1234, "sar_total_segments": 3, "sar_segment_seqnum": 2,
 				"message_state": "DELIVERED", "receipted_message_id": "abc12",
+			}},
+		},
+		{
+			// more_messages_to_send (0x0426), a MoreMessagesToSend enum, marks a
+			// UDH multipart part; its 1-byte wire value must round-trip.
+			name: "more messages to send",
+			request: map[string]any{"params": map[string]any{
+				"more_messages_to_send": "MORE_MESSAGES",
 			}},
 		},
 		{

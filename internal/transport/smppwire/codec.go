@@ -390,6 +390,12 @@ func decodeTLVs(c *cursor, body *SMBody) (bool, error) {
 			}
 			v := value[0]
 			optional.SARSegmentSequence = &v
+		case tagMoreMessagesToSend:
+			if len(value) != 1 {
+				return false, fixedTLVLengthError(tag, len(value), 1)
+			}
+			v := value[0]
+			optional.MoreMessagesToSend = &v
 		case tagMessagePayload:
 			optional.MessagePayload = append([]byte(nil), value...)
 			messagePayload = true
@@ -513,6 +519,11 @@ func encodeTLVs(output *bytes.Buffer, optional OptionalParameters) error {
 			return err
 		}
 	}
+	if optional.MoreMessagesToSend != nil {
+		if err := writeTLV(output, tagMoreMessagesToSend, []byte{*optional.MoreMessagesToSend}); err != nil {
+			return err
+		}
+	}
 	if optional.PrivacyIndicator != nil {
 		if err := writeTLV(output, tagPrivacyIndicator, []byte{*optional.PrivacyIndicator}); err != nil {
 			return err
@@ -613,6 +624,7 @@ func optionalWireSize(optional OptionalParameters) uint64 {
 	for _, present := range []bool{
 		optional.SARTotalSegments != nil,
 		optional.SARSegmentSequence != nil,
+		optional.MoreMessagesToSend != nil,
 		optional.PrivacyIndicator != nil,
 		optional.PayloadType != nil,
 		optional.LanguageIndicator != nil,
