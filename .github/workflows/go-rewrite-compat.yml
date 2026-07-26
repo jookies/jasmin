@@ -12,6 +12,28 @@ permissions:
 jobs:
   go-http-differential:
     runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:3-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jasmin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
@@ -29,6 +51,12 @@ jobs:
           go test -race -count=1 ./...
           go vet ./...
           go build ./...
+      - name: Gateway integration (AMQP + Postgres)
+        env:
+          AMQP_URL: amqp://guest:guest@localhost:5672/
+          TEST_POSTGRES_DSN: postgres://postgres:postgres@localhost:5432/jasmin?sslmode=disable
+          PYTHON_PATH: python
+        run: go test -count=1 -run TestGatewayHTTPToDurableSMPPResponse ./internal/app/gateway/
 
   fixture-integrity:
     runs-on: ubuntu-latest

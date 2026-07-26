@@ -25,6 +25,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/gateway"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
@@ -116,6 +117,18 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Close()
+
+	// The runtime always declares the DLRLookup queue (bound to messaging/dlr.*)
+	// even though this config runs no in-process DLRLookup worker, so the
+	// response path's mandatory dlr.submit_sm_resp publish is routable. Consume
+	// that gateway-declared queue directly to prove the DLR is published; without
+	// the always-declare the publish would be unroutable and the outbox would
+	// never drain (undispatched below would never reach 0).
+	dlrDeliveries, err := channel.Consume(amqpcompat.DLRLookupQueue("main"), "wave1a-gateway-dlr", false, true, false, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	server := httptest.NewServer(runtime.Handler)
 	defer server.Close()
 
@@ -167,6 +180,34 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 		want := fmt.Sprintf("%s/%06d", messageID, part)
 		if _, ok := seenResponseIDs[want]; !ok {
 			t.Fatalf("missing response message-id %q; got=%v", want, seenResponseIDs)
+		}
+	}
+
+	// Every final submit_sm_resp publishes a dlr.submit_sm_resp for DLRLookup.
+	// Both parts succeed (ESME_ROK), so each carries the per-part SMSC message id
+	// normalized upper-case with leading zeros stripped, keyed by the part msgid.
+	seenDLR := make(map[string]string, 2)
+	for part := 1; part <= 2; part++ {
+		select {
+		case delivery := <-dlrDeliveries:
+			if delivery.RoutingKey != "dlr.submit_sm_resp" || string(delivery.Body) != "ESME_ROK" {
+				t.Fatalf("dlr message-id=%q route=%q body=%q", delivery.MessageId, delivery.RoutingKey, delivery.Body)
+			}
+			if typ, _ := delivery.Headers["type"].(string); typ != "submit_sm_resp" {
+				t.Fatalf("dlr type header=%q, want submit_sm_resp", typ)
+			}
+			smppMsgID, _ := delivery.Headers["smpp_msgid"].(string)
+			seenDLR[delivery.MessageId] = smppMsgID
+			_ = delivery.Ack(false)
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for dlr.submit_sm_resp publication")
+		}
+	}
+	for part := 1; part <= 2; part++ {
+		wantMsgID := fmt.Sprintf("%s/%06d", messageID, part)
+		wantSMPP := strings.TrimLeft(strings.ToUpper(fmt.Sprintf("%s-%d", smscMessageID, part)), "0")
+		if got, ok := seenDLR[wantMsgID]; !ok || got != wantSMPP {
+			t.Fatalf("DLR for %q: smpp_msgid=%q want %q (seen=%v)", wantMsgID, got, wantSMPP, seenDLR)
 		}
 	}
 
