@@ -53,40 +53,81 @@ type submitSMOptionalTLV struct {
 	Value Bytes  `json:"value"`
 }
 
-// DecodeSubmitSM invokes the bridge's restricted SubmitSM-only unpickler and
-// projects the result into the canonical wire body plus the PDU's vendor
-// custom-TLV tuples, verbatim and unresolved — the session applies connector
-// rules and wire encoding, mirroring the legacy listener. Unknown TLVs decoded
-// off actual wire bytes remain absent (KNOWN_QUIRKS Q-016); these tuples come
-// from the pickled pdu.custom_tlvs attribute, which legacy preserves.
-func (b *Bridge) DecodeSubmitSM(ctx context.Context, data []byte) (smppwire.SubmitSMBody, []tlv.TLV, error) {
+// SubmitSMChainPart is one wire body of a (possibly multipart) submit, plus its
+// vendor custom-TLV tuples. A long message pickles a nextPdu chain of these; a
+// non-chained submit yields exactly one part.
+type SubmitSMChainPart struct {
+	Body       smppwire.SubmitSMBody
+	CustomTLVs []tlv.TLV
+}
+
+// submitSMEnvelope is the bridge's chain projection: one entry per nextPdu node.
+type submitSMEnvelope struct {
+	Parts []submitSMWire `json:"parts"`
+}
+
+// DecodeSubmitSMChain invokes the bridge's restricted SubmitSM-only unpickler and
+// projects the pickled SubmitSM and its nextPdu chain into the canonical wire
+// bodies plus each PDU's vendor custom-TLV tuples, verbatim and unresolved — the
+// session applies connector rules and wire encoding, mirroring the legacy
+// listener sending every part of a LongSubmitSm. Unknown TLVs decoded off actual
+// wire bytes remain absent (KNOWN_QUIRKS Q-016); these tuples come from the
+// pickled pdu.custom_tlvs attribute, which legacy preserves.
+func (b *Bridge) DecodeSubmitSMChain(ctx context.Context, data []byte) ([]SubmitSMChainPart, error) {
 	if b == nil {
-		return smppwire.SubmitSMBody{}, nil, transientSubmitError("nil bridge")
+		return nil, transientSubmitError("nil bridge")
 	}
 	if err := ctx.Err(); err != nil {
-		return smppwire.SubmitSMBody{}, nil, err
+		return nil, err
 	}
 	if len(data) == 0 || len(data) > int(smppwire.DefaultMaxSize) {
-		return smppwire.SubmitSMBody{}, nil, poisonSubmitError("pickle size %d", len(data))
+		return nil, poisonSubmitError("pickle size %d", len(data))
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	request := bridgeRequest{Action: "decode_submit_sm", Data: base64.StdEncoding.EncodeToString(data)}
 	if err := json.NewEncoder(b.stdin).Encode(request); err != nil {
-		return smppwire.SubmitSMBody{}, nil, transientSubmitError("send bridge request: %v", err)
+		return nil, transientSubmitError("send bridge request: %v", err)
 	}
 	var response bridgeResponse
 	if err := b.decodeResponse(ctx, &response); err != nil {
-		return smppwire.SubmitSMBody{}, nil, transientSubmitError("read bridge response: %v", err)
+		return nil, transientSubmitError("read bridge response: %v", err)
 	}
 	if response.Status != "ok" {
-		return smppwire.SubmitSMBody{}, nil, poisonSubmitError("%s", response.Message)
+		return nil, poisonSubmitError("%s", response.Message)
 	}
-	var wire submitSMWire
-	if err := json.Unmarshal(response.Result, &wire); err != nil {
-		return smppwire.SubmitSMBody{}, nil, transientSubmitError("decode projection: %v", err)
+	var envelope submitSMEnvelope
+	if err := json.Unmarshal(response.Result, &envelope); err != nil {
+		return nil, transientSubmitError("decode projection: %v", err)
 	}
+	if len(envelope.Parts) == 0 {
+		return nil, poisonSubmitError("bridge returned no submit parts")
+	}
+	parts := make([]SubmitSMChainPart, 0, len(envelope.Parts))
+	for _, wire := range envelope.Parts {
+		body, tuples, err := buildSubmitPart(wire)
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, SubmitSMChainPart{Body: body, CustomTLVs: tuples})
+	}
+	return parts, nil
+}
+
+// DecodeSubmitSM decodes a single-part submit (the first chain part), for the
+// callers and tests that expect exactly one body.
+func (b *Bridge) DecodeSubmitSM(ctx context.Context, data []byte) (smppwire.SubmitSMBody, []tlv.TLV, error) {
+	parts, err := b.DecodeSubmitSMChain(ctx, data)
+	if err != nil {
+		return smppwire.SubmitSMBody{}, nil, err
+	}
+	return parts[0].Body, parts[0].CustomTLVs, nil
+}
+
+// buildSubmitPart projects one bridge-decoded part into a wire body plus its
+// custom-TLV tuples, enforcing the legacy optional-TLV allowlist.
+func buildSubmitPart(wire submitSMWire) (smppwire.SubmitSMBody, []tlv.TLV, error) {
 	body := smppwire.SubmitSMBody{
 		ServiceType:           cloneBytes(wire.ServiceType),
 		SourceAddressTON:      wire.SourceAddrTON,
