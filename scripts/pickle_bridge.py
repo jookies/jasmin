@@ -115,7 +115,11 @@ class SubmitSMUnpickler(pickle.Unpickler):
             (module == "smpp.pdu.operations" and name == "SubmitSM")
             or module == "smpp.pdu.pdu_types"
             or (module == "_codecs" and name == "encode")
-            or (module in ("__builtin__", "builtins") and name in ("set", "frozenset"))
+            # bytes: protocol-2 pickles reference __builtin__.bytes for EMPTY
+            # byte fields (b'' pickles as a bytes() call, non-empty as
+            # _codecs.encode), so a submit without a source address poisons
+            # here if bytes is missing — the DeliverSM allowlist already has it.
+            or (module in ("__builtin__", "builtins") and name in ("bytes", "set", "frozenset"))
             or (module == "datetime" and name in ("datetime", "timezone", "timedelta"))
             # Relative validity_period / schedule_delivery_time (the normal SMPP
             # form) unpickle to this namedtuple; _time_bytes encodes it via the
