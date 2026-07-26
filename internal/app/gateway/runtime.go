@@ -98,9 +98,17 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	smppcStats := stats.NewSMPPcRegistry()
 	smppsStats := &stats.SMPPsStats{}
 	connectorIDs := configuredConnectorIDs(config.Connectors)
+	// The DLRLookup queue is declared with this pid so the response path's DLR
+	// publish is routable; it must match the pid the DLRLookup consumer binds
+	// (both default to "main").
+	dlrLookupPID := "main"
+	if config.DLRLookup != nil && config.DLRLookup.PID != "" {
+		dlrLookupPID = config.DLRLookup.PID
+	}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
+		DLRLookupPID: dlrLookupPID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start outbound runtime: %w", err)

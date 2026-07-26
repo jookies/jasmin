@@ -116,7 +116,7 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 		action = SubmitResponseRequeue
 		availableAt = now.Add(decision.RequeueDelay)
 	}
-	events := make([]submittransaction.OutboxEvent, 0, 2)
+	events := make([]submittransaction.OutboxEvent, 0, 4)
 	publication, err := NewSubmitResponsePublication(input.ReplyEnabled, action, input.ReplyTo, input.MessageID, input.CreatedAt, input.Body)
 	if err != nil {
 		return false, err
@@ -129,6 +129,20 @@ func (lifecycle *DurableResponseLifecycle) Commit(ctx context.Context, input Dur
 		}
 		events = append(events, event)
 	}
+	// Every final submit_sm_resp publishes a DLR to DLRLookup, regardless of the
+	// ack/requeue decision (the legacy listener publishes it outside the
+	// will_be_retried branch). This feeds level-1 callbacks and the smpp_msgid
+	// -> msgid mapping used by later receipt correlation.
+	dlrPublication, err := newDLRSubmitRespPublication(input.MessageID, input.Status, input.SMSCMessageID)
+	if err != nil {
+		return false, err
+	}
+	dlrEventKey := fmt.Sprintf("%s:15-dlr-submit-resp-%06d", input.PartKey, input.RetryAttempt)
+	dlrEvent, err := submittransaction.NewEnvelopeEvent(dlrEventKey, input.PartKey, submittransaction.EventDLRState, SubmitResponseExchange, dlrPublication, now)
+	if err != nil {
+		return false, err
+	}
+	events = append(events, dlrEvent)
 	if kind == submittransaction.ResultRetry {
 		if input.RetryEnvelope == nil {
 			return false, fmt.Errorf("%w: retry requires original submit envelope", ErrInvalidSubmitResponsePublication)

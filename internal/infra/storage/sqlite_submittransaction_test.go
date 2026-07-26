@@ -348,17 +348,19 @@ func TestDurableResponseDuplicateCreatesOneResponseAndLateBillingIntent(t *testi
 	publisher := &recordingPublisher{}
 	dispatcher, _ := submittransaction.NewDispatcher(repository, publisher, "response-worker", 10, time.Minute, func() time.Time { return now })
 	published := 0
-	for range 3 {
+	for range 4 {
 		count, err := dispatcher.DispatchOnce(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 		published += count
 	}
-	if published != 3 {
-		t.Fatalf("published=%d, want 3", published)
+	if published != 4 {
+		t.Fatalf("published=%d, want 4", published)
 	}
-	want := []string{"submit.sm.connector-a", "submit.sm.resp.user-1", "bill_request.submit_sm_resp.user-1"}
+	// The dlr.submit_sm_resp event (key :15-dlr) dispatches between the response
+	// (:10) and the late-billing intent (:20).
+	want := []string{"submit.sm.connector-a", "submit.sm.resp.user-1", "dlr.submit_sm_resp", "bill_request.submit_sm_resp.user-1"}
 	if !reflect.DeepEqual(publisher.calls, want) {
 		t.Fatalf("order=%v want %v", publisher.calls, want)
 	}

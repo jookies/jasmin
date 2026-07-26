@@ -53,6 +53,12 @@ type RuntimeDependencies struct {
 	SMPPcStats   *stats.SMPPcRegistry
 	SMPPsStats   *stats.SMPPsStats
 	ConnectorIDs func() []string
+
+	// DLRLookupPID names the DLRLookup queue (DLRLookup-<pid>) the response path
+	// publishes dlr.submit_sm_resp to. It is declared and bound here regardless
+	// of whether the in-process DLRLookup worker runs, so the mandatory publish
+	// is always routable; empty falls back to the legacy default "main".
+	DLRLookupPID string
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -135,6 +141,17 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		if err := topology.DeclareQueue(ctx, queue, "messaging", amqpcompat.ConnectorSubmitRoutingKey(connectorID)); err != nil {
 			return nil, fmt.Errorf("declare connector %q queue: %w", connectorID, err)
 		}
+	}
+	// Always declare the DLRLookup queue so the response path's mandatory
+	// dlr.submit_sm_resp publish is routable even when the in-process DLRLookup
+	// worker is not enabled (the legacy broker topology is fixed; DLRLookup is a
+	// separate consumer). Idempotent with OpenDLRLookupSubscription.
+	dlrLookupPID := dependencies.DLRLookupPID
+	if dlrLookupPID == "" {
+		dlrLookupPID = "main"
+	}
+	if err := topology.DeclareQueue(ctx, amqpcompat.DLRLookupQueue(dlrLookupPID), "messaging", amqpcompat.DLRLookupRoutingKey); err != nil {
+		return nil, fmt.Errorf("declare DLRLookup queue: %w", err)
 	}
 	publisher, err := amqpcompat.NewPublisher(connection)
 	if err != nil {
