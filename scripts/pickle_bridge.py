@@ -117,6 +117,10 @@ class SubmitSMUnpickler(pickle.Unpickler):
             or (module == "_codecs" and name == "encode")
             or (module in ("__builtin__", "builtins") and name in ("set", "frozenset"))
             or (module == "datetime" and name in ("datetime", "timezone", "timedelta"))
+            # Relative validity_period / schedule_delivery_time (the normal SMPP
+            # form) unpickle to this namedtuple; _time_bytes encodes it via the
+            # legacy TimeEncoder. Absolute times arrive as datetime (above).
+            or (module == "smpp.pdu.smpp_time" and name == "SMPPRelativeTime")
         )
         if not allowed:
             raise pickle.UnpicklingError("forbidden global %s.%s" % (module, name))
