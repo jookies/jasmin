@@ -1,7 +1,7 @@
 # Production-testing readiness — stand up + shadow-test the outbound MT path
 
 - **Date:** 2026-07-26
-- **Status:** draft
+- **Status:** active — P0 done 2026-07-26 (Step 1 #66, Step 2 #68, Steps 3–4 #69; simulator-verified bind + `ESME_ROK`, real-SMSC creds are a deployment-copy action). En-route fix: silent submit drop on empty byte params (`__builtin__.bytes` allowlist, #67). P1 (Steps 5–7) open.
 - **Summary:** Close the deployability + operational-safety gaps that block running the Go gateway in a prod-like environment and pointing real (or shadow) traffic at its **outbound MT path** — the "legacy-publisher → Go-smppc" bridge edge that the strangler plan cuts over first. Scope is P0 (run it at all) + P1 (shadow safely). Inbound MO, terminal DLR, and filter routing are **out of scope** here (Macro 2/3 — see §Out of scope).
 - **Related:** the prod-readiness assessment (memory `prod-testing-readiness`); `internal/app/gateway/runtime.go`, `internal/app/gateway/config.go`, `internal/app/outbound/config.go`, `internal/core/smppc/config.go`; ADR-0001 (leaf-worker-first strangler); `.hermes/plans/…-completion-roadmap.md` (the formal cutover gate, a separate higher bar).
 
