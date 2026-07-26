@@ -3,9 +3,12 @@ package smppc
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pumpitspace/jasmin/internal/core/logging"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 // The SMS-MT audit lines emitted by the legacy SMPPClientSMListener on a final
@@ -99,6 +102,77 @@ func pythonBool(b bool) string {
 		return "True"
 	}
 	return "False"
+}
+
+// moreMessagesToSendNames maps the wire value (low bit) to Python's
+// MoreMessagesToSend enum member name.
+var moreMessagesToSendNames = map[byte]string{0: "NO_MORE_MESSAGES", 1: "MORE_MESSAGES"}
+
+// formatTLVsForLog reproduces jasmin/tools/tlv.py format_tlvs_for_log for the
+// optional params + vendor custom TLVs a Go-decoded submit carries: each present
+// standard optional as key:value (in the bridge's projection order), then each
+// custom TLV as 0x%04X:value, joined by ','. With log_privacy the values are
+// omitted (keys/tags only). Empty renders as "none". Only the optionals the
+// legacy MT path surfaces are handled (sar_*, more_messages_to_send,
+// message_payload); other decoded fields never appear on a submit audit line.
+func formatTLVsForLog(optional smppwire.OptionalParameters, customTLVs []tlv.TLV, privacy bool) string {
+	var parts []string
+	add := func(key, value string) {
+		if privacy {
+			parts = append(parts, key)
+		} else {
+			parts = append(parts, key+":"+value)
+		}
+	}
+	if optional.SARMessageReference != nil {
+		add("sar_msg_ref_num", strconv.FormatUint(uint64(*optional.SARMessageReference), 10))
+	}
+	if optional.SARTotalSegments != nil {
+		add("sar_total_segments", strconv.FormatUint(uint64(*optional.SARTotalSegments), 10))
+	}
+	if optional.SARSegmentSequence != nil {
+		add("sar_segment_seqnum", strconv.FormatUint(uint64(*optional.SARSegmentSequence), 10))
+	}
+	if optional.MoreMessagesToSend != nil {
+		add("more_messages_to_send", "MoreMessagesToSend."+moreMessagesToSendNames[*optional.MoreMessagesToSend&0x01])
+	}
+	if optional.MessagePayload != nil {
+		add("message_payload", pythonBytesRepr(optional.MessagePayload))
+	}
+	for _, custom := range customTLVs {
+		tag := fmt.Sprintf("0x%04X", custom.Tag.Uint64())
+		if privacy {
+			parts = append(parts, tag)
+		} else {
+			parts = append(parts, tag+":"+customTLVValue(custom.Value))
+		}
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ",")
+}
+
+// customTLVValue renders a custom TLV's value as Python's `%s` of the pickled
+// value: bytes as their repr, a string as-is, an int/bool/None as Python prints
+// them. Mirrors the concrete types tupleValueField decodes.
+func customTLVValue(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return "None"
+	case bool:
+		return pythonBool(v)
+	case string:
+		return v
+	case []byte:
+		return pythonBytesRepr(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case uint64:
+		return strconv.FormatUint(v, 10)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // pythonBytesRepr reproduces CPython's repr()/str() of a bytes object (they

@@ -38,6 +38,8 @@ type pendingRequest struct {
 	destAddr           []byte
 	shortMessage       []byte
 	registeredDelivery byte
+	optional           smppwire.OptionalParameters
+	customTLVs         []tlv.TLV
 }
 
 type SubmitDecoder interface {
@@ -475,6 +477,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 					delivery: d, attempt: attempt, partKey: partKey, envelope: envelope, chain: chain,
 					sourceAddr: bodies[i].SourceAddress, destAddr: bodies[i].DestinationAddress,
 					shortMessage: bodies[i].ShortMessage, registeredDelivery: bodies[i].RegisteredDelivery,
+					optional: bodies[i].Optional, customTLVs: parts[i].CustomTLVs,
 				}
 				s.pending[seq] = pending
 				frames = append(frames, framedPart{seq: seq, wire: wire, pending: pending})
@@ -744,6 +747,7 @@ func (s *Session) logSubmitAudit(pending *pendingRequest, pdu smppwire.PDU) {
 		DestAddr:           pending.destAddr,
 		ShortMessage:       pending.shortMessage,
 		Privacy:            s.auditPrivacy,
+		TLVs:               formatTLVsForLog(pending.optional, pending.customTLVs, s.auditPrivacy),
 	}
 	if pdu.Header.CommandStatus == 0 {
 		if pdu.SubmitResponse != nil {

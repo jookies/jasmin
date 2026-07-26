@@ -1,8 +1,12 @@
 package smppc
 
 import (
+	"math/big"
 	"strings"
 	"testing"
+
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 func TestPythonBytesRepr(t *testing.T) {
@@ -26,6 +30,34 @@ func TestPythonBytesRepr(t *testing.T) {
 	for _, testCase := range cases {
 		if got := pythonBytesRepr(testCase.in); got != testCase.want {
 			t.Errorf("pythonBytesRepr(%q) = %s, want %s", testCase.in, got, testCase.want)
+		}
+	}
+}
+
+func TestFormatTLVsForLog(t *testing.T) {
+	u16 := func(v uint16) *uint16 { return &v }
+	bp := func(v byte) *byte { return &v }
+	tag := func(v uint64) *big.Int { return new(big.Int).SetUint64(v) }
+	cases := []struct {
+		name     string
+		optional smppwire.OptionalParameters
+		custom   []tlv.TLV
+		privacy  bool
+		want     string
+	}{
+		{"none", smppwire.OptionalParameters{}, nil, false, "none"},
+		{"payload", smppwire.OptionalParameters{MessagePayload: []byte("hello")}, nil, false, "message_payload:b'hello'"},
+		{"sar", smppwire.OptionalParameters{SARMessageReference: u16(5), SARTotalSegments: bp(3), SARSegmentSequence: bp(1)}, nil, false, "sar_msg_ref_num:5,sar_total_segments:3,sar_segment_seqnum:1"},
+		{"more1", smppwire.OptionalParameters{MoreMessagesToSend: bp(1)}, nil, false, "more_messages_to_send:MoreMessagesToSend.MORE_MESSAGES"},
+		{"more0", smppwire.OptionalParameters{MoreMessagesToSend: bp(0)}, nil, false, "more_messages_to_send:MoreMessagesToSend.NO_MORE_MESSAGES"},
+		{"custom", smppwire.OptionalParameters{}, []tlv.TLV{{Tag: tag(0x1400), Value: "hello"}, {Tag: tag(0x1401), Value: int64(42)}}, false, "0x1400:hello,0x1401:42"},
+		{"custom_bytes", smppwire.OptionalParameters{}, []tlv.TLV{{Tag: tag(0x1500), Value: []byte("x")}}, false, "0x1500:b'x'"},
+		{"combined", smppwire.OptionalParameters{SARMessageReference: u16(2), MessagePayload: []byte("p")}, []tlv.TLV{{Tag: tag(0x1400), Value: "v"}}, false, "sar_msg_ref_num:2,message_payload:b'p',0x1400:v"},
+		{"privacy", smppwire.OptionalParameters{SARMessageReference: u16(2), MessagePayload: []byte("p")}, []tlv.TLV{{Tag: tag(0x1400), Value: "v"}}, true, "sar_msg_ref_num,message_payload,0x1400"},
+	}
+	for _, testCase := range cases {
+		if got := formatTLVsForLog(testCase.optional, testCase.custom, testCase.privacy); got != testCase.want {
+			t.Errorf("%s: got %q, want %q", testCase.name, got, testCase.want)
 		}
 	}
 }

@@ -2,11 +2,13 @@ package smppc
 
 import (
 	"bytes"
+	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/pumpitspace/jasmin/internal/core/logging"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
@@ -106,6 +108,18 @@ func TestLogSubmitAuditMultipartSkipped(t *testing.T) {
 	session.logSubmitAudit(auditPending(t, &submitChain{remaining: 2}), respPDU(0, "ABC"))
 	if buffer.Len() != 0 {
 		t.Errorf("multipart chain must be skipped for now, got: %q", buffer.String())
+	}
+}
+
+func TestLogSubmitAuditIncludesTLVs(t *testing.T) {
+	var buffer bytes.Buffer
+	session := newAuditSession(t, &buffer, nil, false)
+	pending := auditPending(t, nil)
+	pending.optional = smppwire.OptionalParameters{MessagePayload: []byte("payload")}
+	pending.customTLVs = []tlv.TLV{{Tag: new(big.Int).SetUint64(0x1400), Value: "v"}}
+	session.logSubmitAudit(pending, respPDU(0, "ABC"))
+	if !strings.Contains(buffer.String(), "[tlvs:message_payload:b'payload',0x1400:v]") {
+		t.Errorf("tlvs not rendered into the line: %q", buffer.String())
 	}
 }
 
