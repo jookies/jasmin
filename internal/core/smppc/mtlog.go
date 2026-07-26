@@ -23,7 +23,7 @@ const (
 type submitAuditFields struct {
 	ConnectorID        string
 	QueueMsgID         string
-	SMPPMsgID          string // success only: r.response.params['message_id']
+	SMPPMsgID          []byte // success only: r.response.params['message_id'] (bytes; logged as its bytes-repr)
 	Status             uint32 // command_status of the response
 	WillRetry          bool   // error variant only
 	Priority           uint8
@@ -39,7 +39,7 @@ type submitAuditFields struct {
 // submitAuditLineSuccess renders the ESME_ROK SMS-MT line (listeners.py:361).
 func submitAuditLineSuccess(f submitAuditFields) string {
 	return fmt.Sprintf(submitAuditSuccessFmt,
-		f.ConnectorID, f.QueueMsgID, f.SMPPMsgID, statusForLog(f.Status), f.Priority,
+		f.ConnectorID, f.QueueMsgID, pythonBytesRepr(f.SMPPMsgID), statusForLog(f.Status), f.Priority,
 		receiptForLog(f.RegisteredDelivery), f.Validity,
 		pythonBytesRepr(f.SourceAddr), pythonBytesRepr(f.DestAddr),
 		contentForLog(f.Privacy, f.ShortMessage), tlvsOrNone(f.TLVs))

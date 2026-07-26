@@ -65,11 +65,11 @@ func TestContentForLog(t *testing.T) {
 
 func TestSubmitAuditLineSuccess(t *testing.T) {
 	got := submitAuditLineSuccess(submitAuditFields{
-		ConnectorID: "smppc1", QueueMsgID: "abc", SMPPMsgID: "7F", Status: 0x00000000,
+		ConnectorID: "smppc1", QueueMsgID: "abc", SMPPMsgID: []byte("7F"), Status: 0x00000000,
 		Priority: 1, RegisteredDelivery: 0x01, Validity: "none",
 		SourceAddr: []byte("1111"), DestAddr: []byte("2222"), ShortMessage: []byte("hi"),
 	})
-	want := "SMS-MT [cid:smppc1] [queue-msgid:abc] [smpp-msgid:7F] [status:CommandStatus.ESME_ROK] " +
+	want := "SMS-MT [cid:smppc1] [queue-msgid:abc] [smpp-msgid:b'7F'] [status:CommandStatus.ESME_ROK] " +
 		"[prio:1] [dlr:RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED] [validity:none] " +
 		"[from:b'1111'] [to:b'2222'] [content:b'hi'] [tlvs:none]"
 	if got != want {
@@ -93,7 +93,7 @@ func TestSubmitAuditLineError(t *testing.T) {
 
 func TestSubmitAuditContentPrivacy(t *testing.T) {
 	got := submitAuditLineSuccess(submitAuditFields{
-		ConnectorID: "c", QueueMsgID: "m", SMPPMsgID: "1", Status: 0, Priority: 0,
+		ConnectorID: "c", QueueMsgID: "m", SMPPMsgID: []byte("1"), Status: 0, Priority: 0,
 		Validity: "none", SourceAddr: []byte("a"), DestAddr: []byte("b"),
 		ShortMessage: []byte("secret body"), Privacy: true,
 	})
