@@ -106,7 +106,7 @@ func TestSectionsDifferentialAgainstLegacy(t *testing.T) {
 }
 
 const listenerOracleScript = `
-import json, sys, tempfile, os
+import json, sys, tempfile, os, logging
 from jasmin.protocols.smpp.configs import SMPPServerConfig
 from jasmin.protocols.http.configs import HTTPApiConfig
 text = sys.stdin.read()
@@ -115,13 +115,21 @@ open(path, "w").write(text)
 s = SMPPServerConfig(path)
 h = HTTPApiConfig(path)
 os.remove(path)
+# log_level is stored as logging.getLevelName(name) (an int); convert back to the
+# name for comparison with the Go LogConfig.Level string.
 print(json.dumps({
     "smpp": {"id": s.id, "bind": s.bind, "port": s.port, "billing": s.billing_feature,
              "session": s.sessionInitTimerSecs, "elink": s.enquireLinkTimerSecs,
              "inactivity": s.inactivityTimerSecs, "response": s.responseTimerSecs,
-             "pduread": s.pduReadTimerSecs},
+             "pduread": s.pduReadTimerSecs,
+             "log_file": s.log_file, "log_rotate": s.log_rotate,
+             "log_level": logging.getLevelName(s.log_level),
+             "log_format": s.log_format, "log_date_format": s.log_date_format},
     "http": {"bind": h.bind, "port": h.port, "billing": h.billing_feature,
-             "privacy": h.log_privacy, "split": h.long_content_split},
+             "privacy": h.log_privacy, "split": h.long_content_split,
+             "log_file": h.log_file, "log_rotate": h.log_rotate,
+             "log_level": logging.getLevelName(h.log_level),
+             "log_format": h.log_format, "log_date_format": h.log_date_format},
 }))
 `
 
@@ -133,8 +141,12 @@ func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// smpp-server carries explicit log_* (parsing parity); http-api omits them so
+	// its log_file default exercises LOG_PATH parity against the legacy resolution.
 	text := "[smpp-server]\nid = smpps_prod\nbind = 127.0.0.1\nport = 2776\nbilling_feature = no\n" +
 		"enquireLinkTimerSecs = 45\ninactivityTimerSecs = 600\npduReadTimerSecs = 15\n" +
+		"log_file = /srv/log/smpps.log\nlog_rotate = W3\nlog_level = WARNING\n" +
+		"log_format = %(message)s\nlog_date_format = %H:%M:%S\n" +
 		"[http-api]\nbind = 10.0.0.9\nport = 8080\nlong_content_split = sar\nlog_privacy = yes\n"
 
 	command := exec.CommandContext(ctx, pythonPath, "-c", listenerOracleScript)
@@ -155,13 +167,23 @@ func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
 			Inactivity int    `json:"inactivity"`
 			Response   int    `json:"response"`
 			PDURead    int    `json:"pduread"`
+			LogFile    string `json:"log_file"`
+			LogRotate  string `json:"log_rotate"`
+			LogLevel   string `json:"log_level"`
+			LogFormat  string `json:"log_format"`
+			LogDateFmt string `json:"log_date_format"`
 		} `json:"smpp"`
 		HTTP struct {
-			Bind    string `json:"bind"`
-			Port    int    `json:"port"`
-			Billing bool   `json:"billing"`
-			Privacy bool   `json:"privacy"`
-			Split   string `json:"split"`
+			Bind       string `json:"bind"`
+			Port       int    `json:"port"`
+			Billing    bool   `json:"billing"`
+			Privacy    bool   `json:"privacy"`
+			Split      string `json:"split"`
+			LogFile    string `json:"log_file"`
+			LogRotate  string `json:"log_rotate"`
+			LogLevel   string `json:"log_level"`
+			LogFormat  string `json:"log_format"`
+			LogDateFmt string `json:"log_date_format"`
 		} `json:"http"`
 	}
 	if err := json.Unmarshal(bytes.TrimSpace(output), &oracle); err != nil {
@@ -182,6 +204,13 @@ func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
 		smpp.ResponseTimerSecs != oracle.SMPP.Response || smpp.PDUReadTimerSecs != oracle.SMPP.PDURead {
 		t.Fatalf("smpp-server diverges:\n  go %+v\n  py %+v", smpp, oracle.SMPP)
 	}
+	wantSMPPLog := config.LogConfig{
+		File: oracle.SMPP.LogFile, Rotate: oracle.SMPP.LogRotate, Level: oracle.SMPP.LogLevel,
+		Format: oracle.SMPP.LogFormat, DateFormat: oracle.SMPP.LogDateFmt,
+	}
+	if smpp.Log != wantSMPPLog {
+		t.Fatalf("smpp-server log diverges:\n  go %+v\n  py %+v", smpp.Log, wantSMPPLog)
+	}
 	api, err := config.LoadHTTPAPI(file)
 	if err != nil {
 		t.Fatal(err)
@@ -190,10 +219,18 @@ func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
 		api.LogPrivacy != oracle.HTTP.Privacy || api.LongContentSplit != oracle.HTTP.Split {
 		t.Fatalf("http-api diverges:\n  go %+v\n  py %+v", api, oracle.HTTP)
 	}
+	// http-api omits log_* — this asserts the defaulted log_file (LOG_PATH parity).
+	wantHTTPLog := config.LogConfig{
+		File: oracle.HTTP.LogFile, Rotate: oracle.HTTP.LogRotate, Level: oracle.HTTP.LogLevel,
+		Format: oracle.HTTP.LogFormat, DateFormat: oracle.HTTP.LogDateFmt,
+	}
+	if api.Log != wantHTTPLog {
+		t.Fatalf("http-api log diverges:\n  go %+v\n  py %+v", api.Log, wantHTTPLog)
+	}
 }
 
 const dlrListenerOracleScript = `
-import json, sys, tempfile, os
+import json, sys, tempfile, os, logging
 from jasmin.managers.configs import DLRLookupConfig, SMPPClientSMListenerConfig
 text = sys.stdin.read()
 path = tempfile.mktemp(suffix=".cfg")
@@ -204,12 +241,18 @@ os.remove(path)
 print(json.dumps({
     "dlr": {"pid": d.pid, "retry_delay": d.dlr_lookup_retry_delay,
             "max_retries": d.dlr_lookup_max_retries,
-            "receipt": d.smpp_receipt_on_success_submit_sm_resp},
+            "receipt": d.smpp_receipt_on_success_submit_sm_resp,
+            "log_file": d.log_file, "log_rotate": d.log_rotate,
+            "log_level": logging.getLevelName(d.log_level),
+            "log_format": d.log_format, "log_date_format": d.log_date_format},
     "sml": {"publish": s.publish_submit_sm_resp,
             "max_age": s.submit_max_age_smppc_not_ready,
             "retrial_delay": s.submit_retrial_delay_smppc_not_ready,
             "quirk": s.dlr_lookup_retry_delay,
-            "has_max_retries": hasattr(s, "dlr_lookup_max_retries")},
+            "has_max_retries": hasattr(s, "dlr_lookup_max_retries"),
+            "log_file": s.log_file, "log_rotate": s.log_rotate,
+            "log_level": logging.getLevelName(s.log_level),
+            "log_format": s.log_format, "log_date_format": s.log_date_format},
 }))
 `
 
@@ -221,8 +264,12 @@ func TestDLRAndSMListenerDifferentialAgainstLegacy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// dlr carries explicit log_* (parsing parity); sm-listener omits them so its
+	// log_file default exercises LOG_PATH parity against the legacy resolution.
 	text := "[dlr]\npid = worker2\ndlr_lookup_retry_delay = 15\ndlr_lookup_max_retries = 5\n" +
 		"smpp_receipt_on_success_submit_sm_resp = yes\n" +
+		"log_file = /srv/log/messages.log\nlog_rotate = W1\nlog_level = ERROR\n" +
+		"log_format = %(name)s %(message)s\nlog_date_format = %d/%m/%Y\n" +
 		"[sm-listener]\npublish_submit_sm_resp = yes\nsubmit_max_age_smppc_not_ready = 900\n" +
 		"dlr_lookup_retry_delay = 10\ndlr_lookup_max_retries = 7\n"
 
@@ -239,13 +286,23 @@ func TestDLRAndSMListenerDifferentialAgainstLegacy(t *testing.T) {
 			RetryDelay int    `json:"retry_delay"`
 			MaxRetries int    `json:"max_retries"`
 			Receipt    bool   `json:"receipt"`
+			LogFile    string `json:"log_file"`
+			LogRotate  string `json:"log_rotate"`
+			LogLevel   string `json:"log_level"`
+			LogFormat  string `json:"log_format"`
+			LogDateFmt string `json:"log_date_format"`
 		} `json:"dlr"`
 		SML struct {
-			Publish       bool `json:"publish"`
-			MaxAge        int  `json:"max_age"`
-			RetrialDelay  int  `json:"retrial_delay"`
-			Quirk         int  `json:"quirk"`
-			HasMaxRetries bool `json:"has_max_retries"`
+			Publish       bool   `json:"publish"`
+			MaxAge        int    `json:"max_age"`
+			RetrialDelay  int    `json:"retrial_delay"`
+			Quirk         int    `json:"quirk"`
+			HasMaxRetries bool   `json:"has_max_retries"`
+			LogFile       string `json:"log_file"`
+			LogRotate     string `json:"log_rotate"`
+			LogLevel      string `json:"log_level"`
+			LogFormat     string `json:"log_format"`
+			LogDateFmt    string `json:"log_date_format"`
 		} `json:"sml"`
 	}
 	if err := json.Unmarshal(bytes.TrimSpace(output), &oracle); err != nil {
@@ -264,6 +321,13 @@ func TestDLRAndSMListenerDifferentialAgainstLegacy(t *testing.T) {
 		dlr.LookupMaxRetries != oracle.DLR.MaxRetries || dlr.SMPPReceiptOnSuccessSubmitSMResp != oracle.DLR.Receipt {
 		t.Fatalf("dlr diverges:\n  go %+v\n  py %+v", dlr, oracle.DLR)
 	}
+	wantDLRLog := config.LogConfig{
+		File: oracle.DLR.LogFile, Rotate: oracle.DLR.LogRotate, Level: oracle.DLR.LogLevel,
+		Format: oracle.DLR.LogFormat, DateFormat: oracle.DLR.LogDateFmt,
+	}
+	if dlr.Log != wantDLRLog {
+		t.Fatalf("dlr log diverges:\n  go %+v\n  py %+v", dlr.Log, wantDLRLog)
+	}
 	sml, err := config.LoadSMListener(file)
 	if err != nil {
 		t.Fatal(err)
@@ -275,5 +339,13 @@ func TestDLRAndSMListenerDifferentialAgainstLegacy(t *testing.T) {
 	if sml.PublishSubmitSMResp != oracle.SML.Publish || sml.SubmitMaxAgeSMPPcNotReady != oracle.SML.MaxAge ||
 		sml.SubmitRetrialDelaySMPPcNotReady != oracle.SML.RetrialDelay || sml.DLRLookupRetryDelayQuirk != oracle.SML.Quirk {
 		t.Fatalf("sm-listener diverges:\n  go %+v\n  py %+v", sml, oracle.SML)
+	}
+	// sm-listener omits log_* — this asserts the defaulted log_file (LOG_PATH parity).
+	wantSMLLog := config.LogConfig{
+		File: oracle.SML.LogFile, Rotate: oracle.SML.LogRotate, Level: oracle.SML.LogLevel,
+		Format: oracle.SML.LogFormat, DateFormat: oracle.SML.LogDateFmt,
+	}
+	if sml.Log != wantSMLLog {
+		t.Fatalf("sm-listener log diverges:\n  go %+v\n  py %+v", sml.Log, wantSMLLog)
 	}
 }
