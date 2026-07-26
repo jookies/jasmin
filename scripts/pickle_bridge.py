@@ -178,22 +178,15 @@ def _time_bytes(value, name):
     return encoded[:-1]
 
 
-def decode_submit_sm(data):
-    from smpp.pdu.operations import SubmitSM
+def _project_submit_node(node):
+    """Project one SubmitSM chain node's params + custom_tlvs into a wire-shaped
+    body dict. A long message pickles a nextPdu chain of these; each is a full
+    submit_sm the legacy client sends with its own seqNum."""
     from smpp.pdu.pdu_encoding import (
         AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder, EsmClassEncoder,
         PriorityFlagEncoder, RegisteredDeliveryEncoder, ReplaceIfPresentFlagEncoder,
     )
-
-    if not data.startswith(b"\x80\x02"):
-        raise pickle.UnpicklingError("SubmitSM boundary requires protocol 2")
-    stream = io.BytesIO(data)
-    obj = SubmitSMUnpickler(stream).load()
-    if stream.read(1):
-        raise pickle.UnpicklingError("trailing bytes after SubmitSM pickle")
-    if obj.__class__ is not SubmitSM:
-        raise pickle.UnpicklingError("root object is not allowlisted SubmitSM")
-    params = obj.params
+    params = node.params
     if not isinstance(params, dict):
         raise ValueError("SubmitSM params are not a mapping")
 
@@ -239,7 +232,7 @@ def decode_submit_sm(data):
     # optional_tlvs here. Structural checks stay minimal: the Go side enforces
     # the legacy crash boundaries and rejects what legacy would reject.
     result["custom_tlvs"] = []
-    for item in getattr(obj, "custom_tlvs", []):
+    for item in getattr(node, "custom_tlvs", []):
         if not isinstance(item, tuple) or len(item) != 4:
             raise ValueError("malformed custom TLV")
         result["custom_tlvs"].append(list(item))
@@ -252,7 +245,29 @@ def decode_submit_sm(data):
         sequence = next(item["value"][0] for item in result["optional_tlvs"] if item["tag"] == 0x020f)
         if total == 0 or sequence == 0 or sequence > total:
             raise ValueError("invalid SAR total/sequence")
-    return serialize(result)
+    return result
+
+
+def decode_submit_sm(data):
+    """Project a pickled SubmitSM and its nextPdu chain (a long message) into an
+    ordered list of wire-shaped bodies. A non-chained submit yields one part."""
+    from smpp.pdu.operations import SubmitSM
+
+    if not data.startswith(b"\x80\x02"):
+        raise pickle.UnpicklingError("SubmitSM boundary requires protocol 2")
+    stream = io.BytesIO(data)
+    obj = SubmitSMUnpickler(stream).load()
+    if stream.read(1):
+        raise pickle.UnpicklingError("trailing bytes after SubmitSM pickle")
+
+    parts = []
+    node = obj
+    while node is not None:
+        if node.__class__ is not SubmitSM:
+            raise pickle.UnpicklingError("chain node is not allowlisted SubmitSM")
+        parts.append(_project_submit_node(node))
+        node = getattr(node, "nextPdu", None)
+    return serialize({"parts": parts})
 
 
 def decode_routed_deliver_sm(connectors_data, body_data):
