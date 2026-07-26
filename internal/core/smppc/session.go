@@ -651,23 +651,6 @@ func durablePartKey(envelope amqpcompat.Envelope) (string, error) {
 	return fmt.Sprintf("%s/%06d", aggregate, partNumber), nil
 }
 
-func smppStatusName(status uint32) string {
-	switch status {
-	case 0:
-		return "ESME_ROK"
-	case 0x08:
-		return "ESME_RSYSERR"
-	case 0x14:
-		return "ESME_RMSGQFUL"
-	case 0x58:
-		return "ESME_RTHROTTLED"
-	case 0x61:
-		return "ESME_RINVSCHED"
-	default:
-		return fmt.Sprintf("ESME_%08X", status)
-	}
-}
-
 func (s *Session) handleTimeout(seq uint32) {
 	pending := s.takePending(seq)
 	if pending == nil {
