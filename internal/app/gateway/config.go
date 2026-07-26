@@ -40,6 +40,18 @@ type Config struct {
 	// SMPPS, when present, runs the SMPPS server in-process: it binds ESMEs
 	// and ingests their submit_sm into the shared MT pipeline.
 	SMPPS *smppsserver.Config `json:"smpps,omitempty"`
+	// SubmitAuditLog configures the jasmin-sm-listener SMS-MT audit line emitted
+	// on each final submit_sm_resp. An empty level defaults to INFO; ApplyJasmin
+	// overlays both fields from the .cfg [sm-listener] section.
+	SubmitAuditLog SubmitAuditLogConfig `json:"submit_audit_log,omitempty"`
+}
+
+// SubmitAuditLogConfig is the jasmin-sm-listener audit-line logging config. The
+// file sink and rotation (log_file/log_rotate) are a later phase; for now the
+// line renders to stderr at Level, honouring Privacy (log_privacy).
+type SubmitAuditLogConfig struct {
+	Level   string `json:"level,omitempty"`
+	Privacy bool   `json:"privacy,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {

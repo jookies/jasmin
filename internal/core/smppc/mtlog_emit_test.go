@@ -108,3 +108,15 @@ func TestLogSubmitAuditMultipartSkipped(t *testing.T) {
 		t.Errorf("multipart chain must be skipped for now, got: %q", buffer.String())
 	}
 }
+
+func TestConnectorSetSubmitAuditLogger(t *testing.T) {
+	connector := &Connector{}
+	var buffer bytes.Buffer
+	logger := logging.Logger("jasmin-sm-listener", logging.Config{Writer: &buffer})
+	connector.SetSubmitAuditLogger(logger, true)
+	connector.mu.RLock()
+	defer connector.mu.RUnlock()
+	if connector.auditLogger != logger || !connector.auditPrivacy {
+		t.Error("SetSubmitAuditLogger did not store logger/privacy under the lock")
+	}
+}

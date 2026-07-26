@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"sync"
@@ -167,6 +168,21 @@ type Connector struct {
 	cancel  context.CancelFunc
 	running bool
 	wg      sync.WaitGroup
+
+	// auditLogger/auditPrivacy are passed to each session for the SMS-MT audit
+	// line; nil (the default) leaves audit logging off.
+	auditLogger  *slog.Logger
+	auditPrivacy bool
+}
+
+// SetSubmitAuditLogger sets the SMS-MT audit logger applied to every session this
+// connector creates. A nil logger (the default) disables audit logging. Call
+// before Start; a session already running is unaffected until it reconnects.
+func (c *Connector) SetSubmitAuditLogger(logger *slog.Logger, privacy bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.auditLogger = logger
+	c.auditPrivacy = privacy
 }
 
 // NewConnector preserves the pre-decoder constructor for compatibility tests.
@@ -621,8 +637,11 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	}
 	c.mu.RLock()
 	transactions := c.transactions
+	auditLogger := c.auditLogger
+	auditPrivacy := c.auditPrivacy
 	c.mu.RUnlock()
 	session := NewSessionWithDurability(conn, cfg, retry, c.readiness, c.decoder, transactions, nil)
+	session.SetSubmitAuditLogger(auditLogger, auditPrivacy)
 	owned = false
 	return session, nil
 }
