@@ -1,0 +1,75 @@
+{
+  "role": "http+smppc",
+  "outbound": {
+    "listen_address": "0.0.0.0:1401",
+    "amqp_url": "amqp://guest:guest@rabbitmq:5672/",
+    "postgres_dsn": "postgres://jasmin:jasmin@postgres:5432/jasmin?sslmode=disable",
+    "python_path": "python3",
+    "users": [
+      {
+        "username": "smppuser",
+        "external_id": "smppuser",
+        "password_sha256": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        "balance": 100.0,
+        "submit_sm_count": 10000
+      }
+    ],
+    "routes": [
+      {
+        "connector_id": "smsc-primary",
+        "rate": 0.0,
+        "default": true,
+        "order": 0
+      }
+    ]
+  },
+  "connectors": [
+    {
+      "cid": "smsc-primary",
+      "host": "smppsim",
+      "port": 2775,
+      "system_id": "smppclient1",
+      "password": "password",
+      "system_type": "",
+      "bind": "transceiver",
+      "addr_ton": 0,
+      "addr_npi": 0,
+      "address_range": "",
+      "src_ton": 2,
+      "src_npi": 1,
+      "dst_ton": 1,
+      "dst_npi": 1,
+      "service_type": "",
+      "protocol_id": 0,
+      "replace_if_present_flag": 0,
+      "sm_default_msg_id": 0,
+      "source_addr": "",
+      "trx_to": 30,
+      "res_to": 60,
+      "pdu_to": 30,
+      "con_loss_retry": true,
+      "con_fail_retry": true,
+      "con_loss_delay": 10,
+      "con_fail_delay": 10,
+      "tls_enabled": false,
+      "priority": 0,
+      "log_level": "INFO",
+      "submit_sm_throughput": 1.0,
+      "prefetch_count": 1
+    }
+  ],
+  "required_connector_ids": ["smsc-primary"],
+  "bind_timeout_seconds": 30,
+  "dlr_lookup": {
+    "amqp_url": "",
+    "redis_url": "redis://redis:6379/0",
+    "pid": "main"
+  },
+  "dlr_thrower": {
+    "amqp_url": ""
+  },
+  "submit_audit_log": {
+    "level": "INFO",
+    "privacy": false
+  }
+}

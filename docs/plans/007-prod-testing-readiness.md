@@ -22,7 +22,7 @@ Desired outcome: a reproducible, documented way to boot the Go gateway against P
 ### P0 — make it deployable (run at all)
 
 **Step 1 — Commit a reference runtime `--config` JSON.**
-- **Files:** `misc/config/gateway.example.json` (new); a short `misc/config/README.md` note.
+- **Files:** `configs/gateway.example.json` (new); a short `configs/README.md` note. *(Moved out of the originally-planned `misc/config/` — that whole directory is inside the frozen oracle-tree fingerprint of `scripts/compat/verify_baseline_tree.py`; adding files there fails `fixture-integrity`/`fixture-reproducibility`/`frozen-python-regression`.)*
 - **Changes:** a complete, working example: `role:"http+smppc"`, `outbound{ listen_address, amqp_url, postgres_dsn, python_path, users[]( system_id/password_sha256/balance/quota ), routes[]( connector_ids/order/default/rate ) }`, `connectors[]( a fully-specified SMPPClientConfig — host/port/system_id/password/bind type/TON-NPI/submit_sm_throughput/tls )`, and optional `dlr_lookup{redis_url,pid}` + `dlr_thrower` blocks. Derive field names from `internal/app/gateway/config.go`, `internal/app/outbound/config.go`, `internal/core/smppc/config.go` (do not invent keys — `LoadConfig` uses `DisallowUnknownFields`).
 - **Verify:** `go run ./cmd/jasmin-go-httpapi --config misc/config/gateway.example.json --check-config` prints `configuration: ok`.
 
