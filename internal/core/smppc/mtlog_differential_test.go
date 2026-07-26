@@ -116,6 +116,94 @@ func unhex(t *testing.T, s string) []byte {
 	return b
 }
 
+// TestReassembleMultipartDifferential proves reassembleMultipart matches the
+// legacy listener's split detection (using the real EsmClass gsm-features parse
+// for UDHI) and reassembly (SAR full concat / UDH 6-byte-header strip per part).
+func TestReassembleMultipartDifferential(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	type part struct {
+		EsmClass byte   `json:"esm_class"`
+		SM       string `json:"sm"` // hex
+		SARRef   bool   `json:"sar_ref"`
+	}
+	udh := func(seq byte, msg string) string {
+		return hex.EncodeToString(append([]byte{0x05, 0x00, 0x03, 0xAB, 0x02, seq}, msg...))
+	}
+	chains := [][]part{
+		{{SARRef: true, SM: hexOf("Hello ")}, {SARRef: true, SM: hexOf("World")}},
+		{{SARRef: true, SM: hexOf("a")}, {SARRef: true, SM: hexOf("b")}, {SARRef: true, SM: hexOf("c")}},
+		{{EsmClass: 0x40, SM: udh(1, "Hello ")}, {EsmClass: 0x40, SM: udh(2, "World")}},
+		{{EsmClass: 0x44, SM: udh(1, "x")}, {EsmClass: 0x44, SM: udh(2, "y")}, {EsmClass: 0x44, SM: udh(3, "z")}},
+		{{EsmClass: 0x00, SM: hexOf("no-split-fallback")}, {EsmClass: 0x00, SM: hexOf("tail")}},
+	}
+	payload, err := json.Marshal(chains)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const oracle = `
+import sys, json, io
+from smpp.pdu.pdu_encoding import EsmClassEncoder
+from smpp.pdu.pdu_types import EsmClassGsmFeatures
+enc = EsmClassEncoder()
+out = []
+for parts in json.load(sys.stdin):
+    first = parts[0]
+    sm0 = bytes.fromhex(first['sm'])
+    esm = enc.decode(io.BytesIO(bytes([first['esm_class']])))
+    udhi = EsmClassGsmFeatures.UDHI_INDICATOR_SET in esm.gsmFeatures
+    if first['sar_ref']:
+        method = 'sar'
+    elif udhi and sm0[:3] == b'\x05\x00\x03':
+        method = 'udh'
+    else:
+        method = None
+    if method == 'sar':
+        content = b''.join(bytes.fromhex(p['sm']) for p in parts)
+    elif method == 'udh':
+        content = b''.join(bytes.fromhex(p['sm'])[6:] for p in parts)
+    else:
+        content = bytes.fromhex(parts[-1]['sm'])  # legacy single-part fallback
+    out.append(content.hex())
+print(json.dumps(out))
+`
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, pythonPath, "-c", oracle)
+	command.Env = append(os.Environ(), "PYTHONPATH=../../..")
+	command.Stdin = bytes.NewReader(payload)
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	var want []string
+	if err := json.Unmarshal(bytes.TrimSpace(output), &want); err != nil {
+		t.Fatalf("oracle output %q: %v", output, err)
+	}
+	for i, parts := range chains {
+		audit := &chainAudit{}
+		for index, p := range parts {
+			sm := unhex(t, p.SM)
+			pending := &pendingRequest{esmClass: p.EsmClass, shortMessage: sm}
+			if p.SARRef {
+				ref := uint16(1)
+				pending.optional.SARMessageReference = &ref
+			}
+			if index == 0 {
+				audit.first = pending
+			}
+			audit.last = pending
+			audit.partContents = append(audit.partContents, sm)
+		}
+		got := hex.EncodeToString(reassembleMultipart(audit))
+		if got != want[i] {
+			t.Errorf("chain %d: go %s, py %s", i, got, want[i])
+		}
+	}
+}
+
 // TestFormatTLVsForLogDifferential proves formatTLVsForLog matches the legacy
 // format_tlvs_for_log (order, key:value rendering, enum/bytes/int values, and the
 // privacy mode) for the optional params + custom TLVs a Go submit surfaces.
