@@ -414,7 +414,10 @@ def run():
                 from datetime import datetime
                 from io import BytesIO
                 from smpp.pdu.operations import SubmitSM
-                from smpp.pdu.pdu_encoding import DataCodingEncoder, PriorityFlagEncoder
+                from smpp.pdu.pdu_encoding import (
+                    AddrNpiEncoder, AddrTonEncoder, DataCodingEncoder,
+                    PriorityFlagEncoder, ReplaceIfPresentFlagEncoder,
+                )
                 from smpp.pdu.pdu_types import (
                     EsmClass, EsmClassGsmFeatures, EsmClassMode, EsmClassType,
                     RegisteredDelivery, RegisteredDeliveryReceipt,
@@ -458,6 +461,22 @@ def run():
                     kwargs["sar_msg_ref_num"] = int(sar["reference"])
                     kwargs["sar_total_segments"] = int(sar["total"])
                     kwargs["sar_segment_seqnum"] = int(sar["sequence"])
+
+                # Connector-config default PDU params (GAP 4). TON/NPI and
+                # replace_if_present decode int -> enum like data_coding; the
+                # rest carry verbatim. Absent/zero yields the legacy None/0.
+                kwargs["source_addr_ton"] = AddrTonEncoder().decode(BytesIO(bytes([int(payload.get("source_addr_ton", 0))])))
+                kwargs["source_addr_npi"] = AddrNpiEncoder().decode(BytesIO(bytes([int(payload.get("source_addr_npi", 0))])))
+                kwargs["dest_addr_ton"] = AddrTonEncoder().decode(BytesIO(bytes([int(payload.get("dest_addr_ton", 0))])))
+                kwargs["dest_addr_npi"] = AddrNpiEncoder().decode(BytesIO(bytes([int(payload.get("dest_addr_npi", 0))])))
+                if payload.get("service_type"):
+                    kwargs["service_type"] = payload["service_type"]
+                if payload.get("protocol_id"):
+                    kwargs["protocol_id"] = int(payload["protocol_id"])
+                if payload.get("replace_if_present_flag"):
+                    kwargs["replace_if_present_flag"] = ReplaceIfPresentFlagEncoder().decode(BytesIO(bytes([int(payload["replace_if_present_flag"])])))
+                if payload.get("sm_default_msg_id"):
+                    kwargs["sm_default_msg_id"] = int(payload["sm_default_msg_id"])
 
                 pdu = SubmitSM(**kwargs)
                 # Each entry is the Python tuple shape [tag, length, type, value]

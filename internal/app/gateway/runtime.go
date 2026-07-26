@@ -105,10 +105,23 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if config.DLRLookup != nil && config.DLRLookup.PID != "" {
 		dlrLookupPID = config.DLRLookup.PID
 	}
+	// Resolve each connector's default submit_sm PDU params once, so the
+	// front-door submit applies the routed connector's TON/NPI etc. (GAP 4). A
+	// validated copy resolves the legacy TON/NPI defaults.
+	connectorPDUDefaults := make(map[string]smppc.PDUDefaults, len(config.Connectors))
+	for _, connector := range config.Connectors {
+		resolved := connector
+		_ = resolved.Validate()
+		connectorPDUDefaults[connector.CID] = resolved.PDUDefaults()
+	}
+	pduDefaultsProvider := func(connectorID string) (smppc.PDUDefaults, bool) {
+		defaults, ok := connectorPDUDefaults[connectorID]
+		return defaults, ok
+	}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
-		DLRLookupPID: dlrLookupPID,
+		DLRLookupPID: dlrLookupPID, ConnectorPDUDefaults: pduDefaultsProvider,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start outbound runtime: %w", err)

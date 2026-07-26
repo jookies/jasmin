@@ -37,6 +37,15 @@ type Config struct {
 	DstTON int `json:"dst_ton"`
 	DstNPI int `json:"dst_npi"`
 
+	// Default submit_sm PDU params the connector applies to a front-door submit
+	// when the submitter leaves them unset (legacy SMPPClientConfig defaults:
+	// service_type/protocol_id/source_addr None, sm_default_msg_id 0).
+	ServiceType          string `json:"service_type,omitempty"`
+	ProtocolID           int    `json:"protocol_id,omitempty"`
+	ReplaceIfPresentFlag int    `json:"replace_if_present_flag,omitempty"`
+	SmDefaultMsgID       int    `json:"sm_default_msg_id,omitempty"`
+	SourceAddr           string `json:"source_addr,omitempty"`
+
 	// Timeouts (seconds)
 	TrxTimeout float64 `json:"trx_to"`
 	ResTimeout float64 `json:"res_to"`
@@ -168,6 +177,21 @@ func (c *Config) Validate() error {
 	if c.PrefetchCount == 0 {
 		c.PrefetchCount = 1
 	}
+	// Legacy SMPPClientConfig TON/NPI defaults: source NATIONAL/ISDN, dest
+	// INTERNATIONAL/ISDN. An explicit 0 (UNKNOWN) is not distinguishable from
+	// unset here (docs/plans/003); this matches the common operator case.
+	if c.SrcTON == 0 {
+		c.SrcTON = 2 // AddrTon.NATIONAL
+	}
+	if c.SrcNPI == 0 {
+		c.SrcNPI = 1 // AddrNpi.ISDN
+	}
+	if c.DstTON == 0 {
+		c.DstTON = 1 // AddrTon.INTERNATIONAL
+	}
+	if c.DstNPI == 0 {
+		c.DstNPI = 1 // AddrNpi.ISDN
+	}
 
 	// Mirrors the legacy SMPPClientConfig custom_tlvs validation: int tag,
 	// known type name, positive-or-null max length, boolean required.
@@ -184,6 +208,36 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// PDUDefaults is the connector's default submit_sm PDU parameters, applied to a
+// front-door submit when the submitter leaves them unset. Call after Validate so
+// the TON/NPI defaults are resolved.
+type PDUDefaults struct {
+	SourceAddrTON        uint8
+	SourceAddrNPI        uint8
+	DestAddrTON          uint8
+	DestAddrNPI          uint8
+	ServiceType          string
+	ProtocolID           uint8
+	ReplaceIfPresentFlag uint8
+	SmDefaultMsgID       uint8
+	SourceAddr           string
+}
+
+// PDUDefaults resolves the connector's default submit_sm PDU parameters.
+func (c Config) PDUDefaults() PDUDefaults {
+	return PDUDefaults{
+		SourceAddrTON:        uint8(c.SrcTON),
+		SourceAddrNPI:        uint8(c.SrcNPI),
+		DestAddrTON:          uint8(c.DstTON),
+		DestAddrNPI:          uint8(c.DstNPI),
+		ServiceType:          c.ServiceType,
+		ProtocolID:           uint8(c.ProtocolID),
+		ReplaceIfPresentFlag: uint8(c.ReplaceIfPresentFlag),
+		SmDefaultMsgID:       uint8(c.SmDefaultMsgID),
+		SourceAddr:           c.SourceAddr,
+	}
 }
 
 func (c Config) EffectiveSubmitSMThroughput() float64 {

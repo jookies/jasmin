@@ -17,6 +17,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
+	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
@@ -59,6 +60,10 @@ type RuntimeDependencies struct {
 	// of whether the in-process DLRLookup worker runs, so the mandatory publish
 	// is always routable; empty falls back to the legacy default "main".
 	DLRLookupPID string
+
+	// ConnectorPDUDefaults resolves a routed connector's default submit_sm PDU
+	// params (TON/NPI, service_type, ...) for the front-door submit (GAP 4).
+	ConnectorPDUDefaults func(connectorID string) (smppc.PDUDefaults, bool)
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -167,12 +172,13 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		return nil, err
 	}
 	submitService, err := core.NewSubmitService(core.SubmitServiceDependencies{
-		InterceptorTable: interceptor.NewTableBuilder().Build(),
-		RoutingTable:     &routes,
-		BillingUsers:     directory.users,
-		EnvelopeBuilder:  envelopeBuilder,
-		Transaction:      dependencies.Transactions,
-		SelectConnector:  connectorSelector(dependencies.ConnectorAvailable),
+		InterceptorTable:     interceptor.NewTableBuilder().Build(),
+		RoutingTable:         &routes,
+		BillingUsers:         directory.users,
+		EnvelopeBuilder:      envelopeBuilder,
+		Transaction:          dependencies.Transactions,
+		SelectConnector:      connectorSelector(dependencies.ConnectorAvailable),
+		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)

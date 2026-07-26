@@ -15,6 +15,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
 	"github.com/pumpitspace/jasmin/internal/core/segmentation"
+	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
@@ -51,16 +52,25 @@ type SubmitEnvelopeRequest struct {
 	DestinationAddr []byte
 	DataCoding      uint8
 	Priority        uint8
-	ScheduleAt      *time.Time
-	ValidityPeriod  *time.Duration
-	DLR             bool
-	DLRURL          string
-	DLRLevel        int
-	DLRMethod       string
-	SourceConnector string
-	Bill            billing.Bill
-	Parts           []segmentation.Part
-	CustomTLVs      []tlv.TLV
+	// Connector PDU defaults resolved from the routed connector (GAP 4).
+	SourceAddrTON        uint8
+	SourceAddrNPI        uint8
+	DestAddrTON          uint8
+	DestAddrNPI          uint8
+	ServiceType          string
+	ProtocolID           uint8
+	ReplaceIfPresentFlag uint8
+	SmDefaultMsgID       uint8
+	ScheduleAt           *time.Time
+	ValidityPeriod       *time.Duration
+	DLR                  bool
+	DLRURL               string
+	DLRLevel             int
+	DLRMethod            string
+	SourceConnector      string
+	Bill                 billing.Bill
+	Parts                []segmentation.Part
+	CustomTLVs           []tlv.TLV
 }
 
 type SubmitEnvelopeBuilder interface {
@@ -76,10 +86,14 @@ type SubmitServiceDependencies struct {
 	Publisher         AMQPPublisher
 	Transaction       SubmitPublicationBoundary
 	SelectConnector   func(routingtable.Route) (string, bool)
-	NewMessageID      func() (string, error)
-	NewBillID         func() (string, error)
-	NewReference      func() (uint16, error)
-	Now               func() time.Time
+	// ConnectorPDUDefaults resolves the routed connector's default submit_sm PDU
+	// params (TON/NPI, service_type, ...). Optional: when nil, the front-door
+	// submit keeps zero defaults (legacy behaviour before GAP 4).
+	ConnectorPDUDefaults func(connectorID string) (smppc.PDUDefaults, bool)
+	NewMessageID         func() (string, error)
+	NewBillID            func() (string, error)
+	NewReference         func() (uint16, error)
+	Now                  func() time.Time
 }
 
 type SubmitService struct {
@@ -198,27 +212,48 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	if priority < 0 || priority > 3 {
 		return "", fmt.Errorf("%w: priority %d", ErrInvalidParameter, priority)
 	}
+	// Resolve the routed connector's default submit_sm PDU params (GAP 4). The
+	// HTTP front door does not expose TON/NPI etc. as user params, so the
+	// connector defaults apply; an unset provider keeps zero (pre-GAP-4).
+	var pduDefaults smppc.PDUDefaults
+	if service.dependencies.ConnectorPDUDefaults != nil {
+		if resolved, ok := service.dependencies.ConnectorPDUDefaults(connectorID); ok {
+			pduDefaults = resolved
+		}
+	}
+	sourceAddr := intercepted.Routable.SourceAddr().Value
+	if len(sourceAddr) == 0 && pduDefaults.SourceAddr != "" {
+		sourceAddr = []byte(pduDefaults.SourceAddr)
+	}
 	envelopeRequest := SubmitEnvelopeRequest{
-		MessageID:       messageID,
-		BillID:          billID,
-		CreatedAt:       createdAt,
-		Username:        request.Username,
-		UserID:          externalUserID,
-		ConnectorID:     connectorID,
-		SourceAddr:      intercepted.Routable.SourceAddr().Value,
-		DestinationAddr: intercepted.Routable.DestinationAddr().Value,
-		DataCoding:      uint8(request.Coding),
-		Priority:        uint8(priority),
-		ScheduleAt:      cloneTime(request.SDT),
-		ValidityPeriod:  cloneDuration(request.ValidityPeriod),
-		DLR:             request.DLR,
-		DLRURL:          request.DLRUrl,
-		DLRLevel:        request.DLRLevel,
-		DLRMethod:       request.DLRMethod,
-		SourceConnector: sourceConnectorOf(request),
-		Bill:            perPartBill,
-		Parts:           parts,
-		CustomTLVs:      cloneTLVs(request.CustomTLVs),
+		MessageID:            messageID,
+		BillID:               billID,
+		CreatedAt:            createdAt,
+		Username:             request.Username,
+		UserID:               externalUserID,
+		ConnectorID:          connectorID,
+		SourceAddr:           sourceAddr,
+		DestinationAddr:      intercepted.Routable.DestinationAddr().Value,
+		DataCoding:           uint8(request.Coding),
+		Priority:             uint8(priority),
+		SourceAddrTON:        pduDefaults.SourceAddrTON,
+		SourceAddrNPI:        pduDefaults.SourceAddrNPI,
+		DestAddrTON:          pduDefaults.DestAddrTON,
+		DestAddrNPI:          pduDefaults.DestAddrNPI,
+		ServiceType:          pduDefaults.ServiceType,
+		ProtocolID:           pduDefaults.ProtocolID,
+		ReplaceIfPresentFlag: pduDefaults.ReplaceIfPresentFlag,
+		SmDefaultMsgID:       pduDefaults.SmDefaultMsgID,
+		ScheduleAt:           cloneTime(request.SDT),
+		ValidityPeriod:       cloneDuration(request.ValidityPeriod),
+		DLR:                  request.DLR,
+		DLRURL:               request.DLRUrl,
+		DLRLevel:             request.DLRLevel,
+		DLRMethod:            request.DLRMethod,
+		SourceConnector:      sourceConnectorOf(request),
+		Bill:                 perPartBill,
+		Parts:                parts,
+		CustomTLVs:           cloneTLVs(request.CustomTLVs),
 	}
 	envelopes := make([]amqpcompat.Envelope, 0, len(parts))
 	for index, part := range parts {
