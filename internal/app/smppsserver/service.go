@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -49,12 +50,18 @@ type Service struct {
 type Option func(*options)
 
 type options struct {
-	stats *stats.SMPPsStats
+	stats  *stats.SMPPsStats
+	logger *slog.Logger
 }
 
 // WithStats attaches the smppsapi counter registry (O-004).
 func WithStats(registry *stats.SMPPsStats) Option {
 	return func(o *options) { o.stats = registry }
+}
+
+// WithLogger attaches the smpp.server.<id> logger for the bind/unbind audit lines.
+func WithLogger(logger *slog.Logger) Option {
+	return func(o *options) { o.logger = logger }
 }
 
 func NewService(config Config, submitter core.Submitter, opts ...Option) (*Service, error) {
@@ -82,6 +89,9 @@ func NewService(config Config, submitter core.Submitter, opts ...Option) (*Servi
 	serverOpts := []smpps.ServerOption{smpps.WithSubmitHandler(handler)}
 	if settings.stats != nil {
 		serverOpts = append(serverOpts, smpps.WithStats(settings.stats))
+	}
+	if settings.logger != nil {
+		serverOpts = append(serverOpts, smpps.WithLogger(settings.logger))
 	}
 	server, err := smpps.NewServer(directory, serverConfig, serverOpts...)
 	if err != nil {

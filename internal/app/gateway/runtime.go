@@ -158,7 +158,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	var dlrReceiptSink dlr.SMPPSReceiptSink
 	var moDeliverySink mo.MODeliverySink
 	if config.SMPPS != nil {
-		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter(), smppsserver.WithStats(smppsStats))
+		smppServerLogger := logging.Logger("smpp.server", logging.Config{
+			Level:  config.SMPPServerLog.Level,
+			File:   config.SMPPServerLog.File,
+			Rotate: config.SMPPServerLog.Rotate,
+		})
+		smppsService, smppsErr := smppsserver.NewService(*config.SMPPS, outboundRuntime.Submitter(),
+			smppsserver.WithStats(smppsStats), smppsserver.WithLogger(smppServerLogger))
 		if smppsErr != nil {
 			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
 		}

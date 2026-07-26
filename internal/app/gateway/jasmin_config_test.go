@@ -30,7 +30,8 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 		"[http-api]\nbind = 10.0.0.5\nport = 8080\n"+
 		"[dlr-thrower]\nhttp_timeout = 12\nmax_retries = 7\n"+
 		"[sm-listener]\nlog_level = DEBUG\nlog_privacy = yes\nlog_file = /srv/log/messages.log\nlog_rotate = W6\n"+
-		"[smpp-server]\nbind = 0.0.0.0\nport = 2776\nenquireLinkTimerSecs = 45\n")
+		"[smpp-server]\nbind = 0.0.0.0\nport = 2776\nenquireLinkTimerSecs = 45\n"+
+		"log_level = DEBUG\nlog_file = /srv/log/default-smpps_01.log\nlog_rotate = midnight\n")
 
 	cfg := Config{
 		Role:                 RoleHTTPAndSMPPc,
@@ -53,6 +54,10 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 	}
 	if cfg.SMPPS.BindAddr != "0.0.0.0:2776" || cfg.SMPPS.EnquireLinkTimeoutSeconds != 45 {
 		t.Errorf("SMPPS overlay diverges: %+v", cfg.SMPPS)
+	}
+	if cfg.SMPPServerLog.Level != "DEBUG" || cfg.SMPPServerLog.File != "/srv/log/default-smpps_01.log" ||
+		cfg.SMPPServerLog.Rotate != "midnight" {
+		t.Errorf("SMPPServerLog overlay diverges: %+v", cfg.SMPPServerLog)
 	}
 	// The SMS-MT audit line config is overlaid from [sm-listener].
 	if cfg.SubmitAuditLog.Level != "DEBUG" || !cfg.SubmitAuditLog.Privacy ||
