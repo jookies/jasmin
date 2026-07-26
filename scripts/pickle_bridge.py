@@ -448,6 +448,12 @@ def run():
                         EsmClassType.DEFAULT,
                         [EsmClassGsmFeatures.UDHI_INDICATOR_SET],
                     )
+                else:
+                    # The legacy SMPPOperationFactory defaults a non-UDH submit to
+                    # STORE_AND_FORWARD; SubmitSM alone would leave it DEFAULT.
+                    kwargs["esm_class"] = EsmClass(
+                        EsmClassMode.STORE_AND_FORWARD, EsmClassType.DEFAULT,
+                    )
                 if payload.get("registered_delivery"):
                     kwargs["registered_delivery"] = RegisteredDelivery(
                         RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED
