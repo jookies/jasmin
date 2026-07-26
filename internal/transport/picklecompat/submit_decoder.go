@@ -172,6 +172,12 @@ func buildSubmitPart(wire submitSMWire) (smppwire.SubmitSMBody, []tlv.TLV, error
 			}
 			value := option.Value[0]
 			body.Optional.SARSegmentSequence = &value
+		case 0x0426:
+			if len(option.Value) != 1 {
+				return smppwire.SubmitSMBody{}, nil, invalidTLV(option.Tag, len(option.Value))
+			}
+			value := option.Value[0]
+			body.Optional.MoreMessagesToSend = &value
 		case 0x0424:
 			body.Optional.MessagePayload = cloneBytes(option.Value)
 		default:

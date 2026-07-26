@@ -27,7 +27,7 @@ Key quirk to record (KNOWN_QUIRKS): the aggregated response is the **last-arrivi
 
 - **Files:** `scripts/pickle_bridge.py` (`decode_submit_sm`).
 - **Changes:** Walk `obj` and its `nextPdu` chain; project each node's params with the existing per-part logic (SAR TLVs 0x020c/0e/0f, message_payload, data_coding via `_data_coding_value`, times, custom_tlvs). Return `{"parts": [body, ...]}` (length 1 for a non-chained submit) instead of a bare body. Keep the SAR completeness/consistency checks per part.
-- **Scope note (UDH deferred):** the default split is **SAR** (`long_content_split=sar`), which this slice supports fully. UDH multipart's `more_messages_to_send` (0x0426) is a `MoreMessagesToSend` **enum** (NO_MORE=1/MORE=2), not a raw byte — encoding it faithfully needs the legacy enum encoder in the bridge and a wire codec field. Deferred to a follow-up; a UDH chain still sends all parts (the UDH header rides in `short_message`), only the `more_messages_to_send` hint TLV is currently omitted.
+- **UDH `more_messages_to_send` (done, follow-up):** projected via the legacy `MoreMessagesToSendEncoder` to its 1-byte wire value (MORE_MESSAGES→1 on non-final parts, NO_MORE_MESSAGES→0 last), with a `smppwire` `MoreMessagesToSend` field decoded/re-encoded byte-identically (verified by the codec optional-differential and a UDH chain differential). Both SAR and UDH multipart now send every part faithfully.
 - **Verify:** `python -m py_compile scripts/pickle_bridge.py`; a PYTHON_PATH differential (Step 5) builds a 300-char SAR message and a UDH message via `SMPPOperationFactory` and asserts the projected part count, per-part SAR/UDH fields, and 0x0426 presence match the chain the legacy `doSendRequest` would send.
 
 ### Step 2: Decoder returns the chain

@@ -33,6 +33,7 @@ const (
 	tagSARTotalSegments   uint16 = 0x020e
 	tagSARSegmentSequence uint16 = 0x020f
 	tagMessagePayload     uint16 = 0x0424
+	tagMoreMessagesToSend uint16 = 0x0426
 	tagMessageState       uint16 = 0x0427
 )
 
@@ -133,6 +134,7 @@ type OptionalParameters struct {
 	SARMessageReference *uint16
 	SARTotalSegments    *byte
 	SARSegmentSequence  *byte
+	MoreMessagesToSend  *byte
 	MessagePayload      []byte
 	ReceiptedMessageID  []byte
 	MessageState        *byte
