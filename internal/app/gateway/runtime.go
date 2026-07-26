@@ -16,6 +16,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
+	"github.com/pumpitspace/jasmin/internal/core/logging"
 	"github.com/pumpitspace/jasmin/internal/core/mo"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/stats"
@@ -75,6 +76,12 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
 	}
 	runtime.bridge = bridge
+	// One shared jasmin-sm-listener logger renders the SMS-MT audit line for every
+	// connector (the legacy uses a single listener logger); the connector id in the
+	// line distinguishes them. Renders to stderr for now — the log_file sink and
+	// rotation are a later O-007 phase.
+	submitAuditLogger := logging.Logger("jasmin-sm-listener", logging.Config{Level: config.SubmitAuditLog.Level})
+	submitAuditPrivacy := config.SubmitAuditLog.Privacy
 	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
 		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)
 		if connectorErr != nil {
@@ -83,6 +90,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if connectorErr = connector.ConfigureDurability(transactions); connectorErr != nil {
 			return nil, connectorErr
 		}
+		connector.SetSubmitAuditLogger(submitAuditLogger, submitAuditPrivacy)
 		return connector, nil
 	})
 	runtime.manager = manager
