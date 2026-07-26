@@ -65,6 +65,14 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		SubmitSMAmount:         request.Bill.SubmitSmAmount,
 		SubmitSMRespAmount:     request.Bill.SubmitSmRespAmount,
 		DecrementSubmitSMCount: request.Bill.DecrementSubmitSmCount,
+		SourceAddrTON:          request.SourceAddrTON,
+		SourceAddrNPI:          request.SourceAddrNPI,
+		DestAddrTON:            request.DestAddrTON,
+		DestAddrNPI:            request.DestAddrNPI,
+		ServiceType:            request.ServiceType,
+		ProtocolID:             request.ProtocolID,
+		ReplaceIfPresentFlag:   request.ReplaceIfPresentFlag,
+		SmDefaultMsgID:         request.SmDefaultMsgID,
 	}
 	if request.ScheduleAt != nil {
 		encodeRequest.ScheduleAt = request.ScheduleAt.Format(time.RFC3339Nano)

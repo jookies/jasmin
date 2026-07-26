@@ -108,6 +108,16 @@ type SubmitSMEncodeRequest struct {
 	SubmitSMAmount         float64             `json:"submit_sm_amount"`
 	SubmitSMRespAmount     float64             `json:"submit_sm_resp_amount"`
 	DecrementSubmitSMCount int                 `json:"decrement_submit_sm_count"`
+
+	// Connector-config default PDU params (GAP 4).
+	SourceAddrTON        uint8  `json:"source_addr_ton,omitempty"`
+	SourceAddrNPI        uint8  `json:"source_addr_npi,omitempty"`
+	DestAddrTON          uint8  `json:"dest_addr_ton,omitempty"`
+	DestAddrNPI          uint8  `json:"dest_addr_npi,omitempty"`
+	ServiceType          string `json:"service_type,omitempty"`
+	ProtocolID           uint8  `json:"protocol_id,omitempty"`
+	ReplaceIfPresentFlag uint8  `json:"replace_if_present_flag,omitempty"`
+	SmDefaultMsgID       uint8  `json:"sm_default_msg_id,omitempty"`
 }
 
 type SubmitSMSAR struct {
