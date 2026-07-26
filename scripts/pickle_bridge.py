@@ -132,6 +132,22 @@ def _encoded_byte(encoder, value, name):
     return encoded[0]
 
 
+def _data_coding_value(value):
+    """Mirror SMPPClientProtocol.preSubmitSm: the HTTP-API front door pickles
+    data_coding as a plain int, but DataCodingEncoder expects a DataCoding
+    object. A known int becomes its DataCoding object; an unknown int becomes
+    None (wire 0x00). A value already decoded off the wire (a DataCoding object)
+    or None passes through untouched, so SMPP-origin submits are unaffected."""
+    if not isinstance(value, int):
+        return value
+    from smpp.pdu.constants import data_coding_default_value_map
+    from smpp.pdu.pdu_types import DataCoding, DataCodingDefault
+    name = data_coding_default_value_map.get(value)
+    if name is None:
+        return None
+    return DataCoding(schemeData=getattr(DataCodingDefault, name))
+
+
 def _raw_byte(value, name):
     if value is None:
         return 0
@@ -192,7 +208,7 @@ def decode_submit_sm(data):
         "validity_period": _time_bytes(params.get("validity_period"), "validity_period"),
         "registered_delivery": _encoded_byte(RegisteredDeliveryEncoder, params.get("registered_delivery"), "registered_delivery"),
         "replace_if_present_flag": _encoded_byte(ReplaceIfPresentFlagEncoder, params.get("replace_if_present_flag"), "replace_if_present_flag"),
-        "data_coding": _encoded_byte(DataCodingEncoder, params.get("data_coding"), "data_coding"),
+        "data_coding": _encoded_byte(DataCodingEncoder, _data_coding_value(params.get("data_coding")), "data_coding"),
         "sm_default_msg_id": _raw_byte(params.get("sm_default_msg_id"), "sm_default_msg_id"),
         "short_message": _binary(params.get("short_message"), "short_message", 255),
         "optional_tlvs": [],
