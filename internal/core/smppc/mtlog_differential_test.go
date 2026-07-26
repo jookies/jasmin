@@ -11,6 +11,107 @@ import (
 	"time"
 )
 
+// TestSubmitAuditLineDifferential drives the exact legacy `%`-format for both
+// SMS-MT line variants with real CommandStatus / RegisteredDeliveryReceipt / bytes
+// objects and asserts the Go renderer produces the identical whole line — the
+// guard that catches any per-field mismatch (e.g. smpp-msgid must be a bytes-repr).
+func TestSubmitAuditLineDifferential(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	type spec struct {
+		CID        string `json:"cid"`
+		QueueMsgID string `json:"queue_msgid"`
+		SMPPMsgID  string `json:"smpp_msgid"` // hex
+		StatusName string `json:"status_name"`
+		Prio       int    `json:"prio"`
+		RegDel     int    `json:"reg_delivery"`
+		Validity   string `json:"validity"`
+		From       string `json:"from"`    // hex
+		To         string `json:"to"`      // hex
+		Content    string `json:"content"` // hex
+		Privacy    bool   `json:"privacy"`
+		WillRetry  bool   `json:"will_retry"`
+	}
+	specs := []spec{
+		{CID: "smppc1", QueueMsgID: "abc-1", SMPPMsgID: hexOf("ABC123"), StatusName: "ESME_ROK",
+			Prio: 1, RegDel: 1, Validity: "none", From: hexOf("1111"), To: hexOf("2222"), Content: hexOf("hi")},
+		{CID: "gw", QueueMsgID: "m2", SMPPMsgID: hexOf("0f"), StatusName: "ESME_RINVDSTADR",
+			Prio: 2, RegDel: 0, Validity: "2026-07-26 00:00:00", From: hexOf("it's"), To: hexOf(`q"x`),
+			Content: hexOf("café"), WillRetry: true},
+		{CID: "c3", QueueMsgID: "m3", SMPPMsgID: "00ff41", StatusName: "ESME_RSYSERR",
+			Prio: 0, RegDel: 2, Validity: "none", From: hexOf("src"), To: hexOf("dst"),
+			Content: hexOf("body"), Privacy: true},
+	}
+	payload, err := json.Marshal(specs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const oracle = `
+import sys, json, io
+from smpp.pdu.pdu_types import CommandStatus
+from smpp.pdu.pdu_encoding import RegisteredDeliveryEncoder
+enc = RegisteredDeliveryEncoder()
+out = []
+for s in json.load(sys.stdin):
+    status = getattr(CommandStatus, s['status_name'])
+    receipt = enc.decode(io.BytesIO(bytes([s['reg_delivery']]))).receipt
+    frm = bytes.fromhex(s['from']); to = bytes.fromhex(s['to'])
+    content = bytes.fromhex(s['content']); mid = bytes.fromhex(s['smpp_msgid'])
+    logged = ('** %s byte content **' % len(content)) if s['privacy'] else ('%r' % content)
+    success = "SMS-MT [cid:%s] [queue-msgid:%s] [smpp-msgid:%s] [status:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s] [tlvs:%s]" % (
+        s['cid'], s['queue_msgid'], mid, status, s['prio'], receipt, s['validity'], frm, to, logged, 'none')
+    error = "SMS-MT [cid:%s] [queue-msgid:%s] [status:ERROR/%s] [retry:%s] [prio:%s] [dlr:%s] [validity:%s] [from:%s] [to:%s] [content:%s] [tlvs:%s]" % (
+        s['cid'], s['queue_msgid'], status, s['will_retry'], s['prio'], receipt, s['validity'], frm, to, logged, 'none')
+    out.append({'success': success, 'error': error})
+print(json.dumps(out))
+`
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, pythonPath, "-c", oracle)
+	command.Env = append(os.Environ(), "PYTHONPATH=../../..")
+	command.Stdin = bytes.NewReader(payload)
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	var want []struct {
+		Success string `json:"success"`
+		Error   string `json:"error"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(output), &want); err != nil {
+		t.Fatalf("oracle output %q: %v", output, err)
+	}
+	statusValue := map[string]uint32{"ESME_ROK": 0x00000000, "ESME_RINVDSTADR": 0x0000000b, "ESME_RSYSERR": 0x00000008}
+	for i, s := range specs {
+		fields := submitAuditFields{
+			ConnectorID: s.CID, QueueMsgID: s.QueueMsgID, SMPPMsgID: unhex(t, s.SMPPMsgID),
+			Status: statusValue[s.StatusName], WillRetry: s.WillRetry, Priority: uint8(s.Prio),
+			RegisteredDelivery: byte(s.RegDel), Validity: s.Validity,
+			SourceAddr: unhex(t, s.From), DestAddr: unhex(t, s.To), ShortMessage: unhex(t, s.Content),
+			Privacy: s.Privacy,
+		}
+		if got := submitAuditLineSuccess(fields); got != want[i].Success {
+			t.Errorf("spec %d success:\n go %q\n py %q", i, got, want[i].Success)
+		}
+		if got := submitAuditLineError(fields); got != want[i].Error {
+			t.Errorf("spec %d error:\n go %q\n py %q", i, got, want[i].Error)
+		}
+	}
+}
+
+func hexOf(s string) string { return hex.EncodeToString([]byte(s)) }
+
+func unhex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		t.Fatalf("bad hex %q: %v", s, err)
+	}
+	return b
+}
+
 // TestPythonBytesReprDifferential proves pythonBytesRepr reproduces CPython's
 // repr(bytes) byte-for-byte across every single byte value, quote/escape combos,
 // and multi-byte strings — the highest-risk rendering in the SMS-MT audit line.
