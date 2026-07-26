@@ -149,7 +149,7 @@ type SMPPServer struct {
 	Bind           string
 	Port           int
 	BillingFeature bool
-	LogLevel       string
+	Log            LogConfig
 	LogPrivacy     bool
 
 	SessionInitTimerSecs int
@@ -162,10 +162,11 @@ type SMPPServer struct {
 // LoadSMPPServer parses the smpp-server section.
 func LoadSMPPServer(file *File) (SMPPServer, error) {
 	server := SMPPServer{
-		ID:       file.Get("smpp-server", "id", "smpps_01"),
-		Bind:     file.Get("smpp-server", "bind", "0.0.0.0"),
-		LogLevel: file.Get("smpp-server", "log_level", "INFO"),
+		ID:   file.Get("smpp-server", "id", "smpps_01"),
+		Bind: file.Get("smpp-server", "bind", "0.0.0.0"),
 	}
+	// log_file defaults to LOG_PATH/default-<id>.log, so it depends on the id above.
+	server.Log = loadLogConfig(file, "smpp-server", "default-"+server.ID+".log", "midnight")
 	var err error
 	if server.Port, err = file.GetInt("smpp-server", "port", 2775); err != nil {
 		return SMPPServer{}, err
@@ -205,6 +206,7 @@ type HTTPAPI struct {
 	Bind                string
 	Port                int
 	BillingFeature      bool
+	Log                 LogConfig
 	LogPrivacy          bool
 	LongContentMaxParts string
 	LongContentSplit    string
@@ -229,6 +231,7 @@ func LoadHTTPAPI(file *File) (HTTPAPI, error) {
 
 	api := HTTPAPI{
 		Bind:                file.Get("http-api", "bind", bindDefault),
+		Log:                 loadLogConfig(file, "http-api", "http-api.log", "W6"),
 		LongContentMaxParts: file.Get("http-api", "long_content_max_parts", "5"),
 		LongContentSplit:    file.Get("http-api", "long_content_split", "udh"),
 	}
@@ -257,12 +260,16 @@ type DLR struct {
 	LookupRetryDelay                 int
 	LookupMaxRetries                 int
 	SMPPReceiptOnSuccessSubmitSMResp bool
+	Log                              LogConfig
 	LogPrivacy                       bool
 }
 
 // LoadDLR parses the dlr section.
 func LoadDLR(file *File) (DLR, error) {
-	dlr := DLR{PID: file.Get("dlr", "pid", "main")}
+	dlr := DLR{
+		PID: file.Get("dlr", "pid", "main"),
+		Log: loadLogConfig(file, "dlr", "messages.log", "midnight"),
+	}
 	var err error
 	if dlr.LookupRetryDelay, err = file.GetInt("dlr", "dlr_lookup_retry_delay", 10); err != nil {
 		return DLR{}, err
@@ -285,6 +292,7 @@ type SMListener struct {
 	PublishSubmitSMResp             bool
 	SubmitMaxAgeSMPPcNotReady       int
 	SubmitRetrialDelaySMPPcNotReady int
+	Log                             LogConfig
 	LogPrivacy                      bool
 
 	// DLRLookupRetryDelayQuirk holds what the legacy attribute
@@ -300,7 +308,7 @@ type SMListener struct {
 
 // LoadSMListener parses the sm-listener section, replicating the Q-020 quirk.
 func LoadSMListener(file *File) (SMListener, error) {
-	listener := SMListener{}
+	listener := SMListener{Log: loadLogConfig(file, "sm-listener", "messages.log", "midnight")}
 	var err error
 	if listener.PublishSubmitSMResp, err = file.GetBool("sm-listener", "publish_submit_sm_resp", false); err != nil {
 		return SMListener{}, err
