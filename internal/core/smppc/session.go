@@ -38,6 +38,7 @@ type pendingRequest struct {
 	destAddr           []byte
 	shortMessage       []byte
 	registeredDelivery byte
+	esmClass           byte
 	optional           smppwire.OptionalParameters
 	customTLVs         []tlv.TLV
 }
@@ -477,9 +478,18 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 					delivery: d, attempt: attempt, partKey: partKey, envelope: envelope, chain: chain,
 					sourceAddr: bodies[i].SourceAddress, destAddr: bodies[i].DestinationAddress,
 					shortMessage: bodies[i].ShortMessage, registeredDelivery: bodies[i].RegisteredDelivery,
-					optional: bodies[i].Optional, customTLVs: parts[i].CustomTLVs,
+					esmClass: bodies[i].ESMClass, optional: bodies[i].Optional, customTLVs: parts[i].CustomTLVs,
 				}
 				s.pending[seq] = pending
+				if chain != nil {
+					// Accumulate the multipart audit data in send order for the single
+					// SMS-MT line rendered when the last part's response arrives.
+					if i == 0 {
+						chain.audit.first = pending
+					}
+					chain.audit.last = pending
+					chain.audit.partContents = append(chain.audit.partContents, bodies[i].ShortMessage)
+				}
 				frames = append(frames, framedPart{seq: seq, wire: wire, pending: pending})
 				continue
 			}
@@ -727,10 +737,23 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 // follow-ups (docs/plans/005) — so a multipart chain is skipped rather than logged
 // with just its last part. A nil auditLogger disables it.
 func (s *Session) logSubmitAudit(pending *pendingRequest, pdu smppwire.PDU) {
-	if s.auditLogger == nil || pending.chain != nil {
+	if s.auditLogger == nil {
 		return
 	}
-	properties := pending.envelope.Properties()
+	// One line per queue message. For a multipart submit the from/to/dlr/tlvs come
+	// from the last part and the content is every part reassembled (SAR-concat or
+	// UDH-header-stripped), mirroring the legacy walking the nextPdu chain; a
+	// single-part submit reads the one pending directly.
+	source := pending
+	content := pending.shortMessage
+	if pending.chain != nil {
+		if pending.chain.audit.last == nil {
+			return
+		}
+		source = pending.chain.audit.last
+		content = reassembleMultipart(&pending.chain.audit)
+	}
+	properties := source.envelope.Properties()
 	priority, _ := properties.Priority()
 	validity := "none"
 	if expiration, ok := headerString(properties.Headers(), "expiration"); ok {
@@ -741,13 +764,13 @@ func (s *Session) logSubmitAudit(pending *pendingRequest, pdu smppwire.PDU) {
 		QueueMsgID:         properties.MessageID(),
 		Status:             pdu.Header.CommandStatus,
 		Priority:           priority,
-		RegisteredDelivery: pending.registeredDelivery,
+		RegisteredDelivery: source.registeredDelivery,
 		Validity:           validity,
-		SourceAddr:         pending.sourceAddr,
-		DestAddr:           pending.destAddr,
-		ShortMessage:       pending.shortMessage,
+		SourceAddr:         source.sourceAddr,
+		DestAddr:           source.destAddr,
+		ShortMessage:       content,
 		Privacy:            s.auditPrivacy,
-		TLVs:               formatTLVsForLog(pending.optional, pending.customTLVs, s.auditPrivacy),
+		TLVs:               formatTLVsForLog(source.optional, source.customTLVs, s.auditPrivacy),
 	}
 	if pdu.Header.CommandStatus == 0 {
 		if pdu.SubmitResponse != nil {
@@ -757,10 +780,40 @@ func (s *Session) logSubmitAudit(pending *pendingRequest, pdu smppwire.PDU) {
 		return
 	}
 	if s.retry != nil {
-		decision, err := s.retry.Decide(smppStatusName(pdu.Header.CommandStatus), pending.attempt.Number)
+		decision, err := s.retry.Decide(smppStatusName(pdu.Header.CommandStatus), source.attempt.Number)
 		fields.WillRetry = err == nil && decision.Action == ErrorRetryRequeue
 	}
 	s.auditLogger.Info(submitAuditLineError(fields))
+}
+
+// reassembleMultipart concatenates a multipart submit's parts the way the legacy
+// listener does: SAR (sar_msg_ref_num on the first part) concatenates the full
+// short_message of every part; a concatenation UDH (esm_class UDHI bit set and
+// the first part starting with the 6-byte 05 00 03 concat header) strips that
+// 6-byte header from each part. Anything else falls back to a plain concat.
+func reassembleMultipart(audit *chainAudit) []byte {
+	first := audit.first
+	sar := first != nil && first.optional.SARMessageReference != nil
+	udh := !sar && first != nil && first.esmClass&0x40 != 0 &&
+		len(first.shortMessage) >= 3 &&
+		first.shortMessage[0] == 0x05 && first.shortMessage[1] == 0x00 && first.shortMessage[2] == 0x03
+	if !sar && !udh {
+		// No detectable split (legacy splitMethod None, e.g. a 16-bit-ref UDH):
+		// the legacy logs only the last part's short_message, not a concat.
+		if audit.last != nil {
+			return audit.last.shortMessage
+		}
+		return nil
+	}
+	var content []byte
+	for _, part := range audit.partContents {
+		if udh && len(part) >= 6 {
+			content = append(content, part[6:]...)
+		} else {
+			content = append(content, part...)
+		}
+	}
+	return content
 }
 
 func headerString(headers map[string]amqpcompat.Field, name string) (string, bool) {

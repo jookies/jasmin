@@ -102,14 +102,56 @@ func TestLogSubmitAuditNilLoggerNoop(t *testing.T) {
 	session.logSubmitAudit(auditPending(t, nil), respPDU(0, "ABC"))
 }
 
-func TestLogSubmitAuditMultipartSkipped(t *testing.T) {
-	var buffer bytes.Buffer
-	session := newAuditSession(t, &buffer, nil, false)
-	session.logSubmitAudit(auditPending(t, &submitChain{remaining: 2}), respPDU(0, "ABC"))
-	if buffer.Len() != 0 {
-		t.Errorf("multipart chain must be skipped for now, got: %q", buffer.String())
+func TestReassembleMultipart(t *testing.T) {
+	u16 := func(v uint16) *uint16 { return &v }
+	// SAR: full concat of every part.
+	sarFirst := &pendingRequest{optional: smppwire.OptionalParameters{SARMessageReference: u16(1)}}
+	sar := &chainAudit{first: sarFirst, partContents: [][]byte{[]byte("Hello "), []byte("World")}}
+	if got := reassembleMultipart(sar); string(got) != "Hello World" {
+		t.Errorf("SAR reassembly = %q, want %q", got, "Hello World")
+	}
+	// UDH: 6-byte concat header (05 00 03 ref total seq) stripped from each part.
+	udhPart := func(seq byte, msg string) []byte {
+		return append([]byte{0x05, 0x00, 0x03, 0xAB, 0x02, seq}, msg...)
+	}
+	udhFirst := &pendingRequest{esmClass: 0x40, shortMessage: udhPart(1, "Hello ")}
+	udh := &chainAudit{first: udhFirst, partContents: [][]byte{udhPart(1, "Hello "), udhPart(2, "World")}}
+	if got := reassembleMultipart(udh); string(got) != "Hello World" {
+		t.Errorf("UDH reassembly = %q, want %q", got, "Hello World")
 	}
 }
+
+func TestLogSubmitAuditMultipartLine(t *testing.T) {
+	u16 := func(v uint16) *uint16 { return &v }
+	var buffer bytes.Buffer
+	session := newAuditSession(t, &buffer, nil, false)
+	chain := &submitChain{remaining: 1}
+	first := auditPending(t, chain)
+	first.shortMessage = []byte("Part1 ")
+	first.optional = smppwire.OptionalParameters{SARMessageReference: u16(7)}
+	last := auditPending(t, chain)
+	last.shortMessage = []byte("Part2")
+	last.destAddr = []byte("9999") // last part's fields are the logged ones
+	last.optional = smppwire.OptionalParameters{SARMessageReference: u16(7), SARSegmentSequence: bytePtr(2)}
+	chain.audit.first = first
+	chain.audit.last = last
+	chain.audit.partContents = [][]byte{first.shortMessage, last.shortMessage}
+
+	session.logSubmitAudit(last, respPDU(0, "MID"))
+
+	line := buffer.String()
+	if !strings.Contains(line, "[content:b'Part1 Part2']") {
+		t.Errorf("multipart content not reassembled: %q", line)
+	}
+	if !strings.Contains(line, "[to:b'9999']") {
+		t.Errorf("multipart line must use the last part's fields: %q", line)
+	}
+	if !strings.Contains(line, "sar_msg_ref_num:7,sar_segment_seqnum:2") {
+		t.Errorf("multipart tlvs from last part missing: %q", line)
+	}
+}
+
+func bytePtr(v byte) *byte { return &v }
 
 func TestLogSubmitAuditIncludesTLVs(t *testing.T) {
 	var buffer bytes.Buffer

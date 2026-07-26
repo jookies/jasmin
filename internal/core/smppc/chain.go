@@ -13,6 +13,19 @@ type submitChain struct {
 	mu        sync.Mutex
 	remaining int
 	settled   bool
+	// audit carries what the single SMS-MT line for the whole message needs:
+	// every part's short_message (in send order, for reassembly) and the first
+	// and last parts (split-method detection reads the first, the logged
+	// from/to/dlr/tlvs come from the last), mirroring the legacy which walks the
+	// nextPdu chain. Populated once at send; read once on the final response.
+	audit chainAudit
+}
+
+// chainAudit is the multipart submit's audit data, captured at send time.
+type chainAudit struct {
+	first        *pendingRequest
+	last         *pendingRequest
+	partContents [][]byte
 }
 
 // arrive records one part's response. It returns final=true when this is the
