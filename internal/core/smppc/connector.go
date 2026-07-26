@@ -185,6 +185,30 @@ func (c *Connector) SetSubmitAuditLogger(logger *slog.Logger, privacy bool) {
 	c.auditPrivacy = privacy
 }
 
+// logExpiredDiscard emits the legacy SM listener's expired-message discard line at
+// INFO. The expiration renders as str(datetime) of the parsed header (space
+// separator, microseconds only when present), matching the legacy log.
+func (c *Connector) logExpiredDiscard(msgID string, expiration time.Time) {
+	c.mu.RLock()
+	logger := c.auditLogger
+	c.mu.RUnlock()
+	if logger == nil {
+		return
+	}
+	logger.Info(fmt.Sprintf("Discarding expired message[%s]: expiration is %s",
+		msgID, legacyDateTimeString(expiration)))
+}
+
+// legacyDateTimeString renders a time as Python's str(datetime): "YYYY-MM-DD
+// HH:MM:SS", with 6-digit microseconds only when non-zero.
+func legacyDateTimeString(value time.Time) string {
+	value = value.Round(0)
+	if value.Nanosecond() == 0 {
+		return value.Format("2006-01-02 15:04:05")
+	}
+	return value.Format("2006-01-02 15:04:05.000000")
+}
+
 // NewConnector preserves the pre-decoder constructor for compatibility tests.
 // Production composition must use NewConnectorWithDecoder.
 func NewConnector(cfg Config, amqpURL string) (*Connector, error) {
@@ -516,8 +540,9 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 			if !expiration.IsZero() {
 				expirationPtr = &expiration
 			}
+			now := time.Now().UTC()
 			decision, decideErr := readiness.Decide(ReadinessInput{
-				Now:        time.Now().UTC(),
+				Now:        now,
 				CreatedAt:  createdAt,
 				Expiration: expirationPtr,
 				Connected:  true,
@@ -538,6 +563,12 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 			case ReadinessRequeue:
 				settleReject(delivery, true)
 			case ReadinessDiscard:
+				// The legacy logs an expired-message discard (the not-bound over-aged
+				// discard, with its #N retry count, is deferred pending the Go retry
+				// model). Reuse Decide's exact expiry check.
+				if expirationPtr != nil && expirationPtr.Before(now) {
+					c.logExpiredDiscard(delivery.Envelope().Properties().MessageID(), *expirationPtr)
+				}
 				settleReject(delivery, false)
 			}
 		}

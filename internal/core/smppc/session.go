@@ -555,13 +555,16 @@ func (s *Session) decodeSubmitParts(ctx context.Context, body []byte) ([]picklec
 
 // settlePendingFailure marks the attempt unknown and settles the delivery as
 // failed. For a chained part only the first caller (per the chain guard) settles
-// the shared delivery; later parts are no-ops.
-func (s *Session) settlePendingFailure(pending *pendingRequest) {
+// the shared delivery; later parts are no-ops. It returns true to the caller that
+// actually settled (single-part, or the chain's finalizing part), so a per-message
+// line is logged exactly once.
+func (s *Session) settlePendingFailure(pending *pendingRequest) bool {
 	if pending.chain != nil && !pending.chain.finalize() {
-		return
+		return false
 	}
 	_ = s.markPendingUnknown(pending)
 	s.settleDeliveryFailure(pending.delivery)
+	return true
 }
 
 func (s *Session) takePending(seq uint32) *pendingRequest {
@@ -861,9 +864,25 @@ func (s *Session) handleTimeout(seq uint32) {
 		return
 	}
 	// A part timing out fails the whole message once (the chain guard) and drops
-	// the connection; cleanupSession then skips the remaining parts.
-	s.settlePendingFailure(pending)
+	// the connection; cleanupSession then skips the remaining parts. Log the
+	// timeout line only for the part that actually settles, so a multipart submit
+	// logs once.
+	if s.settlePendingFailure(pending) {
+		s.logSubmitTimeout(pending)
+	}
 	_ = s.conn.Close()
+}
+
+// logSubmitTimeout emits the legacy SM listener's submit_sm timeout line at ERROR
+// (SMPPRequestTimoutError → message requeued). The queue msgid and connector id
+// are the only fields, so it is byte-exact with the legacy line.
+func (s *Session) logSubmitTimeout(pending *pendingRequest) {
+	if s.auditLogger == nil {
+		return
+	}
+	s.auditLogger.Error(fmt.Sprintf(
+		"SubmitSmPDU[%s] request timed out through [cid:%s], message requeued.",
+		pending.envelope.Properties().MessageID(), s.cfg.CID))
 }
 
 func stopTimer(timer *time.Timer) {
