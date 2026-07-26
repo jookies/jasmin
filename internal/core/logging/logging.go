@@ -88,18 +88,37 @@ func (h *handler) WithGroup(_ string) slog.Handler      { return h }
 // Config is a component's resolved logging settings (from the parsed log_*).
 type Config struct {
 	Level string // log_level; "" defaults to INFO
-	// Writer overrides the output sink (tests, stderr). Phase 2 wires a
-	// rotating file sink from log_file/log_rotate; nil defaults to stderr.
+	// Writer, when non-nil, is the output sink verbatim (tests, an explicit
+	// stream). When nil, File selects the sink: a rotating file when File is set,
+	// else stderr.
 	Writer io.Writer
+	// File is the log_file path; empty means no file sink (stderr). Rotate is the
+	// log_rotate 'when' (midnight, W0..W6) for the rotating file sink.
+	File   string
+	Rotate string
 }
 
 // NewHandler builds the Jasmin-format slog handler for a component.
 func NewHandler(cfg Config) slog.Handler {
 	out := cfg.Writer
 	if out == nil {
-		out = os.Stderr
+		out = fileOrStderr(cfg.File, cfg.Rotate)
 	}
 	return &handler{mu: &sync.Mutex{}, out: out, level: parseLevel(cfg.Level)}
+}
+
+// fileOrStderr builds the rotating file sink for file, falling back to stderr when
+// file is empty or the sink cannot be opened — logging must never crash the process.
+func fileOrStderr(file, rotate string) io.Writer {
+	if file == "" {
+		return os.Stderr
+	}
+	writer, err := newRotatingFileWriter(file, rotate, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "logging: file sink %q disabled, using stderr: %v\n", file, err)
+		return os.Stderr
+	}
+	return writer
 }
 
 // Logger builds a component logger. name identifies the component (the legacy

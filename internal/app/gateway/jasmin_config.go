@@ -41,7 +41,10 @@ func ApplyJasmin(cfg *Config, jasmin *config.Jasmin) {
 		cfg.SMPPS.BindAddr = jasmin.SMPPServer.BindAddr()
 		cfg.SMPPS.EnquireLinkTimeoutSeconds = float64(jasmin.SMPPServer.EnquireLinkTimerSecs)
 	}
-	// The SMS-MT audit line is the sm-listener's (jasmin-sm-listener logger).
+	// The SMS-MT audit line is the sm-listener's (jasmin-sm-listener logger),
+	// including its log_file (messages.log) and log_rotate.
 	cfg.SubmitAuditLog.Level = jasmin.SMListener.Log.Level
 	cfg.SubmitAuditLog.Privacy = jasmin.SMListener.LogPrivacy
+	cfg.SubmitAuditLog.File = jasmin.SMListener.Log.File
+	cfg.SubmitAuditLog.Rotate = jasmin.SMListener.Log.Rotate
 }

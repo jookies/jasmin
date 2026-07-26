@@ -46,12 +46,15 @@ type Config struct {
 	SubmitAuditLog SubmitAuditLogConfig `json:"submit_audit_log,omitempty"`
 }
 
-// SubmitAuditLogConfig is the jasmin-sm-listener audit-line logging config. The
-// file sink and rotation (log_file/log_rotate) are a later phase; for now the
-// line renders to stderr at Level, honouring Privacy (log_privacy).
+// SubmitAuditLogConfig is the jasmin-sm-listener audit-line logging config: the
+// line renders at Level honouring Privacy (log_privacy). File/Rotate select the
+// legacy log_file sink with TimedRotatingFileHandler rotation (midnight, W0..W6);
+// an empty File keeps the stderr default.
 type SubmitAuditLogConfig struct {
 	Level   string `json:"level,omitempty"`
 	Privacy bool   `json:"privacy,omitempty"`
+	File    string `json:"file,omitempty"`
+	Rotate  string `json:"rotate,omitempty"`
 }
 
 func LoadConfig(path string) (Config, error) {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,6 +58,19 @@ func TestLoggerLevelGating(t *testing.T) {
 	logging.Logger("x", logging.Config{Writer: &second}).Debug("hidden")
 	if second.Len() != 0 {
 		t.Fatalf("default level should gate DEBUG: %q", second.String())
+	}
+}
+
+func TestLoggerWritesToFileSink(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "messages.log")
+	logger := logging.Logger("jasmin-sm-listener", logging.Config{File: base, Rotate: "midnight"})
+	logger.Info("SMS-MT [cid:x] hello")
+	data, err := os.ReadFile(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "SMS-MT [cid:x] hello") || !strings.Contains(string(data), "INFO") {
+		t.Errorf("file sink content = %q", data)
 	}
 }
 
