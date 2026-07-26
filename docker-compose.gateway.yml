@@ -1,0 +1,89 @@
+# Go gateway (http+smppc) + full infra + a fake SMSC, for prod-like testing of
+# the outbound MT path (docs/plans/007). The legacy Python stack keeps its own
+# docker-compose.yml — the two files share nothing.
+#
+#   docker compose -f docker-compose.gateway.yml up --build
+#   curl "http://localhost:1401/send?username=smppuser&password=password&to=15551234567&content=hello"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jasmin
+      POSTGRES_PASSWORD: jasmin
+      POSTGRES_DB: jasmin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U jasmin -d jasmin
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: redis-cli ping | grep PONG
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  # Fake SMSC the smsc-primary connector binds to (accepts any bind, ESME_ROKs
+  # every submit_sm — same contract as the integration test's in-process fake).
+  # Point at a real SMSC by editing configs/gateway.example.json instead.
+  smppsim:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.fakesmsc
+    image: jasmin-fake-smsc
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    image: jasmin-gateway
+    restart: unless-stopped
+    volumes:
+      - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
+    ports:
+      - "1401:1401"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      smppsim:
+        condition: service_started
+    healthcheck:
+      test: python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:1401/ping', timeout=3).status==200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pgdata:
