@@ -78,9 +78,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	runtime.bridge = bridge
 	// One shared jasmin-sm-listener logger renders the SMS-MT audit line for every
 	// connector (the legacy uses a single listener logger); the connector id in the
-	// line distinguishes them. Renders to stderr for now — the log_file sink and
-	// rotation are a later O-007 phase.
-	submitAuditLogger := logging.Logger("jasmin-sm-listener", logging.Config{Level: config.SubmitAuditLog.Level})
+	// line distinguishes them. Routes to the sm-listener log_file (messages.log)
+	// with TimedRotatingFileHandler rotation when set, else stderr.
+	submitAuditLogger := logging.Logger("jasmin-sm-listener", logging.Config{
+		Level:  config.SubmitAuditLog.Level,
+		File:   config.SubmitAuditLog.File,
+		Rotate: config.SubmitAuditLog.Rotate,
+	})
 	submitAuditPrivacy := config.SubmitAuditLog.Privacy
 	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
 		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)

@@ -29,7 +29,7 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 		"[redis-client]\nhost = redis-x\nport = 6380\n"+
 		"[http-api]\nbind = 10.0.0.5\nport = 8080\n"+
 		"[dlr-thrower]\nhttp_timeout = 12\nmax_retries = 7\n"+
-		"[sm-listener]\nlog_level = DEBUG\nlog_privacy = yes\n"+
+		"[sm-listener]\nlog_level = DEBUG\nlog_privacy = yes\nlog_file = /srv/log/messages.log\nlog_rotate = W6\n"+
 		"[smpp-server]\nbind = 0.0.0.0\nport = 2776\nenquireLinkTimerSecs = 45\n")
 
 	cfg := Config{
@@ -55,7 +55,8 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 		t.Errorf("SMPPS overlay diverges: %+v", cfg.SMPPS)
 	}
 	// The SMS-MT audit line config is overlaid from [sm-listener].
-	if cfg.SubmitAuditLog.Level != "DEBUG" || !cfg.SubmitAuditLog.Privacy {
+	if cfg.SubmitAuditLog.Level != "DEBUG" || !cfg.SubmitAuditLog.Privacy ||
+		cfg.SubmitAuditLog.File != "/srv/log/messages.log" || cfg.SubmitAuditLog.Rotate != "W6" {
 		t.Errorf("SubmitAuditLog overlay diverges: %+v", cfg.SubmitAuditLog)
 	}
 	// Disabled workers stay nil; non-infra fields are untouched.
