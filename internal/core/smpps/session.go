@@ -165,6 +165,7 @@ func (s *Session) handleBind(pdu smppwire.PDU) bool {
 		s.manager = manager
 		s.mu.Unlock()
 		manager.Add(s)
+		s.server.logBind("Added", bindType, systemID, manager)
 	}
 	s.server.mu.Unlock()
 
@@ -241,11 +242,14 @@ func (s *Session) cleanup() {
 	s.server.incStat("disconnect_count")
 	s.mu.Lock()
 	manager := s.manager
+	bindType := s.bindType
+	systemID := s.systemID
 	s.closed = true
 	s.mu.Unlock()
 	if manager != nil {
 		s.server.mu.Lock()
 		manager.Remove(s)
+		s.server.logBind("Dropped", bindType, systemID, manager)
 		s.server.mu.Unlock()
 	}
 	_ = s.conn.Close()

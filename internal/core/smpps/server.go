@@ -8,6 +8,7 @@ package smpps
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -48,6 +49,7 @@ type Server struct {
 	resolver UserResolver
 	submit   SubmitHandler
 	stats    *stats.SMPPsStats
+	logger   *slog.Logger // smpp.server.<id>; nil disables bind/unbind lines
 
 	mu       sync.Mutex
 	managers map[string]*BindManager // system_id -> its bindings
@@ -86,6 +88,12 @@ func WithSubmitHandler(handler SubmitHandler) ServerOption {
 // bind lifecycle events (O-004).
 func WithStats(registry *stats.SMPPsStats) ServerOption {
 	return func(s *Server) { s.stats = registry }
+}
+
+// WithLogger injects the smpp.server.<id> logger for the bind/unbind audit lines.
+// A nil logger (the default) disables them.
+func WithLogger(logger *slog.Logger) ServerOption {
+	return func(s *Server) { s.logger = logger }
 }
 
 // incStat increments an smppsapi counter when a registry is attached.

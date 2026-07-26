@@ -44,6 +44,18 @@ type Config struct {
 	// on each final submit_sm_resp. An empty level defaults to INFO; ApplyJasmin
 	// overlays both fields from the .cfg [sm-listener] section.
 	SubmitAuditLog SubmitAuditLogConfig `json:"submit_audit_log,omitempty"`
+	// SMPPServerLog configures the smpp.server.<id> logger (bind/unbind lines).
+	// ApplyJasmin overlays it from the .cfg [smpp-server] log_* directives.
+	SMPPServerLog ComponentLogConfig `json:"smpp_server_log,omitempty"`
+}
+
+// ComponentLogConfig is a component logger's level + rotating file sink, resolved
+// from a section's log_level/log_file/log_rotate. Empty File keeps the stderr
+// default; empty Level defaults to INFO.
+type ComponentLogConfig struct {
+	Level  string `json:"level,omitempty"`
+	File   string `json:"file,omitempty"`
+	Rotate string `json:"rotate,omitempty"`
 }
 
 // SubmitAuditLogConfig is the jasmin-sm-listener audit-line logging config: the
