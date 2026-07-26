@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -30,6 +31,13 @@ type pendingRequest struct {
 	// chain is non-nil when this is one part of a multipart submit sharing one
 	// durable attempt/delivery; it settles the message exactly once.
 	chain *submitChain
+	// The decoded request fields the SMS-MT audit line renders (captured at send
+	// time; the response carries none of them). Slices alias the decoded body,
+	// which is not mutated after send.
+	sourceAddr         []byte
+	destAddr           []byte
+	shortMessage       []byte
+	registeredDelivery byte
 }
 
 type SubmitDecoder interface {
@@ -82,6 +90,19 @@ type Session struct {
 	transactions    *submittransaction.Service
 	responses       *DurableResponseLifecycle
 	onClose         func(error)
+
+	// auditLogger renders the legacy SMS-MT audit line on a final submit_sm_resp;
+	// nil (the default) disables it. auditPrivacy is the sm-listener log_privacy.
+	auditLogger  *slog.Logger
+	auditPrivacy bool
+}
+
+// SetSubmitAuditLogger enables the legacy SMS-MT audit line for correlated
+// submit_sm_resp events. A nil logger (the default) disables it. Must be called
+// before the session handles responses; the connector sets it at session creation.
+func (s *Session) SetSubmitAuditLogger(logger *slog.Logger, privacy bool) {
+	s.auditLogger = logger
+	s.auditPrivacy = privacy
 }
 
 // NewSession preserves the pre-decoder constructor for focused compatibility
@@ -450,7 +471,11 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 			var wire []byte
 			wire, seqErr = smppwire.Encode(pdu)
 			if seqErr == nil {
-				pending := &pendingRequest{delivery: d, attempt: attempt, partKey: partKey, envelope: envelope, chain: chain}
+				pending := &pendingRequest{
+					delivery: d, attempt: attempt, partKey: partKey, envelope: envelope, chain: chain,
+					sourceAddr: bodies[i].SourceAddress, destAddr: bodies[i].DestinationAddress,
+					shortMessage: bodies[i].ShortMessage, registeredDelivery: bodies[i].RegisteredDelivery,
+				}
 				s.pending[seq] = pending
 				frames = append(frames, framedPart{seq: seq, wire: wire, pending: pending})
 				continue
@@ -638,6 +663,7 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 		}
 	}
 	if s.transactions == nil || s.responses == nil {
+		s.logSubmitAudit(pending, pdu)
 		s.settleDeliveryResponse(pending.delivery, pdu.Header.CommandStatus == 0)
 		return
 	}
@@ -668,7 +694,7 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	_, err := s.responses.Commit(ctx, DurableResponseInput{
+	committed, err := s.responses.Commit(ctx, DurableResponseInput{
 		PartKey: pending.partKey, AttemptID: pending.attempt.ID,
 		Status: smppStatusName(pdu.Header.CommandStatus), SMSCMessageID: string(smscMessageID),
 		ReplyEnabled: replyEnabled, ReplyTo: replyTo, MessageID: properties.MessageID(),
@@ -681,9 +707,56 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 		s.settleDeliveryFailure(pending.delivery)
 		return
 	}
+	// Log the SMS-MT audit line once, on the fresh commit only — the durable
+	// boundary is the exactly-once point, so a duplicate (replayed) commit must
+	// not re-log.
+	if committed {
+		s.logSubmitAudit(pending, pdu)
+	}
 	// Fresh and duplicate commits both mean the durable boundary owns all local
 	// effects. ACK only after that boundary, never directly on socket response.
 	s.settleDeliveryResponse(pending.delivery, true)
+}
+
+// logSubmitAudit emits the legacy SMS-MT audit line for a correlated, final
+// submit_sm_resp. It is single-part only for now — multipart content reassembly
+// (SAR concatenation / UDH-header stripping) and the populated tlvs field are
+// follow-ups (docs/plans/005) — so a multipart chain is skipped rather than logged
+// with just its last part. A nil auditLogger disables it.
+func (s *Session) logSubmitAudit(pending *pendingRequest, pdu smppwire.PDU) {
+	if s.auditLogger == nil || pending.chain != nil {
+		return
+	}
+	properties := pending.envelope.Properties()
+	priority, _ := properties.Priority()
+	validity := "none"
+	if expiration, ok := headerString(properties.Headers(), "expiration"); ok {
+		validity = expiration
+	}
+	fields := submitAuditFields{
+		ConnectorID:        s.cfg.CID,
+		QueueMsgID:         properties.MessageID(),
+		Status:             pdu.Header.CommandStatus,
+		Priority:           priority,
+		RegisteredDelivery: pending.registeredDelivery,
+		Validity:           validity,
+		SourceAddr:         pending.sourceAddr,
+		DestAddr:           pending.destAddr,
+		ShortMessage:       pending.shortMessage,
+		Privacy:            s.auditPrivacy,
+	}
+	if pdu.Header.CommandStatus == 0 {
+		if pdu.SubmitResponse != nil {
+			fields.SMPPMsgID = pdu.SubmitResponse.MessageID
+		}
+		s.auditLogger.Info(submitAuditLineSuccess(fields))
+		return
+	}
+	if s.retry != nil {
+		decision, err := s.retry.Decide(smppStatusName(pdu.Header.CommandStatus), pending.attempt.Number)
+		fields.WillRetry = err == nil && decision.Action == ErrorRetryRequeue
+	}
+	s.auditLogger.Info(submitAuditLineError(fields))
 }
 
 func headerString(headers map[string]amqpcompat.Field, name string) (string, bool) {
