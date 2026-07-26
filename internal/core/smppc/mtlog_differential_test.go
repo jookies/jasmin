@@ -5,10 +5,14 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"math/big"
 	"os"
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/pumpitspace/jasmin/internal/core/tlv"
+	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
 
 // TestSubmitAuditLineDifferential drives the exact legacy `%`-format for both
@@ -110,6 +114,125 @@ func unhex(t *testing.T, s string) []byte {
 		t.Fatalf("bad hex %q: %v", s, err)
 	}
 	return b
+}
+
+// TestFormatTLVsForLogDifferential proves formatTLVsForLog matches the legacy
+// format_tlvs_for_log (order, key:value rendering, enum/bytes/int values, and the
+// privacy mode) for the optional params + custom TLVs a Go submit surfaces.
+func TestFormatTLVsForLogDifferential(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	type custom struct {
+		Tag  uint64  `json:"tag"`
+		SVal *string `json:"sval,omitempty"`
+		IVal *int64  `json:"ival,omitempty"`
+		BVal *string `json:"bval,omitempty"` // hex
+	}
+	type spec struct {
+		SARRef   *int     `json:"sar_ref,omitempty"`
+		SARTotal *int     `json:"sar_total,omitempty"`
+		SARSeq   *int     `json:"sar_seq,omitempty"`
+		More     *int     `json:"more,omitempty"`
+		Payload  *string  `json:"payload,omitempty"` // hex
+		Customs  []custom `json:"customs,omitempty"`
+	}
+	intp := func(v int) *int { return &v }
+	strp := func(v string) *string { return &v }
+	i64p := func(v int64) *int64 { return &v }
+	specs := []spec{
+		{}, // none
+		{Payload: strp(hexOf("hi there"))},
+		{SARRef: intp(5), SARTotal: intp(3), SARSeq: intp(1), More: intp(1)},
+		{SARRef: intp(9), Payload: strp(hexOf("body")), Customs: []custom{{Tag: 0x1400, SVal: strp("hello")}, {Tag: 0x1401, IVal: i64p(42)}}},
+		{Customs: []custom{{Tag: 0x1500, BVal: strp(hexOf("a'b"))}, {Tag: 0x1501, SVal: strp("plain")}}},
+	}
+	payload, err := json.Marshal(specs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const oracle = `
+import sys, json, binascii
+from smpp.pdu.operations import SubmitSM
+from jasmin.tools.tlv import format_tlvs_for_log
+from smpp.pdu.pdu_types import MoreMessagesToSend
+out = []
+for s in json.load(sys.stdin):
+    p = SubmitSM(source_addr=b'1', destination_addr=b'2', short_message=b'm')
+    if s.get('sar_ref') is not None: p.params['sar_msg_ref_num'] = s['sar_ref']
+    if s.get('sar_total') is not None: p.params['sar_total_segments'] = s['sar_total']
+    if s.get('sar_seq') is not None: p.params['sar_segment_seqnum'] = s['sar_seq']
+    if s.get('more') is not None:
+        p.params['more_messages_to_send'] = MoreMessagesToSend.MORE_MESSAGES if s['more'] else MoreMessagesToSend.NO_MORE_MESSAGES
+    if s.get('payload') is not None: p.params['message_payload'] = binascii.unhexlify(s['payload'])
+    customs = []
+    for c in s.get('customs', []):
+        if c.get('sval') is not None: v = c['sval']
+        elif c.get('ival') is not None: v = c['ival']
+        else: v = binascii.unhexlify(c['bval'])
+        customs.append((c['tag'], 0, 'T', v))
+    p.custom_tlvs = customs
+    out.append({'plain': format_tlvs_for_log(p, False), 'priv': format_tlvs_for_log(p, True)})
+print(json.dumps(out))
+`
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, pythonPath, "-c", oracle)
+	command.Env = append(os.Environ(), "PYTHONPATH=../../..")
+	command.Stdin = bytes.NewReader(payload)
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	var want []struct {
+		Plain string `json:"plain"`
+		Priv  string `json:"priv"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(output), &want); err != nil {
+		t.Fatalf("oracle output %q: %v", output, err)
+	}
+	for i, s := range specs {
+		var opt smppwire.OptionalParameters
+		if s.SARRef != nil {
+			v := uint16(*s.SARRef)
+			opt.SARMessageReference = &v
+		}
+		if s.SARTotal != nil {
+			v := byte(*s.SARTotal)
+			opt.SARTotalSegments = &v
+		}
+		if s.SARSeq != nil {
+			v := byte(*s.SARSeq)
+			opt.SARSegmentSequence = &v
+		}
+		if s.More != nil {
+			v := byte(*s.More)
+			opt.MoreMessagesToSend = &v
+		}
+		if s.Payload != nil {
+			opt.MessagePayload = unhex(t, *s.Payload)
+		}
+		var customs []tlv.TLV
+		for _, c := range s.Customs {
+			entry := tlv.TLV{Tag: new(big.Int).SetUint64(c.Tag)}
+			switch {
+			case c.SVal != nil:
+				entry.Value = *c.SVal
+			case c.IVal != nil:
+				entry.Value = *c.IVal
+			default:
+				entry.Value = unhex(t, *c.BVal)
+			}
+			customs = append(customs, entry)
+		}
+		if got := formatTLVsForLog(opt, customs, false); got != want[i].Plain {
+			t.Errorf("spec %d plain: go %q, py %q", i, got, want[i].Plain)
+		}
+		if got := formatTLVsForLog(opt, customs, true); got != want[i].Priv {
+			t.Errorf("spec %d priv: go %q, py %q", i, got, want[i].Priv)
+		}
+	}
 }
 
 // TestPythonBytesReprDifferential proves pythonBytesRepr reproduces CPython's
