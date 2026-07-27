@@ -58,6 +58,23 @@ func (manager *Manager) AddUserWithID(username, userID string, user *User) error
 	return nil
 }
 
+// RemoveUser deletes a user and its id mappings. Returns ErrUserNotFound when
+// the username is absent, so callers can distinguish a no-op.
+func (manager *Manager) RemoveUser(username string) error {
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if _, ok := manager.users[username]; !ok {
+		return ErrUserNotFound
+	}
+	if userID, ok := manager.userIDs[username]; ok {
+		delete(manager.usersByID, userID)
+		delete(manager.idOwners, userID)
+	}
+	delete(manager.users, username)
+	delete(manager.userIDs, username)
+	return nil
+}
+
 func (manager *Manager) GetUser(username string) (*User, error) {
 	user, _, err := manager.GetUserIdentity(username)
 	return user, err

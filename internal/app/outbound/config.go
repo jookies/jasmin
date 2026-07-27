@@ -13,6 +13,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/billing"
@@ -67,9 +68,12 @@ func (route RouteConfig) ConnectorCandidates() []string {
 }
 
 type runtimeDirectory struct {
-	users          *billing.Manager
+	users       *billing.Manager
+	defaultRate float64
+	// mu guards passwordHashes, read on the hot Authenticate path and written
+	// by admin user provisioning. billing.Manager has its own lock.
+	mu             sync.RWMutex
 	passwordHashes map[string][sha256.Size]byte
-	defaultRate    float64
 }
 
 func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
@@ -78,41 +82,67 @@ func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
 		passwordHashes: make(map[string][sha256.Size]byte, len(config.Users)),
 	}
 	for index, entry := range config.Users {
-		if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
-			return nil, fmt.Errorf("%w: user %d identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, index)
+		if err := directory.applyUser(entry, int64(index+1)); err != nil {
+			return nil, err
 		}
-		rawHash, err := hex.DecodeString(entry.PasswordSHA256)
-		if err != nil || len(rawHash) != sha256.Size {
-			return nil, fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
-		}
-		var passwordHash [sha256.Size]byte
-		copy(passwordHash[:], rawHash)
-		if _, duplicate := directory.passwordHashes[entry.Username]; duplicate {
-			return nil, fmt.Errorf("%w: duplicate username %q", ErrInvalidRuntimeConfig, entry.Username)
-		}
-		user := billing.NewUser(int64(index + 1))
-		if entry.Balance != nil {
-			if err := user.SetBalance(*entry.Balance); err != nil {
-				return nil, fmt.Errorf("%w: user %q balance: %v", ErrInvalidRuntimeConfig, entry.Username, err)
-			}
-		}
-		if entry.SubmitSMCount != nil {
-			if *entry.SubmitSMCount < 0 {
-				return nil, fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
-			}
-			user.SetSubmitSmCountQuota(*entry.SubmitSMCount)
-		}
-		if entry.EarlyDecrementBalancePercent != nil {
-			if err := user.SetEarlyDecrementPercent(*entry.EarlyDecrementBalancePercent); err != nil {
-				return nil, fmt.Errorf("%w: user %q early percentage: %v", ErrInvalidRuntimeConfig, entry.Username, err)
-			}
-		}
-		if err := directory.users.AddUserWithID(entry.Username, entry.ExternalID, user); err != nil {
-			return nil, fmt.Errorf("%w: user %q: %v", ErrInvalidRuntimeConfig, entry.Username, err)
-		}
-		directory.passwordHashes[entry.Username] = passwordHash
 	}
 	return directory, nil
+}
+
+// applyUser validates a user entry (legacy identity + password + billing state)
+// and installs it with the given internal uid. Shared by boot and admin
+// provisioning; safe for concurrent use.
+func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error {
+	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
+		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	rawHash, err := hex.DecodeString(entry.PasswordSHA256)
+	if err != nil || len(rawHash) != sha256.Size {
+		return fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	var passwordHash [sha256.Size]byte
+	copy(passwordHash[:], rawHash)
+	user := billing.NewUser(uid)
+	if entry.Balance != nil {
+		if err := user.SetBalance(*entry.Balance); err != nil {
+			return fmt.Errorf("%w: user %q balance: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+		}
+	}
+	if entry.SubmitSMCount != nil {
+		if *entry.SubmitSMCount < 0 {
+			return fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
+		}
+		user.SetSubmitSmCountQuota(*entry.SubmitSMCount)
+	}
+	if entry.EarlyDecrementBalancePercent != nil {
+		if err := user.SetEarlyDecrementPercent(*entry.EarlyDecrementBalancePercent); err != nil {
+			return fmt.Errorf("%w: user %q early percentage: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+		}
+	}
+	directory.mu.Lock()
+	defer directory.mu.Unlock()
+	if _, duplicate := directory.passwordHashes[entry.Username]; duplicate {
+		return fmt.Errorf("%w: duplicate username %q", ErrInvalidRuntimeConfig, entry.Username)
+	}
+	if err := directory.users.AddUserWithID(entry.Username, entry.ExternalID, user); err != nil {
+		return fmt.Errorf("%w: user %q: %v", ErrInvalidRuntimeConfig, entry.Username, err)
+	}
+	directory.passwordHashes[entry.Username] = passwordHash
+	return nil
+}
+
+// removeUser deletes a provisioned user and its password hash.
+func (directory *runtimeDirectory) removeUser(username string) error {
+	directory.mu.Lock()
+	defer directory.mu.Unlock()
+	if _, ok := directory.passwordHashes[username]; !ok {
+		return fmt.Errorf("%w: user %q not found", ErrInvalidRuntimeConfig, username)
+	}
+	if err := directory.users.RemoveUser(username); err != nil {
+		return err
+	}
+	delete(directory.passwordHashes, username)
+	return nil
 }
 
 // resolveUID resolves a configured username to its internal billing uid, for
@@ -126,7 +156,9 @@ func (directory *runtimeDirectory) resolveUID(username string) (int64, bool) {
 }
 
 func (directory *runtimeDirectory) Authenticate(_ context.Context, username, password string) error {
+	directory.mu.RLock()
 	expected, ok := directory.passwordHashes[username]
+	directory.mu.RUnlock()
 	if !ok {
 		return core.ErrAuthentication
 	}

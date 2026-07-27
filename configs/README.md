@@ -92,10 +92,16 @@ Notes:
   provisioning plane at `/admin`: SQLite-backed connector CRUD applied live
   through the manager, surviving restart. Every request needs
   `Authorization: Bearer <token>`; `token` takes a secret-ref (`env:ADMIN_TOKEN`).
-  Config connectors are reserved (admin manages an additive set). Endpoints:
-  `GET/POST /admin/connectors`, `GET/PUT/DELETE /admin/connectors/{cid}`,
-  `POST /admin/connectors/{cid}/start|stop`. Route/user CRUD is a follow-up;
-  see docs/adr/001 for the SQLite choice.
+  Config-defined connectors/routes/users are reserved (admin manages an
+  additive set). Endpoints — connectors: `GET/POST /admin/connectors`,
+  `GET/PUT/DELETE /admin/connectors/{cid}`,
+  `POST /admin/connectors/{cid}/start|stop`; MT routes:
+  `GET/POST /admin/routes`, `GET/PUT/DELETE /admin/routes/{order}` (body is a
+  `routes[]` entry incl. `filters`); users: `GET/POST /admin/users`,
+  `GET/PUT/DELETE /admin/users/{username}` (body is a `users[]` entry;
+  admin-assigned uid is stable across restarts so route user-filters resolve).
+  All three apply live and survive restart. See docs/adr/001 for the SQLite
+  choice; jCli byte-parity console stays deferred.
 - **jasmin.cfg overlay.** `--jasmin-cfg /etc/jasmin/jasmin.cfg` optionally overlays
   infrastructure settings (broker, redis, listeners, logging) from a legacy config;
   connectors and routes still come from the JSON.
