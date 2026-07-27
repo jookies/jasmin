@@ -95,6 +95,12 @@ Notes:
   (legacy HttpConnector URL rules: dotted host / localhost / IP only) or
   `{"type":"smpps","system_id"}`. Enable `deliver_sm_thrower` to actually throw
   routed MOs; the example's sink URL is the compose drill target — replace it.
+- **Pickle codec.** `pickle_codec` (top-level) selects the AMQP encode/decode
+  engine: `"native"` (the pure-Go codec — no `pickle_bridge.py` subprocess) or
+  `"bridge"`/omitted (the Python bridge). Both are byte/semantic-equivalent
+  (proven by the `picklecompat` differentials); default is `"bridge"` until the
+  native path has soaked. `"native"` still needs Python only if `mt_interceptors`/
+  `mo_interceptors` are set (the interceptor runner is a separate contract).
 - **Durable AMQP.** `amqp_durable_topology: true` (top-level) declares every
   exchange/queue durable so queued submits survive a broker restart; publishes
   are always persistent. Durability must be uniform per vhost: AMQP rejects a

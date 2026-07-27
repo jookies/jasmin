@@ -34,7 +34,7 @@ type Runtime struct {
 	submitter    core.Submitter
 	directory    *runtimeDirectory
 	publisher    *amqpcompat.Publisher
-	bridge       *picklecompat.Bridge
+	bridge       picklecompat.Codec
 	connection   *amqp.Connection
 	billing      *lateBillingConsumer
 	outboxCancel context.CancelFunc
@@ -53,7 +53,7 @@ type Runtime struct {
 }
 
 type RuntimeDependencies struct {
-	Bridge             *picklecompat.Bridge
+	Bridge             picklecompat.Codec
 	Transactions       *submittransaction.Service
 	Repository         submittransaction.Repository
 	ConnectorAvailable func(string) bool

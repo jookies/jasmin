@@ -13,15 +13,12 @@ import (
 // unset) plus the SAR params when segmented, with id=submit_sm, status=ESME_ROK,
 // and empty custom_tlvs.
 //
-// Not yet ported (returns an error so callers fall back to the bridge): the
-// SubmitSmBill (include_bill), schedule/validity times, and custom TLVs — these
-// land in later plan-010 steps.
+// The SubmitSmBill (include_bill) rides along as a minimal loadable bill (the Go
+// path reads the late-bill amount from the AMQP header, not the pickle). Not yet
+// ported: schedule/validity times, custom TLVs, GSM/scheme data_codings.
 func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncodeRequest) (SubmitSMEncodeResult, error) {
 	if err := ctx.Err(); err != nil {
 		return SubmitSMEncodeResult{}, err
-	}
-	if request.IncludeBill {
-		return SubmitSMEncodeResult{}, fmt.Errorf("%w: SubmitSmBill encoding not yet ported", ErrNativeCodec)
 	}
 	if request.ScheduleAt != "" || request.ValidityUntil != "" {
 		return SubmitSMEncodeResult{}, fmt.Errorf("%w: schedule/validity times not yet ported", ErrNativeCodec)
@@ -104,7 +101,15 @@ func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncode
 	if err != nil {
 		return SubmitSMEncodeResult{}, err
 	}
-	return SubmitSMEncodeResult{Body: body, Bill: nil}, nil
+	result := SubmitSMEncodeResult{Body: body}
+	if request.IncludeBill {
+		bill, err := gopickle.Dump(submitSmBill(request))
+		if err != nil {
+			return SubmitSMEncodeResult{}, err
+		}
+		result.Bill = bill
+	}
+	return result, nil
 }
 
 // simpleEnumValue builds EnumClass(ordinal) for a wire byte via its wire->ordinal
