@@ -96,11 +96,14 @@ Notes:
   `{"type":"smpps","system_id"}`. Enable `deliver_sm_thrower` to actually throw
   routed MOs; the example's sink URL is the compose drill target — replace it.
 - **Pickle codec.** `pickle_codec` (top-level) selects the AMQP encode/decode
-  engine: `"native"` (the pure-Go codec — no `pickle_bridge.py` subprocess) or
-  `"bridge"`/omitted (the Python bridge). Both are byte/semantic-equivalent
-  (proven by the `picklecompat` differentials); default is `"bridge"` until the
-  native path has soaked. `"native"` still needs Python only if `mt_interceptors`/
-  `mo_interceptors` are set (the interceptor runner is a separate contract).
+  engine: `"native"`/omitted (the pure-Go codec — no `pickle_bridge.py`
+  subprocess, the **default**) or `"bridge"` (the legacy Python bridge, an opt-in
+  fallback). Both are byte/semantic-equivalent (proven by the `picklecompat`
+  differentials). The bridge is retired from `docker/Dockerfile.gateway`, so
+  selecting `"bridge"` requires supplying `scripts/pickle_bridge.py` + its
+  `smpp-pdu3` dependency + the `jasmin/` source tree out of band. The native path
+  still needs Python only if `mt_interceptors`/`mo_interceptors` are set (the
+  interceptor runner is stdlib-only and shipped in the image).
 - **Durable AMQP.** `amqp_durable_topology: true` (top-level) declares every
   exchange/queue durable so queued submits survive a broker restart; publishes
   are always persistent. Durability must be uniform per vhost: AMQP rejects a

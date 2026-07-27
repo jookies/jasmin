@@ -29,9 +29,9 @@ type Config struct {
 	Connectors           []smppc.Config  `json:"connectors"`
 	RequiredConnectorIDs []string        `json:"required_connector_ids"`
 	BindTimeoutSeconds   float64         `json:"bind_timeout_seconds"`
-	// PickleCodec selects the AMQP pickle encode/decode engine: "native" (the
-	// Go codec, no Python subprocess) or "bridge"/"" (scripts/pickle_bridge.py).
-	// Defaults to "bridge" for safety; flip to "native" after soak.
+	// PickleCodec selects the AMQP pickle encode/decode engine: "native"/"" (the
+	// Go codec, no Python subprocess — the default) or "bridge" (the legacy
+	// scripts/pickle_bridge.py subprocess, kept as an opt-in fallback).
 	PickleCodec string `json:"pickle_codec,omitempty"`
 	// AMQPDurableTopology declares every exchange/queue this process creates
 	// durable (all publishes are already persistent), so queued submits survive

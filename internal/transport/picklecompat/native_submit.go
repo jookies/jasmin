@@ -14,17 +14,12 @@ import (
 // and empty custom_tlvs.
 //
 // The SubmitSmBill (include_bill) rides along as a minimal loadable bill (the Go
-// path reads the late-bill amount from the AMQP header, not the pickle). Not yet
-// ported: schedule/validity times, custom TLVs, GSM/scheme data_codings.
+// path reads the late-bill amount from the AMQP header, not the pickle). Schedule/
+// validity times and custom TLVs are ported; only GSM/scheme data_codings remain
+// a bridge-only edge (poisoned here).
 func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncodeRequest) (SubmitSMEncodeResult, error) {
 	if err := ctx.Err(); err != nil {
 		return SubmitSMEncodeResult{}, err
-	}
-	if request.ScheduleAt != "" || request.ValidityUntil != "" {
-		return SubmitSMEncodeResult{}, fmt.Errorf("%w: schedule/validity times not yet ported", ErrNativeCodec)
-	}
-	if len(request.CustomTLVs) > 0 {
-		return SubmitSMEncodeResult{}, fmt.Errorf("%w: custom TLVs not yet ported", ErrNativeCodec)
 	}
 	if request.Sequence < 1 || request.Sequence > 0x7fffffff {
 		return SubmitSMEncodeResult{}, fmt.Errorf("%w: sequence %d out of SMPP range", ErrNativeCodec, request.Sequence)
@@ -59,6 +54,22 @@ func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncode
 	if err != nil {
 		return SubmitSMEncodeResult{}, err
 	}
+	var scheduleValue gopickle.Value = gopickle.None{}
+	if request.ScheduleAt != "" {
+		if scheduleValue, err = scheduleValidityValue(request.ScheduleAt); err != nil {
+			return SubmitSMEncodeResult{}, err
+		}
+	}
+	var validityValue gopickle.Value = gopickle.None{}
+	if request.ValidityUntil != "" {
+		if validityValue, err = scheduleValidityValue(request.ValidityUntil); err != nil {
+			return SubmitSMEncodeResult{}, err
+		}
+	}
+	customTLVs, err := customTLVList(request.CustomTLVs)
+	if err != nil {
+		return SubmitSMEncodeResult{}, err
+	}
 
 	params := gopickle.Dict{
 		{Key: gopickle.Str("source_addr"), Value: gopickle.Bytes(request.SourceAddr)},
@@ -74,8 +85,8 @@ func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncode
 		{Key: gopickle.Str("dest_addr_npi"), Value: destNPI},
 		{Key: gopickle.Str("service_type"), Value: optionalBytes(request.ServiceType)},
 		{Key: gopickle.Str("protocol_id"), Value: optionalInt(int64(request.ProtocolID))},
-		{Key: gopickle.Str("schedule_delivery_time"), Value: gopickle.None{}},
-		{Key: gopickle.Str("validity_period"), Value: gopickle.None{}},
+		{Key: gopickle.Str("schedule_delivery_time"), Value: scheduleValue},
+		{Key: gopickle.Str("validity_period"), Value: validityValue},
 		{Key: gopickle.Str("replace_if_present_flag"), Value: replace},
 		{Key: gopickle.Str("sm_default_msg_id"), Value: optionalInt(int64(request.SmDefaultMsgID))},
 	}
@@ -93,7 +104,7 @@ func (c *NativeCodec) EncodeSubmitSM(ctx context.Context, request SubmitSMEncode
 			{Key: gopickle.Str("id"), Value: smppEnum("CommandId", commandIDSubmitSM)},
 			{Key: gopickle.Str("seqNum"), Value: gopickle.Int(int64(request.Sequence))},
 			{Key: gopickle.Str("status"), Value: smppEnum("CommandStatus", 1)}, // ESME_ROK default
-			{Key: gopickle.Str("custom_tlvs"), Value: gopickle.List{}},
+			{Key: gopickle.Str("custom_tlvs"), Value: customTLVsState(customTLVs)},
 			{Key: gopickle.Str("params"), Value: params},
 		},
 	}
@@ -122,21 +133,50 @@ func simpleEnumValue(enum string, table map[uint8]int, wire uint8) (gopickle.Val
 	return smppEnum(enum, ordinal), nil
 }
 
-// dataCodingValue reproduces DataCodingEncoder().decode for a default-scheme
-// data_coding byte: DataCoding{scheme: DataCodingScheme.DEFAULT, schemeData:
-// DataCodingDefault(<coding>)}.
+// dataCodingValue reproduces DataCodingEncoder().decode(bytes([dc])) for every
+// data_coding byte, matching the three shapes smpp.pdu produces:
+//   - DEFAULT (0-10,13,14): DataCoding{DataCodingScheme.DEFAULT, DataCodingDefault(<coding>)}
+//   - RAW (11,12,15-239):   DataCoding{DataCodingScheme.RAW, <int dc>}
+//   - GSM_MESSAGE_CLASS (240-255): DataCoding{DataCodingScheme.GSM_MESSAGE_CLASS,
+//     DataCodingGsmMsg(msgCoding, msgClass)} — a NEWOBJ with TUPLE2 args (no BUILD).
+// The three ranges partition 0-255, so every byte is encodable (SMPPs-inbound
+// submits carry unconstrained data_coding bytes, unlike the HTTP allowlist).
 func dataCodingValue(dc uint8) (gopickle.Value, error) {
-	ordinal, ok := dataCodingDefaultOrdinal[dc]
-	if !ok {
-		return nil, fmt.Errorf("%w: data_coding %d outside the default range (GSM/scheme codings not yet ported)", ErrNativeCodec, dc)
+	var scheme int
+	var schemeData gopickle.Value
+	switch {
+	case defaultOrdinalOK(dc):
+		scheme = dataCodingDefaultSchemeOrdinal
+		schemeData = smppEnum("DataCodingDefault", dataCodingDefaultOrdinal[dc])
+	case dataCodingRawBytes[dc]:
+		scheme = dataCodingSchemeRawOrdinal
+		schemeData = gopickle.Int(int64(dc))
+	default:
+		pair, ok := gsmMsgOrdinals[dc]
+		if !ok {
+			return nil, fmt.Errorf("%w: data_coding %d unclassified", ErrNativeCodec, dc)
+		}
+		scheme = dataCodingSchemeGSMOrdinal
+		schemeData = gopickle.Object{
+			Class: gopickle.Global{Module: "smpp.pdu.pdu_types", Name: "DataCodingGsmMsg"},
+			Args: gopickle.Tuple{
+				smppEnum("DataCodingGsmMsgCoding", pair.Coding),
+				smppEnum("DataCodingGsmMsgClass", pair.Class),
+			},
+		}
 	}
 	return gopickle.Object{
 		Class: gopickle.Global{Module: "smpp.pdu.pdu_types", Name: "DataCoding"},
 		State: gopickle.Dict{
-			{Key: gopickle.Str("scheme"), Value: smppEnum("DataCodingScheme", dataCodingDefaultSchemeOrdinal)},
-			{Key: gopickle.Str("schemeData"), Value: smppEnum("DataCodingDefault", ordinal)},
+			{Key: gopickle.Str("scheme"), Value: smppEnum("DataCodingScheme", scheme)},
+			{Key: gopickle.Str("schemeData"), Value: schemeData},
 		},
 	}, nil
+}
+
+func defaultOrdinalOK(dc uint8) bool {
+	_, ok := dataCodingDefaultOrdinal[dc]
+	return ok
 }
 
 // esmClassValue builds the EsmClass the bridge constructs: STORE_AND_FORWARD/

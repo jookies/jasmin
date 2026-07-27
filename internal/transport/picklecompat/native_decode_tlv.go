@@ -45,22 +45,27 @@ func projectOptionalTLVs(params gopickle.Dict) ([]submitSMOptionalTLV, error) {
 	if payload, ok := paramValue(params, "message_payload").(gopickle.Bytes); ok {
 		tlvs = append(tlvs, submitSMOptionalTLV{Tag: 0x0424, Value: Bytes(payload)})
 	}
+	// Defensive guard: neither encoder sets more_messages_to_send on a submit (it
+	// is not part of the encode request), so a non-None value is unexpected and
+	// rejected rather than silently dropped. The deliver path, which does carry it,
+	// decodes it in populateDeliverOptional.
 	if value := paramValue(params, "more_messages_to_send"); value != nil {
 		if _, isNone := value.(gopickle.None); !isNone {
-			return nil, poisonSubmitError("more_messages_to_send decoding not yet ported")
+			return nil, poisonSubmitError("unexpected more_messages_to_send on submit")
 		}
 	}
 	return tlvs, nil
 }
 
-// projectCustomTLVTuples projects pdu.custom_tlvs. Empty is the common case;
-// non-empty custom TLV decoding is not yet ported (symmetric with encode).
+// projectCustomTLVTuples projects pdu.custom_tlvs into the bridge's
+// [tag, length, type, value] JSON entries (which buildSubmitPart then feeds to
+// decodeWireCustomTLVs). Empty / absent yields nil.
 func projectCustomTLVTuples(state gopickle.Dict) ([]json.RawMessage, error) {
 	list, ok := paramValue(state, "custom_tlvs").(gopickle.List)
 	if !ok || len(list) == 0 {
 		return nil, nil
 	}
-	return nil, poisonSubmitError("custom TLV decoding not yet ported")
+	return customTLVTuplesJSON(list)
 }
 
 func sortInts(values []int) { sort.Ints(values) }
