@@ -15,6 +15,13 @@
         "submit_sm_count": 10000
       }
     ],
+    "mt_interceptors": [
+      {
+        "order": 10,
+        "filters": [{"type": "short_message", "pattern": ".*STOP"}],
+        "py_code": "smpp_status = 88\nhttp_status = 400"
+      }
+    ],
     "routes": [
       {
         "connector_id": "smsc-primary",
