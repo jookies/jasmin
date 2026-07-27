@@ -40,6 +40,14 @@ Notes:
   `{"connector_ids": ["cid-a", "cid-b"], "order": 10, "rate": 0.0, "default": false}`.
 - **DLR workers.** An empty `amqp_url` in `dlr_lookup`/`dlr_thrower` inherits the
   outbound broker. `dlr_lookup.redis_url` must parse as a Redis URL.
+- **MO routing.** `mo_routes` runs the MO router dispatch in-process: a default
+  route (`order 0`) plus connector-filtered static routes
+  (`filter_connector_id` = source SMSC connector, positive `order`, higher
+  wins). Destinations: `{"type":"http","cid","url","method"}` (legacy
+  HttpConnector URL rules: dotted host / localhost / IP only) or
+  `{"type":"smpps","system_id"}`. Enable `deliver_sm_thrower` to actually
+  throw routed MOs; the example's sink URL is the compose drill target —
+  replace it. Content-based filters land with the filter-routing step.
 - **Durable AMQP.** `amqp_durable_topology: true` (top-level) declares every
   exchange/queue durable so queued submits survive a broker restart; publishes
   are always persistent. Durability must be uniform per vhost: AMQP rejects a

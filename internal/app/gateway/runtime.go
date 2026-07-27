@@ -9,8 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
+	"github.com/pumpitspace/jasmin/internal/app/modispatch"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
@@ -164,6 +167,19 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	mux.Handle("/health", runtime.healthHandler())
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
+	if len(config.MORoutes) > 0 {
+		dispatchConfig := modispatch.Config{
+			AMQPURL:             config.Outbound.AMQPURL,
+			AMQPDurableTopology: config.Outbound.AMQPDurableTopology,
+			Routes:              config.MORoutes,
+		}
+		dispatchService, dispatchErr := modispatch.NewService(ctx, dispatchConfig, bridge,
+			modispatch.WithOnError(func(err error) { slog.Default().Error("modispatch: " + err.Error()) }))
+		if dispatchErr != nil {
+			return nil, fmt.Errorf("start MO dispatch: %w", dispatchErr)
+		}
+		go func() { _ = dispatchService.Run(workerCtx) }()
+	}
 	if config.DLRLookup != nil {
 		lookupConfig := *config.DLRLookup
 		if lookupConfig.AMQPURL == "" {

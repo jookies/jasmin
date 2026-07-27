@@ -69,6 +69,21 @@
   "dlr_thrower": {
     "amqp_url": ""
   },
+  "deliver_sm_thrower": {
+    "amqp_url": ""
+  },
+  "mo_routes": [
+    {
+      "order": 0,
+      "default": true,
+      "connector": {
+        "type": "http",
+        "cid": "mo-sink",
+        "url": "http://host.docker.internal:8899/mo",
+        "method": "GET"
+      }
+    }
+  ],
   "submit_audit_log": {
     "level": "INFO",
     "privacy": false
