@@ -18,6 +18,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/app/smppsdelivery"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
+	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/logging"
 	"github.com/pumpitspace/jasmin/internal/core/mo"
@@ -41,6 +42,7 @@ type Runtime struct {
 	moThrower          *mothrower.Service
 	smppsServer        *smppsserver.Service
 	requiredConnectors []string
+	dlrRedisClose      func()
 	workerCancel       context.CancelFunc
 	closeOnce          sync.Once
 	closeErr           error
@@ -139,10 +141,32 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		defaults, ok := connectorPDUDefaults[connectorID]
 		return defaults, ok
 	}
+	// Per-connector dlr_expiry (record TTL) for the submit-side DLR store.
+	connectorDLRExpiry := make(map[string]int64, len(config.Connectors))
+	for _, connector := range config.Connectors {
+		if connector.DLRExpiry > 0 {
+			connectorDLRExpiry[connector.CID] = int64(connector.DLRExpiry)
+		}
+	}
+	dlrExpiryProvider := func(connectorID string) int64 { return connectorDLRExpiry[connectorID] }
+	// The submit-side DLR store shares the DLRLookup Redis: writing dlr:<msgid>
+	// here is what lets terminal (level-2/3) receipts correlate. Enabled only
+	// when a Redis URL is configured (dlr_lookup present); without it, level-1
+	// callbacks via the response path still work, terminal ones cannot.
+	var dlrRequestStore core.DLRRequestStore
+	if config.DLRLookup != nil && config.DLRLookup.RedisURL != "" {
+		store, redisCleanup, storeErr := newDLRRequestStore(config.DLRLookup.RedisURL)
+		if storeErr != nil {
+			return nil, fmt.Errorf("open DLR request store: %w", storeErr)
+		}
+		runtime.dlrRedisClose = redisCleanup
+		dlrRequestStore = store
+	}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
 		DLRLookupPID: dlrLookupPID, ConnectorPDUDefaults: pduDefaultsProvider,
+		DLRRequestStore: dlrRequestStore, ConnectorDLRExpiry: dlrExpiryProvider,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start outbound runtime: %w", err)
@@ -190,6 +214,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if lookupErr != nil {
 			return nil, fmt.Errorf("start DLR lookup worker: %w", lookupErr)
 		}
+		// Surface per-delivery failures: a dropped DLR correlation (map not
+		// found, malformed record) is otherwise silent — the same blind spot
+		// that hid earlier drops.
+		lookupService.OnError = func(err error) { slog.Default().Error("dlrlookup: " + err.Error()) }
 		runtime.dlrLookup = lookupService
 		go func() { _ = lookupService.Run(workerCtx) }()
 	}
@@ -299,6 +327,9 @@ func (runtime *Runtime) Close() error {
 		}
 		if runtime.workerCancel != nil {
 			runtime.workerCancel()
+		}
+		if runtime.dlrRedisClose != nil {
+			runtime.dlrRedisClose()
 		}
 		if runtime.dlrLookup != nil {
 			if err := runtime.dlrLookup.Close(); err != nil {

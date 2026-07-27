@@ -75,6 +75,10 @@ type Config struct {
 	// vs resp hex, 2 receipt hex vs resp decimal) — code_dlr_msgid semantics.
 	DLRMsgIDBases int `json:"dlr_msg_id_bases,omitempty"`
 
+	// DLRExpiry is the legacy dlr_expiry: the TTL (seconds) of the submit-side
+	// dlr:<msgid> callback record and the queue-msgid mapping. 0 → 86400.
+	DLRExpiry int `json:"dlr_expiry,omitempty"`
+
 	// AMQPDurableTopology declares this connector's submit queue (and the
 	// messaging exchange) durable. Go-runtime knob, not a legacy field: the
 	// legacy stack declares non-durable, and AMQP rejects mismatched
@@ -188,6 +192,9 @@ func (c *Config) Validate() error {
 	}
 	if c.DLRMsgIDBases < 0 || c.DLRMsgIDBases > 2 {
 		return fmt.Errorf("dlr_msg_id_bases must be 0, 1 or 2")
+	}
+	if c.DLRExpiry < 0 {
+		return fmt.Errorf("dlr_expiry must be non-negative")
 	}
 	if c.PrefetchCount == 0 {
 		c.PrefetchCount = 1
