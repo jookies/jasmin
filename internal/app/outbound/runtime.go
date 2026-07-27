@@ -241,6 +241,13 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 
 // Submitter exposes the composed MT submit pipeline so other ingress paths
 // (the SMPPS server) can share the same routing/billing/publication engine.
+// AMQPHealthy reports whether the runtime's broker connection is open. A nil
+// connection (dependency-injected runtimes without an owned broker) counts as
+// healthy so the check reflects only state this runtime owns.
+func (runtime *Runtime) AMQPHealthy() bool {
+	return runtime.connection == nil || !runtime.connection.IsClosed()
+}
+
 func (runtime *Runtime) Submitter() core.Submitter {
 	if runtime == nil {
 		return nil

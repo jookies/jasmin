@@ -160,6 +160,30 @@ func (b *Bridge) Encode(ctx context.Context, obj any) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(res.Data)
 }
 
+// Ping round-trips a no-op action through the subprocess, proving the bridge
+// loop is alive and serving requests — not merely that the process exists.
+// It shares the request mutex, so a hung in-flight request delays it; callers
+// probing health should bound the wait themselves and treat a timeout as
+// unhealthy rather than assume Ping returns promptly.
+func (b *Bridge) Ping(ctx context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := json.NewEncoder(b.stdin).Encode(bridgeRequest{Action: "ping"}); err != nil {
+		return fmt.Errorf("send bridge ping: %w", err)
+	}
+	var response bridgeResponse
+	if err := b.decodeResponse(ctx, &response); err != nil {
+		return fmt.Errorf("read bridge ping response: %w", err)
+	}
+	if response.Status != "ok" {
+		return fmt.Errorf("bridge ping error: %s", response.Message)
+	}
+	return nil
+}
+
 // EncodeSubmitSMResponse creates the exact protocol-2 SubmitSMResp object used
 // by the legacy response listener. The action is fixed; callers cannot choose a
 // Python class or arbitrary constructor.
