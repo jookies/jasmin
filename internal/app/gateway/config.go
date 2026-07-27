@@ -29,6 +29,10 @@ type Config struct {
 	Connectors           []smppc.Config  `json:"connectors"`
 	RequiredConnectorIDs []string        `json:"required_connector_ids"`
 	BindTimeoutSeconds   float64         `json:"bind_timeout_seconds"`
+	// PickleCodec selects the AMQP pickle encode/decode engine: "native" (the
+	// Go codec, no Python subprocess) or "bridge"/"" (scripts/pickle_bridge.py).
+	// Defaults to "bridge" for safety; flip to "native" after soak.
+	PickleCodec string `json:"pickle_codec,omitempty"`
 	// AMQPDurableTopology declares every exchange/queue this process creates
 	// durable (all publishes are already persistent), so queued submits survive
 	// a broker restart. One switch for the whole process: durability must be
@@ -139,6 +143,11 @@ func LoadConfig(path string) (Config, error) {
 func ValidateConfig(config Config) error {
 	if config.Role != RoleHTTPAndSMPPc {
 		return fmt.Errorf("%w: role must be %q", ErrInvalidConfig, RoleHTTPAndSMPPc)
+	}
+	switch config.PickleCodec {
+	case "", "bridge", "native":
+	default:
+		return fmt.Errorf("%w: pickle_codec must be \"native\" or \"bridge\"", ErrInvalidConfig)
 	}
 	if err := outbound.ValidateConfig(config.Outbound); err != nil {
 		return fmt.Errorf("%w: outbound: %v", ErrInvalidConfig, err)

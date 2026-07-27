@@ -38,7 +38,7 @@ type Runtime struct {
 	Handler            http.Handler
 	manager            *smppc.Manager
 	outbound           *outbound.Runtime
-	bridge             *picklecompat.Bridge
+	bridge             picklecompat.Codec
 	store              *storage.PostgresSubmitTransactionRepository
 	dlrLookup          *dlrlookup.Service
 	dlrThrower         *dlrthrower.Service
@@ -86,9 +86,17 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if _, err = transactions.Recover(ctx); err != nil {
 		return nil, fmt.Errorf("recover unresolved submit attempts: %w", err)
 	}
-	bridge, err := picklecompat.NewBridge(workerCtx, config.Outbound.PythonPath)
-	if err != nil {
-		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
+	// Select the pickle codec: the native Go codec (no subprocess) or the
+	// Python bridge. The bridge is the default until the native path has soaked.
+	var bridge picklecompat.Codec
+	if config.PickleCodec == "native" {
+		bridge = picklecompat.NewNativeCodec()
+	} else {
+		bridgeImpl, bridgeErr := picklecompat.NewBridge(workerCtx, config.Outbound.PythonPath)
+		if bridgeErr != nil {
+			return nil, fmt.Errorf("start trusted pickle bridge: %w", bridgeErr)
+		}
+		bridge = bridgeImpl
 	}
 	runtime.bridge = bridge
 	// One shared jasmin-sm-listener logger renders the SMS-MT audit line for every

@@ -1,5 +1,6 @@
 {
   "role": "http+smppc",
+  "pickle_codec": "bridge",
   "amqp_durable_topology": true,
   "outbound": {
     "listen_address": "0.0.0.0:1401",
