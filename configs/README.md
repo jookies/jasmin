@@ -40,6 +40,12 @@ Notes:
   `{"connector_ids": ["cid-a", "cid-b"], "order": 10, "rate": 0.0, "default": false}`.
 - **DLR workers.** An empty `amqp_url` in `dlr_lookup`/`dlr_thrower` inherits the
   outbound broker. `dlr_lookup.redis_url` must parse as a Redis URL.
+- **Terminal DLR (level 2/3).** With `dlr_lookup` (hence a `redis_url`) enabled,
+  an HTTP `/send` carrying `dlr-url` + `dlr-level=2|3` persists a `dlr:<msgid>`
+  record so the SMSC delivery receipt (`deliver_sm`) correlates back and fires
+  the HTTP callback. Per-connector `dlr_msg_id_bases` (0/1/2) codes the receipt
+  id to match the submit-response id; `dlr_expiry` (seconds, default 86400) is
+  the record TTL. Without `redis_url`, only level-1 (SMSC-accept) callbacks work.
 - **MO routing.** `mo_routes` runs the MO router dispatch in-process: a default
   route (`order 0`) plus connector-filtered static routes
   (`filter_connector_id` = source SMSC connector, positive `order`, higher

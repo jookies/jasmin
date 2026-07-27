@@ -247,6 +247,27 @@ func (dispatcher *Dispatcher) DispatchOnce(ctx context.Context) (int, error) {
 			continue
 		}
 		if publishErr := dispatcher.publisher.Publish(ctx, event.Exchange, event.RoutingKey, envelope); publishErr != nil {
+			// The reply-to response (submit.sm.resp.<user>) is best-effort: the
+			// legacy listener publishes it non-mandatory, and nothing in this
+			// runtime consumes it (HTTP/SMPPs responses resolve through the
+			// durable store, not this queue). An unroutable return means no
+			// consumer exists, so drop it — marking dispatched — exactly as
+			// legacy would. Retrying forever would wedge the DLR and billing
+			// events behind it via the in-order predecessor gate. Every other
+			// routing key must exist, so their NO_ROUTE stays a hard failure.
+			if event.Kind == EventSubmitResponse && errors.Is(publishErr, amqpcompat.ErrPublishReturned) {
+				if markErr := dispatcher.repository.MarkOutboxDispatched(ctx, event.Key, dispatcher.owner, dispatcher.now().UTC()); markErr != nil {
+					eventErr := fmt.Errorf("mark best-effort outbox event %q dropped: %w", event.Key, markErr)
+					failedParts[event.PartKey] = eventErr
+					if releaseErr := dispatcher.releaseClaimed(event, dispatcher.now().UTC().Add(time.Second), eventErr); releaseErr != nil {
+						dispatchErrors = append(dispatchErrors, releaseErr)
+					}
+					dispatchErrors = append(dispatchErrors, eventErr)
+					continue
+				}
+				published++
+				continue
+			}
 			eventErr := fmt.Errorf("publish outbox event %q: %w", event.Key, publishErr)
 			failedParts[event.PartKey] = eventErr
 			if releaseErr := dispatcher.releaseClaimed(event, dispatcher.now().UTC().Add(time.Second), eventErr); releaseErr != nil {

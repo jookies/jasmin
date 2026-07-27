@@ -11,6 +11,7 @@ import (
 	"github.com/warthog618/sms/encoding/gsm7"
 
 	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
@@ -94,7 +95,23 @@ type SubmitServiceDependencies struct {
 	NewBillID            func() (string, error)
 	NewReference         func() (uint16, error)
 	Now                  func() time.Time
+	// DLRRequestStore, when set, persists the submit-side DLR callback record
+	// (dlr:<msgid>) so the DLRLookup correlation legs can resolve a receipt
+	// back to this submit. Nil disables it (level-1 callbacks still work via
+	// the response path; level-2/3 terminal receipts would find nothing).
+	DLRRequestStore DLRRequestStore
+	// ConnectorDLRExpiry resolves a routed connector's dlr_expiry (record TTL,
+	// seconds). Nil or a non-positive result falls back to the legacy default.
+	ConnectorDLRExpiry func(connectorID string) int64
 }
+
+// DLRRequestStore persists the submit-side DLR request record.
+type DLRRequestStore interface {
+	StoreHTTPDLRRequest(ctx context.Context, msgID string, request dlr.HTTPDLRRequest) error
+}
+
+// DefaultDLRExpirySeconds is the legacy SMPPClientConfig dlr_expiry default.
+const DefaultDLRExpirySeconds int64 = 86400
 
 type SubmitService struct {
 	dependencies SubmitServiceDependencies
@@ -268,6 +285,28 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 			return "", err
 		}
 		envelopes = append(envelopes, envelope)
+	}
+
+	// Persist the submit-side DLR request before enqueue (legacy
+	// SMPPClientManagerPB write), so the response and terminal-receipt
+	// correlation legs can resolve a receipt back to this message. Only the
+	// httpapi front door writes here; the SMPPs path maps its own record.
+	if request.DLR && request.DLRUrl != "" && service.dependencies.DLRRequestStore != nil && sourceConnectorOf(request) == "httpapi" {
+		expiry := DefaultDLRExpirySeconds
+		if service.dependencies.ConnectorDLRExpiry != nil {
+			if resolved := service.dependencies.ConnectorDLRExpiry(connectorID); resolved > 0 {
+				expiry = resolved
+			}
+		}
+		if err := service.dependencies.DLRRequestStore.StoreHTTPDLRRequest(ctx, messageID, dlr.HTTPDLRRequest{
+			URL:           request.DLRUrl,
+			Level:         request.DLRLevel,
+			Method:        request.DLRMethod,
+			Connector:     connectorID,
+			ExpirySeconds: expiry,
+		}); err != nil {
+			return "", fmt.Errorf("persist DLR request: %w", err)
+		}
 	}
 
 	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), aggregateBill); err != nil {

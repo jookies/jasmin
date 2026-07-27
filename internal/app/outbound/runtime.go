@@ -64,6 +64,12 @@ type RuntimeDependencies struct {
 	// ConnectorPDUDefaults resolves a routed connector's default submit_sm PDU
 	// params (TON/NPI, service_type, ...) for the front-door submit (GAP 4).
 	ConnectorPDUDefaults func(connectorID string) (smppc.PDUDefaults, bool)
+
+	// DLRRequestStore, when supplied, persists dlr:<msgid> for httpapi submits
+	// so terminal (level-2/3) receipts correlate back. ConnectorDLRExpiry gives
+	// the record TTL per routed connector (dlr_expiry).
+	DLRRequestStore    core.DLRRequestStore
+	ConnectorDLRExpiry func(connectorID string) int64
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -187,6 +193,8 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		Transaction:          dependencies.Transactions,
 		SelectConnector:      connectorSelector(dependencies.ConnectorAvailable),
 		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
+		DLRRequestStore:      dependencies.DLRRequestStore,
+		ConnectorDLRExpiry:   dependencies.ConnectorDLRExpiry,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)

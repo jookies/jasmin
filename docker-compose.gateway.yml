@@ -26,6 +26,11 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
+    ports:
+      # Dev-only: exposes AMQP for gated integration tests run from the host
+      # (AMQP_URL=amqp://guest:guest@localhost:5673/). Host 5673 avoids clashing
+      # with a legacy stack's 5672. Not needed in prod.
+      - "5673:5672"
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 5s
