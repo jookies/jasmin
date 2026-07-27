@@ -59,3 +59,7 @@ celerybeat-schedule.db
 *.rpm
 
 .env
+
+# stray built binaries
+/jasmin-fake-smsc
+/jasmin-go-httpapi
