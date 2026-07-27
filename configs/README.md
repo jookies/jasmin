@@ -55,6 +55,15 @@ Notes:
   the HTTP callback. Per-connector `dlr_msg_id_bases` (0/1/2) codes the receipt
   id to match the submit-response id; `dlr_expiry` (seconds, default 86400) is
   the record TTL. Without `redis_url`, only level-1 (SMSC-accept) callbacks work.
+- **MT interception.** `outbound.mt_interceptors` runs user Python scripts
+  pre-routing (highest `order` first until one rejects), each gated by the same
+  `filters` as routes. A script gets `routable` (with `.pdu.params`
+  source_addr/destination_addr/short_message as bytes, and `.tags`),
+  `smpp_status`/`http_status` (set both — or one, the other is forced — to
+  reject), `extra`, and safe stdlib. Runs in `scripts/interceptor_runner.py`
+  (a Python subprocess, like the pickle bridge — interception scripts are
+  Python by the legacy contract). Boundary: the MT hook is pre-encode, so PDU
+  params beyond the routable fields above aren't surfaced.
 - **MO routing.** `mo_routes` runs the MO router dispatch in-process: a default
   route (`order 0`) plus connector-filtered static routes
   (`filter_connector_id` = source SMSC connector, positive `order`, higher

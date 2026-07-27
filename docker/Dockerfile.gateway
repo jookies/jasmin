@@ -35,6 +35,7 @@ RUN groupadd -r jasmin && useradd -r -g jasmin -d /app -s /usr/sbin/nologin jasm
 
 WORKDIR /app
 COPY scripts/pickle_bridge.py /app/scripts/pickle_bridge.py
+COPY scripts/interceptor_runner.py /app/scripts/interceptor_runner.py
 COPY jasmin/ /app/jasmin/
 COPY configs/gateway.example.json /etc/jasmin/gateway.json
 COPY --from=build /out/jasmin-go-httpapi /usr/local/bin/jasmin-go-httpapi

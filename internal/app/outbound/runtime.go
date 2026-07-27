@@ -79,6 +79,10 @@ type RuntimeDependencies struct {
 	// the record TTL per routed connector (dlr_expiry).
 	DLRRequestStore    core.DLRRequestStore
 	ConnectorDLRExpiry func(connectorID string) int64
+
+	// InterceptorRunner runs MT interception scripts. Required when the config
+	// declares mt_interceptors; nil otherwise (interception is a no-op).
+	InterceptorRunner interceptor.Runner
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -195,8 +199,16 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, err
 	}
+	interceptorTable, err := buildInterceptorTable(config.MTInterceptors, directory.resolveUID)
+	if err != nil {
+		return nil, err
+	}
+	if len(config.MTInterceptors) > 0 && dependencies.InterceptorRunner == nil {
+		return nil, fmt.Errorf("%w: mt_interceptors configured without an interceptor runner", ErrInvalidRuntimeConfig)
+	}
 	submitService, err := core.NewSubmitService(core.SubmitServiceDependencies{
-		InterceptorTable:     interceptor.NewTableBuilder().Build(),
+		InterceptorTable:     interceptorTable,
+		InterceptorRunner:    dependencies.InterceptorRunner,
 		RoutingTable:         atomicRoutes,
 		BillingUsers:         directory.users,
 		EnvelopeBuilder:      envelopeBuilder,

@@ -2,9 +2,45 @@ package outbound
 
 import (
 	"fmt"
+	"strconv"
 
+	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 )
+
+// buildInterceptorTable builds the MT interception table from config: each
+// entry's filters translate via the same rules as route filters, and its
+// py_code becomes the interceptor script. Order collisions are rejected (a
+// table can't hold two interceptors at one order).
+func buildInterceptorTable(configs []InterceptorConfig, resolveUID uidResolver) (*interceptor.Table, error) {
+	builder := interceptor.NewTableBuilder()
+	seen := make(map[int]struct{}, len(configs))
+	for index, entry := range configs {
+		if entry.PyCode == "" {
+			return nil, fmt.Errorf("%w: interceptor %d has empty py_code", ErrInvalidRuntimeConfig, index)
+		}
+		if entry.Order < 0 {
+			return nil, fmt.Errorf("%w: interceptor %d has negative order", ErrInvalidRuntimeConfig, index)
+		}
+		if _, dup := seen[entry.Order]; dup {
+			return nil, fmt.Errorf("%w: duplicate interceptor order %d", ErrInvalidRuntimeConfig, entry.Order)
+		}
+		seen[entry.Order] = struct{}{}
+		filters, err := buildRouteFilters(entry.Filters, resolveUID)
+		if err != nil {
+			return nil, fmt.Errorf("%w: interceptor %d: %v", ErrInvalidRuntimeConfig, index, err)
+		}
+		script := interceptor.Script{IDValue: "mt-interceptor-" + strconv.Itoa(entry.Order), PyCode: entry.PyCode}
+		intcp, err := interceptor.NewInterceptor(script, filters...)
+		if err != nil {
+			return nil, fmt.Errorf("%w: interceptor %d: %v", ErrInvalidRuntimeConfig, index, err)
+		}
+		if err := builder.Add(entry.Order, intcp); err != nil {
+			return nil, fmt.Errorf("%w: interceptor %d: %v", ErrInvalidRuntimeConfig, index, err)
+		}
+	}
+	return builder.Build(), nil
+}
 
 // FilterConfig is one MT route filter. Type selects the dimension; the other
 // fields carry that type's parameters (legacy jasmin.routing.Filters):

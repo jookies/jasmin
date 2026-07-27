@@ -37,6 +37,18 @@ type Config struct {
 	// the legacy stack declares non-durable and AMQP 406s a mismatched
 	// redeclare. The gateway propagates its top-level flag here.
 	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
+	// MTInterceptors are the MT interception scripts run pre-routing, highest
+	// order first, until one rejects (legacy MO/MTInterceptorTable). Requires
+	// an interceptor runner to be wired; validation only checks shape.
+	MTInterceptors []InterceptorConfig `json:"mt_interceptors,omitempty"`
+}
+
+// InterceptorConfig is one MT interceptor: a Python script (py_code) run when
+// all filters match, at the given order (higher wins, like routes).
+type InterceptorConfig struct {
+	Order   int            `json:"order"`
+	Filters []FilterConfig `json:"filters,omitempty"`
+	PyCode  string         `json:"py_code"`
 }
 
 type UserConfig struct {

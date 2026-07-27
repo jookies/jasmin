@@ -21,6 +21,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
+	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/logging"
 	"github.com/pumpitspace/jasmin/internal/core/mo"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
@@ -28,6 +29,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/infra/storage"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
+	"github.com/pumpitspace/jasmin/internal/transport/pyintercept"
 )
 
 type ManagerFactory func(string) *smppc.Manager
@@ -45,6 +47,7 @@ type Runtime struct {
 	requiredConnectors []string
 	dlrRedisClose      func()
 	adminStore         *admin.Store
+	interceptorRunner  *pyintercept.Runner
 	workerCancel       context.CancelFunc
 	closeOnce          sync.Once
 	closeErr           error
@@ -164,11 +167,23 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		runtime.dlrRedisClose = redisCleanup
 		dlrRequestStore = store
 	}
+	// MT interception: start the Python script runner subprocess when the
+	// config declares interceptors, and hand it to the submit pipeline.
+	var interceptorRunner interceptor.Runner
+	if len(config.Outbound.MTInterceptors) > 0 {
+		runnerImpl, runnerErr := pyintercept.NewRunner(workerCtx, config.Outbound.PythonPath)
+		if runnerErr != nil {
+			return nil, fmt.Errorf("start interceptor runner: %w", runnerErr)
+		}
+		runtime.interceptorRunner = runnerImpl
+		interceptorRunner = runnerImpl
+	}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
 		SMPPcStats: smppcStats, SMPPsStats: smppsStats, ConnectorIDs: connectorIDs,
 		DLRLookupPID: dlrLookupPID, ConnectorPDUDefaults: pduDefaultsProvider,
 		DLRRequestStore: dlrRequestStore, ConnectorDLRExpiry: dlrExpiryProvider,
+		InterceptorRunner: interceptorRunner,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("start outbound runtime: %w", err)
@@ -385,6 +400,11 @@ func (runtime *Runtime) Close() error {
 		}
 		if runtime.adminStore != nil {
 			if err := runtime.adminStore.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if runtime.interceptorRunner != nil {
+			if err := runtime.interceptorRunner.Close(); err != nil {
 				errs = append(errs, err)
 			}
 		}
