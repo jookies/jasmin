@@ -2,6 +2,7 @@ package smppsserver
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -21,6 +22,10 @@ type Config struct {
 	EnquireLinkTimeoutSeconds float64 `json:"enquire_link_timeout,omitempty"`
 	// Users are the SMPPS accounts allowed to bind.
 	Users []UserConfig `json:"users"`
+	// TLSCertFile/TLSKeyFile, when both set, terminate SMPPS-over-TLS on this
+	// listener. File paths are opened at service construction, not validation.
+	TLSCertFile string `json:"tls_cert_file,omitempty"`
+	TLSKeyFile  string `json:"tls_key_file,omitempty"`
 }
 
 func ValidateConfig(config Config) error {
@@ -29,6 +34,9 @@ func ValidateConfig(config Config) error {
 	}
 	if config.EnquireLinkTimeoutSeconds < 0 {
 		return fmt.Errorf("%w: negative enquire_link_timeout", ErrInvalidConfig)
+	}
+	if (config.TLSCertFile == "") != (config.TLSKeyFile == "") {
+		return fmt.Errorf("%w: tls_cert_file and tls_key_file must be set together", ErrInvalidConfig)
 	}
 	if _, err := NewDirectory(config.Users); err != nil {
 		return err
@@ -100,6 +108,17 @@ func NewService(config Config, submitter core.Submitter, opts ...Option) (*Servi
 	listener, err := net.Listen("tcp", config.BindAddr)
 	if err != nil {
 		return nil, fmt.Errorf("smppsserver: listen on %s: %w", config.BindAddr, err)
+	}
+	if config.TLSCertFile != "" {
+		certificate, certErr := tls.LoadX509KeyPair(config.TLSCertFile, config.TLSKeyFile)
+		if certErr != nil {
+			_ = listener.Close()
+			return nil, fmt.Errorf("smppsserver: load TLS keypair: %w", certErr)
+		}
+		listener = tls.NewListener(listener, &tls.Config{
+			MinVersion:   tls.VersionTLS12,
+			Certificates: []tls.Certificate{certificate},
+		})
 	}
 	return &Service{server: server, listener: listener}, nil
 }
