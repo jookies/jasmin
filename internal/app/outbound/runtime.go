@@ -41,6 +41,14 @@ type Runtime struct {
 	outboxWG     sync.WaitGroup
 	ownedBridge  bool
 	ownedStore   *storage.PostgresSubmitTransactionRepository
+
+	// Live routing: the submit path selects through routes (atomic); admin
+	// route provisioning rebuilds config + admin routes and swaps it. mu
+	// serialises rebuilds so concurrent admin calls can't interleave.
+	routes       *routingtable.AtomicTable
+	configRoutes []RouteConfig
+	resolveUID   uidResolver
+	routesMu     sync.Mutex
 }
 
 type RuntimeDependencies struct {
@@ -133,6 +141,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		return nil, err
 	}
 	directory.defaultRate = defaultRate
+	atomicRoutes := routingtable.NewAtomicTable(routes)
 
 	connection, err := amqp.Dial(config.AMQPURL)
 	if err != nil {
@@ -187,7 +196,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	}
 	submitService, err := core.NewSubmitService(core.SubmitServiceDependencies{
 		InterceptorTable:     interceptor.NewTableBuilder().Build(),
-		RoutingTable:         &routes,
+		RoutingTable:         atomicRoutes,
 		BillingUsers:         directory.users,
 		EnvelopeBuilder:      envelopeBuilder,
 		Transaction:          dependencies.Transactions,
@@ -249,10 +258,45 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		connection:   connection,
 		billing:      billingConsumer,
 		outboxCancel: outboxCancel,
+		routes:       atomicRoutes,
+		configRoutes: append([]RouteConfig(nil), config.Routes...),
+		resolveUID:   directory.resolveUID,
 	}
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
 	return runtime, nil
+}
+
+// ErrRouteOrderReserved reports an admin route whose order collides with a
+// config route (config owns those orders).
+var ErrRouteOrderReserved = errors.New("outbound: route order is config-reserved")
+
+// ApplyAdminRoutes rebuilds the routing table from the config routes plus the
+// supplied admin routes and swaps it live. It is the RouteProvisioner seam the
+// admin plane drives: a bad spec or an order that collides with a config route
+// returns an error and leaves the active table untouched (apply-first, so the
+// caller persists only on success). Passing nil restores the config-only table.
+func (runtime *Runtime) ApplyAdminRoutes(adminRoutes []RouteConfig) error {
+	runtime.routesMu.Lock()
+	defer runtime.routesMu.Unlock()
+	reserved := make(map[int]struct{}, len(runtime.configRoutes))
+	for _, route := range runtime.configRoutes {
+		reserved[route.Order] = struct{}{}
+	}
+	for _, route := range adminRoutes {
+		if _, clash := reserved[route.Order]; clash {
+			return fmt.Errorf("%w: order %d", ErrRouteOrderReserved, route.Order)
+		}
+	}
+	combined := make([]RouteConfig, 0, len(runtime.configRoutes)+len(adminRoutes))
+	combined = append(combined, runtime.configRoutes...)
+	combined = append(combined, adminRoutes...)
+	table, _, _, err := buildRoutes(combined, runtime.resolveUID)
+	if err != nil {
+		return err
+	}
+	runtime.routes.Store(table)
+	return nil
 }
 
 // Submitter exposes the composed MT submit pipeline so other ingress paths

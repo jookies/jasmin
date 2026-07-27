@@ -4,7 +4,10 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
@@ -14,19 +17,21 @@ import (
 // bearer token equal to the configured admin token (constant-time compared).
 type Handler struct {
 	service *Service
+	routes  *RouteService // optional; nil disables /admin/routes
 	token   string
 }
 
 // NewHandler builds the admin HTTP handler. token must be non-empty — the
-// admin plane is never exposed unauthenticated.
-func NewHandler(service *Service, token string) (*Handler, error) {
+// admin plane is never exposed unauthenticated. routeService may be nil to
+// disable route provisioning (connectors-only).
+func NewHandler(service *Service, routeService *RouteService, token string) (*Handler, error) {
 	if service == nil {
 		return nil, errors.New("admin: nil service")
 	}
 	if token == "" {
 		return nil, errors.New("admin: empty token; the admin API must be authenticated")
 	}
-	return &Handler{service: service, token: token}, nil
+	return &Handler{service: service, routes: routeService, token: token}, nil
 }
 
 // Routes returns the admin mux, to be mounted under /admin/ by the gateway.
@@ -34,6 +39,10 @@ func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/admin/connectors", h.auth(h.connectors))
 	mux.HandleFunc("/admin/connectors/", h.auth(h.connectorByID))
+	if h.routes != nil {
+		mux.HandleFunc("/admin/routes", h.auth(h.routesCollection))
+		mux.HandleFunc("/admin/routes/", h.auth(h.routeByOrder))
+	}
 	return mux
 }
 
@@ -149,6 +158,96 @@ func (h *Handler) setStarted(w http.ResponseWriter, r *http.Request, cid string,
 	writeJSON(w, http.StatusOK, connectorViewPayload(view))
 }
 
+// routesCollection handles /admin/routes (GET list, POST create-or-replace).
+// The POST body is the raw outbound.RouteConfig JSON, kept opaque here (the
+// provisioner validates it); the route's "order" is its identity.
+func (h *Handler) routesCollection(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		stored, err := h.routes.ListRoutes(r.Context())
+		if err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		items := make([]map[string]any, 0, len(stored))
+		for _, route := range stored {
+			items = append(items, map[string]any{"order": route.Order, "spec": json.RawMessage(route.SpecJSON)})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"routes": items})
+	case http.MethodPost:
+		raw, order, err := readRouteSpec(r)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := h.routes.PutRoute(r.Context(), order, raw); err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"order": order, "spec": json.RawMessage(raw)})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// routeByOrder handles /admin/routes/{order} (GET, PUT, DELETE).
+func (h *Handler) routeByOrder(w http.ResponseWriter, r *http.Request) {
+	orderText := strings.TrimPrefix(r.URL.Path, "/admin/routes/")
+	order, err := strconv.Atoi(orderText)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "route order must be an integer")
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		route, err := h.routes.GetRoute(r.Context(), order)
+		if err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"order": route.Order, "spec": json.RawMessage(route.SpecJSON)})
+	case http.MethodPut:
+		raw, bodyOrder, err := readRouteSpec(r)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if bodyOrder != order {
+			writeError(w, http.StatusBadRequest, "path order and body order differ")
+			return
+		}
+		if err := h.routes.PutRoute(r.Context(), order, raw); err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"order": order, "spec": json.RawMessage(raw)})
+	case http.MethodDelete:
+		if err := h.routes.DeleteRoute(r.Context(), order); err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// readRouteSpec reads the raw route JSON body and extracts its "order" field
+// (the identity) without otherwise interpreting the spec.
+func readRouteSpec(r *http.Request) (string, int, error) {
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		return "", 0, fmt.Errorf("read body: %w", err)
+	}
+	var probe struct {
+		Order int `json:"order"`
+	}
+	if err := json.Unmarshal(raw, &probe); err != nil {
+		return "", 0, fmt.Errorf("invalid route JSON: %w", err)
+	}
+	return string(raw), probe.Order, nil
+}
+
 type connectorCreateBody struct {
 	Config smppc.Config `json:"config"`
 	Start  *bool        `json:"start,omitempty"`
@@ -189,7 +288,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // writeServiceError maps a service error to an HTTP status.
 func writeServiceError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, ErrConnectorNotFound):
+	case errors.Is(err, ErrConnectorNotFound), errors.Is(err, ErrRouteNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, ErrConflict):
 		writeError(w, http.StatusConflict, err.Error())

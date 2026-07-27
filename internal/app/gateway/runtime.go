@@ -211,7 +211,19 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			// the gateway still serves config connectors and the admin API.
 			slog.Default().Error("admin: load persisted connectors: " + applyErr.Error())
 		}
-		adminHandler, handlerErr := admin.NewHandler(adminService, config.Admin.Token)
+		// Route provisioning: admin persists opaque route JSON and drives the
+		// outbound runtime (the RouteProvisioner) to rebuild+swap the live
+		// table. The adapter parses each JSON into an outbound.RouteConfig here,
+		// where both packages are in scope.
+		routeService, routeErr := admin.NewRouteService(store, outboundRouteProvisioner{outboundRuntime},
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if routeErr != nil {
+			return nil, fmt.Errorf("build admin route service: %w", routeErr)
+		}
+		if applyErr := routeService.LoadAndApply(ctx); applyErr != nil {
+			slog.Default().Error("admin: load persisted routes: " + applyErr.Error())
+		}
+		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, config.Admin.Token)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}

@@ -137,7 +137,7 @@ func TestServiceLoadAndApplyRestoresPersisted(t *testing.T) {
 func newTestHandler(t *testing.T, token string, reserved ...string) (*Handler, *fakeManager) {
 	t.Helper()
 	service, manager, _ := newTestService(t, reserved...)
-	handler, err := NewHandler(service, token)
+	handler, err := NewHandler(service, nil, token)
 	if err != nil {
 		t.Fatal(err)
 	}
