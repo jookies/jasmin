@@ -185,6 +185,9 @@ type Connector struct {
 	// multipartStore is passed to each session for inbound long-message
 	// reassembly; nil reproduces the legacy redis-less drop.
 	multipartStore MultipartStore
+	// moInterceptor is passed to each session for MO-direction interception;
+	// nil disables it.
+	moInterceptor MOInterceptor
 }
 
 // SetSubmitAuditLogger sets the SMS-MT audit logger applied to every session this
@@ -213,6 +216,15 @@ func (c *Connector) SetMultipartStore(store MultipartStore) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.multipartStore = store
+}
+
+// SetMOInterceptor sets the MO-direction interceptor applied to every session
+// this connector creates. Nil (the default) disables MO interception. Call
+// before Start; a session already running is unaffected until it reconnects.
+func (c *Connector) SetMOInterceptor(moInterceptor MOInterceptor) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.moInterceptor = moInterceptor
 }
 
 // logExpiredDiscard emits the legacy SM listener's expired-message discard line at
@@ -729,11 +741,13 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	deliverPublisher := c.deliverPublisher
 	deliverEncoder := c.deliverEncoder
 	multipartStore := c.multipartStore
+	moInterceptor := c.moInterceptor
 	c.mu.RUnlock()
 	session := NewSessionWithDurability(conn, cfg, retry, c.readiness, c.decoder, transactions, nil)
 	session.SetSubmitAuditLogger(auditLogger, auditPrivacy)
 	session.SetDeliverUpstream(deliverPublisher, deliverEncoder)
 	session.SetMultipartStore(multipartStore)
+	session.SetMOInterceptor(moInterceptor)
 	owned = false
 	return session, nil
 }
