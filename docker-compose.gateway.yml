@@ -72,8 +72,12 @@ services:
       dockerfile: docker/Dockerfile.gateway
     image: jasmin-gateway
     restart: unless-stopped
+    environment:
+      # Admin API bearer token (config references it as env:ADMIN_TOKEN).
+      ADMIN_TOKEN: dev-admin-token
     volumes:
       - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
+      - admindata:/var/lib/jasmin
     ports:
       - "1401:1401"
     depends_on:
@@ -98,3 +102,4 @@ services:
 
 volumes:
   pgdata:
+  admindata:

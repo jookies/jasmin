@@ -30,8 +30,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN groupadd -r jasmin && useradd -r -g jasmin -d /app -s /usr/sbin/nologin jasmin \
-    && mkdir -p /var/log/jasmin /etc/jasmin \
-    && chown jasmin:jasmin /var/log/jasmin
+    && mkdir -p /var/log/jasmin /var/lib/jasmin /etc/jasmin \
+    && chown jasmin:jasmin /var/log/jasmin /var/lib/jasmin
 
 WORKDIR /app
 COPY scripts/pickle_bridge.py /app/scripts/pickle_bridge.py

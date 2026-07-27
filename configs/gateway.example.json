@@ -87,5 +87,9 @@
   "submit_audit_log": {
     "level": "INFO",
     "privacy": false
+  },
+  "admin": {
+    "db_path": "/var/lib/jasmin/admin.db",
+    "token": "env:ADMIN_TOKEN"
   }
 }

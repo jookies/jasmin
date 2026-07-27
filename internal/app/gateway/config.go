@@ -57,12 +57,25 @@ type Config struct {
 	SMPPServerLog ComponentLogConfig `json:"smpp_server_log,omitempty"`
 	// HTTPS, when present, serves the HTTP API over TLS instead of plaintext.
 	HTTPS *HTTPSConfig `json:"https,omitempty"`
+	// Admin, when present, runs the authenticated runtime provisioning API
+	// (SQLite-backed connector CRUD, live-applied) mounted at /admin.
+	Admin *AdminConfig `json:"admin,omitempty"`
 	// MORoutes, when present, runs the MO router dispatch in-process: MOs the
 	// connectors ingest (deliver.sm.*) route to HTTP/SMPPS destinations via
 	// deliver_sm_thrower.* (RouterPB.deliver_sm_callback semantics — default
 	// route + connector-filtered static routes; content filters are plan 008
 	// Step 6). Enable the deliver_sm_thrower worker to actually throw them.
 	MORoutes []modispatch.RouteConfig `json:"mo_routes,omitempty"`
+}
+
+// AdminConfig configures the runtime provisioning plane. DBPath is the SQLite
+// file (admin-created connectors persist here and survive restart). Token
+// authenticates every admin request as a bearer token; it accepts the same
+// env:/file:/literal: secret references as the other credentials and must be
+// non-empty (the admin API is never unauthenticated).
+type AdminConfig struct {
+	DBPath string `json:"db_path"`
+	Token  string `json:"token"`
 }
 
 // HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
@@ -164,6 +177,14 @@ func ValidateConfig(config Config) error {
 	}
 	if config.HTTPS != nil && (config.HTTPS.CertFile == "" || config.HTTPS.KeyFile == "") {
 		return fmt.Errorf("%w: https requires both cert_file and key_file", ErrInvalidConfig)
+	}
+	if config.Admin != nil {
+		if config.Admin.DBPath == "" {
+			return fmt.Errorf("%w: admin requires db_path", ErrInvalidConfig)
+		}
+		if config.Admin.Token == "" {
+			return fmt.Errorf("%w: admin requires a non-empty token", ErrInvalidConfig)
+		}
 	}
 	if len(config.MORoutes) > 0 {
 		moConfig := modispatch.Config{AMQPURL: config.Outbound.AMQPURL, Routes: config.MORoutes}
