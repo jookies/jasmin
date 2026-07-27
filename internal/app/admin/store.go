@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS admin_connectors (
     config_json     TEXT NOT NULL,
     desired_started INTEGER NOT NULL DEFAULT 1,
     updated_at      TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_routes (
+    route_order INTEGER PRIMARY KEY,
+    spec_json   TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
 );`
 
 // Store persists admin provisioning state in SQLite.

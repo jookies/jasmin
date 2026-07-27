@@ -78,10 +78,17 @@ type SubmitEnvelopeBuilder interface {
 	BuildSubmitEnvelope(ctx context.Context, request SubmitEnvelopeRequest, part segmentation.Part) (amqpcompat.Envelope, error)
 }
 
+// RouteSelector routes a routable to a connector. A *routingtable.Table
+// (static) or a *routingtable.AtomicTable (live-swappable for admin
+// provisioning) both satisfy it — Table.Select has a value receiver.
+type RouteSelector interface {
+	Select(routingfilter.Routable) (routingtable.Route, bool, error)
+}
+
 type SubmitServiceDependencies struct {
 	InterceptorTable  *interceptor.Table
 	InterceptorRunner interceptor.Runner
-	RoutingTable      *routingtable.Table
+	RoutingTable      RouteSelector
 	BillingUsers      BillingUserDirectory
 	EnvelopeBuilder   SubmitEnvelopeBuilder
 	Publisher         AMQPPublisher
