@@ -103,7 +103,7 @@ func TestMOThrowerSMPPSDeliversToBoundReceiver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pduPickle, err := bridge.RepickleRoutablePDU(ctx, routable)
+	pduPickle, _, err := bridge.RepickleRoutablePDU(ctx, routable)
 	if err != nil {
 		t.Fatal(err)
 	}
