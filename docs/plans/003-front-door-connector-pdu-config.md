@@ -1,7 +1,7 @@
 # Front-door connector-config PDU parameters (TON/NPI + service_type/protocol_id/...)
 
 - **Date:** 2026-07-26
-- **Status:** active
+- **Status:** done — GAP 4 plumbing landed earlier; the deferred Step 5 full front-door byte-differential is now closed by `submit_encoder_sendpath_differential_test.go` (drives the real `update_submit_sm_pdu`+`preSubmitSm` send path, default + non-default connectors across a shape matrix; byte-identical). Tracked under [009-core-gateway-completeness.md](009-core-gateway-completeness.md) Step 1.
 - **Summary:** Apply the routed connector's default submit_sm PDU parameters (TON/NPI, service_type, protocol_id, replace_if_present_flag, sm_default_msg_id, source_addr) on the Go front-door submit path, with the submitter's explicit values winning (MT-path audit GAP 4).
 - **Related:** MT-path parity audit backlog (memory, GAP 4). This is the **full-stack-Go** edge (Go HTTP API → Go smppc), distinct from the bridge/legacy-publisher gaps (1/2/3/5/6).
 
@@ -46,7 +46,7 @@ Trade-off: a connector-config lookup must reach `submit_service`. Reuse the exis
 ### Step 5: Verification (done) + full front-door differential (deferred)
 
 - **Done:** a config-defaults unit test (`config_pdu_defaults_test.go`: unset connector resolves TON/NPI 2/1/1/1; explicit values survive) and a PYTHON_PATH encode round-trip (`submit_encoder_pdu_config_test.go`: TON/NPI, service_type and protocol_id flow through the bridge encode → pickle → decode into the wire body). Full `go test ./...` shows no new failures (the provider is nil in existing tests, so the pre-GAP-4 zero defaults are unchanged there).
-- **Deferred:** a full front-door differential asserting the Go-encoded submit body equals the legacy `factory + update_submit_sm_pdu + preSubmitSm + PDUEncoder` bytes for default and non-default connectors. The config defaults are inspection-confirmed against `SMPPClientConfig` (NATIONAL=2/ISDN=1/INTERNATIONAL=1/ISDN=1) and the round-trip proves the plumbing; a byte-for-byte legacy comparison is a follow-up.
+- **Done (2026-07-27):** the full front-door differential now exists — `submit_encoder_sendpath_differential_test.go` asserts the Go-encoded submit body equals the legacy `SMPPOperationFactory(config).SubmitSM` + `update_submit_sm_pdu` + `preSubmitSm` (data_coding int→object, default source_addr) + `PDUEncoder` bytes for the DEFAULT connector (2/1/1/1) and non-default connectors, across a shape matrix (service_type, protocol_id, sm_default_msg_id, empty-source fallback, UCS2). The Go side derives its params from `smppc.Config.Validate()+PDUDefaults()` — the resolved defaults, not hand-picked constants. Gotcha proven en route: AddrTon/AddrNpi enums are 1-indexed (NATIONAL=3) and the encoder maps enum→wire as value−1 (NATIONAL→wire 2), so the connector config carries **wire** bytes, decoded via the encoder — not enum-by-value.
 
 ## End-to-end verification
 
