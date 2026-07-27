@@ -28,6 +28,13 @@ type Config struct {
 	Connectors           []smppc.Config  `json:"connectors"`
 	RequiredConnectorIDs []string        `json:"required_connector_ids"`
 	BindTimeoutSeconds   float64         `json:"bind_timeout_seconds"`
+	// AMQPDurableTopology declares every exchange/queue this process creates
+	// durable (all publishes are already persistent), so queued submits survive
+	// a broker restart. One switch for the whole process: durability must be
+	// uniform per vhost — AMQP answers a redeclare with different durability
+	// with PRECONDITION_FAILED (406). Leave false (the legacy default) when
+	// sharing a vhost with the Python stack, e.g. the bridge-edge shadow.
+	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
 	// DLRLookup, when present, runs the legacy DLRLookup worker in-process.
 	// An empty amqp_url inherits the outbound broker.
 	DLRLookup *dlrlookup.Config `json:"dlr_lookup,omitempty"`

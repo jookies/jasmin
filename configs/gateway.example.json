@@ -1,5 +1,6 @@
 {
   "role": "http+smppc",
+  "amqp_durable_topology": true,
   "outbound": {
     "listen_address": "0.0.0.0:1401",
     "amqp_url": "amqp://guest:guest@rabbitmq:5672/",

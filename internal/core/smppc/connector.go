@@ -44,7 +44,10 @@ type AMQPDeliveryStream struct {
 	Done       <-chan struct{}
 }
 
-type defaultAMQPProvider struct{ prefetch int }
+type defaultAMQPProvider struct {
+	prefetch int
+	durable  bool
+}
 
 func dialAMQPTransport(
 	ctx context.Context,
@@ -100,7 +103,7 @@ func (p *defaultAMQPProvider) Consume(ctx context.Context, amqpURL, cid string) 
 			stopContextClose()
 		}
 	}
-	topology := amqpcompat.NewTopology(conn)
+	topology := amqpcompat.NewTopology(conn, p.durable)
 	if err = topology.DeclareQueue(ctx, amqpcompat.ConnectorSubmitQueue(cid), "messaging", amqpcompat.ConnectorSubmitRoutingKey(cid)); err != nil {
 		closeSetup()
 		return AMQPDeliveryStream{}, err
@@ -250,7 +253,7 @@ func newConnector(cfg Config, amqpURL string, decoder SubmitDecoder) (*Connector
 		cfg:       clonedConfig,
 		status:    StatusDisconnected,
 		amqpURL:   amqpURL,
-		amqp:      &defaultAMQPProvider{prefetch: clonedConfig.PrefetchCount},
+		amqp:      &defaultAMQPProvider{prefetch: clonedConfig.PrefetchCount, durable: clonedConfig.AMQPDurableTopology},
 		readiness: readiness,
 		pacer:     pacer,
 		decoder:   decoder,

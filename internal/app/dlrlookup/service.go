@@ -33,6 +33,10 @@ type Config struct {
 	RetryDelaySeconds float64 `json:"dlr_lookup_retry_delay,omitempty"`
 	// SMPPReceiptOnSuccessSubmitSmResp mirrors smpp_receipt_on_success_submit_sm_resp.
 	SMPPReceiptOnSuccessSubmitSmResp bool `json:"smpp_receipt_on_success_submit_sm_resp,omitempty"`
+	// AMQPDurableTopology declares the lookup queue/exchange durable; must be
+	// uniform per vhost (mismatched redeclare is an AMQP 406). Propagated from
+	// the gateway's top-level flag when running in-process.
+	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
 }
 
 func (c *Config) applyDefaults() {
@@ -212,7 +216,7 @@ func (s *Service) dialSession(ctx context.Context) (*session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect RabbitMQ: %w", err)
 	}
-	subscription, err := amqpcompat.NewTopology(connection).OpenDLRLookupSubscription(ctx, s.cfg.PID)
+	subscription, err := amqpcompat.NewTopology(connection, s.cfg.AMQPDurableTopology).OpenDLRLookupSubscription(ctx, s.cfg.PID)
 	if err != nil {
 		_ = connection.Close()
 		return nil, err

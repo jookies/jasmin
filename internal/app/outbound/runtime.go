@@ -137,7 +137,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 			_ = connection.Close()
 		}
 	}()
-	topology := amqpcompat.NewTopology(connection)
+	topology := amqpcompat.NewTopology(connection, config.AMQPDurableTopology)
 	if err := topology.Declare(ctx); err != nil {
 		return nil, fmt.Errorf("declare RabbitMQ exchanges: %w", err)
 	}
@@ -195,7 +195,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, err
 	}
-	billingConsumer, err := newLateBillingConsumer(ctx, connection, durableLateBilling)
+	billingConsumer, err := newLateBillingConsumer(ctx, connection, durableLateBilling, config.AMQPDurableTopology)
 	if err != nil {
 		return nil, fmt.Errorf("start late billing consumer: %w", err)
 	}

@@ -43,7 +43,7 @@ func TestOpenRouterSubscriptionsStopsAndClosesOnEveryOperationFailure(t *testing
 		t.Run(testCase.operation, func(t *testing.T) {
 			channel := newRecordingTopologyChannel()
 			channel.failAt = operation
-			topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+			topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 			subscriptions, err := topology.OpenRouterSubscriptions(context.Background())
 			if subscriptions != nil {
 				t.Fatal("failed declaration returned subscriptions")
@@ -71,7 +71,7 @@ func TestOpenRouterSubscriptionsRejectsCancelledContextBeforeOpeningChannel(t *t
 	topology := newTopology(func() (topologyChannel, error) {
 		openCalls++
 		return newRecordingTopologyChannel(), nil
-	})
+	}, false)
 	if _, err := topology.OpenRouterSubscriptions(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("error=%v want context cancellation", err)
 	}
@@ -81,7 +81,7 @@ func TestOpenRouterSubscriptionsRejectsCancelledContextBeforeOpeningChannel(t *t
 }
 
 func TestOpenRouterSubscriptionsWrapsOpenFailure(t *testing.T) {
-	topology := newTopology(func() (topologyChannel, error) { return nil, errTopologyFixture })
+	topology := newTopology(func() (topologyChannel, error) { return nil, errTopologyFixture }, false)
 	if _, err := topology.OpenRouterSubscriptions(context.Background()); !errors.Is(err, errTopologyFixture) {
 		t.Fatalf("error=%v want wrapped open failure", err)
 	} else if !strings.Contains(err.Error(), "open RouterPB topology channel") {
@@ -93,7 +93,7 @@ func TestOpenRouterSubscriptionsObservesCancellationAfterFinalConsume(t *testing
 	ctx, cancel := context.WithCancel(context.Background())
 	recorder := newRecordingTopologyChannel()
 	channel := &cancelOnBillingConsumeChannel{recordingTopologyChannel: recorder, cancel: cancel}
-	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 	if subscriptions, err := topology.OpenRouterSubscriptions(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("subscriptions=%v error=%v want context cancellation", subscriptions, err)
 	}
@@ -106,7 +106,7 @@ func TestOpenRouterSubscriptionsPreservesOperationAndCleanupFailures(t *testing.
 	channel := newRecordingTopologyChannel()
 	channel.failAt = 3
 	channel.closeErr = errTopologyCloseFixture
-	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 	_, err := topology.OpenRouterSubscriptions(context.Background())
 	if !errors.Is(err, errTopologyFixture) || !errors.Is(err, errTopologyCloseFixture) {
 		t.Fatalf("error=%v does not preserve operation and cleanup failures", err)
@@ -126,7 +126,7 @@ func TestTopologyHelpersReturnCloseFailure(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			channel := newRecordingTopologyChannel()
 			channel.closeErr = errTopologyCloseFixture
-			topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+			topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 			if err := testCase.run(topology); !errors.Is(err, errTopologyCloseFixture) {
 				t.Fatalf("error=%v want close failure", err)
 			}
@@ -136,7 +136,7 @@ func TestTopologyHelpersReturnCloseFailure(t *testing.T) {
 
 func TestRouterSubscriptionsOwnsChannelUntilClose(t *testing.T) {
 	channel := newRecordingTopologyChannel()
-	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 	subscriptions, err := topology.OpenRouterSubscriptions(context.Background())
 	if err != nil {
 		t.Fatal(err)
