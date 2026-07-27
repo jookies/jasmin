@@ -18,20 +18,21 @@ import (
 type Handler struct {
 	service *Service
 	routes  *RouteService // optional; nil disables /admin/routes
+	users   *UserService  // optional; nil disables /admin/users
 	token   string
 }
 
 // NewHandler builds the admin HTTP handler. token must be non-empty — the
-// admin plane is never exposed unauthenticated. routeService may be nil to
-// disable route provisioning (connectors-only).
-func NewHandler(service *Service, routeService *RouteService, token string) (*Handler, error) {
+// admin plane is never exposed unauthenticated. routeService/userService may
+// be nil to disable those resources (connectors-only).
+func NewHandler(service *Service, routeService *RouteService, userService *UserService, token string) (*Handler, error) {
 	if service == nil {
 		return nil, errors.New("admin: nil service")
 	}
 	if token == "" {
 		return nil, errors.New("admin: empty token; the admin API must be authenticated")
 	}
-	return &Handler{service: service, routes: routeService, token: token}, nil
+	return &Handler{service: service, routes: routeService, users: userService, token: token}, nil
 }
 
 // Routes returns the admin mux, to be mounted under /admin/ by the gateway.
@@ -42,6 +43,10 @@ func (h *Handler) Routes() http.Handler {
 	if h.routes != nil {
 		mux.HandleFunc("/admin/routes", h.auth(h.routesCollection))
 		mux.HandleFunc("/admin/routes/", h.auth(h.routeByOrder))
+	}
+	if h.users != nil {
+		mux.HandleFunc("/admin/users", h.auth(h.usersCollection))
+		mux.HandleFunc("/admin/users/", h.auth(h.userByName))
 	}
 	return mux
 }
@@ -232,6 +237,105 @@ func (h *Handler) routeByOrder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// usersCollection handles /admin/users (GET list, POST create). The POST body
+// is the raw outbound.UserConfig JSON (opaque here; the provisioner validates
+// it); "username" is the identity. The stored spec includes the password hash,
+// so the list projection omits it.
+func (h *Handler) usersCollection(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		stored, err := h.users.ListUsers(r.Context())
+		if err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		items := make([]map[string]any, 0, len(stored))
+		for _, user := range stored {
+			items = append(items, map[string]any{"username": user.Username, "uid": user.UID})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"users": items})
+	case http.MethodPost:
+		raw, username, err := readUserSpec(r)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := h.users.CreateUser(r.Context(), username, raw); err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		stored, err := h.users.GetUser(r.Context(), username)
+		if err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"username": stored.Username, "uid": stored.UID})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// userByName handles /admin/users/{username} (GET, PUT, DELETE).
+func (h *Handler) userByName(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimPrefix(r.URL.Path, "/admin/users/")
+	if username == "" {
+		writeError(w, http.StatusNotFound, "username required")
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		stored, err := h.users.GetUser(r.Context(), username)
+		if err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"username": stored.Username, "uid": stored.UID})
+	case http.MethodPut:
+		raw, bodyUsername, err := readUserSpec(r)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if bodyUsername != "" && bodyUsername != username {
+			writeError(w, http.StatusBadRequest, "path username and body username differ")
+			return
+		}
+		if err := h.users.CreateUser(r.Context(), username, raw); err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		stored, err := h.users.GetUser(r.Context(), username)
+		if err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"username": stored.Username, "uid": stored.UID})
+	case http.MethodDelete:
+		if err := h.users.DeleteUser(r.Context(), username); err != nil {
+			writeServiceError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// readUserSpec reads the raw user JSON body and extracts its "username".
+func readUserSpec(r *http.Request) (string, string, error) {
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		return "", "", fmt.Errorf("read body: %w", err)
+	}
+	var probe struct {
+		Username string `json:"username"`
+	}
+	if err := json.Unmarshal(raw, &probe); err != nil {
+		return "", "", fmt.Errorf("invalid user JSON: %w", err)
+	}
+	return string(raw), probe.Username, nil
+}
+
 // readRouteSpec reads the raw route JSON body and extracts its "order" field
 // (the identity) without otherwise interpreting the spec.
 func readRouteSpec(r *http.Request) (string, int, error) {
@@ -288,7 +392,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // writeServiceError maps a service error to an HTTP status.
 func writeServiceError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, ErrConnectorNotFound), errors.Is(err, ErrRouteNotFound):
+	case errors.Is(err, ErrConnectorNotFound), errors.Is(err, ErrRouteNotFound), errors.Is(err, ErrUserNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, ErrConflict):
 		writeError(w, http.StatusConflict, err.Error())

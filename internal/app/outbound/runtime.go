@@ -45,10 +45,11 @@ type Runtime struct {
 	// Live routing: the submit path selects through routes (atomic); admin
 	// route provisioning rebuilds config + admin routes and swaps it. mu
 	// serialises rebuilds so concurrent admin calls can't interleave.
-	routes       *routingtable.AtomicTable
-	configRoutes []RouteConfig
-	resolveUID   uidResolver
-	routesMu     sync.Mutex
+	routes          *routingtable.AtomicTable
+	configRoutes    []RouteConfig
+	configUsernames []string
+	resolveUID      uidResolver
+	routesMu        sync.Mutex
 }
 
 type RuntimeDependencies struct {
@@ -250,17 +251,18 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	}
 	outboxCtx, outboxCancel := context.WithCancel(ctx)
 	runtime := &Runtime{
-		Handler:      handler,
-		submitter:    submitService,
-		directory:    directory,
-		publisher:    publisher,
-		bridge:       dependencies.Bridge,
-		connection:   connection,
-		billing:      billingConsumer,
-		outboxCancel: outboxCancel,
-		routes:       atomicRoutes,
-		configRoutes: append([]RouteConfig(nil), config.Routes...),
-		resolveUID:   directory.resolveUID,
+		Handler:         handler,
+		submitter:       submitService,
+		directory:       directory,
+		publisher:       publisher,
+		bridge:          dependencies.Bridge,
+		connection:      connection,
+		billing:         billingConsumer,
+		outboxCancel:    outboxCancel,
+		routes:          atomicRoutes,
+		configRoutes:    append([]RouteConfig(nil), config.Routes...),
+		configUsernames: configUsernames(config.Users),
+		resolveUID:      directory.resolveUID,
 	}
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
@@ -297,6 +299,47 @@ func (runtime *Runtime) ApplyAdminRoutes(adminRoutes []RouteConfig) error {
 	}
 	runtime.routes.Store(table)
 	return nil
+}
+
+// configUsernames extracts the config-owned usernames.
+func configUsernames(users []UserConfig) []string {
+	names := make([]string, 0, len(users))
+	for _, user := range users {
+		names = append(names, user.Username)
+	}
+	return names
+}
+
+// ErrUserReserved reports an admin user whose username collides with a config
+// user (config owns those).
+var ErrUserReserved = errors.New("outbound: username is config-reserved")
+
+// AddAdminUser installs an admin-provisioned user with a caller-supplied stable
+// uid (the admin store assigns and persists it, so route user-filters resolve
+// the same uid across restarts). It refuses config-owned usernames.
+func (runtime *Runtime) AddAdminUser(entry UserConfig, uid int64) error {
+	for _, reserved := range runtime.configUsernames {
+		if reserved == entry.Username {
+			return fmt.Errorf("%w: %q", ErrUserReserved, entry.Username)
+		}
+	}
+	return runtime.directory.applyUser(entry, uid)
+}
+
+// RemoveAdminUser removes an admin-provisioned user. Config users are protected.
+func (runtime *Runtime) RemoveAdminUser(username string) error {
+	for _, reserved := range runtime.configUsernames {
+		if reserved == username {
+			return fmt.Errorf("%w: %q", ErrUserReserved, username)
+		}
+	}
+	return runtime.directory.removeUser(username)
+}
+
+// ConfigUsernames lists the config-owned usernames the admin plane must not
+// touch, and the count seeds admin uid assignment above the config range.
+func (runtime *Runtime) ConfigUsernames() []string {
+	return append([]string(nil), runtime.configUsernames...)
 }
 
 // Submitter exposes the composed MT submit pipeline so other ingress paths

@@ -223,7 +223,19 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := routeService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted routes: " + applyErr.Error())
 		}
-		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, config.Admin.Token)
+		// User provisioning: admin persists opaque user JSON + a stable uid and
+		// installs it in the live billing directory. The floor is the config
+		// user count so admin uids never collide with config index-based uids.
+		userService, userErr := admin.NewUserService(store,
+			outboundUserProvisioner{runtime: outboundRuntime, configUsers: int64(len(outboundRuntime.ConfigUsernames()))},
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if userErr != nil {
+			return nil, fmt.Errorf("build admin user service: %w", userErr)
+		}
+		if applyErr := userService.LoadAndApply(ctx); applyErr != nil {
+			slog.Default().Error("admin: load persisted users: " + applyErr.Error())
+		}
+		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, userService, config.Admin.Token)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}

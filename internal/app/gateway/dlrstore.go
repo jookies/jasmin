@@ -36,6 +36,34 @@ func (p outboundRouteProvisioner) ApplyRoutes(_ context.Context, routeSpecsJSON 
 	return p.runtime.ApplyAdminRoutes(routes)
 }
 
+// outboundUserProvisioner adapts the admin UserProvisioner (opaque JSON) to
+// the outbound runtime: it parses each user spec into an outbound.UserConfig
+// (strict fields) and installs/removes it in the live billing directory with
+// the store-assigned stable uid.
+type outboundUserProvisioner struct {
+	runtime     *outbound.Runtime
+	configUsers int64
+}
+
+func (p outboundUserProvisioner) AddUser(username, specJSON string, uid int64) error {
+	var user outbound.UserConfig
+	decoder := json.NewDecoder(bytes.NewReader([]byte(specJSON)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&user); err != nil {
+		return fmt.Errorf("admin user %q: %w", username, err)
+	}
+	if user.Username != username {
+		return fmt.Errorf("admin user spec username %q != %q", user.Username, username)
+	}
+	return p.runtime.AddAdminUser(user, uid)
+}
+
+func (p outboundUserProvisioner) RemoveUser(username string) error {
+	return p.runtime.RemoveAdminUser(username)
+}
+
+func (p outboundUserProvisioner) ConfigUserFloor() int64 { return p.configUsers }
+
 // newDLRRequestStore opens a Redis client for the submit-side DLR request
 // store, returning the store, a cleanup that closes the client, and any error.
 // It shares the DLRLookup Redis endpoint so the record this writes and the
