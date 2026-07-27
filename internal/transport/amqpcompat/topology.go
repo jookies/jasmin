@@ -314,6 +314,62 @@ func (topology *Topology) OpenMOThrowerSubscription(ctx context.Context) (*MOThr
 	return subscription, nil
 }
 
+// DeliverSMSubscription owns the channel and raw manual-ack delivery stream of
+// the RouterPB deliver.sm.* leg ONLY. The gateway's MO dispatcher uses this
+// instead of OpenRouterSubscriptions because the outbound late-billing
+// consumer already owns the billing queue in-process — attaching both would
+// compete on RouterPB_bill_request_submit_sm_resp_all.
+type DeliverSMSubscription struct {
+	Deliveries  <-chan amqp.Delivery
+	ConsumerTag string
+
+	channel topologyChannel
+}
+
+func (subscription *DeliverSMSubscription) Close() error {
+	if subscription == nil || subscription.channel == nil {
+		return nil
+	}
+	return subscription.channel.Close()
+}
+
+// OpenDeliverSMSubscription declares and starts the RouterPB deliver consumer
+// on one owned channel: messaging exchange, RouterPB_deliver_sm_all bound to
+// deliver.sm.*, and the legacy RouterPB-delivers manual-ack consumer.
+func (topology *Topology) OpenDeliverSMSubscription(ctx context.Context) (*DeliverSMSubscription, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	channel, err := topology.open()
+	if err != nil {
+		return nil, fmt.Errorf("open deliver.sm topology channel: %w", err)
+	}
+	subscription, err := func() (*DeliverSMSubscription, error) {
+		if err := declareExchange(ctx, channel, "messaging", topology.durable); err != nil {
+			return nil, err
+		}
+		if err := declareQueue(ctx, channel, RouterDeliverSMQueue, topology.durable); err != nil {
+			return nil, err
+		}
+		if err := bindQueue(ctx, channel, RouterDeliverSMQueue, "messaging", RouterDeliverSMRoutingKey); err != nil {
+			return nil, err
+		}
+		deliveries, err := consumeQueue(ctx, channel, RouterDeliverSMQueue, RouterDeliverSMConsumerTag)
+		if err != nil {
+			return nil, err
+		}
+		return &DeliverSMSubscription{Deliveries: deliveries, ConsumerTag: RouterDeliverSMConsumerTag}, nil
+	}()
+	if err != nil {
+		if closeErr := channel.Close(); closeErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("close deliver.sm topology channel: %w", closeErr))
+		}
+		return nil, err
+	}
+	subscription.channel = channel
+	return subscription, nil
+}
+
 // DLRLookupSubscription owns the channel and raw manual-ack delivery stream of
 // the legacy DLRLookup.subscribe topology: the messaging exchange, the
 // DLRLookup-<pid> queue bound to dlr.*, and a named manual-ack consumer with no

@@ -97,6 +97,16 @@ class DeliverSMUnpickler(pickle.Unpickler):
         return super().find_class(module, name)
 
 
+class RoutableDeliverSmUnpickler(DeliverSMUnpickler):
+    """DeliverSMUnpickler plus the RoutableDeliverSm wrapper globals — the
+    DeliverSmContent body the router dispatch repickles."""
+    def find_class(self, module, name):
+        if (module == "jasmin.routing.Routables" and name == "RoutableDeliverSm") \
+                or (module == "jasmin.routing.jasminApi" and name == "Connector"):
+            return pickle.Unpickler.find_class(self, module, name)
+        return DeliverSMUnpickler.find_class(self, module, name)
+
+
 class ConnectorListUnpickler(pickle.Unpickler):
     """Restricted loader for the dst-connectors header (HttpConnector list)."""
     def find_class(self, module, name):
@@ -537,6 +547,30 @@ def run():
                 routable = RoutableDeliverSm(pdu, Connector(req["cid"]))
                 pickled = pickle.dumps(routable, 2)
                 print(json.dumps({"status": "ok", "data": base64.b64encode(pickled).decode("ascii")}))
+            elif action == "repickle_routable_pdu":
+                # Router dispatch: a DeliverSmContent body (pickled
+                # RoutableDeliverSm) becomes the RoutedDeliverSmContent body
+                # (pickled bare PDU), exactly like RouterPB repickles
+                # routable.pdu. The restricted loader guards the input.
+                data = base64.b64decode(req["data"], validate=True)
+                routable = RoutableDeliverSmUnpickler(io.BytesIO(data)).load()
+                pdu = getattr(routable, "pdu", routable)
+                print(json.dumps({"status": "ok",
+                                  "data": base64.b64encode(pickle.dumps(pdu, 2)).decode("ascii")}))
+            elif action == "encode_connector_list":
+                # Router dispatch: the dst-connectors header — a pickled list
+                # of jasminApi connectors (HttpConnector / smpps system-id).
+                from jasmin.routing.jasminApi import HttpConnector, SmppServerSystemIdConnector
+                connectors = []
+                for entry in req["result"]:
+                    if entry["type"] == "http":
+                        connectors.append(HttpConnector(entry["cid"], entry["url"], entry.get("method", "GET")))
+                    elif entry["type"] == "smpps":
+                        connectors.append(SmppServerSystemIdConnector(entry["system_id"]))
+                    else:
+                        raise ValueError("unknown connector type %r" % entry.get("type"))
+                print(json.dumps({"status": "ok",
+                                  "data": base64.b64encode(pickle.dumps(connectors, 2)).decode("ascii")}))
             elif action == "ping":
                 # Liveness probe: proves the loop is reading stdin and serving.
                 print(json.dumps({"status": "ok"}))

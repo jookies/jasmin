@@ -12,6 +12,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
+	"github.com/pumpitspace/jasmin/internal/app/modispatch"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
@@ -56,6 +57,12 @@ type Config struct {
 	SMPPServerLog ComponentLogConfig `json:"smpp_server_log,omitempty"`
 	// HTTPS, when present, serves the HTTP API over TLS instead of plaintext.
 	HTTPS *HTTPSConfig `json:"https,omitempty"`
+	// MORoutes, when present, runs the MO router dispatch in-process: MOs the
+	// connectors ingest (deliver.sm.*) route to HTTP/SMPPS destinations via
+	// deliver_sm_thrower.* (RouterPB.deliver_sm_callback semantics — default
+	// route + connector-filtered static routes; content filters are plan 008
+	// Step 6). Enable the deliver_sm_thrower worker to actually throw them.
+	MORoutes []modispatch.RouteConfig `json:"mo_routes,omitempty"`
 }
 
 // HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
@@ -157,6 +164,12 @@ func ValidateConfig(config Config) error {
 	}
 	if config.HTTPS != nil && (config.HTTPS.CertFile == "" || config.HTTPS.KeyFile == "") {
 		return fmt.Errorf("%w: https requires both cert_file and key_file", ErrInvalidConfig)
+	}
+	if len(config.MORoutes) > 0 {
+		moConfig := modispatch.Config{AMQPURL: config.Outbound.AMQPURL, Routes: config.MORoutes}
+		if err := modispatch.ValidateConfig(moConfig); err != nil {
+			return fmt.Errorf("%w: mo_routes: %v", ErrInvalidConfig, err)
+		}
 	}
 	if len(config.Connectors) == 0 {
 		return fmt.Errorf("%w: at least one SMPPc connector is required", ErrInvalidConfig)
