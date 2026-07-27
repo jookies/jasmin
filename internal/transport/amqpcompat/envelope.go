@@ -38,6 +38,9 @@ const (
 	RouteDeliverSMHTTP
 	RouteDeliverSMSMPPS
 	RouteDLRDeliverSM
+	// RouteDeliverSM is the connector-ingress MO publication deliver.sm.<cid>
+	// the legacy SMPPClientSMListener produces and RouterPB consumes.
+	RouteDeliverSM
 )
 
 func (kind RouteKind) String() string {
@@ -60,6 +63,8 @@ func (kind RouteKind) String() string {
 		return "deliver_sm_smpps"
 	case RouteDLRDeliverSM:
 		return "dlr_deliver_sm"
+	case RouteDeliverSM:
+		return "deliver_sm"
 	default:
 		return "unknown"
 	}
@@ -99,6 +104,9 @@ func ParseRoutingKey(key string) (Route, error) {
 	if target, ok := dynamicTarget(key, "submit.sm.resp."); ok {
 		return Route{kind: RouteSubmitSMResponse, target: target}, nil
 	}
+	if target, ok := dynamicTarget(key, "deliver.sm."); ok {
+		return Route{kind: RouteDeliverSM, target: target}, nil
+	}
 	if target, ok := dynamicTarget(key, "submit.sm."); ok {
 		return Route{kind: RouteSubmitSM, target: target}, nil
 	}
@@ -128,6 +136,10 @@ const (
 	FieldString
 	FieldInteger
 	FieldBytes
+	// FieldBool carries an AMQP boolean table value — the legacy
+	// DeliverSmContent headers (concatenated, will_be_concatenated) publish
+	// Python bools through txamqp.
+	FieldBool
 )
 
 func (kind FieldKind) String() string {
@@ -138,6 +150,8 @@ func (kind FieldKind) String() string {
 		return "integer"
 	case FieldBytes:
 		return "bytes"
+	case FieldBool:
+		return "bool"
 	default:
 		return "invalid"
 	}
@@ -149,6 +163,7 @@ type Field struct {
 	stringValue  string
 	integerValue int64
 	bytesValue   []byte
+	boolValue    bool
 }
 
 func StringField(value string) Field {
@@ -161,6 +176,10 @@ func IntegerField(value int64) Field {
 
 func BytesField(value []byte) Field {
 	return Field{kind: FieldBytes, bytesValue: cloneBytes(value)}
+}
+
+func BoolField(value bool) Field {
+	return Field{kind: FieldBool, boolValue: value}
 }
 
 func (field Field) Kind() FieldKind { return field.kind }
@@ -186,6 +205,13 @@ func (field Field) Bytes() ([]byte, bool) {
 	return cloneBytes(field.bytesValue), true
 }
 
+func (field Field) Bool() (bool, bool) {
+	if field.kind != FieldBool {
+		return false, false
+	}
+	return field.boolValue, true
+}
+
 func (field Field) clone() Field {
 	copy := field
 	copy.bytesValue = cloneBytes(field.bytesValue)
@@ -193,7 +219,7 @@ func (field Field) clone() Field {
 }
 
 func (field Field) valid() bool {
-	return field.kind == FieldString || field.kind == FieldInteger || field.kind == FieldBytes
+	return field.kind == FieldString || field.kind == FieldInteger || field.kind == FieldBytes || field.kind == FieldBool
 }
 
 func (field Field) wireSize() uint64 {
@@ -204,6 +230,8 @@ func (field Field) wireSize() uint64 {
 		return 8
 	case FieldBytes:
 		return uint64(len(field.bytesValue))
+	case FieldBool:
+		return 1
 	default:
 		return 0
 	}

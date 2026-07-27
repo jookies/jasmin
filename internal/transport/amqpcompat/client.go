@@ -298,6 +298,9 @@ func toAMQPHeaders(h map[string]Field) amqp.Table {
 		case FieldBytes:
 			b, _ := v.Bytes()
 			res[k] = b
+		case FieldBool:
+			b, _ := v.Bool()
+			res[k] = b
 		}
 	}
 	return res
@@ -315,6 +318,8 @@ func fromAMQPHeaders(h amqp.Table) map[string]Field {
 			res[k] = BytesField(val)
 		case int:
 			res[k] = IntegerField(int64(val))
+		case bool:
+			res[k] = BoolField(val)
 		}
 	}
 	return res

@@ -66,7 +66,7 @@ func Encode(pdu PDU) ([]byte, error) {
 			return nil, &LegacyMessagePayloadError{Size: len(pdu.SM.Optional.MessagePayload)}
 		}
 		body, err = encodeSM(pdu.SM)
-	case CommandSubmitSMResp, CommandDataSMResp:
+	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
 		if pdu.SubmitResponse == nil && pdu.Header.CommandStatus != 0 {
 			// Error responses are header-only (SMPP noBodyOnError).
 			body = nil
@@ -120,7 +120,7 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor)
-	case CommandSubmitSMResp, CommandDataSMResp:
+	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
 		if cursor.remaining() == 0 && header.CommandStatus != 0 {
 			pdu.SubmitResponse = nil
 		} else {

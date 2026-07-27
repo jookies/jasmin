@@ -70,6 +70,11 @@ type Config struct {
 	SubmitSMThroughput *float64 `json:"submit_sm_throughput,omitempty"`
 	PrefetchCount      int      `json:"prefetch_count,omitempty"`
 
+	// DLRMsgIDBases is the legacy dlr_msg_id_bases: how a deliver_sm receipt's
+	// SMSC id relates to the submit_sm_resp id base (0 same, 1 receipt decimal
+	// vs resp hex, 2 receipt hex vs resp decimal) — code_dlr_msgid semantics.
+	DLRMsgIDBases int `json:"dlr_msg_id_bases,omitempty"`
+
 	// AMQPDurableTopology declares this connector's submit queue (and the
 	// messaging exchange) durable. Go-runtime knob, not a legacy field: the
 	// legacy stack declares non-durable, and AMQP rejects mismatched
@@ -180,6 +185,9 @@ func (c *Config) Validate() error {
 	}
 	if c.PrefetchCount < 0 || c.PrefetchCount > 65535 {
 		return fmt.Errorf("prefetch_count must be between 1 and 65535")
+	}
+	if c.DLRMsgIDBases < 0 || c.DLRMsgIDBases > 2 {
+		return fmt.Errorf("dlr_msg_id_bases must be 0, 1 or 2")
 	}
 	if c.PrefetchCount == 0 {
 		c.PrefetchCount = 1

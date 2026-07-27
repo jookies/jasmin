@@ -158,6 +158,14 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err := topology.DeclareQueue(ctx, amqpcompat.DLRLookupQueue(dlrLookupPID), "messaging", amqpcompat.DLRLookupRoutingKey); err != nil {
 		return nil, fmt.Errorf("declare DLRLookup queue: %w", err)
 	}
+	// Same rationale for the RouterPB deliver queue: the connectors' MO ingress
+	// (deliver.sm.<cid>) publishes mandatory, so the queue+binding must exist
+	// even before the in-process MO router consumer attaches — the legacy
+	// RouterPB declares it on its own boot. Idempotent with the router's
+	// OpenRouterSubscriptions.
+	if err := topology.DeclareQueue(ctx, amqpcompat.RouterDeliverSMQueue, "messaging", amqpcompat.RouterDeliverSMRoutingKey); err != nil {
+		return nil, fmt.Errorf("declare RouterPB deliver queue: %w", err)
+	}
 	publisher, err := amqpcompat.NewPublisher(connection)
 	if err != nil {
 		return nil, fmt.Errorf("create RabbitMQ publisher: %w", err)
@@ -246,6 +254,12 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 // healthy so the check reflects only state this runtime owns.
 func (runtime *Runtime) AMQPHealthy() bool {
 	return runtime.connection == nil || !runtime.connection.IsClosed()
+}
+
+// Publisher exposes the runtime's confirmed AMQP publisher for ingress
+// publications that share the broker (deliver_sm MO/DLR from the connectors).
+func (runtime *Runtime) Publisher() *amqpcompat.Publisher {
+	return runtime.publisher
 }
 
 func (runtime *Runtime) Submitter() core.Submitter {

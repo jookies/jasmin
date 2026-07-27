@@ -146,6 +146,18 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	}
 	runtime.outbound = outboundRuntime
 	runtime.requiredConnectors = config.RequiredConnectors()
+	// Wire deliver_sm ingestion (MO + receipt publications) into every
+	// connector before any of them binds: the sessions publish through the
+	// outbound broker and pickle routables through the shared bridge.
+	if publisher := outboundRuntime.Publisher(); publisher != nil {
+		for _, connectorConfig := range config.Connectors {
+			connector, getErr := manager.Get(connectorConfig.CID)
+			if getErr != nil {
+				return nil, fmt.Errorf("wire deliver ingestion for %q: %w", connectorConfig.CID, getErr)
+			}
+			connector.SetDeliverUpstream(publisher, bridge)
+		}
+	}
 	// /health (real readiness) rides beside the legacy-parity endpoints; the
 	// outbound handler keeps everything else, including the unconditional /ping.
 	mux := http.NewServeMux()
