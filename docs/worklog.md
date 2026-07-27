@@ -2,6 +2,25 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-26 — Macro-2 finished (plan 008): terminal-DLR loop closed + SMPPS MO proven
+
+### Done
+
+- **#76** — two deliverables. **Terminal DLR (L2/L3) loop closed:** (1) submit-side `dlr:<msgid>` store (`core/dlr.RequestStore`, wired from DLRLookup `redis_url`; new per-connector `dlr_expiry`); (2) **root-cause fix** — the vestigial reply-to `submit.sm.resp.<user>` (nothing consumes it) was published *mandatory* → `NO_ROUTE` → retried forever → the outbox's in-order predecessor gate wedged `dlr.submit_sm_resp` + billing behind it; the dispatcher now drops `NO_ROUTE` on the best-effort `SUBMIT_RESPONSE` event (legacy publishes the reply non-mandatory); (3) DLRLookup `OnError`→slog. **SMPPS MO leg proven:** gated integration test of the full throw chain (`deliver_sm_thrower.smpps` → mothrower → bridge → MOSink → bound receiver ESME). Compose exposes rabbitmq on host 5673 for host-run gated tests.
+- **Compose E2E DLR:** submit `dlr-level=2` → `dlr:<msgid>` → `submit_sm_resp` → `queue-msgid:FAKE-N` mapping → injected receipt → correlated → HTTP callback with legacy params.
+- **Compose E2E SMPPS MO:** gated test PASS (gateway stopped so it doesn't compete for the shared `deliver_sm_thrower` queue).
+
+### Decisions
+
+- **Best-effort reply-to, not delete-the-event:** keeping the `SUBMIT_RESPONSE` event (dropped only on genuine `NO_ROUTE`) preserves the path for a future reply consumer (e.g. an SMPPs sync waiter) while matching legacy's non-mandatory publish. Every must-route key stays a hard failure.
+- **SMPPS MO verified via a gated integration test, not a new compose binary:** the full chain over a real broker to a bound receiver is more durable and CI-runnable than an ad-hoc ESME container. Note the shared-queue gotcha: the running gateway's own mothrower competes, so the local run needs the gateway stopped (CI has no gateway running).
+
+### Next (Macro-3, plan 008 Steps 6–8)
+
+- **Content filters in config (item 3):** `RouteConfig` gains user/group/source/destination/content filter fields (MT + MO); the `routingfilter` engine + all constructors already exist — this is config wiring + golden tests. MO content filters also need the bridge to expose the deliver_sm content pre-routing.
+- **Admin plane (item 4):** authenticated HTTP CRUD for users/routes/connectors + durable persistence + live apply; jCli byte-parity console stays deferred.
+- **Interceptor (item 5):** MO/MT user-script runner (Python subprocess by contract), per-route config, differential vs `interceptord`.
+
 ## 2026-07-26 — Macro-2 slice 1 (plan 008): deliver_sm ingestion — MO + receipt produce sides
 
 ### Done
