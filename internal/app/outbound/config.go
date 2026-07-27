@@ -48,11 +48,12 @@ type UserConfig struct {
 }
 
 type RouteConfig struct {
-	ConnectorID  string   `json:"connector_id"`
-	ConnectorIDs []string `json:"connector_ids,omitempty"`
-	Rate         float64  `json:"rate"`
-	Default      bool     `json:"default"`
-	Order        int      `json:"order"`
+	ConnectorID  string         `json:"connector_id"`
+	ConnectorIDs []string       `json:"connector_ids,omitempty"`
+	Rate         float64        `json:"rate"`
+	Default      bool           `json:"default"`
+	Order        int            `json:"order"`
+	Filters      []FilterConfig `json:"filters,omitempty"`
 }
 
 func (route RouteConfig) ConnectorCandidates() []string {
@@ -112,6 +113,16 @@ func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
 		directory.passwordHashes[entry.Username] = passwordHash
 	}
 	return directory, nil
+}
+
+// resolveUID resolves a configured username to its internal billing uid, for
+// route user-filters. An unknown username yields false.
+func (directory *runtimeDirectory) resolveUID(username string) (int64, bool) {
+	user, err := directory.users.GetUser(username)
+	if err != nil {
+		return 0, false
+	}
+	return user.UID(), true
 }
 
 func (directory *runtimeDirectory) Authenticate(_ context.Context, username, password string) error {
@@ -181,9 +192,10 @@ func ValidateConfig(config Config) error {
 	if err := validateConfig(config); err != nil {
 		return err
 	}
-	if _, err := newRuntimeDirectory(config); err != nil {
+	directory, err := newRuntimeDirectory(config)
+	if err != nil {
 		return err
 	}
-	_, _, _, err := buildRoutes(config.Routes)
+	_, _, _, err = buildRoutes(config.Routes, directory.resolveUID)
 	return err
 }
