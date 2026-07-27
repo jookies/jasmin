@@ -2,6 +2,30 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-27 — Core-gateway functional completeness (plan 009)
+
+Goal (user): finish everything for core gateway functionality — the four bounded gaps in [docs/plans/009](plans/009-core-gateway-completeness.md). One PR per step, merged on the 3 fast CI checks.
+
+### Done
+
+- **#87 — front-door full send-path byte-differential** (closes plan 003 Step 5). `submit_encoder_sendpath_differential_test.go` proves the Go front-door submit body equals the legacy `SMPPOperationFactory(config).SubmitSM` + `update_submit_sm_pdu` + `preSubmitSm` + `PDUEncoder` bytes, for the DEFAULT connector (2/1/1/1) and non-default connectors across a shape matrix (service_type, protocol_id, sm_default_msg_id, empty-source fallback, UCS2). Go params derive from `smppc.Config.Validate()+PDUDefaults()` — the resolved defaults, closing the strict-SMSC TON/NPI risk.
+- **#88 — MO-direction interception.** Inbound `deliver_sm` can be rejected (drop, ack ESME_ROK) or mutated (source/dest/short_message rewritten before encode+publish). Small consumer-side `smppc.MOInterceptor` interface + in-place hook keeps smppc decoupled; the gateway adapter bridges to `interceptor.Table` + the shared runner. Runs on the whole message and the reassembled whole (long MOs), preserving interceptor-before-routing ordering. Config: `mo_interceptors`; runner now started for MT **or** MO.
+- **#89 — MO content filters.** MO routes filter on source/destination/short_message/tag/date/time. The bridge `repickle_routable_pdu` action now returns the decoded routing fields alongside the unchanged pickled PDU (one round-trip); `modispatch` builds an MO routable and matches connector-id AND content filters. Published envelope byte-unchanged.
+- **#90 — reconnect soak** (25 bind→drop→rebind cycles, no goroutine leak, `-race`). Audit: reconnection chain sound as-is, no code change (keepalive→`handleControlTimeout`→close→reconnect; inactivity watchdog; fixed ConLoss/ConFail delay kept for parity).
+
+### Decisions
+
+- **MO interception in `deliver.go`, content filters in `modispatch`** — each hook sits where its data naturally is; both reuse already-differential-tested encoders (no new bridge encode action for mutation), and ordering is preserved through the pickle (interception mutates → modispatch decodes the mutated fields).
+- **Bridge decode-return over new headers** — folding the field decode into the existing repickle call keeps the `deliver.sm.<cid>`/RoutedDeliverSmContent envelopes byte-identical (no parity risk) with zero extra round-trip.
+- **`AddrTon`/`AddrNpi` enums are 1-indexed** (NATIONAL=3) but the encoder maps enum→wire as value−1 (NATIONAL→wire 2); the connector config carries **wire** bytes. First send-path oracle draft used enum-by-value and diverged — fixed by decoding wire bytes like the bridge.
+- **Soak gated behind `SMPP_SOAK`** so the goroutine-count assertion never flakes the fast gate; reconnect correctness is already covered by existing tests.
+- **No exponential backoff** — kept the fixed reconnect cadence for Jasmin parity.
+
+### Next
+
+- Core-gateway portion complete. Per user sequencing, **billing** is next (long de-prioritized) — confirm timing before starting.
+- Backlog (non-blocking): jCli byte-parity console, **native Go pickle codec** to retire the Python bridge (the "actually a Go rewrite" blocker), the formal cutover gate (drive 183 non-MATCH contracts to MATCH + shadow/canary/rollback runbooks; registry 19/205 MATCH).
+
 ## 2026-07-27 — Connection types per protocol + receive-side correctness
 
 Goal (user): a gateway that sends/receives over SMPP and HTTP with DLR, modeled as distinct connection types per protocol. Grounded the design in Jasmin's connector model + the SMPP spec rather than an invented one. Billing explicitly de-prioritized (next after this portion).

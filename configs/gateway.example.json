@@ -22,6 +22,13 @@
         "py_code": "smpp_status = 88\nhttp_status = 400"
       }
     ],
+    "mo_interceptors": [
+      {
+        "order": 10,
+        "filters": [{"type": "short_message", "pattern": ".*STOP"}],
+        "py_code": "smpp_status = 255"
+      }
+    ],
     "routes": [
       {
         "connector_id": "smsc-primary",
@@ -80,6 +87,15 @@
     "amqp_url": ""
   },
   "mo_routes": [
+    {
+      "order": 10,
+      "filter_connector_id": "smsc-primary",
+      "filters": [{"type": "destination_addr", "pattern": "^2255"}],
+      "connector": {
+        "type": "smpps",
+        "system_id": "shortcode-app"
+      }
+    },
     {
       "order": 0,
       "default": true,

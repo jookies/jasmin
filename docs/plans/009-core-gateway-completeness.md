@@ -1,7 +1,7 @@
 # Core-gateway functional completeness (MO interception + MO filters + front-door byte-proof + resilience/soak)
 
 - **Date:** 2026-07-27
-- **Status:** active
+- **Status:** done — all four gaps closed on 2026-07-27. Step 1 front-door send-path byte-differential (#87, closes plan 003 Step 5); Steps 2-3 MO-direction interception (#88); Steps 4-5 MO content filters via bridge decode-return (#89); Step 6 reconnect soak + audit — no code change needed, machinery sound (#90); Step 7 docs + worklog (this PR). The gateway now sends/receives/routes/DLRs across SMPP+HTTP with MO interception and content-filter routing, all differential-tested vs frozen Python.
 - **Summary:** Close the four bounded gaps that make the core gateway functionally complete: MO-direction interception, MO content filters, the deferred front-door submit byte-differential (plan 003 Step 5), and reconnection/resilience hardening proven by a real soak test.
 - **Related:** [008-macro2-mo-dlr-admin.md](008-macro2-mo-dlr-admin.md) (MO/DLR/admin/interceptor), [003-front-door-connector-pdu-config.md](003-front-door-connector-pdu-config.md) (GAP 4 — this plan closes its deferred Step 5). Memory: prod-testing-readiness, mt-path-parity-audit-backlog.
 
