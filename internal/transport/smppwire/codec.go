@@ -66,6 +66,8 @@ func Encode(pdu PDU) ([]byte, error) {
 			return nil, &LegacyMessagePayloadError{Size: len(pdu.SM.Optional.MessagePayload)}
 		}
 		body, err = encodeSM(pdu.SM)
+	case CommandDataSM:
+		body, err = encodeDataSM(pdu.SM)
 	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
 		if pdu.SubmitResponse == nil && pdu.Header.CommandStatus != 0 {
 			// Error responses are header-only (SMPP noBodyOnError).
@@ -120,6 +122,8 @@ func decodeBody(header Header, body []byte) (PDU, error) {
 		// Header-only control PDUs.
 	case CommandSubmitSM, CommandDeliverSM:
 		pdu.SM, pdu.decodedMessagePayload, err = decodeSM(cursor)
+	case CommandDataSM:
+		pdu.SM, pdu.decodedMessagePayload, err = decodeDataSM(cursor)
 	case CommandSubmitSMResp, CommandDataSMResp, CommandDeliverSMResp:
 		if cursor.remaining() == 0 && header.CommandStatus != 0 {
 			pdu.SubmitResponse = nil
@@ -319,6 +323,85 @@ func encodeSM(body *SMBody) ([]byte, error) {
 	output.WriteByte(body.SMDefaultMessageID)
 	output.WriteByte(byte(len(body.ShortMessage)))
 	output.Write(body.ShortMessage)
+	if err := encodeTLVs(&output, body.Optional); err != nil {
+		return nil, err
+	}
+	output.Write(body.VendorTLVs)
+	return output.Bytes(), nil
+}
+
+// decodeDataSM decodes a data_sm body. Per SMPP 3.4 §4.7.1 its mandatory
+// parameters are a strict subset of submit_sm/deliver_sm: no protocol_id,
+// priority_flag, schedule_delivery_time, validity_period, replace_if_present_
+// flag, sm_default_msg_id, or sm_length/short_message — the message rides the
+// message_payload TLV. Reuses the shared TLV decoder.
+func decodeDataSM(c *cursor) (*SMBody, bool, error) {
+	body := &SMBody{}
+	var err error
+	if body.ServiceType, err = c.cstring(); err != nil {
+		return nil, false, fieldError("service_type", err)
+	}
+	if body.SourceAddressTON, err = c.byte(); err != nil {
+		return nil, false, fieldError("source_addr_ton", err)
+	}
+	if body.SourceAddressNPI, err = c.byte(); err != nil {
+		return nil, false, fieldError("source_addr_npi", err)
+	}
+	if body.SourceAddress, err = c.cstring(); err != nil {
+		return nil, false, fieldError("source_addr", err)
+	}
+	if body.DestinationAddressTON, err = c.byte(); err != nil {
+		return nil, false, fieldError("dest_addr_ton", err)
+	}
+	if body.DestinationAddressNPI, err = c.byte(); err != nil {
+		return nil, false, fieldError("dest_addr_npi", err)
+	}
+	if body.DestinationAddress, err = c.cstring(); err != nil {
+		return nil, false, fieldError("destination_addr", err)
+	}
+	if body.ESMClass, err = c.byte(); err != nil {
+		return nil, false, fieldError("esm_class", err)
+	}
+	if body.RegisteredDelivery, err = c.byte(); err != nil {
+		return nil, false, fieldError("registered_delivery", err)
+	}
+	if body.DataCoding, err = c.byte(); err != nil {
+		return nil, false, fieldError("data_coding", err)
+	}
+	messagePayload, err := decodeTLVs(c, body)
+	if err != nil {
+		return nil, false, err
+	}
+	return body, messagePayload, nil
+}
+
+// encodeDataSM encodes a data_sm body with the data_sm mandatory subset.
+func encodeDataSM(body *SMBody) ([]byte, error) {
+	if body == nil {
+		return nil, errors.New("data_sm body is required")
+	}
+	size := cstringWireSize(body.ServiceType) + cstringWireSize(body.SourceAddress) +
+		cstringWireSize(body.DestinationAddress) + 7 + optionalWireSize(body.Optional) + uint64(len(body.VendorTLVs))
+	if err := ensureBodySize(size); err != nil {
+		return nil, err
+	}
+	var output bytes.Buffer
+	if err := writeCString(&output, "service_type", body.ServiceType); err != nil {
+		return nil, err
+	}
+	output.WriteByte(body.SourceAddressTON)
+	output.WriteByte(body.SourceAddressNPI)
+	if err := writeCString(&output, "source_addr", body.SourceAddress); err != nil {
+		return nil, err
+	}
+	output.WriteByte(body.DestinationAddressTON)
+	output.WriteByte(body.DestinationAddressNPI)
+	if err := writeCString(&output, "destination_addr", body.DestinationAddress); err != nil {
+		return nil, err
+	}
+	output.WriteByte(body.ESMClass)
+	output.WriteByte(body.RegisteredDelivery)
+	output.WriteByte(body.DataCoding)
 	if err := encodeTLVs(&output, body.Optional); err != nil {
 		return nil, err
 	}

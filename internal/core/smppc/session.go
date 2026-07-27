@@ -667,7 +667,10 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 	switch pdu.Header.CommandID {
 	case smppwire.CommandSubmitSMResp:
 		s.handleResponse(pdu)
-	case smppwire.CommandDeliverSM:
+	case smppwire.CommandDeliverSM, smppwire.CommandDataSM:
+		// The legacy deliver_sm_event catches data_sm as well — same
+		// receipt-vs-MO classification and publication; the response command
+		// derives from the request id (data_sm -> data_sm_resp).
 		return s.handleDeliver(pdu)
 	case smppwire.CommandUnbind:
 		_ = s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbindResp, SequenceNumber: pdu.Header.SequenceNumber}})
