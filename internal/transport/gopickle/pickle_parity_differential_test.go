@@ -15,7 +15,9 @@ import (
 // line, "base64(pickle)\trepr(value)".
 const emitScript = `
 import sys, base64, pickle
-from smpp.pdu.pdu_types import CommandId
+from smpp.pdu.pdu_types import (CommandId, AddrTon, DataCoding, DataCodingDefault,
+    EsmClass, EsmClassMode, EsmClassType, EsmClassGsmFeatures,
+    RegisteredDelivery, RegisteredDeliveryReceipt)
 VALUES = [
     None, True, False,
     0, 1, 255, 256, 65535, 65536, -1, -2**31, 2**31-1,
@@ -25,7 +27,14 @@ VALUES = [
     [], [1, "a", b"b"],
     (), (1,), (1, 2), (1, 2, 3), (1, 2, 3, 4),
     {}, {"k": 1, "k2": b"v"},
-    CommandId(8),
+    # Simple enums (Enum(value) reduce) and compound objects that carry data in
+    # the NEWOBJ args tuple (EsmClass/RegisteredDelivery) or a nested state dict
+    # of enum reduces (DataCoding) — the machine's Object.Args + set paths.
+    CommandId(8), AddrTon.NATIONAL,
+    DataCoding(schemeData=DataCodingDefault.SMSC_DEFAULT_ALPHABET),
+    EsmClass(EsmClassMode.STORE_AND_FORWARD, EsmClassType.DEFAULT),
+    EsmClass(EsmClassMode.DEFAULT, EsmClassType.DEFAULT, [EsmClassGsmFeatures.UDHI_INDICATOR_SET]),
+    RegisteredDelivery(RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED),
 ]
 for v in VALUES:
     print(base64.b64encode(pickle.dumps(v, 2)).decode() + "\t" + repr(v))

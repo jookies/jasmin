@@ -280,7 +280,8 @@ func (u *unpickler) run() (Value, error) {
 				return nil, err
 			}
 		case opNewObj:
-			if _, err := u.pop(); err != nil { // args tuple (ignored: __new__ with no args)
+			args, err := u.pop() // constructor args (data-carrying for EsmClass etc.)
+			if err != nil {
 				return nil, err
 			}
 			cls, err := u.pop()
@@ -291,7 +292,7 @@ func (u *unpickler) run() (Value, error) {
 			if !ok {
 				return nil, u.errf("NEWOBJ on non-Global %T", cls)
 			}
-			u.push(Object{Class: g, State: None{}})
+			u.push(Object{Class: g, Args: args, State: nil})
 		case opBuild:
 			state, err := u.pop()
 			if err != nil {

@@ -64,11 +64,14 @@ type Reduce struct {
 	Args     Value
 }
 
-// Object is a class instance built via NEWOBJ(cls) then BUILD(state): the
-// dominant shape for smpp.pdu PDUs and jasmin objects. State is typically a
-// Dict applied to the new instance's __dict__.
+// Object is a class instance built via NEWOBJ(cls, *args) and optionally
+// BUILD(state) — the dominant shape for smpp.pdu PDUs and jasmin objects.
+// Most objects use empty Args + a State Dict applied to __dict__ (NEWOBJ then
+// BUILD); some (EsmClass, RegisteredDelivery) carry their whole value in Args
+// with no BUILD. Args nil encodes as an empty tuple; State nil emits no BUILD.
 type Object struct {
 	Class Global
+	Args  Value
 	State Value
 }
 

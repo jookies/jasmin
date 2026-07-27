@@ -114,11 +114,20 @@ func (p *pickler) encode(v Value) error {
 		p.buf = append(p.buf, opReduce)
 	case Object:
 		p.encodeGlobal(t.Class)
-		p.buf = append(p.buf, opEmptyTuple, opNewObj)
-		if err := p.encode(t.State); err != nil {
+		args := t.Args
+		if args == nil {
+			args = Tuple{}
+		}
+		if err := p.encode(args); err != nil {
 			return err
 		}
-		p.buf = append(p.buf, opBuild)
+		p.buf = append(p.buf, opNewObj)
+		if t.State != nil {
+			if err := p.encode(t.State); err != nil {
+				return err
+			}
+			p.buf = append(p.buf, opBuild)
+		}
 	default:
 		return fmt.Errorf("%w: unsupported value type %T", ErrPickle, v)
 	}
