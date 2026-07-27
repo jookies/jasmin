@@ -54,6 +54,16 @@ type Config struct {
 	// SMPPServerLog configures the smpp.server.<id> logger (bind/unbind lines).
 	// ApplyJasmin overlays it from the .cfg [smpp-server] log_* directives.
 	SMPPServerLog ComponentLogConfig `json:"smpp_server_log,omitempty"`
+	// HTTPS, when present, serves the HTTP API over TLS instead of plaintext.
+	HTTPS *HTTPSConfig `json:"https,omitempty"`
+}
+
+// HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
+// checked at boot (ListenAndServeTLS), not at --check-config, so a config can
+// be validated on machines without the certificates.
+type HTTPSConfig struct {
+	CertFile string `json:"cert_file"`
+	KeyFile  string `json:"key_file"`
 }
 
 // ComponentLogConfig is a component logger's level + rotating file sink, resolved
@@ -96,6 +106,9 @@ func LoadConfig(path string) (Config, error) {
 			return Config{}, fmt.Errorf("%w: trailing JSON content", ErrInvalidConfig)
 		}
 		return Config{}, fmt.Errorf("decode trailing config content: %w", err)
+	}
+	if err := resolveSecretRefs(&config); err != nil {
+		return Config{}, err
 	}
 	if err := ValidateConfig(config); err != nil {
 		return Config{}, err
@@ -141,6 +154,9 @@ func ValidateConfig(config Config) error {
 		if err := smppsserver.ValidateConfig(*config.SMPPS); err != nil {
 			return fmt.Errorf("%w: smpps: %v", ErrInvalidConfig, err)
 		}
+	}
+	if config.HTTPS != nil && (config.HTTPS.CertFile == "" || config.HTTPS.KeyFile == "") {
+		return fmt.Errorf("%w: https requires both cert_file and key_file", ErrInvalidConfig)
 	}
 	if len(config.Connectors) == 0 {
 		return fmt.Errorf("%w: at least one SMPPc connector is required", ErrInvalidConfig)

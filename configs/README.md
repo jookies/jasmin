@@ -48,6 +48,18 @@ Notes:
   e.g. the bridge-edge shadow — or use a fresh vhost to switch modes.
 - **TLS to the SMSC**: set `tls_enabled: true` plus optional `tls_server_name` /
   `tls_ca_file` on the connector. Certificate verification cannot be disabled.
+- **Secret references.** Credential fields accept `env:NAME`, `file:/path`
+  (trailing newline trimmed) or `literal:...` (escape hatch) instead of a
+  plaintext value: `outbound.postgres_dsn`, `outbound.amqp_url`,
+  `connectors[].password`, `dlr_lookup.amqp_url`/`redis_url`,
+  `dlr_thrower.amqp_url`, `deliver_sm_thrower.amqp_url`, `smpps.users[].password`.
+  Resolution happens at load, so `--check-config` fails closed on a missing
+  secret. Example: `"postgres_dsn": "env:PG_DSN"`.
+- **Inbound TLS.** Top-level `"https": {"cert_file": "...", "key_file": "..."}`
+  serves the HTTP API over TLS (plain HTTP requests are rejected). For the
+  SMPPS server, set `tls_cert_file` + `tls_key_file` inside the `smpps` block
+  to terminate SMPPS-over-TLS. Cert files are opened at boot, not at
+  `--check-config`, so configs validate on machines without the certs.
 - **Vendor TLVs**: per-connector `custom_tlvs` rules
   (`{"tag": ..., "type": "int1|int2|int4|int8|octetstring|coctetstring", "length": null, "required": false}`).
 - **Audit log.** `submit_audit_log` emits the Jasmin-format SMS-MT line to stderr

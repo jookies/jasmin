@@ -66,10 +66,17 @@ func run() error {
 		IdleTimeout:       60 * time.Second,
 	}
 	errCh := make(chan error, 1)
-	go func() {
-		errCh <- server.ListenAndServe()
-	}()
-	log.Printf("jasmin-go-httpapi listening on %s", runtimeConfig.Outbound.ListenAddress)
+	if https := runtimeConfig.HTTPS; https != nil {
+		go func() {
+			errCh <- server.ListenAndServeTLS(https.CertFile, https.KeyFile)
+		}()
+		log.Printf("jasmin-go-httpapi listening on %s (TLS)", runtimeConfig.Outbound.ListenAddress)
+	} else {
+		go func() {
+			errCh <- server.ListenAndServe()
+		}()
+		log.Printf("jasmin-go-httpapi listening on %s", runtimeConfig.Outbound.ListenAddress)
+	}
 
 	select {
 	case <-lifetime.Done():
