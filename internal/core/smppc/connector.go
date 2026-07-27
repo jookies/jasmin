@@ -182,6 +182,9 @@ type Connector struct {
 	// PDUs acked-and-dropped like the legacy RouterPB-not-set branch.
 	deliverPublisher DeliverPublisher
 	deliverEncoder   DeliverEncoder
+	// multipartStore is passed to each session for inbound long-message
+	// reassembly; nil reproduces the legacy redis-less drop.
+	multipartStore MultipartStore
 }
 
 // SetSubmitAuditLogger sets the SMS-MT audit logger applied to every session this
@@ -202,6 +205,14 @@ func (c *Connector) SetDeliverUpstream(publisher DeliverPublisher, encoder Deliv
 	defer c.mu.Unlock()
 	c.deliverPublisher = publisher
 	c.deliverEncoder = encoder
+}
+
+// SetMultipartStore sets the inbound long-message reassembly store applied to
+// every session this connector creates. Call before Start.
+func (c *Connector) SetMultipartStore(store MultipartStore) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.multipartStore = store
 }
 
 // logExpiredDiscard emits the legacy SM listener's expired-message discard line at
@@ -717,10 +728,12 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	auditPrivacy := c.auditPrivacy
 	deliverPublisher := c.deliverPublisher
 	deliverEncoder := c.deliverEncoder
+	multipartStore := c.multipartStore
 	c.mu.RUnlock()
 	session := NewSessionWithDurability(conn, cfg, retry, c.readiness, c.decoder, transactions, nil)
 	session.SetSubmitAuditLogger(auditLogger, auditPrivacy)
 	session.SetDeliverUpstream(deliverPublisher, deliverEncoder)
+	session.SetMultipartStore(multipartStore)
 	owned = false
 	return session, nil
 }

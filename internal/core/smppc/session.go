@@ -103,6 +103,9 @@ type Session struct {
 	// publications). Nil mirrors the legacy RouterPB-not-set drop branch.
 	deliverPublisher DeliverPublisher
 	deliverEncoder   DeliverEncoder
+	// multipartStore accumulates inbound long-message parts for reassembly.
+	// Nil reproduces the legacy redis-less drop.
+	multipartStore MultipartStore
 }
 
 // SetSubmitAuditLogger enables the legacy SMS-MT audit line for correlated

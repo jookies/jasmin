@@ -29,6 +29,16 @@ type DeliverEncoder interface {
 	EncodeRoutableDeliverSM(ctx context.Context, wire []byte, cid string) ([]byte, error)
 }
 
+// MultipartStore accumulates inbound long-message (SAR/UDH) segments keyed by
+// connector/reference/destination until every segment arrives, then the session
+// reassembles and publishes one whole MO. Nil disables reassembly (the legacy
+// redis-less drop). Segment content is opaque to the store.
+type MultipartStore interface {
+	StorePart(ctx context.Context, connectorID string, reference uint32, destination string, sequence uint32, content []byte) error
+	ReadParts(ctx context.Context, connectorID string, reference uint32, destination string) (map[uint32][]byte, error)
+	DeleteParts(ctx context.Context, connectorID string, reference uint32, destination string) error
+}
+
 const (
 	deliverPublishTimeout = 10 * time.Second
 	dlrDeliverRoutingKey  = "dlr.deliver_sm"
@@ -43,6 +53,12 @@ const (
 func (s *Session) SetDeliverUpstream(publisher DeliverPublisher, encoder DeliverEncoder) {
 	s.deliverPublisher = publisher
 	s.deliverEncoder = encoder
+}
+
+// SetMultipartStore enables inbound long-message reassembly. Nil (the default)
+// reproduces the legacy redis-less drop.
+func (s *Session) SetMultipartStore(store MultipartStore) {
+	s.multipartStore = store
 }
 
 // handleDeliver processes one inbound deliver_sm. The response status mirrors
@@ -115,17 +131,94 @@ func (s *Session) processDeliverMO(pdu smppwire.PDU) uint32 {
 	}
 	content := deliverMessageContent(pdu.SM)
 
-	// Long-message part? Legacy stores parts in Redis for reassembly; without a
-	// Redis client it logs critical and the part is lost — that redis-less
-	// branch is what this slice reproduces (reassembly is a follow-up).
+	// Long-message part: accumulate segments and only publish once the whole
+	// message is reassembled. Without a multipart store, reproduce the legacy
+	// redis-less drop (MSG IS LOST).
 	if isLongDeliverPart(pdu.SM, content) {
+		return s.handleLongDeliverPart(pdu, content, msgID)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), deliverPublishTimeout)
+	defer cancel()
+	return s.publishMO(ctx, pdu, msgID, content)
+}
+
+// multipartInfo extracts (reference, total, sequence, part content) from a long
+// deliver_sm part, for either SAR TLVs or a UDH concatenation header. The part
+// content is what gets concatenated: SAR keeps the whole short_message; UDH
+// strips its 6-byte header (05 00 03 ref total seq).
+func multipartInfo(body *smppwire.SMBody, content []byte) (reference uint32, total, sequence byte, part []byte, ok bool) {
+	if body.Optional.SARMessageReference != nil && body.Optional.SARTotalSegments != nil && body.Optional.SARSegmentSequence != nil {
+		return uint32(*body.Optional.SARMessageReference), *body.Optional.SARTotalSegments, *body.Optional.SARSegmentSequence, content, true
+	}
+	if len(content) >= 6 && content[0] == 0x05 && content[1] == 0x00 && content[2] == 0x03 {
+		return uint32(content[3]), content[4], content[5], content[6:], true
+	}
+	return 0, 0, 0, nil, false
+}
+
+// handleLongDeliverPart stores one segment and, when the whole message has
+// arrived, reassembles and publishes it as a single MO. The reader is
+// single-threaded per session, so segments accumulate without a race.
+func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID string) uint32 {
+	if s.multipartStore == nil {
 		if s.auditLogger != nil {
 			s.auditLogger.Error(fmt.Sprintf(
 				"Invalid RC found while receiving part of long DeliverSm [queue-msgid:%s], MSG IS LOST !", msgID))
 		}
 		return 0
 	}
+	reference, total, sequence, part, ok := multipartInfo(pdu.SM, content)
+	if !ok || total == 0 || sequence == 0 || sequence > total {
+		s.logDeliverError(fmt.Sprintf("malformed long deliver_sm part [queue-msgid:%s]", msgID))
+		return 0
+	}
+	destination := string(pdu.SM.DestinationAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), deliverPublishTimeout)
+	defer cancel()
+	if err := s.multipartStore.StorePart(ctx, s.cfg.CID, reference, destination, uint32(sequence), part); err != nil {
+		s.logDeliverError(fmt.Sprintf("store long deliver_sm part [ref:%d seq:%d]: %v", reference, sequence, err))
+		return smppStatusUnknownError
+	}
+	parts, err := s.multipartStore.ReadParts(ctx, s.cfg.CID, reference, destination)
+	if err != nil {
+		s.logDeliverError(fmt.Sprintf("read long deliver_sm parts [ref:%d]: %v", reference, err))
+		return smppStatusUnknownError
+	}
+	if len(parts) < int(total) {
+		return 0 // wait for the remaining segments
+	}
+	// Complete: concatenate in sequence order and publish one whole MO.
+	assembled := make([]byte, 0)
+	for seq := byte(1); seq <= total; seq++ {
+		segment, present := parts[uint32(seq)]
+		if !present {
+			return 0 // a gap (duplicate count without segment 'seq'); keep waiting
+		}
+		assembled = append(assembled, segment...)
+	}
+	if err := s.multipartStore.DeleteParts(ctx, s.cfg.CID, reference, destination); err != nil {
+		s.logDeliverError(fmt.Sprintf("delete reassembled long deliver_sm [ref:%d]: %v", reference, err))
+	}
+	whole := s.reassembledDeliverSM(pdu.SM, assembled)
+	return s.publishMO(ctx, whole, msgID, assembled)
+}
 
+// reassembledDeliverSM builds the whole-message deliver_sm from the first part,
+// with the concatenated content and the SAR TLVs / UDH indicator cleared.
+func (s *Session) reassembledDeliverSM(part *smppwire.SMBody, assembled []byte) smppwire.PDU {
+	body := *part
+	body.ShortMessage = assembled
+	body.ESMClass &^= 0x40 // clear the UDHI indicator
+	body.Optional.SARMessageReference = nil
+	body.Optional.SARTotalSegments = nil
+	body.Optional.SARSegmentSequence = nil
+	return smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM}, SM: &body}
+}
+
+// publishMO encodes and publishes an MO deliver_sm to deliver.sm.<cid>, and
+// emits the SMS-MO audit line. Shared by the single-part and reassembled paths.
+func (s *Session) publishMO(ctx context.Context, pdu smppwire.PDU, msgID string, content []byte) uint32 {
 	if s.deliverEncoder == nil {
 		s.logDeliverError("deliver_sm will not be routed: no routable encoder")
 		return 0
@@ -135,8 +228,6 @@ func (s *Session) processDeliverMO(pdu smppwire.PDU) uint32 {
 		s.logDeliverError(fmt.Sprintf("re-encode deliver_sm wire: %v", err))
 		return smppStatusUnknownError
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), deliverPublishTimeout)
-	defer cancel()
 	pickled, err := s.deliverEncoder.EncodeRoutableDeliverSM(ctx, wire, s.cfg.CID)
 	if err != nil {
 		s.logDeliverError(fmt.Sprintf("encode RoutableDeliverSm: %v", err))

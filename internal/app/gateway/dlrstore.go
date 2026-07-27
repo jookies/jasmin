@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	redis "github.com/redis/go-redis/v9"
@@ -11,6 +12,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
+	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
 )
 
@@ -65,19 +67,56 @@ func (p outboundUserProvisioner) RemoveUser(username string) error {
 func (p outboundUserProvisioner) ConfigUserFloor() int64 { return p.configUsers }
 
 // newDLRRequestStore opens a Redis client for the submit-side DLR request
-// store, returning the store, a cleanup that closes the client, and any error.
-// It shares the DLRLookup Redis endpoint so the record this writes and the
-// record the lookup reads live in one keyspace.
-func newDLRRequestStore(redisURL string) (core.DLRRequestStore, func(), error) {
+// store, returning the store, a multipart store over the same client, a
+// cleanup that closes the client, and any error. Sharing one Redis endpoint
+// keeps the DLR records, the correlation mappings and the reassembly parts in
+// one keyspace.
+func newDLRRequestStore(redisURL string) (core.DLRRequestStore, smppc.MultipartStore, func(), error) {
 	options, err := redis.ParseURL(redisURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("redis_url: %w", err)
+		return nil, nil, nil, fmt.Errorf("redis_url: %w", err)
 	}
 	client := redis.NewClient(options)
-	store, err := dlr.NewRequestStore(rediscompat.NewClient(client))
+	compat := rediscompat.NewClient(client)
+	store, err := dlr.NewRequestStore(compat)
 	if err != nil {
 		_ = client.Close()
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return store, func() { _ = client.Close() }, nil
+	return store, multipartStore{compat}, func() { _ = client.Close() }, nil
+}
+
+// multipartStore adapts the rediscompat client to smppc.MultipartStore: it
+// builds the legacy longDeliverSm:<cid>:<ref>:<dst> key and stores/reads/deletes
+// segment content there.
+type multipartStore struct {
+	client *rediscompat.Client
+}
+
+func (m multipartStore) StorePart(ctx context.Context, connectorID string, reference uint32, destination string, sequence uint32, content []byte) error {
+	key, err := rediscompat.BuildLegacyMultipartKey(connectorID, reference, destination)
+	if err != nil {
+		return err
+	}
+	return m.client.WriteLegacyMultipartPart(ctx, key, sequence, content)
+}
+
+func (m multipartStore) ReadParts(ctx context.Context, connectorID string, reference uint32, destination string) (map[uint32][]byte, error) {
+	key, err := rediscompat.BuildLegacyMultipartKey(connectorID, reference, destination)
+	if err != nil {
+		return nil, err
+	}
+	parts, err := m.client.ReadLegacyMultipartParts(ctx, key)
+	if errors.Is(err, rediscompat.ErrKeyNotFound) {
+		return map[uint32][]byte{}, nil
+	}
+	return parts, err
+}
+
+func (m multipartStore) DeleteParts(ctx context.Context, connectorID string, reference uint32, destination string) error {
+	key, err := rediscompat.BuildLegacyMultipartKey(connectorID, reference, destination)
+	if err != nil {
+		return err
+	}
+	return m.client.Delete(ctx, key)
 }
