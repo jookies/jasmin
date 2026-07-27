@@ -2,6 +2,24 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-26 — Macro-3 item 3: filter-based MT routing config
+
+### Done
+
+- **#77** — static MT routes carry `filters []FilterConfig` (all-match, highest order wins; default route rejects filters). Types: `destination_addr`/`source_addr`/`short_message` (regex), `tag`, `user` (username→uid via directory), `date_interval`/`time_interval`. `buildRoutes` gained a username→uid resolver wired from the directory in both runtime and `--check-config`. The `routingfilter` engine already existed — pure config-to-engine wiring + tests.
+- Real routing-decision test: French destinations (`^33`) → premium connector, else → default. All rejection paths covered.
+
+### Decisions
+
+- **MT shipped standalone; MO content filters deferred.** MO connector filtering (`filter_connector_id`) already works (#75); MO source/dest/content filters need the dispatcher to decode the deliver_sm content pre-routing (a bridge round-trip before route selection) — a separate slice, not blocking MT.
+- **User filter resolves username→uid at build time** via the runtime directory, so a filter referencing an unknown user fails `--check-config` closed rather than silently never matching.
+
+### Next (Macro-3 remaining)
+
+- **MO content filters:** decode source/dest/short_message from the routable in `modispatch` before route selection (add a bridge content-projection or reuse `decode`), then reuse the same `FilterConfig` translation for MO routes.
+- **Admin plane (item 4):** ARCHITECTURE DECISION PENDING — routes/users/connectors are frozen at boot today; runtime CRUD needs a mutable store + live-apply into the managers (connector add/remove already supports live via `smppc.Manager`; routes/users need mutable holders). jCli byte-parity console stays deferred.
+- **Interceptor (item 5):** MO/MT user-script runner (Python subprocess by contract), per-route config, differential vs `interceptord`.
+
 ## 2026-07-26 — Macro-2 finished (plan 008): terminal-DLR loop closed + SMPPS MO proven
 
 ### Done
