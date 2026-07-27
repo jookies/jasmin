@@ -2,6 +2,28 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-26 — Macro-3 items 4–5 finished: full admin plane + MT interception
+
+### Done
+
+- **#79** — MT filter-based routing config (routes carry `filters`), live-swappable table (`routingtable.AtomicTable`).
+- **#80** — admin **routes + users** CRUD (SQLite, live, restart-safe), completing the admin plane alongside connectors (#78). Routes swap the atomic table; users mutate the billing directory (new `RemoveUser` + mutation-safe hash map + stable-uid assignment so route user-filters resolve across restarts). Apply-first-then-persist throughout; config entities reserved.
+- **#81** — MT interception: `scripts/interceptor_runner.py` + `internal/transport/pyintercept` (Python subprocess, legacy `InterceptorPB` contract) implementing `core.interceptor.Runner`; `outbound.mt_interceptors[]` → `buildInterceptorTable` → submit pipeline; gateway starts/closes the runner; Dockerfile bundles the script.
+- **Compose E2E for each:** live route selection by destination (#79/#80), user create→auth→restart→delete (#80), interceptor `.*STOP` → reject http 400 while normal passes (#81).
+
+### Decisions
+
+- **modernc.org/sqlite (pure Go)** for the admin store — the image is `CGO_ENABLED=0`; `mattn` would panic (ADR-001).
+- **Filter matching is `re.match`-anchored** (`location[0]==0`), faithful to legacy Python `re.match` — a `short_message` pattern anchors from the start, so use `.*STOP` to block STOP anywhere. Discovered when a `STOP` interceptor filter didn't fire on "please STOP texting"; corrected the example, not a bug.
+- **Interceptor keeps Python** (user choice + legacy contract). Boundary: the MT hook is pre-encode, so only source/destination/short_message/tags are surfaced to scripts; documented.
+
+### Next (remaining beyond items 1–5)
+
+- MO **content** filters (source/dest/content on `deliver.sm` routes) — deferred from #77; needs pre-routing content decode in modispatch.
+- MO interception (this session did MT); the runner is direction-agnostic, so it's config + a deliver-path hook.
+- jCli byte-parity console (admin API covers provisioning; console still deferred).
+- The formal cutover gate (contract-matrix all-MATCH, shadow/canary/rollback) — the separate ~12–18wk bar.
+
 ## 2026-07-26 — Macro-3 item 4: runtime connector provisioning (admin plane, SQLite)
 
 ### Done
