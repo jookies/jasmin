@@ -522,6 +522,21 @@ def run():
                     "bill": None if bill_data is None else base64.b64encode(bill_data).decode("ascii"),
                 }
                 print(json.dumps({"status": "ok", "result": result}))
+            elif action == "encode_routable_deliver_sm":
+                # MO ingress: rebuild the legacy PDU object from the received
+                # wire bytes with smpp.pdu itself, wrap it exactly like
+                # deliver_sm_event_interceptor (RoutableDeliverSm + Connector),
+                # and pickle protocol-2 — the DeliverSmContent body RouterPB
+                # consumes, byte-identical by construction.
+                from io import BytesIO
+                from smpp.pdu.pdu_encoding import PDUEncoder
+                from jasmin.routing.Routables import RoutableDeliverSm
+                from jasmin.routing.jasminApi import Connector
+                wire = base64.b64decode(req["data"], validate=True)
+                pdu = PDUEncoder().decode(BytesIO(wire))
+                routable = RoutableDeliverSm(pdu, Connector(req["cid"]))
+                pickled = pickle.dumps(routable, 2)
+                print(json.dumps({"status": "ok", "data": base64.b64encode(pickled).decode("ascii")}))
             elif action == "ping":
                 # Liveness probe: proves the loop is reading stdin and serving.
                 print(json.dumps({"status": "ok"}))

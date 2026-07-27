@@ -54,6 +54,10 @@ services:
       dockerfile: docker/Dockerfile.fakesmsc
     image: jasmin-fake-smsc
     restart: unless-stopped
+    ports:
+      # HTTP inject trigger: /inject/mo and /inject/dlr push deliver_sm
+      # toward the bound gateway (MO / terminal-DLR drills).
+      - "8288:8080"
     security_opt:
       - no-new-privileges:true
 

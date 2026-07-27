@@ -98,6 +98,11 @@ type Session struct {
 	// nil (the default) disables it. auditPrivacy is the sm-listener log_privacy.
 	auditLogger  *slog.Logger
 	auditPrivacy bool
+
+	// deliverPublisher/deliverEncoder wire deliver_sm ingestion (MO + receipt
+	// publications). Nil mirrors the legacy RouterPB-not-set drop branch.
+	deliverPublisher DeliverPublisher
+	deliverEncoder   DeliverEncoder
 }
 
 // SetSubmitAuditLogger enables the legacy SMS-MT audit line for correlated
@@ -659,6 +664,8 @@ func (s *Session) handlePDU(pdu smppwire.PDU) error {
 	switch pdu.Header.CommandID {
 	case smppwire.CommandSubmitSMResp:
 		s.handleResponse(pdu)
+	case smppwire.CommandDeliverSM:
+		return s.handleDeliver(pdu)
 	case smppwire.CommandUnbind:
 		_ = s.writePDU(smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandUnbindResp, SequenceNumber: pdu.Header.SequenceNumber}})
 		return io.EOF
