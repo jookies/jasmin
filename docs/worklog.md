@@ -2,6 +2,26 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-26 — Macro-2 slice 1 (plan 008): deliver_sm ingestion — MO + receipt produce sides
+
+### Done
+
+- **docs/plans/008** authored: the five remaining functional gaps (MO, terminal DLR, filter routing, admin, interception) with frozen-contract notes and file-level steps.
+- **Inventory finding that reshaped the plan:** the downstream MO/DLR machinery already exists and is idle — DLRLookup fully handles `dlr.deliver_sm` L2/L3 (correlation via `queue-msgid:<smsc-id>` Redis keys, `dlr_thrower.*` publish), mothrower+MOSink deliver HTTP/SMPPS, the router's `deliver.sm.*` consumer runs but dead-ends at a `Reject(true)` stub (`core/router/logic.go:85`), and all routing-filter constructors are implemented. The rewrite gap was the *produce* side.
+- **#74** — `deliver_sm` ingestion in the SMPP client (the `deliver_sm_event` port): receipt leg → `dlr.deliver_sm` (ParseReceipt + CodeReceiptID + new `dlr_msg_id_bases` connector key, legacy DLR content); MO leg → `deliver.sm.<cid>` (bridge `encode_routable_deliver_sm` rebuilds the PDU with smpp.pdu from the re-encoded frame and pickles `RoutableDeliverSm` — legacy body by construction) + SMS-MO audit line; ROK/RUNKNOWNERR response contract; SAR/UDH parts follow the legacy redis-less drop branch (critical line) until Step 5. Supporting: smppwire `deliver_sm_resp`, amqpcompat `FieldBool` + `deliver.sm.*` route family, `RouterPB_deliver_sm_all` pre-declared at boot, fake-SMSC `/inject/mo` + `/inject/dlr` triggers (compose :8288).
+- **Compose E2E:** injected MO → `ESME_ROK` + SMS-MO line + routable buffered in `RouterPB_deliver_sm_all` (1 msg awaiting the router); injected receipt → `ESME_ROK` + consumed by DLRLookup.
+
+### Decisions
+
+- **Pickle parity by construction, not by mapping**: the bridge decodes the received wire frame with `smpp.pdu` itself before wrapping/pickling — no Go→Python param translation to drift. Differential compares semantically (`RoutableDeliverSm` stamps `datetime.now()`, so byte-compare is impossible).
+- Reused the existing `core/dlr` receipt parser/msgid coder instead of a second port (started one, deleted it on discovery).
+
+### Next (in dependency order)
+
+- **Router MO dispatch (plan 008 Step 3):** replace the `logic.go` stub — decode `connector-id` header, route via `routingtable` MO direction (default/static + connector filter first; content filters need bridge decode and come with Step 6), publish `RoutedDeliverSmContent` (needs a bridge `encode_connector_list` action for the pickled dst-connectors header) to `deliver_sm_thrower.*`. **Gotcha discovered:** the router service's `OpenRouterSubscriptions` also consumes the billing queue, which the outbound `lateBillingConsumer` already owns in-gateway — wiring the router in-process must split the deliver consumer from the billing consumer or they'll compete.
+- **Terminal-DLR completion (Step 4):** the submit path never writes the DLR request (`dlr:<msgid>`) or the resp-leg `queue-msgid:<smsc-id>` mapping to Redis — that's why the injected receipt correlated to nothing. Add the `/send` dlr-url/dlr-level Redis store + resp-leg mapping write, then the full loop (submit dlr-level=2 → receipt → HTTP callback) closes.
+- MO route config (`mo_routes[]` with http/smpps connector defs) in gateway config; then Steps 5–8 per plan 008.
+
 ## 2026-07-26 — docs/plans/007 P1: shadow-safe outbound (durable AMQP, /health, TLS+secrets, reject logs)
 
 ### Done
