@@ -176,6 +176,22 @@ func (s *Session) markPendingUnknown(request *pendingRequest) error {
 	return s.transactions.MarkUnknownAfterSend(ctx, request.attempt.ID)
 }
 
+// logTerminalReject makes a no-requeue drop visible on the sm-listener logger.
+// Not a legacy byte-parity line — the legacy reject lines carry Python error
+// strings and stay deferred (O-007) — but silence here is what hid the
+// empty-bytes poison drop, so every terminal rejection must leave a trace.
+func (s *Session) logTerminalReject(delivery *amqpcompat.Delivery, err error) {
+	logger := s.auditLogger
+	if logger == nil {
+		return
+	}
+	messageID := ""
+	if delivery != nil {
+		messageID = delivery.Envelope().Properties().MessageID()
+	}
+	logger.Error(fmt.Sprintf("Rejecting submit_sm message[%s] without requeue: %v", messageID, err))
+}
+
 func (s *Session) settleDeliveryReject(delivery *amqpcompat.Delivery, requeue bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -390,6 +406,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	parts, err := s.decodeSubmitParts(ctx, d.Envelope().Body())
 	if err != nil {
 		if errors.Is(err, picklecompat.ErrSubmitSMPoison) {
+			s.logTerminalReject(d, err)
 			s.settleDeliveryReject(d, false)
 		} else {
 			s.settleDeliveryFailure(d)
@@ -404,8 +421,10 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		if len(parts[i].CustomTLVs) > 0 || len(s.cfg.CustomTLVs) > 0 {
 			vendorSection, tlvErr := prepareVendorTLVs(parts[i].CustomTLVs, s.cfg.ConnectorTLVRules())
 			if tlvErr != nil {
+				rejectErr := fmt.Errorf("%w: %w", ErrCustomTLVRejected, tlvErr)
+				s.logTerminalReject(d, rejectErr)
 				s.settleDeliveryReject(d, false)
-				return fmt.Errorf("%w: %w", ErrCustomTLVRejected, tlvErr)
+				return rejectErr
 			}
 			body.VendorTLVs = vendorSection
 		}
@@ -415,6 +434,7 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	var attempt submittransaction.SendAttempt
 	partKey, err := durablePartKey(envelope)
 	if err != nil {
+		s.logTerminalReject(d, err)
 		s.settleDeliveryReject(d, false)
 		return err
 	}

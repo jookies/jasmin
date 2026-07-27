@@ -2,6 +2,29 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-26 — docs/plans/007 P1: shadow-safe outbound (durable AMQP, /health, TLS+secrets, reject logs)
+
+### Done
+
+- **#70** — Step 5: opt-in durable AMQP via top-level `amqp_durable_topology` threaded through every declaration path (Topology flag + the late-billing consumer's raw declares, which the E2E drill caught 406-crash-looping). Publishes were already persistent. Default stays false = legacy txamqp parity (mismatched redeclare is a 406; keep off on a shared legacy vhost). Broker-restart drill: 10 burst submits, `restart rabbitmq` mid-drain — queue + persistent message survive, consumer re-attaches, 10/10 `ESME_ROK`.
+- **#71** — Step 6: `GET /health` (200/503 + per-check JSON): Postgres ping, AMQP connection, pickle-bridge liveness (new `ping` bridge action; probe bounded 3s in a goroutine because the bridge mutex is not ctx-aware), required-connector bind state. Compose healthcheck switched to it. Drill: stop smppsim → 503 `DISCONNECTED`; stop postgres → 503; restore → 200.
+- **#72** — Step 7: `env:NAME` / `file:/path` / `literal:` secret refs resolved at LoadConfig (fail-closed `--check-config`) for postgres_dsn/amqp_url/connector passwords/dlr URLs/smpps passwords; top-level `https{cert_file,key_file}` → HTTP API over TLS; `smpps.tls_cert_file/tls_key_file` → SMPPS-over-TLS (TLS 1.2+). E2E: containerized gateway with env-ref config served `https:///send` → `ESME_ROK`; plain HTTP rejected.
+- **#73** — terminal-reject visibility: every no-requeue drop (poison decode, custom-TLV reject, malformed part key) now logs an ERROR line with the message id on the sm-listener logger — the silence that hid the #67 empty-bytes drop. Explicitly not a byte-parity line (legacy reject lines stay deferred per O-007).
+- `docs/plans/007` → status **done** (P0+P1 landed; Macro 2/3 + cutover gate remain out of scope).
+
+### Decisions
+
+- **Durable default = false (legacy parity), opt-in true for Go-native brokers** — a hard flip would 406 the bridge-edge shadow on the shared legacy vhost; the example config/compose (own broker) enable it.
+- **Health bridge probe degrades instead of hanging or killing**: `Bridge.Ping` entered after its deadline returns early without touching the subprocess; only a truly unresponsive bridge (post-send timeout) gets killed by the ctx watch.
+- **Secret-ref syntax `env:`/`file:`/`literal:`** over `${VAR}` expansion — no collision with legitimate `$` in passwords, exact fail-closed semantics, greppable.
+- **Certs open at boot, not at `--check-config`** — configs must validate on machines without the key material.
+
+### Next
+
+- Ops: point a deployment copy of the config at a real SMSC (creds via `env:`/`file:` refs now), raise `submit_sm_throughput`, run behind the durable vhost; watch `/health`.
+- Macro 2/3 (unchanged): MO ingestion, terminal DLR L2/L3, filter routing in `RouteConfig`, multipart-billing decision.
+- O-007 logging breadth continues: DLR/MO thrower `.log` files, router, byte-exact legacy reject/requeue lines once the Go retry model exists.
+
 ## 2026-07-26 — docs/plans/007 P0: outbound MT path deployable (4 PRs) + silent-submit-drop fix
 
 ### Done
