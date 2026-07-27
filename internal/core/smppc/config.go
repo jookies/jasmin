@@ -214,6 +214,33 @@ func (c *Config) Validate() error {
 	if c.DstNPI == 0 {
 		c.DstNPI = 1 // AddrNpi.ISDN
 	}
+	// Validate the resolved PDU-default bytes are SMPP-wire-encodable. These
+	// fields carry raw SMPP WIRE values (not the 1-indexed smpp.pdu enum
+	// ordinals: NATIONAL is wire 2, enum 3), and the bridge decodes each as one
+	// wire byte at submit time. Rejecting an out-of-range value here fails the
+	// config at load instead of poisoning every submit at encode time (and
+	// avoids the silent uint8() truncation in PDUDefaults, e.g. 300 -> 44).
+	if !validAddrTON(c.SrcTON) {
+		return fmt.Errorf("src_ton %d is not a valid SMPP address TON (wire 0-6)", c.SrcTON)
+	}
+	if !validAddrNPI(c.SrcNPI) {
+		return fmt.Errorf("src_npi %d is not a valid SMPP address NPI (wire 0,1,3,4,6,8,9,10,14,18)", c.SrcNPI)
+	}
+	if !validAddrTON(c.DstTON) {
+		return fmt.Errorf("dst_ton %d is not a valid SMPP address TON (wire 0-6)", c.DstTON)
+	}
+	if !validAddrNPI(c.DstNPI) {
+		return fmt.Errorf("dst_npi %d is not a valid SMPP address NPI (wire 0,1,3,4,6,8,9,10,14,18)", c.DstNPI)
+	}
+	if c.ProtocolID < 0 || c.ProtocolID > 255 {
+		return fmt.Errorf("protocol_id %d is outside the 0-255 byte range", c.ProtocolID)
+	}
+	if c.SmDefaultMsgID < 0 || c.SmDefaultMsgID > 255 {
+		return fmt.Errorf("sm_default_msg_id %d is outside the 0-255 byte range", c.SmDefaultMsgID)
+	}
+	if c.ReplaceIfPresentFlag < 0 || c.ReplaceIfPresentFlag > 1 {
+		return fmt.Errorf("replace_if_present_flag %d must be 0 (do not replace) or 1 (replace)", c.ReplaceIfPresentFlag)
+	}
 
 	// Mirrors the legacy SMPPClientConfig custom_tlvs validation: int tag,
 	// known type name, positive-or-null max length, boolean required.
@@ -235,6 +262,21 @@ func (c *Config) Validate() error {
 // PDUDefaults is the connector's default submit_sm PDU parameters, applied to a
 // front-door submit when the submitter leaves them unset. Call after Validate so
 // the TON/NPI defaults are resolved.
+// validAddrTON reports whether v is a valid SMPP address TON wire byte (0-6) —
+// the range the bridge's AddrTonEncoder can encode.
+func validAddrTON(v int) bool { return v >= 0 && v <= 6 }
+
+// validAddrNPI reports whether v is a valid SMPP address NPI wire byte — the
+// non-contiguous set the bridge's AddrNpiEncoder can encode.
+func validAddrNPI(v int) bool {
+	switch v {
+	case 0, 1, 3, 4, 6, 8, 9, 10, 14, 18:
+		return true
+	default:
+		return false
+	}
+}
+
 type PDUDefaults struct {
 	SourceAddrTON        uint8
 	SourceAddrNPI        uint8

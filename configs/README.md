@@ -38,7 +38,12 @@ Notes:
   single transceiver bind.
 - **TON/NPI are explicit** (`src_ton 2/src_npi 1`, `dst_ton 1/dst_npi 1` — the
   legacy Jasmin defaults). Strict SMSCs reject `dest_addr_ton=UNKNOWN(0)`; set
-  these to what your SMSC expects rather than relying on defaults.
+  these to what your SMSC expects rather than relying on defaults. These carry
+  **raw SMPP wire values**, not the 1-indexed `smpp.pdu` enum ordinals (NATIONAL
+  is wire `2`, not `3`). Valid ranges, checked at config load (`--check-config`):
+  TON `0-6`, NPI `{0,1,3,4,6,8,9,10,14,18}`, `replace_if_present_flag` `0|1`,
+  `protocol_id`/`sm_default_msg_id` `0-255`. A `0` on `src_ton`/`src_npi`/
+  `dst_ton`/`dst_npi` means "unset" and resolves to the legacy default above.
 - **Throughput** `submit_sm_throughput: 1.0` is the legacy per-connector default
   pace (1 msg/s). Raise it to your SMSC contract's rate.
 - **Routes.** The example has a single default route (`default: true`, `order: 0`).
