@@ -30,6 +30,12 @@ Notes:
 - **User passwords** are SHA-256 hex digests. The example user `smppuser` uses the
   password `password`:
   `printf '%s' 'password' | shasum -a 256`
+- **SMPP bind role** (`bind`): the SMPP-standard connection type — `transceiver`
+  (send + receive, default), `transmitter` (send-only: submits MT, gets no MO/DLR),
+  or `receiver` (receive-only: gets MO/DLR, cannot submit). A receiver connector
+  is automatically excluded from MT routing and never consumes its submit queue;
+  pair a `transmitter` + `receiver` to the same SMSC for carriers that reject a
+  single transceiver bind.
 - **TON/NPI are explicit** (`src_ton 2/src_npi 1`, `dst_ton 1/dst_npi 1` — the
   legacy Jasmin defaults). Strict SMSCs reject `dest_addr_ton=UNKNOWN(0)`; set
   these to what your SMSC expects rather than relying on defaults.

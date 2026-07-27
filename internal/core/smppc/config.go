@@ -136,11 +136,11 @@ func (c *Config) Validate() error {
 		return errors.New("missing system_id")
 	}
 	switch c.Bind {
-	case BindTransceiver:
+	case BindTransceiver, BindTransmitter, BindReceiver:
 	case "":
-		c.Bind = BindTransceiver // Default
+		c.Bind = BindTransceiver // Default (legacy bindOperation default).
 	default:
-		return fmt.Errorf("unsupported bind type: %s (only transceiver is implemented)", c.Bind)
+		return fmt.Errorf("unsupported bind type: %s (want transceiver, transmitter or receiver)", c.Bind)
 	}
 	for name, value := range map[string]float64{
 		"trx_to": c.TrxTimeout, "res_to": c.ResTimeout, "pdu_to": c.PDUTimeout,
@@ -260,6 +260,19 @@ func (c Config) PDUDefaults() PDUDefaults {
 		SmDefaultMsgID:       uint8(c.SmDefaultMsgID),
 		SourceAddr:           c.SourceAddr,
 	}
+}
+
+// CanSubmit reports whether this bind role may send submit_sm (transmitter or
+// transceiver). A receiver bind cannot submit — the SMSC rejects it — so such a
+// connector is excluded from MT routing and never consumes the submit queue.
+func (c Config) CanSubmit() bool {
+	return c.Bind == BindTransceiver || c.Bind == BindTransmitter
+}
+
+// CanReceive reports whether this bind role receives deliver_sm (MO/DLR):
+// receiver or transceiver. A transmitter bind gets no deliver_sm.
+func (c Config) CanReceive() bool {
+	return c.Bind == BindTransceiver || c.Bind == BindReceiver
 }
 
 func (c Config) EffectiveSubmitSMThroughput() float64 {

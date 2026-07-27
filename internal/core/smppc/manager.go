@@ -224,7 +224,9 @@ func (m *Manager) Status(cid string) (ManagedStatus, error) {
 
 func (m *Manager) Available(cid string) bool {
 	status, err := m.Status(cid)
-	return err == nil && status.Desired && status.Observed == StatusBound
+	// A receiver-bind connector cannot submit_sm, so it is never an MT route
+	// target even when bound — only submit-capable roles are "available".
+	return err == nil && status.Desired && status.Observed == StatusBound && status.Config.CanSubmit()
 }
 
 func (m *Manager) Stats() ManagerStats {
