@@ -11,6 +11,7 @@ import (
 
 	"log/slog"
 
+	"github.com/pumpitspace/jasmin/internal/app/admin"
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
 	"github.com/pumpitspace/jasmin/internal/app/modispatch"
@@ -43,6 +44,7 @@ type Runtime struct {
 	smppsServer        *smppsserver.Service
 	requiredConnectors []string
 	dlrRedisClose      func()
+	adminStore         *admin.Store
 	workerCancel       context.CancelFunc
 	closeOnce          sync.Once
 	closeErr           error
@@ -189,6 +191,32 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// outbound handler keeps everything else, including the unconditional /ping.
 	mux := http.NewServeMux()
 	mux.Handle("/health", runtime.healthHandler())
+	// The runtime provisioning plane (SQLite-backed connector CRUD) mounts at
+	// /admin, applying changes live through the same manager and re-applying
+	// persisted connectors at boot. Config connectors are reserved (config
+	// owns them); admin manages an additive set.
+	if config.Admin != nil {
+		store, storeErr := admin.OpenStore(ctx, config.Admin.DBPath)
+		if storeErr != nil {
+			return nil, fmt.Errorf("open admin store: %w", storeErr)
+		}
+		runtime.adminStore = store
+		adminService, adminErr := admin.NewService(store, manager, connectorIDs(),
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if adminErr != nil {
+			return nil, fmt.Errorf("build admin service: %w", adminErr)
+		}
+		if applyErr := adminService.LoadAndApply(ctx); applyErr != nil {
+			// Persisted connectors that fail to re-apply are logged, not fatal:
+			// the gateway still serves config connectors and the admin API.
+			slog.Default().Error("admin: load persisted connectors: " + applyErr.Error())
+		}
+		adminHandler, handlerErr := admin.NewHandler(adminService, config.Admin.Token)
+		if handlerErr != nil {
+			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
+		}
+		mux.Handle("/admin/", adminHandler.Routes())
+	}
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
 	if len(config.MORoutes) > 0 {
@@ -330,6 +358,11 @@ func (runtime *Runtime) Close() error {
 		}
 		if runtime.dlrRedisClose != nil {
 			runtime.dlrRedisClose()
+		}
+		if runtime.adminStore != nil {
+			if err := runtime.adminStore.Close(); err != nil {
+				errs = append(errs, err)
+			}
 		}
 		if runtime.dlrLookup != nil {
 			if err := runtime.dlrLookup.Close(); err != nil {

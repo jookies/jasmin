@@ -99,5 +99,10 @@ func resolveSecretRefs(config *Config) error {
 			}
 		}
 	}
+	if config.Admin != nil {
+		if err := resolve("admin.token", &config.Admin.Token); err != nil {
+			return err
+		}
+	}
 	return nil
 }
