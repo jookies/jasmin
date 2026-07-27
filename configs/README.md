@@ -38,6 +38,15 @@ Notes:
 - **Routes.** The example has a single default route (`default: true`, `order: 0`).
   Additional static routes need a positive `order` and may use a connector pool:
   `{"connector_ids": ["cid-a", "cid-b"], "order": 10, "rate": 0.0, "default": false}`.
+- **Filter-based routing.** A static route may carry `filters` (all must match,
+  highest `order` wins); the default route may not. MT filter types:
+  `destination_addr`/`source_addr`/`short_message` (`pattern`, regex — Python
+  Unicode semantics), `tag` (`value`), `user` (`username`, resolved to its uid),
+  `date_interval`/`time_interval` (`start`+`end`, `YYYY-MM-DD` / `HH:MM:SS`). e.g.
+  route French traffic to a premium connector:
+  `{"connector_id": "premium", "order": 10, "rate": 0.0, "filters": [{"type": "destination_addr", "pattern": "^33"}]}`.
+  The `connector` filter is MO-only. MO routes today filter on source connector
+  (`filter_connector_id`); MO content filters are a follow-up.
 - **DLR workers.** An empty `amqp_url` in `dlr_lookup`/`dlr_thrower` inherits the
   outbound broker. `dlr_lookup.redis_url` must parse as a Redis URL.
 - **Terminal DLR (level 2/3).** With `dlr_lookup` (hence a `redis_url`) enabled,

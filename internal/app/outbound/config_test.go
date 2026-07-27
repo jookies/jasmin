@@ -75,7 +75,7 @@ func TestRuntimeDirectoryUsesOpaqueIdentityAndConstantTimeDigestComparison(t *te
 
 func TestConnectorSelectorUsesOrderedAvailabilityAndExhausts(t *testing.T) {
 	routes := []RouteConfig{{ConnectorIDs: []string{"first", "second", "third"}, Rate: 1, Default: true}}
-	_, connectorIDs, _, err := buildRoutes(routes)
+	_, connectorIDs, _, err := buildRoutes(routes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

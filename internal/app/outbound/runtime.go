@@ -128,7 +128,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err != nil {
 		return nil, err
 	}
-	routes, connectorIDs, defaultRate, err := buildRoutes(config.Routes)
+	routes, connectorIDs, defaultRate, err := buildRoutes(config.Routes, directory.resolveUID)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func validateConfig(config Config) error {
 	return nil
 }
 
-func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, error) {
+func buildRoutes(configs []RouteConfig, resolveUID uidResolver) (routingtable.Table, []string, float64, error) {
 	builder, err := routingtable.NewBuilder(routingfilter.MT)
 	if err != nil {
 		return routingtable.Table{}, nil, 0, err
@@ -389,15 +389,22 @@ func buildRoutes(configs []RouteConfig) (routingtable.Table, []string, float64, 
 		connector := routeConnectors[0]
 		var route routingtable.Route
 		if entry.Default {
-			route, err = routingtable.NewDefaultRoute(connector, entry.Rate)
 			if entry.Order != 0 {
 				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: default route %d must use order 0", ErrInvalidRuntimeConfig, index)
 			}
+			if len(entry.Filters) > 0 {
+				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: default route %d cannot carry filters", ErrInvalidRuntimeConfig, index)
+			}
+			route, err = routingtable.NewDefaultRoute(connector, entry.Rate)
 		} else {
-			route, err = routingtable.NewStaticRoute(routingfilter.MT, connector, entry.Rate)
 			if entry.Order <= 0 {
 				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: static route %d must use positive order", ErrInvalidRuntimeConfig, index)
 			}
+			filters, filterErr := buildRouteFilters(entry.Filters, resolveUID)
+			if filterErr != nil {
+				return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %v", ErrInvalidRuntimeConfig, index, filterErr)
+			}
+			route, err = routingtable.NewStaticRoute(routingfilter.MT, connector, entry.Rate, filters...)
 		}
 		if err != nil {
 			return routingtable.Table{}, nil, 0, fmt.Errorf("%w: route %d: %v", ErrInvalidRuntimeConfig, index, err)
