@@ -31,6 +31,11 @@ type Config struct {
 	PostgresDSN   string        `json:"postgres_dsn"`
 	Users         []UserConfig  `json:"users"`
 	Routes        []RouteConfig `json:"routes"`
+	// AMQPDurableTopology declares exchanges/queues durable (queued submits
+	// survive a broker restart). Must match what the vhost already holds —
+	// the legacy stack declares non-durable and AMQP 406s a mismatched
+	// redeclare. The gateway propagates its top-level flag here.
+	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
 }
 
 type UserConfig struct {

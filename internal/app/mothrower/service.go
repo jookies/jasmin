@@ -27,6 +27,10 @@ type Config struct {
 	RetryDelaySeconds float64 `json:"retry_delay,omitempty"`
 	// MaxRetries is max_retries (default 3); attempts retry while count <= MaxRetries.
 	MaxRetries int `json:"max_retries,omitempty"`
+	// AMQPDurableTopology declares the thrower queue/exchange durable; must be
+	// uniform per vhost (mismatched redeclare is an AMQP 406). Propagated from
+	// the gateway's top-level flag when running in-process.
+	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
 }
 
 func ValidateConfig(config Config) error {
@@ -165,7 +169,7 @@ func (s *Service) dialSession(ctx context.Context) (*session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect RabbitMQ: %w", err)
 	}
-	subscription, err := amqpcompat.NewTopology(connection).OpenMOThrowerSubscription(ctx)
+	subscription, err := amqpcompat.NewTopology(connection, s.cfg.AMQPDurableTopology).OpenMOThrowerSubscription(ctx)
 	if err != nil {
 		_ = connection.Close()
 		return nil, err

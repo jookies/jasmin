@@ -11,7 +11,7 @@ import (
 // DLRLookup-<pid> named queue bound to dlr.*, and a named manual-ack consumer.
 func TestOpenDLRLookupSubscriptionDeclaresLegacyTopology(t *testing.T) {
 	channel := newRecordingTopologyChannel()
-	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 
 	subscription, err := topology.OpenDLRLookupSubscription(context.Background(), "main")
 	if err != nil {
@@ -52,7 +52,7 @@ func TestOpenDLRLookupSubscriptionClosesChannelOnFailure(t *testing.T) {
 	for operation := 1; operation <= 4; operation++ {
 		channel := newRecordingTopologyChannel()
 		channel.failAt = operation
-		topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+		topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 		subscription, err := topology.OpenDLRLookupSubscription(context.Background(), "main")
 		if subscription != nil {
 			t.Fatalf("operation %d: got subscription despite failure", operation)
@@ -79,7 +79,7 @@ func TestDLRLookupNamesMatchLegacy(t *testing.T) {
 // dlr_thrower queue bound to dlr_thrower.*, and the DLRThrower consumer tag.
 func TestOpenDLRThrowerSubscriptionDeclaresLegacyTopology(t *testing.T) {
 	channel := newRecordingTopologyChannel()
-	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 
 	subscription, err := topology.OpenDLRThrowerSubscription(context.Background())
 	if err != nil {
@@ -117,7 +117,7 @@ func TestOpenDLRThrowerSubscriptionClosesChannelOnFailure(t *testing.T) {
 	for operation := 1; operation <= 4; operation++ {
 		channel := newRecordingTopologyChannel()
 		channel.failAt = operation
-		topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+		topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 		subscription, err := topology.OpenDLRThrowerSubscription(context.Background())
 		if subscription != nil {
 			t.Fatalf("operation %d: got subscription despite failure", operation)
@@ -135,7 +135,7 @@ func TestOpenDLRThrowerSubscriptionClosesChannelOnFailure(t *testing.T) {
 // deliver_sm_thrower.* with the deliverSmThrower consumer tag.
 func TestOpenMOThrowerSubscriptionDeclaresLegacyTopology(t *testing.T) {
 	channel := newRecordingTopologyChannel()
-	topology := newTopology(func() (topologyChannel, error) { return channel, nil })
+	topology := newTopology(func() (topologyChannel, error) { return channel, nil }, false)
 
 	subscription, err := topology.OpenMOThrowerSubscription(context.Background())
 	if err != nil {

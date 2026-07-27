@@ -26,7 +26,7 @@ func TestAMQPTopology(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	topology := amqpcompat.NewTopology(conn)
+	topology := amqpcompat.NewTopology(conn, false)
 	if err := topology.Declare(ctx); err != nil {
 		t.Fatalf("Declare: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestAMQPPubSubRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	topology := amqpcompat.NewTopology(conn)
+	topology := amqpcompat.NewTopology(conn, false)
 	qName := "roundtrip-test-queue"
 	if err := topology.Declare(ctx); err != nil {
 		t.Fatal(err)
@@ -197,7 +197,7 @@ func TestPublisherRejectsUnroutableMandatoryMessage(t *testing.T) {
 	defer conn.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := amqpcompat.NewTopology(conn).Declare(ctx); err != nil {
+	if err := amqpcompat.NewTopology(conn, false).Declare(ctx); err != nil {
 		t.Fatal(err)
 	}
 	const exchange = "macro13-unroutable-test"

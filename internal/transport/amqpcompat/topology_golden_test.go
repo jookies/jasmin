@@ -100,7 +100,7 @@ func TestRouterSubscriptionsGoldenNoSkip(t *testing.T) {
 	}
 	for index, testCase := range document.Cases {
 		channel := newRecordingTopologyChannel()
-		subscriptions, err := declareRouterSubscriptions(context.Background(), channel)
+		subscriptions, err := declareRouterSubscriptions(context.Background(), channel, false)
 		if err != nil {
 			t.Fatalf("case %d: %v", index, err)
 		}

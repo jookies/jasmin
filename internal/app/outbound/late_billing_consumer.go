@@ -24,6 +24,7 @@ func newLateBillingConsumer(
 	parent context.Context,
 	connection *amqp.Connection,
 	processor core.LateBillingDecisionProcessor,
+	durableTopology bool,
 ) (*lateBillingConsumer, error) {
 	if connection == nil || processor == nil {
 		return nil, fmt.Errorf("late billing consumer requires connection and processor")
@@ -36,10 +37,10 @@ func newLateBillingConsumer(
 		_ = channel.Close()
 		return nil, err
 	}
-	if err := channel.ExchangeDeclare("billing", "topic", false, false, false, false, nil); err != nil {
+	if err := channel.ExchangeDeclare("billing", "topic", durableTopology, false, false, false, nil); err != nil {
 		return closeOnError(fmt.Errorf("declare billing exchange: %w", err))
 	}
-	if _, err := channel.QueueDeclare(amqpcompat.RouterBillingQueue, false, false, false, false, nil); err != nil {
+	if _, err := channel.QueueDeclare(amqpcompat.RouterBillingQueue, durableTopology, false, false, false, nil); err != nil {
 		return closeOnError(fmt.Errorf("declare billing queue: %w", err))
 	}
 	if err := channel.QueueBind(amqpcompat.RouterBillingQueue, amqpcompat.RouterBillingRoutingKey, "billing", false, nil); err != nil {

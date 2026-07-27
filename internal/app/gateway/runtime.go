@@ -49,6 +49,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if err := ValidateConfig(config); err != nil {
 		return nil, err
 	}
+	// One process-level durability choice: the top-level flag propagates into
+	// every component that declares topology (outbound, connectors, workers).
+	// A section-level true is honoured for a worker on its own broker.
+	config.Outbound.AMQPDurableTopology = config.Outbound.AMQPDurableTopology || config.AMQPDurableTopology
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	repository, err := storage.OpenPostgresSubmitTransactionRepository(ctx, config.Outbound.PostgresDSN)
 	if err != nil {
@@ -87,6 +91,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	})
 	submitAuditPrivacy := config.SubmitAuditLog.Privacy
 	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
+		connectorConfig.AMQPDurableTopology = connectorConfig.AMQPDurableTopology || config.AMQPDurableTopology
 		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)
 		if connectorErr != nil {
 			return nil, connectorErr
@@ -145,6 +150,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if lookupConfig.AMQPURL == "" {
 			lookupConfig.AMQPURL = config.Outbound.AMQPURL
 		}
+		lookupConfig.AMQPDurableTopology = lookupConfig.AMQPDurableTopology || config.AMQPDurableTopology
 		lookupService, lookupErr := dlrlookup.NewService(lookupConfig)
 		if lookupErr != nil {
 			return nil, fmt.Errorf("start DLR lookup worker: %w", lookupErr)
@@ -186,6 +192,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if throwerConfig.AMQPURL == "" {
 			throwerConfig.AMQPURL = config.Outbound.AMQPURL
 		}
+		throwerConfig.AMQPDurableTopology = throwerConfig.AMQPDurableTopology || config.AMQPDurableTopology
 		var throwerOpts []dlrthrower.Option
 		if dlrReceiptSink != nil {
 			throwerOpts = append(throwerOpts, dlrthrower.WithSMPPSReceiptSink(dlrReceiptSink))
@@ -202,6 +209,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if moConfig.AMQPURL == "" {
 			moConfig.AMQPURL = config.Outbound.AMQPURL
 		}
+		moConfig.AMQPDurableTopology = moConfig.AMQPDurableTopology || config.AMQPDurableTopology
 		var moOpts []mothrower.Option
 		if moDeliverySink != nil {
 			moOpts = append(moOpts, mothrower.WithSMPPSDeliverySink(moDeliverySink))

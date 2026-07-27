@@ -40,6 +40,12 @@ Notes:
   `{"connector_ids": ["cid-a", "cid-b"], "order": 10, "rate": 0.0, "default": false}`.
 - **DLR workers.** An empty `amqp_url` in `dlr_lookup`/`dlr_thrower` inherits the
   outbound broker. `dlr_lookup.redis_url` must parse as a Redis URL.
+- **Durable AMQP.** `amqp_durable_topology: true` (top-level) declares every
+  exchange/queue durable so queued submits survive a broker restart; publishes
+  are always persistent. Durability must be uniform per vhost: AMQP rejects a
+  redeclare with different durability (406 PRECONDITION_FAILED). Leave it out
+  (legacy default: non-durable) when sharing a vhost with the Python stack —
+  e.g. the bridge-edge shadow — or use a fresh vhost to switch modes.
 - **TLS to the SMSC**: set `tls_enabled: true` plus optional `tls_server_name` /
   `tls_ca_file` on the connector. Certificate verification cannot be disabled.
 - **Vendor TLVs**: per-connector `custom_tlvs` rules

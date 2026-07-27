@@ -33,7 +33,9 @@ func (c *defaultConnector) DialAndSubscribe(ctx context.Context, amqpURL string)
 		return nil, nil, err
 	}
 
-	topology := amqpcompat.NewTopology(conn)
+	// Legacy-parity non-durable: the MO router attaches to the legacy-declared
+	// RouterPB queues; revisit when the MO path is wired into the gateway.
+	topology := amqpcompat.NewTopology(conn, false)
 	subs, err := topology.OpenRouterSubscriptions(ctx)
 	if err != nil {
 		conn.Close()

@@ -70,6 +70,13 @@ type Config struct {
 	SubmitSMThroughput *float64 `json:"submit_sm_throughput,omitempty"`
 	PrefetchCount      int      `json:"prefetch_count,omitempty"`
 
+	// AMQPDurableTopology declares this connector's submit queue (and the
+	// messaging exchange) durable. Go-runtime knob, not a legacy field: the
+	// legacy stack declares non-durable, and AMQP rejects mismatched
+	// redeclares (406), so this must be uniform per broker vhost — the
+	// gateway sets it from its top-level amqp_durable_topology flag.
+	AMQPDurableTopology bool `json:"amqp_durable_topology,omitempty"`
+
 	// CustomTLVs are the per-connector vendor TLV rules, the legacy smppcc
 	// custom_tlvs config: declared wire type per tag, optional max encoded
 	// byte length (null = unbounded), and required presence.

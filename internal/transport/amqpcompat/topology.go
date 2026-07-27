@@ -45,16 +45,22 @@ type topologyChannel interface {
 type topologyChannelOpener func() (topologyChannel, error)
 
 // Topology owns channel creation for exact Jasmin-compatible declarations.
+// durable=false reproduces the legacy txamqp defaults (the Python stack never
+// passes durable); durable=true hardens a Go-native broker so queued submits
+// survive a broker restart. The two modes MUST NOT meet on one vhost: AMQP
+// 0-9-1 answers a redeclare with different durability with a channel-level
+// PRECONDITION_FAILED (406).
 type Topology struct {
-	open topologyChannelOpener
+	open    topologyChannelOpener
+	durable bool
 }
 
-func NewTopology(conn *amqp.Connection) *Topology {
-	return &Topology{open: func() (topologyChannel, error) { return conn.Channel() }}
+func NewTopology(conn *amqp.Connection, durable bool) *Topology {
+	return &Topology{open: func() (topologyChannel, error) { return conn.Channel() }, durable: durable}
 }
 
-func newTopology(open topologyChannelOpener) *Topology {
-	return &Topology{open: open}
+func newTopology(open topologyChannelOpener, durable bool) *Topology {
+	return &Topology{open: open, durable: durable}
 }
 
 // RouterSubscriptions owns the channel and the two raw manual-ack delivery
@@ -85,7 +91,7 @@ func (topology *Topology) OpenRouterSubscriptions(ctx context.Context) (*RouterS
 	if err != nil {
 		return nil, fmt.Errorf("open RouterPB topology channel: %w", err)
 	}
-	subscriptions, err := declareRouterSubscriptions(ctx, channel)
+	subscriptions, err := declareRouterSubscriptions(ctx, channel, topology.durable)
 	if err != nil {
 		if closeErr := channel.Close(); closeErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("close RouterPB topology channel: %w", closeErr))
@@ -96,11 +102,11 @@ func (topology *Topology) OpenRouterSubscriptions(ctx context.Context) (*RouterS
 	return subscriptions, nil
 }
 
-func declareRouterSubscriptions(ctx context.Context, channel topologyChannel) (*RouterSubscriptions, error) {
-	if err := declareExchange(ctx, channel, "messaging"); err != nil {
+func declareRouterSubscriptions(ctx context.Context, channel topologyChannel, durable bool) (*RouterSubscriptions, error) {
+	if err := declareExchange(ctx, channel, "messaging", durable); err != nil {
 		return nil, err
 	}
-	if err := declareQueue(ctx, channel, RouterDeliverSMQueue); err != nil {
+	if err := declareQueue(ctx, channel, RouterDeliverSMQueue, durable); err != nil {
 		return nil, err
 	}
 	if err := bindQueue(ctx, channel, RouterDeliverSMQueue, "messaging", RouterDeliverSMRoutingKey); err != nil {
@@ -111,10 +117,10 @@ func declareRouterSubscriptions(ctx context.Context, channel topologyChannel) (*
 		return nil, err
 	}
 
-	if err := declareExchange(ctx, channel, "billing"); err != nil {
+	if err := declareExchange(ctx, channel, "billing", durable); err != nil {
 		return nil, err
 	}
-	if err := declareQueue(ctx, channel, RouterBillingQueue); err != nil {
+	if err := declareQueue(ctx, channel, RouterBillingQueue, durable); err != nil {
 		return nil, err
 	}
 	if err := bindQueue(ctx, channel, RouterBillingQueue, "billing", RouterBillingRoutingKey); err != nil {
@@ -133,11 +139,11 @@ func declareRouterSubscriptions(ctx context.Context, channel topologyChannel) (*
 	}, nil
 }
 
-func declareExchange(ctx context.Context, channel topologyChannel, name string) error {
+func declareExchange(ctx context.Context, channel topologyChannel, name string, durable bool) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("declare exchange %s: %w", name, err)
 	}
-	if err := channel.ExchangeDeclare(name, "topic", false, false, false, false, nil); err != nil {
+	if err := channel.ExchangeDeclare(name, "topic", durable, false, false, false, nil); err != nil {
 		return fmt.Errorf("declare exchange %s: %w", name, err)
 	}
 	if err := ctx.Err(); err != nil {
@@ -146,11 +152,11 @@ func declareExchange(ctx context.Context, channel topologyChannel, name string) 
 	return nil
 }
 
-func declareQueue(ctx context.Context, channel topologyChannel, name string) error {
+func declareQueue(ctx context.Context, channel topologyChannel, name string, durable bool) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("declare queue %s: %w", name, err)
 	}
-	if _, err := channel.QueueDeclare(name, false, false, false, false, nil); err != nil {
+	if _, err := channel.QueueDeclare(name, durable, false, false, false, nil); err != nil {
 		return fmt.Errorf("declare queue %s: %w", name, err)
 	}
 	if err := ctx.Err(); err != nil {
@@ -222,10 +228,10 @@ func (topology *Topology) OpenDLRThrowerSubscription(ctx context.Context) (*DLRT
 		return nil, fmt.Errorf("open DLRThrower topology channel: %w", err)
 	}
 	subscription, err := func() (*DLRThrowerSubscription, error) {
-		if err := declareExchange(ctx, channel, "messaging"); err != nil {
+		if err := declareExchange(ctx, channel, "messaging", topology.durable); err != nil {
 			return nil, err
 		}
-		if err := declareQueue(ctx, channel, DLRThrowerQueue); err != nil {
+		if err := declareQueue(ctx, channel, DLRThrowerQueue, topology.durable); err != nil {
 			return nil, err
 		}
 		if err := bindQueue(ctx, channel, DLRThrowerQueue, "messaging", DLRThrowerRoutingKey); err != nil {
@@ -283,10 +289,10 @@ func (topology *Topology) OpenMOThrowerSubscription(ctx context.Context) (*MOThr
 		return nil, fmt.Errorf("open deliverSmThrower topology channel: %w", err)
 	}
 	subscription, err := func() (*MOThrowerSubscription, error) {
-		if err := declareExchange(ctx, channel, "messaging"); err != nil {
+		if err := declareExchange(ctx, channel, "messaging", topology.durable); err != nil {
 			return nil, err
 		}
-		if err := declareQueue(ctx, channel, MOThrowerQueue); err != nil {
+		if err := declareQueue(ctx, channel, MOThrowerQueue, topology.durable); err != nil {
 			return nil, err
 		}
 		if err := bindQueue(ctx, channel, MOThrowerQueue, "messaging", MOThrowerRoutingKey); err != nil {
@@ -338,10 +344,10 @@ func (topology *Topology) OpenDLRLookupSubscription(ctx context.Context, pid str
 	}
 	queue, tag := DLRLookupQueue(pid), DLRLookupConsumerTag(pid)
 	subscription, err := func() (*DLRLookupSubscription, error) {
-		if err := declareExchange(ctx, channel, "messaging"); err != nil {
+		if err := declareExchange(ctx, channel, "messaging", topology.durable); err != nil {
 			return nil, err
 		}
-		if err := declareQueue(ctx, channel, queue); err != nil {
+		if err := declareQueue(ctx, channel, queue, topology.durable); err != nil {
 			return nil, err
 		}
 		if err := bindQueue(ctx, channel, queue, "messaging", DLRLookupRoutingKey); err != nil {
@@ -375,7 +381,7 @@ func (topology *Topology) Declare(ctx context.Context) (resultErr error) {
 		}
 	}()
 	for _, name := range []string{"messaging", "billing"} {
-		if err := declareExchange(ctx, channel, name); err != nil {
+		if err := declareExchange(ctx, channel, name, topology.durable); err != nil {
 			return err
 		}
 	}
@@ -393,7 +399,7 @@ func (topology *Topology) DeclareQueue(ctx context.Context, name, exchange, rout
 			resultErr = errors.Join(resultErr, fmt.Errorf("close topology channel: %w", closeErr))
 		}
 	}()
-	if err := declareQueue(ctx, channel, name); err != nil {
+	if err := declareQueue(ctx, channel, name, topology.durable); err != nil {
 		return err
 	}
 	return bindQueue(ctx, channel, name, exchange, routingKey)
