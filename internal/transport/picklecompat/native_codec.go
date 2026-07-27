@@ -2,10 +2,32 @@ package picklecompat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
 )
+
+// ErrNativeCodec wraps native-codec encode/decode failures.
+var ErrNativeCodec = errors.New("native pickle codec")
+
+// smpp.pdu CommandId enum ordinals (the pickled Enum value) for the PDUs the
+// codec emits — from CommandIdEncoder (frozen).
+const (
+	commandIDSubmitSMResp = 9
+	commandIDSubmitSM     = 8
+	commandIDDeliverSM    = 10
+	commandIDDataSM       = 26
+)
+
+// smppEnum builds the pickle form of a simple smpp.pdu enum member:
+// EnumClass(ordinal) via REDUCE, matching Python's Enum __reduce_ex__.
+func smppEnum(name string, ordinal int) gopickle.Value {
+	return gopickle.Reduce{
+		Callable: gopickle.Global{Module: "smpp.pdu.pdu_types", Name: name},
+		Args:     gopickle.Tuple{gopickle.Int(int64(ordinal))},
+	}
+}
 
 // NativeCodec implements the pickle actions the gateway needs using the native
 // Go protocol-2 codec (internal/transport/gopickle), with no Python subprocess.
