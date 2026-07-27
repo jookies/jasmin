@@ -15,6 +15,7 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
+	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
@@ -33,12 +34,69 @@ type ConnectorConfig struct {
 }
 
 // RouteConfig is one MO route: the default route (order 0) or a static route
-// (positive order) guarded by the legacy ConnectorFilter on the source cid.
+// (positive order) guarded by the legacy ConnectorFilter on the source cid, plus
+// optional content Filters (source/destination/short_message/tag/date/time) that
+// must all match for the route to apply.
 type RouteConfig struct {
 	Order             int             `json:"order"`
 	Default           bool            `json:"default"`
 	FilterConnectorID string          `json:"filter_connector_id,omitempty"`
+	Filters           []FilterConfig  `json:"filters,omitempty"`
 	Connector         ConnectorConfig `json:"connector"`
+}
+
+// FilterConfig is one MO route content filter. Kept local (mirroring the MT
+// filter spec) so modispatch stays decoupled from the submit package. The user
+// filter is MT-only and unsupported here; the connector filter is expressed by
+// FilterConnectorID, not as a content filter.
+type FilterConfig struct {
+	Type    string `json:"type"`
+	Pattern string `json:"pattern,omitempty"`
+	Value   string `json:"value,omitempty"`
+	Start   string `json:"start,omitempty"`
+	End     string `json:"end,omitempty"`
+}
+
+// buildMORouteFilters translates a route's content-filter specs into engine
+// filters, rejecting shapes an MO route cannot carry.
+func buildMORouteFilters(specs []FilterConfig) ([]routingfilter.Filter, error) {
+	if len(specs) == 0 {
+		return nil, nil
+	}
+	filters := make([]routingfilter.Filter, 0, len(specs))
+	for index, spec := range specs {
+		filter, err := buildMORouteFilter(spec)
+		if err != nil {
+			return nil, fmt.Errorf("filter %d: %w", index, err)
+		}
+		filters = append(filters, filter)
+	}
+	return filters, nil
+}
+
+func buildMORouteFilter(spec FilterConfig) (routingfilter.Filter, error) {
+	switch spec.Type {
+	case "source_addr":
+		return routingfilter.NewSourceAddrFilter(spec.Pattern)
+	case "destination_addr":
+		return routingfilter.NewDestinationAddrFilter(spec.Pattern)
+	case "short_message":
+		return routingfilter.NewShortMessageFilter(spec.Pattern)
+	case "tag":
+		return routingfilter.NewTagFilter(spec.Value)
+	case "date_interval":
+		return routingfilter.NewDateIntervalFilter(spec.Start, spec.End)
+	case "time_interval":
+		return routingfilter.NewTimeIntervalFilter(spec.Start, spec.End)
+	case "user":
+		return nil, fmt.Errorf("user filter is MT-only, not valid on an MO route")
+	case "connector":
+		return nil, fmt.Errorf("connector filter is expressed by filter_connector_id, not filters")
+	case "":
+		return nil, fmt.Errorf("filter type is required")
+	default:
+		return nil, fmt.Errorf("unknown MO route filter type %q", spec.Type)
+	}
 }
 
 type Config struct {
@@ -63,6 +121,9 @@ func ValidateConfig(config Config) error {
 			if route.FilterConnectorID != "" {
 				return fmt.Errorf("%w: default route %d cannot carry a filter", ErrInvalidConfig, index)
 			}
+			if len(route.Filters) > 0 {
+				return fmt.Errorf("%w: default route %d cannot carry content filters", ErrInvalidConfig, index)
+			}
 		} else {
 			if route.Order <= 0 {
 				return fmt.Errorf("%w: static route %d must use positive order", ErrInvalidConfig, index)
@@ -70,6 +131,9 @@ func ValidateConfig(config Config) error {
 			if route.FilterConnectorID == "" {
 				return fmt.Errorf("%w: static route %d requires filter_connector_id", ErrInvalidConfig, index)
 			}
+		}
+		if _, err := buildMORouteFilters(route.Filters); err != nil {
+			return fmt.Errorf("%w: route %d %v", ErrInvalidConfig, index, err)
 		}
 		if _, duplicate := seenOrder[route.Order]; duplicate {
 			return fmt.Errorf("%w: duplicate route order %d", ErrInvalidConfig, route.Order)
@@ -94,7 +158,7 @@ func ValidateConfig(config Config) error {
 
 // RoutablePDURepickler and ConnectorListEncoder are the bridge seams.
 type RoutablePDURepickler interface {
-	RepickleRoutablePDU(ctx context.Context, routable []byte) ([]byte, error)
+	RepickleRoutablePDU(ctx context.Context, routable []byte) ([]byte, picklecompat.RoutableFields, error)
 }
 
 type ConnectorListEncoder interface {
@@ -111,11 +175,13 @@ type Publisher interface {
 }
 
 // preparedRoute is a config route with its dst-connectors header pre-pickled
-// (static config, encoded once at boot through the bridge).
+// (static config, encoded once at boot through the bridge) and its content
+// filters compiled.
 type preparedRoute struct {
 	config     RouteConfig
 	routingKey string
 	pickled    []byte
+	filters    []routingfilter.Filter
 }
 
 // Service consumes the RouterPB deliver queue and dispatches.
@@ -125,6 +191,7 @@ type Service struct {
 	routes   []preparedRoute // static routes, highest order first
 	fallback *preparedRoute  // default route (order 0), nil when absent
 	onError  func(error)
+	now      func() time.Time
 }
 
 // Option customises the service.
@@ -144,7 +211,7 @@ func NewService(ctx context.Context, config Config, bridge Bridge, options ...Op
 	if bridge == nil {
 		return nil, fmt.Errorf("%w: nil bridge", ErrInvalidConfig)
 	}
-	service := &Service{cfg: config, bridge: bridge, onError: func(error) {}}
+	service := &Service{cfg: config, bridge: bridge, onError: func(error) {}, now: time.Now}
 	for _, route := range config.Routes {
 		spec := picklecompat.MOConnectorSpec{
 			Type: route.Connector.Type, CID: route.Connector.CID, URL: route.Connector.URL,
@@ -154,11 +221,15 @@ func NewService(ctx context.Context, config Config, bridge Bridge, options ...Op
 		if err != nil {
 			return nil, fmt.Errorf("modispatch: pickle route %d connectors: %w", route.Order, err)
 		}
+		filters, err := buildMORouteFilters(route.Filters)
+		if err != nil {
+			return nil, fmt.Errorf("modispatch: route %d filters: %w", route.Order, err)
+		}
 		routingKey := "deliver_sm_thrower.http"
 		if route.Connector.Type == "smpps" {
 			routingKey = "deliver_sm_thrower.smpps"
 		}
-		prepared := preparedRoute{config: route, routingKey: routingKey, pickled: pickled}
+		prepared := preparedRoute{config: route, routingKey: routingKey, pickled: pickled, filters: filters}
 		if route.Default {
 			fallback := prepared
 			service.fallback = &fallback
@@ -176,14 +247,52 @@ func NewService(ctx context.Context, config Config, bridge Bridge, options ...Op
 }
 
 // selectRoute walks static routes highest-order-first (the legacy route table
-// scan) and falls back to the default route.
-func (s *Service) selectRoute(sourceCID string) *preparedRoute {
+// scan): a route applies when its connector filter matches the source cid AND
+// all its content filters match. Falls back to the default route.
+func (s *Service) selectRoute(routable routingfilter.Routable) (*preparedRoute, error) {
+	sourceCID := routable.ConnectorID()
 	for index := range s.routes {
-		if s.routes[index].config.FilterConnectorID == sourceCID {
-			return &s.routes[index]
+		route := &s.routes[index]
+		if route.config.FilterConnectorID != sourceCID {
+			continue
+		}
+		matched, err := matchAllFilters(route.filters, routable)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			return route, nil
 		}
 	}
-	return s.fallback
+	return s.fallback, nil
+}
+
+// matchAllFilters reports whether every filter matches (empty matches all).
+func matchAllFilters(filters []routingfilter.Filter, routable routingfilter.Routable) (bool, error) {
+	for _, filter := range filters {
+		ok, err := filter.Match(routable)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// buildRoutable assembles the MO routable the route filters evaluate, from the
+// source connector id and the bridge-decoded routing fields.
+func (s *Service) buildRoutable(sourceCID string, fields picklecompat.RoutableFields) (routingfilter.Routable, error) {
+	return routingfilter.NewRoutable(routingfilter.RoutableInput{
+		Direction:       routingfilter.MO,
+		ConnectorID:     sourceCID,
+		SourceAddr:      routingfilter.BytesField{Present: len(fields.SourceAddr) > 0, Value: fields.SourceAddr},
+		DestinationAddr: routingfilter.BytesField{Present: len(fields.DestinationAddr) > 0, Value: fields.DestinationAddr},
+		ShortMessage:    routingfilter.BytesField{Present: len(fields.ShortMessage) > 0, Value: fields.ShortMessage},
+		Timestamp:       s.now(),
+		Tags:            fields.Tags,
+	})
 }
 
 // Handle dispatches one DeliverSmContent delivery. It owns settlement:
@@ -206,18 +315,33 @@ func (s *Service) Handle(ctx context.Context, delivery *amqpcompat.Delivery, pub
 		s.onError(err)
 		return err
 	}
-	route := s.selectRoute(sourceCID)
+	// Repickle first: the same bridge round-trip returns the decoded routing
+	// fields the content filters need, so route selection can see the message.
+	pduPickle, fields, err := s.bridge.RepickleRoutablePDU(ctx, envelope.Body())
+	if err != nil {
+		_ = delivery.Reject(false)
+		err = fmt.Errorf("modispatch: repickle routable (msgid %s): %w", envelope.Properties().MessageID(), err)
+		s.onError(err)
+		return err
+	}
+	routable, err := s.buildRoutable(sourceCID, fields)
+	if err != nil {
+		_ = delivery.Reject(false)
+		err = fmt.Errorf("modispatch: build routable (msgid %s): %w", envelope.Properties().MessageID(), err)
+		s.onError(err)
+		return err
+	}
+	route, err := s.selectRoute(routable)
+	if err != nil {
+		_ = delivery.Reject(false)
+		err = fmt.Errorf("modispatch: select route (msgid %s): %w", envelope.Properties().MessageID(), err)
+		s.onError(err)
+		return err
+	}
 	if route == nil {
 		// The legacy router logs and drops an unroutable MO.
 		_ = delivery.Ack()
 		err := fmt.Errorf("modispatch: no route matched MO from %q (msgid %s), dropped", sourceCID, envelope.Properties().MessageID())
-		s.onError(err)
-		return err
-	}
-	pduPickle, err := s.bridge.RepickleRoutablePDU(ctx, envelope.Body())
-	if err != nil {
-		_ = delivery.Reject(false)
-		err = fmt.Errorf("modispatch: repickle routable (msgid %s): %w", envelope.Properties().MessageID(), err)
 		s.onError(err)
 		return err
 	}
