@@ -2,6 +2,26 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-26 — Macro-3 item 4: runtime connector provisioning (admin plane, SQLite)
+
+### Done
+
+- **#78** — authenticated `/admin` HTTP API for SMPP **connectors**: create/update/delete/start/stop, persisted to embedded **SQLite** (pure-Go `modernc.org/sqlite`), applied live through `smppc.Manager`, surviving restart. `internal/app/admin` (store + service + bearer-token handler); gateway `admin` config block (`db_path` + secret-ref `token`) mounted at `/admin`; `LoadAndApply` re-binds persisted connectors at boot.
+- **docs/adr/001** records the SQLite choice.
+- **Compose E2E:** `POST /admin/connectors` → binds immediately; survives `--force-recreate` (re-bound from SQLite); 401 without token.
+
+### Decisions
+
+- **SQLite via `modernc.org/sqlite` (pure Go), not `mattn/go-sqlite3`:** the gateway image is `CGO_ENABLED=0`; the CGO driver compiles but panics at runtime. Added the pure-Go driver (needed `go mod tidy` for a shifted transitive go.sum). ADR-001 covers node-local-SQLite vs Postgres/Redis.
+- **Additive to config, apply-first:** config connectors are reserved (admin owns a separate set); create applies to the manager (validates+binds) before persisting, rolling back on persist failure so store and runtime never diverge.
+
+### Next (finish item 4, then item 5)
+
+- **Routes CRUD:** needs a mutable routing-table holder the submit service reads through (today `routingtable.Table` is built once). Reuse the `FilterConfig` translation from #77.
+- **Users CRUD:** needs a mutable billing directory (today built once at boot).
+- **Interceptor (item 5):** MO/MT user-script runner — Python subprocess by contract (scripts ARE Python); per-route config; differential vs `interceptord`. **User has not yet confirmed keeping Python here** — surface before building.
+- **MO content filters** (deferred from #77): decode deliver_sm content pre-routing in modispatch.
+
 ## 2026-07-26 — Macro-3 item 3: filter-based MT routing config
 
 ### Done
