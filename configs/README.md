@@ -51,8 +51,9 @@ Notes:
   `date_interval`/`time_interval` (`start`+`end`, `YYYY-MM-DD` / `HH:MM:SS`). e.g.
   route French traffic to a premium connector:
   `{"connector_id": "premium", "order": 10, "rate": 0.0, "filters": [{"type": "destination_addr", "pattern": "^33"}]}`.
-  The `connector` filter is MO-only. MO routes today filter on source connector
-  (`filter_connector_id`); MO content filters are a follow-up.
+  The `connector` filter is MO-only (expressed on an MO route as
+  `filter_connector_id`, not inside `filters`). MO routes now also carry content
+  `filters` — see MO routing below.
 - **DLR workers.** An empty `amqp_url` in `dlr_lookup`/`dlr_thrower` inherits the
   outbound broker. `dlr_lookup.redis_url` must parse as a Redis URL.
 - **Terminal DLR (level 2/3).** With `dlr_lookup` (hence a `redis_url`) enabled,
@@ -70,14 +71,25 @@ Notes:
   (a Python subprocess, like the pickle bridge — interception scripts are
   Python by the legacy contract). Boundary: the MT hook is pre-encode, so PDU
   params beyond the routable fields above aren't surfaced.
+- **MO interception.** `outbound.mo_interceptors` runs the same script contract
+  on the *inbound* deliver path: each inbound MO — the whole single-part message,
+  and the reassembled whole for long MOs — is run through the matching scripts
+  before routing. Setting `smpp_status`/`http_status` drops the MO; mutating
+  `routable.pdu.params` (source/destination/short_message) rewrites it before it
+  is published, so downstream MO route filters see the mutated fields. Shares the
+  one runner subprocess with MT interception. Filters: same set as MT routes
+  minus `user`.
 - **MO routing.** `mo_routes` runs the MO router dispatch in-process: a default
   route (`order 0`) plus connector-filtered static routes
   (`filter_connector_id` = source SMSC connector, positive `order`, higher
-  wins). Destinations: `{"type":"http","cid","url","method"}` (legacy
-  HttpConnector URL rules: dotted host / localhost / IP only) or
-  `{"type":"smpps","system_id"}`. Enable `deliver_sm_thrower` to actually
-  throw routed MOs; the example's sink URL is the compose drill target —
-  replace it. Content-based filters land with the filter-routing step.
+  wins). A static route may also carry content `filters`
+  (`source_addr`/`destination_addr`/`short_message`/`tag`/`date_interval`/
+  `time_interval`) that must all match in addition to the connector filter; the
+  default route may not. Filters anchor like `re.match` (from the start), so use
+  `.*X` for a substring match. Destinations: `{"type":"http","cid","url","method"}`
+  (legacy HttpConnector URL rules: dotted host / localhost / IP only) or
+  `{"type":"smpps","system_id"}`. Enable `deliver_sm_thrower` to actually throw
+  routed MOs; the example's sink URL is the compose drill target — replace it.
 - **Durable AMQP.** `amqp_durable_topology: true` (top-level) declares every
   exchange/queue durable so queued submits survive a broker restart; publishes
   are always persistent. Durability must be uniform per vhost: AMQP rejects a
