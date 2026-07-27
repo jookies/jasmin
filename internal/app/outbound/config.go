@@ -41,6 +41,11 @@ type Config struct {
 	// order first, until one rejects (legacy MO/MTInterceptorTable). Requires
 	// an interceptor runner to be wired; validation only checks shape.
 	MTInterceptors []InterceptorConfig `json:"mt_interceptors,omitempty"`
+	// MOInterceptors are the MO-direction interception scripts run on the
+	// deliver path (inbound). Same shape as MTInterceptors; consumed by the
+	// smppc deliver hook via the gateway, not by the submit pipeline. Filters
+	// support source/destination/short_message/tag/date/time (no user filter).
+	MOInterceptors []InterceptorConfig `json:"mo_interceptors,omitempty"`
 }
 
 // InterceptorConfig is one MT interceptor: a Python script (py_code) run when

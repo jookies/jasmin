@@ -106,6 +106,9 @@ type Session struct {
 	// multipartStore accumulates inbound long-message parts for reassembly.
 	// Nil reproduces the legacy redis-less drop.
 	multipartStore MultipartStore
+	// moInterceptor optionally rewrites or drops an inbound MO before publish.
+	// Nil disables MO-direction interception.
+	moInterceptor MOInterceptor
 }
 
 // SetSubmitAuditLogger enables the legacy SMS-MT audit line for correlated

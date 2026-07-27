@@ -140,7 +140,16 @@ func (s *Session) processDeliverMO(pdu smppwire.PDU) uint32 {
 
 	ctx, cancel := context.WithTimeout(context.Background(), deliverPublishTimeout)
 	defer cancel()
-	return s.publishMO(ctx, pdu, msgID, content)
+	// MO-direction interception runs on the whole single-part message before
+	// publish: a reject drops it (ack, ESME_ROK), a mutation rewrites the body.
+	intercepted, dropped, errStatus := s.interceptMO(ctx, pdu.SM, msgID)
+	if errStatus != 0 {
+		return errStatus
+	}
+	if dropped {
+		return 0
+	}
+	return s.publishMO(ctx, pdu, msgID, intercepted)
 }
 
 // multipartInfo extracts (reference, total, sequence, part content) from a long
@@ -201,7 +210,15 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		s.logDeliverError(fmt.Sprintf("delete reassembled long deliver_sm [ref:%d]: %v", reference, err))
 	}
 	whole := s.reassembledDeliverSM(pdu.SM, assembled)
-	return s.publishMO(ctx, whole, msgID, assembled)
+	// Intercept the reassembled whole message, not the individual parts.
+	intercepted, dropped, errStatus := s.interceptMO(ctx, whole.SM, msgID)
+	if errStatus != 0 {
+		return errStatus
+	}
+	if dropped {
+		return 0
+	}
+	return s.publishMO(ctx, whole, msgID, intercepted)
 }
 
 // reassembledDeliverSM builds the whole-message deliver_sm from the first part,

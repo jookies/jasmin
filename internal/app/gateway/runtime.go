@@ -108,6 +108,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// explicitly once the runtime exists.
 	var deliverPublisher smppc.DeliverPublisher
 	var deliverMultipart smppc.MultipartStore
+	// Deferred MO interceptor: built below (needs the script runner), captured
+	// by reference so admin-provisioned connectors get MO interception too.
+	var moInterceptor smppc.MOInterceptor
 	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
 		connectorConfig.AMQPDurableTopology = connectorConfig.AMQPDurableTopology || config.AMQPDurableTopology
 		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)
@@ -121,6 +124,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if deliverPublisher != nil {
 			connector.SetDeliverUpstream(deliverPublisher, bridge)
 			connector.SetMultipartStore(deliverMultipart)
+		}
+		if moInterceptor != nil {
+			connector.SetMOInterceptor(moInterceptor)
 		}
 		return connector, nil
 	})
@@ -180,16 +186,28 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		dlrRequestStore = store
 		multipartStore = parts
 	}
-	// MT interception: start the Python script runner subprocess when the
-	// config declares interceptors, and hand it to the submit pipeline.
+	// Interception: start the Python script runner subprocess when the config
+	// declares MT or MO interceptors, and share it across both directions —
+	// the MT submit pipeline and the MO deliver hook.
 	var interceptorRunner interceptor.Runner
-	if len(config.Outbound.MTInterceptors) > 0 {
+	if len(config.Outbound.MTInterceptors) > 0 || len(config.Outbound.MOInterceptors) > 0 {
 		runnerImpl, runnerErr := pyintercept.NewRunner(workerCtx, config.Outbound.PythonPath)
 		if runnerErr != nil {
 			return nil, fmt.Errorf("start interceptor runner: %w", runnerErr)
 		}
 		runtime.interceptorRunner = runnerImpl
 		interceptorRunner = runnerImpl
+	}
+	// MO-direction interception: build the MO table and bridge it to the smppc
+	// deliver path via the shared runner. Assigning the deferred var here wires
+	// both the config connectors (explicit loop below) and any admin-created
+	// connectors (the factory closure).
+	if len(config.Outbound.MOInterceptors) > 0 {
+		moTable, moErr := outbound.BuildMOInterceptorTable(config.Outbound.MOInterceptors)
+		if moErr != nil {
+			return nil, fmt.Errorf("build MO interceptor table: %w", moErr)
+		}
+		moInterceptor = newMOInterceptorAdapter(moTable, interceptorRunner)
 	}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
@@ -218,6 +236,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			connector.SetDeliverUpstream(publisher, bridge)
 			if multipartStore != nil {
 				connector.SetMultipartStore(multipartStore)
+			}
+			if moInterceptor != nil {
+				connector.SetMOInterceptor(moInterceptor)
 			}
 		}
 	}

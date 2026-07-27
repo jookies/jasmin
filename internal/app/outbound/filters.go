@@ -42,6 +42,15 @@ func buildInterceptorTable(configs []InterceptorConfig, resolveUID uidResolver) 
 	return builder.Build(), nil
 }
 
+// BuildMOInterceptorTable builds the MO-direction interception table from
+// config. It reuses the MT builder — an interceptor's direction lives in the
+// routable evaluated at run time, not in the table — with no uid resolver, so
+// MO interceptor filters may use source/destination/short_message/tag/date/time
+// (a user filter is rejected, matching the MO context).
+func BuildMOInterceptorTable(configs []InterceptorConfig) (*interceptor.Table, error) {
+	return buildInterceptorTable(configs, nil)
+}
+
 // FilterConfig is one MT route filter. Type selects the dimension; the other
 // fields carry that type's parameters (legacy jasmin.routing.Filters):
 //
