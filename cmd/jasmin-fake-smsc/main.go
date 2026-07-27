@@ -153,6 +153,37 @@ func injectHandler(sessions *registry) http.Handler {
 		}
 		send(w, body)
 	})
+	// /inject/mo-long sends a 2-part UDH-concatenated MO ("<text> [part 1of2]"
+	// / "<text> [part 2of2]") to exercise long-message reassembly. The gateway
+	// should publish exactly one reassembled MO.
+	mux.HandleFunc("/inject/mo-long", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		// Both segments must reach the SAME bound session for reassembly, so the
+		// target is chosen once (not per part).
+		target := sessions.firstBound()
+		if target == nil {
+			http.Error(w, "no bound session", http.StatusServiceUnavailable)
+			return
+		}
+		from, to := []byte(query.Get("from")), []byte(query.Get("to"))
+		ref := byte(0x2a)
+		for i, segment := range []string{query.Get("part1"), query.Get("part2")} {
+			udh := []byte{0x05, 0x00, 0x03, ref, 0x02, byte(i + 1)}
+			sequence := target.sequence.Add(1)
+			pdu := smppwire.PDU{
+				Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM, SequenceNumber: sequence},
+				SM: &smppwire.SMBody{
+					SourceAddress: from, DestinationAddress: to, ESMClass: 0x40,
+					ShortMessage: append(udh, []byte(segment)...),
+				},
+			}
+			if err := target.writePDU(pdu); err != nil {
+				http.Error(w, err.Error(), http.StatusBadGateway)
+				return
+			}
+		}
+		fmt.Fprintf(w, "2-part long MO sent to %s\n", target.conn.RemoteAddr())
+	})
 	mux.HandleFunc("/inject/dlr", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		stat := query.Get("stat")

@@ -101,6 +101,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		Rotate: config.SubmitAuditLog.Rotate,
 	})
 	submitAuditPrivacy := config.SubmitAuditLog.Privacy
+	// Deferred deliver-ingest wiring: the publisher and multipart store are
+	// built with the outbound runtime (below), after this factory. Capturing
+	// them by reference lets connectors created LATER — the admin-provisioned
+	// ones — receive MO/DLR too, not just the config connectors wired
+	// explicitly once the runtime exists.
+	var deliverPublisher smppc.DeliverPublisher
+	var deliverMultipart smppc.MultipartStore
 	manager := smppc.NewManagerWithFactory(config.Outbound.AMQPURL, func(connectorConfig smppc.Config, amqpURL string) (*smppc.Connector, error) {
 		connectorConfig.AMQPDurableTopology = connectorConfig.AMQPDurableTopology || config.AMQPDurableTopology
 		connector, connectorErr := smppc.NewConnectorWithDecoder(connectorConfig, amqpURL, bridge)
@@ -111,6 +118,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, connectorErr
 		}
 		connector.SetSubmitAuditLogger(submitAuditLogger, submitAuditPrivacy)
+		if deliverPublisher != nil {
+			connector.SetDeliverUpstream(deliverPublisher, bridge)
+			connector.SetMultipartStore(deliverMultipart)
+		}
 		return connector, nil
 	})
 	runtime.manager = manager
@@ -159,13 +170,15 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// when a Redis URL is configured (dlr_lookup present); without it, level-1
 	// callbacks via the response path still work, terminal ones cannot.
 	var dlrRequestStore core.DLRRequestStore
+	var multipartStore smppc.MultipartStore
 	if config.DLRLookup != nil && config.DLRLookup.RedisURL != "" {
-		store, redisCleanup, storeErr := newDLRRequestStore(config.DLRLookup.RedisURL)
+		store, parts, redisCleanup, storeErr := newDLRRequestStore(config.DLRLookup.RedisURL)
 		if storeErr != nil {
 			return nil, fmt.Errorf("open DLR request store: %w", storeErr)
 		}
 		runtime.dlrRedisClose = redisCleanup
 		dlrRequestStore = store
+		multipartStore = parts
 	}
 	// MT interception: start the Python script runner subprocess when the
 	// config declares interceptors, and hand it to the submit pipeline.
@@ -191,15 +204,21 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	runtime.outbound = outboundRuntime
 	runtime.requiredConnectors = config.RequiredConnectors()
 	// Wire deliver_sm ingestion (MO + receipt publications) into every
-	// connector before any of them binds: the sessions publish through the
-	// outbound broker and pickle routables through the shared bridge.
+	// connector: the config connectors were built before the runtime existed,
+	// so wire them explicitly now; the deferred vars ensure admin-provisioned
+	// connectors created later get the same wiring from the factory.
 	if publisher := outboundRuntime.Publisher(); publisher != nil {
+		deliverPublisher = publisher
+		deliverMultipart = multipartStore
 		for _, connectorConfig := range config.Connectors {
 			connector, getErr := manager.Get(connectorConfig.CID)
 			if getErr != nil {
 				return nil, fmt.Errorf("wire deliver ingestion for %q: %w", connectorConfig.CID, getErr)
 			}
 			connector.SetDeliverUpstream(publisher, bridge)
+			if multipartStore != nil {
+				connector.SetMultipartStore(multipartStore)
+			}
 		}
 	}
 	// /health (real readiness) rides beside the legacy-parity endpoints; the
