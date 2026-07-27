@@ -28,18 +28,19 @@ import (
 type ManagerFactory func(string) *smppc.Manager
 
 type Runtime struct {
-	Handler      http.Handler
-	manager      *smppc.Manager
-	outbound     *outbound.Runtime
-	bridge       *picklecompat.Bridge
-	store        *storage.PostgresSubmitTransactionRepository
-	dlrLookup    *dlrlookup.Service
-	dlrThrower   *dlrthrower.Service
-	moThrower    *mothrower.Service
-	smppsServer  *smppsserver.Service
-	workerCancel context.CancelFunc
-	closeOnce    sync.Once
-	closeErr     error
+	Handler            http.Handler
+	manager            *smppc.Manager
+	outbound           *outbound.Runtime
+	bridge             *picklecompat.Bridge
+	store              *storage.PostgresSubmitTransactionRepository
+	dlrLookup          *dlrlookup.Service
+	dlrThrower         *dlrthrower.Service
+	moThrower          *mothrower.Service
+	smppsServer        *smppsserver.Service
+	requiredConnectors []string
+	workerCancel       context.CancelFunc
+	closeOnce          sync.Once
+	closeErr           error
 }
 
 func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error) {
@@ -143,8 +144,14 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if err != nil {
 		return nil, fmt.Errorf("start outbound runtime: %w", err)
 	}
-	runtime.Handler = outboundRuntime.Handler
 	runtime.outbound = outboundRuntime
+	runtime.requiredConnectors = config.RequiredConnectors()
+	// /health (real readiness) rides beside the legacy-parity endpoints; the
+	// outbound handler keeps everything else, including the unconditional /ping.
+	mux := http.NewServeMux()
+	mux.Handle("/health", runtime.healthHandler())
+	mux.Handle("/", outboundRuntime.Handler)
+	runtime.Handler = mux
 	if config.DLRLookup != nil {
 		lookupConfig := *config.DLRLookup
 		if lookupConfig.AMQPURL == "" {

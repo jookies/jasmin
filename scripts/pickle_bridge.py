@@ -522,6 +522,9 @@ def run():
                     "bill": None if bill_data is None else base64.b64encode(bill_data).decode("ascii"),
                 }
                 print(json.dumps({"status": "ok", "result": result}))
+            elif action == "ping":
+                # Liveness probe: proves the loop is reading stdin and serving.
+                print(json.dumps({"status": "ok"}))
             else:
                 print(json.dumps({"status": "error", "message": "unknown action"}))
         except Exception as e:

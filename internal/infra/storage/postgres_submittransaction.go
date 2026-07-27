@@ -38,6 +38,9 @@ func OpenPostgresSubmitTransactionRepository(ctx context.Context, dsn string) (*
 	return &PostgresSubmitTransactionRepository{db: db}, nil
 }
 func (r *PostgresSubmitTransactionRepository) Close() error                { return r.db.Close() }
+func (r *PostgresSubmitTransactionRepository) Ping(ctx context.Context) error {
+	return r.db.PingContext(ctx)
+}
 func (r *PostgresSubmitTransactionRepository) ProductionSubmitRepository() {}
 
 func (r *PostgresSubmitTransactionRepository) BillingApplied(ctx context.Context, eventKey string) (bool, error) {

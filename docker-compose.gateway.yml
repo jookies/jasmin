@@ -77,9 +77,11 @@ services:
       smppsim:
         condition: service_started
     healthcheck:
-      test: python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:1401/ping', timeout=3).status==200 else 1)"
+      # Real readiness: Postgres ping + AMQP channel + pickle-bridge liveness +
+      # required-connector bind state. /ping stays the unconditional legacy echo.
+      test: python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:1401/health', timeout=8).status==200 else 1)"
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 6
       start_period: 40s
     security_opt:
