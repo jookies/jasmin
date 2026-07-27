@@ -385,22 +385,35 @@ func (c *Connector) loop(ctx context.Context) {
 		sessionCtx, cancel := context.WithCancel(ctx)
 		sessionDone := make(chan error, 1)
 		consumerDone := make(chan struct{})
+		// The session reader (deliver_sm + responses) always runs. The submit-
+		// queue consumer runs only for bind roles that may submit (transmitter,
+		// transceiver); a receiver never consumes submits — the SMSC rejects a
+		// submit on an RX bind, and MT routing already excludes it. For a
+		// receiver, consumerWait stays nil so the select never triggers teardown
+		// on a (non-existent) consumer exit; the session lives until ctx or the
+		// socket closes.
+		canSubmit := c.cfg.CanSubmit()
+		var consumerWait <-chan struct{}
 		var workers sync.WaitGroup
-		workers.Add(2)
+		workers.Add(1)
 		go func() {
 			defer workers.Done()
 			sessionDone <- session.Run(sessionCtx)
 		}()
-		go func() {
-			defer workers.Done()
-			c.runConsumer(sessionCtx, session)
-			close(consumerDone)
-		}()
+		if canSubmit {
+			consumerWait = consumerDone
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				c.runConsumer(sessionCtx, session)
+				close(consumerDone)
+			}()
+		}
 
 		select {
 		case <-ctx.Done():
 		case <-sessionDone:
-		case <-consumerDone:
+		case <-consumerWait:
 		}
 		cancel()
 		_ = session.conn.Close()
@@ -633,6 +646,18 @@ func dialSMPP(ctx context.Context, cfg Config) (net.Conn, error) {
 	return secured, nil
 }
 
+// bindCommands maps a bind role to its SMPP bind request/response command ids.
+func bindCommands(bind BindType) (request, response uint32) {
+	switch bind {
+	case BindTransmitter:
+		return smppwire.CommandBindTransmitter, smppwire.CommandBindTransmitterResp
+	case BindReceiver:
+		return smppwire.CommandBindReceiver, smppwire.CommandBindReceiverResp
+	default:
+		return smppwire.CommandBindTransceiver, smppwire.CommandBindTransceiverResp
+	}
+}
+
 func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	cfg := c.Config()
 	conn, err := dialSMPP(ctx, cfg)
@@ -649,8 +674,9 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	}()
 
 	bindSequence := uint32(1)
+	bindCommand, bindRespCommand := bindCommands(cfg.Bind)
 	request := smppwire.PDU{
-		Header: smppwire.Header{CommandID: smppwire.CommandBindTransceiver, SequenceNumber: bindSequence},
+		Header: smppwire.Header{CommandID: bindCommand, SequenceNumber: bindSequence},
 		Bind: &smppwire.BindBody{
 			SystemID:         []byte(cfg.SystemID),
 			Password:         []byte(cfg.Password),
@@ -676,7 +702,7 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 		return nil, err
 	}
 	_ = conn.SetDeadline(time.Time{})
-	if response.Header.CommandID != smppwire.CommandBindTransceiverResp ||
+	if response.Header.CommandID != bindRespCommand ||
 		response.Header.SequenceNumber != bindSequence || response.Header.CommandStatus != 0 {
 		return nil, fmt.Errorf("%w: command=%#x status=%#x sequence=%d", ErrBindResponse,
 			response.Header.CommandID, response.Header.CommandStatus, response.Header.SequenceNumber)
