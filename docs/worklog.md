@@ -2,6 +2,28 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-27 — Connection types per protocol + receive-side correctness
+
+Goal (user): a gateway that sends/receives over SMPP and HTTP with DLR, modeled as distinct connection types per protocol. Grounded the design in Jasmin's connector model + the SMPP spec rather than an invented one. Billing explicitly de-prioritized (next after this portion).
+
+### Done
+
+- **#82 — SMPP client bind roles.** The standard's connection types are the three bind operations (Jasmin `bindOperation`); the Go client was transceiver-only. Added `transmitter` (send-only), `receiver` (receive-only, excluded from MT routing via `Available`+`CanSubmit`, never consumes the submit queue), `transceiver` (both). `connectAndBind` sends the role's bind PDU; run loop gates the submit consumer on `CanSubmit`. Enables the TX+RX pairing carriers that reject a single transceiver require. Wire-tested + compose (admin-provisioned TX/RX bound `0x2`/`0x1`).
+- **#83 — inbound long-MO reassembly.** Multi-part MOs were dropped (`MSG IS LOST`). Now the session accumulates SAR/UDH segments via a `MultipartStore` (gateway adapter over the DLR Redis `longDeliverSm` key) and publishes one whole reassembled MO. **Bug fixed en route:** deliver-upstream wiring was config-connectors-only, so admin-provisioned connectors couldn't receive at all — moved into the manager factory via deferred vars.
+- **#85 — inbound `data_sm`.** Was ignored. `data_sm` has a distinct SMPP-3.4 mandatory body (no protocol_id/priority/schedule/validity/replace/sm_default/short_message; content in `message_payload` TLV), so it needed its own `decodeDataSM`/`encodeDataSM`, not a dispatch alias. Byte-parity differential vs `smpp.pdu` (bridge parity); dispatched to `handleDeliver`; answers `data_sm_resp`.
+- **#84 — chore:** removed an accidentally-committed `jasmin-fake-smsc` binary + gitignored built binaries.
+
+### Decisions
+
+- **Filter matching is `re.match`-anchored** (`location[0]==0`), faithful to legacy — a `short_message` pattern anchors from the start; use `.*STOP` to block STOP anywhere. (Re-confirmed while drilling; corrected the example config in #81.)
+- **`data_sm` proper codec, not a one-line alias** — the different mandatory layout would misparse under `decodeSM`. Honest correction after first assuming it was trivial.
+- Chose bind-roles as the concrete meaning of "connection types per protocol" over a config-model rewrite: it's the genuine standard gap (client was transceiver-only), and the `smppc`/`smpps`/`http` connector-type abstraction already exists in routing.
+
+### Next
+
+- **Portion complete** (send/receive over SMPP+HTTP with DLR + connection types). Per user sequencing, **billing** is next (was de-prioritized) — check timing before diving in.
+- Outside the portion (non-blocking): MO-direction interception + MO content filters (runner + filter engine already exist), jCli console, native Go pickle codec to retire the bridge, the formal cutover gate.
+
 ## 2026-07-26 — Macro-3 items 4–5 finished: full admin plane + MT interception
 
 ### Done
