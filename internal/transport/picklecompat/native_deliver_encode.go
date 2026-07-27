@@ -159,20 +159,15 @@ func regDeliveryFromWire(wire uint8) (gopickle.Value, error) {
 	}, nil
 }
 
-// dataCodingFromWire builds the DataCoding object for a default-scheme inbound
-// byte; GSM/scheme codings are not yet ported.
+// dataCodingFromWire builds the DataCoding pickle for an inbound deliver_sm's
+// data_coding byte. It shares the submit-path builder (DEFAULT/RAW/GSM) so MO
+// messages with any coding round-trip, wrapping failures as a router-encode error.
 func dataCodingFromWire(wire uint8) (gopickle.Value, error) {
-	ordinal, ok := dataCodingDefaultOrdinal[wire]
-	if !ok {
-		return nil, fmt.Errorf("%w: data_coding %d outside default range (not yet ported)", ErrInvalidRouterEncode, wire)
+	value, err := dataCodingValue(wire)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidRouterEncode, err)
 	}
-	return gopickle.Object{
-		Class: gopickle.Global{Module: "smpp.pdu.pdu_types", Name: "DataCoding"},
-		State: gopickle.Dict{
-			{Key: gopickle.Str("scheme"), Value: smppEnum("DataCodingScheme", dataCodingDefaultSchemeOrdinal)},
-			{Key: gopickle.Str("schemeData"), Value: smppEnum("DataCodingDefault", ordinal)},
-		},
-	}, nil
+	return value, nil
 }
 
 // enumListFromOrdinals builds a List of Enum(ordinal) reduces from a comma-

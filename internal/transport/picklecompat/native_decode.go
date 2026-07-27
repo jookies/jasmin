@@ -112,12 +112,17 @@ func projectSubmitNode(obj gopickle.Object) (submitSMWire, gopickle.Value, error
 	if wire.RegisteredDelivery, err = regDeliveryWire(params); err != nil {
 		return submitSMWire{}, nil, err
 	}
-	// schedule/validity times are not yet ported on encode; a legacy pickle
-	// carrying them decodes here only when None (empty), else it is poison until
-	// the time codec lands.
-	if !paramIsNone(params, "schedule_delivery_time") || !paramIsNone(params, "validity_period") {
-		return submitSMWire{}, nil, poisonSubmitError("schedule/validity time decoding not yet ported")
+	// Re-encode the pickled datetimes to their SMPP absolute-time wire form.
+	scheduleWire, err := smppTimeBytes(paramValue(params, "schedule_delivery_time"))
+	if err != nil {
+		return submitSMWire{}, nil, err
 	}
+	wire.ScheduleDeliveryTime = Bytes(scheduleWire)
+	validityWire, err := smppTimeBytes(paramValue(params, "validity_period"))
+	if err != nil {
+		return submitSMWire{}, nil, err
+	}
+	wire.ValidityPeriod = Bytes(validityWire)
 
 	wire.OptionalTLVs, err = projectOptionalTLVs(params)
 	if err != nil {
@@ -207,8 +212,9 @@ func enumReduceOrdinal(value gopickle.Value) (int, string, bool) {
 	return int(ordinal), global.Name, true
 }
 
-// dataCodingWire re-encodes a pickled DataCoding (default scheme) to its wire
-// byte. None yields 0; GSM/scheme codings are not yet ported.
+// dataCodingWire re-encodes a pickled DataCoding to its wire byte across all
+// three schemes (DEFAULT ordinal table, RAW plain int, GSM_MESSAGE_CLASS via the
+// lossy ordinal table). None yields 0.
 func dataCodingWire(params gopickle.Dict) (uint8, error) {
 	value := paramValue(params, "data_coding")
 	if value == nil {
@@ -226,19 +232,61 @@ func dataCodingWire(params gopickle.Dict) (uint8, error) {
 		return 0, poisonSubmitError("DataCoding state is not a dict")
 	}
 	scheme, _, ok := enumReduceOrdinal(paramValue(state, "scheme"))
-	if !ok || scheme != dataCodingDefaultSchemeOrdinal {
-		return 0, poisonSubmitError("non-default DataCoding scheme not yet ported")
-	}
-	schemeData, _, ok := enumReduceOrdinal(paramValue(state, "schemeData"))
 	if !ok {
-		return 0, poisonSubmitError("DataCoding schemeData missing")
+		return 0, poisonSubmitError("DataCoding scheme missing")
 	}
-	for wire, ordinal := range dataCodingDefaultOrdinal {
-		if ordinal == schemeData {
-			return wire, nil
+	schemeDataValue := paramValue(state, "schemeData")
+	switch scheme {
+	case dataCodingDefaultSchemeOrdinal:
+		schemeData, _, ok := enumReduceOrdinal(schemeDataValue)
+		if !ok {
+			return 0, poisonSubmitError("DataCoding schemeData missing")
 		}
+		for wire, ordinal := range dataCodingDefaultOrdinal {
+			if ordinal == schemeData {
+				return wire, nil
+			}
+		}
+		return 0, poisonSubmitError("DataCoding schemeData ordinal %d not decodable", schemeData)
+	case dataCodingSchemeRawOrdinal:
+		// RAW schemeData is the plain wire byte.
+		raw, ok := schemeDataValue.(gopickle.Int)
+		if !ok || raw < 0 || raw > 255 {
+			return 0, poisonSubmitError("RAW DataCoding schemeData is not a uint8 int")
+		}
+		return uint8(raw), nil
+	case dataCodingSchemeGSMOrdinal:
+		return gsmMsgWire(schemeDataValue)
+	default:
+		return 0, poisonSubmitError("DataCoding scheme ordinal %d not decodable", scheme)
 	}
-	return 0, poisonSubmitError("DataCoding schemeData ordinal %d not decodable", schemeData)
+}
+
+// gsmMsgWire re-encodes a DataCodingGsmMsg(msgCoding, msgClass) to its wire byte
+// via the code-generated ordinal table. The mapping is lossy by construction
+// (0xf8..0xff collapse to 0xf0..0xf7), matching DataCodingEncoder().encode.
+func gsmMsgWire(value gopickle.Value) (uint8, error) {
+	object, ok := value.(gopickle.Object)
+	if !ok || object.Class.Name != "DataCodingGsmMsg" {
+		return 0, poisonSubmitError("GSM schemeData is not a DataCodingGsmMsg object")
+	}
+	args, ok := object.Args.(gopickle.Tuple)
+	if !ok || len(args) != 2 {
+		return 0, poisonSubmitError("DataCodingGsmMsg args are not a 2-tuple")
+	}
+	coding, _, ok := enumReduceOrdinal(args[0])
+	if !ok {
+		return 0, poisonSubmitError("DataCodingGsmMsg msgCoding missing")
+	}
+	class, _, ok := enumReduceOrdinal(args[1])
+	if !ok {
+		return 0, poisonSubmitError("DataCodingGsmMsg msgClass missing")
+	}
+	wire, ok := gsmMsgOrdinalsToWire[gsmMsgPair{Coding: coding, Class: class}]
+	if !ok {
+		return 0, poisonSubmitError("DataCodingGsmMsg (%d,%d) not decodable", coding, class)
+	}
+	return wire, nil
 }
 
 // esmClassWire re-encodes a pickled EsmClass (mode/type/gsmFeatures in NEWOBJ

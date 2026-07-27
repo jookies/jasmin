@@ -2,6 +2,29 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-27 — Finish the native pickle codec: retire the Python bridge (plan 010)
+
+Goal (user): "finish #2 to unblock us full" — complete the native Go pickle codec so it is the **default** and the pickle-bridge layer is **retired from the image**. This closes the three deferred codec edges, flips the default, and drops the bridge from the gateway Dockerfile.
+
+### Done
+
+- **schedule/validity absolute-time codec** (`native_time.go`). Encode parses the RFC3339(Nano) schedule_at/validity_until into the tz-aware `datetime.datetime(<10-byte>, timezone(timedelta(...)))` pickle; decode re-encodes it to the SMPP `YYMMDDhhmmss+tenths+quarter-hours+sign` wire form (matching legacy `TimeEncoder().encode()[:-1]`). Differential-proven across UTC / +02:00 / fractional / negative offset (`native_time_differential_test.go`).
+- **custom-TLV codec** (`native_custom_tlv.go`). Encode `[]SubmitSMCustomTLV` → `pdu.custom_tlvs` `(tag,length,type,value)` tuples (length/type None when unset); decode → the bridge `[tag,length,type,value]` JSON that `decodeWireCustomTLVs` already consumes (shared submit+deliver). Proven identical `[]tlv.TLV` for str/int/bool/bytes/None values, typed/untyped, null/set length.
+- **full DataCoding surface** (`native_datacoding_tables.go`, code-generated from the venv). Ported the two non-default schemes: **RAW** (`schemeData` = the raw int; bytes 0x0b,0x0c,0x0f–0xef) and **GSM_MESSAGE_CLASS** (`DataCodingGsmMsg(msgCoding,msgClass)` NEWOBJ, bytes 0xf0–0xff, lossy 0xf8–0xff→0xf0–0xf7). All 256 bytes now encode+round-trip; cross-checked against the bridge both directions per shape.
+- **Default flipped to `native`** (`runtime.go`, `config.go`, `gateway.example.json`); `bridge` is an opt-in fallback. The gateway integration test now runs E2E on the **default** (no `pickle_codec` set) — verified live: HTTP submit → durable AMQP → native decode → SMPP multipart SAR submit → resp, no subprocess.
+- **Bridge retired from `docker/Dockerfile.gateway`** — removed `scripts/pickle_bridge.py`, the `smpp-pdu3` pip layer, and the `jasmin/` source tree. Python stays only for the stdlib-only interceptor runner. `*Bridge` code + all differentials kept for regression under `PYTHON_PATH`.
+
+### Decisions
+
+- **Why GSM had to be ported (not left poisoned):** the HTTP front-door `reCoding` regex is exactly the DEFAULT allowlist, but the **SMPPs-inbound** submit path (`smppssubmit/handler.go:81`) passes the ESME's raw `data_coding` byte unconstrained — so flash/message-class codings (0xF0…) are reachable and would have failed once native became the default.
+- **Lossy GSM is correct parity:** `DataCodingEncoder` collapses 0xf8–0xff to 0xf0–0xf7; the generated reverse table reproduces this by mapping each `(coding,class)` pair to its canonical wire byte.
+- **`more_messages_to_send` on submit stays a defensive poison** — neither encoder emits it (not in the encode request), so a non-None value is genuinely unexpected; the deliver path, which does carry it, decodes it.
+
+### Next
+
+- #3.3 — a basic setup/admin web interface (user's next goal), then #1 billing.
+- Optional later: native interceptor runner to remove Python from the image entirely; retire the `pickle_codec: bridge` option once soak confidence is high.
+
 ## 2026-07-27 — Core-gateway functional completeness (plan 009)
 
 Goal (user): finish everything for core gateway functionality — the four bounded gaps in [docs/plans/009](plans/009-core-gateway-completeness.md). One PR per step, merged on the 3 fast CI checks.

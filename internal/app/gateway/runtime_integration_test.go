@@ -98,10 +98,10 @@ func TestGatewayHTTPToDurableSMPPResponse(t *testing.T) {
 	connectorID := "wave1a-" + strconv.FormatInt(runID, 10)
 	config := gateway.Config{
 		Role: gateway.RoleHTTPAndSMPPc,
-		// Exercise the native Go pickle codec end to end (submit -> durable ->
-		// SMPP submit -> submit_sm_resp -> DLR). Per-action parity with the
-		// Python bridge is proven by the picklecompat differentials.
-		PickleCodec: "native",
+		// PickleCodec is left empty on purpose: the native Go codec is now the
+		// default, so this exercises it end to end (submit -> durable -> SMPP
+		// submit -> submit_sm_resp -> DLR) with no subprocess. Per-action parity
+		// with the Python bridge is proven by the picklecompat differentials.
 		Outbound: outbound.Config{
 			ListenAddress: "127.0.0.1:0", AMQPURL: amqpURL, PythonPath: pythonPath, PostgresDSN: postgresDSN,
 			Users: []outbound.UserConfig{{

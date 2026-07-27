@@ -1,9 +1,14 @@
-# Go gateway (http+smppc role) with the Python pickle bridge on board.
+# Go gateway (http+smppc role). The pickle encode/decode runs on the native Go
+# codec (internal/transport/gopickle + picklecompat.NativeCodec) — no Python
+# subprocess on the submit/deliver hot path.
 #
-# The bridge is a hot-path dependency: internal/transport/picklecompat spawns
-# `python_path scripts/pickle_bridge.py` and every submit encode goes through
-# it. The runtime discovers the script by walking up from the working
-# directory, so WORKDIR must sit at (or under) the directory holding scripts/.
+# Python remains only for the MO/MT interceptor runner
+# (scripts/interceptor_runner.py), which is stdlib-only: it exchanges JSON with
+# the Go path and neither unpickles nor imports smpp.pdu / jasmin. The legacy
+# pickle bridge (scripts/pickle_bridge.py, smpp-pdu3, the jasmin/ source tree) is
+# retired from the image. The bridge codec is still selectable via
+# pickle_codec: "bridge" for local regression, but then the script and its
+# dependencies must be supplied out of band (mounted / added to a derived image).
 #
 # Build from the repository root:
 #   docker build -f docker/Dockerfile.gateway -t jasmin-gateway .
@@ -18,14 +23,6 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/jasmin-go-httpapi 
 
 FROM python:3.12-slim
 
-# Bridge runtime: the same hash-pinned set CI installs (smpp-pdu3). The jasmin
-# modules the bridge deserializes with (routing.Bills, routing.jasminApi) are
-# stdlib-only, so the source copy below needs no further pip dependencies.
-COPY compat/requirements-pickle-bridge.txt /tmp/requirements-pickle-bridge.txt
-RUN python -m pip install --no-cache-dir --disable-pip-version-check --require-hashes \
-        -r /tmp/requirements-pickle-bridge.txt \
-    && rm /tmp/requirements-pickle-bridge.txt
-
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -34,14 +31,10 @@ RUN groupadd -r jasmin && useradd -r -g jasmin -d /app -s /usr/sbin/nologin jasm
     && chown jasmin:jasmin /var/log/jasmin /var/lib/jasmin
 
 WORKDIR /app
-COPY scripts/pickle_bridge.py /app/scripts/pickle_bridge.py
 COPY scripts/interceptor_runner.py /app/scripts/interceptor_runner.py
-COPY jasmin/ /app/jasmin/
 COPY configs/gateway.example.json /etc/jasmin/gateway.json
 COPY --from=build /out/jasmin-go-httpapi /usr/local/bin/jasmin-go-httpapi
 
-# The bridge prepends its cwd to sys.path; /app holds jasmin/ so the pickled
-# legacy objects (SubmitSmBill, User, Group) stay importable.
 USER jasmin
 EXPOSE 1401
 

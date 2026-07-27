@@ -60,8 +60,9 @@ func (c *NativeCodec) DecodeRoutedDeliverSM(ctx context.Context, dstConnectors, 
 	if err := populateDeliverOptional(params, &body2); err != nil {
 		return RoutedDeliverSM{}, err
 	}
-	// Non-empty custom TLV decoding is not yet ported (symmetric with encode);
-	// projectCustomTLVTuples errors on non-empty and returns nil for empty.
+	// Validate any custom TLVs but drop them: an inbound routed deliver carries
+	// no Jasmin custom_tlvs field, so the bridge discards them here too. This
+	// only rejects malformed tuples, matching the bridge's structural checks.
 	if _, err := projectCustomTLVTuples(state); err != nil {
 		return RoutedDeliverSM{}, fmt.Errorf("%w: %v", ErrInvalidRoutedDeliverSM, err)
 	}

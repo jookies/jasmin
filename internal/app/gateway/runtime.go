@@ -86,17 +86,17 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	if _, err = transactions.Recover(ctx); err != nil {
 		return nil, fmt.Errorf("recover unresolved submit attempts: %w", err)
 	}
-	// Select the pickle codec: the native Go codec (no subprocess) or the
-	// Python bridge. The bridge is the default until the native path has soaked.
+	// Select the pickle codec: the native Go codec (no subprocess, the default) or
+	// the legacy Python bridge (opt-in via pickle_codec: "bridge" for a fallback).
 	var bridge picklecompat.Codec
-	if config.PickleCodec == "native" {
-		bridge = picklecompat.NewNativeCodec()
-	} else {
+	if config.PickleCodec == "bridge" {
 		bridgeImpl, bridgeErr := picklecompat.NewBridge(workerCtx, config.Outbound.PythonPath)
 		if bridgeErr != nil {
 			return nil, fmt.Errorf("start trusted pickle bridge: %w", bridgeErr)
 		}
 		bridge = bridgeImpl
+	} else {
+		bridge = picklecompat.NewNativeCodec()
 	}
 	runtime.bridge = bridge
 	// One shared jasmin-sm-listener logger renders the SMS-MT audit line for every
