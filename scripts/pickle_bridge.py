@@ -551,12 +551,25 @@ def run():
                 # Router dispatch: a DeliverSmContent body (pickled
                 # RoutableDeliverSm) becomes the RoutedDeliverSmContent body
                 # (pickled bare PDU), exactly like RouterPB repickles
-                # routable.pdu. The restricted loader guards the input.
+                # routable.pdu. The restricted loader guards the input. The
+                # decoded routing fields (source/destination/short_message/tags)
+                # ride along so the Go router evaluates MO content filters
+                # without a second decode; the pickled bytes are unchanged.
                 data = base64.b64decode(req["data"], validate=True)
                 routable = RoutableDeliverSmUnpickler(io.BytesIO(data)).load()
                 pdu = getattr(routable, "pdu", routable)
+                params = getattr(pdu, "params", {})
+                _fb = lambda v: None if v is None else base64.b64encode(
+                    v if isinstance(v, bytes) else str(v).encode("latin1")).decode("ascii")
+                tags = [str(getattr(t, "tag", t)) for t in (getattr(routable, "tags", None) or [])]
                 print(json.dumps({"status": "ok",
-                                  "data": base64.b64encode(pickle.dumps(pdu, 2)).decode("ascii")}))
+                                  "data": base64.b64encode(pickle.dumps(pdu, 2)).decode("ascii"),
+                                  "fields": {
+                                      "source_addr": _fb(params.get("source_addr")),
+                                      "destination_addr": _fb(params.get("destination_addr")),
+                                      "short_message": _fb(params.get("short_message")),
+                                      "tags": tags,
+                                  }}))
             elif action == "encode_connector_list":
                 # Router dispatch: the dst-connectors header — a pickled list
                 # of jasminApi connectors (HttpConnector / smpps system-id).

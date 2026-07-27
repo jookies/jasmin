@@ -14,13 +14,14 @@ import (
 
 type fakeBridge struct {
 	repickled []byte
+	fields    picklecompat.RoutableFields
 	repickErr error
 	lists     [][]picklecompat.MOConnectorSpec
 	listErr   error
 }
 
-func (b *fakeBridge) RepickleRoutablePDU(context.Context, []byte) ([]byte, error) {
-	return b.repickled, b.repickErr
+func (b *fakeBridge) RepickleRoutablePDU(context.Context, []byte) ([]byte, picklecompat.RoutableFields, error) {
+	return b.repickled, b.fields, b.repickErr
 }
 
 func (b *fakeBridge) EncodeConnectorList(_ context.Context, connectors []picklecompat.MOConnectorSpec) ([]byte, error) {
@@ -110,6 +111,15 @@ func TestValidateConfig(t *testing.T) {
 		"smpps missing system": func(c *Config) { c.Routes[1].Connector.SystemID = "" },
 		"bad connector type":   func(c *Config) { c.Routes[0].Connector.Type = "carrier-pigeon" },
 		"duplicate order":      func(c *Config) { c.Routes[1].Order = 0 },
+		"default with content filter": func(c *Config) {
+			c.Routes[0].Filters = []FilterConfig{{Type: "destination_addr", Pattern: "^2255"}}
+		},
+		"bad filter regex": func(c *Config) {
+			c.Routes[1].Filters = []FilterConfig{{Type: "destination_addr", Pattern: "("}}
+		},
+		"user filter on MO route": func(c *Config) {
+			c.Routes[1].Filters = []FilterConfig{{Type: "user"}}
+		},
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -168,6 +178,45 @@ func TestHandleRoutesByConnectorFilterAndDefault(t *testing.T) {
 	}
 	if tryCount, _ := headers["try-count"].Integer(); tryCount != 0 {
 		t.Fatalf("try-count=%d", tryCount)
+	}
+}
+
+func TestHandleContentFilterRouting(t *testing.T) {
+	config := Config{
+		AMQPURL: "amqp://guest:guest@localhost:5672/",
+		Routes: []RouteConfig{
+			{Order: 0, Default: true, Connector: ConnectorConfig{Type: "http", CID: "mo-default", URL: "http://localhost:1/mo", Method: "GET"}},
+			{Order: 10, FilterConnectorID: "smsc-in", Filters: []FilterConfig{{Type: "destination_addr", Pattern: "^2255"}},
+				Connector: ConnectorConfig{Type: "smpps", SystemID: "shortcode"}},
+		},
+	}
+	bridge := &fakeBridge{repickled: []byte("pdu")}
+	service, err := NewService(context.Background(), config, bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A matching destination (from the filtered connector) hits the smpps route.
+	bridge.fields = picklecompat.RoutableFields{DestinationAddr: []byte("2255")}
+	delivery, acknowledger := moDelivery(t, "smsc-in")
+	publisher := &fakePublisher{}
+	if err := service.Handle(context.Background(), delivery, publisher); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.routingKey != "deliver_sm_thrower.smpps" || !acknowledger.acked {
+		t.Fatalf("matching dest routed to %q acked=%v want smpps", publisher.routingKey, acknowledger.acked)
+	}
+
+	// A non-matching destination from the SAME connector falls through the
+	// content filter to the default http route.
+	bridge.fields = picklecompat.RoutableFields{DestinationAddr: []byte("9000")}
+	delivery, acknowledger = moDelivery(t, "smsc-in")
+	publisher = &fakePublisher{}
+	if err := service.Handle(context.Background(), delivery, publisher); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.routingKey != "deliver_sm_thrower.http" || !acknowledger.acked {
+		t.Fatalf("non-matching dest routed to %q, want default http", publisher.routingKey)
 	}
 }
 

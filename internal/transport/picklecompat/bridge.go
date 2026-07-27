@@ -88,10 +88,21 @@ type bridgeRequest struct {
 }
 
 type bridgeResponse struct {
-	Status  string          `json:"status"`
-	Message string          `json:"message,omitempty"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Data    string          `json:"data,omitempty"`
+	Status  string              `json:"status"`
+	Message string              `json:"message,omitempty"`
+	Result  json.RawMessage     `json:"result,omitempty"`
+	Data    string              `json:"data,omitempty"`
+	Fields  *routableFieldsWire `json:"fields,omitempty"`
+}
+
+// routableFieldsWire carries the base64 routing fields the bridge decodes off a
+// RoutableDeliverSm during repickle, so the MO router evaluates content filters
+// without a second decode.
+type routableFieldsWire struct {
+	SourceAddr      string   `json:"source_addr"`
+	DestinationAddr string   `json:"destination_addr"`
+	ShortMessage    string   `json:"short_message"`
+	Tags            []string `json:"tags"`
 }
 
 // decodeResponse makes bridge reads context-cancellable. A timed-out request
