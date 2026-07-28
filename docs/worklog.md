@@ -2,6 +2,48 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-28 — jCli console finished against a real recording of the frozen oracle
+
+Goal (user): run the stack, merge the pending UI work, then "finish jCli console, should be ready 100%. If something will block us, unblock in best possible way."
+
+### The blocker was not real
+
+Plan 013 Step 1 was recorded as blocked on the frozen Python stack. It is not: `python3 -m venv .venv-oracle && .venv-oracle/bin/pip install -r requirements.txt` imports the whole stack, every `jasmin.protocols.cli` manager included. Only `compat/requirements-baseline.lock` is broken (`--require-hashes` rejects coveralls' unpinned `coverage[toml]`). The same venv also fixes the `picklecompat` bridge differential, so with `PYTHON_PATH=$(pwd)/.venv-oracle/bin/python` the entire suite is green locally — which supersedes plan 012's "two incompatible groups" guidance.
+
+Capturing usable transcripts then needed three things the plan had not anticipated: an isolated AMQP vhost (a running Go gateway declares `messaging` durable and the frozen stack declares it transient, so connector mutations died mid-transcript), a logging-layer redirect for the `/var/log/jasmin` paths the frozen code opens at mutation time, and a longer settle window so a slow PB reply is not recorded as an empty one. All three failed *silently*, producing fixtures that looked fine and enshrined an environment failure as contract.
+
+### What the recording proved
+
+The console is a Twisted telnet terminal, not a line server. It opens with IAC negotiation and `ESC c` / `ESC [ 4 h`, every line ends with `\r\r\r\n` (four bytes), input is echoed, and `initializeScreen()` suppresses the prompt so **`Username: ` is never emitted on connect**. The existing Go console got all of that wrong while Steps 2–3 were marked done — exactly what "asserted, not proven" was warning about.
+
+### Done
+
+- **18 fixtures captured, all 18 replay byte-for-byte.** 17 of 18 matrix rows are `MATCH`; J-006 (`--smpp-unbind`/`--smpp-ban`) is the only unimplemented command.
+- **Every manager**: group, user (+ the whole credential key space), smppccm, filter, httpccm, mtrouter, morouter, mo/mtinterceptor, stats, persist/load, help, completion.
+- **Groups became a first-class entity** (plan 012 Step 6, closing that plan). Billing was already group-aware; nothing could create a group.
+- **Named filter and httpcc registries** without reversing ADR-003: routes embed a resolved copy, exactly as the oracle pickles the filter object into the route.
+- **persist/load are real named snapshots** (`admin_profiles`), which withdrew D-002. An operator rolling back to a known-good profile gets that profile.
+
+### Bugs found outside the console
+
+- **The HTTP front door enforced no user credentials.** Password only: no enabled check anywhere, and `mtcredential` (the tested port of `HttpAPICredentialValidator`) wired only for SMPPs binds. Disabled users and disabled groups are now refused at authentication; the per-authorization/value-filter half is still unwired and tracked.
+- **Connector defaults diverged from legacy, on the wire.** Source TON/NPI 0/0 and destination 0/0 instead of NATIONAL/ISDN and INTERNATIONAL/ISDN, plus wrong `trx_to`/`res_to`/`pdu_red_to`, and `enquire_link` running off the PDU read timer.
+- **A static MO route demanded a `filter_connector_id`**, making a legal legacy `StaticMORoute` unexpressible.
+- **The console listed no config-owned entities**, so the normal config-file deployment looked like an empty gateway.
+- **The admin UI bundle CI guard is flaky** — the minifier is not deterministic across runs, so byte-comparing a rebuilt `dist` can fail spuriously.
+
+### Decisions
+
+- **D-003**: `smppccm -s` prints the bind password, matching the oracle. Byte-parity and redaction are mutually exclusive; the console is already an authenticated privilege boundary and scripts read the field. Reversing it is a one-line change that fails J-012 — the deviation cannot be taken silently.
+- **Transcript timestamps are normalised** on both sides of the replay. It is the suite's only normalisation; the alternative is a fixture that passes on one machine.
+- **`stats` rows with no counter behind them** report 0/ND and are listed exhaustively in `unbackedStatsFields`, because a zero meaning "not counted" is otherwise indistinguishable from "nothing happened".
+
+### Next
+
+- J-006 needs a session-control surface in the Go SMPPs server (drop a bound session on demand).
+- Wire `mtcredential.ValidateSend` into the HTTP path, with captured fixtures for its rejection text and ordering; `HTTP_MATRIX` H-004/H-005 claim MATCH and do not hold for those branches.
+- Replace the adminweb bundle byte-comparison with a source-hash marker.
+
 ## 2026-07-27 — Admin plane coverage: MO routes + interceptors go live-mutable (plan 012 Steps 1–4)
 
 Goal (user): "implement both" — a full jCli alternative **and** the same functionality on the web side. Architecture decision recorded in [plan 012](plans/012-admin-plane-full-coverage.md) + [plan 013](plans/013-jcli-console.md): `internal/app/admin` is the single management core; jCli, the `/admin` JSON API and the web UI are three faces over it, so no business logic may live in a handler or a command.
