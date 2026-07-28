@@ -12,11 +12,11 @@ the question the second one answers.
 
 | ID | Manager/command | Required transcript coverage | Admin-plane equivalent | Status |
 |---|---|---|---|---|
-| J-001 | connection/auth | banner, prompt, username/password success/failure, timeout, quit | session cookie + CSRF (`/api/login`); **Go console implemented** (`internal/app/jcli`) | INVENTORIED (impl, fixtures pending) |
-| J-002 | help/completion | help text, unknown command, tab completion | n/a (UI navigation); **Go console: help + unknown-command done, tab completion not implemented** | INVENTORIED (impl, fixtures pending) |
-| J-003 | `group` | list/add/remove/enable/disable and validation/errors | **MISSING** — plan 012 Step 6 | INVENTORIED |
-| J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | INVENTORIED |
-| J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | **PARTIAL** — balance/quota/early-decrement only; per-authorization fields not exposed | INVENTORIED |
+| J-001 | connection/auth | banner, prompt, username/password success/failure, timeout, quit | session cookie + CSRF (`/api/login`); **Go console implemented** (`internal/app/jcli`) | **MATCH** — `J-001-auth-success`, `J-001-auth-failure` |
+| J-002 | help/completion | help text, unknown command, tab completion | n/a (UI navigation) | **MATCH** — `J-002-help`, `J-002-help-commands`, `J-002-completion` |
+| J-003 | `group` | list/add/remove/enable/disable and validation/errors | `admin.GroupService` (plan 012 Step 6, landed) | **MATCH** — `J-003-group` |
+| J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | **MATCH** — `J-004-user` |
+| J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | `outbound.UserConfig.MTCredential` + `SMPPSCredential` (mirrored to the bind account) | **MATCH** — `J-005-user-credentials`, `J-005-user-invalid` (console surface; **HTTP-path enforcement is still missing**, see below) |
 | J-006 | user SMPP control | unbind/ban and session effects | **MISSING** — no session control surface | INVENTORIED |
 | J-007 | `filter` | all filter types, MO/MT restrictions, regex/date/time/tag/eval | inline filters on each route/interceptor — deviation **D-001** | INVENTORIED |
 | J-008 | `morouter` | list/add/remove/show/flush; all working route types | `/api/mo-routes` + MO Routes page | INVENTORIED |
@@ -31,15 +31,30 @@ the question the second one answers.
 | J-017 | autoload | `jcli-prod` startup behavior | `LoadAndApply` at boot | INVENTORIED |
 | J-018 | interactive sessions | start/save/abort, prompt ordering, invalid key/value | n/a (forms) | INVENTORIED |
 
-**Go console status (2026-07-28).** `internal/app/jcli` implements the session,
-auth, `help`/`quit` and read-only `list`/`show` for `smppccm`, `mtrouter`,
-`morouter` and `user`. No row has moved off `INVENTORIED`, deliberately: the
-literals were transcribed from the frozen source rather than captured from a
-running oracle, so byte-parity is asserted, not proven. Rows move to `MATCH`
-only once plan 013 Step 1 (the transcript-capture harness) can run, which needs
-the frozen Python stack. Mutating verbs and interactive sessions are not
-implemented — they report an explicit "not implemented" rather than appearing to
-succeed.
+**Go console status (2026-07-27, evening).** Plan 013 Step 1 is no longer
+blocked: `.venv-oracle` built from the repo's own `requirements.txt` imports the
+whole frozen stack, and `scripts/compat/capture_jcli_transcript.py` records real
+transcripts into `fixtures/jcli/`. `TestOracleTranscripts` replays every one of
+them and compares bytes per step.
+
+Five rows now carry `MATCH` on fixture-backed evidence — the first surface in
+this project to earn that status. What the recording changed: the console is a
+Twisted *telnet terminal*, so it opens with IAC negotiation and ESC c / ESC [ 4 h,
+every line ends with `\r\r\r\n` (four bytes), input is echoed, and it never
+emits `Username: ` on connect. The previous Go implementation got all of that
+wrong while claiming Steps 2–3 were done — which is precisely what "asserted,
+not proven" was warning about.
+
+Still unimplemented, and still answering with an explicit "not implemented"
+rather than appearing to succeed: `smppccm`/`mtrouter`/`morouter` mutating
+verbs, `filter`, `httpccm`, `mointerceptor`, `mtinterceptor`, `stats`,
+`persist`/`load`, and `--smpp-unbind`/`--smpp-ban`.
+
+**J-005 caveat.** The console surface matches, but the HTTP front door does not
+yet *enforce* per-user authorizations, value filters or the default source
+address (`internal/core/mtcredential.ValidateSend` exists, is unit-tested, and
+is never called from the HTTP path). Disabled users and disabled groups ARE now
+refused at authentication.
 
 Admin-plane gaps as of 2026-07-27: **J-003** (groups), **J-005** (per-authorization
 user fields), **J-006** (SMPP session control). Everything else is reachable
