@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -280,8 +281,26 @@ func (s *session) handleUser(argument string) string {
 		return s.listUsers()
 	case isShowVerb(verb):
 		return s.showUser(operand)
+	case verb == "-a" || verb == "--add":
+		return s.startInteractive(userKind, false, "")
+	case verb == "-u" || verb == "--update":
+		if operand == "" {
+			return "Missing required option"
+		}
+		ctx, cancel := s.context()
+		defer cancel()
+		if _, _, err := s.findUserByUID(ctx, operand); err != nil {
+			return fmt.Sprintf("Unknown User: %s", operand)
+		}
+		return s.startInteractive(userKind, true, operand)
+	case verb == "-r" || verb == "--remove":
+		return s.removeUser(operand)
+	case verb == "-e" || verb == "--enable":
+		return s.setUserEnabled(operand, true)
+	case verb == "-d" || verb == "--disable":
+		return s.setUserEnabled(operand, false)
 	case verb == "":
-		return commandDocs["user"]
+		return "Missing required option"
 	default:
 		return unsupportedVerb("user", verb)
 	}
@@ -294,6 +313,8 @@ func (s *session) listUsers() string {
 	if err != nil {
 		return err.Error()
 	}
+	disabledGroups := s.disabledGroups(ctx)
+
 	var lines []string
 	if len(stored) > 0 {
 		lines = append(lines, "#"+strings.Join([]string{
@@ -309,55 +330,158 @@ func (s *session) listUsers() string {
 			if err := json.Unmarshal([]byte(entry.SpecJSON), &user); err != nil {
 				return fmt.Sprintf("user %q: stored spec is not valid JSON: %v", entry.Username, err)
 			}
-			lines = append(lines, "#"+strings.Join([]string{
-				padRight(fmt.Sprint(entry.UID), 16),
-				// Groups are not modelled yet (plan 012 Step 6); the column is
-				// kept so the transcript shape does not change when they land.
-				padRight("", 16),
-				padRight(entry.Username, 16),
-				padRight(optionalFloat(user.Balance), 7),
-				padRight(optionalInt(user.SubmitSMCount), 6),
-				padRight("ND", 8),
-			}, " "))
+			lines = append(lines, "#"+strings.Join(userListColumns(user, disabledGroups), " "))
 		}
 	}
 	lines = append(lines, fmt.Sprintf("Total Users: %d", len(stored)))
 	return strings.Join(lines, "\n")
 }
 
-func (s *session) showUser(username string) string {
-	if username == "" {
-		return unsupportedVerb("user", "-s without a username")
+// userListColumns renders one user row. Balance and MT SMS both gain a "(!)"
+// marker when *both* are undefined -- the oracle's way of flagging a user with
+// no spending ceiling at all (usersm.py:417).
+func userListColumns(user outbound.UserConfig, disabledGroups map[string]bool) []string {
+	userPrefix := ""
+	if user.Disabled {
+		userPrefix = "!"
+	}
+	groupPrefix := ""
+	if disabledGroups[user.GroupID] {
+		groupPrefix = "!"
+	}
+	balance := renderQuotaBalance(user.Balance)
+	smsCount := renderQuotaInt(user.SubmitSMCount)
+	if balance == notDefined && smsCount == notDefined {
+		balance, smsCount = "ND (!)", "ND (!)"
+	}
+	httpThroughput, smppsThroughput := notDefined, notDefined
+	if user.MTCredential != nil {
+		httpThroughput = renderQuotaFloat(user.MTCredential.HTTPThroughput)
+		smppsThroughput = renderQuotaFloat(user.MTCredential.SMPPSThroughput)
+	}
+	return []string{
+		padRight(userPrefix+user.ExternalID, 16),
+		padRight(groupPrefix+user.GroupID, 16),
+		padRight(user.Username, 16),
+		padRight(balance, 7),
+		padRight(smsCount, 6),
+		padRight(httpThroughput+"/"+smppsThroughput, 8),
+	}
+}
+
+// disabledGroups reports which gids are disabled, for the list's "!" prefix.
+func (s *session) disabledGroups(ctx context.Context) map[string]bool {
+	disabled := map[string]bool{}
+	if s.server.deps.Groups == nil {
+		return disabled
+	}
+	stored, err := s.server.deps.Groups.ListGroups(ctx)
+	if err != nil {
+		return disabled
+	}
+	for _, entry := range stored {
+		var group outbound.GroupConfig
+		if err := json.Unmarshal([]byte(entry.SpecJSON), &group); err != nil {
+			continue
+		}
+		disabled[entry.GID] = group.Disabled
+	}
+	return disabled
+}
+
+func (s *session) showUser(uid string) string {
+	if uid == "" {
+		return "Missing required option"
 	}
 	ctx, cancel := s.context()
 	defer cancel()
-	stored, err := s.server.deps.Users.GetUser(ctx, username)
+	_, user, err := s.findUserByUID(ctx, uid)
 	if err != nil {
-		return err.Error()
+		return fmt.Sprintf("Unknown User: %s", uid)
 	}
-	var user outbound.UserConfig
-	if err := json.Unmarshal([]byte(stored.SpecJSON), &user); err != nil {
-		return fmt.Sprintf("user %q: stored spec is not valid JSON: %v", username, err)
+	return showUserRows(uid, user.GroupID, user) + "\n" + s.showSMPPsCredentialRows(ctx, user)
+}
+
+// showSMPPsCredentialRows renders the smpps_cred half from the mirrored bind
+// account, falling back to the legacy defaults when there is none.
+func (s *session) showSMPPsCredentialRows(ctx context.Context, user outbound.UserConfig) string {
+	bind, ip, maxBindings := true, "0.0.0.0/0", notDefined
+	if user.SMPPSCredential != nil {
+		if user.SMPPSCredential.Bind != nil {
+			bind = *user.SMPPSCredential.Bind
+		}
+		if user.SMPPSCredential.IP != "" {
+			ip = user.SMPPSCredential.IP
+		}
+		if user.SMPPSCredential.MaxBindings != nil {
+			maxBindings = strconv.Itoa(*user.SMPPSCredential.MaxBindings)
+		}
 	}
-	return renderKeyValues([][2]string{
-		{"uid", fmt.Sprint(stored.UID)},
-		{"username", stored.Username},
-		{"balance", optionalFloat(user.Balance)},
-		{"mt_messaging_cred quota sms_count", optionalInt(user.SubmitSMCount)},
-	})
+	return strings.Join([]string{
+		"smpps_cred authorization bind " + pythonBool(bind),
+		"smpps_cred authorization ip " + ip,
+		"smpps_cred quota max_bindings " + maxBindings,
+	}, "\n")
+}
+
+func (s *session) removeUser(uid string) string {
+	if uid == "" {
+		return "Missing required option"
+	}
+	ctx, cancel := s.context()
+	defer cancel()
+	_, user, err := s.findUserByUID(ctx, uid)
+	if err != nil {
+		return fmt.Sprintf("Unknown User: %s", uid)
+	}
+	if err := s.server.deps.Users.DeleteUser(ctx, user.Username); err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	if s.server.deps.SMPPsUsers != nil {
+		// Best effort: the mirrored bind account may never have existed.
+		_ = s.server.deps.SMPPsUsers.DeleteUser(ctx, user.Username)
+	}
+	return fmt.Sprintf("Successfully removed User id:%s", uid)
+}
+
+func (s *session) setUserEnabled(uid string, enabled bool) string {
+	if uid == "" {
+		return "Missing required option"
+	}
+	ctx, cancel := s.context()
+	defer cancel()
+	_, user, err := s.findUserByUID(ctx, uid)
+	if err != nil {
+		return fmt.Sprintf("Unknown User: %s", uid)
+	}
+	user.Disabled = !enabled
+	spec, err := json.Marshal(user)
+	if err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	if err := s.server.deps.Users.CreateUser(ctx, user.Username, string(spec)); err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	if _, ok := s.mirrorSMPPsAccount(ctx, user); !ok {
+		return fmt.Sprintf("Error: could not update the SMPPs bind account for %s", user.Username)
+	}
+	if enabled {
+		return fmt.Sprintf("Successfully enabled User id:%s", uid)
+	}
+	return fmt.Sprintf("Successfully disabled User id:%s", uid)
 }
 
 // optionalFloat renders a nil quota as the legacy "ND" (not defined).
 func optionalFloat(value *float64) string {
 	if value == nil {
-		return "ND"
+		return notDefined
 	}
 	return fmt.Sprintf("%.2f", *value)
 }
 
 func optionalInt(value *int) string {
 	if value == nil {
-		return "ND"
+		return notDefined
 	}
 	return fmt.Sprint(*value)
 }

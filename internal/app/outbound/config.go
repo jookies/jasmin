@@ -85,6 +85,21 @@ type UserConfig struct {
 	// this for SMPPs binds; these fields are what let the HTTP front door
 	// enforce the same contract instead of only checking the password.
 	MTCredential *MTCredentialConfig `json:"mt_credential,omitempty"`
+
+	// SMPPSCredential is the legacy SmppsCredential half of the same user: may
+	// they bind, from which IPs, and how many concurrent binds. In legacy this
+	// lives on the one user record that serves both protocols; the Go model
+	// keeps SMPPs bind accounts as their own entity, so the console mirrors
+	// these into it (system_id = username) rather than storing a flag that
+	// nothing enforces.
+	SMPPSCredential *SMPPSCredentialConfig `json:"smpps_credential,omitempty"`
+}
+
+// SMPPSCredentialConfig provisions SmppsCredential.
+type SMPPSCredentialConfig struct {
+	Bind        *bool  `json:"bind,omitempty"`
+	IP          string `json:"ip,omitempty"`
+	MaxBindings *int   `json:"max_bindings,omitempty"`
 }
 
 // MTCredentialConfig provisions MtMessagingCredential. Every authorization is a
