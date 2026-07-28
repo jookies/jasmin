@@ -72,15 +72,21 @@ Steps 1–2 (MO routes) and 3–4 (interceptors) are the substance. Steps 5–6 
 - **Files:** `internal/app/outbound/config.go` (`UserConfig.GroupID` + a `groups[]` block), `internal/app/outbound/runtime.go` (`runtimeDirectory` group installation, mirroring `applyUser`), `internal/core/billing` (wire the existing `billing.Group` — `billing.go:84-163` already implements group balance/quota/`CanApply`), `internal/app/outbound/filters.go` (enable the deferred `group` filter type — see the comment at `filters.go:64`), admin service + store + BFF + UI.
 - **Changes:** This is the only step that adds a **new domain concept** rather than exposing an existing one: config users currently have no group, which is why the `group` filter is deferred even though routables carry a `GroupID`. Model groups as first-class (gid, balance, submit quota), let a user reference one, and charge the group per the legacy precedence rules. Verify the charge-order semantics against the frozen oracle before implementing — `spec/compatibility/ROUTING_BILLING_MATRIX.md` is the contract, and getting user-vs-group precedence wrong is a silent money bug.
 - **Verify:** `go test ./internal/core/billing/ ./internal/app/outbound/ -run Group`, including a differential against the Python oracle for the charge precedence. Live: create a group, attach a user, submit, confirm the group balance decrements as the oracle says it should.
-- **Running oracle differentials locally** (they need the frozen Python stack, which a bare `python3` does not have):
+- **Running oracle differentials locally — read this before setting `PYTHON_PATH`.** The oracle tests fall into two groups with different needs, and satisfying one can break the other:
 
-  ```sh
-  python3 -m venv .venv-oracle
-  .venv-oracle/bin/python -m pip install --require-hashes -r compat/requirements-pickle-bridge.txt
-  PYTHON_PATH=$(pwd)/.venv-oracle/bin/python go test ./internal/transport/picklecompat/
-  ```
+  1. **Bridge differentials** (`internal/transport/picklecompat`, e.g. `TestAMQPFixtureDecoding`) default to `python3` when `PYTHON_PATH` is unset, so on a machine without `smpp-pdu3` they *fail* rather than skip. A minimal venv fixes them:
 
-  Without it, `TestAMQPFixtureDecoding` and the other bridge differentials fail with `No module named 'smpp'` — an environment gap, not a regression. `.venv-oracle/` is gitignored.
+     ```sh
+     python3 -m venv .venv-oracle
+     .venv-oracle/bin/python -m pip install --require-hashes -r compat/requirements-pickle-bridge.txt
+     PYTHON_PATH=$(pwd)/.venv-oracle/bin/python go test ./internal/transport/picklecompat/
+     ```
+
+  2. **Legacy-import differentials** (`internal/config`, the send-path encoder) **skip** when `PYTHON_PATH` is unset. Setting it switches them on, and they then need the *whole* frozen stack — the `jasmin` package plus `twisted` — importable from the test's working directory. The minimal venv above does not provide that, so pointing `PYTHON_PATH` at it turns green skips into red failures.
+
+  `compat/requirements-baseline.lock` cannot currently be installed as-is (`--require-hashes` rejects it: `coveralls` pulls an unpinned `coverage[toml]`), so there is no one-command local full-oracle setup today. Until that is fixed, either scope `PYTHON_PATH` to the picklecompat package only, or leave it unset and let CI (`go-rewrite-compat.yml`) run the full set. `.venv-oracle/` is gitignored.
+
+  **This matters for Step 6:** the groups charge-precedence differential belongs to group 2, so it needs the full stack — fixing the baseline lock is a prerequisite for doing that work locally rather than blind.
 
 ### Step 7: Named filters — decision, then code only if chosen — DONE (inline kept)
 
