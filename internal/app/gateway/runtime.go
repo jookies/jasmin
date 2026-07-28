@@ -15,6 +15,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/adminweb"
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
+	"github.com/pumpitspace/jasmin/internal/app/jcli"
 	"github.com/pumpitspace/jasmin/internal/app/modispatch"
 	"github.com/pumpitspace/jasmin/internal/app/mothrower"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
@@ -50,6 +51,7 @@ type Runtime struct {
 	requiredConnectors []string
 	dlrRedisClose      func()
 	adminStore         *admin.Store
+	jcli               *jcli.Server
 	interceptorRunner  *pyintercept.Runner
 	// Live MO interception (nil when MO interception is neither configured nor
 	// admin-editable); config orders are reserved against admin entries.
@@ -400,6 +402,26 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			runtime.WebHandler = webHandler
 			runtime.WebListenAddress = config.Admin.WebListenAddress
 		}
+
+		// The jCli console is the third face over the same services. Like the
+		// web UI it is inert unless an address is configured.
+		if config.Admin.JCliListenAddress != "" {
+			console, consoleErr := jcli.NewServer(config.Admin.JCliListenAddress, jcli.Deps{
+				Connectors:  adminService,
+				Routes:      routeService,
+				MORoutes:    moRouteService,
+				Users:       userService,
+				SMPPsUsers:  smppsUserService,
+				Username:    config.Admin.JCliUsername,
+				Password:    config.Admin.JCliPassword,
+				IdleTimeout: time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
+			}, slog.Default())
+			if consoleErr != nil {
+				return nil, fmt.Errorf("start jCli console: %w", consoleErr)
+			}
+			runtime.jcli = console
+			go func() { _ = console.Serve(workerCtx) }()
+		}
 	}
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
@@ -519,6 +541,14 @@ func (runtime *Runtime) Close() error {
 		// outbox/consumers and confirming publisher before fencing connectors.
 		// The SMPPS server is MT ingress feeding the outbound submitter, so it
 		// stops first — no new submit reaches the pipeline being torn down.
+		// The management console is closed first: it is an operator surface, not
+		// part of the message path, so it must not accept new commands while
+		// the rest of the runtime tears down.
+		if runtime.jcli != nil {
+			if err := runtime.jcli.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		if runtime.smppsServer != nil {
 			if err := runtime.smppsServer.Close(); err != nil {
 				errs = append(errs, err)

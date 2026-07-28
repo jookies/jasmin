@@ -108,6 +108,11 @@ func resolveSecretRefs(config *Config) error {
 				return err
 			}
 		}
+		if config.Admin.JCliPassword != "" {
+			if err := resolve("admin.jcli_password", &config.Admin.JCliPassword); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

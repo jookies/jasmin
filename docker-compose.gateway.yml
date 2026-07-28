@@ -78,6 +78,8 @@ services:
       # Admin web UI login (config references it as env:ADMIN_WEB_PASSWORD).
       # Dev placeholder — the UI can mint users and start connectors.
       ADMIN_WEB_PASSWORD: dev-admin-password
+      # jCli management console login (config references env:JCLI_PASSWORD).
+      JCLI_PASSWORD: dev-jcli-password
     volumes:
       - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
       - admindata:/var/lib/jasmin
@@ -89,6 +91,9 @@ services:
       - "127.0.0.1:8404:8404"
       # SMPPs server (inbound ESME binds), host loopback for local testing.
       - "127.0.0.1:2775:2775"
+      # jCli management console, host loopback ONLY — same privilege boundary
+      # as the web UI.
+      - "127.0.0.1:8990:8990"
     depends_on:
       postgres:
         condition: service_healthy

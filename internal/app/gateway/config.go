@@ -95,6 +95,16 @@ type AdminConfig struct {
 	// machine. It defaults to false, and turning it on also starts the script
 	// runner subprocess (a table added at runtime needs something to run it).
 	AllowInterceptorEditing bool `json:"allow_interceptor_editing,omitempty"`
+	// JCliListenAddress, when set, serves the jCli management console (a telnet
+	// line protocol) on its own listener. JCliUsername/JCliPassword are its
+	// login; the password accepts the same env:/file:/literal: secret refs as
+	// the other credentials. Like the web UI this is a privilege boundary —
+	// bind it internally. Empty disables the console entirely.
+	JCliListenAddress string `json:"jcli_listen_address,omitempty"`
+	JCliUsername      string `json:"jcli_username,omitempty"`
+	JCliPassword      string `json:"jcli_password,omitempty"`
+	// JCliIdleTimeoutSeconds closes an idle console session (0 disables).
+	JCliIdleTimeoutSeconds float64 `json:"jcli_idle_timeout,omitempty"`
 }
 
 // HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
@@ -215,6 +225,17 @@ func ValidateConfig(config Config) error {
 			}
 			if config.Admin.WebUsername == "" || config.Admin.WebPassword == "" {
 				return fmt.Errorf("%w: admin.web_listen_address requires web_username and web_password", ErrInvalidConfig)
+			}
+		}
+		if config.Admin.JCliListenAddress != "" {
+			if _, _, err := net.SplitHostPort(config.Admin.JCliListenAddress); err != nil {
+				return fmt.Errorf("%w: admin.jcli_listen_address %q is not host:port: %v", ErrInvalidConfig, config.Admin.JCliListenAddress, err)
+			}
+			if config.Admin.JCliUsername == "" || config.Admin.JCliPassword == "" {
+				return fmt.Errorf("%w: admin.jcli_listen_address requires jcli_username and jcli_password", ErrInvalidConfig)
+			}
+			if config.Admin.JCliIdleTimeoutSeconds < 0 {
+				return fmt.Errorf("%w: admin.jcli_idle_timeout must not be negative", ErrInvalidConfig)
 			}
 		}
 	}

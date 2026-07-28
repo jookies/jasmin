@@ -29,6 +29,7 @@ func TestExampleConfigLoads(t *testing.T) {
 	// values docker-compose.gateway.yml supplies.
 	t.Setenv("ADMIN_TOKEN", "dev-admin-token")
 	t.Setenv("ADMIN_WEB_PASSWORD", "dev-admin-password")
+	t.Setenv("JCLI_PASSWORD", "dev-jcli-password")
 
 	config, err := gateway.LoadConfig(exampleConfigPath)
 	if err != nil {

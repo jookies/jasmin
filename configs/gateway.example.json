@@ -135,7 +135,11 @@
     "web_listen_address": "0.0.0.0:8404",
     "web_username": "admin",
     "web_password": "env:ADMIN_WEB_PASSWORD",
-    "allow_interceptor_editing": true
+    "allow_interceptor_editing": true,
+    "jcli_listen_address": "0.0.0.0:8990",
+    "jcli_username": "jcliadmin",
+    "jcli_password": "env:JCLI_PASSWORD",
+    "jcli_idle_timeout": 300
   },
   "smpps": {
     "bind_addr": "0.0.0.0:2775",
