@@ -65,6 +65,12 @@ var commandTable = map[string]commandHandler{
 	"httpccm": func(s *session, argument string) string {
 		return s.handleHTTPCCM(argument)
 	},
+	"mointerceptor": func(s *session, argument string) string {
+		return s.handleInterceptor(moInterceptorDirection, argument)
+	},
+	"mtinterceptor": func(s *session, argument string) string {
+		return s.handleInterceptor(mtInterceptorDirection, argument)
+	},
 }
 
 const nohelpFormat = "*** No help on %s"

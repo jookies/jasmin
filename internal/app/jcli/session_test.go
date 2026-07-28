@@ -68,6 +68,11 @@ func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
 		t.Fatalf("http connector service: %v", err)
 	}
 
+	interceptors, err := admin.NewInterceptorService(store, stubInterceptorProvisioner{}, now)
+	if err != nil {
+		t.Fatalf("interceptor service: %v", err)
+	}
+
 	server, err := NewServer("127.0.0.1:0", Deps{
 		Connectors:             connectors,
 		Routes:                 routes,
@@ -75,6 +80,7 @@ func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
 		Users:                  users,
 		Groups:                 groups,
 		Filters:                filters,
+		Interceptors:           interceptors,
 		HTTPConnectors:         httpConnectors,
 		Username:               "jcliadmin",
 		Password:               "jclipwd",

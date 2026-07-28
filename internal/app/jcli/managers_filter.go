@@ -105,11 +105,13 @@ var filterTypes = []struct {
 	{
 		Name: "EvalPyFilter", Args: []string{"pyCode"}, MO: true, MT: true,
 		ReprFormat: func(a map[string]string) string {
-			code := strings.ReplaceAll(a["pyCode"], "\n", "")
+			// Slice first, strip newlines second (Filters.py:255). Ten bytes
+			// here, not the interceptors' thirty.
+			code := a["pyCode"]
 			if len(code) > 10 {
 				code = code[:10]
 			}
-			return fmt.Sprintf("<Ev (pyCode=%s ..)>", code)
+			return fmt.Sprintf("<Ev (pyCode=%s ..)>", strings.ReplaceAll(code, "\n", ""))
 		},
 		StrFormat: func(a map[string]string) string { return "EvalPyFilter:\n" + a["pyCode"] },
 	},

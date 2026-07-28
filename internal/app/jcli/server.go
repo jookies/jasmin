@@ -41,6 +41,10 @@ type Deps struct {
 	// exactly as the frozen console pickles the filter object into the route.
 	Filters        *admin.NamedSpecService
 	HTTPConnectors *admin.NamedSpecService
+	// Interceptors is nil unless admin.allow_interceptor_editing is on: the
+	// scripts are arbitrary Python on the gateway host, so the capability is
+	// opt-in and the console says so rather than failing obscurely.
+	Interceptors *admin.InterceptorService
 
 	// Username/Password are the console login. Password is the resolved
 	// plaintext; it is compared constant-time and not retained in the clear.

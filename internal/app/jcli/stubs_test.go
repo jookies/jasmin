@@ -3,6 +3,7 @@ package jcli
 import (
 	"context"
 
+	"github.com/pumpitspace/jasmin/internal/app/admin"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 )
 
@@ -37,6 +38,12 @@ func (stubProvisioner) ApplyRoutes(context.Context, []string) error { return nil
 type stubMOProvisioner struct{}
 
 func (stubMOProvisioner) ApplyMORoutes(context.Context, []string) error { return nil }
+
+type stubInterceptorProvisioner struct{}
+
+func (stubInterceptorProvisioner) ApplyInterceptors(context.Context, admin.InterceptorDirection, []string) error {
+	return nil
+}
 
 type stubGroupProvisioner struct{}
 

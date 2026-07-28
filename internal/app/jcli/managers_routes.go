@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -315,7 +314,7 @@ type routeRow struct {
 }
 
 func renderRouteRows(rows []routeRow, rated bool, total int, noun string) string {
-	sort.Slice(rows, func(i, j int) bool { return rows[i].order > rows[j].order })
+	sortRouteRowsDescending(rows)
 	var lines []string
 	if len(rows) > 0 {
 		header := []string{padRight("Order", 5), padRight("Type", 23)}
