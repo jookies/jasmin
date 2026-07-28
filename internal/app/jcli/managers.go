@@ -55,8 +55,26 @@ func (s *session) handleSMPPCCM(argument string) string {
 		return s.listConnectors()
 	case isShowVerb(verb):
 		return s.showConnector(operand)
+	case verb == "-a" || verb == "--add":
+		return s.startInteractive(connectorKind, false, "")
+	case verb == "-u" || verb == "--update":
+		if operand == "" {
+			return "Missing required option"
+		}
+		ctx, cancel := s.context()
+		defer cancel()
+		if _, err := s.server.deps.Connectors.GetConnector(ctx, operand); err != nil {
+			return fmt.Sprintf("Unknown connector: %s", operand)
+		}
+		return s.startInteractive(connectorKind, true, operand)
+	case verb == "-r" || verb == "--remove":
+		return s.removeConnector(operand)
+	case verb == "-1" || verb == "--start":
+		return s.setConnectorStarted(operand, true)
+	case verb == "-0" || verb == "--stop":
+		return s.setConnectorStarted(operand, false)
 	case verb == "":
-		return commandDocs["smppccm"]
+		return "Missing required option"
 	default:
 		return unsupportedVerb("smppccm", verb)
 	}
@@ -86,7 +104,7 @@ func (s *session) listConnectors() string {
 			lines = append(lines, "#"+strings.Join([]string{
 				padRight(view.Config.CID, 35),
 				padRight(service, 7),
-				padRight(view.Observed, 16),
+				padRight(legacySessionState(view.DesiredStarted, view.Observed), 16),
 				// Start/stop counters are not tracked by the Go manager; the
 				// columns are kept so the transcript shape is unchanged.
 				padRight("0", 6),
@@ -100,26 +118,42 @@ func (s *session) listConnectors() string {
 
 func (s *session) showConnector(cid string) string {
 	if cid == "" {
-		return unsupportedVerb("smppccm", "-s without a connector id")
+		return "Missing required option"
 	}
 	ctx, cancel := s.context()
 	defer cancel()
 	view, err := s.server.deps.Connectors.GetConnector(ctx, cid)
 	if err != nil {
-		return err.Error()
+		return fmt.Sprintf("Unknown connector: %s", cid)
 	}
-	config := view.Config
-	config.Password = "" // never echo bind credentials to the console
-	return renderKeyValues([][2]string{
-		{"cid", config.CID},
-		{"host", config.Host},
-		{"port", fmt.Sprint(config.Port)},
-		{"username", config.SystemID},
-		{"bind", string(config.Bind)},
-		{"systype", config.SystemType},
-		{"service", startedWord(view.DesiredStarted)},
-		{"session", view.Observed},
-	})
+	return showConnectorRows(view.Config)
+}
+
+func (s *session) removeConnector(cid string) string {
+	if cid == "" {
+		return "Missing required option"
+	}
+	ctx, cancel := s.context()
+	defer cancel()
+	if err := s.server.deps.Connectors.DeleteConnector(ctx, cid); err != nil {
+		return fmt.Sprintf("Unknown connector: %s", cid)
+	}
+	return fmt.Sprintf("Successfully removed connector id:%s", cid)
+}
+
+func (s *session) setConnectorStarted(cid string, start bool) string {
+	if cid == "" {
+		return "Missing required option"
+	}
+	ctx, cancel := s.context()
+	defer cancel()
+	if err := s.server.deps.Connectors.SetStarted(ctx, cid, start); err != nil {
+		return fmt.Sprintf("Failed starting/stopping connector id:%s", cid)
+	}
+	if start {
+		return fmt.Sprintf("Successfully started connector id:%s", cid)
+	}
+	return fmt.Sprintf("Successfully stopped connector id:%s", cid)
 }
 
 func startedWord(started bool) string {

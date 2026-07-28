@@ -62,4 +62,3 @@ func TestDataSMResponseCommandDerivesFromRequest(t *testing.T) {
 		}
 	}
 }
-

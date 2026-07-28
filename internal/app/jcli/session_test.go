@@ -168,25 +168,27 @@ func TestConsoleListsReflectAdminState(t *testing.T) {
 		t.Fatalf("header shape changed: %q", listing)
 	}
 
-	// show renders the connector without echoing its bind password.
+	// show renders the connector, bind password included. That is deviation
+	// D-003: the oracle prints it (J-012-smppccm), scripts read the field, and
+	// the console is already an authenticated privilege boundary. Asserted here
+	// so nobody "fixes" it back into a transcript mismatch by accident.
 	client.send("smppccm -s smsc-a")
 	shown := client.readUntil(promptMain)
 	if !strings.Contains(shown, "smsc-a") {
 		t.Fatalf("show did not render the connector: %q", shown)
 	}
-	if strings.Contains(shown, "secret-bind-pw") {
-		t.Fatalf("show leaked the bind password: %q", shown)
+	if !strings.Contains(shown, "password secret-bind-pw") {
+		t.Fatalf("show must match the oracle and print the bind password: %q", shown)
 	}
 
-	// An unimplemented verb says so rather than silently doing nothing.
+	// Removing through the console removes it from the shared admin state.
 	client.send("smppccm -r smsc-a")
-	if refused := client.readUntil(promptMain); !strings.Contains(refused, "not implemented") {
-		t.Fatalf("unimplemented verb should be explicit: %q", refused)
+	if removed := client.readUntil(promptMain); !strings.Contains(removed, "Successfully removed connector id:smsc-a") {
+		t.Fatalf("remove text changed: %q", removed)
 	}
-	// ...and it must not have removed anything.
 	views, err := fixture.server.deps.Connectors.ListConnectors(ctx)
-	if err != nil || len(views) != 1 {
-		t.Fatalf("connector was mutated by an unimplemented verb: %v %d", err, len(views))
+	if err != nil || len(views) != 0 {
+		t.Fatalf("connector survived a console remove: %v %d", err, len(views))
 	}
 }
 

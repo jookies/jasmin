@@ -47,6 +47,31 @@ the reason, per the record format at the bottom of this file.
   path and verified live (admin connectors, MT/MO routes, interceptors, users).
 - **Owner approval:** _pending_.
 
+## D-003 — `smppccm -s` prints the bind password, matching the oracle
+
+**Surface:** JCLI (J-012) · **Status:** accepted, pending owner sign-off
+
+The frozen console prints a connector's bind password in clear in `smppccm -s`
+(see `fixtures/jcli/J-012-smppccm.jsonl`). An earlier Go implementation redacted
+it. Byte-parity and redaction are mutually exclusive, and the Go console now
+matches the oracle.
+
+**Why match rather than redact:** the console is reachable only after
+authentication and is already a full privilege boundary — it mints user
+credentials and starts connectors — so redacting one field buys little, while
+any script that reads `password` from a `smppccm -s` transcript breaks silently
+if the field disappears.
+
+**Risk accepted:** the password appears in any terminal scrollback, session
+recording or log that captures console output.
+
+**Rollback invariant:** redacting the field again is a one-line change in
+`connectorFieldValue` (`internal/app/jcli/managers_smppccm.go`), and it makes
+J-012 fail — which is the point: the deviation cannot be taken silently.
+
+**Revisit when:** the console grows a per-field redaction mode, or an operator
+requires secret-free transcripts for compliance.
+
 ## Required record format
 
 Every future deviation must include:

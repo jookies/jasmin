@@ -207,7 +207,7 @@ func TestSessionWritesValidEnquireLink(t *testing.T) {
 	defer server.Close()
 	retry, _ := smppc.NewErrorRetryPolicy(smppc.DefaultErrorRetryRules())
 	readiness, _ := smppc.NewReadinessPolicy(smppc.DefaultReadinessConfig())
-	session := smppc.NewSession(client, smppc.Config{CID: "enquire", PDUTimeout: 0.02}, retry, readiness, nil)
+	session := smppc.NewSession(client, smppc.Config{CID: "enquire", EnquireLinkInterval: 0.02}, retry, readiness, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go session.Run(ctx)
@@ -228,7 +228,7 @@ func TestSessionMissingEnquireLinkResponseTerminates(t *testing.T) {
 	retry, _ := smppc.NewErrorRetryPolicy(smppc.DefaultErrorRetryRules())
 	readiness, _ := smppc.NewReadinessPolicy(smppc.DefaultReadinessConfig())
 	session := smppc.NewSession(client, smppc.Config{
-		CID: "enquire-timeout", PDUTimeout: 0.02, ResTimeout: 0.05,
+		CID: "enquire-timeout", EnquireLinkInterval: 0.02, ResTimeout: 0.05,
 	}, retry, readiness, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -280,8 +280,11 @@ func (s *Session) Run(ctx context.Context) error {
 
 	var enquireTicker *time.Ticker
 	var enquireC <-chan time.Time
-	if s.cfg.PDUTimeout > 0 {
-		enquireTicker = time.NewTicker(seconds(s.cfg.PDUTimeout))
+	// elink_interval, not pdu_red_to: legacy keeps the enquire_link cadence and
+	// the PDU read timer as separate settings, and this ticker used to run off
+	// the latter. Both default to 30 so the observable cadence is unchanged.
+	if s.cfg.EnquireLinkInterval > 0 {
+		enquireTicker = time.NewTicker(seconds(s.cfg.EnquireLinkInterval))
 		enquireC = enquireTicker.C
 		defer enquireTicker.Stop()
 	}

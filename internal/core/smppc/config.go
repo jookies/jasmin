@@ -64,6 +64,35 @@ type Config struct {
 	TLSCAFile             string `json:"tls_ca_file,omitempty"`
 	TLSInsecureSkipVerify bool   `json:"tls_insecure_skip_verify,omitempty"`
 
+	// EnquireLinkInterval is the legacy elink_interval (enquireLinkTimerSecs):
+	// how often an idle bound session sends enquire_link. It is a distinct
+	// timer from PDUTimeout, which legacy calls pdu_red_to (a PDU *read*
+	// timer); the session used to conflate the two. Default 30, as in legacy.
+	EnquireLinkInterval float64 `json:"elink_interval,omitempty"`
+
+	// SessionInitTimeout is the legacy bind_to (sessionInitTimerSecs): how long
+	// to wait for the bind response. Default 30.
+	SessionInitTimeout float64 `json:"bind_to,omitempty"`
+
+	// RequeueDelay is the legacy requeue_delay: seconds before a rejected
+	// submit is retried. Default 120.
+	RequeueDelay float64 `json:"requeue_delay,omitempty"`
+
+	// DataCoding is the legacy coding: the connector's default data_coding for
+	// a submit that does not carry one.
+	DataCoding int `json:"data_coding,omitempty"`
+
+	// ValidityPeriod is the legacy validity: the connector's default
+	// validity_period. Empty means none, as in legacy.
+	ValidityPeriod string `json:"validity_period,omitempty"`
+
+	// Log* mirror the legacy per-connector logging directives. They are
+	// provisioning state carried for management parity; the Go connector logs
+	// through the shared logging package rather than a per-connector file.
+	LogFile    string `json:"log_file,omitempty"`
+	LogRotate  string `json:"log_rotate,omitempty"`
+	LogPrivacy bool   `json:"log_privacy,omitempty"`
+
 	// Other
 	Priority           int      `json:"priority"`
 	LogLevel           string   `json:"log_level"`
@@ -152,15 +181,43 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Defaults for timeouts
+	// Defaults for timeouts. These are the frozen SMPPClientConfig values
+	// (jasmin/protocols/smpp/configs.py), verified against the oracle: a
+	// connector provisioned with only host/port/credentials must behave like a
+	// legacy one, including on the wire.
 	if c.TrxTimeout == 0 {
-		c.TrxTimeout = 30
+		c.TrxTimeout = 300 // inactivityTimerSecs
 	}
 	if c.ResTimeout == 0 {
-		c.ResTimeout = 60
+		c.ResTimeout = 120 // responseTimerSecs
 	}
 	if c.PDUTimeout == 0 {
-		c.PDUTimeout = 30
+		c.PDUTimeout = 10 // pduReadTimerSecs
+	}
+	if c.EnquireLinkInterval == 0 {
+		c.EnquireLinkInterval = 30
+	}
+	if c.SessionInitTimeout == 0 {
+		c.SessionInitTimeout = 30
+	}
+	if c.RequeueDelay == 0 {
+		c.RequeueDelay = 120
+	}
+	// Address defaults are wire-visible: legacy submits carry source
+	// NATIONAL/ISDN and destination INTERNATIONAL/ISDN unless the connector
+	// says otherwise. Defaulting them to 0 (UNKNOWN) put different bytes on the
+	// wire than the Python gateway for any connector that did not set them.
+	if c.SrcTON == 0 {
+		c.SrcTON = 2 // NATIONAL
+	}
+	if c.SrcNPI == 0 {
+		c.SrcNPI = 1 // ISDN
+	}
+	if c.DstTON == 0 {
+		c.DstTON = 1 // INTERNATIONAL
+	}
+	if c.DstNPI == 0 {
+		c.DstNPI = 1 // ISDN
 	}
 	if c.ConLossDelay == 0 {
 		c.ConLossDelay = 10
