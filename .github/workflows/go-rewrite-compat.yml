@@ -58,6 +58,32 @@ jobs:
           PYTHON_PATH: python
         run: go test -count=1 -run TestGatewayHTTPToDurableSMPPResponse ./internal/app/gateway/
 
+  # The admin UI bundle is committed (internal/app/adminweb/dist) so `go build`
+  # needs no Node toolchain — but that means a web/src change without a rebuild
+  # silently ships an older UI than the source describes. It has happened once.
+  # This job rebuilds and fails on any diff.
+  adminweb-bundle-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install UI dependencies
+        working-directory: web
+        run: npm ci
+      - name: Rebuild the embedded bundle
+        working-directory: web
+        run: npm run build
+      - name: Fail if the committed bundle is stale
+        run: |
+          if ! git diff --exit-code -- internal/app/adminweb/dist; then
+            echo "::error::internal/app/adminweb/dist is stale. Run 'cd web && npm run build' and commit the result."
+            exit 1
+          fi
+
   fixture-integrity:
     runs-on: ubuntu-latest
     steps:
