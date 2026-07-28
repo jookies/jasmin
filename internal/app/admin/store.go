@@ -59,6 +59,16 @@ CREATE TABLE IF NOT EXISTS admin_smpps_users (
     spec_json  TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS admin_filters (
+    fid        TEXT PRIMARY KEY,
+    spec_json  TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_httpccs (
+    cid        TEXT PRIMARY KEY,
+    spec_json  TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS admin_groups (
     gid        TEXT PRIMARY KEY,
     gid_number INTEGER NOT NULL UNIQUE,

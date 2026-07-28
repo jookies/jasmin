@@ -59,12 +59,23 @@ func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
 		t.Fatalf("group service: %v", err)
 	}
 
+	filters, err := admin.NewFilterService(store, now)
+	if err != nil {
+		t.Fatalf("filter service: %v", err)
+	}
+	httpConnectors, err := admin.NewHTTPConnectorService(store, now)
+	if err != nil {
+		t.Fatalf("http connector service: %v", err)
+	}
+
 	server, err := NewServer("127.0.0.1:0", Deps{
 		Connectors:             connectors,
 		Routes:                 routes,
 		MORoutes:               moRoutes,
 		Users:                  users,
 		Groups:                 groups,
+		Filters:                filters,
+		HTTPConnectors:         httpConnectors,
 		Username:               "jcliadmin",
 		Password:               "jclipwd",
 		AuthenticationDisabled: !authentication,

@@ -36,6 +36,11 @@ type Deps struct {
 	Users      *admin.UserService
 	Groups     *admin.GroupService
 	SMPPsUsers *admin.SMPPsUserService
+	// Filters and HTTPConnectors are the named registries jCli manages. They
+	// have no live runtime table: a route embeds a copy of the resolved filter,
+	// exactly as the frozen console pickles the filter object into the route.
+	Filters        *admin.NamedSpecService
+	HTTPConnectors *admin.NamedSpecService
 
 	// Username/Password are the console login. Password is the resolved
 	// plaintext; it is compared constant-time and not retained in the clear.

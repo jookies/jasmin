@@ -59,6 +59,12 @@ var commandTable = map[string]commandHandler{
 	"group": func(s *session, argument string) string {
 		return s.handleGroup(argument)
 	},
+	"filter": func(s *session, argument string) string {
+		return s.handleFilter(argument)
+	},
+	"httpccm": func(s *session, argument string) string {
+		return s.handleHTTPCCM(argument)
+	},
 }
 
 const nohelpFormat = "*** No help on %s"
