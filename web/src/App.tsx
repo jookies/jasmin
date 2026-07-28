@@ -26,12 +26,12 @@ import {
 
 import { httpClient, API_URL } from "./httpClient";
 import { authProvider } from "./authProvider";
-import { ConnectorList, ConnectorCreate, ConnectorEdit } from "./pages/connectors";
-import { RouteList, RouteCreate, RouteEdit } from "./pages/routes";
-import { MORouteList, MORouteCreate, MORouteEdit } from "./pages/mo-routes";
-import { UserList, UserCreate, UserEdit } from "./pages/users";
-import { SMPPsUserList, SMPPsUserCreate, SMPPsUserEdit } from "./pages/smpps-users";
-import { InterceptorList, InterceptorCreate, InterceptorEdit } from "./pages/interceptors";
+import { ConnectorList } from "./pages/connectors";
+import { RouteList } from "./pages/routes";
+import { MORouteList } from "./pages/mo-routes";
+import { UserList } from "./pages/users";
+import { SMPPsUserList } from "./pages/smpps-users";
+import { InterceptorList } from "./pages/interceptors";
 import { DashboardPage } from "./pages/dashboard";
 import { LoginPage } from "./pages/login";
 import { useFeatures } from "./useFeatures";
@@ -46,8 +46,6 @@ export default function App() {
         {
           name: "interceptors",
           list: "/interceptors",
-          create: "/interceptors/create",
-          edit: "/interceptors/edit/:id",
           meta: { label: "Interceptors", icon: <CodeOutlined /> },
         },
       ]
@@ -83,37 +81,27 @@ export default function App() {
               {
                 name: "connectors",
                 list: "/connectors",
-                create: "/connectors/create",
-                edit: "/connectors/edit/:id",
                 meta: { label: "Connectors", icon: <ApiOutlined /> },
               },
               {
                 name: "routes",
                 list: "/routes",
-                create: "/routes/create",
-                edit: "/routes/edit/:id",
                 meta: { label: "MT Routes", icon: <ShareAltOutlined /> },
               },
               {
                 name: "mo-routes",
                 list: "/mo-routes",
-                create: "/mo-routes/create",
-                edit: "/mo-routes/edit/:id",
                 meta: { label: "MO Routes", icon: <InboxOutlined /> },
               },
               ...interceptorResource,
               {
                 name: "users",
                 list: "/users",
-                create: "/users/create",
-                edit: "/users/edit/:id",
                 meta: { label: "Users", icon: <UserOutlined /> },
               },
               {
                 name: "smpps-users",
                 list: "/smpps-users",
-                create: "/smpps-users/create",
-                edit: "/smpps-users/edit/:id",
                 meta: { label: "SMPPs Binds", icon: <LinkOutlined /> },
               },
             ]}
@@ -136,38 +124,14 @@ export default function App() {
                 }
               >
                 <Route index element={<DashboardPage />} />
-                <Route path="/connectors">
-                  <Route index element={<ConnectorList />} />
-                  <Route path="create" element={<ConnectorCreate />} />
-                  <Route path="edit/:id" element={<ConnectorEdit />} />
-                </Route>
-                <Route path="/routes">
-                  <Route index element={<RouteList />} />
-                  <Route path="create" element={<RouteCreate />} />
-                  <Route path="edit/:id" element={<RouteEdit />} />
-                </Route>
-                <Route path="/mo-routes">
-                  <Route index element={<MORouteList />} />
-                  <Route path="create" element={<MORouteCreate />} />
-                  <Route path="edit/:id" element={<MORouteEdit />} />
-                </Route>
+                <Route path="/connectors" element={<ConnectorList />} />
+                <Route path="/routes" element={<RouteList />} />
+                <Route path="/mo-routes" element={<MORouteList />} />
                 {features.interceptor_editing && (
-                  <Route path="/interceptors">
-                    <Route index element={<InterceptorList />} />
-                    <Route path="create" element={<InterceptorCreate />} />
-                    <Route path="edit/:id" element={<InterceptorEdit />} />
-                  </Route>
+                  <Route path="/interceptors" element={<InterceptorList />} />
                 )}
-                <Route path="/users">
-                  <Route index element={<UserList />} />
-                  <Route path="create" element={<UserCreate />} />
-                  <Route path="edit/:id" element={<UserEdit />} />
-                </Route>
-                <Route path="/smpps-users">
-                  <Route index element={<SMPPsUserList />} />
-                  <Route path="create" element={<SMPPsUserCreate />} />
-                  <Route path="edit/:id" element={<SMPPsUserEdit />} />
-                </Route>
+                <Route path="/users" element={<UserList />} />
+                <Route path="/smpps-users" element={<SMPPsUserList />} />
                 <Route path="*" element={<ErrorComponent />} />
               </Route>
               <Route
