@@ -41,6 +41,21 @@ SCENARIOS = [
         'inputs': ['mt\t', '', 'nosuch\t', '', '\t', '', 'quit'],
     },
     {
+        'id': 'J-002-help-commands',
+        'title': 'help for every registered command',
+        'authentication': False,
+        # The per-command help is optparse's own rendering (usage line, option
+        # column, continuation wrapping). Capturing it verbatim beats
+        # reimplementing optparse's layout rules in Go and hoping they match.
+        'inputs': [
+            'help persist', 'help load', 'help user', 'help group', 'help filter',
+            'help mointerceptor', 'help mtinterceptor', 'help morouter',
+            'help mtrouter', 'help smppccm', 'help httpccm', 'help stats',
+            'help quit', 'help help',
+            'quit',
+        ],
+    },
+    {
         'id': 'J-003-group',
         'title': 'group add/list/enable/disable/remove',
         'authentication': False,

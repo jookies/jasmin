@@ -100,6 +100,7 @@ func (s *session) run(ctx context.Context) {
 	} else {
 		s.authenticated = true
 		s.prompt = promptMain
+		s.term.complete = s.completeLine
 		s.drawMotd()
 	}
 
@@ -162,6 +163,7 @@ func (s *session) handleAuthLine(line string) {
 
 	s.authenticated = true
 	s.prompt = promptMain
+	s.term.complete = s.completeLine
 	s.server.logger.Info("jcli: authenticated", "session", s.ref, "username", s.username)
 	s.drawMotd()
 	s.promptOnly()

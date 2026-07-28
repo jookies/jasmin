@@ -64,10 +64,10 @@ const nohelpFormat = "*** No help on %s"
 // byte-compatible with the legacy do_help().
 func (s *session) handleHelp(argument string) string {
 	if argument != "" {
-		if doc, ok := commandDocs[argument]; ok {
-			return doc
-		}
-		if doc, ok := baseCommandDocs[argument]; ok {
+		// The per-command body is optparse's rendering, captured verbatim.
+		if doc, ok := commandHelp[argument]; ok {
+			// The trailing newline is optparse's own, and produces the blank
+			// line the oracle emits before the prompt. Do not trim it.
 			return doc
 		}
 		return fmt.Sprintf(nohelpFormat, argument)
@@ -99,4 +99,52 @@ func padRight(value string, width int) string {
 		return value
 	}
 	return value + strings.Repeat(" ", width-len(value))
+}
+
+// findCommands lists the commands matching a prefix, in registration order:
+// the manager commands first, then the control commands. An empty prefix lists
+// everything, which is what a bare TAB shows.
+func findCommands(prefix string) []string {
+	var found []string
+	for _, command := range append(append([]string{}, commandOrder...), baseCommandOrder...) {
+		if strings.HasPrefix(command, prefix) {
+			found = append(found, command)
+		}
+	}
+	return found
+}
+
+// completeLine handles a TAB, mirroring CmdProtocol.handle_TAB(). It returns
+// the line buffer to keep typing from.
+//
+// The oracle only completes the *command word*: a TAB after an argument has
+// begun does nothing at all, and neither does a prefix that matches nothing --
+// not even a bell. Both silences are contract.
+func (s *session) completeLine(line string) string {
+	command, argument := parseLine(line)
+
+	if command == "" {
+		// A bare TAB lists every command.
+		s.sendData("\n"+strings.Join(findCommands(""), " "), true, true)
+		return line
+	}
+	if argument != "" {
+		return line
+	}
+
+	completions := findCommands(command)
+	switch {
+	case len(completions) > 1:
+		// List the candidates and redraw the prompt with what was typed.
+		s.sendData("\n"+strings.Join(completions, " "), true, false)
+		s.term.writeRaw(s.prompt + command)
+		return line
+	case len(completions) == 1 && completions[0] != command:
+		// Unique match: finish the word, with the trailing space the oracle adds.
+		completed := completions[0] + " "
+		s.term.writeRaw(completed[len(command):])
+		return completed
+	default:
+		return line
+	}
 }

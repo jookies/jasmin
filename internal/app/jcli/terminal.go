@@ -59,6 +59,11 @@ type terminal struct {
 	// echo mirrors typed characters back, which the oracle does for every line
 	// except a password (jcli.py switches it off around the password prompt).
 	echo bool
+
+	// complete handles a TAB: it emits whatever the oracle emits and returns
+	// the line buffer to keep. nil disables completion (the oracle disables it
+	// until a session is authenticated).
+	complete func(line string) string
 }
 
 func newTerminal(conn net.Conn) *terminal {
@@ -89,8 +94,9 @@ func (t *terminal) writeLine(text string) {
 	t.writeRaw(strings.ReplaceAll(text, "\n", lineBreak) + lineBreak)
 }
 
-// readLine assembles one input line, filtering telnet negotiation and echoing
-// what it keeps. It returns io.EOF-style errors from the underlying connection.
+// readLine assembles one input line, filtering telnet negotiation, handling TAB
+// completion in place and echoing what it keeps. It returns the underlying
+// connection's errors unchanged.
 func (t *terminal) readLine() (string, error) {
 	var line []byte
 	for {
@@ -111,11 +117,18 @@ func (t *terminal) readLine() (string, error) {
 			if err == nil && (next[0] == '\n' || next[0] == 0) {
 				_, _ = t.reader.ReadByte()
 			}
-			t.echoBytes(lineBreak)
+			t.writeRaw(lineBreak)
 			return string(line), nil
 		case '\n':
-			t.echoBytes(lineBreak)
+			t.writeRaw(lineBreak)
 			return string(line), nil
+		case '\t':
+			// Completion runs on the partial line and leaves it in the buffer:
+			// the operator keeps typing where they left off.
+			if t.complete != nil {
+				line = []byte(t.complete(string(line)))
+			}
+			continue
 		case 0x7f, 0x08: // DEL / BS
 			// Line editing is not part of any captured transcript (scripted
 			// clients send whole lines). Erasing the last character keeps an
