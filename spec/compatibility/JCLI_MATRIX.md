@@ -17,19 +17,19 @@ the question the second one answers.
 | J-003 | `group` | list/add/remove/enable/disable and validation/errors | `admin.GroupService` (plan 012 Step 6, landed) | **MATCH** — `J-003-group` |
 | J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | **MATCH** — `J-004-user` |
 | J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | `outbound.UserConfig.MTCredential` + `SMPPSCredential` (mirrored to the bind account) | **MATCH** — `J-005-user-credentials`, `J-005-user-invalid` (console surface; **HTTP-path enforcement is still missing**, see below) |
-| J-006 | user SMPP control | unbind/ban and session effects | **MISSING** — no session control surface | INVENTORIED |
-| J-007 | `filter` | all filter types, MO/MT restrictions, regex/date/time/tag/eval | inline filters on each route/interceptor — deviation **D-001** | INVENTORIED |
-| J-008 | `morouter` | list/add/remove/show/flush; all working route types | `/api/mo-routes` + MO Routes page | INVENTORIED |
-| J-009 | `mtrouter` | list/add/remove/show/flush; rates and connectors | `/api/routes` + MT Routes page | INVENTORIED |
-| J-010 | `mointerceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mo`), opt-in | INVENTORIED |
-| J-011 | `mtinterceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mt`), opt-in | INVENTORIED |
-| J-012 | `smppccm` | list/add/update/remove/show/start/stop and field prompts/defaults | `/api/connectors` + Connectors page (incl. start/stop) | INVENTORIED |
-| J-013 | `httpccm` | list/add/remove/show and method/base URL | inline in the MO route destination (no standalone entity) | INVENTORIED |
-| J-014 | `stats` | users/user, SMPPc(s), SMPPs, HTTP and exact names/format | `/metrics` + dashboard health; **not** the jCli field set | INVENTORIED |
-| J-015 | `persist` | default/profile/scope, success/failure, file set | obsolete by design — deviation **D-002** | INVENTORIED |
-| J-016 | `load` | default/profile/scope, missing/corrupt/versioned files | obsolete by design — deviation **D-002** | INVENTORIED |
-| J-017 | autoload | `jcli-prod` startup behavior | `LoadAndApply` at boot | INVENTORIED |
-| J-018 | interactive sessions | start/save/abort, prompt ordering, invalid key/value | n/a (forms) | INVENTORIED |
+| J-006 | user SMPP control | unbind/ban and session effects | **MISSING** — no session control surface | INVENTORIED (only row with no implementation) |
+| J-007 | `filter` | all filter types, MO/MT restrictions, regex/date/time/tag/eval | named registry (`admin_filters`); routes embed a resolved copy, as the oracle pickles the filter object | **MATCH** — `J-007-filter` |
+| J-008 | `morouter` | list/add/remove/show/flush; all working route types | `/api/mo-routes` + MO Routes page | **MATCH** — `J-008-morouter` |
+| J-009 | `mtrouter` | list/add/remove/show/flush; rates and connectors | `/api/routes` + MT Routes page | **MATCH** — `J-009-mtrouter` |
+| J-010 | `mointerceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mo`), opt-in | **MATCH** — `J-010-mointerceptor` |
+| J-011 | `mtinterceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mt`), opt-in | **MATCH** — `J-011-mtinterceptor` |
+| J-012 | `smppccm` | list/add/update/remove/show/start/stop and field prompts/defaults | `/api/connectors` + Connectors page (incl. start/stop) | **MATCH** — `J-012-smppccm` (bind password printed: **D-003**) |
+| J-013 | `httpccm` | list/add/remove/show and method/base URL | named registry (`admin_httpccs`); MO routes embed a resolved copy | **MATCH** — `J-013-httpccm` |
+| J-014 | `stats` | users/user, SMPPc(s), SMPPs, HTTP and exact names/format | same registries `/metrics` renders, so the two cannot drift | **MATCH** — `J-014-stats` (see the unbacked-counter note below) |
+| J-015 | `persist` | default/profile/scope, success/failure, file set | real named snapshots (`admin_profiles`) — **D-002 withdrawn** | **MATCH** — `J-015-persist-load` |
+| J-016 | `load` | default/profile/scope, missing/corrupt/versioned files | restores a snapshot then re-applies every service — **D-002 withdrawn** | **MATCH** — `J-015-persist-load` |
+| J-017 | autoload | `jcli-prod` startup behavior | `LoadAndApply` at boot | **MATCH** — covered by `J-015-persist-load` |
+| J-018 | interactive sessions | start/save/abort, prompt ordering, invalid key/value | n/a (forms) | **MATCH** — every `-a`/`-u` fixture exercises it; `J-005-user-invalid` covers the error paths |
 
 **Go console status (2026-07-27, evening).** Plan 013 Step 1 is no longer
 blocked: `.venv-oracle` built from the repo's own `requirements.txt` imports the
@@ -45,10 +45,25 @@ emits `Username: ` on connect. The previous Go implementation got all of that
 wrong while claiming Steps 2–3 were done — which is precisely what "asserted,
 not proven" was warning about.
 
-Still unimplemented, and still answering with an explicit "not implemented"
-rather than appearing to succeed: `smppccm`/`mtrouter`/`morouter` mutating
-verbs, `filter`, `httpccm`, `mointerceptor`, `mtinterceptor`, `stats`,
-`persist`/`load`, and `--smpp-unbind`/`--smpp-ban`.
+**All 18 fixtures replay byte-for-byte** (`go test ./internal/app/jcli/ -run
+TestOracleTranscripts`). 17 of 18 rows carry `MATCH`; **J-006**
+(`--smpp-unbind` / `--smpp-ban`) is the only command with no implementation,
+because nothing in the Go SMPPs server can yet drop a bound session on demand.
+
+Two things the transcripts cannot pin, both recorded rather than hidden:
+
+- **`stats` timestamps.** `created_at` is a wall clock, so the replay
+  normalises `YYYY-MM-DD HH:MM:SS` on both sides. It is the suite's only
+  normalisation.
+- **Unbacked counters.** Every `stats` row exists, but some report 0 or ND
+  because the Go stack keeps no such counter yet: per-user SMPP bind/unbind
+  counts, `bound_peer_ips`, the activity clocks (`last_activity_at`,
+  `qos_last_submit_sm_at`), the per-connector PDU clocks, and `last_seqNum`.
+  The authoritative list is `unbackedStatsFields` in
+  `internal/app/jcli/managers_stats.go`. Everything else reads the same
+  registries `/metrics` renders, verified live: two sends and one bad login
+  moved `request_count`, `success_count` and `auth_error_count` identically on
+  both surfaces.
 
 **J-005 caveat.** The console surface matches, but the HTTP front door does not
 yet *enforce* per-user authorizations, value filters or the default source

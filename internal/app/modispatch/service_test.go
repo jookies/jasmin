@@ -106,7 +106,6 @@ func TestValidateConfig(t *testing.T) {
 		"default with order":   func(c *Config) { c.Routes[0].Order = 5 },
 		"default with filter":  func(c *Config) { c.Routes[0].FilterConnectorID = "x" },
 		"static without order": func(c *Config) { c.Routes[1].Order = 0; c.Routes[1].Default = false },
-		"static no filter":     func(c *Config) { c.Routes[1].FilterConnectorID = "" },
 		"http missing url":     func(c *Config) { c.Routes[0].Connector.URL = "" },
 		"smpps missing system": func(c *Config) { c.Routes[1].Connector.SystemID = "" },
 		"bad connector type":   func(c *Config) { c.Routes[0].Connector.Type = "carrier-pigeon" },
@@ -129,6 +128,18 @@ func TestValidateConfig(t *testing.T) {
 				t.Fatalf("err=%v want ErrInvalidConfig", err)
 			}
 		})
+	}
+}
+
+// TestStaticRouteWithoutConnectorFilterMatchesAnyConnector pins the relaxation
+// that made legacy StaticMORoutes expressible: legacy matches on the filter list
+// alone, so demanding a filter_connector_id rejected a legal route. An empty
+// value now means "any inbound connector".
+func TestStaticRouteWithoutConnectorFilterMatchesAnyConnector(t *testing.T) {
+	config := baseConfig()
+	config.Routes[1].FilterConnectorID = ""
+	if err := ValidateConfig(config); err != nil {
+		t.Fatalf("connector-agnostic static route rejected: %v", err)
 	}
 }
 

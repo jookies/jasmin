@@ -265,14 +265,26 @@ func saveRoute(direction routeDirection, s *session, is *interactiveSession) (st
 		return fmt.Sprintf("Successfully added MTRoute [%s] with order:%d", routeType, order), true
 	}
 
-	inline, message, ok := toMOFilters(filters)
+	// A legacy ConnectorFilter selects the *inbound* connector, which the Go MO
+	// route expresses as FilterConnectorID rather than as a content filter.
+	var connectorFilterCID string
+	var contentFilters []namedFilter
+	for _, entry := range filters {
+		if entry.Type == "ConnectorFilter" {
+			connectorFilterCID = entry.Args["cid"]
+			continue
+		}
+		contentFilters = append(contentFilters, entry)
+	}
+	inline, message, ok := toMOFilters(contentFilters)
 	if !ok {
 		return message, false
 	}
 	route := modispatch.RouteConfig{
-		Order:   order,
-		Default: routeType == "DefaultRoute",
-		Filters: inline,
+		Order:             order,
+		Default:           routeType == "DefaultRoute",
+		FilterConnectorID: connectorFilterCID,
+		Filters:           inline,
 	}
 	switch kinds[0] {
 	case "http":

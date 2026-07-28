@@ -65,6 +65,15 @@ var commandTable = map[string]commandHandler{
 	"httpccm": func(s *session, argument string) string {
 		return s.handleHTTPCCM(argument)
 	},
+	"stats": func(s *session, argument string) string {
+		return s.handleStats(argument)
+	},
+	"persist": func(s *session, argument string) string {
+		return s.handlePersist(argument)
+	},
+	"load": func(s *session, argument string) string {
+		return s.handleLoad(argument)
+	},
 	"mointerceptor": func(s *session, argument string) string {
 		return s.handleInterceptor(moInterceptorDirection, argument)
 	},

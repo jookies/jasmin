@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 )
 
 // consoleFixture is a running console backed by an in-memory admin store.
@@ -73,6 +74,11 @@ func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
 		t.Fatalf("interceptor service: %v", err)
 	}
 
+	profiles, err := admin.NewProfileService(store, now)
+	if err != nil {
+		t.Fatalf("profile service: %v", err)
+	}
+
 	server, err := NewServer("127.0.0.1:0", Deps{
 		Connectors:             connectors,
 		Routes:                 routes,
@@ -81,6 +87,11 @@ func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
 		Groups:                 groups,
 		Filters:                filters,
 		Interceptors:           interceptors,
+		Profiles:               profiles,
+		HTTPStats:              &stats.HTTPStats{},
+		SMPPsStats:             &stats.SMPPsStats{},
+		SMPPcStats:             stats.NewSMPPcRegistry(),
+		StartedAt:              func() time.Time { return time.Unix(1753660896, 0).UTC() },
 		HTTPConnectors:         httpConnectors,
 		Username:               "jcliadmin",
 		Password:               "jclipwd",

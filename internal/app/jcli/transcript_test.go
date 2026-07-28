@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -144,8 +145,8 @@ func TestOracleTranscripts(t *testing.T) {
 						console.writeRaw(t, input+"\r\n")
 					}
 				}
-				want := step.output(t)
-				got := console.drainQuiet(t)
+				want := normaliseTranscript(step.output(t))
+				got := normaliseTranscript(console.drainQuiet(t))
 				if string(got) != string(want) {
 					label := "(connect)"
 					if step.Input != nil {
@@ -157,6 +158,20 @@ func TestOracleTranscripts(t *testing.T) {
 			}
 		})
 	}
+}
+
+// wallClock matches the "YYYY-MM-DD HH:MM:SS" stamps `stats` prints for
+// created_at.
+var wallClock = regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`)
+
+// normaliseTranscript blanks the one thing a recording cannot pin: the wall
+// clock. `stats --smppc` and `stats --smppsapi` print a real creation time, so
+// comparing those bytes literally would mean either freezing the clock in
+// production or a fixture that only ever passes on the machine that recorded
+// it. Every other byte is compared exactly. This is the only normalisation in
+// the suite; adding a second one needs the same justification.
+func normaliseTranscript(data []byte) []byte {
+	return wallClock.ReplaceAll(data, []byte("<TIMESTAMP>"))
 }
 
 func (c *client) writeRaw(t *testing.T, text string) {

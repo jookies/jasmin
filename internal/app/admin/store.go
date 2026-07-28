@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS admin_httpccs (
     spec_json  TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS admin_profiles (
+    profile    TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    payload    TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (profile, table_name)
+);
 CREATE TABLE IF NOT EXISTS admin_groups (
     gid        TEXT PRIMARY KEY,
     gid_number INTEGER NOT NULL UNIQUE,

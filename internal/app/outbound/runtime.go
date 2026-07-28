@@ -50,6 +50,7 @@ type Runtime struct {
 	configUsernames []string
 	resolveUID      uidResolver
 	configGroupIDs  []string
+	httpStats       *stats.HTTPStats
 	routesMu        sync.Mutex
 	// Live MT interception: the submit path runs mtInterceptors (atomic);
 	// admin interceptor provisioning rebuilds config + admin entries and swaps
@@ -251,12 +252,15 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		}
 	}()
 
+	// One HTTP stats registry, shared by /metrics and the jCli `stats` command:
+	// two surfaces reporting the same counters must not be able to drift.
+	httpStats := &stats.HTTPStats{}
 	handler := httpcompat.NewHandler(httpcompat.Dependencies{
 		Authenticator: directory,
 		BalanceReader: directory,
 		RateReader:    directory,
 		Submitter:     submitService,
-		HTTPStats:     &stats.HTTPStats{},
+		HTTPStats:     httpStats,
 		SMPPcStats:    dependencies.SMPPcStats,
 		SMPPsStats:    dependencies.SMPPsStats,
 		ConnectorIDs:  dependencies.ConnectorIDs,
@@ -283,6 +287,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		configRoutes:    append([]RouteConfig(nil), config.Routes...),
 		configUsernames: configUsernames(config.Users),
 		configGroupIDs:  configGroupIDs(config.Groups),
+		httpStats:       httpStats,
 		resolveUID:      directory.resolveUID,
 
 		mtInterceptors:       atomicInterceptors,
@@ -425,6 +430,10 @@ func (runtime *Runtime) RemoveAdminGroup(gid string) error {
 	}
 	return runtime.directory.removeGroup(gid)
 }
+
+// HTTPStats exposes the front door's counter registry so other management
+// surfaces (the jCli `stats` command) report the same numbers /metrics does.
+func (runtime *Runtime) HTTPStats() *stats.HTTPStats { return runtime.httpStats }
 
 // ConfigGroupIDs lists the config-owned gids the admin plane must not touch.
 func (runtime *Runtime) ConfigGroupIDs() []string {

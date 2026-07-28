@@ -27,7 +27,24 @@ the reason, per the record format at the bottom of this file.
   matching semantics; the deviation is representational, not behavioural.
 - **Owner approval:** _pending_.
 
-## D-002 — `persist` / `load` have no semantic role
+## D-002 — WITHDRAWN (2026-07-28): `persist` / `load` are implemented
+
+Originally recorded as "obsolete by design", on the reasoning that the Go admin
+plane persists every mutation as it applies it, so there is nothing to flush.
+That is true of `persist` without a profile — and it misses what the commands
+are actually for. `persist -p known-good` / `load -p known-good` is how an
+operator keeps a configuration to roll back to, and no amount of
+apply-then-persist provides that.
+
+`admin.ProfileService` now implements named snapshots: `persist -p NAME` writes
+every admin table under that name, `load -p NAME` restores them in one
+transaction and re-applies every service. J-015, J-016 and J-017 are `MATCH`.
+
+The original text is kept below for the record.
+
+### Original record
+
+## D-002 (original) — `persist` / `load` have no semantic role
 
 - **Matrix rows:** J-015 (`persist`), J-016 (`load`), J-017 (autoload).
 - **Legacy:** jCli mutations live in memory until `persist` writes a profile to

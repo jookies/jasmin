@@ -142,9 +142,9 @@ func validateRoutes(routes []RouteConfig) error {
 			if route.Order <= 0 {
 				return fmt.Errorf("%w: static route %d must use positive order", ErrInvalidConfig, index)
 			}
-			if route.FilterConnectorID == "" {
-				return fmt.Errorf("%w: static route %d requires filter_connector_id", ErrInvalidConfig, index)
-			}
+			// No filter_connector_id is legal: the route then matches any
+			// inbound connector, like a legacy StaticMORoute whose filter list
+			// carries no ConnectorFilter.
 		}
 		if _, err := buildMORouteFilters(route.Filters); err != nil {
 			return fmt.Errorf("%w: route %d %v", ErrInvalidConfig, index, err)
@@ -338,7 +338,11 @@ func (s *Service) selectRoute(routable routingfilter.Routable) (*preparedRoute, 
 	sourceCID := routable.ConnectorID()
 	for index := range table.routes {
 		route := &table.routes[index]
-		if route.config.FilterConnectorID != sourceCID {
+		// An empty FilterConnectorID means "any inbound connector". Legacy's
+		// StaticMORoute matches on its filter list alone and has no notion of a
+		// mandatory connector filter, so requiring one here made a legal legacy
+		// route unexpressible.
+		if route.config.FilterConnectorID != "" && route.config.FilterConnectorID != sourceCID {
 			continue
 		}
 		matched, err := matchAllFilters(route.filters, routable)

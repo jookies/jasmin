@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 )
 
 // LegacyRelease is what the banner reports. It mirrors jasmin.get_release()
@@ -45,6 +46,16 @@ type Deps struct {
 	// scripts are arbitrary Python on the gateway host, so the capability is
 	// opt-in and the console says so rather than failing obscurely.
 	Interceptors *admin.InterceptorService
+	// Profiles backs persist/load: named snapshots of the whole admin store.
+	Profiles *admin.ProfileService
+
+	// Stats registries back the `stats` command. They are the same instances
+	// /metrics renders, so the two surfaces cannot drift.
+	HTTPStats  *stats.HTTPStats
+	SMPPsStats *stats.SMPPsStats
+	SMPPcStats *stats.SMPPcRegistry
+	// StartedAt reports the gateway start time for the created_at rows.
+	StartedAt func() time.Time
 
 	// Username/Password are the console login. Password is the resolved
 	// plaintext; it is compared constant-time and not retained in the clear.

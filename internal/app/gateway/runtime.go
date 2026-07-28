@@ -158,6 +158,9 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// /metrics handler (built inside the outbound runtime) reads them, and the
 	// SMPPS server increments smppsStats. connectorIDs lists the configured
 	// connector ids in stable order for the smppc metric labels.
+	// startedAt backs the console's created_at rows; one clock read at boot
+	// keeps every report consistent.
+	startedAt := time.Now().UTC()
 	smppcStats := stats.NewSMPPcRegistry()
 	smppsStats := &stats.SMPPsStats{}
 	connectorIDs := configuredConnectorIDs(config.Connectors)
@@ -327,6 +330,23 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := routeService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted routes: " + applyErr.Error())
 		}
+		// The named registries and profile snapshots are store-only, so they
+		// need no provisioner and cannot fail to apply.
+		filterService, filterErr := admin.NewFilterService(store,
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if filterErr != nil {
+			return nil, fmt.Errorf("build admin filter service: %w", filterErr)
+		}
+		httpConnectorService, httpccErr := admin.NewHTTPConnectorService(store,
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if httpccErr != nil {
+			return nil, fmt.Errorf("build admin http connector service: %w", httpccErr)
+		}
+		profileService, profileErr := admin.NewProfileService(store,
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if profileErr != nil {
+			return nil, fmt.Errorf("build admin profile service: %w", profileErr)
+		}
 		// Group provisioning runs before users: a user resolves its group by
 		// gid at apply time, so a persisted group must be live first or every
 		// grouped user fails to re-add at boot.
@@ -419,15 +439,23 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		// web UI it is inert unless an address is configured.
 		if config.Admin.JCliListenAddress != "" {
 			console, consoleErr := jcli.NewServer(config.Admin.JCliListenAddress, jcli.Deps{
-				Connectors:  adminService,
-				Routes:      routeService,
-				MORoutes:    moRouteService,
-				Users:       userService,
-				Groups:      groupService,
-				SMPPsUsers:  smppsUserService,
-				Username:    config.Admin.JCliUsername,
-				Password:    config.Admin.JCliPassword,
-				IdleTimeout: time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
+				Connectors:     adminService,
+				Routes:         routeService,
+				MORoutes:       moRouteService,
+				Users:          userService,
+				Groups:         groupService,
+				SMPPsUsers:     smppsUserService,
+				Filters:        filterService,
+				HTTPConnectors: httpConnectorService,
+				Interceptors:   interceptorService,
+				Profiles:       profileService,
+				HTTPStats:      outboundRuntime.HTTPStats(),
+				SMPPcStats:     smppcStats,
+				SMPPsStats:     smppsStats,
+				StartedAt:      func() time.Time { return startedAt },
+				Username:       config.Admin.JCliUsername,
+				Password:       config.Admin.JCliPassword,
+				IdleTimeout:    time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
 			}, slog.Default())
 			if consoleErr != nil {
 				return nil, fmt.Errorf("start jCli console: %w", consoleErr)
