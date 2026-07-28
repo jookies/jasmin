@@ -257,6 +257,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	httpStats := &stats.HTTPStats{}
 	handler := httpcompat.NewHandler(httpcompat.Dependencies{
 		Authenticator: directory,
+		Credentials:   directory,
 		BalanceReader: directory,
 		RateReader:    directory,
 		Submitter:     submitService,

@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
+	"github.com/pumpitspace/jasmin/internal/core/segmentation"
 	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/core/tlv"
 )
@@ -38,6 +40,9 @@ var (
 
 type Dependencies struct {
 	Authenticator core.Authenticator
+	// Credentials gates /send on the user's MtMessagingCredential. nil allows
+	// everything, preserving the behaviour from before the gate existed.
+	Credentials   CredentialResolver
 	BalanceReader core.BalanceReader
 	RateReader    core.RateReader
 	Submitter     core.Submitter
@@ -202,6 +207,16 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 			writePlainError(w, http.StatusInternalServerError, fmt.Sprintf("Unknown error: %v", err))
 			return
 		}
+	}
+
+	// 3c. Credential gate. Legacy runs HttpAPICredentialValidator after the
+	// submit_sm is built (it needs to know whether the message segments), and
+	// before routing -- so an unauthorized request is refused without ever
+	// consuming a route or a charge.
+	if message, refused := h.checkSendCredentials(username, arguments, &req); refused {
+		h.incHTTP("auth_error_count")
+		writePlainError(w, http.StatusBadRequest, message)
+		return
 	}
 
 	// 4. Submission
@@ -463,6 +478,46 @@ func firstMissing(arguments map[string]string, keys ...string) string {
 
 func mandatoryArgumentError(argument string) string {
 	return fmt.Errorf("Mandatory argument [%s] is not found.", argument).Error()
+}
+
+// checkSendCredentials applies the user's MtMessagingCredential to a mapped
+// request, and substitutes their default source address when they supplied
+// none. It reports the legacy rejection text and whether to refuse.
+//
+// With no resolver wired it allows everything, which is what the front door did
+// before this existed: a gateway whose directory cannot supply credentials must
+// not start refusing every message the moment it is upgraded.
+func (h *handler) checkSendCredentials(username string, arguments map[string]string, req *core.SubmitRequest) (string, bool) {
+	if h.dependencies.Credentials == nil {
+		return "", false
+	}
+	credential, known := h.dependencies.Credentials.ResolveCredential(username)
+	if !known || credential == nil {
+		return "", false
+	}
+
+	present := make(map[string]bool, len(arguments))
+	for key := range arguments {
+		present[key] = true
+	}
+	limit := segmentation.Classify(uint8(req.Coding)).SingleLimit
+	projection := sendRequestProjection(arguments, present, len([]byte(req.Content)) > limit)
+
+	if err := mtcredential.ValidateSend(credential, projection); err != nil {
+		if message, ok := credentialRejection(username, err); ok {
+			return message, true
+		}
+		return err.Error(), true
+	}
+
+	// The default source address applies only when the request carried none;
+	// an explicit (even empty) `from` is the user's choice and stands.
+	if !present["from"] {
+		if source, ok := credential.DefaultSourceAddress(); ok {
+			req.From = string(source)
+		}
+	}
+	return "", false
 }
 
 func writePlainError(w http.ResponseWriter, status int, message string) {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
 )
 
 var (
@@ -183,6 +184,9 @@ type runtimeDirectory struct {
 	groupDisabled map[string]bool
 	userDisabled  map[string]bool
 	userGroup     map[string]string
+	// credentials is each user's MtMessagingCredential, consulted by the HTTP
+	// front door on every send.
+	credentials map[string]*mtcredential.Credential
 	// mu guards passwordHashes, read on the hot Authenticate path and written
 	// by admin user provisioning. billing.Manager has its own lock.
 	mu             sync.RWMutex
@@ -198,6 +202,7 @@ func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
 		groupDisabled:  make(map[string]bool, len(config.Groups)),
 		userDisabled:   make(map[string]bool, len(config.Users)),
 		userGroup:      make(map[string]string, len(config.Users)),
+		credentials:    make(map[string]*mtcredential.Credential, len(config.Users)),
 	}
 	// Groups first: a user entry resolves its group by gid, so the groups must
 	// exist before any user is installed.
@@ -310,7 +315,64 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 	directory.passwordHashes[entry.Username] = passwordHash
 	directory.userDisabled[entry.Username] = entry.Disabled
 	directory.userGroup[entry.Username] = entry.GroupID
+	directory.credentials[entry.Username] = buildMTCredential(entry.MTCredential)
 	return nil
+}
+
+// buildMTCredential turns the provisioned credential into the engine's form.
+// A nil config yields Jasmin's permissive default (every authorization but
+// http_bulk, and the default value filters), so a user provisioned before this
+// existed behaves exactly as before.
+func buildMTCredential(config *MTCredentialConfig) *mtcredential.Credential {
+	credential := mtcredential.New(true)
+	if config == nil {
+		return credential
+	}
+	for key, value := range map[string]*bool{
+		mtcredential.AuthHTTPSend:                config.HTTPSend,
+		mtcredential.AuthHTTPBulk:                config.HTTPBulk,
+		mtcredential.AuthHTTPBalance:             config.HTTPBalance,
+		mtcredential.AuthHTTPRate:                config.HTTPRate,
+		mtcredential.AuthSMPPSSend:               config.SMPPSSend,
+		mtcredential.AuthHTTPLongContent:         config.HTTPLongContent,
+		mtcredential.AuthSetDLRLevel:             config.SetDLRLevel,
+		mtcredential.AuthHTTPSetDLRMethod:        config.HTTPSetDLRMethod,
+		mtcredential.AuthSetSourceAddress:        config.SetSourceAddress,
+		mtcredential.AuthSetPriority:             config.SetPriority,
+		mtcredential.AuthSetValidityPeriod:       config.SetValidityPeriod,
+		mtcredential.AuthSetHexContent:           config.SetHexContent,
+		mtcredential.AuthSetScheduleDeliveryTime: config.SetScheduleDeliveryTime,
+	} {
+		if value != nil {
+			credential.SetAuthorization(key, *value)
+		}
+	}
+	for key, pattern := range map[string]string{
+		mtcredential.FilterDestinationAddress: config.FilterDestinationAddress,
+		mtcredential.FilterSourceAddress:      config.FilterSourceAddress,
+		mtcredential.FilterPriority:           config.FilterPriority,
+		mtcredential.FilterValidityPeriod:     config.FilterValidityPeriod,
+		mtcredential.FilterContent:            config.FilterContent,
+	} {
+		if pattern != "" {
+			// A pattern that does not compile was already rejected at
+			// provisioning time; ignoring the error here keeps a bad stored
+			// value from taking the gateway down at boot.
+			_ = credential.SetValueFilter(key, pattern)
+		}
+	}
+	if config.DefaultSourceAddress != nil {
+		credential.SetDefaultSourceAddress([]byte(*config.DefaultSourceAddress))
+	}
+	return credential
+}
+
+// ResolveCredential implements the front door's credential lookup.
+func (directory *runtimeDirectory) ResolveCredential(username string) (*mtcredential.Credential, bool) {
+	directory.mu.RLock()
+	defer directory.mu.RUnlock()
+	credential, ok := directory.credentials[username]
+	return credential, ok
 }
 
 // removeUser deletes a provisioned user and its password hash.
@@ -326,6 +388,7 @@ func (directory *runtimeDirectory) removeUser(username string) error {
 	delete(directory.passwordHashes, username)
 	delete(directory.userDisabled, username)
 	delete(directory.userGroup, username)
+	delete(directory.credentials, username)
 	return nil
 }
 

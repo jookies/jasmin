@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && vite build && npm run stamp",
+    "preview": "vite preview",
+    "stamp": "../scripts/adminweb-source-hash.sh > ../internal/app/adminweb/bundle.sourcehash"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.2",

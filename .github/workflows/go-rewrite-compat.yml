@@ -61,26 +61,35 @@ jobs:
   # The admin UI bundle is committed (internal/app/adminweb/dist) so `go build`
   # needs no Node toolchain — but that means a web/src change without a rebuild
   # silently ships an older UI than the source describes. It has happened once.
-  # This job rebuilds and fails on any diff.
+  #
+  # This job used to rebuild the bundle and byte-compare it against the
+  # committed dist/. That check is unsound: the minifier renames identifiers
+  # between environments (cW -> pW, nje -> eje), so an untouched bundle can
+  # produce different bytes and fail, while a genuinely stale bundle passes
+  # whenever the two environments happen to agree. It has been passing on luck.
+  #
+  # The bundle now carries a hash of the sources it was built from, stamped by
+  # `npm run build`. Comparing that is deterministic, and it answers the real
+  # question: was dist/ built from the source committed next to it? It also
+  # needs no Node at all, so the job is seconds instead of minutes.
   adminweb-bundle-freshness:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Install UI dependencies
-        working-directory: web
-        run: npm ci
-      - name: Rebuild the embedded bundle
-        working-directory: web
-        run: npm run build
       - name: Fail if the committed bundle is stale
         run: |
-          if ! git diff --exit-code -- internal/app/adminweb/dist; then
-            echo "::error::internal/app/adminweb/dist is stale. Run 'cd web && npm run build' and commit the result."
+          marker=internal/app/adminweb/bundle.sourcehash
+          if [ ! -f "$marker" ]; then
+            echo "::error::$marker is missing. Run 'cd web && npm run build' and commit the result."
+            exit 1
+          fi
+          expected=$(./scripts/adminweb-source-hash.sh)
+          committed=$(cat "$marker")
+          if [ "$expected" != "$committed" ]; then
+            echo "::error::internal/app/adminweb/dist was not built from the committed web/ sources."
+            echo "  committed marker: $committed"
+            echo "  current sources:  $expected"
+            echo "  Run 'cd web && npm run build' and commit dist/ together with the marker."
             exit 1
           fi
 
