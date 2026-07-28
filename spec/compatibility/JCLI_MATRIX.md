@@ -12,8 +12,8 @@ the question the second one answers.
 
 | ID | Manager/command | Required transcript coverage | Admin-plane equivalent | Status |
 |---|---|---|---|---|
-| J-001 | connection/auth | banner, prompt, username/password success/failure, timeout, quit | session cookie + CSRF (`/api/login`) | INVENTORIED |
-| J-002 | help/completion | help text, unknown command, tab completion | n/a (UI navigation) | INVENTORIED |
+| J-001 | connection/auth | banner, prompt, username/password success/failure, timeout, quit | session cookie + CSRF (`/api/login`); **Go console implemented** (`internal/app/jcli`) | INVENTORIED (impl, fixtures pending) |
+| J-002 | help/completion | help text, unknown command, tab completion | n/a (UI navigation); **Go console: help + unknown-command done, tab completion not implemented** | INVENTORIED (impl, fixtures pending) |
 | J-003 | `group` | list/add/remove/enable/disable and validation/errors | **MISSING** — plan 012 Step 6 | INVENTORIED |
 | J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | INVENTORIED |
 | J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | **PARTIAL** — balance/quota/early-decrement only; per-authorization fields not exposed | INVENTORIED |
@@ -30,6 +30,16 @@ the question the second one answers.
 | J-016 | `load` | default/profile/scope, missing/corrupt/versioned files | obsolete by design — deviation **D-002** | INVENTORIED |
 | J-017 | autoload | `jcli-prod` startup behavior | `LoadAndApply` at boot | INVENTORIED |
 | J-018 | interactive sessions | start/save/abort, prompt ordering, invalid key/value | n/a (forms) | INVENTORIED |
+
+**Go console status (2026-07-28).** `internal/app/jcli` implements the session,
+auth, `help`/`quit` and read-only `list`/`show` for `smppccm`, `mtrouter`,
+`morouter` and `user`. No row has moved off `INVENTORIED`, deliberately: the
+literals were transcribed from the frozen source rather than captured from a
+running oracle, so byte-parity is asserted, not proven. Rows move to `MATCH`
+only once plan 013 Step 1 (the transcript-capture harness) can run, which needs
+the frozen Python stack. Mutating verbs and interactive sessions are not
+implemented — they report an explicit "not implemented" rather than appearing to
+succeed.
 
 Admin-plane gaps as of 2026-07-27: **J-003** (groups), **J-005** (per-authorization
 user fields), **J-006** (SMPP session control). Everything else is reachable

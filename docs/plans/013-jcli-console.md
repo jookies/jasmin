@@ -1,7 +1,7 @@
 # jCli console in Go — telnet management over the shared admin core
 
 - **Date:** 2026-07-27
-- **Status:** draft
+- **Status:** active — Steps 2–3 landed (`internal/app/jcli`, deployable read-only console); Step 1 blocked on the frozen Python stack; Steps 4–8 outstanding
 - **Summary:** Implement the jCli telnet management console in Go (`internal/app/jcli`) as a third face over the same `internal/app/admin` services the JSON API and web UI use, preserving the transcript contract in `spec/compatibility/JCLI_MATRIX.md`.
 - **Related:** [plans/012-admin-plane-full-coverage.md](012-admin-plane-full-coverage.md), [plans/011-admin-web-ui.md](011-admin-web-ui.md), `spec/compatibility/JCLI_MATRIX.md`
 
@@ -37,13 +37,19 @@ Line editing and history are explicitly out of scope for v1 (see Risks): scripte
 - **Changes:** Drive the frozen Python jCli over a socket with a scripted list of input lines, recording the exact byte stream returned. Emit one fixture file per scenario (`<id>.jsonl`: input lines + expected output bytes, base64-encoded to survive control characters). Deterministic ordering; no timestamps in fixtures.
 - **Verify:** Capture J-001 (connect, auth success, auth failure, quit) and confirm re-running produces byte-identical fixtures. Any nondeterminism (release string, timing) is normalised explicitly and documented in the README.
 
-### Step 2: Session, auth, banner, prompt, quit (J-001, J-002)
+### Step 2: Session, auth, banner, prompt, quit (J-001, J-002) — DONE
 
 - **Files:** new `internal/app/jcli/{server,session,dispatch,render}.go` + tests; `internal/app/gateway/config.go` (`jcli` config block: `listen_address`, `username`, `password` secret-ref, `idle_timeout`); `internal/app/gateway/runtime.go` (construct + expose); `cmd/jasmin-go-httpapi/main.go` (third listener, same shutdown context as the admin UI).
 - **Changes:** Accept a connection, write the banner, run the auth exchange, then loop on lines dispatching to commands. Implement `quit`, `help`, `?`, and the unknown-command message. Idle timeout closes the session. Credentials compare constant-time; the password is a secret-ref like every other credential.
 - **Verify:** `go test ./internal/app/jcli/ -run Session` against the Step 1 fixtures — byte-exact banner, prompts, auth-failure text, and `quit`. Manual: `telnet 127.0.0.1 8990`.
 
-### Step 3: Read-only managers first — `list` / `show` (J-004, J-008, J-009, J-012, J-013)
+### Step 3: Read-only managers first — `list` / `show` (J-004, J-008, J-009, J-012, J-013) — DONE for smppccm / mtrouter / morouter / user
+
+> Landed without oracle-captured fixtures (Step 1 is blocked), so the literals
+> come from reading the frozen source rather than from a captured transcript.
+> Byte-parity is *asserted*, not yet *proven* — the matrix rows stay
+> `INVENTORIED` until Step 1 can run. `httpccm` has no standalone entity in the
+> Go model (deviation D-001 territory) and is not implemented.
 
 - **Files:** `internal/app/jcli/manager.go`, `managers_user.go`, `managers_smppccm.go`, `managers_mtrouter.go`, `managers_morouter.go`, `managers_httpccm.go` + transcript tests.
 - **Changes:** Implement the shared verb dispatch and the table renderer, then wire `list` and `show` for each entity by reading through the admin services. Read-only first because it exercises the renderer (the fiddliest contract: column widths, separators, ordering) with zero mutation risk.
