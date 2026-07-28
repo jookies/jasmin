@@ -44,7 +44,19 @@ type Deps struct {
 	// IdleTimeout closes a session that has sent nothing for this long. Zero
 	// disables it.
 	IdleTimeout time.Duration
+
+	// AuthenticationDisabled mirrors the legacy `[jcli] authentication = False`
+	// knob, which serves the console with no login at all. It exists for
+	// transcript parity (the frozen fixtures are captured both ways) and is
+	// never the default: this console can mint credentials and start
+	// connectors, so disabling auth hands the gateway to anyone who can reach
+	// the port. The gateway logs a warning when it is on.
+	AuthenticationDisabled bool
 }
+
+// AuthenticationRequired reports whether a session must log in before it can
+// run commands.
+func (d Deps) AuthenticationRequired() bool { return !d.AuthenticationDisabled }
 
 // Server accepts console connections.
 type Server struct {

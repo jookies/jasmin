@@ -1,0 +1,5 @@
+{"authentication": true, "fixture": "J-001-auth-success", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "connect, authenticate, quit"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoQXV0aGVudGljYXRpb24gcmVxdWlyZWQuDQ0NCg0NDQo=", "step": 0}
+{"input": "jcliadmin", "output_b64": "amNsaWFkbWluDQ0NClBhc3N3b3JkOiA=", "step": 1}
+{"input": "jclipwd", "output_b64": "DQ0NCldlbGNvbWUgdG8gSmFzbWluIDAuMTEuMSBjb25zb2xlDQ0NClR5cGUgaGVscCBvciA/IHRvIGxpc3QgY29tbWFuZHMuDQ0NCg0NDQpTZXNzaW9uIHJlZjogMQ0NDQpqY2xpIDog", "step": 2}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 3}

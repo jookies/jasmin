@@ -1,0 +1,29 @@
+{"authentication": false, "fixture": "J-008-morouter", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "morouter add/list/show/remove/flush"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "httpccm -a", "output_b64": "aHR0cGNjbSAtYQ0NDQpBZGRpbmcgYSBuZXcgSHR0cGNjOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 1}
+{"input": "cid http1", "output_b64": "Y2lkIGh0dHAxDQ0NCj4g", "step": 2}
+{"input": "url http://127.0.0.1/mo", "output_b64": "dXJsIGh0dHA6Ly8xMjcuMC4wLjEvbW8NDQ0KPiA=", "step": 3}
+{"input": "method GET", "output_b64": "bWV0aG9kIEdFVA0NDQo+IA==", "step": 4}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEh0dHBjYyBbSHR0cENvbm5lY3Rvcl0gd2l0aCBjaWQ6aHR0cDENDQ0KamNsaSA6IA==", "step": 5}
+{"input": "filter -a", "output_b64": "ZmlsdGVyIC1hDQ0NCkFkZGluZyBhIG5ldyBGaWx0ZXI6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 6}
+{"input": "fid f1", "output_b64": "ZmlkIGYxDQ0NCj4g", "step": 7}
+{"input": "type TransparentFilter", "output_b64": "dHlwZSBUcmFuc3BhcmVudEZpbHRlcg0NDQo+IA==", "step": 8}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEZpbHRlciBbVHJhbnNwYXJlbnRGaWx0ZXJdIHdpdGggZmlkOmYxDQ0NCmpjbGkgOiA=", "step": 9}
+{"input": "morouter -l", "output_b64": "bW9yb3V0ZXIgLWwNDQ0KVG90YWwgTU8gUm91dGVzOiAwDQ0NCmpjbGkgOiA=", "step": 10}
+{"input": "morouter -a", "output_b64": "bW9yb3V0ZXIgLWENDQ0KQWRkaW5nIGEgbmV3IE1PIFJvdXRlOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 11}
+{"input": "type DefaultRoute", "output_b64": "dHlwZSBEZWZhdWx0Um91dGUNDQ0KPGNsYXNzICdqYXNtaW4ucm91dGluZy5Sb3V0ZXMuRGVmYXVsdFJvdXRlJz4gYXJndW1lbnRzOg0NDQpjb25uZWN0b3INDQ0KPiA=", "step": 12}
+{"input": "connector http(http1)", "output_b64": "Y29ubmVjdG9yIGh0dHAoaHR0cDEpDQ0NCj4g", "step": 13}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIE1PUm91dGUgW0RlZmF1bHRSb3V0ZV0gd2l0aCBvcmRlcjowDQ0NCmpjbGkgOiA=", "step": 14}
+{"input": "morouter -a", "output_b64": "bW9yb3V0ZXIgLWENDQ0KQWRkaW5nIGEgbmV3IE1PIFJvdXRlOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 15}
+{"input": "type StaticMORoute", "output_b64": "dHlwZSBTdGF0aWNNT1JvdXRlDQ0NCjxjbGFzcyAnamFzbWluLnJvdXRpbmcuUm91dGVzLlN0YXRpY01PUm91dGUnPiBhcmd1bWVudHM6DQ0NCmZpbHRlcnMsIGNvbm5lY3Rvcg0NDQo+IA==", "step": 16}
+{"input": "order 10", "output_b64": "b3JkZXIgMTANDQ0KPiA=", "step": 17}
+{"input": "filters f1", "output_b64": "ZmlsdGVycyBmMQ0NDQo+IA==", "step": 18}
+{"input": "connector http(http1)", "output_b64": "Y29ubmVjdG9yIGh0dHAoaHR0cDEpDQ0NCj4g", "step": 19}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIE1PUm91dGUgW1N0YXRpY01PUm91dGVdIHdpdGggb3JkZXI6MTANDQ0KamNsaSA6IA==", "step": 20}
+{"input": "morouter -l", "output_b64": "bW9yb3V0ZXIgLWwNDQ0KI09yZGVyIFR5cGUgICAgICAgICAgICAgICAgICAgIENvbm5lY3RvciBJRChzKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBGaWx0ZXIocykgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgDQ0NCiMxMCAgICBTdGF0aWNNT1JvdXRlICAgICAgICAgICBodHRwKGh0dHAxKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPFQ+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA0NDQojMCAgICAgRGVmYXVsdFJvdXRlICAgICAgICAgICAgaHR0cChodHRwMSkgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KVG90YWwgTU8gUm91dGVzOiAyDQ0NCmpjbGkgOiA=", "step": 21}
+{"input": "morouter -s 10", "output_b64": "bW9yb3V0ZXIgLXMgMTANDQ0KU3RhdGljTU9Sb3V0ZSB0byBodHRwKGh0dHAxKSBOT1QgUkFURUQNDQ0KamNsaSA6IA==", "step": 22}
+{"input": "morouter -r 10", "output_b64": "bW9yb3V0ZXIgLXIgMTANDQ0KU3VjY2Vzc2Z1bGx5IHJlbW92ZWQgTU8gUm91dGUgd2l0aCBvcmRlcjoxMA0NDQpqY2xpIDog", "step": 23}
+{"input": "morouter -l", "output_b64": "bW9yb3V0ZXIgLWwNDQ0KI09yZGVyIFR5cGUgICAgICAgICAgICAgICAgICAgIENvbm5lY3RvciBJRChzKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBGaWx0ZXIocykgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgDQ0NCiMwICAgICBEZWZhdWx0Um91dGUgICAgICAgICAgICBodHRwKGh0dHAxKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA0NDQpUb3RhbCBNTyBSb3V0ZXM6IDENDQ0KamNsaSA6IA==", "step": 24}
+{"input": "morouter -f", "output_b64": "bW9yb3V0ZXIgLWYNDQ0KU3VjY2Vzc2Z1bGx5IGZsdXNoZWQgTU8gUm91dGUgdGFibGUgKDEgZmx1c2hlZCBlbnRyaWVzKQ0NDQpqY2xpIDog", "step": 25}
+{"input": "morouter -l", "output_b64": "bW9yb3V0ZXIgLWwNDQ0KVG90YWwgTU8gUm91dGVzOiAwDQ0NCmpjbGkgOiA=", "step": 26}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 27}

@@ -1,0 +1,8 @@
+{"authentication": false, "fixture": "J-005-user-invalid", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "invalid key and invalid value inside an interactive session"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "user -a", "output_b64": "dXNlciAtYQ0NDQpBZGRpbmcgYSBuZXcgVXNlcjogKG9rOiBzYXZlLCBrbzogZXhpdCkNDQ0KPiA=", "step": 1}
+{"input": "nosuchkey value", "output_b64": "bm9zdWNoa2V5IHZhbHVlDQ0NClVua25vd24gVXNlciBrZXk6IG5vc3VjaGtleQ0NDQo+IA==", "step": 2}
+{"input": "mt_messaging_cred quota balance not-a-number", "output_b64": "bXRfbWVzc2FnaW5nX2NyZWQgcXVvdGEgYmFsYW5jZSBub3QtYS1udW1iZXINDQ0KRXJyb3I6IGNvdWxkIG5vdCBjb252ZXJ0IHN0cmluZyB0byBmbG9hdDogJ25vdC1hLW51bWJlcicNDQ0KPiA=", "step": 3}
+{"input": "ko", "output_b64": "a28NDQ0KamNsaSA6IA==", "step": 4}
+{"input": "user -l", "output_b64": "dXNlciAtbA0NDQpUb3RhbCBVc2VyczogMA0NDQpqY2xpIDog", "step": 5}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 6}

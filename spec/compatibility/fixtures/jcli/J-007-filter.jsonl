@@ -1,0 +1,22 @@
+{"authentication": false, "fixture": "J-007-filter", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "filter add/list/show/remove across filter types"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "filter -l", "output_b64": "ZmlsdGVyIC1sDQ0NClRvdGFsIEZpbHRlcnM6IDANDQ0KamNsaSA6IA==", "step": 1}
+{"input": "filter -a", "output_b64": "ZmlsdGVyIC1hDQ0NCkFkZGluZyBhIG5ldyBGaWx0ZXI6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 2}
+{"input": "fid f1", "output_b64": "ZmlkIGYxDQ0NCj4g", "step": 3}
+{"input": "type TransparentFilter", "output_b64": "dHlwZSBUcmFuc3BhcmVudEZpbHRlcg0NDQo+IA==", "step": 4}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEZpbHRlciBbVHJhbnNwYXJlbnRGaWx0ZXJdIHdpdGggZmlkOmYxDQ0NCmpjbGkgOiA=", "step": 5}
+{"input": "filter -a", "output_b64": "ZmlsdGVyIC1hDQ0NCkFkZGluZyBhIG5ldyBGaWx0ZXI6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 6}
+{"input": "fid f2", "output_b64": "ZmlkIGYyDQ0NCj4g", "step": 7}
+{"input": "type DestinationAddrFilter", "output_b64": "dHlwZSBEZXN0aW5hdGlvbkFkZHJGaWx0ZXINDQ0KPGNsYXNzICdqYXNtaW4ucm91dGluZy5GaWx0ZXJzLkRlc3RpbmF0aW9uQWRkckZpbHRlcic+IGFyZ3VtZW50czoNDQ0KZGVzdGluYXRpb25fYWRkcg0NDQo+IA==", "step": 8}
+{"input": "destination_addr ^32.*", "output_b64": "ZGVzdGluYXRpb25fYWRkciBeMzIuKg0NDQo+IA==", "step": 9}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEZpbHRlciBbRGVzdGluYXRpb25BZGRyRmlsdGVyXSB3aXRoIGZpZDpmMg0NDQpqY2xpIDog", "step": 10}
+{"input": "filter -a", "output_b64": "ZmlsdGVyIC1hDQ0NCkFkZGluZyBhIG5ldyBGaWx0ZXI6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 11}
+{"input": "fid f3", "output_b64": "ZmlkIGYzDQ0NCj4g", "step": 12}
+{"input": "type ShortMessageFilter", "output_b64": "dHlwZSBTaG9ydE1lc3NhZ2VGaWx0ZXINDQ0KPGNsYXNzICdqYXNtaW4ucm91dGluZy5GaWx0ZXJzLlNob3J0TWVzc2FnZUZpbHRlcic+IGFyZ3VtZW50czoNDQ0Kc2hvcnRfbWVzc2FnZQ0NDQo+IA==", "step": 13}
+{"input": "short_message .*hello.*", "output_b64": "c2hvcnRfbWVzc2FnZSAuKmhlbGxvLioNDQ0KPiA=", "step": 14}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEZpbHRlciBbU2hvcnRNZXNzYWdlRmlsdGVyXSB3aXRoIGZpZDpmMw0NDQpqY2xpIDog", "step": 15}
+{"input": "filter -l", "output_b64": "ZmlsdGVyIC1sDQ0NCiNGaWx0ZXIgaWQgICAgICAgIFR5cGUgICAgICAgICAgICAgICAgICAgUm91dGVzIERlc2NyaXB0aW9uICAgICAgICAgICAgICAgICAgICAgDQ0NCiNmMSAgICAgICAgICAgICAgIFRyYW5zcGFyZW50RmlsdGVyICAgICAgTU8gTVQgIDxUPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgDQ0NCiNmMiAgICAgICAgICAgICAgIERlc3RpbmF0aW9uQWRkckZpbHRlciAgTU8gTVQgIDxEQSAoZHN0X2FkZHI9XjMyLiopPiAgICAgICAgICAgDQ0NCiNmMyAgICAgICAgICAgICAgIFNob3J0TWVzc2FnZUZpbHRlciAgICAgTU8gTVQgIDxTTSAobXNnPS4qaGVsbG8uKik+ICAgICAgICAgICAgDQ0NClRvdGFsIEZpbHRlcnM6IDMNDQ0KamNsaSA6IA==", "step": 16}
+{"input": "filter -s f2", "output_b64": "ZmlsdGVyIC1zIGYyDQ0NCkRlc3RpbmF0aW9uQWRkckZpbHRlcjoNDQ0KZGVzdGluYXRpb25fYWRkciA9IF4zMi4qDQ0NCmpjbGkgOiA=", "step": 17}
+{"input": "filter -r f2", "output_b64": "ZmlsdGVyIC1yIGYyDQ0NClN1Y2Nlc3NmdWxseSByZW1vdmVkIEZpbHRlciBpZDpmMg0NDQpqY2xpIDog", "step": 18}
+{"input": "filter -l", "output_b64": "ZmlsdGVyIC1sDQ0NCiNGaWx0ZXIgaWQgICAgICAgIFR5cGUgICAgICAgICAgICAgICAgICAgUm91dGVzIERlc2NyaXB0aW9uICAgICAgICAgICAgICAgICAgICAgDQ0NCiNmMSAgICAgICAgICAgICAgIFRyYW5zcGFyZW50RmlsdGVyICAgICAgTU8gTVQgIDxUPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgDQ0NCiNmMyAgICAgICAgICAgICAgIFNob3J0TWVzc2FnZUZpbHRlciAgICAgTU8gTVQgIDxTTSAobXNnPS4qaGVsbG8uKik+ICAgICAgICAgICAgDQ0NClRvdGFsIEZpbHRlcnM6IDINDQ0KamNsaSA6IA==", "step": 19}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 20}

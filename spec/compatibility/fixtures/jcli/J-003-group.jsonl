@@ -1,0 +1,14 @@
+{"authentication": false, "fixture": "J-003-group", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "group add/list/enable/disable/remove"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "group -l", "output_b64": "Z3JvdXAgLWwNDQ0KVG90YWwgR3JvdXBzOiAwDQ0NCmpjbGkgOiA=", "step": 1}
+{"input": "group -a", "output_b64": "Z3JvdXAgLWENDQ0KQWRkaW5nIGEgbmV3IEdyb3VwOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 2}
+{"input": "gid gid1", "output_b64": "Z2lkIGdpZDENDQ0KPiA=", "step": 3}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEdyb3VwIFtnaWQxXQ0NDQpqY2xpIDog", "step": 4}
+{"input": "group -l", "output_b64": "Z3JvdXAgLWwNDQ0KI0dyb3VwIGlkICAgICAgICANDQ0KI2dpZDEgICAgICAgICAgICANDQ0KVG90YWwgR3JvdXBzOiAxDQ0NCmpjbGkgOiA=", "step": 5}
+{"input": "group -d gid1", "output_b64": "Z3JvdXAgLWQgZ2lkMQ0NDQpTdWNjZXNzZnVsbHkgZGlzYWJsZWQgR3JvdXAgaWQ6Z2lkMQ0NDQpqY2xpIDog", "step": 6}
+{"input": "group -l", "output_b64": "Z3JvdXAgLWwNDQ0KI0dyb3VwIGlkICAgICAgICANDQ0KIyFnaWQxICAgICAgICAgICANDQ0KVG90YWwgR3JvdXBzOiAxDQ0NCmpjbGkgOiA=", "step": 7}
+{"input": "group -e gid1", "output_b64": "Z3JvdXAgLWUgZ2lkMQ0NDQpTdWNjZXNzZnVsbHkgZW5hYmxlZCBHcm91cCBpZDpnaWQxDQ0NCmpjbGkgOiA=", "step": 8}
+{"input": "group -l", "output_b64": "Z3JvdXAgLWwNDQ0KI0dyb3VwIGlkICAgICAgICANDQ0KI2dpZDEgICAgICAgICAgICANDQ0KVG90YWwgR3JvdXBzOiAxDQ0NCmpjbGkgOiA=", "step": 9}
+{"input": "group -r gid1", "output_b64": "Z3JvdXAgLXIgZ2lkMQ0NDQpTdWNjZXNzZnVsbHkgcmVtb3ZlZCBHcm91cCBpZDpnaWQxDQ0NCmpjbGkgOiA=", "step": 10}
+{"input": "group -l", "output_b64": "Z3JvdXAgLWwNDQ0KVG90YWwgR3JvdXBzOiAwDQ0NCmpjbGkgOiA=", "step": 11}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 12}

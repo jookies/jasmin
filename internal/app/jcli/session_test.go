@@ -21,6 +21,14 @@ type consoleFixture struct {
 
 func newConsoleFixture(t *testing.T) *consoleFixture {
 	t.Helper()
+	return newConsoleFixtureAuth(t, true)
+}
+
+// newConsoleFixtureAuth builds a console with or without the login exchange.
+// The captured oracle fixtures come in both shapes: authentication is a frozen
+// [jcli] config knob, and most manager transcripts were recorded without it.
+func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
+	t.Helper()
 	ctx := context.Background()
 	store, err := admin.OpenStore(ctx, ":memory:")
 	if err != nil {
@@ -47,12 +55,13 @@ func newConsoleFixture(t *testing.T) *consoleFixture {
 	}
 
 	server, err := NewServer("127.0.0.1:0", Deps{
-		Connectors: connectors,
-		Routes:     routes,
-		MORoutes:   moRoutes,
-		Users:      users,
-		Username:   "jcliadmin",
-		Password:   "jclipwd",
+		Connectors:             connectors,
+		Routes:                 routes,
+		MORoutes:               moRoutes,
+		Users:                  users,
+		Username:               "jcliadmin",
+		Password:               "jclipwd",
+		AuthenticationDisabled: !authentication,
 	}, nil)
 	if err != nil {
 		t.Fatalf("new server: %v", err)

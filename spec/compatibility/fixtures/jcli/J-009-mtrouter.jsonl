@@ -1,0 +1,30 @@
+{"authentication": false, "fixture": "J-009-mtrouter", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "mtrouter add/list/show/remove/flush with rates"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "smppccm -a", "output_b64": "c21wcGNjbSAtYQ0NDQpBZGRpbmcgYSBuZXcgY29ubmVjdG9yOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 1}
+{"input": "cid smpp1", "output_b64": "Y2lkIHNtcHAxDQ0NCj4g", "step": 2}
+{"input": "logfile /tmp/jasmin-oracle-smpp1.log", "output_b64": "bG9nZmlsZSAvdG1wL2phc21pbi1vcmFjbGUtc21wcDEubG9nDQ0NCj4g", "step": 3}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIGNvbm5lY3RvciBbc21wcDFdDQ0NCmpjbGkgOiA=", "step": 4}
+{"input": "filter -a", "output_b64": "ZmlsdGVyIC1hDQ0NCkFkZGluZyBhIG5ldyBGaWx0ZXI6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 5}
+{"input": "fid f1", "output_b64": "ZmlkIGYxDQ0NCj4g", "step": 6}
+{"input": "type TransparentFilter", "output_b64": "dHlwZSBUcmFuc3BhcmVudEZpbHRlcg0NDQo+IA==", "step": 7}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEZpbHRlciBbVHJhbnNwYXJlbnRGaWx0ZXJdIHdpdGggZmlkOmYxDQ0NCmpjbGkgOiA=", "step": 8}
+{"input": "mtrouter -l", "output_b64": "bXRyb3V0ZXIgLWwNDQ0KVG90YWwgTVQgUm91dGVzOiAwDQ0NCmpjbGkgOiA=", "step": 9}
+{"input": "mtrouter -a", "output_b64": "bXRyb3V0ZXIgLWENDQ0KQWRkaW5nIGEgbmV3IE1UIFJvdXRlOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 10}
+{"input": "type DefaultRoute", "output_b64": "dHlwZSBEZWZhdWx0Um91dGUNDQ0KPGNsYXNzICdqYXNtaW4ucm91dGluZy5Sb3V0ZXMuRGVmYXVsdFJvdXRlJz4gYXJndW1lbnRzOg0NDQpjb25uZWN0b3IsIHJhdGUNDQ0KPiA=", "step": 11}
+{"input": "connector smppc(smpp1)", "output_b64": "Y29ubmVjdG9yIHNtcHBjKHNtcHAxKQ0NDQo+IA==", "step": 12}
+{"input": "rate 0.0", "output_b64": "cmF0ZSAwLjANDQ0KPiA=", "step": 13}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIE1UUm91dGUgW0RlZmF1bHRSb3V0ZV0gd2l0aCBvcmRlcjowDQ0NCmpjbGkgOiA=", "step": 14}
+{"input": "mtrouter -a", "output_b64": "bXRyb3V0ZXIgLWENDQ0KQWRkaW5nIGEgbmV3IE1UIFJvdXRlOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 15}
+{"input": "type StaticMTRoute", "output_b64": "dHlwZSBTdGF0aWNNVFJvdXRlDQ0NCjxjbGFzcyAnamFzbWluLnJvdXRpbmcuUm91dGVzLlN0YXRpY01UUm91dGUnPiBhcmd1bWVudHM6DQ0NCmZpbHRlcnMsIGNvbm5lY3RvciwgcmF0ZQ0NDQo+IA==", "step": 16}
+{"input": "order 10", "output_b64": "b3JkZXIgMTANDQ0KPiA=", "step": 17}
+{"input": "filters f1", "output_b64": "ZmlsdGVycyBmMQ0NDQo+IA==", "step": 18}
+{"input": "connector smppc(smpp1)", "output_b64": "Y29ubmVjdG9yIHNtcHBjKHNtcHAxKQ0NDQo+IA==", "step": 19}
+{"input": "rate 1.5", "output_b64": "cmF0ZSAxLjUNDQ0KPiA=", "step": 20}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIE1UUm91dGUgW1N0YXRpY01UUm91dGVdIHdpdGggb3JkZXI6MTANDQ0KamNsaSA6IA==", "step": 21}
+{"input": "mtrouter -l", "output_b64": "bXRyb3V0ZXIgLWwNDQ0KI09yZGVyIFR5cGUgICAgICAgICAgICAgICAgICAgIFJhdGUgICAgICAgQ29ubmVjdG9yIElEKHMpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEZpbHRlcihzKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KIzEwICAgIFN0YXRpY01UUm91dGUgICAgICAgICAgIDEuNTAwMDAgICAgc21wcGMoc21wcDEpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDxUPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KIzAgICAgIERlZmF1bHRSb3V0ZSAgICAgICAgICAgIDAgKCEpICAgICAgc21wcGMoc21wcDEpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KVG90YWwgTVQgUm91dGVzOiAyDQ0NCmpjbGkgOiA=", "step": 22}
+{"input": "mtrouter -s 10", "output_b64": "bXRyb3V0ZXIgLXMgMTANDQ0KU3RhdGljTVRSb3V0ZSB0byBzbXBwYyhzbXBwMSkgcmF0ZWQgMS41MA0NDQpqY2xpIDog", "step": 23}
+{"input": "mtrouter -r 10", "output_b64": "bXRyb3V0ZXIgLXIgMTANDQ0KU3VjY2Vzc2Z1bGx5IHJlbW92ZWQgTVQgUm91dGUgd2l0aCBvcmRlcjoxMA0NDQpqY2xpIDog", "step": 24}
+{"input": "mtrouter -l", "output_b64": "bXRyb3V0ZXIgLWwNDQ0KI09yZGVyIFR5cGUgICAgICAgICAgICAgICAgICAgIFJhdGUgICAgICAgQ29ubmVjdG9yIElEKHMpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEZpbHRlcihzKSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KIzAgICAgIERlZmF1bHRSb3V0ZSAgICAgICAgICAgIDAgKCEpICAgICAgc21wcGMoc21wcDEpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KVG90YWwgTVQgUm91dGVzOiAxDQ0NCmpjbGkgOiA=", "step": 25}
+{"input": "mtrouter -f", "output_b64": "bXRyb3V0ZXIgLWYNDQ0KU3VjY2Vzc2Z1bGx5IGZsdXNoZWQgTVQgUm91dGUgdGFibGUgKDEgZmx1c2hlZCBlbnRyaWVzKQ0NDQpqY2xpIDog", "step": 26}
+{"input": "mtrouter -l", "output_b64": "bXRyb3V0ZXIgLWwNDQ0KVG90YWwgTVQgUm91dGVzOiAwDQ0NCmpjbGkgOiA=", "step": 27}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 28}

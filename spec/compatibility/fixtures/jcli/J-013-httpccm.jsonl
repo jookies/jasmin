@@ -1,0 +1,13 @@
+{"authentication": false, "fixture": "J-013-httpccm", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "httpccm add/list/show/remove"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "httpccm -l", "output_b64": "aHR0cGNjbSAtbA0NDQpUb3RhbCBIdHRwY2NzOiAwDQ0NCmpjbGkgOiA=", "step": 1}
+{"input": "httpccm -a", "output_b64": "aHR0cGNjbSAtYQ0NDQpBZGRpbmcgYSBuZXcgSHR0cGNjOiAob2s6IHNhdmUsIGtvOiBleGl0KQ0NDQo+IA==", "step": 2}
+{"input": "cid http1", "output_b64": "Y2lkIGh0dHAxDQ0NCj4g", "step": 3}
+{"input": "url http://127.0.0.1/mo", "output_b64": "dXJsIGh0dHA6Ly8xMjcuMC4wLjEvbW8NDQ0KPiA=", "step": 4}
+{"input": "method GET", "output_b64": "bWV0aG9kIEdFVA0NDQo+IA==", "step": 5}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEh0dHBjYyBbSHR0cENvbm5lY3Rvcl0gd2l0aCBjaWQ6aHR0cDENDQ0KamNsaSA6IA==", "step": 6}
+{"input": "httpccm -l", "output_b64": "aHR0cGNjbSAtbA0NDQojSHR0cGNjIGlkICAgICAgICBUeXBlICAgICAgICAgICAgICAgICAgIE1ldGhvZCBVUkwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgDQ0NCiNodHRwMSAgICAgICAgICAgIEh0dHBDb25uZWN0b3IgICAgICAgICAgR0VUICAgIGh0dHA6Ly8xMjcuMC4wLjEvbW8gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICANDQ0KVG90YWwgSHR0cGNjczogMQ0NDQpqY2xpIDog", "step": 7}
+{"input": "httpccm -s http1", "output_b64": "aHR0cGNjbSAtcyBodHRwMQ0NDQpIdHRwQ29ubmVjdG9yOg0NDQpjaWQgPSBodHRwMQ0NDQpiYXNldXJsID0gaHR0cDovLzEyNy4wLjAuMS9tbw0NDQptZXRob2QgPSBHRVQNDQ0KamNsaSA6IA==", "step": 8}
+{"input": "httpccm -r http1", "output_b64": "aHR0cGNjbSAtciBodHRwMQ0NDQpTdWNjZXNzZnVsbHkgcmVtb3ZlZCBIdHRwY2MgaWQ6aHR0cDENDQ0KamNsaSA6IA==", "step": 9}
+{"input": "httpccm -l", "output_b64": "aHR0cGNjbSAtbA0NDQpUb3RhbCBIdHRwY2NzOiAwDQ0NCmpjbGkgOiA=", "step": 10}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 11}

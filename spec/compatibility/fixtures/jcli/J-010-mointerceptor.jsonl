@@ -1,0 +1,23 @@
+{"authentication": false, "fixture": "J-010-mointerceptor", "oracle": "jasmin.protocols.cli via StringTransport", "release": "0.11.1", "title": "mointerceptor add/list/show/remove/flush"}
+{"input": null, "output_b64": "//0i//0f//0D//sBG2MbWzRoV2VsY29tZSB0byBKYXNtaW4gMC4xMS4xIGNvbnNvbGUNDQ0KVHlwZSBoZWxwIG9yID8gdG8gbGlzdCBjb21tYW5kcy4NDQ0KDQ0NClNlc3Npb24gcmVmOiAxDQ0NCg==", "step": 0}
+{"input": "filter -a", "output_b64": "ZmlsdGVyIC1hDQ0NCkFkZGluZyBhIG5ldyBGaWx0ZXI6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 1}
+{"input": "fid f1", "output_b64": "ZmlkIGYxDQ0NCj4g", "step": 2}
+{"input": "type TransparentFilter", "output_b64": "dHlwZSBUcmFuc3BhcmVudEZpbHRlcg0NDQo+IA==", "step": 3}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIEZpbHRlciBbVHJhbnNwYXJlbnRGaWx0ZXJdIHdpdGggZmlkOmYxDQ0NCmpjbGkgOiA=", "step": 4}
+{"input": "mointerceptor -l", "output_b64": "bW9pbnRlcmNlcHRvciAtbA0NDQpUb3RhbCBNTyBJbnRlcmNlcHRvcnM6IDANDQ0KamNsaSA6IA==", "step": 5}
+{"input": "mointerceptor -a", "output_b64": "bW9pbnRlcmNlcHRvciAtYQ0NDQpBZGRpbmcgYSBuZXcgTU8gSW50ZXJjZXB0b3I6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 6}
+{"input": "type DefaultInterceptor", "output_b64": "dHlwZSBEZWZhdWx0SW50ZXJjZXB0b3INDQ0KPGNsYXNzICdqYXNtaW4ucm91dGluZy5JbnRlcmNlcHRvcnMuRGVmYXVsdEludGVyY2VwdG9yJz4gYXJndW1lbnRzOg0NDQpzY3JpcHQNDQ0KPiA=", "step": 7}
+{"input": "script python3(/tmp/jasmin-oracle-interceptor.py)", "output_b64": "c2NyaXB0IHB5dGhvbjMoL3RtcC9qYXNtaW4tb3JhY2xlLWludGVyY2VwdG9yLnB5KQ0NDQo+IA==", "step": 8}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIE1PSW50ZXJjZXB0b3IgW0RlZmF1bHRJbnRlcmNlcHRvcl0gd2l0aCBvcmRlcjowDQ0NCmpjbGkgOiA=", "step": 9}
+{"input": "mointerceptor -a", "output_b64": "bW9pbnRlcmNlcHRvciAtYQ0NDQpBZGRpbmcgYSBuZXcgTU8gSW50ZXJjZXB0b3I6IChvazogc2F2ZSwga286IGV4aXQpDQ0NCj4g", "step": 10}
+{"input": "type StaticMOInterceptor", "output_b64": "dHlwZSBTdGF0aWNNT0ludGVyY2VwdG9yDQ0NCjxjbGFzcyAnamFzbWluLnJvdXRpbmcuSW50ZXJjZXB0b3JzLlN0YXRpY01PSW50ZXJjZXB0b3InPiBhcmd1bWVudHM6DQ0NCmZpbHRlcnMsIHNjcmlwdA0NDQo+IA==", "step": 11}
+{"input": "order 10", "output_b64": "b3JkZXIgMTANDQ0KPiA=", "step": 12}
+{"input": "filters f1", "output_b64": "ZmlsdGVycyBmMQ0NDQo+IA==", "step": 13}
+{"input": "script python3(/tmp/jasmin-oracle-interceptor.py)", "output_b64": "c2NyaXB0IHB5dGhvbjMoL3RtcC9qYXNtaW4tb3JhY2xlLWludGVyY2VwdG9yLnB5KQ0NDQo+IA==", "step": 14}
+{"input": "ok", "output_b64": "b2sNDQ0KU3VjY2Vzc2Z1bGx5IGFkZGVkIE1PSW50ZXJjZXB0b3IgW1N0YXRpY01PSW50ZXJjZXB0b3JdIHdpdGggb3JkZXI6MTANDQ0KamNsaSA6IA==", "step": 15}
+{"input": "mointerceptor -l", "output_b64": "bW9pbnRlcmNlcHRvciAtbA0NDQojT3JkZXIgVHlwZSAgICAgICAgICAgICAgICAgU2NyaXB0ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgRmlsdGVyKHMpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA0NDQojMTAgICAgU3RhdGljTU9JbnRlcmNlcHRvciAgPE1PSVMgKHB5Q29kZT1yb3V0YWJsZSA9IHJvdXRhYmxlIC4uKT4gICAgICAgICAgPFQ+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA0NDQojMCAgICAgRGVmYXVsdEludGVyY2VwdG9yICAgPE1PSVMgKHB5Q29kZT1yb3V0YWJsZSA9IHJvdXRhYmxlIC4uKT4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIA0NDQpUb3RhbCBNTyBJbnRlcmNlcHRvcnM6IDINDQ0KamNsaSA6IA==", "step": 16}
+{"input": "mointerceptor -s 10", "output_b64": "bW9pbnRlcmNlcHRvciAtcyAxMA0NDQpTdGF0aWNNT0ludGVyY2VwdG9yLzxNT0lTIChweUNvZGU9cm91dGFibGUgPSByb3V0YWJsZSAuLik+DQ0NCmpjbGkgOiA=", "step": 17}
+{"input": "mointerceptor -r 10", "output_b64": "bW9pbnRlcmNlcHRvciAtciAxMA0NDQpTdWNjZXNzZnVsbHkgcmVtb3ZlZCBNTyBJbnRlcmNlcHRvciB3aXRoIG9yZGVyOjEwDQ0NCmpjbGkgOiA=", "step": 18}
+{"input": "mointerceptor -f", "output_b64": "bW9pbnRlcmNlcHRvciAtZg0NDQpTdWNjZXNzZnVsbHkgZmx1c2hlZCBNTyBJbnRlcmNlcHRvciB0YWJsZSAoMSBmbHVzaGVkIGVudHJpZXMpDQ0NCmpjbGkgOiA=", "step": 19}
+{"input": "mointerceptor -l", "output_b64": "bW9pbnRlcmNlcHRvciAtbA0NDQpUb3RhbCBNTyBJbnRlcmNlcHRvcnM6IDANDQ0KamNsaSA6IA==", "step": 20}
+{"input": "quit", "output_b64": "cXVpdA0NDQobYw==", "step": 21}

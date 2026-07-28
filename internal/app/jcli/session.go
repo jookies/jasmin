@@ -1,34 +1,33 @@
 package jcli
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 	"time"
 )
 
 // Transcript literals, taken verbatim from the frozen oracle
-// (jasmin/protocols/cli/protocol.py and jcli.py). Changing any of these breaks
-// scripted clients, so they are constants rather than formatting decisions.
+// (jasmin/protocols/cli/protocol.py and jcli.py) and proven against captured
+// fixtures. Changing any of these breaks scripted clients, so they are
+// constants rather than formatting decisions.
 const (
 	promptMain     = "jcli : "
 	promptUsername = "Username: "
 	promptPassword = "Password: "
+	// promptSession is what an interactive key/value session prompts with.
+	promptSession = "> "
 
 	authRequiredText = "Authentication required.\n\n"
-	authFailedText   = "Incorrect Username/Password."
+	authFailedText   = "Incorrect Username/Password.\n"
 	unknownCommand   = "Incorrect command: %s, type help for a list of commands"
-
-	// The terminal emits CRLF between lines.
-	newline = "\r\n"
 )
 
-// motd is the banner drawn after a successful login.
+// motd is the banner drawn after a successful login. The trailing newline is
+// part of the oracle's string and produces the blank line before "Session ref".
 func motd() string {
 	return fmt.Sprintf("Welcome to Jasmin %s console\nType help or ? to list commands.\n", LegacyRelease)
 }
@@ -37,59 +36,72 @@ func motd() string {
 type session struct {
 	server *Server
 	conn   net.Conn
-	reader *bufio.Reader
+	term   *terminal
 	ref    int64
+
+	// prompt is the string drawn by sendData; the oracle swaps it as the
+	// session changes state (Username → Password → jcli : → > ).
+	prompt string
 
 	authenticated bool
 	username      string
+
+	// interactive is non-nil while an add/update key/value session is open,
+	// mirroring the oracle's sessionLineCallback.
+	interactive *interactiveSession
 }
 
 func newSession(server *Server, conn net.Conn, ref int64) *session {
 	return &session{
 		server: server,
 		conn:   conn,
-		reader: bufio.NewReader(conn),
+		term:   newTerminal(conn),
 		ref:    ref,
+		prompt: promptUsername,
 	}
 }
 
-// write emits raw bytes, translating the oracle's "\n" line breaks into the
-// CRLF a terminal client expects.
-func (s *session) write(text string) {
-	if text == "" {
-		return
+// sendData mirrors the legacy sendData(): optionally write a body followed by
+// a line break, then optionally redraw the prompt.
+func (s *session) sendData(body string, writeBody, drawPrompt bool) {
+	if writeBody {
+		s.term.writeRaw(strings.ReplaceAll(body, "\n", lineBreak))
+		s.term.writeRaw(lineBreak)
 	}
-	_, _ = io.WriteString(s.conn, strings.ReplaceAll(text, "\n", newline))
+	if drawPrompt {
+		s.term.writeRaw(s.prompt)
+	}
 }
 
-// sendData mirrors the legacy sendData(): optionally write a line of output,
-// then write the current prompt. Passing an empty body just re-prompts.
-func (s *session) sendData(body string) {
-	if body != "" {
-		s.write(body + "\n")
-	}
-	s.write(s.prompt())
+// reply is the common case: a command's output, then the prompt.
+func (s *session) reply(body string) { s.sendData(body, true, true) }
+
+// promptOnly redraws the prompt with no output, like sendData() with no args.
+func (s *session) promptOnly() { s.sendData("", false, true) }
+
+// drawMotd mirrors CmdProtocol.drawMotd(): banner and session ref, each written
+// without a prompt (the caller draws it).
+func (s *session) drawMotd() {
+	s.sendData(motd(), true, false)
+	s.sendData(fmt.Sprintf("Session ref: %d", s.ref), true, false)
 }
 
-func (s *session) prompt() string {
-	if s.authenticated {
-		return promptMain
-	}
-	if s.username == "" {
-		return promptUsername
-	}
-	return promptPassword
-}
-
-// run drives the connection: the auth exchange, then the command loop.
+// run drives the connection: the screen setup, the auth exchange, then the
+// command loop.
 func (s *session) run(ctx context.Context) {
 	s.server.logger.Info("jcli: session opened", "session", s.ref, "peer", s.conn.RemoteAddr().String())
 	defer s.server.logger.Info("jcli: session closed", "session", s.ref)
 
-	// Authentication is always required: unlike the legacy console this has no
-	// "anonymous" mode, because the console can mint credentials.
-	s.write(authRequiredText)
-	s.write(s.prompt())
+	s.term.initializeScreen()
+	if s.server.deps.AuthenticationRequired() {
+		// initializeScreen() deliberately draws no prompt, so the operator sees
+		// "Authentication required." and types blind until the Password prompt.
+		s.term.writeRaw(strings.ReplaceAll(authRequiredText, "\n", lineBreak))
+	} else {
+		s.authenticated = true
+		s.prompt = promptMain
+		s.drawMotd()
+	}
 
 	for {
 		if ctx.Err() != nil {
@@ -98,37 +110,40 @@ func (s *session) run(ctx context.Context) {
 		if s.server.deps.IdleTimeout > 0 {
 			_ = s.conn.SetReadDeadline(time.Now().Add(s.server.deps.IdleTimeout))
 		}
-		line, err := s.reader.ReadString('\n')
+		line, err := s.term.readLine()
 		if err != nil {
 			return
 		}
-		line = strings.TrimRight(line, "\r\n")
 
 		if !s.authenticated {
-			if s.handleAuthLine(line) {
-				continue
-			}
-			return
+			s.handleAuthLine(line)
+			continue
 		}
 		if quit := s.handleCommandLine(line); quit {
+			// The oracle resets the terminal and drops the connection; it emits
+			// no goodbye text.
+			s.term.writeRaw(terminalReset)
 			return
 		}
 	}
 }
 
-// handleAuthLine advances the username → password exchange. It reports whether
-// the session should continue.
-func (s *session) handleAuthLine(line string) bool {
+// handleAuthLine advances the username → password exchange, mirroring
+// auth_username()/auth_password().
+func (s *session) handleAuthLine(line string) {
 	if s.username == "" {
 		// A blank username just re-prompts, matching auth_username().
 		if trimmed := strings.TrimSpace(line); trimmed != "" {
 			s.username = trimmed
+			s.prompt = promptPassword
+			s.term.echo = false // the oracle stops echoing while a password is typed
 		}
-		s.write(s.prompt())
-		return true
+		s.promptOnly()
+		return
 	}
 
 	candidate := strings.TrimSpace(line)
+	s.term.echo = true
 	userDigest := sha256.Sum256([]byte(s.username))
 	passDigest := sha256.Sum256([]byte(candidate))
 	wantUser := sha256.Sum256([]byte(s.server.deps.Username))
@@ -139,26 +154,31 @@ func (s *session) handleAuthLine(line string) bool {
 	if userOK&passOK != 1 {
 		s.server.logger.Warn("jcli: authentication failed",
 			"session", s.ref, "peer", s.conn.RemoteAddr().String(), "username", s.username)
-		// The legacy resets to the username prompt and reports the failure.
 		s.username = ""
-		s.sendData(authFailedText)
-		return true
+		s.prompt = promptUsername
+		s.reply(authFailedText)
+		return
 	}
 
 	s.authenticated = true
+	s.prompt = promptMain
 	s.server.logger.Info("jcli: authenticated", "session", s.ref, "username", s.username)
-	// drawMotd(): banner, then the session ref, then the prompt.
-	s.write(motd() + "\n")
-	s.write(fmt.Sprintf("Session ref: %d\n", s.ref))
-	s.write(s.prompt())
-	return true
+	s.drawMotd()
+	s.promptOnly()
 }
 
 // handleCommandLine dispatches one command. It reports whether to close.
 func (s *session) handleCommandLine(line string) bool {
+	// Inside an interactive session every line is key/value input, including
+	// what would otherwise be a command.
+	if s.interactive != nil {
+		s.interactive.line(s, line)
+		return false
+	}
+
 	command, argument := parseLine(line)
 	if command == "" {
-		s.sendData("")
+		s.promptOnly()
 		return false
 	}
 	if command == "quit" {
@@ -166,10 +186,10 @@ func (s *session) handleCommandLine(line string) bool {
 	}
 	handler, known := commandTable[command]
 	if !known {
-		s.sendData(fmt.Sprintf(unknownCommand, line))
+		s.reply(fmt.Sprintf(unknownCommand, strings.TrimSpace(line)))
 		return false
 	}
-	s.sendData(handler(s, argument))
+	s.reply(handler(s, argument))
 	return false
 }
 
