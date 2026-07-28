@@ -2,6 +2,67 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-27 — Admin plane coverage: MO routes + interceptors go live-mutable (plan 012 Steps 1–4)
+
+Goal (user): "implement both" — a full jCli alternative **and** the same functionality on the web side. Architecture decision recorded in [plan 012](plans/012-admin-plane-full-coverage.md) + [plan 013](plans/013-jcli-console.md): `internal/app/admin` is the single management core; jCli, the `/admin` JSON API and the web UI are three faces over it, so no business logic may live in a handler or a command.
+
+### Done — runtime first, because the UI was never the blocker
+
+- **MO dispatch is live-swappable** (`modispatch`): routes moved behind `atomic.Pointer[routeTable]`, `prepareTable` extracted, `ApplyRoutes(ctx, adminRoutes)` added with config orders reserved. Proven: swap while dispatching under `-race`, reserved-order rejection, and **no partial apply** (bad regex / bad connector / duplicate order / bridge failure all leave the previous table live).
+- **Interceptor tables are live-swappable** (`interceptor.AtomicTable`), both directions. `core.SubmitServiceDependencies.InterceptorTable` became the `InterceptionTable` interface so a fixed or atomic table both satisfy it.
+- **MO routes + interceptors are admin entities** end to end: SQLite tables, services, gateway provisioners, `/api/mo-routes` + `/api/interceptors`, and UI pages. The MT/MO/interceptor CRUD shape (order-keyed identity, opaque spec, apply-then-persist) was factored into `admin/ordered_specs.go` rather than written a third time.
+- **Verified live** on the compose stack: created an MO route through the API, injected an MO, watched it hit the new destination while unmatched traffic still fell to the config default; restarted and confirmed re-apply from SQLite. Added an MT interceptor at runtime — a matching send flipped from `Success` to `Error "request rejected by filters"` with no restart, survived a restart, and deleting it restored delivery.
+
+### Decisions
+
+- **MO dispatch now starts when the admin plane is enabled even with zero config MO routes**, so routes can be added at runtime. `NewService` accepts an empty set; `ValidateConfig` still requires one (the config-file contract is "if you declare mo_routes, declare at least one"). An MO with no matching route is unroutable — the same outcome as having no dispatcher.
+- **Interceptor editing is opt-in and off by default** (`admin.allow_interceptor_editing`). The scripts are arbitrary Python on the gateway host, so enabling it makes an admin session equivalent to shell access. When off, the endpoints 404 and the UI hides the section entirely (the capability is advertised on `/api/session`); when on, the script runner subprocess starts (a table swapped in later needs something to execute it) and every mutation logs at WARN with the username and remote address.
+- **Composite id for interceptors** (`mt:10` / `mo:10`): direction+order is the identity, and Refine needs one scalar.
+
+### Also this session — Steps 5, 7, 8 (same branch, PR #102)
+
+- **SMPPs bind users are admin-managed** (Step 5). `smppsserver.Directory` holds an immutable snapshot behind an atomic pointer, swapped by `ApplyUsers`; the server and submit handler keep the same `*Directory`, so nothing downstream changed. Proven against the live stack with a hand-rolled `bind_transceiver`: an account created through `/api/smpps-users` binds (`ESME_ROK`), wrong password and unknown system_id are refused (`ESME_RINVPASWD`), the config-owned account survives the swap, deleting refuses the next bind, and a recreated account still binds after a restart. The example config/compose had no SMPPs *server* block at all, so this was previously unexercisable locally — added one on host loopback.
+- **ADR-003 — filters stay inline** (Step 7), rather than porting jCli's named `filter` registry. Inline avoids a second identity space and dangling-reference handling, and nothing in the deployment reuses a filter. Recorded as deviation D-001 with a "revisit when" trigger.
+- **jCli matrix now maps to the admin plane** (Step 8). `JCLI_MATRIX.md` gains an "Admin-plane equivalent" column kept deliberately separate from `Status` — capability reachability is a different question from telnet transcript parity. `DEVIATIONS.md` went from "no deviations" to D-001 (inline filters) and D-002 (`persist`/`load` obsolete by design), both pending owner approval.
+
+### Next
+
+- **Plan 012 Step 6 (groups)** is the only open item in that plan, and the riskiest: it adds a new domain concept (config users have no group today, which is why the `group` filter is deferred at `filters.go:64`) and touches billing charge precedence. It must be differential-tested against the frozen oracle — and the local `python3` has no `smpp` module, so the oracle venv (`compat/requirements-pickle-bridge.txt`) has to be installed before that work can start.
+- **Plan 013: the jCli console** — transcript-capture harness first, then session/auth, read-only managers, then mutating verbs.
+- Remaining admin-plane gaps versus jCli, now explicit in the matrix: J-003 (groups), J-005 (per-authorization user credential fields), J-006 (SMPP session control).
+
+## 2026-07-27 — Admin web UI (#3.3): embedded React SPA over a Go BFF (plan 011)
+
+Goal (user): the next roadmap item after the native pickle codec — a browser UI to set up and manage the gateway. Continued from a half-finished session: config/runtime wiring existed, `internal/app/adminweb` held HTMX-era stubs that did not compile, and `web/` had a Refine SPA scaffold with only a connectors page.
+
+### Done
+
+- **Reversed the stack decision, and rewrote ADR-002 to match.** The draft ADR specified server-rendered `html/template` + vendored HTMX; the started implementation had already moved to a React SPA. Kept the SPA (Refine gives list/form/validation/auth scaffolding that four resources' worth of hand-rolled templates would have to reinvent) and rewrote the ADR to record the real decision, with HTMX as the alternative that lost and the accepted costs stated (Node at build time, a committed `dist/`, ~570 kB gzip).
+- **`internal/app/adminweb` is now a JSON BFF + SPA server.** `/api/login|logout|session|health` plus Refine simple-rest resources for connectors, routes and users; unmatched `/api/` paths are JSON 404s, every other GET serves the `go:embed`-ed bundle (index fallback for deep links, `immutable` caching for hashed assets, `no-store` for the shell).
+- **Auth reworked from redirects to JSON.** Signed session cookie (HMAC-SHA256, boot-ephemeral key, `HttpOnly`/`SameSite=Strict`/`Secure` under TLS); CSRF moved from a form field to the `X-CSRF-Token` header; `requireSession` answers 401/403 and never redirects, because the SPA owns navigation. Login compares **both** username and password constant-time via SHA-256 digests.
+- **Health probe shared.** Extracted `Runtime.healthProbe()` from `healthHandler` so `/health` and the dashboard cannot drift.
+- **SPA completed**: MT routes (with a type-dependent filter editor), users, a dashboard over `/api/health`, and connector Start/Stop row actions; built into `internal/app/adminweb/dist`.
+- **Build hygiene**: deleted a stale compiled `vite.config.js` that shadowed the `.ts` source (it still wrote `dist/` into `web/`, so nothing would have been embedded), dropped the composite `tsconfig.node.json` that emitted it, and gitignored `node_modules`/`*.tsbuildinfo` while re-including `internal/app/adminweb/dist` past the repo's Python-era `dist` pattern.
+- **Verified live** against RabbitMQ + a throwaway Postgres + the repo's fake SMSC: full auth-gate matrix; created a connector, toggled it, deleted it while running; created a user and a filtered route through the UI's API, then submitted through the **public** port as that user and saw the fake SMSC log `submit_sm → ESME_ROK` and the gateway write the `SMS-MT` audit line.
+
+### Decisions
+
+- **BFF, not the existing `/admin` bearer API.** A browser-held admin token is an auth smell, and the bearer API's opaque `spec_json` shapes would push route/user marshalling into client JS. The BFF builds `outbound.RouteConfig`/`UserConfig` server-side from typed fields and maps the services' sentinel errors once.
+- **Write-only secrets both directions.** Connector bind passwords are stripped from every response and an empty value on update keeps the stored one; user passwords are hashed server-side into `password_sha256` and never echoed. Partial `PATCH` starts from stored state, so the Start/Stop toggle sending only `desired_started` cannot blank out a config.
+- **Delete stops first.** `Service.DeleteConnector` refuses a running connector ("must be stopped before removal") — found live, where the UI's delete button would just 400. The handler now stops it first, since a confirmed UI delete is an explicit act.
+- **Order is a route's identity**, so it is locked on edit (renumbering = delete + recreate), matching `RouteService`.
+
+### Local env + in-browser verification (same session, after the user asked to run it)
+
+- **Brought up `docker-compose.gateway.yml`** (postgres/rabbitmq/redis/fake-SMSC/gateway). Two things were broken independently of the UI work: the running gateway image **predated plan 010** and crash-looped on `unknown field "pickle_codec"` (strict decoding), and compose had no `ADMIN_WEB_PASSWORD` for the new config key. Rebuilt the image, added the env var, and published the UI as `127.0.0.1:8404:8404` (host loopback only — the container-side `0.0.0.0` bind is namespace-scoped). Documented the `web_*` keys in `configs/README.md`.
+- **Verified the SPA in a real browser** by attaching the Playwright container to `jasmin_default` (detached afterwards): login → dashboard with the live probe; created a connector through the form and watched it reach **BOUND**; deleted it while running from the row action; route form's connector dropdown and type-dependent filter block both work.
+- **Bug found and fixed:** the login route used Refine's stock `AuthPage`, which hardcodes an **email** field with email-format validation — the admin username was rejected client-side ("Invalid email address"), and it would have posted `{email, password}` against a BFF expecting `{username, password}`. Replaced with a purpose-built `web/src/pages/login.tsx` on `useLogin`. **Lesson: an embedded-bundle UI needs a real browser pass — the Go tests only prove the shell is served.**
+
+### Next
+
+- **#1 billing** — the last roadmap item before cutover; the submit path already carries `SubmitSmBill` and quota checks, the rating/balance/CDR engine is unbuilt.
+- Backlog: CI guard that rebuilds `dist/` and fails on a diff; jCli console; native interceptor runner; logging remainder; formal cutover gate.
+
 ## 2026-07-27 — Finish the native pickle codec: retire the Python bridge (plan 010)
 
 Goal (user): "finish #2 to unblock us full" — complete the native Go pickle codec so it is the **default** and the pickle-bridge layer is **retired from the image**. This closes the three deferred codec edges, flips the default, and drops the bridge from the gateway Dockerfile.

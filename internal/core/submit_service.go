@@ -85,8 +85,15 @@ type RouteSelector interface {
 	Select(routingfilter.Routable) (routingtable.Route, bool, error)
 }
 
+// InterceptionTable is the interception seam the submit path consumes. Both
+// interceptor.Table (fixed) and interceptor.AtomicTable (live-swappable, used
+// when the admin plane can add interceptors at runtime) satisfy it.
+type InterceptionTable interface {
+	Intercept(ctx context.Context, runner interceptor.Runner, routable routingfilter.Routable) (interceptor.Result, error)
+}
+
 type SubmitServiceDependencies struct {
-	InterceptorTable  *interceptor.Table
+	InterceptorTable  InterceptionTable
 	InterceptorRunner interceptor.Runner
 	RoutingTable      RouteSelector
 	BillingUsers      BillingUserDirectory

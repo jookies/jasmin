@@ -57,6 +57,7 @@ func run() error {
 	}
 	defer runtime.Close()
 
+	https := runtimeConfig.HTTPS
 	server := &http.Server{
 		Addr:              runtimeConfig.Outbound.ListenAddress,
 		Handler:           runtime.Handler,
@@ -65,31 +66,60 @@ func run() error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	errCh := make(chan error, 1)
-	if https := runtimeConfig.HTTPS; https != nil {
-		go func() {
-			errCh <- server.ListenAndServeTLS(https.CertFile, https.KeyFile)
-		}()
+	errCh := make(chan error, 2)
+	serve(server, https, errCh)
+	if https != nil {
 		log.Printf("jasmin-go-httpapi listening on %s (TLS)", runtimeConfig.Outbound.ListenAddress)
 	} else {
-		go func() {
-			errCh <- server.ListenAndServe()
-		}()
 		log.Printf("jasmin-go-httpapi listening on %s", runtimeConfig.Outbound.ListenAddress)
+	}
+
+	// The admin web UI, when configured, runs on its own listener so it is not
+	// exposed on the public sendsms port; it shares the TLS cert if HTTPS is set.
+	var webServer *http.Server
+	if runtime.WebListenAddress != "" {
+		webServer = &http.Server{
+			Addr:              runtime.WebListenAddress,
+			Handler:           runtime.WebHandler,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+		}
+		serve(webServer, https, errCh)
+		log.Printf("jasmin-go-httpapi admin UI listening on %s", runtime.WebListenAddress)
 	}
 
 	select {
 	case <-lifetime.Done():
 		shutdownContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := server.Shutdown(shutdownContext); err != nil {
-			return fmt.Errorf("graceful HTTP shutdown: %w", err)
+		err := server.Shutdown(shutdownContext)
+		if err != nil {
+			err = fmt.Errorf("graceful HTTP shutdown: %w", err)
 		}
-		return nil
+		if webServer != nil {
+			if webErr := webServer.Shutdown(shutdownContext); webErr != nil && err == nil {
+				err = fmt.Errorf("graceful admin UI shutdown: %w", webErr)
+			}
+		}
+		return err
 	case err := <-errCh:
 		if err == http.ErrServerClosed {
 			return nil
 		}
 		return err
 	}
+}
+
+// serve starts an HTTP server in a goroutine, using TLS when https is set, and
+// reports its terminal error on errCh.
+func serve(server *http.Server, https *gateway.HTTPSConfig, errCh chan<- error) {
+	go func() {
+		if https != nil {
+			errCh <- server.ListenAndServeTLS(https.CertFile, https.KeyFile)
+		} else {
+			errCh <- server.ListenAndServe()
+		}
+	}()
 }

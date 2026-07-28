@@ -50,6 +50,12 @@ type Runtime struct {
 	configUsernames []string
 	resolveUID      uidResolver
 	routesMu        sync.Mutex
+	// Live MT interception: the submit path runs mtInterceptors (atomic);
+	// admin interceptor provisioning rebuilds config + admin entries and swaps
+	// it, serialised by interceptorsMu.
+	mtInterceptors       *interceptor.AtomicTable
+	configMTInterceptors []InterceptorConfig
+	interceptorsMu       sync.Mutex
 }
 
 type RuntimeDependencies struct {
@@ -206,8 +212,9 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if len(config.MTInterceptors) > 0 && dependencies.InterceptorRunner == nil {
 		return nil, fmt.Errorf("%w: mt_interceptors configured without an interceptor runner", ErrInvalidRuntimeConfig)
 	}
+	atomicInterceptors := interceptor.NewAtomicTable(interceptorTable)
 	submitService, err := core.NewSubmitService(core.SubmitServiceDependencies{
-		InterceptorTable:     interceptorTable,
+		InterceptorTable:     atomicInterceptors,
 		InterceptorRunner:    dependencies.InterceptorRunner,
 		RoutingTable:         atomicRoutes,
 		BillingUsers:         directory.users,
@@ -275,6 +282,9 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		configRoutes:    append([]RouteConfig(nil), config.Routes...),
 		configUsernames: configUsernames(config.Users),
 		resolveUID:      directory.resolveUID,
+
+		mtInterceptors:       atomicInterceptors,
+		configMTInterceptors: append([]InterceptorConfig(nil), config.MTInterceptors...),
 	}
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
@@ -310,6 +320,37 @@ func (runtime *Runtime) ApplyAdminRoutes(adminRoutes []RouteConfig) error {
 		return err
 	}
 	runtime.routes.Store(table)
+	return nil
+}
+
+// ErrInterceptorOrderReserved reports an admin interceptor whose order collides
+// with a config interceptor (config owns those orders).
+var ErrInterceptorOrderReserved = errors.New("outbound: interceptor order is config-reserved")
+
+// ApplyAdminMTInterceptors rebuilds the MT interception table from the config
+// interceptors plus the supplied admin ones and swaps it live. Same contract as
+// ApplyAdminRoutes: a bad spec or a reserved order leaves the active table
+// untouched, and passing nil restores the config-only table.
+func (runtime *Runtime) ApplyAdminMTInterceptors(adminInterceptors []InterceptorConfig) error {
+	runtime.interceptorsMu.Lock()
+	defer runtime.interceptorsMu.Unlock()
+	reserved := make(map[int]struct{}, len(runtime.configMTInterceptors))
+	for _, entry := range runtime.configMTInterceptors {
+		reserved[entry.Order] = struct{}{}
+	}
+	for _, entry := range adminInterceptors {
+		if _, clash := reserved[entry.Order]; clash {
+			return fmt.Errorf("%w: order %d", ErrInterceptorOrderReserved, entry.Order)
+		}
+	}
+	combined := make([]InterceptorConfig, 0, len(runtime.configMTInterceptors)+len(adminInterceptors))
+	combined = append(combined, runtime.configMTInterceptors...)
+	combined = append(combined, adminInterceptors...)
+	table, err := buildInterceptorTable(combined, runtime.resolveUID)
+	if err != nil {
+		return err
+	}
+	runtime.mtInterceptors.Store(table)
 	return nil
 }
 

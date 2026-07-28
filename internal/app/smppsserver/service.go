@@ -47,8 +47,9 @@ func ValidateConfig(config Config) error {
 // Service owns the SMPPS listener and server. Deliver exposes the server's
 // push path so the DLR/MO throwers' receipt sink can reach bound sessions.
 type Service struct {
-	server   *smpps.Server
-	listener net.Listener
+	server    *smpps.Server
+	listener  net.Listener
+	directory *Directory
 }
 
 // NewService builds the SMPPS server from config, wiring bind auth over the
@@ -120,7 +121,16 @@ func NewService(config Config, submitter core.Submitter, opts ...Option) (*Servi
 			Certificates: []tls.Certificate{certificate},
 		})
 	}
-	return &Service{server: server, listener: listener}, nil
+	return &Service{server: server, listener: listener, directory: directory}, nil
+}
+
+// Directory exposes the live user directory so the admin plane can provision
+// SMPPs bind users at runtime.
+func (s *Service) Directory() *Directory {
+	if s == nil {
+		return nil
+	}
+	return s.directory
 }
 
 // Addr returns the bound listen address (useful when the config used :0).

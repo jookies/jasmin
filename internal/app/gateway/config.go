@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"os"
 	"time"
 
@@ -80,6 +81,20 @@ type Config struct {
 type AdminConfig struct {
 	DBPath string `json:"db_path"`
 	Token  string `json:"token"`
+	// WebListenAddress, when set, serves the browser management UI on its own
+	// listener (separate from the public sendsms port). WebUsername/WebPassword
+	// are the single admin login for that UI; WebPassword accepts the same
+	// env:/file:/literal: secret references as the other credentials. All three
+	// are required together — an empty WebListenAddress disables the UI entirely.
+	WebListenAddress string `json:"web_listen_address,omitempty"`
+	WebUsername      string `json:"web_username,omitempty"`
+	WebPassword      string `json:"web_password,omitempty"`
+	// AllowInterceptorEditing exposes interceptor CRUD through the admin plane.
+	// Interceptor scripts are arbitrary Python executed on the gateway host, so
+	// enabling this makes any admin session equivalent to shell access on this
+	// machine. It defaults to false, and turning it on also starts the script
+	// runner subprocess (a table added at runtime needs something to run it).
+	AllowInterceptorEditing bool `json:"allow_interceptor_editing,omitempty"`
 }
 
 // HTTPSConfig terminates inbound TLS on the HTTP listener. File paths are
@@ -193,6 +208,14 @@ func ValidateConfig(config Config) error {
 		}
 		if config.Admin.Token == "" {
 			return fmt.Errorf("%w: admin requires a non-empty token", ErrInvalidConfig)
+		}
+		if config.Admin.WebListenAddress != "" {
+			if _, _, err := net.SplitHostPort(config.Admin.WebListenAddress); err != nil {
+				return fmt.Errorf("%w: admin.web_listen_address %q is not host:port: %v", ErrInvalidConfig, config.Admin.WebListenAddress, err)
+			}
+			if config.Admin.WebUsername == "" || config.Admin.WebPassword == "" {
+				return fmt.Errorf("%w: admin.web_listen_address requires web_username and web_password", ErrInvalidConfig)
+			}
 		}
 	}
 	if len(config.MORoutes) > 0 {

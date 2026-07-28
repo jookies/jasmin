@@ -6,6 +6,8 @@ package smppsserver
 import (
 	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
 	"github.com/pumpitspace/jasmin/internal/core/smpps"
@@ -31,17 +33,76 @@ type UserConfig struct {
 	SetPriority      *bool `json:"set_priority,omitempty"`
 }
 
-// Directory resolves a system_id into its bind auth state and MT credential.
-// It implements both smpps.UserResolver and smppssubmit.CredentialResolver.
-type Directory struct {
+// directorySnapshot is an immutable resolution table, swapped atomically so
+// bind attempts never read a half-updated map.
+type directorySnapshot struct {
 	auth        map[string]smpps.UserAuth
 	credentials map[string]*mtcredential.Credential
+}
+
+// Directory resolves a system_id into its bind auth state and MT credential.
+// It implements both smpps.UserResolver and smppssubmit.CredentialResolver.
+//
+// The server and submit handler hold this pointer for the process lifetime, so
+// admin user provisioning swaps the snapshot inside rather than replacing the
+// Directory itself.
+type Directory struct {
+	snapshot atomic.Pointer[directorySnapshot]
+	// configUsers are the config-owned system_ids admin may not displace.
+	// applyMu serialises rebuilds.
+	configUsers []UserConfig
+	applyMu     sync.Mutex
 }
 
 // NewDirectory builds the directory from the user configs, validating each and
 // rejecting duplicate system_ids.
 func NewDirectory(users []UserConfig) (*Directory, error) {
-	directory := &Directory{
+	snapshot, err := buildDirectorySnapshot(users)
+	if err != nil {
+		return nil, err
+	}
+	directory := &Directory{configUsers: append([]UserConfig(nil), users...)}
+	directory.snapshot.Store(snapshot)
+	return directory, nil
+}
+
+// ApplyUsers rebuilds the directory from the config users plus the supplied
+// admin users and swaps it in. Config system_ids are reserved; a duplicate or
+// invalid entry returns an error and leaves the live directory untouched, so
+// the caller can persist only on success.
+//
+// Sessions already bound are unaffected: auth is resolved at bind time. Removing
+// a user prevents new binds but does not tear down an existing one.
+func (d *Directory) ApplyUsers(adminUsers []UserConfig) error {
+	d.applyMu.Lock()
+	defer d.applyMu.Unlock()
+	reserved := make(map[string]struct{}, len(d.configUsers))
+	for _, user := range d.configUsers {
+		reserved[user.SystemID] = struct{}{}
+	}
+	for _, user := range adminUsers {
+		if _, clash := reserved[user.SystemID]; clash {
+			return fmt.Errorf("%w: system_id %q is config-owned", ErrSystemIDReserved, user.SystemID)
+		}
+	}
+	combined := make([]UserConfig, 0, len(d.configUsers)+len(adminUsers))
+	combined = append(combined, d.configUsers...)
+	combined = append(combined, adminUsers...)
+	snapshot, err := buildDirectorySnapshot(combined)
+	if err != nil {
+		return err
+	}
+	d.snapshot.Store(snapshot)
+	return nil
+}
+
+// ErrSystemIDReserved reports an admin SMPPs user colliding with a config user.
+var ErrSystemIDReserved = errors.New("smppsserver: system_id is config-owned")
+
+// buildDirectorySnapshot validates every user and produces the resolution table.
+// It returns a complete snapshot or an error — never a partial one.
+func buildDirectorySnapshot(users []UserConfig) (*directorySnapshot, error) {
+	directory := &directorySnapshot{
 		auth:        make(map[string]smpps.UserAuth, len(users)),
 		credentials: make(map[string]*mtcredential.Credential, len(users)),
 	}
@@ -89,13 +150,13 @@ func NewDirectory(users []UserConfig) (*Directory, error) {
 
 // ResolveUser implements smpps.UserResolver.
 func (d *Directory) ResolveUser(systemID string) (smpps.UserAuth, bool) {
-	auth, ok := d.auth[systemID]
+	auth, ok := d.snapshot.Load().auth[systemID]
 	return auth, ok
 }
 
 // ResolveCredential implements smppssubmit.CredentialResolver.
 func (d *Directory) ResolveCredential(systemID string) (*mtcredential.Credential, bool) {
-	credential, ok := d.credentials[systemID]
+	credential, ok := d.snapshot.Load().credentials[systemID]
 	return credential, ok
 }
 

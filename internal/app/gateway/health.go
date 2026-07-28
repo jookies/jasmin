@@ -104,10 +104,9 @@ func buildHealthReport(ctx context.Context, deps healthDependencies) healthRepor
 	return report
 }
 
-// healthHandler serves GET /health: 200 when every dependency is ready, 503
-// with the per-check detail otherwise. Distinct from the legacy-parity /ping,
-// which answers unconditionally.
-func (runtime *Runtime) healthHandler() http.Handler {
+// healthDeps snapshots the runtime's readiness-check functions, tolerating a
+// partially constructed runtime.
+func (runtime *Runtime) healthDeps() healthDependencies {
 	dependencies := healthDependencies{required: runtime.requiredConnectors}
 	if runtime.store != nil {
 		dependencies.pingStore = runtime.store.Ping
@@ -121,6 +120,24 @@ func (runtime *Runtime) healthHandler() http.Handler {
 	if runtime.manager != nil {
 		dependencies.connectorStatus = runtime.manager.Status
 	}
+	return dependencies
+}
+
+// healthProbe exposes the same checks as /health to the admin web UI's
+// dashboard: overall status plus per-check detail.
+func (runtime *Runtime) healthProbe() func(ctx context.Context) (string, map[string]string) {
+	dependencies := runtime.healthDeps()
+	return func(ctx context.Context) (string, map[string]string) {
+		report := buildHealthReport(ctx, dependencies)
+		return report.Status, report.Checks
+	}
+}
+
+// healthHandler serves GET /health: 200 when every dependency is ready, 503
+// with the per-check detail otherwise. Distinct from the legacy-parity /ping,
+// which answers unconditionally.
+func (runtime *Runtime) healthHandler() http.Handler {
+	dependencies := runtime.healthDeps()
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		ctx, cancel := context.WithTimeout(request.Context(), healthTimeout)
 		defer cancel()

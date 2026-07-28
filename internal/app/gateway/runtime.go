@@ -12,6 +12,7 @@ import (
 	"log/slog"
 
 	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/app/adminweb"
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
 	"github.com/pumpitspace/jasmin/internal/app/dlrthrower"
 	"github.com/pumpitspace/jasmin/internal/app/modispatch"
@@ -36,6 +37,8 @@ type ManagerFactory func(string) *smppc.Manager
 
 type Runtime struct {
 	Handler            http.Handler
+	WebHandler         http.Handler // admin web UI, served on WebListenAddress (nil when disabled)
+	WebListenAddress   string
 	manager            *smppc.Manager
 	outbound           *outbound.Runtime
 	bridge             picklecompat.Codec
@@ -48,9 +51,14 @@ type Runtime struct {
 	dlrRedisClose      func()
 	adminStore         *admin.Store
 	interceptorRunner  *pyintercept.Runner
-	workerCancel       context.CancelFunc
-	closeOnce          sync.Once
-	closeErr           error
+	// Live MO interception (nil when MO interception is neither configured nor
+	// admin-editable); config orders are reserved against admin entries.
+	moInterceptors       *interceptor.AtomicTable
+	configMOInterceptors []outbound.InterceptorConfig
+	moInterceptorsMu     sync.Mutex
+	workerCancel         context.CancelFunc
+	closeOnce            sync.Once
+	closeErr             error
 }
 
 func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error) {
@@ -197,8 +205,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// Interception: start the Python script runner subprocess when the config
 	// declares MT or MO interceptors, and share it across both directions —
 	// the MT submit pipeline and the MO deliver hook.
+	// The runner also starts when the admin plane may add interceptors at
+	// runtime, since a table swapped in later has nothing to execute without
+	// it. Gating on the explicit flag keeps the Python subprocess out of
+	// deployments that never intercept.
 	var interceptorRunner interceptor.Runner
-	if len(config.Outbound.MTInterceptors) > 0 || len(config.Outbound.MOInterceptors) > 0 {
+	interceptorEditing := config.Admin != nil && config.Admin.AllowInterceptorEditing
+	if len(config.Outbound.MTInterceptors) > 0 || len(config.Outbound.MOInterceptors) > 0 || interceptorEditing {
 		runnerImpl, runnerErr := pyintercept.NewRunner(workerCtx, config.Outbound.PythonPath)
 		if runnerErr != nil {
 			return nil, fmt.Errorf("start interceptor runner: %w", runnerErr)
@@ -210,12 +223,14 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// deliver path via the shared runner. Assigning the deferred var here wires
 	// both the config connectors (explicit loop below) and any admin-created
 	// connectors (the factory closure).
-	if len(config.Outbound.MOInterceptors) > 0 {
+	if len(config.Outbound.MOInterceptors) > 0 || interceptorEditing {
 		moTable, moErr := outbound.BuildMOInterceptorTable(config.Outbound.MOInterceptors)
 		if moErr != nil {
 			return nil, fmt.Errorf("build MO interceptor table: %w", moErr)
 		}
-		moInterceptor = newMOInterceptorAdapter(moTable, interceptorRunner)
+		runtime.moInterceptors = interceptor.NewAtomicTable(moTable)
+		runtime.configMOInterceptors = append([]outbound.InterceptorConfig(nil), config.Outbound.MOInterceptors...)
+		moInterceptor = newMOInterceptorAdapter(runtime.moInterceptors, interceptorRunner)
 	}
 	outboundRuntime, err := outbound.NewRuntimeWithDependencies(workerCtx, config.Outbound, outbound.RuntimeDependencies{
 		Bridge: bridge, Transactions: transactions, Repository: repository, ConnectorAvailable: manager.Available,
@@ -252,6 +267,30 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	}
 	// /health (real readiness) rides beside the legacy-parity endpoints; the
 	// outbound handler keeps everything else, including the unconditional /ping.
+	// MO dispatch is constructed before the admin plane because the admin MO
+	// route service provisions through it. It also starts when admin is enabled
+	// but config declares no MO routes, so routes can be added at runtime — an
+	// MO with no matching route is unroutable, which is the same outcome as
+	// having no dispatcher at all.
+	var dispatchService *modispatch.Service
+	if len(config.MORoutes) > 0 || config.Admin != nil {
+		dispatchConfig := modispatch.Config{
+			AMQPURL:             config.Outbound.AMQPURL,
+			AMQPDurableTopology: config.Outbound.AMQPDurableTopology,
+			Routes:              config.MORoutes,
+		}
+		service, dispatchErr := modispatch.NewService(ctx, dispatchConfig, bridge,
+			modispatch.WithOnError(func(err error) { slog.Default().Error("modispatch: " + err.Error()) }))
+		if dispatchErr != nil {
+			return nil, fmt.Errorf("start MO dispatch: %w", dispatchErr)
+		}
+		dispatchService = service
+	}
+
+	// Assigned inside the admin block; its persisted users are applied after
+	// the SMPPs server is constructed.
+	var smppsUserService *admin.SMPPsUserService
+
 	mux := http.NewServeMux()
 	mux.Handle("/health", runtime.healthHandler())
 	// The runtime provisioning plane (SQLite-backed connector CRUD) mounts at
@@ -298,25 +337,73 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := userService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted users: " + applyErr.Error())
 		}
+		// MO route provisioning: same apply-first-then-persist chain as MT
+		// routes, driving the MO dispatch table built above.
+		moRouteService, moRouteErr := admin.NewMORouteService(store, moRouteProvisioner{service: dispatchService},
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if moRouteErr != nil {
+			return nil, fmt.Errorf("build admin MO route service: %w", moRouteErr)
+		}
+		if applyErr := moRouteService.LoadAndApply(ctx); applyErr != nil {
+			slog.Default().Error("admin: load persisted MO routes: " + applyErr.Error())
+		}
+		// SMPPs bind users: the server is built further down, so the
+		// provisioner resolves it at apply time and LoadAndApply runs after it
+		// exists (below the SMPPS block).
+		service, smppsUserErr := admin.NewSMPPsUserService(store, smppsUserProvisioner{runtime: runtime},
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if smppsUserErr != nil {
+			return nil, fmt.Errorf("build admin SMPPs user service: %w", smppsUserErr)
+		}
+		smppsUserService = service
+		// Interceptor provisioning is opt-in: the scripts are arbitrary Python
+		// run on this host, so the service only exists when the operator set
+		// allow_interceptor_editing.
+		var interceptorService *admin.InterceptorService
+		if config.Admin.AllowInterceptorEditing {
+			service, interceptorErr := admin.NewInterceptorService(store,
+				interceptorProvisioner{outbound: outboundRuntime, gateway: runtime},
+				func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+			if interceptorErr != nil {
+				return nil, fmt.Errorf("build admin interceptor service: %w", interceptorErr)
+			}
+			if applyErr := service.LoadAndApply(ctx); applyErr != nil {
+				slog.Default().Error("admin: load persisted interceptors: " + applyErr.Error())
+			}
+			interceptorService = service
+		}
 		adminHandler, handlerErr := admin.NewHandler(adminService, routeService, userService, config.Admin.Token)
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}
 		mux.Handle("/admin/", adminHandler.Routes())
+
+		// The browser management UI, when configured, is served on its own
+		// listener (WebListenAddress) so it never shares the public sendsms port.
+		// It renders against the same in-process admin services.
+		if config.Admin.WebListenAddress != "" {
+			webHandler, webErr := adminweb.New(adminweb.Deps{
+				Connectors:   adminService,
+				Routes:       routeService,
+				MORoutes:     moRouteService,
+				Users:        userService,
+				SMPPsUsers:   smppsUserService,
+				Interceptors: interceptorService, // nil unless explicitly enabled
+				Health:       runtime.healthProbe(),
+				Username:     config.Admin.WebUsername,
+				Password:     config.Admin.WebPassword,
+				Secure:       config.HTTPS != nil,
+			})
+			if webErr != nil {
+				return nil, fmt.Errorf("build admin web UI: %w", webErr)
+			}
+			runtime.WebHandler = webHandler
+			runtime.WebListenAddress = config.Admin.WebListenAddress
+		}
 	}
 	mux.Handle("/", outboundRuntime.Handler)
 	runtime.Handler = mux
-	if len(config.MORoutes) > 0 {
-		dispatchConfig := modispatch.Config{
-			AMQPURL:             config.Outbound.AMQPURL,
-			AMQPDurableTopology: config.Outbound.AMQPDurableTopology,
-			Routes:              config.MORoutes,
-		}
-		dispatchService, dispatchErr := modispatch.NewService(ctx, dispatchConfig, bridge,
-			modispatch.WithOnError(func(err error) { slog.Default().Error("modispatch: " + err.Error()) }))
-		if dispatchErr != nil {
-			return nil, fmt.Errorf("start MO dispatch: %w", dispatchErr)
-		}
+	if dispatchService != nil {
 		go func() { _ = dispatchService.Run(workerCtx) }()
 	}
 	if config.DLRLookup != nil {
@@ -364,6 +451,13 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		}
 		moDeliverySink = moSink
 		go func() { _ = smppsService.Run(workerCtx) }()
+	}
+	// Now that the SMPPs directory exists, install the persisted admin bind
+	// users. Deferred to here because the provisioner needs the live server.
+	if smppsUserService != nil && runtime.smppsServer != nil {
+		if applyErr := smppsUserService.LoadAndApply(ctx); applyErr != nil {
+			slog.Default().Error("admin: load persisted SMPPs users: " + applyErr.Error())
+		}
 	}
 	if config.DLRThrower != nil {
 		throwerConfig := *config.DLRThrower

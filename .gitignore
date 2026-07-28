@@ -63,3 +63,13 @@ celerybeat-schedule.db
 # stray built binaries
 /jasmin-fake-smsc
 /jasmin-go-httpapi
+
+# Admin web UI (web/) — Node toolchain artifacts
+node_modules/
+*.tsbuildinfo
+# The built SPA is committed so `go build` (go:embed) needs no Node toolchain;
+# re-include it under the Python-packaging `dist` pattern above.
+!internal/app/adminweb/dist/
+
+# Local Python oracle venv (differential tests): see docs/plans/012
+.venv-oracle/

@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -20,7 +22,12 @@ import (
 	"github.com/pumpitspace/jasmin/internal/transport/picklecompat"
 )
 
-var ErrInvalidConfig = errors.New("modispatch: invalid configuration")
+var (
+	ErrInvalidConfig = errors.New("modispatch: invalid configuration")
+	// ErrMORouteOrderReserved is an admin route colliding with a config-owned
+	// route order. Config wins; admin manages an additive set.
+	ErrMORouteOrderReserved = errors.New("modispatch: route order is config-owned")
+)
 
 // ConnectorConfig names one MO destination.
 type ConnectorConfig struct {
@@ -112,8 +119,15 @@ func ValidateConfig(config Config) error {
 	if len(config.Routes) == 0 {
 		return fmt.Errorf("%w: at least one MO route is required", ErrInvalidConfig)
 	}
-	seenOrder := make(map[int]struct{}, len(config.Routes))
-	for index, route := range config.Routes {
+	return validateRoutes(config.Routes)
+}
+
+// validateRoutes checks the route-set invariants shared by boot-time config
+// validation and admin applies: default-route shape, positive static orders,
+// unique orders, compilable filters and a well-formed destination connector.
+func validateRoutes(routes []RouteConfig) error {
+	seenOrder := make(map[int]struct{}, len(routes))
+	for index, route := range routes {
 		if route.Default {
 			if route.Order != 0 {
 				return fmt.Errorf("%w: default route %d must use order 0", ErrInvalidConfig, index)
@@ -184,14 +198,27 @@ type preparedRoute struct {
 	filters    []routingfilter.Filter
 }
 
-// Service consumes the RouterPB deliver queue and dispatches.
-type Service struct {
-	cfg      Config
-	bridge   RoutablePDURepickler
+// routeTable is an immutable dispatch snapshot. It is swapped atomically by
+// ApplyRoutes and read without locking by selectRoute, so admin mutations never
+// contend with the inbound MO path.
+type routeTable struct {
 	routes   []preparedRoute // static routes, highest order first
 	fallback *preparedRoute  // default route (order 0), nil when absent
-	onError  func(error)
-	now      func() time.Time
+}
+
+// Service consumes the RouterPB deliver queue and dispatches.
+type Service struct {
+	cfg    Config
+	bridge Bridge
+	// table is the live dispatch snapshot; never nil after NewService.
+	table atomic.Pointer[routeTable]
+	// configRoutes are the config-owned routes admin may not displace; their
+	// orders are reserved. applyMu serialises rebuilds so two concurrent
+	// applies cannot interleave their reads of configRoutes.
+	configRoutes []RouteConfig
+	applyMu      sync.Mutex
+	onError      func(error)
+	now          func() time.Time
 }
 
 // Option customises the service.
@@ -204,15 +231,44 @@ func WithOnError(observer func(error)) Option {
 
 // NewService prepares the dispatch table: connector lists are pickled through
 // the bridge once, so per-message work is one repickle + one publish.
+// An empty route set is valid here even though ValidateConfig rejects one: the
+// config-file contract is "if you declare mo_routes, declare at least one",
+// while the runtime may legitimately start with none and receive them from the
+// admin plane. An MO arriving with no matching route is simply unroutable.
 func NewService(ctx context.Context, config Config, bridge Bridge, options ...Option) (*Service, error) {
-	if err := ValidateConfig(config); err != nil {
+	if config.AMQPURL == "" {
+		return nil, fmt.Errorf("%w: empty amqp_url", ErrInvalidConfig)
+	}
+	if err := validateRoutes(config.Routes); err != nil {
 		return nil, err
 	}
 	if bridge == nil {
 		return nil, fmt.Errorf("%w: nil bridge", ErrInvalidConfig)
 	}
-	service := &Service{cfg: config, bridge: bridge, onError: func(error) {}, now: time.Now}
-	for _, route := range config.Routes {
+	service := &Service{
+		cfg:          config,
+		bridge:       bridge,
+		configRoutes: append([]RouteConfig(nil), config.Routes...),
+		onError:      func(error) {},
+		now:          time.Now,
+	}
+	table, err := prepareTable(ctx, bridge, config.Routes)
+	if err != nil {
+		return nil, err
+	}
+	service.table.Store(table)
+	for _, option := range options {
+		option(service)
+	}
+	return service, nil
+}
+
+// prepareTable pickles each route's connector list and compiles its filters,
+// producing an immutable snapshot. It either returns a complete table or an
+// error — a caller swapping the result can never install a partial one.
+func prepareTable(ctx context.Context, bridge Bridge, routes []RouteConfig) (*routeTable, error) {
+	table := &routeTable{}
+	for _, route := range routes {
 		spec := picklecompat.MOConnectorSpec{
 			Type: route.Connector.Type, CID: route.Connector.CID, URL: route.Connector.URL,
 			Method: route.Connector.Method, SystemID: route.Connector.SystemID,
@@ -232,27 +288,56 @@ func NewService(ctx context.Context, config Config, bridge Bridge, options ...Op
 		prepared := preparedRoute{config: route, routingKey: routingKey, pickled: pickled, filters: filters}
 		if route.Default {
 			fallback := prepared
-			service.fallback = &fallback
+			table.fallback = &fallback
 			continue
 		}
-		service.routes = append(service.routes, prepared)
+		table.routes = append(table.routes, prepared)
 	}
-	sort.SliceStable(service.routes, func(i, j int) bool {
-		return service.routes[i].config.Order > service.routes[j].config.Order
+	sort.SliceStable(table.routes, func(i, j int) bool {
+		return table.routes[i].config.Order > table.routes[j].config.Order
 	})
-	for _, option := range options {
-		option(service)
+	return table, nil
+}
+
+// ApplyRoutes rebuilds the dispatch table from the config-owned routes plus the
+// supplied admin routes and swaps it in atomically. Config orders are reserved
+// (config owns its set; admin manages an additive set), and a rebuild that
+// fails for any reason leaves the previous table live.
+func (s *Service) ApplyRoutes(ctx context.Context, adminRoutes []RouteConfig) error {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+
+	reserved := make(map[int]struct{}, len(s.configRoutes))
+	for _, route := range s.configRoutes {
+		reserved[route.Order] = struct{}{}
 	}
-	return service, nil
+	for _, route := range adminRoutes {
+		if _, clash := reserved[route.Order]; clash {
+			return fmt.Errorf("%w: order %d", ErrMORouteOrderReserved, route.Order)
+		}
+	}
+	combined := make([]RouteConfig, 0, len(s.configRoutes)+len(adminRoutes))
+	combined = append(combined, s.configRoutes...)
+	combined = append(combined, adminRoutes...)
+	if err := validateRoutes(combined); err != nil {
+		return err
+	}
+	table, err := prepareTable(ctx, s.bridge, combined)
+	if err != nil {
+		return err
+	}
+	s.table.Store(table)
+	return nil
 }
 
 // selectRoute walks static routes highest-order-first (the legacy route table
 // scan): a route applies when its connector filter matches the source cid AND
 // all its content filters match. Falls back to the default route.
 func (s *Service) selectRoute(routable routingfilter.Routable) (*preparedRoute, error) {
+	table := s.table.Load()
 	sourceCID := routable.ConnectorID()
-	for index := range s.routes {
-		route := &s.routes[index]
+	for index := range table.routes {
+		route := &table.routes[index]
 		if route.config.FilterConnectorID != sourceCID {
 			continue
 		}
@@ -264,7 +349,7 @@ func (s *Service) selectRoute(routable routingfilter.Routable) (*preparedRoute, 
 			return route, nil
 		}
 	}
-	return s.fallback, nil
+	return table.fallback, nil
 }
 
 // matchAllFilters reports whether every filter matches (empty matches all).

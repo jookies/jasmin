@@ -143,6 +143,20 @@ Notes:
   admin-assigned uid is stable across restarts so route user-filters resolve).
   All three apply live and survive restart. See docs/adr/001 for the SQLite
   choice; jCli byte-parity console stays deferred.
+- **Admin web UI.** Setting `admin.web_listen_address` (plus `web_username` and
+  `web_password`, which takes a secret-ref such as `env:ADMIN_WEB_PASSWORD`)
+  serves the browser management UI — dashboard health, connectors incl.
+  start/stop, MT routes with filters, and users — on its **own listener**, never
+  on the sendsms port. Omit `web_listen_address` and the UI is inert (no second
+  server, no new routes). Login is a session cookie (`HttpOnly`, `SameSite=Strict`,
+  `Secure` when the top-level `https` block is set, which the UI listener shares);
+  the signing key is per-process, so a restart logs admins out. This port is a
+  **privilege boundary** — it can mint users and start connectors — so bind it to
+  an internal address, and when containerised publish it to host loopback only
+  (`127.0.0.1:8404:8404`), as `docker-compose.gateway.yml` does. The UI is a
+  React SPA embedded in the binary (`go:embed`), so it needs no Node, no CDN and
+  no network access at runtime; see docs/adr/002. Changing `web/src` requires
+  `cd web && npm run build` to refresh the embedded bundle.
 - **jasmin.cfg overlay.** `--jasmin-cfg /etc/jasmin/jasmin.cfg` optionally overlays
   infrastructure settings (broker, redis, listeners, logging) from a legacy config;
   connectors and routes still come from the JSON.

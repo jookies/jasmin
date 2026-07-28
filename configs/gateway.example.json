@@ -19,14 +19,24 @@
     "mt_interceptors": [
       {
         "order": 10,
-        "filters": [{"type": "short_message", "pattern": ".*STOP"}],
+        "filters": [
+          {
+            "type": "short_message",
+            "pattern": ".*STOP"
+          }
+        ],
         "py_code": "smpp_status = 88\nhttp_status = 400"
       }
     ],
     "mo_interceptors": [
       {
         "order": 10,
-        "filters": [{"type": "short_message", "pattern": ".*STOP"}],
+        "filters": [
+          {
+            "type": "short_message",
+            "pattern": ".*STOP"
+          }
+        ],
         "py_code": "smpp_status = 255"
       }
     ],
@@ -74,7 +84,9 @@
       "prefetch_count": 1
     }
   ],
-  "required_connector_ids": ["smsc-primary"],
+  "required_connector_ids": [
+    "smsc-primary"
+  ],
   "bind_timeout_seconds": 30,
   "dlr_lookup": {
     "amqp_url": "",
@@ -91,7 +103,12 @@
     {
       "order": 10,
       "filter_connector_id": "smsc-primary",
-      "filters": [{"type": "destination_addr", "pattern": "^2255"}],
+      "filters": [
+        {
+          "type": "destination_addr",
+          "pattern": "^2255"
+        }
+      ],
       "connector": {
         "type": "smpps",
         "system_id": "shortcode-app"
@@ -114,6 +131,20 @@
   },
   "admin": {
     "db_path": "/var/lib/jasmin/admin.db",
-    "token": "env:ADMIN_TOKEN"
+    "token": "env:ADMIN_TOKEN",
+    "web_listen_address": "0.0.0.0:8404",
+    "web_username": "admin",
+    "web_password": "env:ADMIN_WEB_PASSWORD",
+    "allow_interceptor_editing": true
+  },
+  "smpps": {
+    "bind_addr": "0.0.0.0:2775",
+    "enquire_link_timeout": 30,
+    "users": [
+      {
+        "system_id": "shortcode-app",
+        "password": "shortcodepw"
+      }
+    ]
   }
 }

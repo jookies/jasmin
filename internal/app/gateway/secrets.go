@@ -103,6 +103,11 @@ func resolveSecretRefs(config *Config) error {
 		if err := resolve("admin.token", &config.Admin.Token); err != nil {
 			return err
 		}
+		if config.Admin.WebPassword != "" {
+			if err := resolve("admin.web_password", &config.Admin.WebPassword); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

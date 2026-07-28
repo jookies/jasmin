@@ -9,12 +9,98 @@ import (
 
 	redis "github.com/redis/go-redis/v9"
 
+	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/app/modispatch"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
 )
+
+// moRouteProvisioner adapts the admin MORouteProvisioner (opaque JSON specs) to
+// the MO dispatch service: it parses each spec into a modispatch.RouteConfig
+// (strict field checking) and rebuilds+swaps the live dispatch table. A nil
+// service means MO dispatch is not running, which makes admin MO routes
+// meaningless rather than silently ignored.
+type moRouteProvisioner struct {
+	service *modispatch.Service
+}
+
+func (p moRouteProvisioner) ApplyMORoutes(ctx context.Context, routeSpecsJSON []string) error {
+	if p.service == nil {
+		return errors.New("MO dispatch is not running; MO routes cannot be applied")
+	}
+	routes := make([]modispatch.RouteConfig, 0, len(routeSpecsJSON))
+	for index, spec := range routeSpecsJSON {
+		var route modispatch.RouteConfig
+		decoder := json.NewDecoder(bytes.NewReader([]byte(spec)))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&route); err != nil {
+			return fmt.Errorf("admin MO route %d: %w", index, err)
+		}
+		routes = append(routes, route)
+	}
+	return p.service.ApplyRoutes(ctx, routes)
+}
+
+// interceptorProvisioner adapts the admin InterceptorProvisioner to the two
+// live interception tables: MT lives on the outbound runtime, MO on the gateway
+// runtime. Specs are opaque JSON, parsed strictly here where both packages are
+// in scope.
+type interceptorProvisioner struct {
+	outbound *outbound.Runtime
+	gateway  *Runtime
+}
+
+func (p interceptorProvisioner) ApplyInterceptors(_ context.Context, direction admin.InterceptorDirection, specsJSON []string) error {
+	entries := make([]outbound.InterceptorConfig, 0, len(specsJSON))
+	for index, spec := range specsJSON {
+		var entry outbound.InterceptorConfig
+		decoder := json.NewDecoder(bytes.NewReader([]byte(spec)))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&entry); err != nil {
+			return fmt.Errorf("admin %s interceptor %d: %w", direction, index, err)
+		}
+		entries = append(entries, entry)
+	}
+	switch direction {
+	case admin.InterceptMT:
+		return p.outbound.ApplyAdminMTInterceptors(entries)
+	case admin.InterceptMO:
+		return p.gateway.ApplyAdminMOInterceptors(entries)
+	default:
+		return fmt.Errorf("unknown interceptor direction %q", direction)
+	}
+}
+
+// smppsUserProvisioner adapts the admin SMPPsUserProvisioner to the live SMPPs
+// directory. A nil service means the SMPPs server is not running, which makes
+// admin bind users meaningless rather than silently inert.
+// The SMPPs server is constructed after the admin plane, so the runtime is
+// captured and the service read at apply time rather than at wiring time.
+type smppsUserProvisioner struct {
+	runtime *Runtime
+}
+
+func (p smppsUserProvisioner) ApplySMPPsUsers(_ context.Context, specsJSON []string) error {
+	service := p.runtime.smppsServer
+	if service == nil || service.Directory() == nil {
+		return errors.New("the SMPPs server is not running; bind users cannot be applied")
+	}
+	users := make([]smppsserver.UserConfig, 0, len(specsJSON))
+	for index, spec := range specsJSON {
+		var user smppsserver.UserConfig
+		decoder := json.NewDecoder(bytes.NewReader([]byte(spec)))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&user); err != nil {
+			return fmt.Errorf("admin SMPPs user %d: %w", index, err)
+		}
+		users = append(users, user)
+	}
+	return service.Directory().ApplyUsers(users)
+}
 
 // outboundRouteProvisioner adapts the admin RouteProvisioner (opaque JSON
 // specs) to the outbound runtime: it parses each spec into an

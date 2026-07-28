@@ -75,11 +75,20 @@ services:
     environment:
       # Admin API bearer token (config references it as env:ADMIN_TOKEN).
       ADMIN_TOKEN: dev-admin-token
+      # Admin web UI login (config references it as env:ADMIN_WEB_PASSWORD).
+      # Dev placeholder — the UI can mint users and start connectors.
+      ADMIN_WEB_PASSWORD: dev-admin-password
     volumes:
       - ./configs/gateway.example.json:/etc/jasmin/gateway.json:ro
       - admindata:/var/lib/jasmin
     ports:
       - "1401:1401"
+      # Admin web UI, published to host loopback ONLY. It is a privilege
+      # boundary (mints credentials, starts connectors) — never publish it on
+      # 0.0.0.0. The container-side 0.0.0.0 bind is namespace-scoped.
+      - "127.0.0.1:8404:8404"
+      # SMPPs server (inbound ESME binds), host loopback for local testing.
+      - "127.0.0.1:2775:2775"
     depends_on:
       postgres:
         condition: service_healthy

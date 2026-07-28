@@ -38,6 +38,26 @@ CREATE TABLE IF NOT EXISTS admin_users (
     uid        INTEGER NOT NULL UNIQUE,
     spec_json  TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_mo_routes (
+    route_order INTEGER PRIMARY KEY,
+    spec_json   TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_mt_interceptors (
+    interceptor_order INTEGER PRIMARY KEY,
+    spec_json         TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_mo_interceptors (
+    interceptor_order INTEGER PRIMARY KEY,
+    spec_json         TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_smpps_users (
+    system_id  TEXT PRIMARY KEY,
+    spec_json  TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );`
 
 // Store persists admin provisioning state in SQLite.
