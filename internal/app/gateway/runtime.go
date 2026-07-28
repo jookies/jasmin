@@ -453,9 +453,16 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				SMPPcStats:     smppcStats,
 				SMPPsStats:     smppsStats,
 				StartedAt:      func() time.Time { return startedAt },
-				Username:       config.Admin.JCliUsername,
-				Password:       config.Admin.JCliPassword,
-				IdleTimeout:    time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
+				// Config-owned entities: without these the console reports an
+				// empty gateway on a config-file deployment, which is the
+				// normal one.
+				ConfigConnectors: func() []smppc.Config { return config.Connectors },
+				ConfigRoutes:     outboundRuntime.ConfigRoutes,
+				ConfigUsers:      func() []outbound.UserConfig { return config.Outbound.Users },
+				ConnectorStatus:  manager.Status,
+				Username:         config.Admin.JCliUsername,
+				Password:         config.Admin.JCliPassword,
+				IdleTimeout:      time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
 			}, slog.Default())
 			if consoleErr != nil {
 				return nil, fmt.Errorf("start jCli console: %w", consoleErr)

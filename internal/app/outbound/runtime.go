@@ -435,6 +435,14 @@ func (runtime *Runtime) RemoveAdminGroup(gid string) error {
 // surfaces (the jCli `stats` command) report the same numbers /metrics does.
 func (runtime *Runtime) HTTPStats() *stats.HTTPStats { return runtime.httpStats }
 
+// ConfigRoutes lists the config-owned MT routes. Management surfaces show them
+// alongside admin-managed ones -- an operator looking at the console must see
+// the routes the gateway is actually running, not only the ones the admin plane
+// happens to own.
+func (runtime *Runtime) ConfigRoutes() []RouteConfig {
+	return append([]RouteConfig(nil), runtime.configRoutes...)
+}
+
 // ConfigGroupIDs lists the config-owned gids the admin plane must not touch.
 func (runtime *Runtime) ConfigGroupIDs() []string {
 	return append([]string(nil), runtime.configGroupIDs...)

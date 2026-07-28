@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/core/smppc"
 	"github.com/pumpitspace/jasmin/internal/core/stats"
 )
 
@@ -56,6 +58,19 @@ type Deps struct {
 	SMPPcStats *stats.SMPPcRegistry
 	// StartedAt reports the gateway start time for the created_at rows.
 	StartedAt func() time.Time
+
+	// Config* expose the entities the config file owns. The admin services only
+	// know what they themselves provisioned, so without these the console shows
+	// an empty gateway to an operator whose connectors and routes all come from
+	// the config file -- which is the normal deployment. Legacy has one table
+	// per entity and no such split, so the console merges them; config-owned
+	// entries are listed but the admin services refuse to mutate them.
+	ConfigConnectors func() []smppc.Config
+	ConfigRoutes     func() []outbound.RouteConfig
+	ConfigUsers      func() []outbound.UserConfig
+	// ConnectorStatus reports a config connector's live bind state, so the
+	// console's Service/Session columns are true for them too.
+	ConnectorStatus func(cid string) (smppc.ManagedStatus, error)
 
 	// Username/Password are the console login. Password is the resolved
 	// plaintext; it is compared constant-time and not retained in the clear.

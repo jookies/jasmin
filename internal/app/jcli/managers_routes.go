@@ -442,6 +442,11 @@ func (s *session) storedMTRoutes() ([]admin.StoredRoute, []outbound.RouteConfig,
 		return nil, nil, err
 	}
 	routes := make([]outbound.RouteConfig, 0, len(stored))
+	// Config-owned routes first: the console shows the table the gateway is
+	// actually routing on, not just the admin-managed slice of it.
+	if s.server.deps.ConfigRoutes != nil {
+		routes = append(routes, s.server.deps.ConfigRoutes()...)
+	}
 	for _, entry := range stored {
 		var route outbound.RouteConfig
 		if err := json.Unmarshal([]byte(entry.SpecJSON), &route); err != nil {
@@ -474,7 +479,7 @@ func (s *session) listMTRoutes() string {
 			filters: filterDescriptions(types, args),
 		})
 	}
-	return renderRouteRows(rows, true, len(routes), "MT Route")
+	return renderRouteRows(rows, true, len(rows), "MT Route")
 }
 
 // outboundFilterArgs projects an inline MT filter back into the argument map the
@@ -634,7 +639,7 @@ func (s *session) listMORoutes() string {
 			filters: filterDescriptions(types, args),
 		})
 	}
-	return renderRouteRows(rows, false, len(routes), "MO Route")
+	return renderRouteRows(rows, false, len(rows), "MO Route")
 }
 
 func (s *session) showMORoute(orderText string) string {

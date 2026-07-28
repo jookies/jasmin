@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/core/smppc"
+
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 )
 
@@ -86,6 +89,7 @@ func (s *session) listConnectors() string {
 	if err != nil {
 		return err.Error()
 	}
+	views = append(s.configConnectorViews(views), views...)
 	var lines []string
 	if len(views) > 0 {
 		lines = append(lines, "#"+strings.Join([]string{
@@ -213,9 +217,17 @@ func (s *session) listUsers() string {
 		return err.Error()
 	}
 	disabledGroups := s.disabledGroups(ctx)
+	users := s.configUsers()
+	for _, entry := range stored {
+		var user outbound.UserConfig
+		if err := json.Unmarshal([]byte(entry.SpecJSON), &user); err != nil {
+			return fmt.Sprintf("user %q: stored spec is not valid JSON: %v", entry.Username, err)
+		}
+		users = append(users, user)
+	}
 
 	var lines []string
-	if len(stored) > 0 {
+	if len(users) > 0 {
 		lines = append(lines, "#"+strings.Join([]string{
 			padRight("User id", 16),
 			padRight("Group id", 16),
@@ -224,15 +236,11 @@ func (s *session) listUsers() string {
 			padRight("MT SMS", 6),
 			padRight("Throughput", 8),
 		}, " "))
-		for _, entry := range stored {
-			var user outbound.UserConfig
-			if err := json.Unmarshal([]byte(entry.SpecJSON), &user); err != nil {
-				return fmt.Sprintf("user %q: stored spec is not valid JSON: %v", entry.Username, err)
-			}
+		for _, user := range users {
 			lines = append(lines, "#"+strings.Join(userListColumns(user, disabledGroups), " "))
 		}
 	}
-	lines = append(lines, fmt.Sprintf("Total Users: %d", len(stored)))
+	lines = append(lines, fmt.Sprintf("Total Users: %d", len(users)))
 	return strings.Join(lines, "\n")
 }
 
@@ -383,4 +391,43 @@ func optionalInt(value *int) string {
 		return notDefined
 	}
 	return fmt.Sprint(*value)
+}
+
+// configConnectorViews projects the config-owned connectors into the same view
+// the admin service returns, skipping any cid the admin plane also knows (it
+// cannot, but a defensive skip keeps the list free of duplicates).
+func (s *session) configConnectorViews(managed []admin.ConnectorView) []admin.ConnectorView {
+	if s.server.deps.ConfigConnectors == nil {
+		return nil
+	}
+	known := make(map[string]bool, len(managed))
+	for _, view := range managed {
+		known[view.Config.CID] = true
+	}
+	var views []admin.ConnectorView
+	for _, config := range s.server.deps.ConfigConnectors() {
+		if known[config.CID] {
+			continue
+		}
+		observed := string(smppc.StatusDisconnected)
+		started := false
+		if s.server.deps.ConnectorStatus != nil {
+			if status, err := s.server.deps.ConnectorStatus(config.CID); err == nil {
+				observed = string(status.Observed)
+				started = status.Desired
+			}
+		}
+		views = append(views, admin.ConnectorView{
+			Config: config, DesiredStarted: started, Observed: observed,
+		})
+	}
+	return views
+}
+
+// configUsers lists the config-owned users, which the admin store never sees.
+func (s *session) configUsers() []outbound.UserConfig {
+	if s.server.deps.ConfigUsers == nil {
+		return nil
+	}
+	return s.server.deps.ConfigUsers()
 }
