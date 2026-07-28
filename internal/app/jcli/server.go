@@ -34,6 +34,7 @@ type Deps struct {
 	Routes     *admin.RouteService
 	MORoutes   *admin.MORouteService
 	Users      *admin.UserService
+	Groups     *admin.GroupService
 	SMPPsUsers *admin.SMPPsUserService
 
 	// Username/Password are the console login. Password is the resolved

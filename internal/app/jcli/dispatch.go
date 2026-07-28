@@ -56,6 +56,9 @@ var commandTable = map[string]commandHandler{
 	"user": func(s *session, argument string) string {
 		return s.handleUser(argument)
 	},
+	"group": func(s *session, argument string) string {
+		return s.handleGroup(argument)
+	},
 }
 
 const nohelpFormat = "*** No help on %s"

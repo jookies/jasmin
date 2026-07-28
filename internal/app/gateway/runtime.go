@@ -327,6 +327,18 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if applyErr := routeService.LoadAndApply(ctx); applyErr != nil {
 			slog.Default().Error("admin: load persisted routes: " + applyErr.Error())
 		}
+		// Group provisioning runs before users: a user resolves its group by
+		// gid at apply time, so a persisted group must be live first or every
+		// grouped user fails to re-add at boot.
+		groupService, groupErr := admin.NewGroupService(store,
+			outboundGroupProvisioner{runtime: outboundRuntime, configGroups: int64(len(outboundRuntime.ConfigGroupIDs()))},
+			func() string { return time.Now().UTC().Format(time.RFC3339Nano) })
+		if groupErr != nil {
+			return nil, fmt.Errorf("build admin group service: %w", groupErr)
+		}
+		if applyErr := groupService.LoadAndApply(ctx); applyErr != nil {
+			slog.Default().Error("admin: load persisted groups: " + applyErr.Error())
+		}
 		// User provisioning: admin persists opaque user JSON + a stable uid and
 		// installs it in the live billing directory. The floor is the config
 		// user count so admin uids never collide with config index-based uids.
@@ -411,6 +423,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				Routes:      routeService,
 				MORoutes:    moRouteService,
 				Users:       userService,
+				Groups:      groupService,
 				SMPPsUsers:  smppsUserService,
 				Username:    config.Admin.JCliUsername,
 				Password:    config.Admin.JCliPassword,

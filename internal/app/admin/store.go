@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS admin_smpps_users (
     system_id  TEXT PRIMARY KEY,
     spec_json  TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_groups (
+    gid        TEXT PRIMARY KEY,
+    gid_number INTEGER NOT NULL UNIQUE,
+    spec_json  TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );`
 
 // Store persists admin provisioning state in SQLite.

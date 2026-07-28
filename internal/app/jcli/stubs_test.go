@@ -38,6 +38,12 @@ type stubMOProvisioner struct{}
 
 func (stubMOProvisioner) ApplyMORoutes(context.Context, []string) error { return nil }
 
+type stubGroupProvisioner struct{}
+
+func (stubGroupProvisioner) AddGroup(string, string, int64) error { return nil }
+func (stubGroupProvisioner) RemoveGroup(string) error             { return nil }
+func (stubGroupProvisioner) ConfigGroupFloor() int64              { return 0 }
+
 type stubUserProvisioner struct{}
 
 func (stubUserProvisioner) AddUser(string, string, int64) error { return nil }

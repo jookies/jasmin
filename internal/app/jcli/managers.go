@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 // by a single space, exactly as the oracle formats them — scripts parse this.
 
 const commandTimeout = 10 * time.Second
+
+// legacyGroupID is the frozen gid constraint (jasmin/routing/jasminApi.py:229).
+var legacyGroupID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,16}$`)
 
 func (s *session) context() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), commandTimeout)

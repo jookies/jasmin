@@ -152,6 +152,32 @@ func (p outboundUserProvisioner) RemoveUser(username string) error {
 
 func (p outboundUserProvisioner) ConfigUserFloor() int64 { return p.configUsers }
 
+// outboundGroupProvisioner adapts the admin GroupProvisioner to the outbound
+// runtime, decoding each opaque spec into a strict outbound.GroupConfig.
+type outboundGroupProvisioner struct {
+	runtime      *outbound.Runtime
+	configGroups int64
+}
+
+func (p outboundGroupProvisioner) AddGroup(gid, specJSON string, number int64) error {
+	var group outbound.GroupConfig
+	decoder := json.NewDecoder(bytes.NewReader([]byte(specJSON)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&group); err != nil {
+		return fmt.Errorf("admin group %q: %w", gid, err)
+	}
+	if group.GID != gid {
+		return fmt.Errorf("admin group spec gid %q != %q", group.GID, gid)
+	}
+	return p.runtime.AddAdminGroup(group, number)
+}
+
+func (p outboundGroupProvisioner) RemoveGroup(gid string) error {
+	return p.runtime.RemoveAdminGroup(gid)
+}
+
+func (p outboundGroupProvisioner) ConfigGroupFloor() int64 { return p.configGroups }
+
 // newDLRRequestStore opens a Redis client for the submit-side DLR request
 // store, returning the store, a multipart store over the same client, a
 // cleanup that closes the client, and any error. Sharing one Redis endpoint

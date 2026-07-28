@@ -54,11 +54,17 @@ func newConsoleFixtureAuth(t *testing.T, authentication bool) *consoleFixture {
 		t.Fatalf("user service: %v", err)
 	}
 
+	groups, err := admin.NewGroupService(store, stubGroupProvisioner{}, now)
+	if err != nil {
+		t.Fatalf("group service: %v", err)
+	}
+
 	server, err := NewServer("127.0.0.1:0", Deps{
 		Connectors:             connectors,
 		Routes:                 routes,
 		MORoutes:               moRoutes,
 		Users:                  users,
+		Groups:                 groups,
 		Username:               "jcliadmin",
 		Password:               "jclipwd",
 		AuthenticationDisabled: !authentication,

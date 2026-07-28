@@ -49,6 +49,7 @@ type Runtime struct {
 	configRoutes    []RouteConfig
 	configUsernames []string
 	resolveUID      uidResolver
+	configGroupIDs  []string
 	routesMu        sync.Mutex
 	// Live MT interception: the submit path runs mtInterceptors (atomic);
 	// admin interceptor provisioning rebuilds config + admin entries and swaps
@@ -281,6 +282,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		routes:          atomicRoutes,
 		configRoutes:    append([]RouteConfig(nil), config.Routes...),
 		configUsernames: configUsernames(config.Users),
+		configGroupIDs:  configGroupIDs(config.Groups),
 		resolveUID:      directory.resolveUID,
 
 		mtInterceptors:       atomicInterceptors,
@@ -393,6 +395,40 @@ func (runtime *Runtime) RemoveAdminUser(username string) error {
 // touch, and the count seeds admin uid assignment above the config range.
 func (runtime *Runtime) ConfigUsernames() []string {
 	return append([]string(nil), runtime.configUsernames...)
+}
+
+// ErrGroupReserved reports an admin group whose gid collides with a config
+// group (config owns those).
+var ErrGroupReserved = errors.New("outbound: gid is config-reserved")
+
+// AddAdminGroup installs an admin-provisioned billing group with a stable
+// numeric gid. It refuses config-owned gids.
+func (runtime *Runtime) AddAdminGroup(entry GroupConfig, number int64) error {
+	for _, reserved := range runtime.configGroupIDs {
+		if reserved == entry.GID {
+			return fmt.Errorf("%w: %q", ErrGroupReserved, entry.GID)
+		}
+	}
+	return runtime.directory.applyGroup(entry, number)
+}
+
+// RemoveAdminGroup removes an admin-provisioned group. Config groups are
+// protected. Users still pointing at the group keep the billing.Group they were
+// given: dropping a ceiling out from under a live user mid-submit would let
+// charges through that the operator meant to cap, so the group survives until
+// those users are themselves re-provisioned.
+func (runtime *Runtime) RemoveAdminGroup(gid string) error {
+	for _, reserved := range runtime.configGroupIDs {
+		if reserved == gid {
+			return fmt.Errorf("%w: %q", ErrGroupReserved, gid)
+		}
+	}
+	return runtime.directory.removeGroup(gid)
+}
+
+// ConfigGroupIDs lists the config-owned gids the admin plane must not touch.
+func (runtime *Runtime) ConfigGroupIDs() []string {
+	return append([]string(nil), runtime.configGroupIDs...)
 }
 
 // Submitter exposes the composed MT submit pipeline so other ingress paths
