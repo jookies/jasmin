@@ -43,7 +43,7 @@ Ordered by the current roadmap.
 
 ### Nice-to-have / cleanup
 - **Retire the `pickle_codec: "bridge"` option** once native has soaked in production (the bridge script is already out of the image).
-- **CI guard for the embedded UI bundle** — `internal/app/adminweb/dist` is committed; a `web/src` change without `npm run build` ships a stale UI. Add a CI step that rebuilds and diffs.
+- ~~CI guard for the embedded UI bundle~~ — **done**: the `adminweb-bundle-freshness` job rebuilds `internal/app/adminweb/dist` and fails on a diff. Added after the bundle went stale once in practice.
 
 ---
 
