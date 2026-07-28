@@ -128,6 +128,22 @@ SCENARIOS = [
         ],
     },
     {
+        'id': 'J-006-smpp-control',
+        'title': 'user --smpp-unbind / --smpp-ban, and an unknown uid',
+        'authentication': False,
+        'inputs': [
+            'group -a', 'gid gid1', 'ok',
+            'user -a', 'username u1', 'password pwd1', 'gid gid1', 'uid uid1', 'ok',
+            'user --smpp-unbind=uid1',
+            'user --smpp-ban=uid1',
+            # A ban flips smpps_cred authorization bind to False; show proves it
+            # is the persisted record that changed, not just the live session.
+            'user -s uid1',
+            'user --smpp-unbind=nosuchuid',
+            'quit',
+        ],
+    },
+    {
         'id': 'J-007-filter',
         'title': 'filter add/list/show/remove across filter types',
         'authentication': False,

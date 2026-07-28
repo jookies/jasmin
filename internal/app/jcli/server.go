@@ -72,6 +72,12 @@ type Deps struct {
 	// console's Service/Session columns are true for them too.
 	ConnectorStatus func(cid string) (smppc.ManagedStatus, error)
 
+	// UnbindSMPPsUser unbinds and disconnects every session bound as the given
+	// system_id, backing `user --smpp-unbind` / `--smpp-ban`. nil means the
+	// gateway runs no SMPPs server, and the console says so rather than
+	// reporting a success that unbound nothing.
+	UnbindSMPPsUser func(systemID string) int
+
 	// Username/Password are the console login. Password is the resolved
 	// plaintext; it is compared constant-time and not retained in the clear.
 	Username string

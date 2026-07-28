@@ -202,11 +202,77 @@ func (s *session) handleUser(argument string) string {
 		return s.setUserEnabled(operand, true)
 	case verb == "-d" || verb == "--disable":
 		return s.setUserEnabled(operand, false)
+	case strings.HasPrefix(verb, "--smpp-unbind"):
+		return s.unbindUser(equalsOperand(verb, operand), false)
+	case strings.HasPrefix(verb, "--smpp-ban"):
+		return s.unbindUser(equalsOperand(verb, operand), true)
 	case verb == "":
 		return "Missing required option"
 	default:
 		return unsupportedVerb("user", verb)
 	}
+}
+
+// equalsOperand reads the value from either `--opt=VALUE` or `--opt VALUE`.
+// The oracle's optparse accepts both; the captured transcript uses the first.
+func equalsOperand(verb, operand string) string {
+	if _, value, found := strings.Cut(verb, "="); found {
+		return value
+	}
+	return operand
+}
+
+// unbindUser drops the user's live SMPP sessions, and for a ban also revokes
+// their bind authorization so the next attempt is refused.
+//
+// The order matters: revoke first, then unbind. Doing it the other way leaves a
+// window in which the ESME reconnects between the disconnect and the revocation
+// and is legitimately let back in -- which is precisely what a ban is for.
+func (s *session) unbindUser(uid string, ban bool) string {
+	if uid == "" {
+		return "Missing required option"
+	}
+	ctx, cancel := s.context()
+	defer cancel()
+	_, user, err := s.findUserByUID(ctx, uid)
+	if err != nil {
+		return fmt.Sprintf("Unknown User: %s", uid)
+	}
+
+	if ban {
+		denied := false
+		if user.SMPPSCredential == nil {
+			user.SMPPSCredential = &outbound.SMPPSCredentialConfig{}
+		}
+		user.SMPPSCredential.Bind = &denied
+		spec, marshalErr := json.Marshal(user)
+		if marshalErr != nil {
+			return "Failed banning User, check log for details"
+		}
+		if err := s.server.deps.Users.CreateUser(ctx, user.Username, string(spec)); err != nil {
+			return "Failed banning User, check log for details"
+		}
+		if _, ok := s.mirrorSMPPsAccount(ctx, user, ""); !ok {
+			return "Failed banning User, check log for details"
+		}
+	}
+
+	if s.server.deps.UnbindSMPPsUser == nil {
+		// No SMPPs server: a ban still took effect, an unbind had nothing to do.
+		if ban {
+			s.server.logger.Warn("jcli: user banned with no SMPPs server running",
+				"session", s.ref, "uid", uid)
+			return fmt.Sprintf("Successfully unbound and banned User id:%s", uid)
+		}
+		return fmt.Sprintf("Successfully unbound User id:%s", uid)
+	}
+	unbound := s.server.deps.UnbindSMPPsUser(user.Username)
+	s.server.logger.Info("jcli: unbound SMPPs sessions",
+		"session", s.ref, "uid", uid, "system_id", user.Username, "sessions", unbound, "banned", ban)
+	if ban {
+		return fmt.Sprintf("Successfully unbound and banned User id:%s", uid)
+	}
+	return fmt.Sprintf("Successfully unbound User id:%s", uid)
 }
 
 func (s *session) listUsers() string {
@@ -369,7 +435,7 @@ func (s *session) setUserEnabled(uid string, enabled bool) string {
 	if err := s.server.deps.Users.CreateUser(ctx, user.Username, string(spec)); err != nil {
 		return fmt.Sprintf("Error: %v", err)
 	}
-	if _, ok := s.mirrorSMPPsAccount(ctx, user); !ok {
+	if _, ok := s.mirrorSMPPsAccount(ctx, user, ""); !ok {
 		return fmt.Sprintf("Error: could not update the SMPPs bind account for %s", user.Username)
 	}
 	if enabled {

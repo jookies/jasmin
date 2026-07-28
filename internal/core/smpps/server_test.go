@@ -473,3 +473,50 @@ func TestSMPPsStatsIncrementOnLifecycle(t *testing.T) {
 		}
 	}
 }
+
+// TestUnbindUserDropsBoundSessions covers what a transcript cannot: that
+// `user --smpp-unbind` actually reaches the wire. The ESME must be *told* to
+// unbind, not merely disconnected -- an ESME whose socket vanishes typically
+// retries against a gateway that still believes it is bound.
+func TestUnbindUserDropsBoundSessions(t *testing.T) {
+	server, addr := startServer(t, mapResolver{
+		"alice": testUser("secret"),
+		"bob":   testUser("secret"),
+	}, ServerConfig{})
+
+	alice := dial(t, addr)
+	writePDU(t, alice, bindPDU(CommandBindTransceiver, "alice", "secret", 1))
+	if resp := readPDU(t, alice); resp.Header.CommandStatus != StatusROK {
+		t.Fatalf("alice bind status = %#x", resp.Header.CommandStatus)
+	}
+	bob := dial(t, addr)
+	writePDU(t, bob, bindPDU(CommandBindTransceiver, "bob", "secret", 1))
+	if resp := readPDU(t, bob); resp.Header.CommandStatus != StatusROK {
+		t.Fatalf("bob bind status = %#x", resp.Header.CommandStatus)
+	}
+
+	if unbound := server.UnbindUser("alice"); unbound != 1 {
+		t.Fatalf("unbound = %d, want 1", unbound)
+	}
+
+	// Alice is told to unbind, then dropped.
+	unbind := readPDU(t, alice)
+	if unbind.Header.CommandID != smppwire.CommandUnbind {
+		t.Fatalf("alice received %#x, want unbind", unbind.Header.CommandID)
+	}
+	_ = alice.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := smppwire.Read(alice, smppwire.DefaultMaxSize); err == nil {
+		t.Fatal("alice's connection stayed open after unbind")
+	}
+
+	// Bob is untouched: unbinding one user must not disturb anyone else.
+	if unbound := server.UnbindUser("nosuchuser"); unbound != 0 {
+		t.Fatalf("unbinding an unknown system_id reported %d sessions", unbound)
+	}
+	writePDU(t, bob, smppwire.PDU{Header: smppwire.Header{
+		CommandID: smppwire.CommandEnquireLink, SequenceNumber: 9,
+	}})
+	if resp := readPDU(t, bob); resp.Header.CommandID != smppwire.CommandEnquireLinkResp {
+		t.Fatalf("bob got %#x after another user was unbound", resp.Header.CommandID)
+	}
+}

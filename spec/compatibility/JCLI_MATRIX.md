@@ -17,7 +17,7 @@ the question the second one answers.
 | J-003 | `group` | list/add/remove/enable/disable and validation/errors | `admin.GroupService` (plan 012 Step 6, landed) | **MATCH** — `J-003-group` |
 | J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | **MATCH** — `J-004-user` |
 | J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | `outbound.UserConfig.MTCredential` + `SMPPSCredential` (mirrored to the bind account) | **MATCH** — `J-005-user-credentials`, `J-005-user-invalid` (console surface; **HTTP-path enforcement is still missing**, see below) |
-| J-006 | user SMPP control | unbind/ban and session effects | **MISSING** — no session control surface | INVENTORIED (only row with no implementation) |
+| J-006 | user SMPP control | unbind/ban and session effects | `smpps.Server.UnbindUser` + persisted bind revocation | **MATCH** — `J-006-smpp-control` |
 | J-007 | `filter` | all filter types, MO/MT restrictions, regex/date/time/tag/eval | named registry (`admin_filters`); routes embed a resolved copy, as the oracle pickles the filter object | **MATCH** — `J-007-filter` |
 | J-008 | `morouter` | list/add/remove/show/flush; all working route types | `/api/mo-routes` + MO Routes page | **MATCH** — `J-008-morouter` |
 | J-009 | `mtrouter` | list/add/remove/show/flush; rates and connectors | `/api/routes` + MT Routes page | **MATCH** — `J-009-mtrouter` |
@@ -45,10 +45,17 @@ emits `Username: ` on connect. The previous Go implementation got all of that
 wrong while claiming Steps 2–3 were done — which is precisely what "asserted,
 not proven" was warning about.
 
-**All 18 fixtures replay byte-for-byte** (`go test ./internal/app/jcli/ -run
-TestOracleTranscripts`). 17 of 18 rows carry `MATCH`; **J-006**
-(`--smpp-unbind` / `--smpp-ban`) is the only command with no implementation,
-because nothing in the Go SMPPs server can yet drop a bound session on demand.
+**All 19 fixtures replay byte-for-byte** (`go test ./internal/app/jcli/ -run
+TestOracleTranscripts`), and **every row carries `MATCH`**. jCli is complete.
+
+J-006 (`--smpp-unbind` / `--smpp-ban`) is implemented against the live server:
+`smpps.Server.UnbindUser` sends each bound session an unbind PDU and then drops
+it, mirroring `unbindGateway`, and a ban additionally revokes the persisted bind
+authorization *before* unbinding — the other order leaves a window in which the
+ESME reconnects between the disconnect and the revocation. Proven end to end
+against the running gateway: a real ESME bound, the console reported
+`bound_trx_count 1`, `user --smpp-unbind` returned success, and the ESME
+received command 0x6 followed by a clean close.
 
 Two things the transcripts cannot pin, both recorded rather than hidden:
 

@@ -227,3 +227,33 @@ func (s *Server) newSession(conn net.Conn) *Session {
 		state:  StateOpen,
 	}
 }
+
+// UnbindUser unbinds and disconnects every session bound as system_id, the way
+// the frozen SMPPServerFactory.unbindGateway does: each binding is sent an
+// unbind PDU and then dropped, rather than having its socket yanked. An ESME
+// that is told to unbind can reconnect cleanly; one whose connection simply
+// vanishes usually retries against a gateway that thinks it is still bound.
+//
+// It reports how many sessions were unbound; zero is not an error, because the
+// operator's intent ("this user must not be bound") is satisfied either way.
+func (s *Server) UnbindUser(systemID string) int {
+	s.mu.Lock()
+	targets := make([]*Session, 0, len(s.sessions))
+	for session := range s.sessions {
+		session.mu.Lock()
+		bound := session.systemID == systemID && !session.closed
+		session.mu.Unlock()
+		if bound {
+			targets = append(targets, session)
+		}
+	}
+	s.mu.Unlock()
+
+	for _, session := range targets {
+		// Sequence 0: this is an unsolicited request from the server, not a
+		// response, so it carries no client sequence to echo.
+		_ = session.writeHeader(smppwire.CommandUnbind, 0, 0)
+		session.cleanup()
+	}
+	return len(targets)
+}

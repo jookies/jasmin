@@ -181,7 +181,7 @@ func saveUser(s *session, is *interactiveSession) (string, bool) {
 	if err := s.server.deps.Users.CreateUser(ctx, user.Username, string(spec)); err != nil {
 		return fmt.Sprintf("Error: %v", err), false
 	}
-	if message, ok := s.mirrorSMPPsAccount(ctx, user); !ok {
+	if message, ok := s.mirrorSMPPsAccount(ctx, user, is.values["password"]); !ok {
 		return message, false
 	}
 
@@ -297,13 +297,33 @@ func parsePythonBool(value string) bool {
 // smpps_cred half. In legacy one record serves both protocols; the Go model
 // splits them, so provisioning a user through the console must touch both or
 // the console would report a bind authorization nothing enforces.
-func (s *session) mirrorSMPPsAccount(ctx context.Context, user outbound.UserConfig) (string, bool) {
+//
+// plaintext is the password as typed, empty on the paths that never see it
+// (enable/disable/ban). The bind account stores the password in the clear
+// because smppsserver hashes it itself -- writing the already-hashed value
+// would have the server hash it twice, and every bind would fail
+// ESME_RINVPASWD with nothing in the transcript to explain why.
+func (s *session) mirrorSMPPsAccount(ctx context.Context, user outbound.UserConfig, plaintext string) (string, bool) {
 	if s.server.deps.SMPPsUsers == nil || user.SMPPSCredential == nil {
+		return "", true
+	}
+	if plaintext == "" {
+		// Preserve whatever password the account already carries rather than
+		// clobbering it with a value this path does not have.
+		if existing, err := s.server.deps.SMPPsUsers.GetUser(ctx, user.Username); err == nil {
+			var account smppsserver.UserConfig
+			if json.Unmarshal([]byte(existing.SpecJSON), &account) == nil {
+				plaintext = account.Password
+			}
+		}
+	}
+	if plaintext == "" {
+		// Nothing to bind with; do not create a half-formed account.
 		return "", true
 	}
 	account := smppsserver.UserConfig{
 		SystemID:    user.Username,
-		Password:    user.PasswordSHA256,
+		Password:    plaintext,
 		Disabled:    user.Disabled,
 		MaxBindings: user.SMPPSCredential.MaxBindings,
 		SMPPSSend:   user.SMPPSCredential.Bind,

@@ -1,7 +1,7 @@
 # jCli console in Go — telnet management over the shared admin core
 
 - **Date:** 2026-07-27
-- **Status:** **done** — all 8 steps. 18 fixtures captured from the frozen oracle and all 18 replay byte-for-byte; 17 of 18 matrix rows are `MATCH`. The single gap is J-006 (`--smpp-unbind` / `--smpp-ban`), which needs a session-control surface the Go SMPPs server does not have yet.
+- **Status:** **done** — all 8 steps, no gaps. 19 fixtures captured from the frozen oracle, all 19 replay byte-for-byte, all 19 matrix rows `MATCH`.
 - **Update 2026-07-27 (evening):** the "frozen stack is not installable" blocker was wrong. `python3 -m venv .venv-oracle && .venv-oracle/bin/pip install -r requirements.txt` imports the entire frozen stack including every `jasmin.protocols.cli` manager; only `compat/requirements-baseline.lock` is broken (`--require-hashes` rejects coveralls' unpinned `coverage[toml]`). Capturing additionally needed an isolated AMQP vhost, a logging-layer redirect for `/var/log/jasmin`, and a longer settle window — see the script's header.
 - **Summary:** Implement the jCli telnet management console in Go (`internal/app/jcli`) as a third face over the same `internal/app/admin` services the JSON API and web UI use, preserving the transcript contract in `spec/compatibility/JCLI_MATRIX.md`.
 - **Related:** [plans/012-admin-plane-full-coverage.md](012-admin-plane-full-coverage.md), [plans/011-admin-web-ui.md](011-admin-web-ui.md), `spec/compatibility/JCLI_MATRIX.md`

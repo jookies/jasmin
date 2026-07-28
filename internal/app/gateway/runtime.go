@@ -460,9 +460,17 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 				ConfigRoutes:     outboundRuntime.ConfigRoutes,
 				ConfigUsers:      func() []outbound.UserConfig { return config.Outbound.Users },
 				ConnectorStatus:  manager.Status,
-				Username:         config.Admin.JCliUsername,
-				Password:         config.Admin.JCliPassword,
-				IdleTimeout:      time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
+				UnbindSMPPsUser: func(systemID string) int {
+					// Resolved at call time: the SMPPs server is built after
+					// the console and may be absent entirely.
+					if runtime.smppsServer == nil {
+						return 0
+					}
+					return runtime.smppsServer.Server().UnbindUser(systemID)
+				},
+				Username:    config.Admin.JCliUsername,
+				Password:    config.Admin.JCliPassword,
+				IdleTimeout: time.Duration(config.Admin.JCliIdleTimeoutSeconds * float64(time.Second)),
 			}, slog.Default())
 			if consoleErr != nil {
 				return nil, fmt.Errorf("start jCli console: %w", consoleErr)
