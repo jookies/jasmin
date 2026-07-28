@@ -121,90 +121,23 @@ func (c *client) send(line string) {
 }
 
 // login performs the full auth exchange and returns the banner text.
+//
+// It waits for the auth notice, not for a "Username: " prompt: the oracle's
+// initializeScreen() deliberately draws no prompt on connect, so the operator
+// types the username blind. Proven by J-001-auth-success.
 func (c *client) login(username, password string) string {
 	c.t.Helper()
-	c.readUntil(promptUsername)
+	c.readUntil("Authentication required." + lineBreak + lineBreak)
 	c.send(username)
 	c.readUntil(promptPassword)
 	c.send(password)
 	return c.readUntil(promptMain)
 }
 
-func TestConsoleAuthTranscript(t *testing.T) {
-	fixture := newConsoleFixture(t)
-	client := fixture.dial()
-
-	// The connection opens with the auth notice and the username prompt.
-	opening := client.readUntil(promptUsername)
-	if !strings.Contains(opening, "Authentication required.") {
-		t.Fatalf("missing auth notice: %q", opening)
-	}
-
-	// A wrong password reports the legacy text and returns to Username:.
-	client.send("jcliadmin")
-	client.readUntil(promptPassword)
-	client.send("wrong")
-	failure := client.readUntil(promptUsername)
-	if !strings.Contains(failure, authFailedText) {
-		t.Fatalf("missing %q in %q", authFailedText, failure)
-	}
-
-	// The right credentials draw the banner and the main prompt.
-	client.send("jcliadmin")
-	client.readUntil(promptPassword)
-	client.send("jclipwd")
-	banner := client.readUntil(promptMain)
-	if !strings.Contains(banner, "Welcome to Jasmin "+LegacyRelease+" console") {
-		t.Fatalf("banner mismatch: %q", banner)
-	}
-	if !strings.Contains(banner, "Type help or ? to list commands.") {
-		t.Fatalf("banner missing help hint: %q", banner)
-	}
-	if !strings.Contains(banner, "Session ref: ") {
-		t.Fatalf("banner missing session ref: %q", banner)
-	}
-}
-
-func TestConsoleHelpAndUnknownCommand(t *testing.T) {
-	fixture := newConsoleFixture(t)
-	client := fixture.dial()
-	client.login("jcliadmin", "jclipwd")
-
-	client.send("help")
-	help := client.readUntil(promptMain)
-	for _, want := range []string{
-		"Available commands:", "Control commands:",
-		"smppccm", "mtrouter", "morouter", "user", "quit",
-		"SMPP connector management",
-	} {
-		if !strings.Contains(help, want) {
-			t.Fatalf("help missing %q:\n%s", want, help)
-		}
-	}
-	// Commands are padded to 20 columns, which scripts rely on.
-	if !strings.Contains(help, "smppccm             SMPP connector management") {
-		t.Fatalf("help column padding changed:\n%s", help)
-	}
-
-	// "?" is an alias for help.
-	client.send("?")
-	if alias := client.readUntil(promptMain); !strings.Contains(alias, "Available commands:") {
-		t.Fatalf("? did not render help:\n%s", alias)
-	}
-
-	// An unknown command uses the legacy wording.
-	client.send("frobnicate --now")
-	unknown := client.readUntil(promptMain)
-	if !strings.Contains(unknown, "Incorrect command: frobnicate --now, type help for a list of commands") {
-		t.Fatalf("unknown-command text changed: %q", unknown)
-	}
-
-	// A blank line just re-prompts.
-	client.send("")
-	if blank := client.readUntil(promptMain); strings.TrimSpace(strings.TrimSuffix(blank, promptMain)) != "" {
-		t.Fatalf("blank line produced output: %q", blank)
-	}
-}
+// The auth exchange, help, unknown commands and completion are asserted
+// byte-for-byte by TestOracleTranscripts against recordings of the frozen
+// console. The tests below cover what a transcript cannot: that the console and
+// the admin services share one state, and that the connection lifecycle holds.
 
 func TestConsoleListsReflectAdminState(t *testing.T) {
 	fixture := newConsoleFixture(t)
@@ -263,6 +196,10 @@ func TestConsoleQuitClosesConnection(t *testing.T) {
 	client.login("jcliadmin", "jclipwd")
 
 	client.send("quit")
+	// The oracle echoes the command, breaks the line and writes a terminal
+	// reset before hanging up (J-001-auth-success step 3), so drain that first
+	// -- the contract is that the connection closes after it, not instead of it.
+	client.readUntil(terminalReset)
 	if _, err := client.reader.ReadByte(); err == nil {
 		t.Fatal("connection stayed open after quit")
 	}

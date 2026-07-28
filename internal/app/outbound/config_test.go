@@ -146,3 +146,68 @@ func TestStandaloneRuntimeRejectsPooledRouteWithoutAvailabilitySource(t *testing
 		t.Fatalf("standalone runtime rejected singular route: %v", err)
 	}
 }
+
+// TestDisabledUserAndGroupAreRefusedAtAuthentication guards a control an
+// operator relies on: flipping a user (or their whole group) to disabled must
+// stop sends immediately, not at the next restart. Before groups existed the
+// front door checked only the password, so a suspended customer kept sending.
+func TestDisabledUserAndGroupAreRefusedAtAuthentication(t *testing.T) {
+	digest := sha256.Sum256([]byte("secret"))
+	hexDigest := hex.EncodeToString(digest[:])
+	user := func(name, gid string, disabled bool) UserConfig {
+		return UserConfig{
+			Username:       name,
+			ExternalID:     name + "-id",
+			PasswordSHA256: hexDigest,
+			GroupID:        gid,
+			Disabled:       disabled,
+		}
+	}
+
+	directory, err := newRuntimeDirectory(Config{
+		Groups: []GroupConfig{{GID: "live"}, {GID: "suspended", Disabled: true}},
+		Users: []UserConfig{
+			user("alice", "live", false),
+			user("bob", "live", true),
+			user("carol", "suspended", false),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, testCase := range []struct {
+		username string
+		wantErr  bool
+		why      string
+	}{
+		{"alice", false, "enabled user in an enabled group"},
+		{"bob", true, "disabled user"},
+		{"carol", true, "enabled user in a disabled group"},
+	} {
+		t.Run(testCase.username, func(t *testing.T) {
+			err := directory.Authenticate(context.Background(), testCase.username, "secret")
+			if testCase.wantErr && err == nil {
+				t.Fatalf("%s was authenticated", testCase.why)
+			}
+			if !testCase.wantErr && err != nil {
+				t.Fatalf("%s was refused: %v", testCase.why, err)
+			}
+		})
+	}
+}
+
+// TestUserRequiresDeclaredGroup keeps a missing group from silently removing a
+// spending ceiling.
+func TestUserRequiresDeclaredGroup(t *testing.T) {
+	digest := sha256.Sum256([]byte("secret"))
+	_, err := newRuntimeDirectory(Config{Users: []UserConfig{{
+		Username:       "alice",
+		ExternalID:     "alice-id",
+		PasswordSHA256: hex.EncodeToString(digest[:]),
+		GroupID:        "nosuchgroup",
+	}}})
+	if err == nil {
+		t.Fatal("user referencing an undeclared group was accepted")
+	}
+}

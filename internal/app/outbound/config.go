@@ -75,8 +75,52 @@ type UserConfig struct {
 	// billing already handles as "no group ceiling".
 	GroupID string `json:"group_id,omitempty"`
 	// Disabled mirrors the legacy user enable/disable flag, which jCli toggles
-	// and the list renders with a "!" prefix.
+	// and the list renders with a "!" prefix. A disabled user is refused at the
+	// front door: legacy checks it on every authentication.
 	Disabled bool `json:"disabled,omitempty"`
+
+	// MTCredential is the user's MtMessagingCredential: which optional
+	// parameters they may set, which values are admissible, and the default
+	// source address. The engine (internal/core/mtcredential) already enforces
+	// this for SMPPs binds; these fields are what let the HTTP front door
+	// enforce the same contract instead of only checking the password.
+	MTCredential *MTCredentialConfig `json:"mt_credential,omitempty"`
+}
+
+// MTCredentialConfig provisions MtMessagingCredential. Every authorization is a
+// pointer so "omitted" (legacy default: true, except http_bulk) is
+// distinguishable from an explicit false; every value filter is a regex source
+// that defaults to the legacy pattern when empty.
+type MTCredentialConfig struct {
+	HTTPSend                *bool `json:"http_send,omitempty"`
+	HTTPBulk                *bool `json:"http_bulk,omitempty"`
+	HTTPBalance             *bool `json:"http_balance,omitempty"`
+	HTTPRate                *bool `json:"http_rate,omitempty"`
+	SMPPSSend               *bool `json:"smpps_send,omitempty"`
+	HTTPLongContent         *bool `json:"http_long_content,omitempty"`
+	SetDLRLevel             *bool `json:"set_dlr_level,omitempty"`
+	HTTPSetDLRMethod        *bool `json:"http_set_dlr_method,omitempty"`
+	SetSourceAddress        *bool `json:"set_source_address,omitempty"`
+	SetPriority             *bool `json:"set_priority,omitempty"`
+	SetValidityPeriod       *bool `json:"set_validity_period,omitempty"`
+	SetHexContent           *bool `json:"set_hex_content,omitempty"`
+	SetScheduleDeliveryTime *bool `json:"set_schedule_delivery_time,omitempty"`
+
+	FilterDestinationAddress string `json:"filter_destination_address,omitempty"`
+	FilterSourceAddress      string `json:"filter_source_address,omitempty"`
+	FilterPriority           string `json:"filter_priority,omitempty"`
+	FilterValidityPeriod     string `json:"filter_validity_period,omitempty"`
+	FilterContent            string `json:"filter_content,omitempty"`
+
+	// DefaultSourceAddress is substituted when the request omits one. A nil
+	// pointer means "unset" (Python None), which is not the same as "".
+	DefaultSourceAddress *string `json:"default_source_address,omitempty"`
+
+	// HTTPThroughput and SMPPSThroughput are the per-second submit ceilings the
+	// legacy console reports in the user list. Not enforced yet; provisioned so
+	// the console reports what is stored rather than inventing a value.
+	HTTPThroughput  *float64 `json:"http_throughput,omitempty"`
+	SMPPSThroughput *float64 `json:"smpps_throughput,omitempty"`
 }
 
 // GroupConfig is a billing group: a balance and quota ceiling shared by its
@@ -117,6 +161,13 @@ type runtimeDirectory struct {
 	// by mu, like passwordHashes.
 	groups   map[string]*billing.Group
 	groupIDs map[string]int64
+	// groupDisabled and userDisabled carry the legacy enable/disable flags. A
+	// disabled user, or a user in a disabled group, is refused at
+	// authentication -- legacy checks both there, so a suspended customer stops
+	// sending the moment the flag flips rather than at the next restart.
+	groupDisabled map[string]bool
+	userDisabled  map[string]bool
+	userGroup     map[string]string
 	// mu guards passwordHashes, read on the hot Authenticate path and written
 	// by admin user provisioning. billing.Manager has its own lock.
 	mu             sync.RWMutex
@@ -129,6 +180,9 @@ func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
 		passwordHashes: make(map[string][sha256.Size]byte, len(config.Users)),
 		groups:         make(map[string]*billing.Group, len(config.Groups)),
 		groupIDs:       make(map[string]int64, len(config.Groups)),
+		groupDisabled:  make(map[string]bool, len(config.Groups)),
+		userDisabled:   make(map[string]bool, len(config.Users)),
+		userGroup:      make(map[string]string, len(config.Users)),
 	}
 	// Groups first: a user entry resolves its group by gid, so the groups must
 	// exist before any user is installed.
@@ -171,6 +225,7 @@ func (directory *runtimeDirectory) applyGroup(entry GroupConfig, gid int64) erro
 	}
 	directory.groups[entry.GID] = group
 	directory.groupIDs[entry.GID] = gid
+	directory.groupDisabled[entry.GID] = entry.Disabled
 	return nil
 }
 
@@ -238,6 +293,8 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 		return fmt.Errorf("%w: user %q: %v", ErrInvalidRuntimeConfig, entry.Username, err)
 	}
 	directory.passwordHashes[entry.Username] = passwordHash
+	directory.userDisabled[entry.Username] = entry.Disabled
+	directory.userGroup[entry.Username] = entry.GroupID
 	return nil
 }
 
@@ -252,6 +309,8 @@ func (directory *runtimeDirectory) removeUser(username string) error {
 		return err
 	}
 	delete(directory.passwordHashes, username)
+	delete(directory.userDisabled, username)
+	delete(directory.userGroup, username)
 	return nil
 }
 
@@ -264,6 +323,7 @@ func (directory *runtimeDirectory) removeGroup(gid string) error {
 	}
 	delete(directory.groups, gid)
 	delete(directory.groupIDs, gid)
+	delete(directory.groupDisabled, gid)
 	return nil
 }
 
@@ -289,12 +349,22 @@ func (directory *runtimeDirectory) resolveUID(username string) (int64, bool) {
 func (directory *runtimeDirectory) Authenticate(_ context.Context, username, password string) error {
 	directory.mu.RLock()
 	expected, ok := directory.passwordHashes[username]
+	userDisabled := directory.userDisabled[username]
+	groupDisabled := false
+	if gid, grouped := directory.userGroup[username]; grouped && gid != "" {
+		groupDisabled = directory.groupDisabled[gid]
+	}
 	directory.mu.RUnlock()
 	if !ok {
 		return core.ErrAuthentication
 	}
 	actual := sha256.Sum256([]byte(password))
 	if subtle.ConstantTimeCompare(actual[:], expected[:]) != 1 {
+		return core.ErrAuthentication
+	}
+	// Legacy refuses a disabled user, and a user whose group is disabled, with
+	// the same authentication failure rather than a distinct message.
+	if userDisabled || groupDisabled {
 		return core.ErrAuthentication
 	}
 	return nil
