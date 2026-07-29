@@ -19,8 +19,11 @@ import (
 
 var ErrSessionClosed = errors.New("SMPP session closed")
 var ErrAMQPConsumerLost = errors.New("AMQP consumer generation lost")
+var ErrInvalidOutboundSubmitSM = errors.New("invalid outbound submit_sm")
+var ErrSubmitChainTerminated = errors.New("multipart submit terminated before all parts were sent")
 
 const maxSequenceNumber uint32 = 0x7fffffff
+const MaxSubmitSMShortMessageLength = 254
 
 type pendingRequest struct {
 	delivery *amqpcompat.Delivery
@@ -82,6 +85,7 @@ type Session struct {
 	writeMu              sync.Mutex
 	cleanup              sync.Once
 	closed               chan struct{}
+	window               chan struct{}
 	consumerLost         bool
 	inactivityTimer      *time.Timer
 	inactivityGeneration uint64
@@ -134,6 +138,13 @@ func NewSessionWithDurability(conn net.Conn, cfg Config, retry *ErrorRetryPolicy
 	if transactions != nil && retry != nil {
 		responses, _ = NewDurableResponseLifecycle(transactions, retry, nil)
 	}
+	windowSize := cfg.WindowSize
+	if windowSize <= 0 {
+		windowSize = cfg.PrefetchCount
+	}
+	if windowSize <= 0 {
+		windowSize = 1
+	}
 	responseEncoder, _ := decoder.(SubmitResponseEncoder)
 	return &Session{
 		conn:            conn,
@@ -149,6 +160,7 @@ func NewSessionWithDurability(conn net.Conn, cfg Config, retry *ErrorRetryPolicy
 		responses:       responses,
 		onClose:         onClose,
 		closed:          make(chan struct{}),
+		window:          make(chan struct{}, windowSize),
 	}
 }
 
@@ -172,6 +184,7 @@ func (s *Session) AbortConsumerGeneration() {
 	_ = s.conn.Close()
 
 	for _, request := range pending {
+		s.releaseWindow()
 		stopTimer(request.timer)
 		_ = s.markPendingUnknown(request)
 		_ = request.delivery.Abandon()
@@ -306,6 +319,11 @@ selectLoop:
 			}
 		}
 	}
+	if errors.Is(terminalErr, io.EOF) {
+		// Let the peer finish the write that supplied a complete unbind PDU
+		// before closing transports, such as net.Pipe, with synchronous writes.
+		time.Sleep(time.Millisecond)
+	}
 	_ = s.conn.Close()
 	<-readerDone
 	s.cleanupSession(terminalErr)
@@ -349,7 +367,7 @@ func (s *Session) writePDU(pdu smppwire.PDU) error {
 	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	if err := writeFrame(s.conn, wire); err != nil {
+	if err := writeFrameWithTimeout(s.conn, wire, s.pduOperationTimeout()); err != nil {
 		return err
 	}
 	s.resetInactivityTimer()
@@ -380,7 +398,7 @@ func (s *Session) sendEnquireLink() error {
 		SequenceNumber: seq,
 	}})
 	if err == nil {
-		err = writeFrame(s.conn, wire)
+		err = writeFrameWithTimeout(s.conn, wire, s.pduOperationTimeout())
 	}
 	if err != nil {
 		if ownedTimer, owned := s.takePendingControl(seq, smppwire.CommandEnquireLinkResp); owned {
@@ -417,7 +435,9 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		s.settleDeliveryFailure(d)
 		return errors.New("SubmitSM decoder is required")
 	}
-	parts, err := s.decodeSubmitParts(ctx, d.Envelope().Body())
+	decodeCtx, cancelDecode := context.WithTimeout(ctx, s.pduOperationTimeout())
+	parts, err := s.decodeSubmitParts(decodeCtx, d.Envelope().Body())
+	cancelDecode()
 	if err != nil {
 		if errors.Is(err, picklecompat.ErrSubmitSMPoison) {
 			s.logTerminalReject(d, err)
@@ -432,6 +452,11 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	bodies := make([]smppwire.SubmitSMBody, len(parts))
 	for i := range parts {
 		body := parts[i].Body
+		if validateErr := validateOutboundSubmitSM(body); validateErr != nil {
+			s.logTerminalReject(d, validateErr)
+			s.settleDeliveryReject(d, false)
+			return validateErr
+		}
 		if len(parts[i].CustomTLVs) > 0 || len(s.cfg.CustomTLVs) > 0 {
 			vendorSection, tlvErr := prepareVendorTLVs(parts[i].CustomTLVs, s.cfg.ConnectorTLVRules())
 			if tlvErr != nil {
@@ -455,7 +480,9 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 	if s.transactions != nil {
 		var committed bool
 		var beginErr error
-		attempt, committed, beginErr = s.transactions.BeginAttempt(ctx, partKey)
+		beginCtx, cancelBegin := context.WithTimeout(ctx, 10*time.Second)
+		attempt, committed, beginErr = s.transactions.BeginAttempt(beginCtx, partKey)
+		cancelBegin()
 		if beginErr != nil {
 			s.settleDeliveryFailure(d)
 			return fmt.Errorf("commit send intent: %w", beginErr)
@@ -472,77 +499,83 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 		chain = &submitChain{remaining: len(bodies)}
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
-	if err := ctx.Err(); err != nil {
-		s.settleDeliveryFailure(d)
-		return err
-	}
-
-	// Phase 1: assign a sequence, encode, and register a pending for every part
-	// under one lock, so an encode/sequence failure aborts before any part hits
-	// the wire (no half-sent chain).
-	type framedPart struct {
-		seq     uint32
-		wire    []byte
-		pending *pendingRequest
-	}
-	s.mu.Lock()
-	if s.consumerLost {
-		s.mu.Unlock()
-		s.settleDeliveryFailure(d)
-		return ErrAMQPConsumerLost
-	}
-	select {
-	case <-s.closed:
-		s.mu.Unlock()
-		s.settleDeliveryFailure(d)
-		return ErrSessionClosed
-	default:
-	}
-	frames := make([]framedPart, 0, len(bodies))
+	// Preflight every frame body before any part hits the wire. Sequence numbers
+	// are assigned later, when each PDU has acquired a window slot.
 	for i := range bodies {
-		seq, seqErr := s.nextSequenceLocked()
-		if seqErr == nil {
-			pdu := smppwire.PDU{Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM, SequenceNumber: seq}, SM: &bodies[i]}
-			var wire []byte
-			wire, seqErr = smppwire.Encode(pdu)
-			if seqErr == nil {
-				pending := &pendingRequest{
-					delivery: d, attempt: attempt, partKey: partKey, envelope: envelope, chain: chain,
-					sourceAddr: bodies[i].SourceAddress, destAddr: bodies[i].DestinationAddress,
-					shortMessage: bodies[i].ShortMessage, registeredDelivery: bodies[i].RegisteredDelivery,
-					esmClass: bodies[i].ESMClass, optional: bodies[i].Optional, customTLVs: parts[i].CustomTLVs,
-				}
-				s.pending[seq] = pending
-				if chain != nil {
-					// Accumulate the multipart audit data in send order for the single
-					// SMS-MT line rendered when the last part's response arrives.
-					if i == 0 {
-						chain.audit.first = pending
-					}
-					chain.audit.last = pending
-					chain.audit.partContents = append(chain.audit.partContents, bodies[i].ShortMessage)
-				}
-				frames = append(frames, framedPart{seq: seq, wire: wire, pending: pending})
-				continue
-			}
+		if _, encodeErr := smppwire.Encode(smppwire.PDU{
+			Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM, SequenceNumber: 1},
+			SM:     &bodies[i],
+		}); encodeErr != nil {
+			s.settleDeliveryFailure(d)
+			return encodeErr
 		}
-		for _, f := range frames {
-			delete(s.pending, f.seq)
+	}
+
+	var firstPending *pendingRequest
+	sent := 0
+	for i := range bodies {
+		if err := s.acquireWindow(ctx); err != nil {
+			s.failPartiallySentSubmit(firstPending, d, sent)
+			return err
+		}
+		if chain != nil && chain.done() {
+			s.releaseWindow()
+			return ErrSubmitChainTerminated
+		}
+
+		s.mu.Lock()
+		if s.consumerLost {
+			s.mu.Unlock()
+			s.releaseWindow()
+			s.failPartiallySentSubmit(firstPending, d, sent)
+			return ErrAMQPConsumerLost
+		}
+		select {
+		case <-s.closed:
+			s.mu.Unlock()
+			s.releaseWindow()
+			s.failPartiallySentSubmit(firstPending, d, sent)
+			return ErrSessionClosed
+		default:
+		}
+		seq, seqErr := s.nextSequenceLocked()
+		var wire []byte
+		if seqErr == nil {
+			wire, seqErr = smppwire.Encode(smppwire.PDU{
+				Header: smppwire.Header{CommandID: smppwire.CommandSubmitSM, SequenceNumber: seq},
+				SM:     &bodies[i],
+			})
+		}
+		if seqErr != nil {
+			s.mu.Unlock()
+			s.releaseWindow()
+			s.failPartiallySentSubmit(firstPending, d, sent)
+			return seqErr
+		}
+		pending := &pendingRequest{
+			delivery: d, attempt: attempt, partKey: partKey, envelope: envelope, chain: chain,
+			sourceAddr: bodies[i].SourceAddress, destAddr: bodies[i].DestinationAddress,
+			shortMessage: bodies[i].ShortMessage, registeredDelivery: bodies[i].RegisteredDelivery,
+			esmClass: bodies[i].ESMClass, optional: bodies[i].Optional, customTLVs: parts[i].CustomTLVs,
+		}
+		s.pending[seq] = pending
+		if firstPending == nil {
+			firstPending = pending
+		}
+		if chain != nil {
+			if i == 0 {
+				chain.audit.first = pending
+			}
+			chain.audit.last = pending
+			chain.audit.partContents = append(chain.audit.partContents, bodies[i].ShortMessage)
 		}
 		s.mu.Unlock()
-		s.settleDeliveryFailure(d)
-		return seqErr
-	}
-	s.mu.Unlock()
 
-	// Phase 2: write every part's frame. A write failure breaks the connection;
-	// settle the message once here and let cleanupSession skip the rest via the
-	// chain guard.
-	for _, f := range frames {
-		if writeErr := writeFrame(s.conn, f.wire); writeErr != nil {
-			if owned := s.takePending(f.seq); owned != nil {
+		s.writeMu.Lock()
+		writeErr := writeFrameWithTimeout(s.conn, wire, s.pduOperationTimeout())
+		s.writeMu.Unlock()
+		if writeErr != nil {
+			if owned := s.takePending(seq); owned != nil {
 				stopTimer(owned.timer)
 				s.settlePendingFailure(owned)
 			}
@@ -552,26 +585,52 @@ func (s *Session) Submit(ctx context.Context, d *amqpcompat.Delivery) error {
 			}
 			return writeErr
 		}
-	}
-	if s.transactions != nil {
-		// The write is already externally ambiguous. MarkSent is deliberately
-		// best-effort; recovery maps both INTENT and SENT to UNKNOWN_AFTER_SEND.
-		_ = s.transactions.MarkSent(context.Background(), attempt.ID)
-	}
-
-	// Phase 3: arm a response timer per part.
-	if s.cfg.ResTimeout > 0 {
+		sent++
+		if sent == 1 && s.transactions != nil {
+			// The first successful write makes the durable attempt externally
+			// ambiguous; do not wait until a whole multipart chain is written.
+			markCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_ = s.transactions.MarkSent(markCtx, attempt.ID)
+			cancel()
+		}
 		s.mu.Lock()
-		for _, f := range frames {
-			if s.pending[f.seq] == f.pending {
-				seq := f.seq
-				f.pending.timer = time.AfterFunc(seconds(s.cfg.ResTimeout), func() { s.handleTimeout(seq) })
-			}
+		if s.pending[seq] == pending && s.cfg.ResTimeout > 0 {
+			responseSequence := seq
+			pending.timer = time.AfterFunc(seconds(s.cfg.ResTimeout), func() { s.handleTimeout(responseSequence) })
 		}
 		s.mu.Unlock()
+		s.resetInactivityTimer()
 	}
-	s.resetInactivityTimer()
 	return nil
+}
+
+func (s *Session) acquireWindow(ctx context.Context) error {
+	select {
+	case s.window <- struct{}{}:
+		return nil
+	case <-s.closed:
+		return ErrSessionClosed
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Session) releaseWindow() {
+	select {
+	case <-s.window:
+	default:
+	}
+}
+
+func (s *Session) failPartiallySentSubmit(firstPending *pendingRequest, delivery *amqpcompat.Delivery, sent int) {
+	if sent == 0 || firstPending == nil {
+		s.settleDeliveryFailure(delivery)
+		return
+	}
+	if claimPendingFailure(firstPending) {
+		s.completePendingFailure(firstPending)
+	}
+	_ = s.conn.Close()
 }
 
 // decodeSubmitParts projects the submit body into its multipart chain when the
@@ -585,6 +644,59 @@ func (s *Session) decodeSubmitParts(ctx context.Context, body []byte) ([]picklec
 		return nil, err
 	}
 	return []picklecompat.SubmitSMChainPart{{Body: single, CustomTLVs: tuples}}, nil
+}
+
+func validateOutboundSubmitSM(body smppwire.SubmitSMBody) error {
+	for _, field := range []struct {
+		name string
+		data []byte
+		max  int
+	}{
+		{"service_type", body.ServiceType, 5},
+		{"source_addr", body.SourceAddress, 20},
+		{"destination_addr", body.DestinationAddress, 20},
+		{"schedule_delivery_time", body.ScheduleDeliveryTime, 16},
+		{"validity_period", body.ValidityPeriod, 16},
+	} {
+		if len(field.data) > field.max {
+			return fmt.Errorf("%w: %s length %d exceeds %d", ErrInvalidOutboundSubmitSM, field.name, len(field.data), field.max)
+		}
+		if bytesContainNUL(field.data) {
+			return fmt.Errorf("%w: %s contains NUL", ErrInvalidOutboundSubmitSM, field.name)
+		}
+	}
+	if len(body.ShortMessage) > MaxSubmitSMShortMessageLength {
+		return fmt.Errorf("%w: short_message length %d exceeds %d",
+			ErrInvalidOutboundSubmitSM, len(body.ShortMessage), MaxSubmitSMShortMessageLength)
+	}
+	if body.Optional.MessagePayload != nil && len(body.ShortMessage) != 0 {
+		return fmt.Errorf("%w: message_payload requires sm_length zero", ErrInvalidOutboundSubmitSM)
+	}
+	if !validAddrTON(int(body.SourceAddressTON)) || !validAddrTON(int(body.DestinationAddressTON)) {
+		return fmt.Errorf("%w: invalid address TON", ErrInvalidOutboundSubmitSM)
+	}
+	if !validAddrNPI(int(body.SourceAddressNPI)) || !validAddrNPI(int(body.DestinationAddressNPI)) {
+		return fmt.Errorf("%w: invalid address NPI", ErrInvalidOutboundSubmitSM)
+	}
+	if body.PriorityFlag > 3 {
+		return fmt.Errorf("%w: priority_flag %d exceeds 3", ErrInvalidOutboundSubmitSM, body.PriorityFlag)
+	}
+	if body.ReplaceIfPresentFlag > 1 {
+		return fmt.Errorf("%w: replace_if_present_flag %d exceeds 1", ErrInvalidOutboundSubmitSM, body.ReplaceIfPresentFlag)
+	}
+	if body.RegisteredDelivery&0xe0 != 0 || body.RegisteredDelivery&0x03 == 0x03 {
+		return fmt.Errorf("%w: registered_delivery %#x uses reserved bits", ErrInvalidOutboundSubmitSM, body.RegisteredDelivery)
+	}
+	return nil
+}
+
+func bytesContainNUL(value []byte) bool {
+	for _, item := range value {
+		if item == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // settlePendingFailure marks the attempt unknown and settles the delivery as
@@ -614,10 +726,13 @@ func (s *Session) completePendingFailure(pending *pendingRequest) {
 
 func (s *Session) takePending(seq uint32) *pendingRequest {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	pending := s.pending[seq]
 	if pending != nil {
 		delete(s.pending, seq)
+	}
+	s.mu.Unlock()
+	if pending != nil {
+		s.releaseWindow()
 	}
 	return pending
 }
@@ -964,6 +1079,24 @@ func writeFrame(conn net.Conn, frame []byte) error {
 	return nil
 }
 
+func writeFrameWithTimeout(conn net.Conn, frame []byte, timeout time.Duration) error {
+	if err := conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+		return err
+	}
+	if err := writeFrame(conn, frame); err != nil {
+		_ = conn.SetWriteDeadline(time.Time{})
+		return err
+	}
+	return conn.SetWriteDeadline(time.Time{})
+}
+
+func (s *Session) pduOperationTimeout() time.Duration {
+	if timeout := seconds(s.cfg.PDUTimeout); timeout > 0 {
+		return timeout
+	}
+	return 10 * time.Second
+}
+
 func (s *Session) cleanupSession(err error) {
 	s.cleanup.Do(func() {
 		s.mu.Lock()
@@ -977,6 +1110,7 @@ func (s *Session) cleanupSession(err error) {
 		s.mu.Unlock()
 
 		for _, request := range pending {
+			s.releaseWindow()
 			stopTimer(request.timer)
 			// A chained message's shared delivery is settled once (chain guard).
 			s.settlePendingFailure(request)

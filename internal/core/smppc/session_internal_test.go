@@ -83,6 +83,24 @@ func TestSequenceWrapStaysInRangeAndSkipsLiveCorrelations(t *testing.T) {
 	}
 }
 
+func TestSequenceStartsAfterBindAndAdvancesMonotonically(t *testing.T) {
+	session := NewSession(&closeCountingConn{}, Config{CID: "sequence-monotonic"}, nil, nil, nil)
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	for _, want := range []uint32{2, 3, 4} {
+		got, err := session.nextSequenceLocked()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Fatalf("sequence = %d, want %d", got, want)
+		}
+		if got == 0 || got > maxSequenceNumber {
+			t.Fatalf("sequence outside SMPP range: %#x", got)
+		}
+	}
+}
+
 func TestDefaultAMQPProviderDoneClosesOnConsumerContextCancellation(t *testing.T) {
 	url := os.Getenv("AMQP_URL")
 	if url == "" {

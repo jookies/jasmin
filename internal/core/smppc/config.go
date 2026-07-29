@@ -57,6 +57,12 @@ type Config struct {
 	ConFailRetry *bool   `json:"con_fail_retry,omitempty"`
 	ConLossDelay float64 `json:"con_loss_delay"`
 	ConFailDelay float64 `json:"con_fail_delay"`
+	// ReconnectBackoffMax and ReconnectBackoffJitter deliberately diverge from
+	// Jasmin's fixed retry cadence. The first retry uses ConLossDelay or
+	// ConFailDelay; later consecutive failures double up to this cap and apply
+	// downward jitter. Defaults are 60 seconds and 20 percent.
+	ReconnectBackoffMax    float64  `json:"reconnect_backoff_max,omitempty"`
+	ReconnectBackoffJitter *float64 `json:"reconnect_backoff_jitter,omitempty"`
 
 	// Transport security. Certificate verification is enabled by default.
 	TLSEnabled            bool   `json:"tls_enabled"`
@@ -98,6 +104,10 @@ type Config struct {
 	LogLevel           string   `json:"log_level"`
 	SubmitSMThroughput *float64 `json:"submit_sm_throughput,omitempty"`
 	PrefetchCount      int      `json:"prefetch_count,omitempty"`
+	// WindowSize bounds outstanding submit_sm PDUs independently of AMQP
+	// delivery prefetch. Zero inherits PrefetchCount, preserving the previous
+	// single-part concurrency while also bounding multipart chains.
+	WindowSize int `json:"window_size,omitempty"`
 
 	// DLRMsgIDBases is the legacy dlr_msg_id_bases: how a deliver_sm receipt's
 	// SMSC id relates to the submit_sm_resp id base (0 same, 1 receipt decimal
@@ -173,7 +183,9 @@ func (c *Config) Validate() error {
 	}
 	for name, value := range map[string]float64{
 		"trx_to": c.TrxTimeout, "res_to": c.ResTimeout, "pdu_to": c.PDUTimeout,
+		"bind_to":        c.SessionInitTimeout,
 		"con_loss_delay": c.ConLossDelay, "con_fail_delay": c.ConFailDelay,
+		"reconnect_backoff_max": c.ReconnectBackoffMax,
 	} {
 		nanos := value * float64(time.Second)
 		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || math.IsInf(nanos, 0) || nanos >= float64(math.MaxInt64) {
@@ -225,6 +237,18 @@ func (c *Config) Validate() error {
 	if c.ConFailDelay == 0 {
 		c.ConFailDelay = 10
 	}
+	if c.ReconnectBackoffMax == 0 {
+		c.ReconnectBackoffMax = 60
+	}
+	if c.ReconnectBackoffJitter == nil {
+		value := 0.2
+		c.ReconnectBackoffJitter = &value
+	} else if math.IsNaN(*c.ReconnectBackoffJitter) ||
+		math.IsInf(*c.ReconnectBackoffJitter, 0) ||
+		*c.ReconnectBackoffJitter < 0 ||
+		*c.ReconnectBackoffJitter >= 1 {
+		return errors.New("reconnect_backoff_jitter must be finite and between 0 (inclusive) and 1 (exclusive)")
+	}
 	if c.ConLossRetry == nil {
 		value := true
 		c.ConLossRetry = &value
@@ -247,6 +271,9 @@ func (c *Config) Validate() error {
 	if c.PrefetchCount < 0 || c.PrefetchCount > 65535 {
 		return fmt.Errorf("prefetch_count must be between 1 and 65535")
 	}
+	if c.WindowSize < 0 || c.WindowSize > 65535 {
+		return fmt.Errorf("window_size must be between 1 and 65535")
+	}
 	if c.DLRMsgIDBases < 0 || c.DLRMsgIDBases > 2 {
 		return fmt.Errorf("dlr_msg_id_bases must be 0, 1 or 2")
 	}
@@ -255,6 +282,9 @@ func (c *Config) Validate() error {
 	}
 	if c.PrefetchCount == 0 {
 		c.PrefetchCount = 1
+	}
+	if c.WindowSize == 0 {
+		c.WindowSize = c.PrefetchCount
 	}
 	// Legacy SMPPClientConfig TON/NPI defaults: source NATIONAL/ISDN, dest
 	// INTERNATIONAL/ISDN. An explicit 0 (UNKNOWN) is not distinguishable from
@@ -389,6 +419,20 @@ func (c Config) ConnectionLossRetryEnabled() bool {
 	return c.ConLossRetry == nil || *c.ConLossRetry
 }
 
+func (c Config) EffectiveReconnectBackoffMax() float64 {
+	if c.ReconnectBackoffMax <= 0 {
+		return 60
+	}
+	return c.ReconnectBackoffMax
+}
+
+func (c Config) EffectiveReconnectBackoffJitter() float64 {
+	if c.ReconnectBackoffJitter == nil {
+		return 0.2
+	}
+	return *c.ReconnectBackoffJitter
+}
+
 // Clone returns a config with no shared mutable pointer fields.
 func (c Config) Clone() Config {
 	clone := c
@@ -403,6 +447,10 @@ func (c Config) Clone() Config {
 	if c.SubmitSMThroughput != nil {
 		throughput := *c.SubmitSMThroughput
 		clone.SubmitSMThroughput = &throughput
+	}
+	if c.ReconnectBackoffJitter != nil {
+		jitter := *c.ReconnectBackoffJitter
+		clone.ReconnectBackoffJitter = &jitter
 	}
 	if c.CustomTLVs != nil {
 		clone.CustomTLVs = make([]CustomTLVRule, len(c.CustomTLVs))
