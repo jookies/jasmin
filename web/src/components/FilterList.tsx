@@ -1,3 +1,4 @@
+import { useList } from "@refinedev/core";
 import { Button, Form, Input, Select, Space } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
@@ -18,6 +19,46 @@ const allFilterTypes = [
 const patternTypes = new Set(["destination_addr", "source_addr", "short_message"]);
 const intervalTypes = new Set(["date_interval", "time_interval"]);
 
+type SavedFilter = {
+  id: string;
+  fid: string;
+  type: string;
+  args?: Record<string, string>;
+};
+
+type InlineFilter = {
+  type: string;
+  pattern?: string;
+  value?: string;
+  start?: string;
+  end?: string;
+};
+
+const splitInterval = (value = "") => {
+  const [start = "", end = ""] = value.split(",", 2).map((part) => part.trim());
+  return { start, end };
+};
+
+const inlineFilter = (saved: SavedFilter): InlineFilter | undefined => {
+  const args = saved.args ?? {};
+  switch (saved.type) {
+    case "SourceAddrFilter":
+      return { type: "source_addr", pattern: args.source_addr };
+    case "DestinationAddrFilter":
+      return { type: "destination_addr", pattern: args.destination_addr };
+    case "ShortMessageFilter":
+      return { type: "short_message", pattern: args.short_message };
+    case "TagFilter":
+      return { type: "tag", value: args.tag };
+    case "DateIntervalFilter":
+      return { type: "date_interval", ...splitInterval(args.dateInterval) };
+    case "TimeIntervalFilter":
+      return { type: "time_interval", ...splitInterval(args.timeInterval) };
+    default:
+      return undefined;
+  }
+};
+
 // FilterFields renders the type-dependent inputs of one filter row.
 const FilterFields = ({ name }: { name: number }) => (
   <Form.Item noStyle shouldUpdate>
@@ -26,35 +67,35 @@ const FilterFields = ({ name }: { name: number }) => (
       if (patternTypes.has(type)) {
         return (
           <Form.Item name={[name, "pattern"]} rules={[{ required: true }]} noStyle>
-            <Input placeholder="regular expression" style={{ width: 260 }} />
+            <Input placeholder="regular expression" style={{ width: "100%" }} />
           </Form.Item>
         );
       }
       if (type === "tag") {
         return (
           <Form.Item name={[name, "value"]} rules={[{ required: true }]} noStyle>
-            <Input placeholder="tag value" style={{ width: 260 }} />
+            <Input placeholder="tag value" style={{ width: "100%" }} />
           </Form.Item>
         );
       }
       if (type === "user") {
         return (
           <Form.Item name={[name, "username"]} rules={[{ required: true }]} noStyle>
-            <Input placeholder="username" style={{ width: 260 }} />
+            <Input placeholder="username" style={{ width: "100%" }} />
           </Form.Item>
         );
       }
       if (intervalTypes.has(type)) {
         const placeholder = type === "date_interval" ? "YYYY-MM-DD" : "HH:MM:SS";
         return (
-          <Space>
+          <Space.Compact style={{ width: "100%" }}>
             <Form.Item name={[name, "start"]} rules={[{ required: true }]} noStyle>
-              <Input placeholder={`start ${placeholder}`} style={{ width: 130 }} />
+              <Input placeholder={`start ${placeholder}`} style={{ width: "50%" }} />
             </Form.Item>
             <Form.Item name={[name, "end"]} rules={[{ required: true }]} noStyle>
-              <Input placeholder={`end ${placeholder}`} style={{ width: 130 }} />
+              <Input placeholder={`end ${placeholder}`} style={{ width: "50%" }} />
             </Form.Item>
-          </Space>
+          </Space.Compact>
         );
       }
       return null;
@@ -69,19 +110,44 @@ const FilterFields = ({ name }: { name: number }) => (
 export const FilterList = ({ direction = "mt" }: { direction?: "mt" | "mo" }) => {
   const filterTypes =
     direction === "mo" ? allFilterTypes.filter((t) => t.value !== "user") : allFilterTypes;
+  const savedFilters = useList<SavedFilter>({
+    resource: "filters",
+    pagination: { mode: "off" },
+  });
+  const templates = (savedFilters.data?.data ?? []).filter((saved) => inlineFilter(saved));
 
   return (
     <Form.List name="filters">
       {(fields, { add, remove }) => (
         <>
-          <div style={{ marginBottom: 8, fontWeight: 500 }}>Filters (all must match)</div>
+          <div className="filter-list-label">Filters · all conditions must match</div>
+          {templates.length > 0 && (
+            <Select
+              className="filter-template-select"
+              value={undefined}
+              placeholder="Insert a saved filter"
+              options={templates.map((saved) => ({
+                value: saved.fid,
+                label: `${saved.fid} · ${saved.type}`,
+              }))}
+              onSelect={(fid) => {
+                const saved = templates.find((item) => item.fid === fid);
+                const filter = saved ? inlineFilter(saved) : undefined;
+                if (filter) add(filter);
+              }}
+            />
+          )}
           {fields.map(({ key, name }) => (
-            <Space key={key} align="baseline" style={{ display: "flex", marginBottom: 8 }}>
+            <Space key={key} align="start" className="filter-row">
               <Form.Item name={[name, "type"]} rules={[{ required: true }]} noStyle>
-                <Select options={filterTypes} placeholder="filter type" style={{ width: 260 }} />
+                <Select options={filterTypes} placeholder="Filter type" />
               </Form.Item>
               <FilterFields name={name} />
-              <Button icon={<DeleteOutlined />} onClick={() => remove(name)} />
+              <Button
+                icon={<DeleteOutlined />}
+                aria-label="Remove filter"
+                onClick={() => remove(name)}
+              />
             </Space>
           ))}
           <Form.Item>

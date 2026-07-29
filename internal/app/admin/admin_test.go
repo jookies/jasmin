@@ -134,6 +134,33 @@ func TestServiceLoadAndApplyRestoresPersisted(t *testing.T) {
 	}
 }
 
+func TestServiceLoadAndApplyReconcilesLiveConnectors(t *testing.T) {
+	service, manager, store := newTestService(t)
+	if err := service.CreateConnector(context.Background(), sampleConnector("old"), true); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteConnector(context.Background(), "old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertConnector(
+		context.Background(),
+		StoredConnector{Config: sampleConnector("restored"), DesiredStarted: false},
+		"snapshot",
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.LoadAndApply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := manager.added["old"]; ok {
+		t.Fatal("connector removed by the restored profile is still live")
+	}
+	if _, ok := manager.added["restored"]; !ok {
+		t.Fatal("connector from the restored profile was not applied")
+	}
+}
+
 func newTestHandler(t *testing.T, token string, reserved ...string) (*Handler, *fakeManager) {
 	t.Helper()
 	service, manager, _ := newTestService(t, reserved...)

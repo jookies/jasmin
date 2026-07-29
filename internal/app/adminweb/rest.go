@@ -32,7 +32,11 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		errors.Is(err, admin.ErrMORouteNotFound),
 		errors.Is(err, admin.ErrInterceptorNotFound),
 		errors.Is(err, admin.ErrSMPPsUserNotFound),
-		errors.Is(err, admin.ErrUserNotFound):
+		errors.Is(err, admin.ErrUserNotFound),
+		errors.Is(err, admin.ErrGroupNotFound),
+		errors.Is(err, admin.ErrFilterNotFound),
+		errors.Is(err, admin.ErrHTTPConnectorNotFound),
+		errors.Is(err, admin.ErrProfileNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, admin.ErrConflict):
 		writeError(w, http.StatusConflict, err.Error())

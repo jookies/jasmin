@@ -2,6 +2,7 @@ import type { FormProps } from "antd";
 import { Alert, Form, Input, InputNumber, Select } from "antd";
 
 import { FilterList } from "../../components/FilterList";
+import { FormIntroduction } from "../../components/OperatorUI";
 
 const directions = [
   { value: "mt", label: "MT (outbound, pre-routing)" },
@@ -17,7 +18,11 @@ export const InterceptorFields = ({
   formProps: FormProps;
   editing?: boolean;
 }) => (
-  <Form {...formProps} layout="vertical">
+  <Form {...formProps} layout="vertical" className="operator-form">
+    <FormIntroduction title={editing ? "Update interceptor" : "Create an interceptor"}>
+      Interceptors run before routing. Use the narrowest filters possible and treat every script
+      change as a production code change.
+    </FormIntroduction>
     <Alert
       type="warning"
       showIcon

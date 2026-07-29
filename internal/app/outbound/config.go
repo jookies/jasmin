@@ -430,7 +430,14 @@ func (directory *runtimeDirectory) Authenticate(_ context.Context, username, pas
 	userDisabled := directory.userDisabled[username]
 	groupDisabled := false
 	if gid, grouped := directory.userGroup[username]; grouped && gid != "" {
-		groupDisabled = directory.groupDisabled[gid]
+		disabled, known := directory.groupDisabled[gid]
+		// Fail closed on a dangling group reference. Legacy cascades a group
+		// removal to its users (router.py perspective_group_remove), so a user
+		// still pointing at a gid that is no longer installed can only mean the
+		// group vanished under us. Reading the zero value here would silently
+		// promote a *disabled* group's users back to "no group ceiling" and let
+		// a suspended account authenticate.
+		groupDisabled = !known || disabled
 	}
 	directory.mu.RUnlock()
 	if !ok {

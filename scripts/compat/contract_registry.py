@@ -52,7 +52,7 @@ TASK_TO_MACRO = {
     "Task 2.1": "MS-6", "Task 3.1": "MS-2", "Task 3.2": "MS-2", "Task 4.1": "MS-3", "Task 4.2": "MS-5",
     "Task 4.3": "MS-4", "Task 5.1": "MS-6", "Task 5.2": "MS-7", "Task 6.1": "MS-8", "Task 6.2": "MS-9", "Task 6.3": "MS-9",
 }
-EXPECTED_MACRO_COUNTS = {"MS-1": 38, "MS-2": 12, "MS-3": 7, "MS-4": 9, "MS-5": 31, "MS-6": 24, "MS-7": 18, "MS-8": 10, "MS-9": 34}
+EXPECTED_MACRO_COUNTS = {"MS-1": 38, "MS-2": 12, "MS-3": 7, "MS-4": 9, "MS-5": 31, "MS-6": 24, "MS-8": 10, "MS-9": 34}
 SCOPES = frozenset(("registry", "outbound-a", "outbound-b", "control", "dlr", "mo", "routing", "smpps", "pb", "jcli", "rest", "core-ops", "full"))
 MODES = frozenset(("focused", "candidate", "release"))
 FORMULA_PREFIXES = ("=", "+", "-", "@")

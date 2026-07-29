@@ -25,6 +25,7 @@ type UserService struct {
 	provisioner UserProvisioner
 	now         func() string
 	mu          sync.Mutex
+	applied     map[string]struct{}
 }
 
 // NewUserService builds the user admin service.
@@ -35,7 +36,12 @@ func NewUserService(store *Store, provisioner UserProvisioner, now func() string
 	if now == nil {
 		return nil, errors.New("admin: now func is required")
 	}
-	return &UserService{store: store, provisioner: provisioner, now: now}, nil
+	return &UserService{
+		store:       store,
+		provisioner: provisioner,
+		now:         now,
+		applied:     make(map[string]struct{}),
+	}, nil
 }
 
 // LoadAndApply re-installs every persisted admin user (with its stored uid)
@@ -48,10 +54,29 @@ func (s *UserService) LoadAndApply(ctx context.Context) error {
 		return err
 	}
 	var errs []error
+	for username := range s.applied {
+		if err := s.provisioner.RemoveUser(username); err != nil {
+			errs = append(errs, fmt.Errorf("admin: remove previously applied user %q: %w", username, err))
+		}
+		// Drop the bookkeeping even when the removal failed. The common cause is
+		// that the user is already absent — CreateUser removes before it adds, so
+		// a rejected replacement spec leaves the store holding a user the
+		// directory no longer has. Keeping the entry would make the re-add below
+		// skip it as "could not be refreshed" and strand that user on 401 until
+		// the process restarts, which is exactly what this reconcile exists to
+		// repair.
+		delete(s.applied, username)
+	}
 	for _, user := range stored {
+		if _, stillApplied := s.applied[user.Username]; stillApplied {
+			errs = append(errs, fmt.Errorf("admin: user %q could not be refreshed", user.Username))
+			continue
+		}
 		if err := s.provisioner.AddUser(user.Username, user.SpecJSON, user.UID); err != nil {
 			errs = append(errs, fmt.Errorf("admin: re-add user %q: %w", user.Username, err))
+			continue
 		}
+		s.applied[user.Username] = struct{}{}
 	}
 	return errors.Join(errs...)
 }
@@ -78,8 +103,10 @@ func (s *UserService) CreateUser(ctx context.Context, username, specJSON string)
 	}
 	if err := s.store.UpsertUser(ctx, StoredUser{Username: username, UID: uid, SpecJSON: specJSON}, s.now()); err != nil {
 		_ = s.provisioner.RemoveUser(username) // roll back the live change on persist failure
+		delete(s.applied, username)
 		return err
 	}
+	s.applied[username] = struct{}{}
 	return nil
 }
 
@@ -114,7 +141,11 @@ func (s *UserService) DeleteUser(ctx context.Context, username string) error {
 	if err := s.provisioner.RemoveUser(username); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 	}
-	return s.store.DeleteUser(ctx, username)
+	if err := s.store.DeleteUser(ctx, username); err != nil {
+		return err
+	}
+	delete(s.applied, username)
+	return nil
 }
 
 // ListUsers returns the persisted admin users (username + uid + raw spec).

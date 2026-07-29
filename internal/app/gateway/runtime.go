@@ -163,7 +163,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	startedAt := time.Now().UTC()
 	smppcStats := stats.NewSMPPcRegistry()
 	smppsStats := &stats.SMPPsStats{}
-	connectorIDs := configuredConnectorIDs(config.Connectors)
+	connectorIDs := managedConnectorIDs(manager)
 	// The DLRLookup queue is declared with this pid so the response path's DLR
 	// publish is routable; it must match the pid the DLRLookup consumer binds
 	// (both default to "main").
@@ -417,11 +417,42 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		// It renders against the same in-process admin services.
 		if config.Admin.WebListenAddress != "" {
 			webHandler, webErr := adminweb.New(adminweb.Deps{
-				Connectors:   adminService,
-				Routes:       routeService,
-				MORoutes:     moRouteService,
-				Users:        userService,
-				SMPPsUsers:   smppsUserService,
+				Connectors:       adminService,
+				Routes:           routeService,
+				MORoutes:         moRouteService,
+				Users:            userService,
+				Groups:           groupService,
+				SMPPsUsers:       smppsUserService,
+				Filters:          filterService,
+				HTTPConnectors:   httpConnectorService,
+				Profiles:         profileService,
+				Transactions:     transactions,
+				BalanceReader:    outboundRuntime.BalanceReader(),
+				RateReader:       outboundRuntime.RateReader(),
+				Submitter:        outboundRuntime.Submitter(),
+				HTTPStats:        outboundRuntime.HTTPStats(),
+				SMPPcStats:       smppcStats,
+				SMPPsStats:       smppsStats,
+				StartedAt:        func() time.Time { return startedAt },
+				ConnectorIDs:     managedConnectorIDs(manager),
+				ConfigConnectors: func() []smppc.Config { return config.Connectors },
+				ConfigRoutes:     outboundRuntime.ConfigRoutes,
+				ConfigMORoutes:   func() []modispatch.RouteConfig { return config.MORoutes },
+				ConfigUsers:      func() []outbound.UserConfig { return config.Outbound.Users },
+				ConfigGroups:     func() []outbound.GroupConfig { return config.Outbound.Groups },
+				ConfigSMPPsUsers: func() []smppsserver.UserConfig {
+					if config.SMPPS == nil {
+						return nil
+					}
+					return config.SMPPS.Users
+				},
+				ConnectorStatus: manager.Status,
+				UnbindSMPPsUser: func(systemID string) int {
+					if runtime.smppsServer == nil {
+						return 0
+					}
+					return runtime.smppsServer.Server().UnbindUser(systemID)
+				},
 				Interceptors: interceptorService, // nil unless explicitly enabled
 				Health:       runtime.healthProbe(),
 				Username:     config.Admin.WebUsername,
@@ -692,4 +723,17 @@ func configuredConnectorIDs(connectors []smppc.Config) func() []string {
 		ids = append(ids, connector.CID)
 	}
 	return func() []string { return append([]string(nil), ids...) }
+}
+
+// managedConnectorIDs lists the connector table the gateway is actually
+// running, including admin-provisioned connectors added after boot.
+func managedConnectorIDs(manager *smppc.Manager) func() []string {
+	return func() []string {
+		configs := manager.List()
+		ids := make([]string, 0, len(configs))
+		for _, connector := range configs {
+			ids = append(ids, connector.CID)
+		}
+		return ids
+	}
 }

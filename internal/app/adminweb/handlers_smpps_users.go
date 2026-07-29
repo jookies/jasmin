@@ -13,7 +13,8 @@ import (
 // system_id is the identity. Password is write-only: never serialised back, and
 // an empty value on update keeps the stored one.
 type smppsUserResource struct {
-	ID string `json:"id"`
+	ID        string `json:"id"`
+	ManagedBy string `json:"managed_by"`
 	smppsserver.UserConfig
 }
 
@@ -24,7 +25,20 @@ func toSMPPsUserResource(stored admin.StoredSMPPsUser) (smppsUserResource, error
 	}
 	cfg.SystemID = stored.SystemID
 	cfg.Password = ""
-	return smppsUserResource{ID: stored.SystemID, UserConfig: cfg}, nil
+	return smppsUserResource{ID: stored.SystemID, ManagedBy: "admin", UserConfig: cfg}, nil
+}
+
+func (h *Handler) configSMPPsUser(systemID string) (smppsUserResource, bool) {
+	if h.deps.ConfigSMPPsUsers == nil {
+		return smppsUserResource{}, false
+	}
+	for _, config := range h.deps.ConfigSMPPsUsers() {
+		if config.SystemID == systemID {
+			config.Password = ""
+			return smppsUserResource{ID: systemID, ManagedBy: "config", UserConfig: config}, true
+		}
+	}
+	return smppsUserResource{}, false
 }
 
 // storedSMPPsUser reads the persisted spec with its password intact, so an
@@ -43,7 +57,16 @@ func (h *Handler) listSMPPsUsers(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, err)
 		return
 	}
-	resources := make([]smppsUserResource, 0, len(stored))
+	configUsers := []smppsserver.UserConfig{}
+	if h.deps.ConfigSMPPsUsers != nil {
+		configUsers = h.deps.ConfigSMPPsUsers()
+	}
+	resources := make([]smppsUserResource, 0, len(configUsers)+len(stored))
+	for _, user := range configUsers {
+		if resource, ok := h.configSMPPsUser(user.SystemID); ok {
+			resources = append(resources, resource)
+		}
+	}
 	for _, user := range stored {
 		resource, err := toSMPPsUserResource(user)
 		if err != nil {
@@ -58,6 +81,10 @@ func (h *Handler) listSMPPsUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getSMPPsUser(w http.ResponseWriter, r *http.Request) {
 	stored, err := h.deps.SMPPsUsers.GetUser(r.Context(), r.PathValue("systemID"))
 	if err != nil {
+		if resource, ok := h.configSMPPsUser(r.PathValue("systemID")); ok {
+			writeJSON(w, http.StatusOK, resource)
+			return
+		}
 		writeServiceError(w, err)
 		return
 	}
@@ -154,4 +181,58 @@ func (h *Handler) deleteSMPPsUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, resource)
+}
+
+type smppsSessionAction struct {
+	SystemID string `json:"system_id"`
+	Sessions int    `json:"sessions"`
+	Banned   bool   `json:"banned"`
+}
+
+func (h *Handler) unbindSMPPsUser(w http.ResponseWriter, r *http.Request) {
+	systemID := r.PathValue("systemID")
+	if _, err := h.deps.SMPPsUsers.GetUser(r.Context(), systemID); err != nil {
+		if _, ok := h.configSMPPsUser(systemID); !ok {
+			writeServiceError(w, err)
+			return
+		}
+	}
+	sessions := 0
+	if h.deps.UnbindSMPPsUser != nil {
+		sessions = h.deps.UnbindSMPPsUser(systemID)
+	}
+	writeJSON(w, http.StatusOK, smppsSessionAction{SystemID: systemID, Sessions: sessions})
+}
+
+func (h *Handler) banSMPPsUser(w http.ResponseWriter, r *http.Request) {
+	systemID := r.PathValue("systemID")
+	stored, err := h.deps.SMPPsUsers.GetUser(r.Context(), systemID)
+	if err != nil {
+		if _, ok := h.configSMPPsUser(systemID); ok {
+			writeError(w, http.StatusConflict, "config-managed bind accounts cannot be banned from the web admin")
+			return
+		}
+		writeServiceError(w, err)
+		return
+	}
+	config, err := storedSMPPsUserConfig(stored)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	config.Disabled = true
+	spec, err := json.Marshal(config)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := h.deps.SMPPsUsers.PutUser(r.Context(), systemID, string(spec)); err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	sessions := 0
+	if h.deps.UnbindSMPPsUser != nil {
+		sessions = h.deps.UnbindSMPPsUser(systemID)
+	}
+	writeJSON(w, http.StatusOK, smppsSessionAction{SystemID: systemID, Sessions: sessions, Banned: true})
 }

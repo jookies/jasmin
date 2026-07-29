@@ -131,8 +131,8 @@ class RepositoryRegistryTests(unittest.TestCase):
     def test_repository_is_self_consistent(self):
         registry = validate_repository(ROOT)
         self.assertEqual(len(registry.rows), 205)
-        self.assertEqual(len(registry.unfinished_ids), 183)
-        self.assertEqual(sum(r.status in FINISHED_STATUSES for r in registry.rows.values()), 22)
+        self.assertEqual(len(registry.unfinished_ids), 165)
+        self.assertEqual(sum(r.status in FINISHED_STATUSES for r in registry.rows.values()), 40)
 
     def test_clean_clone_disables_detached_git_maintenance(self):
         with tempfile.TemporaryDirectory() as td:
@@ -269,7 +269,7 @@ class RepositoryRegistryTests(unittest.TestCase):
             temp = Path(td)
             clone, private_key = self.make_clean_clone(temp)
             registry = validate_repository(clone)
-            self.assertEqual(183, len(registry.unfinished_ids))
+            self.assertEqual(165, len(registry.unfinished_ids))
             ownership = validate_ownership(clone, registry)
             head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=clone, text=True).strip()
             tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=clone, text=True).strip()

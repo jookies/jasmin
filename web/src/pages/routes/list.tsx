@@ -1,6 +1,8 @@
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { Table, Space, Tag, Drawer, Tooltip } from "antd";
 import { RouteFields } from "./form";
+import { FlushButton } from "../../components/FlushButton";
+import { PageTitle, StatusBadge, TableScrollHint } from "../../components/OperatorUI";
 
 type FilterRow = { type: string; pattern?: string; value?: string; username?: string; start?: string; end?: string };
 
@@ -12,6 +14,7 @@ type RouteRow = {
   rate: number;
   default: boolean;
   filters?: FilterRow[];
+  managed_by: "admin" | "config";
 };
 
 const connectorSummary = (r: RouteRow) =>
@@ -38,16 +41,39 @@ export const RouteList = () => {
   } = useDrawerForm<RouteRow>({ action: "edit", syncWithLocation: true });
 
   return (
-    <>
-      <List createButtonProps={{ onClick: () => showCreate() }}>
-        <Table {...tableProps} rowKey="id" size="small">
+    <div className="resource-page">
+      <List
+        title={
+          <PageTitle
+            eyebrow="Outbound routing"
+            title="MT routes"
+            description="Prioritize outbound traffic, choose connector pools and apply precise message filters."
+          />
+        }
+        createButtonProps={{ onClick: () => showCreate(), children: "Add MT route" }}
+        headerButtons={({ defaultButtons }) => (
+          <>
+            {defaultButtons}
+            <FlushButton
+              endpoint="/routes/flush"
+              resource="routes"
+              label="Clear admin routes"
+              description="This removes every admin-managed MT route. Config-managed routes stay active."
+            />
+          </>
+        )}
+      >
+        <TableScrollHint />
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 860 }}>
           <Table.Column dataIndex="order" title="Order" sorter={(a: RouteRow, b: RouteRow) => a.order - b.order} />
           <Table.Column<RouteRow> title="Connector(s)" render={(_, r) => connectorSummary(r)} />
           <Table.Column dataIndex="rate" title="Rate" />
           <Table.Column
             dataIndex="default"
             title="Default"
-            render={(v: boolean) => (v ? <Tag color="blue">default</Tag> : null)}
+            render={(v: boolean) =>
+              v ? <StatusBadge tone="progress">Default</StatusBadge> : <span>—</span>
+            }
           />
           <Table.Column<RouteRow>
             title="Filters"
@@ -61,18 +87,31 @@ export const RouteList = () => {
               </Space>
             )}
           />
+          <Table.Column
+            dataIndex="managed_by"
+            title="Source"
+            render={(source: RouteRow["managed_by"]) => (
+              <Tag color={source === "config" ? "blue" : "green"}>
+                {source === "config" ? "Config managed" : "Admin managed"}
+              </Tag>
+            )}
+          />
           <Table.Column<RouteRow>
             title="Actions"
-            render={(_, r) => (
-              <Space>
-                <Tooltip title="Edit Route">
-                  <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
-                </Tooltip>
-                <Tooltip title="Delete Route">
-                  <DeleteButton hideText size="small" recordItemId={r.id} />
-                </Tooltip>
-              </Space>
-            )}
+            render={(_, r) =>
+              r.managed_by === "config" ? (
+                <span className="muted-copy">Read only</span>
+              ) : (
+                <Space>
+                  <Tooltip title="Edit route">
+                    <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
+                  </Tooltip>
+                  <Tooltip title="Delete route">
+                    <DeleteButton hideText size="small" recordItemId={r.id} />
+                  </Tooltip>
+                </Space>
+              )
+            }
           />
         </Table>
       </List>
@@ -86,6 +125,6 @@ export const RouteList = () => {
           <RouteFields formProps={editFormProps} editing />
         </Edit>
       </Drawer>
-    </>
+    </div>
   );
 };

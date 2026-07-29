@@ -95,12 +95,29 @@ func (s *HTTPStats) Get(name string) int64 {
 	return s.c.get(name)
 }
 
+// Snapshot returns every HTTP API counter under its stable metric name.
+// Management surfaces use this instead of duplicating the private metric list.
+func (s *HTTPStats) Snapshot() map[string]int64 {
+	if s == nil {
+		return map[string]int64{}
+	}
+	return snapshot(&s.c, httpAPIMetrics)
+}
+
 // SMPPsStats holds the single smppsapi counter set.
 type SMPPsStats struct{ c counters }
 
 func (s *SMPPsStats) Inc(name string) { s.c.inc(name) }
 func (s *SMPPsStats) Get(name string) int64 {
 	return s.c.get(name)
+}
+
+// Snapshot returns every SMPP server counter under its stable metric name.
+func (s *SMPPsStats) Snapshot() map[string]int64 {
+	if s == nil {
+		return map[string]int64{}
+	}
+	return snapshot(&s.c, smppsAPIMetrics)
 }
 
 // SMPPcRegistry holds per-connector counter sets, created on first use.
@@ -134,6 +151,29 @@ func (r *SMPPcRegistry) Get(cid, name string) int64 {
 		return 0
 	}
 	return set.get(name)
+}
+
+// Snapshot returns every counter for one SMPP client connector. Unknown
+// connectors still receive the full zero-valued metric surface.
+func (r *SMPPcRegistry) Snapshot(cid string) map[string]int64 {
+	if r == nil {
+		return snapshot(&counters{}, smppcMetrics)
+	}
+	r.mu.Lock()
+	set, ok := r.connectors[cid]
+	r.mu.Unlock()
+	if !ok {
+		return snapshot(&counters{}, smppcMetrics)
+	}
+	return snapshot(set, smppcMetrics)
+}
+
+func snapshot(source *counters, metrics []metric) map[string]int64 {
+	result := make(map[string]int64, len(metrics))
+	for _, item := range metrics {
+		result[item.name] = source.get(item.name)
+	}
+	return result
 }
 
 // Render produces the /metrics response bytes matching the legacy Metrics

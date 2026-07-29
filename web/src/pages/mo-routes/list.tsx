@@ -1,6 +1,8 @@
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { Table, Space, Tag, Drawer, Tooltip } from "antd";
 import { MORouteFields } from "./form";
+import { FlushButton } from "../../components/FlushButton";
+import { PageTitle, StatusBadge, TableScrollHint } from "../../components/OperatorUI";
 
 type FilterRow = {
   type: string;
@@ -17,6 +19,7 @@ type MORouteRow = {
   filter_connector_id?: string;
   filters?: FilterRow[];
   connector: { type: string; cid?: string; url?: string; method?: string; system_id?: string };
+  managed_by: "admin" | "config";
 };
 
 const destinationSummary = (r: MORouteRow) =>
@@ -45,9 +48,30 @@ export const MORouteList = () => {
   } = useDrawerForm<MORouteRow>({ action: "edit", syncWithLocation: true });
 
   return (
-    <>
-      <List createButtonProps={{ onClick: () => showCreate() }}>
-        <Table {...tableProps} rowKey="id" size="small">
+    <div className="resource-page">
+      <List
+        title={
+          <PageTitle
+            eyebrow="Inbound routing"
+            title="MO routes"
+            description="Deliver incoming messages to HTTP applications or currently bound SMPPs clients."
+          />
+        }
+        createButtonProps={{ onClick: () => showCreate(), children: "Add MO route" }}
+        headerButtons={({ defaultButtons }) => (
+          <>
+            {defaultButtons}
+            <FlushButton
+              endpoint="/mo-routes/flush"
+              resource="mo-routes"
+              label="Clear admin routes"
+              description="This removes every admin-managed MO route. Config-managed routes stay active."
+            />
+          </>
+        )}
+      >
+        <TableScrollHint />
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 900 }}>
           <Table.Column
             dataIndex="order"
             title="Order"
@@ -56,9 +80,15 @@ export const MORouteList = () => {
           <Table.Column
             dataIndex="default"
             title="Default"
-            render={(v: boolean) => (v ? <Tag color="blue">default</Tag> : null)}
+            render={(v: boolean) =>
+              v ? <StatusBadge tone="progress">Default</StatusBadge> : <span>—</span>
+            }
           />
-          <Table.Column dataIndex="filter_connector_id" title="Source connector" />
+          <Table.Column
+            dataIndex="filter_connector_id"
+            title="Source connector"
+            render={(value?: string) => value || "Any"}
+          />
           <Table.Column<MORouteRow> title="Destination" render={(_, r) => destinationSummary(r)} />
           <Table.Column<MORouteRow>
             title="Filters"
@@ -72,18 +102,31 @@ export const MORouteList = () => {
               </Space>
             )}
           />
+          <Table.Column
+            dataIndex="managed_by"
+            title="Source"
+            render={(source: MORouteRow["managed_by"]) => (
+              <Tag color={source === "config" ? "blue" : "green"}>
+                {source === "config" ? "Config managed" : "Admin managed"}
+              </Tag>
+            )}
+          />
           <Table.Column<MORouteRow>
             title="Actions"
-            render={(_, r) => (
-              <Space>
-                <Tooltip title="Edit MO Route">
-                  <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
-                </Tooltip>
-                <Tooltip title="Delete MO Route">
-                  <DeleteButton hideText size="small" recordItemId={r.id} />
-                </Tooltip>
-              </Space>
-            )}
+            render={(_, r) =>
+              r.managed_by === "config" ? (
+                <span className="muted-copy">Read only</span>
+              ) : (
+                <Space>
+                  <Tooltip title="Edit MO route">
+                    <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
+                  </Tooltip>
+                  <Tooltip title="Delete MO route">
+                    <DeleteButton hideText size="small" recordItemId={r.id} />
+                  </Tooltip>
+                </Space>
+              )
+            }
           />
         </Table>
       </List>
@@ -97,6 +140,6 @@ export const MORouteList = () => {
           <MORouteFields formProps={editFormProps} editing />
         </Edit>
       </Drawer>
-    </>
+    </div>
   );
 };

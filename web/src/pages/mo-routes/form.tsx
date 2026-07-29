@@ -1,7 +1,9 @@
 import type { FormProps } from "antd";
 import { Form, Input, InputNumber, Select, Switch } from "antd";
+import { useList } from "@refinedev/core";
 
 import { FilterList } from "../../components/FilterList";
+import { EffectiveValue, FormIntroduction } from "../../components/OperatorUI";
 
 // MO route destinations: an HTTP callback (legacy HttpConnector URL rules —
 // dotted host, localhost or IP only) or a bound SMPPs system_id.
@@ -9,6 +11,49 @@ const destinationTypes = [
   { value: "http", label: "http (callback URL)" },
   { value: "smpps", label: "smpps (bound ESME)" },
 ];
+
+type HTTPDestination = {
+  id: string;
+  cid: string;
+  baseurl: string;
+  method: "GET" | "POST";
+};
+
+const HTTPDestinationSelector = () => {
+  const form = Form.useFormInstance();
+  const destinations = useList<HTTPDestination>({
+    resource: "http-connectors",
+    pagination: { mode: "off" },
+  });
+  const rows = destinations.data?.data ?? [];
+  if (rows.length === 0) return null;
+
+  return (
+    <Form.Item
+      label="Use saved destination"
+      tooltip="Copies the current destination into this route; future template edits do not change the route"
+    >
+      <Select
+        allowClear
+        placeholder="Select a saved HTTP destination"
+        options={rows.map((row) => ({
+          value: row.cid,
+          label: `${row.cid} · ${row.method} ${row.baseurl}`,
+        }))}
+        onSelect={(cid) => {
+          const row = rows.find((item) => item.cid === cid);
+          if (!row) return;
+          form.setFieldValue("connector", {
+            type: "http",
+            cid: row.cid,
+            url: row.baseurl,
+            method: row.method,
+          });
+        }}
+      />
+    </Form.Item>
+  );
+};
 
 // MORouteFields is the shared create/edit body. The order is the route's
 // identity, so it is locked on edit. The default route (order 0) carries no
@@ -21,7 +66,11 @@ export const MORouteFields = ({
   formProps: FormProps;
   editing?: boolean;
 }) => (
-  <Form {...formProps} layout="vertical">
+  <Form {...formProps} layout="vertical" className="operator-form">
+    <FormIntroduction title={editing ? "Update MO route" : "Create an MO route"}>
+      Choose where inbound messages should be delivered. Static routes can target an HTTP
+      application or an active SMPPs bind.
+    </FormIntroduction>
     <Form.Item
       label="Order"
       name="order"
@@ -47,10 +96,10 @@ export const MORouteFields = ({
             <Form.Item
               label="Source connector"
               name="filter_connector_id"
-              rules={[{ required: true, message: "A static MO route requires a source connector" }]}
-              tooltip="The SMSC connector the MO arrived on"
+              tooltip="Optionally restrict this route to the SMSC connector the MO arrived on"
+              extra={<EffectiveValue value="Any inbound connector" />}
             >
-              <Input placeholder="smsc-primary" />
+              <Input placeholder="any connector" />
             </Form.Item>
             <FilterList direction="mo" />
           </>
@@ -79,6 +128,7 @@ export const MORouteFields = ({
           </Form.Item>
         ) : (
           <>
+            <HTTPDestinationSelector />
             <Form.Item
               label="Connector ID"
               name={["connector", "cid"]}

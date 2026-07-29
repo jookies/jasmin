@@ -29,6 +29,10 @@ func TestWriteServiceErrorMapping(t *testing.T) {
 		"interceptor not found": {admin.ErrInterceptorNotFound, http.StatusNotFound},
 		"SMPPs user not found":  {admin.ErrSMPPsUserNotFound, http.StatusNotFound},
 		"user not found":        {admin.ErrUserNotFound, http.StatusNotFound},
+		"group not found":       {admin.ErrGroupNotFound, http.StatusNotFound},
+		"filter not found":      {admin.ErrFilterNotFound, http.StatusNotFound},
+		"HTTP target not found": {admin.ErrHTTPConnectorNotFound, http.StatusNotFound},
+		"profile not found":     {admin.ErrProfileNotFound, http.StatusNotFound},
 		"conflict":              {admin.ErrConflict, http.StatusConflict},
 		"invalid request":       {admin.ErrInvalidRequest, http.StatusBadRequest},
 	}
@@ -69,6 +73,10 @@ func TestAllAdminSentinelsAreMapped(t *testing.T) {
 		admin.ErrInterceptorNotFound,
 		admin.ErrSMPPsUserNotFound,
 		admin.ErrUserNotFound,
+		admin.ErrGroupNotFound,
+		admin.ErrFilterNotFound,
+		admin.ErrHTTPConnectorNotFound,
+		admin.ErrProfileNotFound,
 		admin.ErrConflict,
 		admin.ErrInvalidRequest,
 	}

@@ -1,8 +1,14 @@
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { useUpdate } from "@refinedev/core";
-import { Table, Space, Tag, Button, Drawer, Tooltip } from "antd";
+import { Table, Space, Button, Drawer, Tag, Tooltip } from "antd";
 import { PlayCircleOutlined, PauseCircleOutlined } from "@ant-design/icons";
 import { ConnectorFields } from "./form";
+import {
+  PageTitle,
+  StatusBadge,
+  TableScrollHint,
+  type StatusTone,
+} from "../../components/OperatorUI";
 
 type ConnectorRow = {
   id: string;
@@ -13,10 +19,11 @@ type ConnectorRow = {
   bind: string;
   desired_started: boolean;
   observed: string;
+  managed_by: "admin" | "config";
 };
 
-const observedColor = (observed: string) =>
-  observed === "BOUND" ? "green" : observed === "CONNECTING" ? "orange" : "red";
+const observedTone = (observed: string): StatusTone =>
+  observed === "BOUND" ? "positive" : observed === "CONNECTING" ? "progress" : "negative";
 
 export const ConnectorList = () => {
   const { tableProps } = useTable<ConnectorRow>({ syncWithLocation: true });
@@ -44,11 +51,19 @@ export const ConnectorList = () => {
     });
 
   return (
-    <>
+    <div className="resource-page">
       <List
-        createButtonProps={{ onClick: () => showCreate() }}
+        title={
+          <PageTitle
+            eyebrow="Messaging"
+            title="SMPP connectors"
+            description="Control upstream SMSC sessions and see the desired and observed state side by side."
+          />
+        }
+        createButtonProps={{ onClick: () => showCreate(), children: "Add connector" }}
       >
-        <Table {...tableProps} rowKey="id" size="small">
+        <TableScrollHint />
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 920 }}>
           <Table.Column dataIndex="cid" title="ID" />
           <Table.Column<ConnectorRow> title="Target" render={(_, r) => `${r.host}:${r.port}`} />
           <Table.Column dataIndex="system_id" title="System ID" />
@@ -56,48 +71,67 @@ export const ConnectorList = () => {
           <Table.Column
             dataIndex="desired_started"
             title="Desired"
-            render={(v: boolean) => (v ? <Tag color="blue">started</Tag> : <Tag>stopped</Tag>)}
+            render={(v: boolean) => (
+              <StatusBadge tone={v ? "progress" : "neutral"}>
+                {v ? "Started" : "Stopped"}
+              </StatusBadge>
+            )}
           />
           <Table.Column
             dataIndex="observed"
             title="Status"
-            render={(v: string) => <Tag color={observedColor(v)}>{v || "—"}</Tag>}
+            render={(v: string) => (
+              <StatusBadge tone={observedTone(v)}>{v || "Unknown"}</StatusBadge>
+            )}
+          />
+          <Table.Column
+            dataIndex="managed_by"
+            title="Source"
+            render={(source: ConnectorRow["managed_by"]) => (
+              <Tag color={source === "config" ? "blue" : "green"}>
+                {source === "config" ? "Config managed" : "Admin managed"}
+              </Tag>
+            )}
           />
           <Table.Column<ConnectorRow>
             title="Actions"
-            render={(_, r) => (
-              <Space>
-                <Tooltip title={r.desired_started ? "Stop Connector" : "Start Connector"}>
-                  <Button
-                    size="small"
-                    loading={toggling}
-                    icon={r.desired_started ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                    onClick={() => toggleStarted(r)}
-                  >
-                    {r.desired_started ? "Stop" : "Start"}
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Edit Connector">
-                  <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
-                </Tooltip>
-                <Tooltip title="Delete Connector">
-                  <DeleteButton hideText size="small" recordItemId={r.id} />
-                </Tooltip>
-              </Space>
-            )}
+            render={(_, r) =>
+              r.managed_by === "config" ? (
+                <span className="muted-copy">Read only</span>
+              ) : (
+                <Space>
+                  <Tooltip title={r.desired_started ? "Stop Connector" : "Start Connector"}>
+                    <Button
+                      size="small"
+                      loading={toggling}
+                      icon={r.desired_started ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                      onClick={() => toggleStarted(r)}
+                    >
+                      {r.desired_started ? "Stop" : "Start"}
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="Edit Connector">
+                    <EditButton hideText size="small" onClick={() => showEdit(r.id)} />
+                  </Tooltip>
+                  <Tooltip title="Delete Connector">
+                    <DeleteButton hideText size="small" recordItemId={r.id} />
+                  </Tooltip>
+                </Space>
+              )
+            }
           />
         </Table>
       </List>
-      <Drawer {...createDrawerProps} width={500}>
+      <Drawer {...createDrawerProps} width={760}>
         <Create saveButtonProps={createSaveButtonProps}>
           <ConnectorFields formProps={createFormProps} />
         </Create>
       </Drawer>
-      <Drawer {...editDrawerProps} width={500}>
+      <Drawer {...editDrawerProps} width={760}>
         <Edit saveButtonProps={editSaveButtonProps}>
           <ConnectorFields formProps={editFormProps} editing />
         </Edit>
       </Drawer>
-    </>
+    </div>
   );
 };

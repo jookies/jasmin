@@ -3,6 +3,7 @@ import { Form, InputNumber, Select, Switch } from "antd";
 import { useSelect } from "@refinedev/antd";
 
 import { FilterList } from "../../components/FilterList";
+import { FormIntroduction } from "../../components/OperatorUI";
 
 // RouteFields is the shared create/edit form body. `editing` locks the route
 // order (a route's order is its identity — recreate to renumber).
@@ -19,7 +20,11 @@ export const RouteFields = ({
     optionValue: "id",
   });
   return (
-    <Form {...formProps} layout="vertical">
+    <Form {...formProps} layout="vertical" className="operator-form">
+      <FormIntroduction title={editing ? "Update MT route" : "Create an MT route"}>
+        Higher orders win. Add filters only when this route should handle a specific subset of
+        outbound traffic.
+      </FormIntroduction>
       <Form.Item
         label="Order"
         name="order"

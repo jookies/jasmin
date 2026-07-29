@@ -122,3 +122,30 @@ func TestUserServiceDeleteAndReload(t *testing.T) {
 		t.Fatalf("reload installed=%v want only bob", freshProv.installed)
 	}
 }
+
+func TestUserServiceLoadAndApplyReconcilesLiveUsers(t *testing.T) {
+	svc, provisioner, store := newUserService(t, 0)
+	if err := svc.CreateUser(context.Background(), "old", userSpec("old")); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteUser(context.Background(), "old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertUser(context.Background(), StoredUser{
+		Username: "restored",
+		UID:      9,
+		SpecJSON: userSpec("restored"),
+	}, "snapshot"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.LoadAndApply(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := provisioner.installed["old"]; ok {
+		t.Fatal("user removed by the restored profile is still live")
+	}
+	if provisioner.installed["restored"] != 9 {
+		t.Fatalf("restored user uid=%d want 9", provisioner.installed["restored"])
+	}
+}

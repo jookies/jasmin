@@ -1,6 +1,8 @@
 import { List, useTable, EditButton, DeleteButton, useDrawerForm, Create, Edit } from "@refinedev/antd";
 import { Table, Space, Tag, Typography, Drawer, Tooltip } from "antd";
 import { InterceptorFields } from "./form";
+import { FlushButton } from "../../components/FlushButton";
+import { PageTitle, StatusBadge, TableScrollHint } from "../../components/OperatorUI";
 
 type FilterRow = { type: string; pattern?: string; value?: string; start?: string; end?: string };
 
@@ -39,13 +41,44 @@ export const InterceptorList = () => {
   } = useDrawerForm<InterceptorRow>({ action: "edit", syncWithLocation: true });
 
   return (
-    <>
-      <List createButtonProps={{ onClick: () => showCreate() }}>
-        <Table {...tableProps} rowKey="id" size="small">
+    <div className="resource-page">
+      <List
+        title={
+          <PageTitle
+            eyebrow="Trusted automation"
+            title="Interceptors"
+            description="Inspect and manage Python rules that can reject or mutate messages on the live gateway."
+          />
+        }
+        createButtonProps={{ onClick: () => showCreate(), children: "Add interceptor" }}
+        headerButtons={({ defaultButtons }) => (
+          <>
+            {defaultButtons}
+            <FlushButton
+              endpoint="/interceptors/mt/flush"
+              resource="interceptors"
+              label="Clear MT"
+              description="This removes every admin-managed MT interceptor. Config-managed scripts stay active."
+            />
+            <FlushButton
+              endpoint="/interceptors/mo/flush"
+              resource="interceptors"
+              label="Clear MO"
+              description="This removes every admin-managed MO interceptor. Config-managed scripts stay active."
+            />
+          </>
+        )}
+      >
+        <TableScrollHint />
+        <Table {...tableProps} rowKey="id" size="small" scroll={{ x: 900 }}>
           <Table.Column
             dataIndex="direction"
             title="Direction"
-            render={(v: string) => <Tag color={v === "mt" ? "geekblue" : "purple"}>{v.toUpperCase()}</Tag>}
+            render={(v: string) => (
+              <StatusBadge tone={v === "mt" ? "progress" : "warning"}>
+                {v.toUpperCase()}
+              </StatusBadge>
+            )}
           />
           <Table.Column
             dataIndex="order"
@@ -93,6 +126,6 @@ export const InterceptorList = () => {
           <InterceptorFields formProps={editFormProps} editing />
         </Edit>
       </Drawer>
-    </>
+    </div>
   );
 };

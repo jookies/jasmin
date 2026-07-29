@@ -14,8 +14,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/admin"
+	"github.com/pumpitspace/jasmin/internal/app/modispatch"
+	"github.com/pumpitspace/jasmin/internal/app/outbound"
+	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
+	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
+	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 )
 
 // HealthFunc reports gateway readiness for the dashboard: the overall status
@@ -33,7 +41,31 @@ type Deps struct {
 	Routes     *admin.RouteService
 	MORoutes   *admin.MORouteService
 	Users      *admin.UserService
+	Groups     *admin.GroupService
 	SMPPsUsers *admin.SMPPsUserService
+	Filters    *admin.NamedSpecService
+	// HTTPConnectors are named HTTP destinations copied into MO routes.
+	HTTPConnectors *admin.NamedSpecService
+	Profiles       *admin.ProfileService
+	Transactions   *submittransaction.Service
+	BalanceReader  core.BalanceReader
+	RateReader     core.RateReader
+	Submitter      core.Submitter
+	HTTPStats      *stats.HTTPStats
+	SMPPcStats     *stats.SMPPcRegistry
+	SMPPsStats     *stats.SMPPsStats
+	StartedAt      func() time.Time
+	ConnectorIDs   func() []string
+	// Config-owned entities are visible but read-only in the browser.
+	ConfigConnectors func() []smppc.Config
+	ConfigRoutes     func() []outbound.RouteConfig
+	ConfigMORoutes   func() []modispatch.RouteConfig
+	ConfigUsers      func() []outbound.UserConfig
+	ConfigGroups     func() []outbound.GroupConfig
+	ConfigSMPPsUsers func() []smppsserver.UserConfig
+	ConnectorStatus  func(string) (smppc.ManagedStatus, error)
+	// UnbindSMPPsUser gracefully disconnects every live session for a system_id.
+	UnbindSMPPsUser func(string) int
 	// Interceptors is nil unless admin.allow_interceptor_editing is set. When
 	// nil the /api/interceptors endpoints answer 404 and the UI hides the
 	// section — interceptor scripts are arbitrary Python on this host.
@@ -65,8 +97,9 @@ func New(deps Deps) (*Handler, error) {
 		return nil, errors.New("adminweb: web_username and web_password are required")
 	}
 	if deps.Connectors == nil || deps.Routes == nil || deps.MORoutes == nil ||
-		deps.Users == nil || deps.SMPPsUsers == nil {
-		return nil, errors.New("adminweb: connector, route, MO route, user and SMPPs user services are required")
+		deps.Users == nil || deps.Groups == nil || deps.SMPPsUsers == nil ||
+		deps.Filters == nil || deps.HTTPConnectors == nil || deps.Profiles == nil {
+		return nil, errors.New("adminweb: connector, route, MO route, user, group, SMPPs user, filter, HTTP connector and profile services are required")
 	}
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
@@ -98,6 +131,11 @@ func (h *Handler) routes() http.Handler {
 	mux.Handle("POST /api/logout", authed(h.handleLogout))
 	mux.Handle("GET /api/session", authed(h.handleSession))
 	mux.Handle("GET /api/health", authed(h.handleHealth))
+	mux.Handle("GET /api/stats", authed(h.handleStats))
+	mux.Handle("GET /api/message-status/{messageID}", authed(h.handleMessageStatus))
+	mux.Handle("POST /api/tools/balance", authed(h.handleBalanceTool))
+	mux.Handle("POST /api/tools/rate", authed(h.handleRateTool))
+	mux.Handle("POST /api/tools/send", authed(h.handleSendTool))
 
 	mux.Handle("GET /api/connectors", authed(h.listConnectors))
 	mux.Handle("POST /api/connectors", authed(h.createConnector))
@@ -108,6 +146,7 @@ func (h *Handler) routes() http.Handler {
 
 	mux.Handle("GET /api/routes", authed(h.listRoutes))
 	mux.Handle("POST /api/routes", authed(h.createRoute))
+	mux.Handle("POST /api/routes/flush", authed(h.flushRoutes))
 	mux.Handle("GET /api/routes/{order}", authed(h.getRoute))
 	mux.Handle("PATCH /api/routes/{order}", authed(h.updateRoute))
 	mux.Handle("PUT /api/routes/{order}", authed(h.updateRoute))
@@ -115,6 +154,7 @@ func (h *Handler) routes() http.Handler {
 
 	mux.Handle("GET /api/mo-routes", authed(h.listMORoutes))
 	mux.Handle("POST /api/mo-routes", authed(h.createMORoute))
+	mux.Handle("POST /api/mo-routes/flush", authed(h.flushMORoutes))
 	mux.Handle("GET /api/mo-routes/{order}", authed(h.getMORoute))
 	mux.Handle("PATCH /api/mo-routes/{order}", authed(h.updateMORoute))
 	mux.Handle("PUT /api/mo-routes/{order}", authed(h.updateMORoute))
@@ -126,9 +166,12 @@ func (h *Handler) routes() http.Handler {
 	mux.Handle("PATCH /api/smpps-users/{systemID}", authed(h.updateSMPPsUser))
 	mux.Handle("PUT /api/smpps-users/{systemID}", authed(h.updateSMPPsUser))
 	mux.Handle("DELETE /api/smpps-users/{systemID}", authed(h.deleteSMPPsUser))
+	mux.Handle("POST /api/smpps-users/{systemID}/unbind", authed(h.unbindSMPPsUser))
+	mux.Handle("POST /api/smpps-users/{systemID}/ban", authed(h.banSMPPsUser))
 
 	mux.Handle("GET /api/interceptors", authed(h.listInterceptors))
 	mux.Handle("POST /api/interceptors", authed(h.createInterceptor))
+	mux.Handle("POST /api/interceptors/{direction}/flush", authed(h.flushInterceptors))
 	mux.Handle("GET /api/interceptors/{id}", authed(h.getInterceptor))
 	mux.Handle("PATCH /api/interceptors/{id}", authed(h.updateInterceptor))
 	mux.Handle("PUT /api/interceptors/{id}", authed(h.updateInterceptor))
@@ -140,6 +183,30 @@ func (h *Handler) routes() http.Handler {
 	mux.Handle("PATCH /api/users/{username}", authed(h.updateUser))
 	mux.Handle("PUT /api/users/{username}", authed(h.updateUser))
 	mux.Handle("DELETE /api/users/{username}", authed(h.deleteUser))
+
+	mux.Handle("GET /api/groups", authed(h.listGroups))
+	mux.Handle("POST /api/groups", authed(h.createGroup))
+	mux.Handle("GET /api/groups/{gid}", authed(h.getGroup))
+	mux.Handle("PATCH /api/groups/{gid}", authed(h.updateGroup))
+	mux.Handle("PUT /api/groups/{gid}", authed(h.updateGroup))
+	mux.Handle("DELETE /api/groups/{gid}", authed(h.deleteGroup))
+
+	mux.Handle("GET /api/filters", authed(h.listFilters))
+	mux.Handle("POST /api/filters", authed(h.createFilter))
+	mux.Handle("GET /api/filters/{fid}", authed(h.getFilter))
+	mux.Handle("PATCH /api/filters/{fid}", authed(h.updateFilter))
+	mux.Handle("PUT /api/filters/{fid}", authed(h.updateFilter))
+	mux.Handle("DELETE /api/filters/{fid}", authed(h.deleteFilter))
+
+	mux.Handle("GET /api/http-connectors", authed(h.listHTTPConnectors))
+	mux.Handle("POST /api/http-connectors", authed(h.createHTTPConnector))
+	mux.Handle("GET /api/http-connectors/{cid}", authed(h.getHTTPConnector))
+	mux.Handle("PATCH /api/http-connectors/{cid}", authed(h.updateHTTPConnector))
+	mux.Handle("PUT /api/http-connectors/{cid}", authed(h.updateHTTPConnector))
+	mux.Handle("DELETE /api/http-connectors/{cid}", authed(h.deleteHTTPConnector))
+
+	mux.Handle("POST /api/profiles/{profile}/save", authed(h.saveProfile))
+	mux.Handle("POST /api/profiles/{profile}/load", authed(h.loadProfile))
 
 	// Unmatched /api paths must 404 as JSON, never fall through to the SPA.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

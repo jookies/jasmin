@@ -471,6 +471,23 @@ func (runtime *Runtime) Submitter() core.Submitter {
 	return runtime.submitter
 }
 
+// BalanceReader and RateReader expose the live user directory to trusted
+// management surfaces. They deliberately return the narrow core interfaces,
+// not the directory itself, so callers cannot mutate billing state.
+func (runtime *Runtime) BalanceReader() core.BalanceReader {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.directory
+}
+
+func (runtime *Runtime) RateReader() core.RateReader {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.directory
+}
+
 func newOutboxOwner() (string, error) {
 	var token [16]byte
 	if _, err := rand.Read(token[:]); err != nil {

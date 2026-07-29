@@ -2,6 +2,138 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-28 — Webadmin full-capability and operations pass
+
+Goal (user): implement the useful capabilities already present in the Go API
+and management core in the redesigned browser admin, preserve the improved UI,
+and make creation-time defaults reflect their effective values.
+
+### Delivered
+
+- Added browser CRUD for groups, saved filters and saved HTTP destinations.
+- Expanded user editing to the full MT/SMPPs credential, permission, filter,
+  default-source, quota, throughput and bind-policy surface. Username now
+  immediately drives the effective external ID during creation; empty
+  balance/quota and filter defaults are shown inline.
+- Expanded SMPP connector editing to the runtime's addressing, timeout/retry,
+  TLS, submit/PDU, DLR/logging/topology and custom-TLV configuration.
+- Merged config-owned connectors, MT/MO routes, users, groups and SMPPs bind
+  accounts into the web inventory with explicit read-only source badges.
+- Added saved-filter insertion to route forms and saved HTTP-destination
+  insertion to MO routes. An empty MO source connector now correctly means any
+  inbound connector.
+- Added SMPPs unbind/ban actions and confirmation-gated flush actions for
+  admin-owned MT routes, MO routes and interceptors.
+- Added Operations: HTTP/SMPPc/SMPPs counters, exact durable message status,
+  balance/rate diagnostics and a confirmation-gated real test submit.
+- Added named configuration profile save/restore. Group, user and connector
+  services now reconcile previously applied live state during restore instead
+  of failing on duplicate resources.
+- Kept config passwords write-only and test-submit passwords transient.
+
+### Verification
+
+- Added admin/adminweb tests for advanced users and SMPPs mirroring, group and
+  library CRUD, config-owned inventory, session actions, route/interceptor
+  flushes, operations tools, profile live restore and error mapping.
+- Targeted Go suites pass for admin, adminweb, gateway, outbound and stats.
+- `npm run build` passes and refreshes the embedded production bundle.
+- Real-browser QA passed at desktop and 390 px mobile widths. Verified
+  navigation, operations layout, read-only rows, destructive controls, saved
+  filter insertion, responsive drawers and the username/effective-default
+  behavior in the create-user form.
+
+### Follow-up
+
+The compose-stack provisioning/restart drill in plan 012 remains formal release
+evidence. Commercial/CDR and user/group charge-precedence proof remains plan
+015 G2; it is not an admin-UI gap.
+
+## 2026-07-28 — Python deprecation readiness audit and overnight gate
+
+Goal (user): record the current state in the local project knowledge base, give
+Claude an executable overnight scope, and determine when the Python Jasmin
+deployment can be deprecated.
+
+### Decision
+
+The Go gateway is ready for continued staging and partitioned shadow traffic,
+not for a Python-deprecation announcement. The legacy Python implementation can
+be feature-frozen now. Deployment deprecation waits for a clean attested
+candidate, commercial/CDR correctness, deployed-scope compatibility, operations
+coverage, shadow/canary soak and a successful rollback drill. The frozen Python
+tree remains the compatibility oracle after deployment cutover.
+
+The planning window remains the project's existing 12–18 week formal-cutover
+bar: earliest conditional deprecation 2026-10-20 through 2026-12-01; earliest
+end-of-support January–February 2027 after one stable Go release and 30–60 days
+of rollback retention. These are gate-dependent windows, not promises.
+
+### Evidence
+
+- Compatibility registry is structurally green: 205 total contracts; 37
+  `MATCH`, 3 `GO-COMPLETE`, 60 `GO-PARTIAL`, 105 `INVENTORIED`.
+- Release A has 58 unique required contracts: 8 finished, 50 unfinished.
+- `GO_MACRO_TESTS.csv` has 39 scope/mode rows; 29 have no executable command or
+  mandatory-test list. Only `registry`, `outbound-a`, `outbound-b`, and `dlr`
+  currently have executable coverage.
+- Full Go suite passes when the full oracle interpreter is explicit:
+
+  ```sh
+  PYTHON_PATH="$PWD/.venv-oracle/bin/python" go test -count=1 ./...
+  ```
+
+- Running the same suite without `PYTHON_PATH` fails only
+  `internal/transport/picklecompat:TestAMQPFixtureDecoding` because system Python
+  has no `smpp` module. The package passes with `.venv-oracle`.
+- `go vet ./...`, the structural registry validator, JSON-schema validation,
+  the signed-evidence validator tests, the focused registry wrapper, and the
+  embedded UI source-hash check pass.
+- Frontend production build passes. Vite warns that the main chunk is about
+  1.52 MB minified, so bundle splitting is a performance follow-up rather than a
+  cutover correctness failure.
+- The current worktree is large and uncommitted. The candidate-evidence runner
+  correctly refuses to attest such a tree.
+- Billing already has route/part charging, early/late billing, quota
+  enforcement, persistence and group state. CDRs and a release-grade
+  HTTP/SMPPs prepaid/postpaid/user-group E2E are genuinely missing.
+- The gateway runtime still has Python for `interceptor_runner.py` and the
+  Docker healthcheck. The message/pickle hot path is native Go.
+- Admin persistence is node-local SQLite; a multi-node target still needs an HA
+  control-plane decision.
+
+### Knowledge-base changes
+
+- Added [plan 015](plans/015-python-jasmin-deprecation-gate.md): milestone
+  definitions, G0–G5 deprecation gates, timeline, Claude overnight tasks,
+  acceptance criteria and guardrails.
+- Reconciled `docs/STATUS.md` with the current jCli/group/admin state and added
+  the evidence-based deprecation decision.
+- Reconciled plan 012: group CRUD/live reconciliation is implemented in the
+  current worktree; commercial group-billing proof belongs to plan 015 G2.
+- Repaired the jCli compatibility registry so status cells contain exact
+  machine-readable `MATCH` values. Removed the 18 finished jCli rows from the
+  unfinished ownership ledger and updated validator expectations. Registry and
+  compatibility-tool tests pass.
+
+### Local runtime snapshot clarification
+
+Before the user clarified that "local database" meant the documentation
+knowledge base, an additive SQLite profile snapshot named
+`pre-python-deprecation-audit-2026-07-28` was saved through jCli. It contains a
+copy of the current admin configuration and applies no changes. The existing
+`known-good` profile was not overwritten. The extra snapshot is retained unless
+the maintainer explicitly asks to remove it.
+
+### Claude tonight
+
+The ordered scope is in plan 015: preserve and verify the dirty worktree,
+finish knowledge-base reconciliation, make `smpps`/`routing`/`mo`/`control`
+macro gates executable, write the first-production CDR contract, and report the
+readiness delta. It explicitly forbids removing the Python oracle, fabricating
+candidate evidence, implementing the partner-onboarding backend, changing
+production exposure/secrets, or discarding user changes.
+
 ## 2026-07-28 — jCli console finished against a real recording of the frozen oracle
 
 Goal (user): run the stack, merge the pending UI work, then "finish jCli console, should be ready 100%. If something will block us, unblock in best possible way."

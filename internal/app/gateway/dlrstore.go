@@ -176,6 +176,12 @@ func (p outboundGroupProvisioner) RemoveGroup(gid string) error {
 	return p.runtime.RemoveAdminGroup(gid)
 }
 
+// RemoveUser backs GroupService's cascade delete; it is the same live removal
+// the user provisioner performs.
+func (p outboundGroupProvisioner) RemoveUser(username string) error {
+	return p.runtime.RemoveAdminUser(username)
+}
+
 func (p outboundGroupProvisioner) ConfigGroupFloor() int64 { return p.configGroups }
 
 // newDLRRequestStore opens a Redis client for the submit-side DLR request

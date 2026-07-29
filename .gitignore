@@ -73,3 +73,7 @@ node_modules/
 
 # Local Python oracle venv (differential tests): see docs/plans/012
 .venv-oracle/
+
+# Local browser QA artifacts
+.playwright-cli/
+output/playwright/

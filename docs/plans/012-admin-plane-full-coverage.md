@@ -1,15 +1,23 @@
 # Admin plane full coverage — manage everything jCli manages, from the web UI
 
 - **Date:** 2026-07-27
-- **Status:** active — Steps 1–5, 7, 8 done; **Step 6 (groups) is the only one left**
+- **Status:** implementation complete in the current worktree — all steps are present; release-candidate and commercial group-billing evidence remain under plan 015
 - **Summary:** Extend the runtime, admin services and web UI to cover the six entity types jCli manages but the Go admin plane does not — MO routes, HTTP connectors, MT/MO interceptors, SMPPs bind users, and groups — so the browser (and the JSON API) becomes a complete management surface.
 - **Related:** [plans/011-admin-web-ui.md](011-admin-web-ui.md), [adr/002-web-ui-stack.md](../adr/002-web-ui-stack.md), [adr/001-admin-provisioning-sqlite.md](../adr/001-admin-provisioning-sqlite.md), `spec/compatibility/JCLI_MATRIX.md`
 
 ## Context
 
-The Go admin plane (`internal/app/admin` + `internal/app/adminweb`) manages **three** entity types: SMPP client connectors, MT routes, and users. jCli manages **nine**: those three plus groups, `httpccm` (HTTP connectors), `morouter` (MO routes), named filters, `mtinterceptor` and `mointerceptor` — plus `persist`/`load`, which the Go design makes obsolete (admin changes apply live and are written to SQLite in the same operation, surviving restart with no explicit save).
+At the start of this plan, the Go admin plane (`internal/app/admin` +
+`internal/app/adminweb`) managed **three** entity types: SMPP client connectors,
+MT routes, and users. jCli managed **nine**: those three plus groups, `httpccm`
+(HTTP connectors), `morouter` (MO routes), named filters, `mtinterceptor` and
+`mointerceptor`. `persist`/`load` subsequently became real named SQLite
+snapshots over the same admin core.
 
-So today, dropping jCli would *lose* capability: MO routes, MO delivery destinations, interceptors, SMPPs bind users and groups are config-file-only and need a restart to change. This plan closes that gap.
+Before this work, dropping jCli would have lost capability: MO routes, MO
+delivery destinations, interceptors, SMPPs bind users and groups were
+config-file-only and needed a restart to change. The current worktree closes
+that management-surface gap; it is not yet a clean release candidate.
 
 **jCli is not being dropped — it is being reimplemented in Go too** ([plan 013](013-jcli-console.md)). The two are one project: `internal/app/admin` is the single management core, and jCli, the `/admin` JSON API and the web UI are three faces over it. That is the whole architectural point — jCli's problem was never telnet, it was that the console *was* the implementation, so automation had to screen-scrape transcripts. Every entity type below must therefore be reachable through a service method that is UI-agnostic; no business logic may live in a handler or a command.
 
@@ -67,32 +75,36 @@ Steps 1–2 (MO routes) and 3–4 (interceptors) are the substance. Steps 5–6 
 - **Changes:** Same chain. The SMPPs directory is currently rebuilt from `config.Users` at construction; put it behind an atomic holder and add an apply hook. Passwords are write-only end to end, exactly as the connector bind password and the HTTP user password already are.
 - **Verify:** `go test ./internal/app/smppsserver/ ./internal/app/adminweb/ -run SMPPSUser`. Live: create a bind user in the UI, bind a real SMPP client with those credentials without restarting, then delete the user and confirm a fresh bind is rejected.
 
-### Step 6: Groups
+### Step 6: Groups — IMPLEMENTED IN THE CURRENT WORKTREE
 
 - **Files:** `internal/app/outbound/config.go` (`UserConfig.GroupID` + a `groups[]` block), `internal/app/outbound/runtime.go` (`runtimeDirectory` group installation, mirroring `applyUser`), `internal/core/billing` (wire the existing `billing.Group` — `billing.go:84-163` already implements group balance/quota/`CanApply`), `internal/app/outbound/filters.go` (enable the deferred `group` filter type — see the comment at `filters.go:64`), admin service + store + BFF + UI.
-- **Changes:** This is the only step that adds a **new domain concept** rather than exposing an existing one: config users currently have no group, which is why the `group` filter is deferred even though routables carry a `GroupID`. Model groups as first-class (gid, balance, submit quota), let a user reference one, and charge the group per the legacy precedence rules. Verify the charge-order semantics against the frozen oracle before implementing — `spec/compatibility/ROUTING_BILLING_MATRIX.md` is the contract, and getting user-vs-group precedence wrong is a silent money bug.
-- **Verify:** `go test ./internal/core/billing/ ./internal/app/outbound/ -run Group`, including a differential against the Python oracle for the charge precedence. Live: create a group, attach a user, submit, confirm the group balance decrements as the oracle says it should.
-- **Running oracle differentials locally — read this before setting `PYTHON_PATH`.** The oracle tests fall into two groups with different needs, and satisfying one can break the other:
+- **Changes:** Groups are first-class persisted admin entities and can be
+  created, reconciled into the live directory, restored from a named profile
+  and attached to users. The API and web UI expose the group surface. Billing
+  already carries group balance/quota semantics.
+- **Verified now:** admin reconciliation tests pass, the running local store
+  contains a group, and the frontend production build contains the Groups page.
+- **Still required for commercial cutover:** the full prepaid/postpaid and
+  user/group charge-precedence oracle E2E, plus the CDR decision. These are G2
+  in [plan 015](015-python-jasmin-deprecation-gate.md), not unfinished CRUD work
+  in this plan.
+- **Oracle command:** use the full existing environment explicitly:
 
-  1. **Bridge differentials** (`internal/transport/picklecompat`, e.g. `TestAMQPFixtureDecoding`) default to `python3` when `PYTHON_PATH` is unset, so on a machine without `smpp-pdu3` they *fail* rather than skip. A minimal venv fixes them:
+  ```sh
+  PYTHON_PATH="$PWD/.venv-oracle/bin/python" go test -count=1 ./...
+  ```
 
-     ```sh
-     python3 -m venv .venv-oracle
-     .venv-oracle/bin/python -m pip install --require-hashes -r compat/requirements-pickle-bridge.txt
-     PYTHON_PATH=$(pwd)/.venv-oracle/bin/python go test ./internal/transport/picklecompat/
-     ```
-
-  2. **Legacy-import differentials** (`internal/config`, the send-path encoder) **skip** when `PYTHON_PATH` is unset. Setting it switches them on, and they then need the *whole* frozen stack — the `jasmin` package plus `twisted` — importable from the test's working directory. The minimal venv above does not provide that, so pointing `PYTHON_PATH` at it turns green skips into red failures.
-
-  `compat/requirements-baseline.lock` cannot currently be installed as-is (`--require-hashes` rejects it: `coveralls` pulls an unpinned `coverage[toml]`), so there is no one-command local full-oracle setup today. Until that is fixed, either scope `PYTHON_PATH` to the picklecompat package only, or leave it unset and let CI (`go-rewrite-compat.yml`) run the full set. `.venv-oracle/` is gitignored.
-
-  **This matters for Step 6:** the groups charge-precedence differential belongs to group 2, so it needs the full stack — fixing the baseline lock is a prerequisite for doing that work locally rather than blind.
-
-### Step 7: Named filters — decision, then code only if chosen — DONE (inline kept)
+### Step 7: Named filters — IMPLEMENTED AS COPY-IN TEMPLATES
 
 - **Files:** decision recorded in `docs/adr/003-filter-model.md`; if adopted, `internal/app/admin/filter_service.go` + a reference-resolution pass in the route builders.
-- **Changes:** jCli models filters as **named reusable objects** (`filter -a`, referenced by fid from routes); Go **inlines** them in each route. Inline is simpler, has no dangling-reference problem, and is what every current route/interceptor path already does. Named filters only pay off when the same non-trivial filter is reused across many routes and must be edited in one place. **Recommendation: keep inline, record the deviation, and revisit if operators actually ask.** If adopted instead, the UI would offer "pick a saved filter or define inline", and deleting a referenced filter must be refused.
-- **Verify:** N/A if the recommendation stands — the deliverable is the ADR. If adopted: tests that a referenced filter cannot be deleted and that a route resolves its reference after restart.
+- **Changes:** The admin store and web UI now expose named filter CRUD for
+  jCli parity. Routes remain self-contained: selecting an eligible saved
+  address, message, tag or interval filter copies its current definition into
+  the route. Editing or deleting the template therefore cannot silently change
+  a live routing rule and there are no dangling references.
+- **Verify:** `TestSavedFilterAndHTTPConnectorCRUD` covers the registry and
+  validation; browser QA verified the saved-filter picker in the MT route
+  drawer.
 
 ### Step 8: Parity mapping and docs — DONE
 
@@ -103,6 +115,32 @@ Steps 1–2 (MO routes) and 3–4 (interceptors) are the substance. Steps 5–6 
 ## End-to-end verification
 
 On the compose stack, with only the config file's reserved entities present at boot, perform a **complete provisioning run entirely through the web UI** — no config edits, no restarts: create an SMPP connector and start it; create a group and a user in it; create an MT route with a filter; create an MO route to an HTTP sink; add an MT interceptor; create an SMPPs bind user. Then submit through the public port and confirm the message routes and is charged; inject an MO and confirm it reaches the sink; bind as the SMPPs user. Finally restart the gateway and confirm every entity is still live — proving apply-first-then-persist plus `LoadAndApply` across all six new types.
+
+## Webadmin completion pass — 2026-07-28
+
+The browser now covers the useful management and diagnostic capabilities that
+were already available in the Go runtime:
+
+- config-owned connectors, routes, users, groups and SMPPs accounts are visible
+  with live/source state and remain read-only;
+- full connector and user credential/configuration fields are editable;
+- groups, saved filters and saved HTTP destinations have dedicated CRUD pages;
+- saved filters and HTTP destinations can be copied into route forms;
+- SMPPs accounts can be unbound or banned, and admin MT/MO route or
+  interceptor sets can be cleared with destructive confirmation;
+- live HTTP/SMPPc/SMPPs counters, exact durable message-status lookup,
+  balance/rate diagnostics and a confirmation-gated real test submit are in
+  the Operations page;
+- named configuration profiles save and restore the complete admin-owned
+  configuration, with live group/user/connector reconciliation on restore;
+- empty/default form behavior is explicit during creation (for example,
+  external ID follows username and empty quotas display their effective
+  unlimited behavior).
+
+Verification for the pass is encoded in the admin/adminweb tests, the
+production frontend build and desktop/mobile browser QA. The remaining
+compose-stack provisioning drill above is release evidence, not missing UI
+implementation.
 
 ## Rollback
 

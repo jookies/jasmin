@@ -12,24 +12,24 @@ the question the second one answers.
 
 | ID | Manager/command | Required transcript coverage | Admin-plane equivalent | Status |
 |---|---|---|---|---|
-| J-001 | connection/auth | banner, prompt, username/password success/failure, timeout, quit | session cookie + CSRF (`/api/login`); **Go console implemented** (`internal/app/jcli`) | **MATCH** — `J-001-auth-success`, `J-001-auth-failure` |
-| J-002 | help/completion | help text, unknown command, tab completion | n/a (UI navigation) | **MATCH** — `J-002-help`, `J-002-help-commands`, `J-002-completion` |
-| J-003 | `group` | list/add/remove/enable/disable and validation/errors | `admin.GroupService` (plan 012 Step 6, landed) | **MATCH** — `J-003-group` |
-| J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | **MATCH** — `J-004-user` |
-| J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | `outbound.UserConfig.MTCredential` + `SMPPSCredential` (mirrored to the bind account) | **MATCH** — `J-005-user-credentials`, `J-005-user-invalid` (console surface; **HTTP-path enforcement is still missing**, see below) |
-| J-006 | user SMPP control | unbind/ban and session effects | `smpps.Server.UnbindUser` + persisted bind revocation | **MATCH** — `J-006-smpp-control` |
-| J-007 | `filter` | all filter types, MO/MT restrictions, regex/date/time/tag/eval | named registry (`admin_filters`); routes embed a resolved copy, as the oracle pickles the filter object | **MATCH** — `J-007-filter` |
-| J-008 | `morouter` | list/add/remove/show/flush; all working route types | `/api/mo-routes` + MO Routes page | **MATCH** — `J-008-morouter` |
-| J-009 | `mtrouter` | list/add/remove/show/flush; rates and connectors | `/api/routes` + MT Routes page | **MATCH** — `J-009-mtrouter` |
-| J-010 | `mointerceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mo`), opt-in | **MATCH** — `J-010-mointerceptor` |
-| J-011 | `mtinterceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mt`), opt-in | **MATCH** — `J-011-mtinterceptor` |
-| J-012 | `smppccm` | list/add/update/remove/show/start/stop and field prompts/defaults | `/api/connectors` + Connectors page (incl. start/stop) | **MATCH** — `J-012-smppccm` (bind password printed: **D-003**) |
-| J-013 | `httpccm` | list/add/remove/show and method/base URL | named registry (`admin_httpccs`); MO routes embed a resolved copy | **MATCH** — `J-013-httpccm` |
-| J-014 | `stats` | users/user, SMPPc(s), SMPPs, HTTP and exact names/format | same registries `/metrics` renders, so the two cannot drift | **MATCH** — `J-014-stats` (see the unbacked-counter note below) |
-| J-015 | `persist` | default/profile/scope, success/failure, file set | real named snapshots (`admin_profiles`) — **D-002 withdrawn** | **MATCH** — `J-015-persist-load` |
-| J-016 | `load` | default/profile/scope, missing/corrupt/versioned files | restores a snapshot then re-applies every service — **D-002 withdrawn** | **MATCH** — `J-015-persist-load` |
-| J-017 | autoload | `jcli-prod` startup behavior | `LoadAndApply` at boot | **MATCH** — covered by `J-015-persist-load` |
-| J-018 | interactive sessions | start/save/abort, prompt ordering, invalid key/value | n/a (forms) | **MATCH** — every `-a`/`-u` fixture exercises it; `J-005-user-invalid` covers the error paths |
+| J-001 | connection/auth | banner, prompt, username/password success/failure, timeout, quit | session cookie + CSRF (`/api/login`); **Go console implemented** (`internal/app/jcli`) | MATCH |
+| J-002 | help/completion | help text, unknown command, tab completion | n/a (UI navigation) | MATCH |
+| J-003 | `group` | list/add/remove/enable/disable and validation/errors | `admin.GroupService` (plan 012 Step 6, landed) | MATCH |
+| J-004 | `user` | list/add/update/remove/show/enable/disable | `/api/users` + Users page | MATCH |
+| J-005 | user credentials | every HTTP/SMPP authorization, filter, default and quota field | `outbound.UserConfig.MTCredential` + `SMPPSCredential` (mirrored to the bind account) | MATCH |
+| J-006 | user SMPP control | unbind/ban and session effects | `smpps.Server.UnbindUser` + persisted bind revocation | MATCH |
+| J-007 | `filter` | all filter types, MO/MT restrictions, regex/date/time/tag/eval | named registry (`admin_filters`); routes embed a resolved copy, as the oracle pickles the filter object | MATCH |
+| J-008 | `morouter` | list/add/remove/show/flush; all working route types | `/api/mo-routes` + MO Routes page | MATCH |
+| J-009 | `mtrouter` | list/add/remove/show/flush; rates and connectors | `/api/routes` + MT Routes page | MATCH |
+| J-010 | `mointerceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mo`), opt-in | MATCH |
+| J-011 | `mtinterceptor` | list/add/remove/show/flush and script references | `/api/interceptors` (direction `mt`), opt-in | MATCH |
+| J-012 | `smppccm` | list/add/update/remove/show/start/stop and field prompts/defaults | `/api/connectors` + Connectors page (incl. start/stop) | MATCH |
+| J-013 | `httpccm` | list/add/remove/show and method/base URL | named registry (`admin_httpccs`); MO routes embed a resolved copy | MATCH |
+| J-014 | `stats` | users/user, SMPPc(s), SMPPs, HTTP and exact names/format | same registries `/metrics` renders, so the two cannot drift | MATCH |
+| J-015 | `persist` | default/profile/scope, success/failure, file set | real named snapshots (`admin_profiles`); D-002 withdrawn | MATCH |
+| J-016 | `load` | default/profile/scope, missing/corrupt/versioned files | restores a snapshot then re-applies every service; D-002 withdrawn | MATCH |
+| J-017 | autoload | `jcli-prod` startup behavior | `LoadAndApply` at boot | MATCH |
+| J-018 | interactive sessions | start/save/abort, prompt ordering, invalid key/value | n/a (forms) | MATCH |
 
 **Go console status (2026-07-27, evening).** Plan 013 Step 1 is no longer
 blocked: `.venv-oracle` built from the repo's own `requirements.txt` imports the
@@ -37,8 +37,16 @@ whole frozen stack, and `scripts/compat/capture_jcli_transcript.py` records real
 transcripts into `fixtures/jcli/`. `TestOracleTranscripts` replays every one of
 them and compares bytes per step.
 
-Five rows now carry `MATCH` on fixture-backed evidence — the first surface in
-this project to earn that status. What the recording changed: the console is a
+17 of the 18 rows carry `MATCH` on fixture-backed evidence — the first surface
+in this project to earn that status. **J-017 is the exception and must not be
+read as fixture-backed:** autoload is boot behaviour, not a telnet transcript,
+so no capture can exist for it. Its evidence is
+`TestServiceLoadAndApply*`/`TestGroupServiceLoadAndApply*` in
+`internal/app/admin`, plus the reconcile regression tests in
+`internal/app/admin/reconcile_regression_test.go`. Note that nothing
+machine-checks the MATCH⇒fixture implication today — `validate_fixture_coverage`
+only enforces fixtures for `GO-PARTIAL` — so this paragraph is the audit trail.
+What the recording changed: the console is a
 Twisted *telnet terminal*, so it opens with IAC negotiation and ESC c / ESC [ 4 h,
 every line ends with `\r\r\r\n` (four bytes), input is echoed, and it never
 emits `Username: ` on connect. The previous Go implementation got all of that
@@ -46,7 +54,12 @@ wrong while claiming Steps 2–3 were done — which is precisely what "asserted
 not proven" was warning about.
 
 **All 19 fixtures replay byte-for-byte** (`go test ./internal/app/jcli/ -run
-TestOracleTranscripts`), and **every row carries `MATCH`**. jCli is complete.
+TestOracleTranscripts`), and **every row carries `MATCH`** (J-017 on Go-test
+evidence, as noted above). jCli is complete.
+
+Two coverage caveats, recorded rather than hidden: J-001's "Required transcript
+coverage" names a timeout case the fixture does not exercise, and J-016 names
+corrupt/versioned profile files where the fixture only covers a missing one.
 
 J-006 (`--smpp-unbind` / `--smpp-ban`) is implemented against the live server:
 `smpps.Server.UnbindUser` sends each bound session an unbind PDU and then drops
@@ -72,16 +85,14 @@ Two things the transcripts cannot pin, both recorded rather than hidden:
   moved `request_count`, `success_count` and `auth_error_count` identically on
   both surfaces.
 
-**J-005 caveat.** The console surface matches, but the HTTP front door does not
-yet *enforce* per-user authorizations, value filters or the default source
-address (`internal/core/mtcredential.ValidateSend` exists, is unit-tested, and
-is never called from the HTTP path). Disabled users and disabled groups ARE now
-refused at authentication.
+The HTTP front door now enforces the J-005 authorizations, value filters and
+default source address through `internal/core/mtcredential`; disabled users and
+disabled groups are refused during authentication.
 
-Admin-plane gaps as of 2026-07-27: **J-003** (groups), **J-005** (per-authorization
-user fields), **J-006** (SMPP session control). Everything else is reachable
-without the telnet console. SMPPs bind accounts have no jCli row — in legacy they
-are user credentials (J-005) — and are managed at `/api/smpps-users`.
+As of 2026-07-28, groups, per-authorization user fields and SMPP session control
+are also present in the admin plane. SMPPs bind accounts have no separate jCli
+row — in legacy they are user credentials (J-005) — and are managed at
+`/api/smpps-users`.
 
 ## Strictness
 

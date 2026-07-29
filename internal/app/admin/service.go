@@ -30,6 +30,7 @@ type Service struct {
 	reserved map[string]struct{} // config-owned cids admin must not touch
 	now      func() string
 	mu       sync.Mutex
+	applied  map[string]struct{}
 }
 
 // NewService builds the admin service. reservedCIDs are the --config connector
@@ -45,7 +46,13 @@ func NewService(store *Store, manager ConnectorManager, reservedCIDs []string, n
 	for _, cid := range reservedCIDs {
 		reserved[cid] = struct{}{}
 	}
-	return &Service{store: store, manager: manager, reserved: reserved, now: now}, nil
+	return &Service{
+		store:    store,
+		manager:  manager,
+		reserved: reserved,
+		now:      now,
+		applied:  make(map[string]struct{}),
+	}, nil
 }
 
 // LoadAndApply re-applies every persisted admin connector into the manager at
@@ -59,15 +66,37 @@ func (s *Service) LoadAndApply(ctx context.Context) error {
 		return err
 	}
 	var errs []error
+	for cid := range s.applied {
+		// Stop first: the manager refuses to remove a connector that is desired
+		// or not yet disconnected (smppc.Manager.Remove), so a started admin
+		// connector would otherwise never be reconciled — it would keep its old
+		// config, or survive its own deletion, while stopped ones rebuilt fine.
+		if err := s.manager.Stop(cid); err != nil {
+			errs = append(errs, fmt.Errorf("admin: stop previously applied connector %q: %w", cid, err))
+		}
+		if err := s.manager.Remove(cid); err != nil {
+			errs = append(errs, fmt.Errorf("admin: remove previously applied connector %q: %w", cid, err))
+		}
+		// Drop the bookkeeping either way. Retaining it makes the add loop below
+		// skip the connector as "could not be refreshed", which turns a single
+		// transient removal failure into a permanent one that only a process
+		// restart clears. Re-adding a still-live cid fails loudly instead.
+		delete(s.applied, cid)
+	}
 	for _, connector := range stored {
 		if _, reserved := s.reserved[connector.Config.CID]; reserved {
 			errs = append(errs, fmt.Errorf("admin: stored connector %q collides with a config connector, skipped", connector.Config.CID))
+			continue
+		}
+		if _, stillApplied := s.applied[connector.Config.CID]; stillApplied {
+			errs = append(errs, fmt.Errorf("admin: connector %q could not be refreshed", connector.Config.CID))
 			continue
 		}
 		if err := s.manager.Add(connector.Config); err != nil {
 			errs = append(errs, fmt.Errorf("admin: re-add %q: %w", connector.Config.CID, err))
 			continue
 		}
+		s.applied[connector.Config.CID] = struct{}{}
 		if connector.DesiredStarted {
 			if err := s.manager.Start(connector.Config.CID); err != nil {
 				errs = append(errs, fmt.Errorf("admin: re-start %q: %w", connector.Config.CID, err))
@@ -103,8 +132,10 @@ func (s *Service) CreateConnector(ctx context.Context, config smppc.Config, star
 	}
 	if err := s.store.UpsertConnector(ctx, StoredConnector{Config: config, DesiredStarted: start}, s.now()); err != nil {
 		_ = s.manager.Remove(config.CID) // roll back the live change on persist failure
+		delete(s.applied, config.CID)
 		return err
 	}
+	s.applied[config.CID] = struct{}{}
 	return nil
 }
 
@@ -125,6 +156,7 @@ func (s *Service) UpdateConnector(ctx context.Context, config smppc.Config) erro
 	if err := s.store.UpsertConnector(ctx, StoredConnector{Config: config, DesiredStarted: existing.DesiredStarted}, s.now()); err != nil {
 		return err
 	}
+	s.applied[config.CID] = struct{}{}
 	return nil
 }
 
@@ -141,7 +173,11 @@ func (s *Service) DeleteConnector(ctx context.Context, cid string) error {
 	if err := s.manager.Remove(cid); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 	}
-	return s.store.DeleteConnector(ctx, cid)
+	if err := s.store.DeleteConnector(ctx, cid); err != nil {
+		return err
+	}
+	delete(s.applied, cid)
+	return nil
 }
 
 // SetStarted starts or stops an admin connector and records the desired state

@@ -49,6 +49,7 @@ type stubGroupProvisioner struct{}
 
 func (stubGroupProvisioner) AddGroup(string, string, int64) error { return nil }
 func (stubGroupProvisioner) RemoveGroup(string) error             { return nil }
+func (stubGroupProvisioner) RemoveUser(string) error              { return nil }
 func (stubGroupProvisioner) ConfigGroupFloor() int64              { return 0 }
 
 type stubUserProvisioner struct{}

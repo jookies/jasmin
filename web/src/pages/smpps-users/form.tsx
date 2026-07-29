@@ -1,5 +1,6 @@
 import type { FormProps } from "antd";
 import { Form, Input, InputNumber, Switch } from "antd";
+import { EffectiveValue, FormIntroduction } from "../../components/OperatorUI";
 
 // SMPPsUserFields is the shared create/edit body for an SMPPs bind account.
 // The password is write-only: never returned by the API, and left empty on edit
@@ -11,7 +12,11 @@ export const SMPPsUserFields = ({
   formProps: FormProps;
   editing?: boolean;
 }) => (
-  <Form {...formProps} layout="vertical">
+  <Form {...formProps} layout="vertical" className="operator-form">
+    <FormIntroduction title={editing ? "Update bind account" : "Create a bind account"}>
+      Define who may bind to the SMPP server, where they may connect from and which message
+      attributes they can control.
+    </FormIntroduction>
     <Form.Item
       label="System ID"
       name="system_id"
@@ -41,27 +46,49 @@ export const SMPPsUserFields = ({
       label="IP whitelist"
       name="ip_whitelist"
       tooltip="Regular expression matched against the peer IP; empty allows any IPv4"
+      extra={<EffectiveValue value="0.0.0.0/0" detail="any IPv4 address" />}
     >
-      <Input placeholder="any IPv4" />
+      <Input placeholder="0.0.0.0/0" />
     </Form.Item>
     <Form.Item
       label="Max bindings"
       name="max_bindings"
       tooltip="Concurrent binds allowed; empty = unlimited"
+      extra={<EffectiveValue value="Unlimited" detail="no concurrent-bind ceiling" />}
     >
       <InputNumber min={0} style={{ width: "100%" }} placeholder="unlimited" />
     </Form.Item>
-    <Form.Item label="Allow submit (smpps_send)" name="smpps_send" valuePropName="checked">
-      <Switch defaultChecked />
+    <Form.Item
+      label="Allow submit (smpps_send)"
+      name="smpps_send"
+      valuePropName="checked"
+      initialValue={true}
+    >
+      <Switch />
     </Form.Item>
-    <Form.Item label="May set DLR level" name="set_dlr_level" valuePropName="checked">
-      <Switch defaultChecked />
+    <Form.Item
+      label="May set DLR level"
+      name="set_dlr_level"
+      valuePropName="checked"
+      initialValue={true}
+    >
+      <Switch />
     </Form.Item>
-    <Form.Item label="May set source address" name="set_source_address" valuePropName="checked">
-      <Switch defaultChecked />
+    <Form.Item
+      label="May set source address"
+      name="set_source_address"
+      valuePropName="checked"
+      initialValue={true}
+    >
+      <Switch />
     </Form.Item>
-    <Form.Item label="May set priority" name="set_priority" valuePropName="checked">
-      <Switch defaultChecked />
+    <Form.Item
+      label="May set priority"
+      name="set_priority"
+      valuePropName="checked"
+      initialValue={true}
+    >
+      <Switch />
     </Form.Item>
   </Form>
 );

@@ -17,6 +17,7 @@ type connectorResource struct {
 	smppc.Config
 	DesiredStarted bool   `json:"desired_started"`
 	Observed       string `json:"observed,omitempty"`
+	ManagedBy      string `json:"managed_by"`
 }
 
 func toConnectorResource(view admin.ConnectorView) connectorResource {
@@ -27,7 +28,29 @@ func toConnectorResource(view admin.ConnectorView) connectorResource {
 		Config:         cfg,
 		DesiredStarted: view.DesiredStarted,
 		Observed:       view.Observed,
+		ManagedBy:      "admin",
 	}
+}
+
+func (h *Handler) configConnector(cid string) (connectorResource, bool) {
+	if h.deps.ConfigConnectors == nil {
+		return connectorResource{}, false
+	}
+	for _, config := range h.deps.ConfigConnectors() {
+		if config.CID != cid {
+			continue
+		}
+		config.Password = ""
+		resource := connectorResource{ID: cid, Config: config, ManagedBy: "config", Observed: "UNKNOWN"}
+		if h.deps.ConnectorStatus != nil {
+			if status, err := h.deps.ConnectorStatus(cid); err == nil {
+				resource.DesiredStarted = status.Desired
+				resource.Observed = string(status.Observed)
+			}
+		}
+		return resource, true
+	}
+	return connectorResource{}, false
 }
 
 func (h *Handler) listConnectors(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +59,16 @@ func (h *Handler) listConnectors(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, err)
 		return
 	}
-	resources := make([]connectorResource, 0, len(views))
+	configConnectors := []smppc.Config{}
+	if h.deps.ConfigConnectors != nil {
+		configConnectors = h.deps.ConfigConnectors()
+	}
+	resources := make([]connectorResource, 0, len(configConnectors)+len(views))
+	for _, config := range configConnectors {
+		if resource, ok := h.configConnector(config.CID); ok {
+			resources = append(resources, resource)
+		}
+	}
 	for _, view := range views {
 		resources = append(resources, toConnectorResource(view))
 	}
@@ -46,6 +78,10 @@ func (h *Handler) listConnectors(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getConnector(w http.ResponseWriter, r *http.Request) {
 	view, err := h.deps.Connectors.GetConnector(r.Context(), r.PathValue("cid"))
 	if err != nil {
+		if resource, ok := h.configConnector(r.PathValue("cid")); ok {
+			writeJSON(w, http.StatusOK, resource)
+			return
+		}
 		writeServiceError(w, err)
 		return
 	}

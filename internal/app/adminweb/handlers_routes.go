@@ -15,7 +15,8 @@ import (
 // identity (matching RouteService), so id == order and changing the order of
 // an existing route is not supported through the UI (delete + recreate).
 type routeResource struct {
-	ID int `json:"id"`
+	ID        int    `json:"id"`
+	ManagedBy string `json:"managed_by"`
 	outbound.RouteConfig
 }
 
@@ -25,7 +26,23 @@ func toRouteResource(stored admin.StoredRoute) (routeResource, error) {
 		return routeResource{}, fmt.Errorf("route %d: stored spec is not valid JSON: %w", stored.Order, err)
 	}
 	cfg.Order = stored.Order
-	return routeResource{ID: stored.Order, RouteConfig: cfg}, nil
+	return routeResource{ID: stored.Order, ManagedBy: "admin", RouteConfig: cfg}, nil
+}
+
+func routeFromConfig(config outbound.RouteConfig) routeResource {
+	return routeResource{ID: config.Order, ManagedBy: "config", RouteConfig: config}
+}
+
+func (h *Handler) configRoute(order int) (routeResource, bool) {
+	if h.deps.ConfigRoutes == nil {
+		return routeResource{}, false
+	}
+	for _, route := range h.deps.ConfigRoutes() {
+		if route.Order == order {
+			return routeFromConfig(route), true
+		}
+	}
+	return routeResource{}, false
 }
 
 func (h *Handler) listRoutes(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +51,14 @@ func (h *Handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, err)
 		return
 	}
-	resources := make([]routeResource, 0, len(stored))
+	configRoutes := []outbound.RouteConfig{}
+	if h.deps.ConfigRoutes != nil {
+		configRoutes = h.deps.ConfigRoutes()
+	}
+	resources := make([]routeResource, 0, len(configRoutes)+len(stored))
+	for _, route := range configRoutes {
+		resources = append(resources, routeFromConfig(route))
+	}
 	for _, route := range stored {
 		resource, err := toRouteResource(route)
 		if err != nil {
@@ -58,6 +82,10 @@ func (h *Handler) getRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	stored, err := h.deps.Routes.GetRoute(r.Context(), order)
 	if err != nil {
+		if resource, ok := h.configRoute(order); ok {
+			writeJSON(w, http.StatusOK, resource)
+			return
+		}
 		writeServiceError(w, err)
 		return
 	}

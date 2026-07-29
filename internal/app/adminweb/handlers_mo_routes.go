@@ -14,7 +14,8 @@ import (
 // RouteConfig fields inline plus the Refine identity. As with MT routes the
 // order is the identity, so it is fixed for an existing route.
 type moRouteResource struct {
-	ID int `json:"id"`
+	ID        int    `json:"id"`
+	ManagedBy string `json:"managed_by"`
 	modispatch.RouteConfig
 }
 
@@ -24,7 +25,23 @@ func toMORouteResource(stored admin.StoredSpec) (moRouteResource, error) {
 		return moRouteResource{}, fmt.Errorf("MO route %d: stored spec is not valid JSON: %w", stored.Order, err)
 	}
 	cfg.Order = stored.Order
-	return moRouteResource{ID: stored.Order, RouteConfig: cfg}, nil
+	return moRouteResource{ID: stored.Order, ManagedBy: "admin", RouteConfig: cfg}, nil
+}
+
+func moRouteFromConfig(config modispatch.RouteConfig) moRouteResource {
+	return moRouteResource{ID: config.Order, ManagedBy: "config", RouteConfig: config}
+}
+
+func (h *Handler) configMORoute(order int) (moRouteResource, bool) {
+	if h.deps.ConfigMORoutes == nil {
+		return moRouteResource{}, false
+	}
+	for _, route := range h.deps.ConfigMORoutes() {
+		if route.Order == order {
+			return moRouteFromConfig(route), true
+		}
+	}
+	return moRouteResource{}, false
 }
 
 func (h *Handler) listMORoutes(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +50,14 @@ func (h *Handler) listMORoutes(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, err)
 		return
 	}
-	resources := make([]moRouteResource, 0, len(stored))
+	configRoutes := []modispatch.RouteConfig{}
+	if h.deps.ConfigMORoutes != nil {
+		configRoutes = h.deps.ConfigMORoutes()
+	}
+	resources := make([]moRouteResource, 0, len(configRoutes)+len(stored))
+	for _, route := range configRoutes {
+		resources = append(resources, moRouteFromConfig(route))
+	}
 	for _, route := range stored {
 		resource, err := toMORouteResource(route)
 		if err != nil {
@@ -53,6 +77,10 @@ func (h *Handler) getMORoute(w http.ResponseWriter, r *http.Request) {
 	}
 	stored, err := h.deps.MORoutes.GetRoute(r.Context(), order)
 	if err != nil {
+		if resource, ok := h.configMORoute(order); ok {
+			writeJSON(w, http.StatusOK, resource)
+			return
+		}
 		writeServiceError(w, err)
 		return
 	}
