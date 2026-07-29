@@ -31,6 +31,16 @@ type BillingUserDirectory interface {
 	GetUserIdentity(username string) (*billing.User, string, error)
 }
 
+// ThroughputGate enforces the user's per-second submit ceiling
+// (MtMessagingCredential's http_throughput / smpps_throughput). ingress is the
+// front door the submit arrived through — legacy keeps a separate allowance per
+// protocol on CnxStatus, so HTTP traffic must not consume the SMPPs budget.
+//
+// Returning false rejects the submit outright; legacy does not queue or delay.
+type ThroughputGate interface {
+	AllowSubmit(username, ingress string, now time.Time) bool
+}
+
 type AMQPPublisher interface {
 	Publish(ctx context.Context, exchange, routingKey string, message amqpcompat.Envelope) error
 }
@@ -117,6 +127,10 @@ type SubmitServiceDependencies struct {
 	// ConnectorDLRExpiry resolves a routed connector's dlr_expiry (record TTL,
 	// seconds). Nil or a non-positive result falls back to the legacy default.
 	ConnectorDLRExpiry func(connectorID string) int64
+	// Throughput enforces the user's per-second submit ceiling. Nil disables
+	// the check, which is the pre-existing behaviour for callers that do not
+	// provision the quota.
+	Throughput ThroughputGate
 }
 
 // DLRRequestStore persists the submit-side DLR request record.
@@ -207,6 +221,17 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 			return "", ErrNoRouteMatched
 		}
 		connectorID = selected
+	}
+
+	// QoS ceiling. Legacy checks this after routing and before billing, so an
+	// over-rate submit is refused without being charged and without consuming a
+	// message id (send.py:294, factory.py:427). One check per logical submit,
+	// not per segment — a long message costs the user one slot regardless of
+	// how many parts it becomes.
+	if service.dependencies.Throughput != nil {
+		if !service.dependencies.Throughput.AllowSubmit(request.Username, sourceConnectorOf(request), createdAt) {
+			return "", ErrThroughputExceeded
+		}
 	}
 
 	reference, err := service.dependencies.NewReference()

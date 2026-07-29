@@ -249,6 +249,14 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 			writePlainError(w, http.StatusBadRequest, msg)
 			return
 		}
+		// ThroughputExceededError is a 403 carrying its own message, and it
+		// increments a distinct counter — legacy raises it before the route
+		// error path, so it must be matched first (send.py:303-308).
+		if errors.Is(err, core.ErrThroughputExceeded) {
+			h.incHTTP("throughput_error_count")
+			writePlainError(w, http.StatusForbidden, "User throughput exceeded")
+			return
+		}
 		if errors.Is(err, core.ErrNoLiveConnector) || errors.Is(err, core.ErrNoRouteMatched) || errors.Is(err, core.ErrQuotaExceeded) {
 			h.incHTTP("route_error_count")
 			writePlainError(w, http.StatusInternalServerError, "Cannot send submit_sm, check SMPPClientManagerPB log file for details")

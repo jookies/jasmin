@@ -98,7 +98,10 @@ func mapSubmitError(err error) uint32 {
 	switch {
 	case errors.Is(err, core.ErrNoRouteMatched), errors.Is(err, core.ErrNoLiveConnector):
 		return statusSubmitFailed
-	case errors.Is(err, core.ErrQuotaExceeded):
+	case errors.Is(err, core.ErrQuotaExceeded), errors.Is(err, core.ErrThroughputExceeded):
+		// SubmitSmThroughputExceededError carries ESME_RTHROTTLED and is a
+		// "no shutdown" error: the bind survives, only this PDU is refused
+		// (jasmin/protocols/smpp/error.py:78-84).
 		return statusThrottled
 	case errors.Is(err, core.ErrFilterRejected), errors.Is(err, core.ErrInvalidParameter):
 		return statusSubmitFailed

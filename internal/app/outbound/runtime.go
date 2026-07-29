@@ -226,6 +226,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
 		DLRRequestStore:      dependencies.DLRRequestStore,
 		ConnectorDLRExpiry:   dependencies.ConnectorDLRExpiry,
+		Throughput:           newThroughputGate(directory),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create submit service: %w", err)

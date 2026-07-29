@@ -14,6 +14,10 @@ var (
 	ErrQuotaExceeded    = errors.New("quota exceeded")
 	ErrFilterRejected   = errors.New("request rejected by filters")
 	ErrInvalidParameter = errors.New("invalid parameter")
+	// ErrThroughputExceeded is the user's per-second submit ceiling being hit.
+	// Distinct from ErrQuotaExceeded (balance / submit_sm_count) because the
+	// two map to different front-door responses and different counters.
+	ErrThroughputExceeded = errors.New("user throughput exceeded")
 )
 
 // Authenticator verifies that a user and its group are enabled and that the

@@ -149,3 +149,13 @@ func TestNewHandlerValidatesDependencies(t *testing.T) {
 		t.Error("nil submitter must error")
 	}
 }
+
+// TestThroughputExceededThrottlesTheBind pins the SMPPs half of the QoS
+// rejection. SubmitSmThroughputExceededError carries ESME_RTHROTTLED and
+// derives from the "no shutdown" base, so the bind survives and only the
+// offending PDU is refused — a rate-limited ESME must not be disconnected.
+func TestThroughputExceededThrottlesTheBind(t *testing.T) {
+	if got := mapSubmitError(core.ErrThroughputExceeded); got != statusThrottled {
+		t.Fatalf("command_status = %#08x, want %#08x (ESME_RTHROTTLED)", got, statusThrottled)
+	}
+}

@@ -346,3 +346,32 @@ func TestMetricsRejectsNonGET(t *testing.T) {
 		t.Fatalf("POST /metrics status = %d, want 405", response.Code)
 	}
 }
+
+// TestSendMapsThroughputExceededToLegacy403 pins the QoS rejection at the front
+// door. Legacy raises ThroughputExceededError("User throughput exceeded"),
+// which HttpApiError renders as a 403 with an `Error "%s"` body, and it
+// increments throughput_error_count rather than the route or server counters —
+// so an operator watching metrics can tell a rate-limited customer apart from a
+// broken route.
+func TestSendMapsThroughputExceededToLegacy403(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{err: core.ErrThroughputExceeded}
+	httpStats := &stats.HTTPStats{}
+	response := serveForm(httpcompat.Dependencies{
+		Authenticator: auth, Submitter: submit, HTTPStats: httpStats,
+	}, http.MethodPost, "/send", validSendForm())
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", response.Code)
+	}
+	if response.Body.String() != `Error "User throughput exceeded"` {
+		t.Fatalf("body = %q", response.Body.String())
+	}
+	snapshot := httpStats.Snapshot()
+	if snapshot["throughput_error_count"] != 1 {
+		t.Fatalf("throughput_error_count = %d, want 1", snapshot["throughput_error_count"])
+	}
+	if snapshot["route_error_count"] != 0 || snapshot["server_error_count"] != 0 {
+		t.Fatalf("a throughput rejection moved the route/server counters: %v", snapshot)
+	}
+}

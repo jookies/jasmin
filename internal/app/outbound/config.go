@@ -132,9 +132,9 @@ type MTCredentialConfig struct {
 	// pointer means "unset" (Python None), which is not the same as "".
 	DefaultSourceAddress *string `json:"default_source_address,omitempty"`
 
-	// HTTPThroughput and SMPPSThroughput are the per-second submit ceilings the
-	// legacy console reports in the user list. Not enforced yet; provisioned so
-	// the console reports what is stored rather than inventing a value.
+	// HTTPThroughput and SMPPSThroughput are the per-second submit ceilings,
+	// enforced at the front door by internal/core/throughput. Zero or negative
+	// means unlimited, matching Python's `if quota and quota >= 0` guard.
 	HTTPThroughput  *float64 `json:"http_throughput,omitempty"`
 	SMPPSThroughput *float64 `json:"smpps_throughput,omitempty"`
 }
@@ -187,6 +187,10 @@ type runtimeDirectory struct {
 	// credentials is each user's MtMessagingCredential, consulted by the HTTP
 	// front door on every send.
 	credentials map[string]*mtcredential.Credential
+	// throughput is each user's per-ingress QoS ceiling, guarded by mu like
+	// credentials. Kept beside them rather than inside mtcredential, which
+	// deliberately models only authorizations and value filters.
+	throughput map[string]userThroughput
 	// mu guards passwordHashes, read on the hot Authenticate path and written
 	// by admin user provisioning. billing.Manager has its own lock.
 	mu             sync.RWMutex
@@ -203,6 +207,7 @@ func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
 		userDisabled:   make(map[string]bool, len(config.Users)),
 		userGroup:      make(map[string]string, len(config.Users)),
 		credentials:    make(map[string]*mtcredential.Credential, len(config.Users)),
+		throughput:     make(map[string]userThroughput, len(config.Users)),
 	}
 	// Groups first: a user entry resolves its group by gid, so the groups must
 	// exist before any user is installed.
@@ -316,7 +321,40 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 	directory.userDisabled[entry.Username] = entry.Disabled
 	directory.userGroup[entry.Username] = entry.GroupID
 	directory.credentials[entry.Username] = buildMTCredential(entry.MTCredential)
+	directory.throughput[entry.Username] = throughputQuotas(entry.MTCredential)
 	return nil
+}
+
+// userThroughput is a user's per-ingress QoS ceiling in submits per second. A
+// nil member means "unset", which legacy treats as unlimited.
+type userThroughput struct {
+	http  *float64
+	smpps *float64
+}
+
+func throughputQuotas(config *MTCredentialConfig) userThroughput {
+	if config == nil {
+		return userThroughput{}
+	}
+	return userThroughput{http: config.HTTPThroughput, smpps: config.SMPPSThroughput}
+}
+
+// ThroughputQuota returns the ceiling that applies to an ingress. The ingress
+// name is the submit request's source connector, so it is "smppsapi" or
+// "httpapi" — the same two buckets legacy keeps on CnxStatus. Anything else
+// falls back to the HTTP ceiling rather than going unmetered, so a new front
+// door cannot silently escape the limit.
+func (directory *runtimeDirectory) ThroughputQuota(username, ingress string) *float64 {
+	directory.mu.RLock()
+	defer directory.mu.RUnlock()
+	quotas, known := directory.throughput[username]
+	if !known {
+		return nil
+	}
+	if ingress == "smppsapi" {
+		return quotas.smpps
+	}
+	return quotas.http
 }
 
 // buildMTCredential turns the provisioned credential into the engine's form.
@@ -389,6 +427,7 @@ func (directory *runtimeDirectory) removeUser(username string) error {
 	delete(directory.userDisabled, username)
 	delete(directory.userGroup, username)
 	delete(directory.credentials, username)
+	delete(directory.throughput, username)
 	return nil
 }
 

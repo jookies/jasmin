@@ -2,6 +2,92 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-28 — Worktree sync review, and the QoS ceiling that was never enforced
+
+Goal (user): sync the uncommitted admin/UI work made in another session, prove
+nothing was broken, merge it, then close Go gaps in the SMPP client, SMPP
+server, HTTP front door, interception, ops and billing surfaces.
+
+### Sync review
+
+Five parallel reviewers over the 103-file worktree: new adminweb handlers, Go
+core/runtime diffs, the compatibility registry, the frontend, and an adversarial
+pass hunting for weakened tests. Everything was verified against the source
+before acting on it — two reported findings did not survive that check.
+
+**Confirmed and fixed** (each with a regression test verified to fail without
+the fix):
+
+- **Deleting a group re-enabled its suspended users.** `removeGroup` cannot
+  reach `userGroup`, so a member kept resolving a gid with no `groupDisabled`
+  entry and the zero value read as "not disabled". Authentication now fails
+  closed on a dangling group reference, and `DeleteGroup` cascades to the
+  group's users the way the oracle does. Worth noting: the reviewer proposed
+  refusing the delete while users reference the group — checking
+  `perspective_group_remove` (`jasmin/routing/router.py:917`) showed legacy
+  *cascades*, so that fix would have been a silent deviation.
+- **Saving a user widened its SMPPs bind account.** The mirror rebuilt the
+  account wholesale, blanking `ip_whitelist` (which means "any IPv4") and
+  resetting `set_source_address`, `set_dlr_level` and `set_priority` to
+  permissive defaults. Editing a balance now overlays only the form's fields.
+- **Connector reconcile removed without stopping first**, which
+  `smppc.Manager` refuses, so a started admin connector silently kept its old
+  config or survived its own deletion while stopped ones rebuilt.
+- **A failed removal stranded the entity permanently**: the `applied`
+  bookkeeping was retained, so the re-add skipped it as "could not be
+  refreshed" and the user stayed on 401 until a process restart.
+- **J-017 claimed fixture-backed evidence it cannot have** (autoload is boot
+  behaviour, not a transcript). The matrix now names its real Go-test evidence
+  and records two fixture coverages narrower than the column claims.
+
+**Not defects.** The reported "cleartext password stored for the first time" is
+pre-existing and by design — `smppsserver.UserConfig` documents plaintext
+because legacy md5s it at bind time. And the registry change is a *repair*, not
+a weakening: the validator could not parse `JCLI_MATRIX.md` at all before it
+(prose in the status column), so the 18 jCli rows were never actually counted
+as MATCH.
+
+### Delivered — the QoS ceiling
+
+`http_throughput` and `smpps_throughput` were fully plumbed through jCli, the
+web BFF and the outbound config — and enforced nowhere. `internal/app/outbound/
+config.go` said so in a comment ("Not enforced yet"), and the
+`throughput_error_count` metric existed with no writer. An operator could
+rate-limit a customer, see the limit reported back in `user -s`, and have it do
+nothing.
+
+New `internal/core/throughput` implements the ceiling as legacy does — minimum
+spacing between *accepted* submits, not a token bucket — and it is checked in
+`SubmitService.Submit` after routing and before billing, so a refused submit is
+never charged. Five Python behaviours are preserved deliberately and recorded as
+Q-022: a quota of 0 (or negative) means unlimited rather than blocked, the first
+submit is always exempt, an over-rate submit is rejected rather than delayed, a
+rejection does not advance the clock, and the state is per-process.
+
+HTTP answers 403 `Error "User throughput exceeded"` and increments
+`throughput_error_count`; SMPPs answers `ESME_RTHROTTLED` without dropping the
+bind. Ceilings are tracked per ingress, so HTTP traffic cannot consume a user's
+SMPPs allowance.
+
+### Verified
+
+`go build`, `go vet`, `PYTHON_PATH=.venv-oracle go test -count=1 ./...` all
+clean; `go test -race` on the changed packages clean; registry validator PASS
+(205 contracts, 40 finished); frontend `tsc` and production build clean with
+`bundle.sourcehash` reproducing.
+
+Note: without `PYTHON_PATH` pointing at `.venv-oracle`, the picklecompat bridge
+test fails on `No module named 'smpp'`. That is an environment gap, not a
+product defect — the venv is rebuilt with
+`python3 -m venv .venv-oracle && .venv-oracle/bin/pip install -r requirements.txt`.
+
+### Next
+
+Still open on 11-16: the native interceptor runner (Python subprocess remains),
+component loggers (router, http-api, dlr, sm-listener, throwers), and CDRs.
+The dominant constraint is unchanged and is not code: 8 of 58 Release A
+contracts are finished and 29 of 39 macro rows have no executable command.
+
 ## 2026-07-28 — Webadmin full-capability and operations pass
 
 Goal (user): implement the useful capabilities already present in the Go API
