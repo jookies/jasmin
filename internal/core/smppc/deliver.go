@@ -188,8 +188,20 @@ func (s *Session) handleLongDeliverPart(pdu smppwire.PDU, content []byte, msgID 
 		s.logDeliverError(fmt.Sprintf("store long deliver_sm part [ref:%d seq:%d]: %v", reference, sequence, err))
 		return smppStatusUnknownError
 	}
-	if status := s.publishMO(ctx, pdu, msgID, content, false, true); status != 0 {
-		return status
+	// Each segment is intercepted before it is published, the way the oracle
+	// does it (deliver_sm_event_interceptor runs per arriving PDU, and only then
+	// does deliver_sm_event_post_interception publish the will_be_concatenated
+	// part). Publishing segments unintercepted would let an MO interceptor's
+	// reject be bypassed entirely: the whole is suppressed, but the segments
+	// have already reached every SMPPs-bound destination.
+	segmentContent, segmentDropped, segmentErr := s.interceptMO(ctx, pdu.SM, msgID)
+	if segmentErr != 0 {
+		return segmentErr
+	}
+	if !segmentDropped {
+		if status := s.publishMO(ctx, pdu, msgID, segmentContent, false, true); status != 0 {
+			return status
+		}
 	}
 	parts, err := s.multipartStore.ReadParts(ctx, s.cfg.CID, reference, destination)
 	if err != nil {

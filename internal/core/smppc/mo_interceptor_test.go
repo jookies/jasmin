@@ -117,21 +117,31 @@ func TestMOInterceptorRunsOnReassembledWhole(t *testing.T) {
 	moi := &stubMOInterceptor{result: MOInterceptResult{Reject: true}}
 	session.SetMOInterceptor(moi)
 
-	// Two SAR parts -> one whole "onetwo". The interceptor must run once, on the
-	// reassembled message, not per part.
+	// Two SAR parts -> one whole "onetwo". Interception runs on every arriving
+	// segment AND on the reassembled whole: 3 calls for a 2-part message.
+	//
+	// This is a deliberate, documented divergence in both directions. The oracle
+	// intercepts each arriving PDU (deliver_sm_event_interceptor) and publishes
+	// the whole through deliver_sm_event_post_interception
+	// (jasmin/managers/listeners.py:535), so it never intercepts the whole. Go
+	// intercepts the whole on purpose (plan 009) so a content filter sees the
+	// full text instead of a fragment. Segments must be intercepted too, because
+	// they are published as they arrive: without it, a reject suppresses only the
+	// whole while every segment has already reached the SMPPs destinations.
 	for i, part := range []smppwire.PDU{sarPart(5, 2, 1, "one"), sarPart(5, 2, 2, "two")} {
 		if status := session.processDeliverMO(part); status != 0 {
 			t.Fatalf("part %d status=%#x", i, status)
 		}
 	}
-	if moi.calls != 1 {
-		t.Fatalf("interceptor called %d times, want 1 (on the whole)", moi.calls)
+	if moi.calls != 3 {
+		t.Fatalf("interceptor called %d times, want 3 (each segment plus the whole)", moi.calls)
 	}
 	if string(moi.last.ShortMessage) != "onetwo" {
 		t.Fatalf("interceptor saw %q, want reassembled onetwo", moi.last.ShortMessage)
 	}
-	if len(publisher.published) != 2 {
-		t.Fatalf("published=%d want the two marked segments only", len(publisher.published))
+	// Reject must now suppress the segments as well as the whole.
+	if len(publisher.published) != 0 {
+		t.Fatalf("published=%d; a rejected multipart MO must publish nothing", len(publisher.published))
 	}
 	for _, publication := range publisher.published {
 		headers := publication.envelope.Properties().Headers()

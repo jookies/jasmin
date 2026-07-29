@@ -43,6 +43,32 @@ you do expose it, block `/admin/` at a reverse proxy or firewall the port.
 production. Interceptor scripts are arbitrary Python executed on the gateway
 host, so enabling it turns the admin token into remote code execution.
 
+## Do NOT point this at Python Jasmin's existing RabbitMQ vhost
+
+The shipped config sets `"amqp_durable_topology": true`, which declares durable
+exchanges and queues so in-flight messages survive a broker restart. Legacy
+Jasmin declares the same topology **non-durable**: `named_queue_declare` passes
+no `durable` argument (`jasmin/queues/factory.py:215`), and neither does
+`exchange_declare(exchange='messaging', type='topic')`
+(`jasmin/managers/clients.py:249`), so both default to false.
+
+AMQP 0-9-1 answers a redeclare with different durability with a channel-level
+`PRECONDITION_FAILED` (406). So if you start this gateway against the same vhost
+your Python Jasmin has been using, the channel dies on startup and the failure
+looks like an unrelated broker problem.
+
+Pick one before cutover:
+
+- **Recommended:** give the Go gateway its own vhost (or its own broker). This is
+  also what you want for a shadow or canary run, since it keeps the two runtimes
+  from consuming each other's messages.
+- Or set `"amqp_durable_topology": false` to match legacy exactly and share the
+  existing vhost, accepting that a broker restart drops in-flight messages the
+  way legacy does.
+
+Do not "fix" a 406 by deleting live queues on a broker that is still carrying
+production traffic.
+
 ## Why the shipped connector points at a bundled fake SMSC
 
 This is not cosmetic, and it's not optional to have *some* connector.
