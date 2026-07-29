@@ -79,6 +79,68 @@ func TestSubmitResponsePublicationConstructsExactProperties(t *testing.T) {
 	}
 }
 
+func TestDLRSubmitRespMessageIDUsesAggregateOnlyForLastMultipartPart(t *testing.T) {
+	envelope := func(messageID, aggregate string, partNumber, partCount int64) *amqpcompat.Envelope {
+		t.Helper()
+		properties, err := amqpcompat.NewProperties(messageID, map[string]amqpcompat.Field{
+			"aggregate-message-id": amqpcompat.StringField(aggregate),
+			"part-number":          amqpcompat.IntegerField(partNumber),
+			"part-count":           amqpcompat.IntegerField(partCount),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		value, err := amqpcompat.NewEnvelope("submit.sm.connector-a", properties, []byte("submit"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &value
+	}
+	for _, testCase := range []struct {
+		name      string
+		messageID string
+		envelope  *amqpcompat.Envelope
+		want      string
+	}{
+		{"legacy or headerless single", "single-1", nil, "single-1"},
+		{"production single", "single-2", envelope("single-2", "single-2", 1, 1), "single-2"},
+		{"multipart first part", "aggregate/000001", envelope("aggregate/000001", "aggregate", 1, 2), "aggregate/000001"},
+		{"multipart last part", "aggregate/000002", envelope("aggregate/000002", "aggregate", 2, 2), "aggregate"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := dlrSubmitRespMessageID(DurableResponseInput{
+				MessageID: testCase.messageID, RetryEnvelope: testCase.envelope,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != testCase.want {
+				t.Fatalf("DLR message-id=%q want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestDLRSubmitRespMessageIDRejectsMalformedMultipartIdentity(t *testing.T) {
+	properties, err := amqpcompat.NewProperties("aggregate/000002", map[string]amqpcompat.Field{
+		"aggregate-message-id": amqpcompat.StringField("aggregate"),
+		"part-number":          amqpcompat.IntegerField(2),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := amqpcompat.NewEnvelope("submit.sm.connector-a", properties, []byte("submit"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = dlrSubmitRespMessageID(DurableResponseInput{
+		MessageID: "aggregate/000002", RetryEnvelope: &envelope,
+	})
+	if !errors.Is(err, ErrInvalidSubmitResponsePublication) {
+		t.Fatalf("error=%v want ErrInvalidSubmitResponsePublication", err)
+	}
+}
+
 func TestSubmitResponsePublicationIsConcurrentAndImmutable(t *testing.T) {
 	body := []byte{0x80, 2, 'x'}
 	publication, err := NewSubmitResponsePublication(
