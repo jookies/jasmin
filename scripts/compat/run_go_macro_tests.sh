@@ -153,7 +153,7 @@ run_gate() {
   case "$gate" in
     "python3 scripts/compat/validate_contract_registry.py") "$python_bin" scripts/compat/validate_contract_registry.py ;;
     "python3 scripts/compat/run_python_unittest_json.py scripts.compat.test_validate_contract_registry") "$python_bin" scripts/compat/run_python_unittest_json.py scripts.compat.test_validate_contract_registry ;;
-    "python3 scripts/compat/run_python_unittest_json.py tests.pbfacade.test_pb_listener tests.pbfacade.test_translator") "$PYTHON_PATH" scripts/compat/run_python_unittest_json.py tests.pbfacade.test_pb_listener tests.pbfacade.test_translator ;;
+    "python3 scripts/compat/run_python_unittest_json.py pbfacade.tests.test_pb_listener pbfacade.tests.test_translator") "$PYTHON_PATH" scripts/compat/run_python_unittest_json.py pbfacade.tests.test_pb_listener pbfacade.tests.test_translator ;;
     "python3 scripts/build_test_manifest.py --check") "$python_bin" scripts/build_test_manifest.py --check ;;
     "python3 scripts/compat/verify_fixtures.py") "$python_bin" scripts/compat/verify_fixtures.py ;;
     "go test -json "*)

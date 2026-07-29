@@ -8,7 +8,7 @@ from twisted.spread import pb
 from twisted.trial import unittest
 
 import jasmin
-from jasmin.pbfacade.avatars import RouterAvatar
+from pbfacade.avatars import RouterAvatar
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 

@@ -59,8 +59,11 @@ Stable error codes are `unauthorized`, `bad_request`,
 
 ## Implemented compatibility projection
 
-`jasmin/bin/pbfacaded.py` terminates the four frozen PB services and translates
-them to the private Go facade. It retains the historical digest login,
+`pbfacade/daemon.py` terminates the four frozen PB services and translates
+them to the private Go facade. The sidecar lives in the top-level `pbfacade/`
+package and *imports* the frozen `jasmin.*` tree as an unmodified dependency; it
+must never be moved back inside `jasmin/` or `tests/`, which
+`scripts/compat/verify_baseline_tree.py` hashes as the immutable oracle. It retains the historical digest login,
 Perspective/Deferred call shape, serialized object results, and default ports.
 
 | Frozen service/capability | Go facade projection | Functional |
@@ -143,7 +146,7 @@ Set the same bearer secret configured by
 
 ```bash
 export JASMIN_PB_FACADE_TOKEN='replace-me'
-python jasmin/bin/pbfacaded.py \
+python -m pbfacade.daemon \
   --go-url http://127.0.0.1:8998 \
   --router-bind 127.0.0.1 \
   --client-bind 127.0.0.1 \

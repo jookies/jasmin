@@ -1,7 +1,7 @@
 import pickle
 import unittest
 
-from jasmin.pbfacade.avatars import (
+from pbfacade.avatars import (
     ClientManagerAvatar,
     RouterAvatar,
     bill_spec,
@@ -13,7 +13,7 @@ from jasmin.pbfacade.avatars import (
     pdu_wires,
     user_spec,
 )
-from jasmin.pbfacade.client import FacadeError
+from pbfacade.client import FacadeError
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.routing.Bills import SubmitSmBill
 from jasmin.routing.jasminApi import Group, User

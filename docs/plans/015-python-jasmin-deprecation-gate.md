@@ -3,7 +3,7 @@
 - **Date:** 2026-07-29
 - **Status:** active — **NOT READY to deprecate the Python deployment**
 - **Decision owner:** project maintainer; compatibility status may change only with executable evidence
-- **Related:** [007-prod-testing-readiness.md](007-prod-testing-readiness.md), [010-native-pickle-codec.md](010-native-pickle-codec.md), [014-partner-onboarding.md](014-partner-onboarding.md), `spec/compatibility/`
+- **Related:** [016-release-readiness-and-python-deprecation.md](016-release-readiness-and-python-deprecation.md) (corrected roadmap and audit-number reconciliation), [007-prod-testing-readiness.md](007-prod-testing-readiness.md), [010-native-pickle-codec.md](010-native-pickle-codec.md), [014-partner-onboarding.md](014-partner-onboarding.md), `spec/compatibility/`
 
 ## Decision in one paragraph
 
@@ -11,9 +11,11 @@ The Go gateway is functionally strong enough for continued staging and
 partitioned shadow traffic, and the Python implementation can be feature-frozen
 now. It is not yet safe to tell operators that the Python deployment is
 deprecated. The repository has no clean, signed release-candidate evidence;
-only 8 of 58 unique Release A cutover contracts are finished, 21 of 39 macro
-test rows have no executable command, CDRs are absent, formal operability
-attestation is incomplete, and the current control plane is single-node SQLite.
+only 8 of 58 unique Release A cutover contracts are finished, 18 of 39 macro
+test rows have no executable command, CDRs are implemented but unreachable by
+any operator (no admin, CLI or PB transport calls `CDRService()`), formal
+operability attestation is incomplete, and the current control plane is
+single-node SQLite.
 The frozen Python tree must remain the compatibility oracle and rollback target
 until the gates below pass.
 
@@ -41,10 +43,10 @@ Evidence collected from the current `go-rewrite` working tree on 2026-07-29:
 | Core MT/MO/DLR/routing | Green for staging | Core paths and package tests pass; native pickle is the default hot path. |
 | jCli | Green | 19 fixtures replay byte-for-byte; all 18 matrix rows are `MATCH`. |
 | Admin API/web | Yellow-green | Broad entity coverage and a successful production frontend build, but the current implementation is an uncommitted, large working-tree change and therefore is not a candidate. |
-| Billing | Yellow-red | Route/part charging, early/late billing, quota enforcement and persistence exist. Shared-group snapshots are consistent, and online admin edits preserve or exactly roll back spent state. CDRs and a release-grade prepaid/postpaid/group oracle E2E do not. |
-| Compatibility registry | Red for cutover | Structural validation passes: 205 total contracts; 37 `MATCH`, 3 `GO-COMPLETE`, 60 `GO-PARTIAL`, 105 `INVENTORIED`. |
+| Billing | Yellow-red | Route/part charging, early/late billing, quota enforcement and persistence exist. Shared-group snapshots are consistent, and online admin edits preserve or exactly roll back spent state. CDRs are implemented and durable but **write-only in production** — `CDRService()` (`internal/app/outbound/runtime.go:469`) has no callers, and `CDRAlert` is never supplied, so reconciliation mismatches are log-only. A release-grade prepaid/postpaid/group oracle E2E does not exist. |
+| Compatibility registry | Red for cutover | Structural validation passes: 205 total contracts; 37 `MATCH`, 17 `GO-COMPLETE`, 60 `GO-PARTIAL`, 91 `INVENTORIED`. (Corrected 2026-07-29; the earlier `3`/`105` split predated PB promotion.) |
 | Release A graph | Red | 58 unique required contracts: 8 finished and 50 unfinished (32 `GO-PARTIAL`, 18 `INVENTORIED`). |
-| Executable macro gate | Red | 39 scope/mode rows; 18 are executable and 21 have no command or mandatory-test list. Executable coverage now includes `registry`, `outbound-a`, `outbound-b`, `control`, `dlr`, `mo`, `routing`, and `smpps` in the modes recorded by `GO_MACRO_TESTS.csv`. |
+| Executable macro gate | Red | 39 scope/mode rows; **21 are executable and 18 have no command or mandatory-test list** (corrected 2026-07-29 — the figures were previously transposed). Executable coverage includes `registry`, `outbound-a`, `outbound-b`, `control`, `dlr`, `mo`, `routing`, `smpps` and `pb` in the modes recorded by `GO_MACRO_TESTS.csv`. |
 | Candidate evidence | Red | The attested runner requires a clean commit/tree and an external signing key. The current worktree is intentionally dirty and has no candidate evidence. |
 | Runtime Python dependency | Yellow | The message hot path is Go-only. `docker/Dockerfile.gateway` still uses `python:3.12-slim` for `interceptor_runner.py` and its healthcheck. |
 | Operations | Yellow | Health/TLS/secrets/durable AMQP and the named SMPPc/SMPPs/router/HTTP/DLR/AMQP/thrower component loggers exist. Strict log-oracle promotion, metrics/alerts/runbooks, and formal shadow/canary/rollback evidence remain incomplete. |

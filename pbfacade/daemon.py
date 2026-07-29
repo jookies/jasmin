@@ -14,13 +14,13 @@ from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from twisted.internet import reactor, ssl
 from twisted.spread import pb
 
-from jasmin.pbfacade.avatars import (
+from pbfacade.avatars import (
     ClientManagerAvatar,
     InterceptorAvatar,
     RouterAvatar,
     SMPPServerAvatar,
 )
-from jasmin.pbfacade.client import GoFacadeClient
+from pbfacade.client import GoFacadeClient
 from jasmin.tools.cred.portal import JasminPBRealm
 from jasmin.tools.spread.pb import JasminPBPortalRoot
 

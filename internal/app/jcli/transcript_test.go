@@ -24,6 +24,26 @@ import (
 //	  .venv-oracle/bin/python scripts/compat/capture_jcli_transcript.py
 const fixtureDir = "../../../spec/compatibility/fixtures/jcli"
 
+// The J-010 and J-011 fixtures record `script python3(/tmp/jasmin-oracle-
+// interceptor.py)`. The frozen manager opens and compiles that path when the
+// script is added, so the file has to exist for the replay to reproduce the
+// captured bytes. The capture script writes it as a side effect, which made the
+// replay pass on a machine that had captured before and fail everywhere else.
+// Recreate it here, byte-identical to capture_jcli_transcript.py's
+// _write_interceptor_script, so the suite is hermetic on a clean runner.
+const (
+	oracleInterceptorPath = "/tmp/jasmin-oracle-interceptor.py"
+	// Matches scripts/compat/capture_jcli_transcript.py exactly.
+	oracleInterceptorBody = "routable = routable\n"
+)
+
+func writeOracleInterceptorScript(t *testing.T) {
+	t.Helper()
+	if err := os.WriteFile(oracleInterceptorPath, []byte(oracleInterceptorBody), 0o644); err != nil {
+		t.Fatalf("materialize %s: %v", oracleInterceptorPath, err)
+	}
+}
+
 type transcriptHeader struct {
 	Fixture        string `json:"fixture"`
 	Title          string `json:"title"`
@@ -121,6 +141,7 @@ func TestOracleTranscripts(t *testing.T) {
 	if len(paths) == 0 {
 		t.Fatal("no jCli fixtures found; run scripts/compat/capture_jcli_transcript.py")
 	}
+	writeOracleInterceptorScript(t)
 
 	for _, path := range paths {
 		path := path

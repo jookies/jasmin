@@ -18,7 +18,7 @@ from twisted.internet import threads
 from twisted.spread import pb
 
 import jasmin
-from jasmin.pbfacade.client import FacadeError
+from pbfacade.client import FacadeError
 from jasmin.protocols.smpp.configs import SMPPClientConfig
 from jasmin.routing.Filters import (
     ConnectorFilter,
