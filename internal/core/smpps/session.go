@@ -75,6 +75,17 @@ func (s *Session) dispatch(ctx context.Context, pdu smppwire.PDU) bool {
 	sequence := pdu.Header.SequenceNumber
 	state := s.currentState()
 
+	// Responses are not requests. SMPP 3.4 routes them to PDUResponseReceived,
+	// they are never answered, and they must not reach the request gate: an
+	// ESME MUST ack every deliver_sm we send it (§4.6), so treating that ack as
+	// an unsupported request tore the bind down on the first MO or delivery
+	// receipt the customer received. unbind_resp keeps its existing handling in
+	// the gate below, which closes the session deliberately.
+	if isResponseCommand(command) && command != CommandUnbindResp {
+		s.handleResponse(pdu)
+		return true
+	}
+
 	allowed, status := CommandAllowed(state, command)
 	if !allowed {
 		respCommand := responseCommandFor(command)
@@ -103,6 +114,29 @@ func (s *Session) dispatch(ctx context.Context, pdu smppwire.PDU) bool {
 		return s.handleSubmit(ctx, pdu)
 	default:
 		return s.writeResponse(responseCommandFor(command), sequence, StatusSystemError, nil) == nil
+	}
+}
+
+// isResponseCommand reports whether a command_id is a response. SMPP 3.4 sets
+// the high bit of the command_id for every response PDU.
+func isResponseCommand(command uint32) bool {
+	return command&0x80000000 != 0
+}
+
+// handleResponse consumes a response PDU from the ESME. Nothing is written back
+// — answering a response is a protocol error. Today the only response a bound
+// ESME sends unprompted is deliver_sm_resp, which acknowledges an MO or a
+// delivery receipt.
+//
+// Note the acknowledgement is currently observational only: the outbound
+// deliver path ACKs its AMQP message once the PDU is written to the socket, so
+// there is no outstanding-window entry for this response to settle, and a
+// negative command_status cannot yet trigger a redelivery. Correlating the two
+// is tracked separately; consuming the ack without closing the bind is the part
+// that must be correct for delivery to work at all.
+func (s *Session) handleResponse(pdu smppwire.PDU) {
+	if pdu.Header.CommandID == smppwire.CommandDeliverSMResp {
+		s.server.incStat("deliver_sm_resp_count")
 	}
 }
 
