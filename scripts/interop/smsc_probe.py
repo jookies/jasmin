@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Run a real third-party SMPP *server* so our Go SMPPc client can be validated.
+"""A carrier emulator: a real third-party SMPP server that misbehaves on purpose.
 
 esme_probe.py checks our SMPP server against an independent client. This is the
 other direction, and it covers the revenue path: our outbound client binding to
@@ -20,9 +20,31 @@ stream while it drives traffic:
    "short_message_hex": "...", "sequence": 3, "esm_class": "...", ...}
   {"event": "unbound", "system_id": "u"}
 
+Beyond plain interop it can reproduce what carriers actually do in production,
+which is where gateways break:
+
+  --throttle-after N      answer ESME_RTHROTTLED once more than N submits arrive
+                          in a second (carriers rate-limit, and a gateway that
+                          treats throttling as a hard failure loses traffic)
+  --submit-latency S      delay every submit_sm_resp, to exercise the client's
+                          outstanding-request window and response timeout
+  --fail-every N          answer every Nth submit with an error status
+  --dlr-delay S           send a delivery receipt S seconds after the response,
+                          instead of never (receipts are asynchronous in reality)
+  --dlr-out-of-order      deliver receipts for a batch in reverse order
+  --dlr-stat STATE        receipt state: DELIVRD, UNDELIV, EXPIRED, REJECTD
+  --drop-after N          close the connection after N submits, without unbind,
+                          to exercise reconnect and in-flight recovery
+  --enquire-link-every S  probe the client, as a carrier does
+
+What this CANNOT tell you is carrier-specific behaviour: undocumented TLVs, an
+address normalisation quirk, a non-standard receipt text, a throttling threshold
+you were not told about. Emulation proves the gateway is spec-correct and robust;
+only the real connection proves it works with *your* carrier.
+
 Usage:
   smsc_probe.py --port 0 --system-id u --password p [--message-id-prefix smsc]
-                [--submit-status ESME_ROK] [--lifetime 60]
+                [--submit-status ESME_ROK] [--lifetime 60] [carrier flags above]
 """
 
 import argparse
@@ -31,13 +53,20 @@ import sys
 
 from twisted.cred import portal
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
-from twisted.internet import reactor
+from twisted.internet import defer, reactor
 from zope.interface import implementer
 
 from smpp.twisted.config import SMPPServerConfig
 from smpp.twisted.protocol import DataHandlerResponse
 from smpp.twisted.server import IAuthenticatedSMPP, SMPPServerFactory
 from smpp.pdu import pdu_types
+from smpp.pdu.operations import DeliverSM
+from smpp.pdu.pdu_types import (
+    EsmClass,
+    EsmClassMode,
+    EsmClassType,
+    MessageState,
+)
 
 
 def emit(**payload):
@@ -66,6 +95,60 @@ class Probe:
     def __init__(self, args):
         self.args = args
         self.count = 0
+        self._second = None
+        self._in_second = 0
+        self._pending_receipts = []
+
+    def _throttled(self):
+        """Carriers rate-limit per second, so the window resets rather than being
+        a running average."""
+        if self.args.throttle_after <= 0:
+            return False
+        now = int(reactor.seconds())
+        if now != self._second:
+            self._second = now
+            self._in_second = 0
+        self._in_second += 1
+        return self._in_second > self.args.throttle_after
+
+    def _schedule_receipt(self, smpp, message_id, source, destination):
+        """Receipts are asynchronous in reality: the response says 'accepted',
+        the receipt says what happened, and the two are separated in time."""
+        if self.args.dlr_delay < 0:
+            return
+        self._pending_receipts.append((message_id, source, destination))
+        if self.args.dlr_out_of_order and len(self._pending_receipts) < 2:
+            return
+        batch = self._pending_receipts
+        self._pending_receipts = []
+        if self.args.dlr_out_of_order:
+            batch = list(reversed(batch))
+        for index, entry in enumerate(batch):
+            reactor.callLater(
+                self.args.dlr_delay + index * 0.01, self._send_receipt, smpp, *entry
+            )
+
+    def _send_receipt(self, smpp, message_id, source, destination):
+        stat = self.args.dlr_stat
+        text = (
+            f"id:{message_id} sub:001 dlvrd:001 submit date:2601010000 "
+            f"done date:2601010000 stat:{stat} err:000 text:"
+        )
+        receipt = DeliverSM(
+            source_addr=(destination or "").encode("ascii"),
+            destination_addr=(source or "").encode("ascii"),
+            short_message=text.encode("ascii"),
+            esm_class=EsmClass(
+                EsmClassMode.DEFAULT, EsmClassType.SMSC_DELIVERY_RECEIPT
+            ),
+            receipted_message_id=message_id,
+            message_state=getattr(MessageState, stat, MessageState.DELIVERED),
+        )
+        try:
+            smpp.sendDataRequest(receipt)
+            emit(event="receipt_sent", message_id=message_id, stat=stat)
+        except Exception as exc:
+            emit(event="receipt_failed", message_id=message_id, error=repr(exc))
 
     def submit_handler(self, system_id, smpp, pdu):
         """Called for each submit_sm. The library expects a DataHandlerResponse
@@ -104,6 +187,31 @@ class Probe:
                 else ""
             ),
         )
+        if self._throttled():
+            emit(event="throttled", sequence=pdu.seqNum)
+            return DataHandlerResponse(status=pdu_types.CommandStatus.ESME_RTHROTTLED)
+        if self.args.fail_every > 0 and self.count % self.args.fail_every == 0:
+            emit(event="injected_failure", sequence=pdu.seqNum)
+            return DataHandlerResponse(status=pdu_types.CommandStatus.ESME_RSUBMITFAIL)
+        if self.args.drop_after > 0 and self.count >= self.args.drop_after:
+            emit(event="dropping_connection", after=self.count)
+            reactor.callLater(0, smpp.transport.loseConnection)
+        message_id = f"{self.args.message_id_prefix}-{self.count}"
+        if self.args.dlr_delay >= 0:
+            self._schedule_receipt(
+                smpp, message_id,
+                _text(params.get("source_addr")), _text(params.get("destination_addr")),
+            )
+        if self.args.submit_latency > 0:
+            deferred = defer.Deferred()
+            reactor.callLater(
+                self.args.submit_latency,
+                deferred.callback,
+                DataHandlerResponse(
+                    status=pdu_types.CommandStatus.ESME_ROK, message_id=message_id
+                ),
+            )
+            return deferred
         if self.args.submit_status != "ESME_ROK":
             return DataHandlerResponse(
                 status=getattr(
@@ -113,8 +221,7 @@ class Probe:
                 )
             )
         return DataHandlerResponse(
-            status=pdu_types.CommandStatus.ESME_ROK,
-            message_id=f"{self.args.message_id_prefix}-{self.count}",
+            status=pdu_types.CommandStatus.ESME_ROK, message_id=message_id
         )
 
 
@@ -152,6 +259,15 @@ def main():
     parser.add_argument("--submit-status", default="ESME_ROK")
     parser.add_argument("--max-bindings", type=int, default=5)
     parser.add_argument("--lifetime", type=float, default=60.0)
+    # Carrier-behaviour emulation.
+    parser.add_argument("--throttle-after", type=int, default=0)
+    parser.add_argument("--submit-latency", type=float, default=0.0)
+    parser.add_argument("--fail-every", type=int, default=0)
+    parser.add_argument("--dlr-delay", type=float, default=-1.0)
+    parser.add_argument("--dlr-out-of-order", action="store_true")
+    parser.add_argument("--dlr-stat", default="DELIVRD")
+    parser.add_argument("--drop-after", type=int, default=0)
+    parser.add_argument("--enquire-link-every", type=float, default=0.0)
     args = parser.parse_args()
 
     probe = Probe(args)
