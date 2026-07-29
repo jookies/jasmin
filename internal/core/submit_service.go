@@ -594,14 +594,33 @@ func submitPayload(request SubmitRequest) ([]byte, error) {
 	return []byte(request.Content), nil
 }
 
+// legacyGSM0338Replacements is messaging.sms.gsm0338.replace_encode_map, which
+// Python consults before falling back to '?' — and only in the "replace" error
+// mode, which is exactly the mode Jasmin's HTTP front door uses
+// (jasmin/protocols/http/endpoints/send.py:91,93). Omitting it silently
+// corrupted every one of these characters to '?': notably 'ç', so ordinary
+// French, Portuguese, Catalan and Turkish text went out wrong, plus the Greek
+// capitals that have Latin lookalikes at these GSM positions.
+var legacyGSM0338Replacements = map[rune]byte{
+	'ç': 0x09,
+	'Α': 0x41, 'Β': 0x42, 'Ε': 0x45, 'Ζ': 0x5a, 'Η': 0x48,
+	'Ι': 0x49, 'Κ': 0x4b, 'Μ': 0x4d, 'Ν': 0x4e, 'Ο': 0x4f,
+	'Ρ': 0x50, 'Τ': 0x54, 'Υ': 0x59, 'Χ': 0x58,
+}
+
 // encodeLegacyGSM0338 mirrors Python's text.encode("gsm0338", "replace"):
-// extension-table runes consume ESC plus one septet and unsupported runes are
-// replaced with '?'. These unpacked septets are the legacy segmentation input.
+// extension-table runes consume ESC plus one septet, runes in the replacement
+// map become their GSM lookalike, and anything else becomes '?'. These unpacked
+// septets are the legacy segmentation input.
 func encodeLegacyGSM0338(payload []byte) []byte {
 	encoded := make([]byte, 0, len(payload))
 	for _, value := range string(payload) {
 		part, err := gsm7.Encode([]byte(string(value)))
 		if err != nil {
+			if replacement, ok := legacyGSM0338Replacements[value]; ok {
+				encoded = append(encoded, replacement)
+				continue
+			}
 			encoded = append(encoded, 0x3f)
 			continue
 		}
