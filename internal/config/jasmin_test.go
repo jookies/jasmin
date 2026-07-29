@@ -65,6 +65,20 @@ func TestLoadJasminFileDefaultsOnEmpty(t *testing.T) {
 	}
 }
 
+func TestJasminBillingEnabledByIngress(t *testing.T) {
+	jasmin, err := LoadJasminFile(mustParse(t,
+		"[smpp-server]\nbilling_feature = no\n[http-api]\nbilling_feature = yes\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jasmin.BillingEnabled("smppsapi") {
+		t.Fatal("SMPPs billing should be disabled by smpp-server.billing_feature")
+	}
+	if !jasmin.BillingEnabled("httpapi") {
+		t.Fatal("HTTP billing should be enabled by http-api.billing_feature")
+	}
+}
+
 func TestLoadJasminFilePropagatesSectionError(t *testing.T) {
 	// A malformed int in any one section aborts the whole aggregation.
 	if _, err := LoadJasminFile(mustParse(t, "[jcli]\nport = notanint\n")); err == nil {

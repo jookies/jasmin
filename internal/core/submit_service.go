@@ -95,6 +95,7 @@ type SubmitEnvelopeRequest struct {
 	DLRLevel             int
 	DLRMethod            string
 	SourceConnector      string
+	BillingEnabled       bool
 	Bill                 billing.Bill
 	Parts                []segmentation.Part
 	CustomTLVs           []tlv.TLV
@@ -163,6 +164,9 @@ type SubmitServiceDependencies struct {
 	// the check, which is the pre-existing behaviour for callers that do not
 	// provision the quota.
 	Throughput ThroughputGate
+	// BillingEnabled resolves the front door's billing_feature setting. Nil
+	// preserves the legacy default=true for callers without parsed INI config.
+	BillingEnabled func(ingress string) bool
 	// Logger is the named jasmin-router logger. It records routing, billing,
 	// and durable-admission outcomes without logging message content.
 	Logger *slog.Logger
@@ -383,15 +387,21 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		return "", err
 	}
 	parts := segmented.Parts()
-	aggregateBill := billing.CalculateBill(routeRate, len(parts), user)
-	perPartBill := billing.CalculateBill(routeRate, 1, user)
+	billingEnabled := true
+	if service.dependencies.BillingEnabled != nil && request.TrustedManagerSubmit == nil {
+		billingEnabled = service.dependencies.BillingEnabled(sourceConnectorOf(request))
+	}
+	var aggregateBill billing.Bill
+	var perPartBill billing.Bill
+	if billingEnabled {
+		aggregateBill = billing.CalculateBill(routeRate, len(parts), user)
+		perPartBill = billing.CalculateBill(routeRate, 1, user)
+	}
 	if trusted := request.TrustedManagerSubmit; trusted != nil {
+		billingEnabled = trusted.HasBill
 		if trusted.HasBill {
 			aggregateBill = trusted.Bill
 			perPartBill = trusted.Bill
-		} else {
-			aggregateBill = billing.Bill{}
-			perPartBill = billing.Bill{}
 		}
 	}
 	messageID := request.MessageID
@@ -462,6 +472,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		DLRLevel:             request.DLRLevel,
 		DLRMethod:            request.DLRMethod,
 		SourceConnector:      sourceConnectorOf(request),
+		BillingEnabled:       billingEnabled,
 		Bill:                 perPartBill,
 		Parts:                parts,
 		CustomTLVs:           cloneTLVs(request.CustomTLVs),
@@ -538,7 +549,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		}
 	}
 
-	if request.TrustedManagerSubmit == nil {
+	if request.TrustedManagerSubmit == nil && billingEnabled {
 		if err := user.AuthorizeAndApplyCalculatedSubmit(routeRate, len(parts), aggregateBill); err != nil {
 			service.logWarn("Charging user failed [user:%s] [cid:%s] [parts:%d]: %v",
 				request.Username, connectorID, len(parts), err)
@@ -675,7 +686,11 @@ func randomReference() (uint16, error) {
 	if _, err := rand.Read(value[:]); err != nil {
 		return 0, err
 	}
-	return uint16(value[0])<<8 | uint16(value[1]), nil
+	reference := uint16(value[0])<<8 | uint16(value[1])
+	if reference == 0 {
+		reference = 1
+	}
+	return reference, nil
 }
 
 // legacySubmissionDate renders sub_date the way the frozen record stores it:
