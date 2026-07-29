@@ -593,12 +593,23 @@ func (s *Session) decodeSubmitParts(ctx context.Context, body []byte) ([]picklec
 // actually settled (single-part, or the chain's finalizing part), so a per-message
 // line is logged exactly once.
 func (s *Session) settlePendingFailure(pending *pendingRequest) bool {
+	if !claimPendingFailure(pending) {
+		return false
+	}
+	s.completePendingFailure(pending)
+	return true
+}
+
+func claimPendingFailure(pending *pendingRequest) bool {
 	if pending.chain != nil && !pending.chain.finalize() {
 		return false
 	}
+	return true
+}
+
+func (s *Session) completePendingFailure(pending *pendingRequest) {
 	_ = s.markPendingUnknown(pending)
 	s.settleDeliveryFailure(pending.delivery)
-	return true
 }
 
 func (s *Session) takePending(seq uint32) *pendingRequest {
@@ -906,10 +917,19 @@ func (s *Session) handleTimeout(seq uint32) {
 	// the connection; cleanupSession then skips the remaining parts. Log the
 	// timeout line only for the part that actually settles, so a multipart submit
 	// logs once.
-	if s.settlePendingFailure(pending) {
-		s.logSubmitTimeout(pending)
+	if !claimPendingFailure(pending) {
+		return
 	}
-	_ = s.conn.Close()
+	s.logSubmitTimeout(pending)
+	settle := func() {
+		s.completePendingFailure(pending)
+		_ = s.conn.Close()
+	}
+	if delay := seconds(s.cfg.RequeueDelay); delay > 0 {
+		time.AfterFunc(delay, settle)
+		return
+	}
+	settle()
 }
 
 // logSubmitTimeout emits the legacy SM listener's submit_sm timeout line at ERROR

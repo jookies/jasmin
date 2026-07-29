@@ -34,6 +34,17 @@ type Jasmin struct {
 	InterceptorClient  PBClient
 }
 
+// BillingEnabled selects the billing_feature owned by the submit's front door.
+// The shared outbound service names the two legacy ingresses httpapi and
+// smppsapi; an unrecognised value follows the HTTP default used for an empty
+// source connector.
+func (j Jasmin) BillingEnabled(ingress string) bool {
+	if ingress == "smppsapi" {
+		return j.SMPPServer.BillingFeature
+	}
+	return j.HTTPAPI.BillingFeature
+}
+
 // LoadJasmin reads and parses a jasmin.cfg file into a Jasmin.
 func LoadJasmin(path string) (*Jasmin, error) {
 	handle, err := os.Open(path)
