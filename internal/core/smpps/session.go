@@ -20,7 +20,7 @@ type Session struct {
 	server *Server
 	conn   net.Conn
 
-	// outSequence numbers server-originated requests (enquire_link keepalives).
+	// outSequence numbers server-originated requests (enquire_link and deliver_sm).
 	outSequence uint32
 
 	// Set at bind time, read by the delivery path.
@@ -110,8 +110,11 @@ func (s *Session) setReadDeadline(keepalive, inactivity time.Duration, lastActiv
 // peer's enquire_link_resp arrives as a response PDU and is consumed by
 // handleResponse, which is what keeps the session open.
 func (s *Session) sendEnquireLink() bool {
-	sequence := atomic.AddUint32(&s.outSequence, 1)
-	return s.writeHeader(smppwire.CommandEnquireLink, sequence, StatusROK) == nil
+	return s.writeHeader(smppwire.CommandEnquireLink, s.nextSequence(), StatusROK) == nil
+}
+
+func (s *Session) nextSequence() uint32 {
+	return atomic.AddUint32(&s.outSequence, 1)
 }
 
 // dispatch handles one inbound request PDU. It returns false when the session
@@ -156,8 +159,12 @@ func (s *Session) dispatch(ctx context.Context, pdu smppwire.PDU) bool {
 		_ = s.writeHeader(smppwire.CommandUnbindResp, sequence, StatusROK)
 		s.transition(StateUnbound)
 		return false
-	case CommandSubmitSM, CommandDataSM:
+	case CommandSubmitSM:
 		return s.handleSubmit(ctx, pdu)
+	case CommandDataSM:
+		// smpp.twisted delegates a bound data_sm to Jasmin's submit handler,
+		// which accepts only submit_sm and returns a no-shutdown ESME_RSYSERR.
+		return s.writeResponse(smppwire.CommandDataSMResp, sequence, StatusSystemError, nil) == nil
 	default:
 		return s.writeResponse(responseCommandFor(command), sequence, StatusSystemError, nil) == nil
 	}
@@ -186,10 +193,10 @@ func (s *Session) handleResponse(pdu smppwire.PDU) {
 	}
 }
 
-// handleSubmit ingests a gate-allowed submit_sm/data_sm through the server's
-// SubmitHandler and answers submit_sm_resp/data_sm_resp with the assigned
-// message id on ESME_ROK, or the mapped error status. With no handler it
-// answers ESME_RSYSERR, keeping the session alive.
+// handleSubmit ingests a gate-allowed submit_sm through the server's
+// SubmitHandler and answers submit_sm_resp with the assigned message id on
+// ESME_ROK, or the mapped error status. With no handler it answers
+// ESME_RSYSERR, keeping the session alive.
 func (s *Session) handleSubmit(ctx context.Context, pdu smppwire.PDU) bool {
 	command := pdu.Header.CommandID
 	sequence := pdu.Header.SequenceNumber
@@ -294,6 +301,7 @@ func (s *Session) deliver(ctx context.Context, pdu smppwire.PDU) error {
 	if !deliverable {
 		return ErrNoBoundSession
 	}
+	pdu.Header.SequenceNumber = s.nextSequence()
 	frame, err := smppwire.Encode(pdu)
 	if err != nil {
 		return err
@@ -347,8 +355,8 @@ func (s *Session) writeBindResponse(command, sequence, status uint32, systemID s
 	return s.writeResponse(command, sequence, status, body)
 }
 
-// writeSubmitResponse writes a success submit_sm_resp/data_sm_resp carrying the
-// assigned message id.
+// writeSubmitResponse writes a success submit_sm_resp carrying the assigned
+// message id.
 func (s *Session) writeSubmitResponse(command, sequence uint32, messageID string) error {
 	pdu := smppwire.PDU{
 		Header:         smppwire.Header{CommandID: command, CommandStatus: StatusROK, SequenceNumber: sequence},

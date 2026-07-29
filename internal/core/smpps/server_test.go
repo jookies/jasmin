@@ -388,6 +388,52 @@ func TestSubmitFromTransmitterIngestsAndResponds(t *testing.T) {
 	}
 }
 
+func TestDataSMRejectsWithoutCallingSubmitHandler(t *testing.T) {
+	handler := &scriptedSubmitHandler{messageID: "must-not-route", status: StatusROK}
+	server, err := NewServer(mapResolver{"u": testUser("p")}, ServerConfig{}, WithSubmitHandler(handler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = server.Serve(ctx, listener) }()
+	t.Cleanup(func() { cancel(); _ = server.Close() })
+
+	conn := dial(t, listener.Addr().String())
+	writePDU(t, conn, bindPDU(CommandBindTransceiver, "u", "p", 1))
+	if readPDU(t, conn).Header.CommandStatus != StatusROK {
+		t.Fatal("bind should succeed")
+	}
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: CommandDataSM, SequenceNumber: 5},
+		SM: &smppwire.SMBody{
+			SourceAddress:      []byte("111"),
+			DestinationAddress: []byte("222"),
+			Optional:           smppwire.OptionalParameters{MessagePayload: []byte("hi")},
+		},
+	})
+	resp := readPDU(t, conn)
+	if resp.Header.CommandID != smppwire.CommandDataSMResp ||
+		resp.Header.CommandStatus != StatusSystemError ||
+		resp.Header.SequenceNumber != 5 {
+		t.Fatalf("data_sm response = %#x/%#x/%d, want data_sm_resp/ESME_RSYSERR/5",
+			resp.Header.CommandID, resp.Header.CommandStatus, resp.Header.SequenceNumber)
+	}
+	if handler.gotSM != nil {
+		t.Fatalf("data_sm reached submit handler: %+v", handler.gotSM)
+	}
+
+	writePDU(t, conn, smppwire.PDU{Header: smppwire.Header{
+		CommandID: smppwire.CommandEnquireLink, SequenceNumber: 6,
+	}})
+	if got := readPDU(t, conn); got.Header.CommandID != smppwire.CommandEnquireLinkResp {
+		t.Fatalf("session closed after data_sm rejection; got %#x", got.Header.CommandID)
+	}
+}
+
 func TestSubmitHandlerErrorStatusPropagates(t *testing.T) {
 	const esmeRSubmitFail uint32 = 0x00000045
 	handler := &scriptedSubmitHandler{status: esmeRSubmitFail}
