@@ -334,6 +334,7 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 		// error path, so it must be matched first (send.py:303-308).
 		if errors.Is(err, core.ErrThroughputExceeded) {
 			h.incHTTP("throughput_error_count")
+			stats.DefaultPrometheus().RecordThroughputRejection(username)
 			writePlainError(w, http.StatusForbidden, "User throughput exceeded")
 			return
 		}

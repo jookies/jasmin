@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
+	"github.com/pumpitspace/jasmin/internal/core/stats"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
 )
@@ -295,11 +296,13 @@ func (s *Session) publishMO(
 	}
 	if err := s.deliverPublisher.Publish(ctx, SubmitResponseExchange, "deliver.sm."+s.cfg.CID, envelope); err != nil {
 		s.logDeliverError(fmt.Sprintf("publish deliver.sm.%s: %v", s.cfg.CID, err))
+		stats.DefaultPrometheus().RecordMO(s.cfg.CID, "publish_failed")
 		return smppStatusUnknownError
 	}
 	if !willBeConcatenated {
 		s.logMOAuditLine(pdu, msgID, content)
 	}
+	stats.DefaultPrometheus().RecordMO(s.cfg.CID, "published")
 	return 0
 }
 

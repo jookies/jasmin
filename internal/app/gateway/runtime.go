@@ -485,6 +485,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if config.Admin.APIListenAddress != "" {
 			adminAPIMux := http.NewServeMux()
 			adminAPIMux.Handle("/admin/", adminHandler.Routes())
+			// The modern metrics surface rides the admin listener, not the public
+			// send port: it carries per-user and per-connector labels that are
+			// operational detail, and the legacy /metrics text format is frozen
+			// and cannot carry new series.
+			adminAPIMux.Handle("/metrics/prometheus", stats.DefaultPrometheus().Handler())
 			runtime.AdminAPIHandler = adminAPIMux
 			runtime.AdminAPIListenAddress = config.Admin.APIListenAddress
 		} else {

@@ -101,12 +101,21 @@ check runs in CI or has recorded output in `docs/worklog.md`.
 ### G4 — Operability
 
 - [x] `/health`, `/live`, `/ready`; component loggers; legacy `/metrics` surface.
-- [ ] Modern metrics surface on the admin listener: submit outcomes by connector
-      and status, DLR outcomes by level, MO routed versus dropped, bind state and
-      uptime, queue depth, throughput rejections, billing refusals, submit
-      round-trip latency histogram.
-- [ ] Alert rules with defensible thresholds mapped to real failure modes.
-- [ ] Runbooks naming this system's actual endpoints, containers and log lines.
+- [x] Modern metrics **registry** implemented (`internal/core/stats/prometheus.go`,
+      dependency-free) and served at `/metrics/prometheus` on the admin listener,
+      separate from the byte-frozen legacy surface.
+- [ ] **Instrumentation is partial — this is the honest gap.** Wired so far:
+      gateway health status, MO published/failed per connector, per-user
+      throughput rejections, connector state. Still zero call sites:
+      `RecordSubmit` (including the latency histogram), `RecordDLR`,
+      `SetQueueDepth`, `RecordInterceptorError`, and all three billing recorders.
+      A metric that is defined but never incremented reads as "zero problems"
+      rather than "not measured", which is worse than absent — treat this as
+      blocking G4.
+- [x] Alert rules with defensible thresholds mapped to real failure modes
+      (`deploy/alerts.prometheus.yml`, nine rules). Note some fire on series that
+      are not yet incremented; they go live with the instrumentation above.
+- [x] Runbooks for the eight scenarios (`docs/runbooks/`).
 
 ### G5 — Security
 
