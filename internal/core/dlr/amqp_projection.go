@@ -202,3 +202,38 @@ func parseAddrNPI(value string) (byte, error) {
 	}
 	return 0, fmt.Errorf("%w: unknown NPI %q", ErrInvalidThrowerEnvelope, value)
 }
+
+// FormatAddrTON renders a wire TON byte as the legacy enum name the frozen
+// Redis record and thrower envelopes carry ("AddrTon.INTERNATIONAL"). It is the
+// inverse of parseAddrTON; an unrecognised value falls back to UNKNOWN, which is
+// what smpp.pdu's enum lookup yields for a reserved code.
+func FormatAddrTON(value byte) string {
+	names := map[byte]string{0: "AddrTon.UNKNOWN", 1: "AddrTon.INTERNATIONAL", 2: "AddrTon.NATIONAL", 3: "AddrTon.NETWORK_SPECIFIC", 4: "AddrTon.SUBSCRIBER_NUMBER", 5: "AddrTon.ALPHANUMERIC", 6: "AddrTon.ABBREVIATED"}
+	if name, ok := names[value]; ok {
+		return name
+	}
+	return "AddrTon.UNKNOWN"
+}
+
+// FormatAddrNPI is the NPI counterpart of FormatAddrTON.
+func FormatAddrNPI(value byte) string {
+	names := map[byte]string{0: "AddrNpi.UNKNOWN", 1: "AddrNpi.ISDN", 3: "AddrNpi.DATA", 4: "AddrNpi.TELEX", 6: "AddrNpi.LAND_MOBILE", 8: "AddrNpi.NATIONAL", 9: "AddrNpi.PRIVATE", 10: "AddrNpi.ERMES", 14: "AddrNpi.INTERNET", 18: "AddrNpi.WAP_CLIENT_ID"}
+	if name, ok := names[value]; ok {
+		return name
+	}
+	return "AddrNpi.UNKNOWN"
+}
+
+// FormatRegisteredDeliveryReceipt renders the receipt bits of registered_delivery
+// as the legacy RegisteredDeliveryReceipt enum name stored in rd_receipt. Only
+// the low two bits select the receipt mode (SMPP 3.4 §5.2.17).
+func FormatRegisteredDeliveryReceipt(registeredDelivery byte) string {
+	switch registeredDelivery & 0x03 {
+	case 1:
+		return rdReceiptRequested
+	case 2:
+		return rdReceiptRequestedForFailure
+	default:
+		return "RegisteredDeliveryReceipt.NO_SMSC_DELIVERY_RECEIPT_REQUESTED"
+	}
+}

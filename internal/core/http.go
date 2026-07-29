@@ -70,6 +70,26 @@ type SubmitRequest struct {
 	// "smppsapi". It flows to the AMQP envelope's source_connector header and
 	// the DLR record's sc field, so a receipt correlates back to the right leg.
 	SourceConnector string
+	// SMPPSOrigin is set only for a submit that arrived over an SMPP bind. It
+	// carries what the DLR record needs to route a later receipt back to that
+	// bind; nil on the HTTP path, which registers its callback URL instead.
+	SMPPSOrigin *SMPPSOrigin
+}
+
+// SMPPSOrigin is the submitting bind's identity and addressing, as the ESME
+// sent them. These do not come from the connector defaults: a receipt has to be
+// addressed the way the original submit was, not the way the outbound leg was.
+type SMPPSOrigin struct {
+	SystemID string
+	// TON/NPI are the legacy enum *names* ("AddrTon.INTERNATIONAL"), not the
+	// numeric values, because that is what the frozen Redis record stores.
+	SourceAddrTON      string
+	SourceAddrNPI      string
+	DestinationAddrTON string
+	DestinationAddrNPI string
+	// RegisteredDelivery is the RegisteredDeliveryReceipt enum name the ESME
+	// asked for; legacy stores it as rd_receipt.
+	RegisteredDelivery string
 }
 
 type Submitter interface {

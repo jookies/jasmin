@@ -11,15 +11,25 @@ import (
 )
 
 type recordingDLRStore struct {
-	calls   int
-	msgID   string
-	request dlr.HTTPDLRRequest
+	calls        int
+	msgID        string
+	request      dlr.HTTPDLRRequest
+	smppsCalls   int
+	smppsMsgID   string
+	smppsRequest dlr.SMPPSDLRRequest
 }
 
 func (s *recordingDLRStore) StoreHTTPDLRRequest(_ context.Context, msgID string, request dlr.HTTPDLRRequest) error {
 	s.calls++
 	s.msgID = msgID
 	s.request = request
+	return nil
+}
+
+func (s *recordingDLRStore) StoreSMPPSDLRRequest(_ context.Context, msgID string, request dlr.SMPPSDLRRequest) error {
+	s.smppsCalls++
+	s.smppsMsgID = msgID
+	s.smppsRequest = request
 	return nil
 }
 
@@ -112,5 +122,81 @@ func TestSubmitSkipsDLRStoreWhenNotRequested(t *testing.T) {
 	}
 	if store.calls != 0 {
 		t.Fatalf("store calls=%d want 0 (DLR not requested)", store.calls)
+	}
+}
+
+// TestSubmitRegistersSMPPSDLRRecord covers the gap that silently cost every
+// SMPP bind customer 100% of their delivery receipts. The egress plumbing was
+// complete, but nothing ever wrote the sc=smppsapi dlr:<msgid> record, so the
+// correlation legs had nothing to resolve and every receipt was dropped as
+// DLRMapNotFound. An ESME reads that as total delivery failure and re-sends.
+func TestSubmitRegistersSMPPSDLRRecord(t *testing.T) {
+	store := &recordingDLRStore{}
+	service, _ := newSubmitServiceWithDLR(t, store, nil)
+
+	request := core.SubmitRequest{
+		Username:        "alice",
+		Destination:     "447700900000",
+		From:            "ACME",
+		Content:         "hi",
+		DLR:             true,
+		SourceConnector: "smppsapi",
+		SMPPSOrigin: &core.SMPPSOrigin{
+			SystemID:           "client-a",
+			SourceAddrTON:      "AddrTon.ALPHANUMERIC",
+			SourceAddrNPI:      "AddrNpi.UNKNOWN",
+			DestinationAddrTON: "AddrTon.INTERNATIONAL",
+			DestinationAddrNPI: "AddrNpi.ISDN",
+			RegisteredDelivery: "RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED",
+		},
+	}
+	messageID, err := service.Submit(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.smppsCalls != 1 {
+		t.Fatalf("smpps DLR registrations = %d, want 1", store.smppsCalls)
+	}
+	if store.calls != 0 {
+		t.Fatalf("an SMPPs submit wrote the httpapi DLR record %d time(s)", store.calls)
+	}
+	if store.smppsMsgID != messageID {
+		t.Fatalf("record keyed on %q, want the returned message id %q", store.smppsMsgID, messageID)
+	}
+	got := store.smppsRequest
+	if got.SystemID != "client-a" {
+		t.Fatalf("system_id = %q — a receipt would not find the bind that submitted", got.SystemID)
+	}
+	// The addressing must be the ESME's own, not the outbound connector's: the
+	// receipt has to be addressed the way the original submit was.
+	if got.SourceAddress != "ACME" || got.DestinationAddress != "447700900000" {
+		t.Fatalf("addresses = %q -> %q, want ACME -> 447700900000", got.SourceAddress, got.DestinationAddress)
+	}
+	if got.SourceAddrTON != "AddrTon.ALPHANUMERIC" || got.DestinationAddrNPI != "AddrNpi.ISDN" {
+		t.Fatalf("TON/NPI not carried through: %+v", got)
+	}
+	if got.ExpirySeconds != core.DefaultDLRExpirySeconds {
+		t.Fatalf("expiry = %d, want the legacy default %d", got.ExpirySeconds, core.DefaultDLRExpirySeconds)
+	}
+	if got.SubmissionDate == "" {
+		t.Fatal("sub_date is empty; the receipt renders it verbatim")
+	}
+}
+
+// TestSubmitSkipsSMPPSDLRRecordWhenNoReceiptRequested pins the legacy gate: the
+// record is written only when the ESME actually asked for a receipt
+// (managers/clients.py:618), not on every SMPP submit.
+func TestSubmitSkipsSMPPSDLRRecordWhenNoReceiptRequested(t *testing.T) {
+	store := &recordingDLRStore{}
+	service, _ := newSubmitServiceWithDLR(t, store, nil)
+
+	if _, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username: "alice", Destination: "447700900000", From: "ACME", Content: "hi",
+		SourceConnector: "smppsapi",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if store.smppsCalls != 0 {
+		t.Fatalf("wrote a DLR record for a submit that requested no receipt (%d)", store.smppsCalls)
 	}
 }

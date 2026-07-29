@@ -68,10 +68,10 @@ func TestGoldenRedisState(t *testing.T) {
 					SystemID:                  "client-a",
 					SourceAddrTON:             "AddrTon.INTERNATIONAL",
 					SourceAddrNPI:             "AddrNpi.ISDN",
-					SourceAddress:             1111,
+					SourceAddress:             "1111",
 					DestinationAddrTON:        "AddrTon.INTERNATIONAL",
 					DestinationAddrNPI:        "AddrNpi.ISDN",
-					DestinationAddress:        2222,
+					DestinationAddress:        "2222",
 					SubmissionDate:            "2026-01-02 03:04:05.678901",
 					RegisteredDeliveryReceipt: "RegisteredDeliveryReceipt.SMSC_DELIVERY_RECEIPT_REQUESTED",
 					ExpirySeconds:             86400,
@@ -280,15 +280,40 @@ func TestRecordValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("negative SMPP address", func(t *testing.T) {
+	t.Run("missing destination address", func(t *testing.T) {
+		// destination_addr is mandatory on submit_sm; source_addr is not (an
+		// ESME may leave it empty and let the SMSC supply one), so only the
+		// destination is required here.
 		request := rediscompat.SMPPSDLRRequest{
-			SystemID: "client-a", SourceAddrTON: "ton", SourceAddrNPI: "npi", SourceAddress: -1,
-			DestinationAddrTON: "ton", DestinationAddrNPI: "npi", DestinationAddress: 1,
+			SystemID: "client-a", SourceAddrTON: "ton", SourceAddrNPI: "npi", SourceAddress: "1111",
+			DestinationAddrTON: "ton", DestinationAddrNPI: "npi", DestinationAddress: "",
 			SubmissionDate: "date", RegisteredDeliveryReceipt: "receipt", ExpirySeconds: 60,
 		}
 		_, err := rediscompat.NewSMPPSDLRRecord(dlrKey, request)
 		if !errors.Is(err, rediscompat.ErrInvalidRecord) {
 			t.Fatalf("error = %v, want ErrInvalidRecord", err)
+		}
+	})
+
+	t.Run("alphanumeric sender id stays a string", func(t *testing.T) {
+		// The frozen fixture only captured numeric addresses, so the record was
+		// modelled as an integer. An alphanumeric sender id is equally legal and
+		// must not be rejected or coerced.
+		request := rediscompat.SMPPSDLRRequest{
+			SystemID: "client-a", SourceAddrTON: "ton", SourceAddrNPI: "npi", SourceAddress: "ACME",
+			DestinationAddrTON: "ton", DestinationAddrNPI: "npi", DestinationAddress: "447700900000",
+			SubmissionDate: "date", RegisteredDeliveryReceipt: "receipt", ExpirySeconds: 60,
+		}
+		record, err := rediscompat.NewSMPPSDLRRecord(dlrKey, request)
+		if err != nil {
+			t.Fatalf("alphanumeric sender rejected: %v", err)
+		}
+		source, ok := record.Fields()["source_addr"].String()
+		if !ok || source != "ACME" {
+			t.Fatalf("source_addr = %v/%q, want string ACME", record.Fields()["source_addr"].Kind(), source)
+		}
+		if kind := record.Fields()["destination_addr"].Kind(); kind != rediscompat.FieldInteger {
+			t.Fatalf("numeric destination_addr kind = %v, want integer (fixture parity)", kind)
 		}
 	})
 }

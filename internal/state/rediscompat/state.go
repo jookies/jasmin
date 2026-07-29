@@ -305,23 +305,43 @@ func NewHTTPDLRRecord(key Key, request HTTPDLRRequest) (HashRecord, error) {
 
 // SMPPSDLRRequest is the fixture-proven SMPP-server receipt state stored under a DLR key.
 type SMPPSDLRRequest struct {
-	SystemID                  string
-	SourceAddrTON             string
-	SourceAddrNPI             string
-	SourceAddress             int64
+	SystemID      string
+	SourceAddrTON string
+	SourceAddrNPI string
+	// SourceAddress and DestinationAddress are the submit_sm addresses as the
+	// ESME sent them. Legacy hmsets the raw PDU bytes (managers/clients.py:637),
+	// so a numeric MSISDN lands in Redis as an integer and an alphanumeric
+	// sender id as a string — see addressField.
+	SourceAddress             string
 	DestinationAddrTON        string
 	DestinationAddrNPI        string
-	DestinationAddress        int64
+	DestinationAddress        string
 	SubmissionDate            string
 	RegisteredDeliveryReceipt string
 	ExpirySeconds             int64
+}
+
+// addressField reproduces what legacy stores for an SMPP address. Python writes
+// the PDU's raw bytes and the capture harness typed them by content, which is
+// why the frozen fixture records source_addr as an int: it captured a numeric
+// MSISDN. An alphanumeric sender id is equally legal on submit_sm and must stay
+// a string rather than being rejected or coerced to zero.
+//
+// Both forms serialise to identical Redis bytes, so this only decides the
+// declared kind — but the golden differential compares kinds, and the read side
+// (dlr.correlation) takes the value as a string either way.
+func addressField(value string) Field {
+	if parsed, err := strconv.ParseInt(value, 10, 64); err == nil && value == strconv.FormatInt(parsed, 10) {
+		return IntegerField(parsed)
+	}
+	return StringField(value)
 }
 
 func NewSMPPSDLRRecord(key Key, request SMPPSDLRRequest) (HashRecord, error) {
 	if request.ExpirySeconds <= 0 {
 		return HashRecord{}, fmt.Errorf("%w: %d", ErrInvalidTTL, request.ExpirySeconds)
 	}
-	if request.SystemID == "" || request.SourceAddrTON == "" || request.SourceAddrNPI == "" || request.SourceAddress < 0 || request.DestinationAddrTON == "" || request.DestinationAddrNPI == "" || request.DestinationAddress < 0 || request.SubmissionDate == "" || request.RegisteredDeliveryReceipt == "" {
+	if request.SystemID == "" || request.SourceAddrTON == "" || request.SourceAddrNPI == "" || request.DestinationAddrTON == "" || request.DestinationAddrNPI == "" || request.DestinationAddress == "" || request.SubmissionDate == "" || request.RegisteredDeliveryReceipt == "" {
 		return HashRecord{}, fmt.Errorf("%w: missing SMPPS DLR request field", ErrInvalidRecord)
 	}
 	return newHashRecord(key, KeyDLR, request.ExpirySeconds, map[string]Field{
@@ -329,10 +349,10 @@ func NewSMPPSDLRRecord(key Key, request SMPPSDLRRequest) (HashRecord, error) {
 		"system_id":        StringField(request.SystemID),
 		"source_addr_ton":  StringField(request.SourceAddrTON),
 		"source_addr_npi":  StringField(request.SourceAddrNPI),
-		"source_addr":      IntegerField(request.SourceAddress),
+		"source_addr":      addressField(request.SourceAddress),
 		"dest_addr_ton":    StringField(request.DestinationAddrTON),
 		"dest_addr_npi":    StringField(request.DestinationAddrNPI),
-		"destination_addr": IntegerField(request.DestinationAddress),
+		"destination_addr": addressField(request.DestinationAddress),
 		"sub_date":         StringField(request.SubmissionDate),
 		"rd_receipt":       StringField(request.RegisteredDeliveryReceipt),
 		"expiry":           IntegerField(request.ExpirySeconds),

@@ -167,8 +167,8 @@ func writeSMPPSDLR(t *testing.T, client *rediscompat.Client, queueMsgID, rdRecei
 	key, _ := rediscompat.BuildDLRKey(queueMsgID)
 	rec, err := rediscompat.NewSMPPSDLRRecord(key, rediscompat.SMPPSDLRRequest{
 		SystemID: "sys1", SourceAddrTON: "AddrTon.INTERNATIONAL", SourceAddrNPI: "AddrNpi.ISDN",
-		SourceAddress: 12345, DestinationAddrTON: "AddrTon.INTERNATIONAL", DestinationAddrNPI: "AddrNpi.ISDN",
-		DestinationAddress: 447700, SubmissionDate: "2101011200", RegisteredDeliveryReceipt: rdReceipt, ExpirySeconds: 3600,
+		SourceAddress: "12345", DestinationAddrTON: "AddrTon.INTERNATIONAL", DestinationAddrNPI: "AddrNpi.ISDN",
+		DestinationAddress: "447700", SubmissionDate: "2101011200", RegisteredDeliveryReceipt: rdReceipt, ExpirySeconds: 3600,
 	})
 	if err != nil {
 		t.Fatalf("build smpps dlr: %v", err)

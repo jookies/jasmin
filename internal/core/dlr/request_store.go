@@ -38,6 +38,53 @@ type HTTPDLRRequest struct {
 	ExpirySeconds int64  // connector dlr_expiry (default 86400)
 }
 
+// SMPPSDLRRequest is the smppsapi callback state for one submit: enough of the
+// ESME's submit_sm to route a later receipt back to the bind that sent it.
+type SMPPSDLRRequest struct {
+	SystemID           string
+	SourceAddrTON      string
+	SourceAddrNPI      string
+	SourceAddress      string
+	DestinationAddrTON string
+	DestinationAddrNPI string
+	DestinationAddress string
+	SubmissionDate     string
+	RegisteredDelivery string // legacy rd_receipt, the RegisteredDeliveryReceipt name
+	ExpirySeconds      int64
+}
+
+// StoreSMPPSDLRRequest writes dlr:<msgID> for a submit that arrived over an
+// SMPP bind, mirroring the legacy SMPPServerProtocol branch of
+// SMPPClientManagerPB.perspective_submit_sm (managers/clients.py:635-646).
+//
+// Without this record every receipt for an SMPP-originated message is dropped
+// as DLRMapNotFound: the correlation legs have nothing mapping the SMSC's
+// message id back to the bind that submitted it. The egress plumbing was
+// already complete, so this write is the whole difference between an ESME
+// getting all of its receipts and none of them.
+func (s *RequestStore) StoreSMPPSDLRRequest(ctx context.Context, msgID string, request SMPPSDLRRequest) error {
+	key, err := rediscompat.BuildDLRKey(msgID)
+	if err != nil {
+		return fmt.Errorf("dlr: request key: %w", err)
+	}
+	record, err := rediscompat.NewSMPPSDLRRecord(key, rediscompat.SMPPSDLRRequest{
+		SystemID:                  request.SystemID,
+		SourceAddrTON:             request.SourceAddrTON,
+		SourceAddrNPI:             request.SourceAddrNPI,
+		SourceAddress:             request.SourceAddress,
+		DestinationAddrTON:        request.DestinationAddrTON,
+		DestinationAddrNPI:        request.DestinationAddrNPI,
+		DestinationAddress:        request.DestinationAddress,
+		SubmissionDate:            request.SubmissionDate,
+		RegisteredDeliveryReceipt: request.RegisteredDelivery,
+		ExpirySeconds:             request.ExpirySeconds,
+	})
+	if err != nil {
+		return fmt.Errorf("dlr: smpps request record: %w", err)
+	}
+	return s.redis.WriteHashRecord(ctx, record)
+}
+
 // StoreHTTPDLRRequest writes dlr:<msgID> for an httpapi submit. It mirrors the
 // legacy hmset+expire: the record TTL is the connector's dlr_expiry.
 func (s *RequestStore) StoreHTTPDLRRequest(ctx context.Context, msgID string, request HTTPDLRRequest) error {

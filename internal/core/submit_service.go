@@ -136,6 +136,7 @@ type SubmitServiceDependencies struct {
 // DLRRequestStore persists the submit-side DLR request record.
 type DLRRequestStore interface {
 	StoreHTTPDLRRequest(ctx context.Context, msgID string, request dlr.HTTPDLRRequest) error
+	StoreSMPPSDLRRequest(ctx context.Context, msgID string, request dlr.SMPPSDLRRequest) error
 }
 
 // DefaultDLRExpirySeconds is the legacy SMPPClientConfig dlr_expiry default.
@@ -348,6 +349,35 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		}
 	}
 
+	// The SMPPs equivalent. Legacy gates this on the ESME having asked for a
+	// receipt at all (registered_delivery.receipt !=
+	// NO_SMSC_DELIVERY_RECEIPT_REQUESTED, managers/clients.py:618) rather than on
+	// a callback URL, because the receipt goes back over the bind rather than to
+	// an HTTP endpoint.
+	if request.SMPPSOrigin != nil && service.dependencies.DLRRequestStore != nil && sourceConnectorOf(request) == "smppsapi" {
+		expiry := DefaultDLRExpirySeconds
+		if service.dependencies.ConnectorDLRExpiry != nil {
+			if resolved := service.dependencies.ConnectorDLRExpiry(connectorID); resolved > 0 {
+				expiry = resolved
+			}
+		}
+		origin := request.SMPPSOrigin
+		if err := service.dependencies.DLRRequestStore.StoreSMPPSDLRRequest(ctx, messageID, dlr.SMPPSDLRRequest{
+			SystemID:           origin.SystemID,
+			SourceAddrTON:      origin.SourceAddrTON,
+			SourceAddrNPI:      origin.SourceAddrNPI,
+			SourceAddress:      request.From,
+			DestinationAddrTON: origin.DestinationAddrTON,
+			DestinationAddrNPI: origin.DestinationAddrNPI,
+			DestinationAddress: request.Destination,
+			SubmissionDate:     legacySubmissionDate(createdAt),
+			RegisteredDelivery: origin.RegisteredDelivery,
+			ExpirySeconds:      expiry,
+		}); err != nil {
+			return "", fmt.Errorf("persist SMPPs DLR request: %w", err)
+		}
+	}
+
 	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), aggregateBill); err != nil {
 		return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
 	}
@@ -421,6 +451,18 @@ func randomReference() (uint16, error) {
 		return 0, err
 	}
 	return uint16(value[0])<<8 | uint16(value[1]), nil
+}
+
+// legacySubmissionDate renders sub_date the way the frozen record stores it:
+// Python writes `datetime.datetime.now()` into the hash, and redis stringifies
+// it as `str(datetime)` — "2006-01-02 15:04:05.999999". Python omits the
+// fractional part entirely when the microsecond field is zero, so this does
+// too; a trailing ".000000" would not match a captured fixture.
+func legacySubmissionDate(at time.Time) string {
+	if at.Nanosecond() == 0 {
+		return at.Format("2006-01-02 15:04:05")
+	}
+	return at.Format("2006-01-02 15:04:05.000000")
 }
 
 // sourceConnectorOf returns the request's ingress name, defaulting to the

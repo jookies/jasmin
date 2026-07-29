@@ -9,6 +9,7 @@ import (
 	"errors"
 
 	"github.com/pumpitspace/jasmin/internal/core"
+	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/core/mtcredential"
 	"github.com/pumpitspace/jasmin/internal/core/smpps"
 	"github.com/pumpitspace/jasmin/internal/transport/smppwire"
@@ -82,6 +83,21 @@ func (h *Handler) HandleSubmit(ctx context.Context, systemID string, sm *smppwir
 		Priority:        int(sm.PriorityFlag),
 		DLR:             sm.RegisteredDelivery&nonDefaultRDelivery != 0,
 		SourceConnector: "smppsapi",
+	}
+	// Carry the bind's identity and the ESME's own addressing so the submit
+	// path can register the dlr:<msgid> record. Legacy writes it only when a
+	// receipt was actually asked for (managers/clients.py:618); without it the
+	// correlation legs have nothing and every receipt for this message is
+	// dropped as DLRMapNotFound.
+	if request.DLR {
+		request.SMPPSOrigin = &core.SMPPSOrigin{
+			SystemID:           systemID,
+			SourceAddrTON:      dlr.FormatAddrTON(sm.SourceAddressTON),
+			SourceAddrNPI:      dlr.FormatAddrNPI(sm.SourceAddressNPI),
+			DestinationAddrTON: dlr.FormatAddrTON(sm.DestinationAddressTON),
+			DestinationAddrNPI: dlr.FormatAddrNPI(sm.DestinationAddressNPI),
+			RegisteredDelivery: dlr.FormatRegisteredDeliveryReceipt(sm.RegisteredDelivery),
+		}
 	}
 	messageID, err := h.submitter.Submit(ctx, request)
 	if err != nil {
