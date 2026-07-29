@@ -32,6 +32,7 @@ func (p *capturePublisher) Publish(_ context.Context, exchange, routingKey strin
 
 type fakeDeliverEncoder struct {
 	pdu     smppwire.PDU
+	pdus    []smppwire.PDU
 	cid     string
 	pickled []byte
 	err     error
@@ -39,6 +40,7 @@ type fakeDeliverEncoder struct {
 
 func (e *fakeDeliverEncoder) EncodeRoutableDeliverPDU(_ context.Context, pdu smppwire.PDU, cid string) ([]byte, error) {
 	e.pdu = pdu
+	e.pdus = append(e.pdus, pdu)
 	e.cid = cid
 	return e.pickled, e.err
 }

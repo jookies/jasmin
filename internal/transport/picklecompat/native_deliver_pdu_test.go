@@ -68,3 +68,55 @@ func TestEncodeRoutableDeliverPDUPreservesDecodedContent(t *testing.T) {
 		})
 	}
 }
+
+func TestEncodeRoutableDeliverPDUPreservesOptionalTLVs(t *testing.T) {
+	codec := NewNativeCodec()
+	ctx := context.Background()
+	userMessageReference := uint16(513)
+	body := smppwire.SMBody{
+		SourceAddress:      []byte("111"),
+		DestinationAddress: []byte("222"),
+		ShortMessage:       []byte("hello"),
+		Optional: smppwire.OptionalParameters{
+			UserMessageReference: &userMessageReference,
+		},
+		CapturedVendorTLVs: []smppwire.CapturedVendorTLV{
+			{Tag: 0x1401, Value: []byte{0x01, 0x02}},
+			{Tag: 0x1401, Value: []byte{0xff}},
+		},
+	}
+	routable, err := codec.EncodeRoutableDeliverPDU(ctx, smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM, SequenceNumber: 7},
+		SM:     &body,
+	}, "cid-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdu, _, err := codec.RepickleRoutablePDU(ctx, routable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectors, err := codec.EncodeConnectorList(ctx, []MOConnectorSpec{{
+		Type: "http", CID: "http-1", URL: "http://localhost/mo", Method: "POST",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routed, err := codec.DecodeRoutedDeliverSM(ctx, connectors, pdu)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routed.Body.Optional.UserMessageReference == nil || *routed.Body.Optional.UserMessageReference != userMessageReference {
+		t.Fatalf("user_message_reference = %v, want %d", routed.Body.Optional.UserMessageReference, userMessageReference)
+	}
+	if len(routed.CustomTLVs) != 2 {
+		t.Fatalf("custom TLVs = %+v, want 2 captured entries", routed.CustomTLVs)
+	}
+	for index, want := range [][]byte{{0x01, 0x02}, {0xff}} {
+		got := routed.CustomTLVs[index]
+		if got.Tag == nil || got.Tag.Uint64() != 0x1401 || got.Length == nil || *got.Length != len(want) ||
+			got.Type != "OctetString" || !bytes.Equal(got.Value.([]byte), want) {
+			t.Fatalf("custom TLV %d = %+v, want tag 0x1401 length %d OctetString %x", index, got, len(want), want)
+		}
+	}
+}

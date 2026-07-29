@@ -2,6 +2,7 @@ package picklecompat
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/pumpitspace/jasmin/internal/transport/gopickle"
@@ -18,8 +19,8 @@ var connectorType = map[string]string{
 
 // DecodeRoutedDeliverSM natively projects a RoutedDeliverSmContent (the pickled
 // dst-connectors list + the bare deliver_sm/data_sm PDU) into the typed thrower
-// input — the native counterpart of Bridge.DecodeRoutedDeliverSM. Optional
-// params are read straight off the pdu IR (no wire-section round-trip).
+// input — the native counterpart of Bridge.DecodeRoutedDeliverSM. Standard
+// optionals are re-encoded from the PDU IR through the frozen wire decoder.
 func (c *NativeCodec) DecodeRoutedDeliverSM(ctx context.Context, dstConnectors, body []byte) (RoutedDeliverSM, error) {
 	if err := ctx.Err(); err != nil {
 		return RoutedDeliverSM{}, err
@@ -60,13 +61,15 @@ func (c *NativeCodec) DecodeRoutedDeliverSM(ctx context.Context, dstConnectors, 
 	if err := populateDeliverOptional(params, &body2); err != nil {
 		return RoutedDeliverSM{}, err
 	}
-	// Validate any custom TLVs but drop them: an inbound routed deliver carries
-	// no Jasmin custom_tlvs field, so the bridge discards them here too. This
-	// only rejects malformed tuples, matching the bridge's structural checks.
-	if _, err := projectCustomTLVTuples(state); err != nil {
+	customEntries, err := projectCustomTLVTuples(state)
+	if err != nil {
 		return RoutedDeliverSM{}, fmt.Errorf("%w: %v", ErrInvalidRoutedDeliverSM, err)
 	}
-	return RoutedDeliverSM{Connectors: connectors, Body: body2}, nil
+	customTLVs, err := decodeWireCustomTLVs(customEntries)
+	if err != nil {
+		return RoutedDeliverSM{}, fmt.Errorf("%w: %v", ErrInvalidRoutedDeliverSM, err)
+	}
+	return RoutedDeliverSM{Connectors: connectors, Body: body2, CustomTLVs: customTLVs}, nil
 }
 
 // projectConnectorList decodes the pickled connector list into MOConnectors.
@@ -138,39 +141,26 @@ func projectDeliverMandatory(params gopickle.Dict) (smppwire.SMBody, error) {
 	return body, nil
 }
 
-// populateDeliverOptional fills the standard optional params the MO thrower
-// forwards, straight off the pdu IR. Uncommon optionals (source/dest port,
-// callback, etc.) are not yet ported.
+// populateDeliverOptional re-encodes the PDU IR's standard optionals and lets
+// the frozen wire decoder restore the typed body fields.
 func populateDeliverOptional(params gopickle.Dict, body *smppwire.SMBody) error {
-	if payload := paramBytes(params, "message_payload"); payload != nil {
-		body.Optional.MessagePayload = payload
+	optionals, err := projectOptionalTLVs(params)
+	if err != nil {
+		return wrapRoutedPoison(err)
 	}
-	if reference, ok := paramUint(params, "sar_msg_ref_num"); ok {
-		value := uint16(reference)
-		body.Optional.SARMessageReference = &value
+	var section []byte
+	for _, option := range optionals {
+		if len(option.Value) > 0xffff {
+			return wrapRoutedPoison(fmt.Errorf("optional %#04x length %d exceeds 65535", option.Tag, len(option.Value)))
+		}
+		header := make([]byte, 4)
+		binary.BigEndian.PutUint16(header[:2], option.Tag)
+		binary.BigEndian.PutUint16(header[2:], uint16(len(option.Value)))
+		section = append(section, header...)
+		section = append(section, option.Value...)
 	}
-	if total, ok := paramUint(params, "sar_total_segments"); ok {
-		value := byte(total)
-		body.Optional.SARTotalSegments = &value
-	}
-	if sequence, ok := paramUint(params, "sar_segment_seqnum"); ok {
-		value := byte(sequence)
-		body.Optional.SARSegmentSequence = &value
-	}
-	if more, ok := paramUint(params, "more_messages_to_send"); ok {
-		value := byte(more)
-		body.Optional.MoreMessagesToSend = &value
-	}
-	if reference, ok := paramUint(params, "user_message_reference"); ok {
-		value := uint16(reference)
-		body.Optional.UserMessageReference = &value
-	}
-	if id := paramBytes(params, "receipted_message_id"); id != nil {
-		body.Optional.ReceiptedMessageID = id
-	}
-	if state, ok := paramUint(params, "message_state"); ok {
-		value := byte(state)
-		body.Optional.MessageState = &value
+	if err := smppwire.DecodeOptionalSection(section, body); err != nil {
+		return wrapRoutedPoison(err)
 	}
 	return nil
 }

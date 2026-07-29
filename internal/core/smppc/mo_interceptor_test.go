@@ -130,7 +130,15 @@ func TestMOInterceptorRunsOnReassembledWhole(t *testing.T) {
 	if string(moi.last.ShortMessage) != "onetwo" {
 		t.Fatalf("interceptor saw %q, want reassembled onetwo", moi.last.ShortMessage)
 	}
-	if len(publisher.published) != 0 {
-		t.Fatalf("reassembled MO rejected but published %d", len(publisher.published))
+	if len(publisher.published) != 2 {
+		t.Fatalf("published=%d want the two marked segments only", len(publisher.published))
+	}
+	for _, publication := range publisher.published {
+		headers := publication.envelope.Properties().Headers()
+		concatenated, _ := headers["concatenated"].Bool()
+		willBeConcatenated, _ := headers["will_be_concatenated"].Bool()
+		if concatenated || !willBeConcatenated {
+			t.Fatalf("rejected whole was published: %+v", headers)
+		}
 	}
 }

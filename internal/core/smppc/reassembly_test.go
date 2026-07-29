@@ -105,12 +105,32 @@ func TestReassemblyPublishesOnlyWhenComplete(t *testing.T) {
 				if status != 0 {
 					t.Fatalf("part %d status=%#x", i, status)
 				}
-				if i < len(tc.parts)-1 && len(publisher.published) != 0 {
-					t.Fatalf("published before all parts arrived (after part %d)", i)
+				if i < len(tc.parts)-1 {
+					if len(publisher.published) != i+1 {
+						t.Fatalf("published=%d after part %d want segments only", len(publisher.published), i)
+					}
+					for _, publication := range publisher.published {
+						headers := publication.envelope.Properties().Headers()
+						concatenated, _ := headers["concatenated"].Bool()
+						if concatenated {
+							t.Fatalf("whole message published before all parts arrived (after part %d)", i)
+						}
+					}
 				}
 			}
-			if len(publisher.published) != 1 {
-				t.Fatalf("published=%d want 1 (whole message)", len(publisher.published))
+			if len(publisher.published) != len(tc.parts)+1 {
+				t.Fatalf("published=%d want %d segments plus one whole", len(publisher.published), len(tc.parts))
+			}
+			var wholes int
+			for _, publication := range publisher.published {
+				headers := publication.envelope.Properties().Headers()
+				concatenated, _ := headers["concatenated"].Bool()
+				if concatenated {
+					wholes++
+				}
+			}
+			if wholes != 1 {
+				t.Fatalf("whole publications=%d want 1", wholes)
 			}
 		})
 	}
@@ -147,11 +167,63 @@ func TestReassemblyLongContentPublishes(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("status=%#x want ROK", status)
 	}
-	if len(publisher.published) != 1 {
-		t.Fatalf("published=%d want 1", len(publisher.published))
+	if len(publisher.published) != 4 {
+		t.Fatalf("published=%d want 3 segments plus one whole", len(publisher.published))
 	}
 	if len(encoder.pdu.SM.ShortMessage) != 300 {
 		t.Fatalf("reassembled short_message length=%d want 300", len(encoder.pdu.SM.ShortMessage))
+	}
+}
+
+func TestReassemblyPublishesSegmentsAndWholeWithRoutingMarkers(t *testing.T) {
+	session, publisher, encoder := newReassemblySession(t, newMemMultipartStore())
+	for _, part := range []smppwire.PDU{sarPart(17, 2, 1, "one"), sarPart(17, 2, 2, "two")} {
+		if status := session.processDeliverMO(part); status != 0 {
+			t.Fatalf("status=%#x", status)
+		}
+	}
+	if len(publisher.published) != 3 {
+		t.Fatalf("published=%d want 3 (two segments and one whole)", len(publisher.published))
+	}
+	var segments, wholes int
+	for _, publication := range publisher.published {
+		headers := publication.envelope.Properties().Headers()
+		concatenated, concatenatedOK := headers["concatenated"].Bool()
+		willBeConcatenated, willBeConcatenatedOK := headers["will_be_concatenated"].Bool()
+		if !concatenatedOK || !willBeConcatenatedOK {
+			t.Fatalf("routing markers are not bools: %+v", headers)
+		}
+		switch {
+		case !concatenated && willBeConcatenated:
+			segments++
+		case concatenated && !willBeConcatenated:
+			wholes++
+		default:
+			t.Fatalf("unexpected routing markers concatenated=%v will_be_concatenated=%v", concatenated, willBeConcatenated)
+		}
+	}
+	if segments != 2 || wholes != 1 {
+		t.Fatalf("segments=%d wholes=%d want 2/1", segments, wholes)
+	}
+	messageIDs := make(map[string]struct{}, len(publisher.published))
+	for _, publication := range publisher.published {
+		messageIDs[publication.envelope.Properties().MessageID()] = struct{}{}
+	}
+	if len(messageIDs) != len(publisher.published) {
+		t.Fatalf("message IDs are not unique: %+v", messageIDs)
+	}
+	var encodedSegments, encodedWholes int
+	for _, pdu := range encoder.pdus {
+		if pdu.SM.Optional.SARMessageReference != nil {
+			encodedSegments++
+			continue
+		}
+		if string(pdu.SM.ShortMessage) == "onetwo" {
+			encodedWholes++
+		}
+	}
+	if encodedSegments != 2 || encodedWholes != 1 {
+		t.Fatalf("encoded segments=%d wholes=%d want 2/1", encodedSegments, encodedWholes)
 	}
 }
 
@@ -178,7 +250,7 @@ func TestReassemblyPublishFailureKeepsPartsForRetry(t *testing.T) {
 	publisher.err = errors.New("broker down")
 	for sequence := byte(1); sequence <= 2; sequence++ {
 		status := session.processDeliverMO(sarPart(12, 2, sequence, "part"))
-		if sequence == 2 && status != smppStatusUnknownError {
+		if status != smppStatusUnknownError {
 			t.Fatalf("status=%#x want ESME_RUNKNOWNERR", status)
 		}
 	}
@@ -189,8 +261,8 @@ func TestReassemblyPublishFailureKeepsPartsForRetry(t *testing.T) {
 	if status := session.processDeliverMO(sarPart(12, 2, 2, "part")); status != 0 {
 		t.Fatalf("retry status=%#x want ROK", status)
 	}
-	if len(publisher.published) != 2 {
-		t.Fatalf("publish attempts=%d want 2", len(publisher.published))
+	if len(publisher.published) != 4 {
+		t.Fatalf("publish attempts=%d want 4 (two failed segments, retried segment, whole)", len(publisher.published))
 	}
 	if len(store.parts[key("cid-1", 12, "222")]) != 0 {
 		t.Fatalf("stored parts=%d want 0 after successful retry", len(store.parts[key("cid-1", 12, "222")]))

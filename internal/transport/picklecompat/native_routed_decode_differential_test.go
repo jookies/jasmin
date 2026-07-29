@@ -50,6 +50,7 @@ func TestNativeDecodeRoutedDeliverSMMatchesBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	userMessageReference := uint16(513)
 
 	cases := map[string]struct {
 		id   uint32
@@ -62,6 +63,14 @@ func TestNativeDecodeRoutedDeliverSMMatchesBridge(t *testing.T) {
 		"data_sm payload": {smppwire.CommandDataSM, smppwire.SMBody{
 			SourceAddress: []byte("2255"), DestinationAddress: []byte("31600000000"),
 			Optional: smppwire.OptionalParameters{MessagePayload: []byte("via data_sm")},
+		}},
+		"standard and vendor TLVs": {smppwire.CommandDeliverSM, smppwire.SMBody{
+			SourceAddress: []byte("1111"), DestinationAddress: []byte("2222"), ShortMessage: []byte("hello"),
+			Optional: smppwire.OptionalParameters{UserMessageReference: &userMessageReference},
+			CapturedVendorTLVs: []smppwire.CapturedVendorTLV{
+				{Tag: 0x1401, Value: []byte{0x01, 0x02}},
+				{Tag: 0x1401, Value: []byte{0xff}},
+			},
 		}},
 	}
 	for name, tc := range cases {
@@ -98,6 +107,9 @@ func TestNativeDecodeRoutedDeliverSMMatchesBridge(t *testing.T) {
 			}
 			if nativeResult.ValidityText != bridgeResult.ValidityText {
 				t.Fatalf("validity differs: native %q bridge %q", nativeResult.ValidityText, bridgeResult.ValidityText)
+			}
+			if !reflect.DeepEqual(nativeResult.CustomTLVs, bridgeResult.CustomTLVs) {
+				t.Fatalf("custom TLVs differ:\n  native %+v\n  bridge %+v", nativeResult.CustomTLVs, bridgeResult.CustomTLVs)
 			}
 		})
 	}
