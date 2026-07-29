@@ -60,3 +60,9 @@ func (c *submitChain) finalize() bool {
 	c.settled = true
 	return true
 }
+
+func (c *submitChain) done() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.settled
+}

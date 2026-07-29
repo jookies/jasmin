@@ -469,7 +469,7 @@ func TestConnectorProductionPacerGatesRealSubmitWrites(t *testing.T) {
 	defer server.Close()
 	retry, _ := NewErrorRetryPolicy(DefaultErrorRetryRules())
 	readiness, _ := NewReadinessPolicy(DefaultReadinessConfig())
-	session := NewSession(client, Config{CID: "real-pacing", ResTimeout: 2}, retry, readiness, nil)
+	session := NewSession(client, Config{CID: "real-pacing", ResTimeout: 2, WindowSize: 2}, retry, readiness, nil)
 	sessionCtx, stopSession := context.WithCancel(context.Background())
 	sessionDone := make(chan error, 1)
 	go func() { sessionDone <- session.Run(sessionCtx) }()

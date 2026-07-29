@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"os"
 	"sync"
@@ -420,6 +421,10 @@ func (c *Connector) loop(ctx context.Context) {
 		c.mu.Unlock()
 		c.wg.Done()
 	}()
+	// Jasmin retries forever at a fixed cadence. A capped exponential delay
+	// with per-attempt jitter avoids synchronized reconnect storms and SMSC
+	// hammering while retaining the configured base as the first retry.
+	backoff := newReconnectBackoff(rand.Float64)
 	for {
 		c.setStatus(StatusConnecting)
 		cfg := c.Config()
@@ -430,8 +435,13 @@ func (c *Connector) loop(ctx context.Context) {
 			if !cfg.ConnectionFailureRetryEnabled() {
 				return
 			}
-			c.logComponent(slog.LevelInfo, "Reconnecting after %g seconds ...", cfg.ConFailDelay)
-			if !waitContext(ctx, seconds(cfg.ConFailDelay)) {
+			delay := backoff.next(
+				seconds(cfg.ConFailDelay),
+				seconds(cfg.EffectiveReconnectBackoffMax()),
+				cfg.EffectiveReconnectBackoffJitter(),
+			)
+			c.logComponent(slog.LevelInfo, "Reconnecting after %g seconds ...", delay.Seconds())
+			if !waitContext(ctx, delay) {
 				return
 			}
 			continue
@@ -442,6 +452,7 @@ func (c *Connector) loop(ctx context.Context) {
 		c.status = StatusBound
 		c.mu.Unlock()
 		c.logComponent(slog.LevelInfo, "Connection made to %s:%d; connector [%s] is bound", cfg.Host, cfg.Port, cfg.CID)
+		boundAt := time.Now()
 
 		sessionCtx, cancel := context.WithCancel(ctx)
 		sessionDone := make(chan error, 1)
@@ -496,8 +507,17 @@ func (c *Connector) loop(ctx context.Context) {
 		if ctx.Err() != nil || !cfg.ConnectionLossRetryEnabled() {
 			return
 		}
-		c.logComponent(slog.LevelInfo, "Reconnecting after %g seconds ...", cfg.ConLossDelay)
-		if !waitContext(ctx, seconds(cfg.ConLossDelay)) {
+		maximum := seconds(cfg.EffectiveReconnectBackoffMax())
+		if time.Since(boundAt) >= maximum {
+			backoff.reset()
+		}
+		delay := backoff.next(
+			seconds(cfg.ConLossDelay),
+			maximum,
+			cfg.EffectiveReconnectBackoffJitter(),
+		)
+		c.logComponent(slog.LevelInfo, "Reconnecting after %g seconds ...", delay.Seconds())
+		if !waitContext(ctx, delay) {
 			return
 		}
 	}
@@ -682,8 +702,14 @@ func (c *Connector) runConsumer(ctx context.Context, session *Session) {
 
 func dialSMPP(ctx context.Context, cfg Config) (net.Conn, error) {
 	address := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	dialer := net.Dialer{}
-	raw, err := dialer.DialContext(ctx, "tcp", address)
+	timeout := seconds(cfg.SessionInitTimeout)
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	dialCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	dialer := net.Dialer{Timeout: timeout}
+	raw, err := dialer.DialContext(dialCtx, "tcp", address)
 	if err != nil {
 		return nil, err
 	}
@@ -712,7 +738,7 @@ func dialSMPP(ctx context.Context, cfg Config) (net.Conn, error) {
 		tlsConfig.RootCAs = roots
 	}
 	secured := tls.Client(raw, tlsConfig)
-	if err := secured.HandshakeContext(ctx); err != nil {
+	if err := secured.HandshakeContext(dialCtx); err != nil {
 		_ = secured.Close()
 		return nil, fmt.Errorf("SMPP TLS handshake: %w", err)
 	}
@@ -764,8 +790,12 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.TrxTimeout > 0 {
-		_ = conn.SetDeadline(time.Now().Add(seconds(cfg.TrxTimeout)))
+	bindTimeout := seconds(cfg.SessionInitTimeout)
+	if bindTimeout <= 0 {
+		bindTimeout = 30 * time.Second
+	}
+	if err := conn.SetDeadline(time.Now().Add(bindTimeout)); err != nil {
+		return nil, err
 	}
 	if err = writeFrame(conn, wire); err != nil {
 		return nil, err
@@ -774,7 +804,9 @@ func (c *Connector) connectAndBind(ctx context.Context) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	_ = conn.SetDeadline(time.Time{})
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return nil, err
+	}
 	if response.Header.CommandID != bindRespCommand ||
 		response.Header.SequenceNumber != bindSequence || response.Header.CommandStatus != 0 {
 		return nil, fmt.Errorf("%w: command=%#x status=%#x sequence=%d", ErrBindResponse,

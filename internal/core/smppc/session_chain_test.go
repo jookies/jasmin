@@ -54,7 +54,7 @@ func TestSessionMultipartChainSendsAllPartsAndSettlesOnce(t *testing.T) {
 	defer server.Close()
 	retry, _ := smppc.NewErrorRetryPolicy(smppc.DefaultErrorRetryRules())
 	readiness, _ := smppc.NewReadinessPolicy(smppc.DefaultReadinessConfig())
-	session := smppc.NewSessionWithDecoder(client, smppc.Config{ResTimeout: 5}, retry, readiness, twoPartChainDecoder{}, nil)
+	session := smppc.NewSessionWithDecoder(client, smppc.Config{ResTimeout: 5, WindowSize: 2}, retry, readiness, twoPartChainDecoder{}, nil)
 	ctx, stop := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- session.Run(ctx) }()
