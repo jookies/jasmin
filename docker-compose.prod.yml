@@ -179,6 +179,9 @@ services:
       # Loopback ONLY: admin web UI. Privilege boundary — never publish this
       # on 0.0.0.0. Reach it via SSH tunnel or a reverse proxy that adds auth
       # of its own plus TLS.
+      # /admin/ has its own listener (admin.api_listen_address) so it is not
+      # published alongside the public send port. Loopback only, like the UI.
+      - "127.0.0.1:${GATEWAY_ADMIN_API_PORT:-8405}:8405"
       - "127.0.0.1:${GATEWAY_ADMIN_WEB_PORT:-8404}:8404"
       # Loopback ONLY: jCli management console. Same privilege boundary.
       - "127.0.0.1:${GATEWAY_JCLI_PORT:-8990}:8990"

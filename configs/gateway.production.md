@@ -25,39 +25,23 @@ requires them as literal values; edit `configs/gateway.json` directly.
 `env:SMSC_PASSWORD` / `env:SMPPS_USER_PASSWORD` — set those in `.env`, not
 here.
 
-## SECURITY — the admin REST API rides on the public send port
+## SECURITY — keep the admin REST API off the public port
 
-This is the single most important thing on this page.
+`admin.api_listen_address` gives `/admin/` its own listener, and the shipped
+config sets it to `0.0.0.0:8405`, which `docker-compose.prod.yml` publishes on
+loopback only — the same boundary the admin web UI (8404) and jCli (8990)
+already had.
 
-`internal/app/gateway/runtime.go` mounts `/admin/` on the *same* HTTP mux that
-serves `/send`, and that mux listens on `outbound.listen_address`
-(`0.0.0.0:1401`), which `docker-compose.prod.yml` publishes on all interfaces
-because it is the legitimate public send port. The admin web UI (8404) and jCli
-(8990) are correctly published on loopback only — `/admin/` gets none of that
-protection.
+If you remove that field, `/admin/` falls back onto the same mux that serves
+`/send` on `outbound.listen_address` (`0.0.0.0:1401`), which is published on all
+interfaces because it is the legitimate public send port. The gateway logs a
+warning when that happens. That API creates users, changes balances, and starts
+and stops connectors, guarded by nothing but the `ADMIN_TOKEN` bearer — so if
+you do expose it, block `/admin/` at a reverse proxy or firewall the port.
 
-So on a default deployment, `https://your-host:1401/admin/...` is reachable
-from the internet, guarded by nothing but the `ADMIN_TOKEN` bearer. That API
-creates users, changes balances, and starts and stops connectors. There is no
-config switch to turn it off: `internal/app/gateway/config.go:281` requires a
-non-empty `admin.token` whenever an `admin` block exists, and the route is then
-mounted unconditionally.
-
-Until `/admin/` gets its own listener, you MUST do one of these before exposing
-1401:
-
-- Put a reverse proxy in front and return 404 for `/admin/` and `/admin` from
-  the public vhost, or
-- Firewall port 1401 so only your application servers can reach it, and send
-  public traffic through a proxy that strips `/admin/`, or
-- Bind `outbound.listen_address` to an internal interface and terminate public
-  traffic elsewhere.
-
-Relatedly, `allow_interceptor_editing` ships as `false` and should stay that
-way in production. Interceptor scripts are arbitrary Python executed on the
-gateway host, so enabling it turns the admin token into remote code execution.
-Turn it on only on a host where `/admin/` is genuinely unreachable from
-untrusted networks.
+`allow_interceptor_editing` ships as `false` and should stay that way in
+production. Interceptor scripts are arbitrary Python executed on the gateway
+host, so enabling it turns the admin token into remote code execution.
 
 ## Why the shipped connector points at a bundled fake SMSC
 

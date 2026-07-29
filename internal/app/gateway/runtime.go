@@ -38,27 +38,31 @@ import (
 type ManagerFactory func(string) *smppc.Manager
 
 type Runtime struct {
-	Handler            http.Handler
-	WebHandler         http.Handler // admin web UI, served on WebListenAddress (nil when disabled)
-	WebListenAddress   string
-	PBHandler          http.Handler // private normalized seam for the trusted PB facade
-	PBListenAddress    string
-	RESTHandler        http.Handler // standalone legacy REST daemon view
-	RESTListenAddress  string
-	manager            *smppc.Manager
-	outbound           *outbound.Runtime
-	bridge             picklecompat.Codec
-	store              *storage.PostgresSubmitTransactionRepository
-	leadership         *storage.PostgresLeaderLease
-	dlrLookup          *dlrlookup.Service
-	dlrThrower         *dlrthrower.Service
-	moThrower          *mothrower.Service
-	smppsServer        *smppsserver.Service
-	requiredConnectors []string
-	dlrRedisClose      func()
-	adminStore         *admin.Store
-	jcli               *jcli.Server
-	interceptorRunner  *pyintercept.Runner
+	Handler          http.Handler
+	WebHandler       http.Handler // admin web UI, served on WebListenAddress (nil when disabled)
+	WebListenAddress string
+	// AdminAPIHandler serves /admin/ on its own listener when
+	// admin.api_listen_address is set. Nil means it stays on the public mux.
+	AdminAPIHandler       http.Handler
+	AdminAPIListenAddress string
+	PBHandler             http.Handler // private normalized seam for the trusted PB facade
+	PBListenAddress       string
+	RESTHandler           http.Handler // standalone legacy REST daemon view
+	RESTListenAddress     string
+	manager               *smppc.Manager
+	outbound              *outbound.Runtime
+	bridge                picklecompat.Codec
+	store                 *storage.PostgresSubmitTransactionRepository
+	leadership            *storage.PostgresLeaderLease
+	dlrLookup             *dlrlookup.Service
+	dlrThrower            *dlrthrower.Service
+	moThrower             *mothrower.Service
+	smppsServer           *smppsserver.Service
+	requiredConnectors    []string
+	dlrRedisClose         func()
+	adminStore            *admin.Store
+	jcli                  *jcli.Server
+	interceptorRunner     *pyintercept.Runner
 	// Live MO interception (nil when MO interception is neither configured nor
 	// admin-editable); config orders are reserved against admin entries.
 	moInterceptors       *interceptor.AtomicTable
@@ -475,7 +479,20 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		if handlerErr != nil {
 			return nil, fmt.Errorf("build admin handler: %w", handlerErr)
 		}
-		mux.Handle("/admin/", adminHandler.Routes())
+		// /admin/ creates users, changes balances and starts connectors. When it
+		// has its own listener it must NOT also stay on the public sendsms mux,
+		// or isolating it achieves nothing.
+		if config.Admin.APIListenAddress != "" {
+			adminAPIMux := http.NewServeMux()
+			adminAPIMux.Handle("/admin/", adminHandler.Routes())
+			runtime.AdminAPIHandler = adminAPIMux
+			runtime.AdminAPIListenAddress = config.Admin.APIListenAddress
+		} else {
+			mux.Handle("/admin/", adminHandler.Routes())
+			slog.Default().Warn("admin API is served on the public sendsms listener; " +
+				"set admin.api_listen_address (e.g. 127.0.0.1:8405) to give it the same " +
+				"boundary as the web UI and jCli")
+		}
 		if config.Admin.PBFacadeListenAddress != "" {
 			reconcilers := []pbfacade.LiveReconciler{
 				groupService,

@@ -120,6 +120,15 @@ type AdminConfig struct {
 	WebListenAddress string `json:"web_listen_address,omitempty"`
 	WebUsername      string `json:"web_username,omitempty"`
 	WebPassword      string `json:"web_password,omitempty"`
+	// APIListenAddress, when set, serves the token-authenticated admin REST API
+	// (/admin/) on its own listener instead of on the public sendsms mux.
+	//
+	// It shares that mux by default for backward compatibility, which means a
+	// deployment publishing the sendsms port also publishes an API that creates
+	// users, changes balances and starts connectors. The web UI and jCli are
+	// already isolated this way; set this to a loopback address to give /admin/
+	// the same boundary. Leaving it empty logs a warning at startup.
+	APIListenAddress string `json:"api_listen_address,omitempty"`
 	// AllowInterceptorEditing exposes interceptor CRUD through the admin plane.
 	// Interceptor scripts are arbitrary Python executed on the gateway host, so
 	// enabling this makes any admin session equivalent to shell access on this
@@ -280,6 +289,11 @@ func ValidateConfig(config Config) error {
 		}
 		if config.Admin.Token == "" {
 			return fmt.Errorf("%w: admin requires a non-empty token", ErrInvalidConfig)
+		}
+		if config.Admin.APIListenAddress != "" {
+			if _, _, err := net.SplitHostPort(config.Admin.APIListenAddress); err != nil {
+				return fmt.Errorf("%w: admin.api_listen_address %q is not host:port: %v", ErrInvalidConfig, config.Admin.APIListenAddress, err)
+			}
 		}
 		if config.Admin.WebListenAddress != "" {
 			if _, _, err := net.SplitHostPort(config.Admin.WebListenAddress); err != nil {

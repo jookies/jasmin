@@ -113,6 +113,22 @@ func run() error {
 		serve(webServer, https, errCh)
 		log.Printf("jasmin-go-httpapi admin UI listening on %s", runtime.WebListenAddress)
 	}
+	// The admin REST API (/admin/) gets the same treatment when
+	// admin.api_listen_address is set. Otherwise it stays on the public sendsms
+	// mux, which the runtime warns about at startup.
+	var adminAPIServer *http.Server
+	if runtime.AdminAPIListenAddress != "" {
+		adminAPIServer = &http.Server{
+			Addr:              runtime.AdminAPIListenAddress,
+			Handler:           runtime.AdminAPIHandler,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+		}
+		serve(adminAPIServer, https, errCh)
+		log.Printf("jasmin-go-httpapi admin API listening on %s", runtime.AdminAPIListenAddress)
+	}
 	var pbServer *http.Server
 	if runtime.PBListenAddress != "" {
 		pbServer = &http.Server{
@@ -153,6 +169,11 @@ func run() error {
 				err = fmt.Errorf("graceful admin UI shutdown: %w", webErr)
 			}
 		}
+		if adminAPIServer != nil {
+			if apiErr := adminAPIServer.Shutdown(shutdownContext); apiErr != nil && err == nil {
+				err = fmt.Errorf("graceful admin API shutdown: %w", apiErr)
+			}
+		}
 		if pbServer != nil {
 			if pbErr := pbServer.Shutdown(shutdownContext); pbErr != nil && err == nil {
 				err = fmt.Errorf("graceful PB facade shutdown: %w", pbErr)
@@ -171,6 +192,9 @@ func run() error {
 		_ = server.Close()
 		if webServer != nil {
 			_ = webServer.Close()
+		}
+		if adminAPIServer != nil {
+			_ = adminAPIServer.Close()
 		}
 		if pbServer != nil {
 			_ = pbServer.Close()

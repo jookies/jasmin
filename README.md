@@ -73,7 +73,8 @@ $ curl http://127.0.0.1:1401/health
 
 | Port | Service | Default binding | Why |
 |---|---|---|---|
-| 1401 | HTTP submit/DLR API **and `/admin/`** | `0.0.0.0` (public) | Data plane — this is what senders call. **Also serves the admin REST API — read the warning below before exposing it.** |
+| 1401 | HTTP submit/DLR API | `0.0.0.0` (public) | Data plane — this is what senders call. |
+| 8405 | Admin REST API (`/admin/`) | `127.0.0.1` (loopback only) | Creates users, changes balances, starts connectors — a privilege boundary. |
 | 8080 | Legacy REST daemon | `0.0.0.0` (public) | Duplicate send surface; comment it out in `docker-compose.prod.yml` or firewall it if you don't use it. |
 | 2775 | SMPP server (inbound ESME binds) | `0.0.0.0` (public) | Data plane — this is what SMPP clients bind to. |
 | 8404 | Admin web UI | `127.0.0.1` (loopback only) | Mints credentials, starts connectors — a privilege boundary. |
@@ -81,21 +82,16 @@ $ curl http://127.0.0.1:1401/health
 | 5432, 5672, 6379 | Postgres, RabbitMQ, Redis | not published at all | Internal only, reachable over the compose network. |
 | 2775 (internal) | `bootstrap-smsc` fake SMSC | not published at all | Not a real SMSC — see [After first boot](#after-first-boot). |
 
-> **The admin REST API is served on the public port 1401.**
-> `internal/app/gateway/runtime.go` mounts `/admin/` on the same mux as
-> `/send`. Unlike the web UI and jCli, it is not on a loopback-only listener,
-> and it cannot be switched off — `internal/app/gateway/config.go:281` requires
-> an `admin.token` whenever an `admin` block exists, and the route is then
-> mounted unconditionally. It creates users, changes balances, and starts and
-> stops connectors, protected only by that bearer token.
+> **Keep `/admin/` off the public port.** `admin.api_listen_address` gives the
+> admin REST API its own listener, and the shipped production config sets it to
+> `0.0.0.0:8405`, published on loopback only. If you leave it unset the route
+> falls back onto the public sendsms mux alongside `/send`, and the gateway logs
+> a warning at startup — it creates users, changes balances and starts
+> connectors, protected only by `ADMIN_TOKEN`.
 >
-> Before exposing 1401, do one of: block `/admin/` and `/admin` at your reverse
-> proxy; firewall 1401 to your application servers only; or bind
-> `outbound.listen_address` to an internal interface. Keep
-> `allow_interceptor_editing` at its shipped `false` — interceptors are
-> arbitrary Python run on the gateway host, so enabling it turns that token
-> into remote code execution. Giving `/admin/` its own listener is tracked as
-> follow-up work.
+> Keep `allow_interceptor_editing` at its shipped `false`: interceptors are
+> arbitrary Python run on the gateway host, so enabling it turns that token into
+> remote code execution.
 
 **Put a TLS-terminating reverse proxy in front of anything reachable from the
 internet.** Nothing here terminates TLS by default. Two ways to add it:
