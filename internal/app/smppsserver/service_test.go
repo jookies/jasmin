@@ -114,6 +114,84 @@ func TestServiceBindAndSubmitEndToEnd(t *testing.T) {
 	}
 }
 
+// TestServiceDestinationFenceAndDefaultSourceEndToEnd proves the credential
+// contract holds at the PDU level, not only in the unit tests: a bound ESME
+// fenced to ^2547 destinations gets ESME_RSUBMITFAIL outside the fence (and the
+// refused submit never reaches the pipeline — no routing, no billing, no
+// carrier exposure), while a submit inside the fence flows through and an empty
+// source_addr picks up the user's default source address on the way to routing.
+func TestServiceDestinationFenceAndDefaultSourceEndToEnd(t *testing.T) {
+	// ESME_RSUBMITFAIL: what the submit handler maps a credential refusal to.
+	const statusSubmitFailed uint32 = 0x00000045
+	submitter := &fakeSubmitter{id: "msg-9"}
+	defaultSource := "SENDERID"
+	service, err := NewService(Config{
+		BindAddr: "127.0.0.1:0",
+		Users: []UserConfig{{
+			SystemID:                 "fenced",
+			Password:                 "pw",
+			FilterDestinationAddress: "^2547",
+			DefaultSourceAddress:     &defaultSource,
+		}},
+	}, submitter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- service.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		_ = service.Close()
+		<-done
+	})
+
+	conn, err := net.Dial("tcp", service.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: smpps.CommandBindTransceiver, SequenceNumber: 1},
+		Bind:   &smppwire.BindBody{SystemID: []byte("fenced"), Password: []byte("pw"), SystemType: []byte(""), InterfaceVersion: 0x34},
+	})
+	if status := readPDU(t, conn).Header.CommandStatus; status != smpps.StatusROK {
+		t.Fatalf("bind status = %#x", status)
+	}
+
+	// Outside the fence: refused before the pipeline.
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: smpps.CommandSubmitSM, SequenceNumber: 2},
+		SM:     &smppwire.SMBody{DestinationAddress: []byte("38976123456"), ShortMessage: []byte("hi"), DataCoding: 0},
+	})
+	if status := readPDU(t, conn).Header.CommandStatus; status != statusSubmitFailed {
+		t.Fatalf("out-of-fence submit status = %#x, want ESME_RSUBMITFAIL", status)
+	}
+	if submitter.request.Username != "" {
+		t.Fatalf("refused submit must not reach the submitter, got %+v", submitter.request)
+	}
+
+	// Inside the fence, empty source_addr: accepted, default source applied.
+	writePDU(t, conn, smppwire.PDU{
+		Header: smppwire.Header{CommandID: smpps.CommandSubmitSM, SequenceNumber: 3},
+		SM:     &smppwire.SMBody{DestinationAddress: []byte("254722000111"), ShortMessage: []byte("hi"), DataCoding: 0},
+	})
+	resp := readPDU(t, conn)
+	if resp.Header.CommandStatus != smpps.StatusROK {
+		t.Fatalf("in-fence submit status = %#x", resp.Header.CommandStatus)
+	}
+	if resp.SubmitResponse == nil || string(resp.SubmitResponse.MessageID) != "msg-9" {
+		t.Fatalf("submit response = %+v", resp.SubmitResponse)
+	}
+	if submitter.request.Destination != "254722000111" {
+		t.Fatalf("destination = %q", submitter.request.Destination)
+	}
+	if submitter.request.From != "SENDERID" {
+		t.Fatalf("From = %q, want the default source address applied", submitter.request.From)
+	}
+}
+
 func TestServiceWrongPasswordRejects(t *testing.T) {
 	service, err := NewService(Config{
 		BindAddr: "127.0.0.1:0",

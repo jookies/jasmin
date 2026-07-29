@@ -48,3 +48,31 @@ func TestUserSaveDoesNotWidenTheBindAccount(t *testing.T) {
 		t.Fatalf("set_priority = %v after a user save, want false", account["set_priority"])
 	}
 }
+
+// TestUserFenceReachesTheBindAccount closes the other half of the SMPPs
+// credential gap. Enforcement existing in the directory is worthless if nothing
+// provisions it: a user fenced to a destination prefix through the user form
+// must have that fence mirrored onto their bind account, or the UI reports a
+// restriction the SMPP path never applies and the customer can send anywhere.
+func TestUserFenceReachesTheBindAccount(t *testing.T) {
+	f := newWebFixture(t)
+
+	f.do("POST", "/api/smpps-users", `{"system_id":"fenced","password":"bindpw"}`, http.StatusCreated, nil)
+	f.do("POST", "/api/users", `{
+		"username": "fenced",
+		"password": "httppw",
+		"smpps_bind": true,
+		"filter_destination_address": "^2547",
+		"default_source_address": "ACME"
+	}`, http.StatusCreated, nil)
+
+	var account map[string]any
+	f.do("GET", "/api/smpps-users/fenced", "", http.StatusOK, &account)
+
+	if got, _ := account["filter_destination_address"].(string); got != "^2547" {
+		t.Fatalf("filter_destination_address = %q on the bind account, want ^2547 — the fence never reached SMPPs", got)
+	}
+	if got, _ := account["default_source_address"].(string); got != "ACME" {
+		t.Fatalf("default_source_address = %q, want ACME", got)
+	}
+}

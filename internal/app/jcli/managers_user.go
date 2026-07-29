@@ -326,10 +326,29 @@ func (s *session) mirrorSMPPsAccount(ctx context.Context, user outbound.UserConf
 		Password:    plaintext,
 		Disabled:    user.Disabled,
 		MaxBindings: user.SMPPSCredential.MaxBindings,
-		SMPPSSend:   user.SMPPSCredential.Bind,
+		Bind:        user.SMPPSCredential.Bind,
 	}
 	if user.SMPPSCredential.IP != "" {
 		account.IPWhitelist = user.SMPPSCredential.IP
+	}
+	// Mirror the MT credential too. In legacy these are one user record serving
+	// both protocols, so a fence set with `mt_messaging_cred valuefilter
+	// destination_address` applies to that user's SMPP binds as well. The Go
+	// model keeps SMPPs bind accounts as their own entity, so without this copy
+	// the console would report a destination fence the bind path never applies —
+	// an operator would believe a customer was restricted to certain prefixes
+	// while they could in fact send anywhere.
+	if credential := user.MTCredential; credential != nil {
+		account.SMPPSSend = credential.SMPPSSend
+		account.SetDLRLevel = credential.SetDLRLevel
+		account.SetSourceAddress = credential.SetSourceAddress
+		account.SetPriority = credential.SetPriority
+		account.FilterDestinationAddress = credential.FilterDestinationAddress
+		account.FilterSourceAddress = credential.FilterSourceAddress
+		account.FilterPriority = credential.FilterPriority
+		account.FilterValidityPeriod = credential.FilterValidityPeriod
+		account.FilterContent = credential.FilterContent
+		account.DefaultSourceAddress = credential.DefaultSourceAddress
 	}
 	spec, err := json.Marshal(account)
 	if err != nil {

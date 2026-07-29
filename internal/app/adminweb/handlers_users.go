@@ -256,7 +256,23 @@ func (h *Handler) applyUser(w http.ResponseWriter, r *http.Request, res userReso
 				account.MaxBindings = cfg.SMPPSCredential.MaxBindings
 			}
 			if cfg.SMPPSCredential.Bind != nil {
-				account.SMPPSSend = cfg.SMPPSCredential.Bind
+				account.Bind = cfg.SMPPSCredential.Bind
+			}
+			// Mirror the MT credential as well: legacy serves both protocols from
+			// one user record, so a destination fence set on the user applies to
+			// their SMPP binds too. Without this the UI would report a restriction
+			// the bind path never enforces.
+			if credential := cfg.MTCredential; credential != nil {
+				account.SMPPSSend = credential.SMPPSSend
+				account.SetDLRLevel = credential.SetDLRLevel
+				account.SetSourceAddress = credential.SetSourceAddress
+				account.SetPriority = credential.SetPriority
+				account.FilterDestinationAddress = credential.FilterDestinationAddress
+				account.FilterSourceAddress = credential.FilterSourceAddress
+				account.FilterPriority = credential.FilterPriority
+				account.FilterValidityPeriod = credential.FilterValidityPeriod
+				account.FilterContent = credential.FilterContent
+				account.DefaultSourceAddress = credential.DefaultSourceAddress
 			}
 			accountSpec, err := json.Marshal(account)
 			if err != nil {
