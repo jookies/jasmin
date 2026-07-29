@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
 )
 
@@ -106,12 +109,35 @@ type Correlator struct {
 	redis     *rediscompat.Client
 	publisher Publisher
 	cfg       Config
+	cdr       cdr.FinalDLRRecorder
+	now       func() time.Time
+}
+
+type CorrelatorOption func(*Correlator)
+
+// WithFinalDLRRecorder makes final commercial settlement part of the
+// correlation transaction boundary. The recorder runs before any external
+// callback forward and before the Redis request is deleted, so a database
+// failure remains retryable without duplicating the customer's callback.
+func WithFinalDLRRecorder(recorder cdr.FinalDLRRecorder, now func() time.Time) CorrelatorOption {
+	return func(correlator *Correlator) {
+		correlator.cdr = recorder
+		if now != nil {
+			correlator.now = now
+		}
+	}
 }
 
 // NewCorrelator wires the engine. The publisher is invoked in Jasmin's order (publish
 // before mutating Redis) so failure semantics match the legacy callback.
-func NewCorrelator(redis *rediscompat.Client, publisher Publisher, cfg Config) *Correlator {
-	return &Correlator{redis: redis, publisher: publisher, cfg: cfg}
+func NewCorrelator(redis *rediscompat.Client, publisher Publisher, cfg Config, options ...CorrelatorOption) *Correlator {
+	correlator := &Correlator{redis: redis, publisher: publisher, cfg: cfg, now: time.Now}
+	for _, option := range options {
+		if option != nil {
+			option(correlator)
+		}
+	}
+	return correlator
 }
 
 // OnSubmitResp handles the submit_sm_resp leg (jasmin managers/dlr.py
@@ -304,17 +330,37 @@ func (c *Correlator) OnDeliverReceipt(ctx context.Context, ev DeliverReceiptEven
 		return fmt.Errorf("%w: dlr sc %q != mapping connector_type %q", ErrDLRMapInvalid, dlr["sc"], connectorType)
 	}
 
+	if isFinalState(ev.Status) && c.cdr != nil {
+		if err := c.cdr.RecordFinalDLR(ctx, cdr.FinalDLR{
+			QueueMessageID: submitQueueID,
+			ConnectorID:    ev.ConnectorID,
+			SMSCMessageID:  ev.RawDLRID,
+			Status:         ev.Status,
+			Error:          ev.Err,
+			DoneAt:         parseCDRReceiptTime(ev.DoneDate),
+			ReceivedAt:     c.now().UTC(),
+		}); err != nil {
+			return err
+		}
+	}
 	switch connectorType {
 	case "httpapi":
-		return c.onDeliverHTTP(ctx, ev, dlrKey, submitQueueID, coded, dlr)
+		err = c.onDeliverHTTP(ctx, ev, submitQueueID, coded, dlr)
 	case "smppsapi":
-		return c.onDeliverSMPPS(ctx, ev, dlrKey, submitQueueID, dlr)
+		err = c.onDeliverSMPPS(ctx, ev, submitQueueID, dlr)
 	default:
 		return fmt.Errorf("%w: unknown connector_type %q", ErrDLRMapInvalid, connectorType)
 	}
+	if err != nil {
+		return err
+	}
+	if !isFinalState(ev.Status) {
+		return nil
+	}
+	return c.redis.Delete(ctx, dlrKey)
 }
 
-func (c *Correlator) onDeliverHTTP(ctx context.Context, ev DeliverReceiptEvent, dlrKey rediscompat.Key, submitQueueID, coded string, dlr map[string]string) error {
+func (c *Correlator) onDeliverHTTP(ctx context.Context, ev DeliverReceiptEvent, submitQueueID, coded string, dlr map[string]string) error {
 	level, err := strconv.Atoi(dlr["level"])
 	if err != nil {
 		return fmt.Errorf("%w: level %q", ErrDLRMapInvalid, dlr["level"])
@@ -337,13 +383,10 @@ func (c *Correlator) onDeliverHTTP(ctx context.Context, ev DeliverReceiptEvent, 
 	if err := c.publisher.PublishDLR(ctx, forward); err != nil {
 		return fmt.Errorf("%w: %v", ErrForwardPublish, err)
 	}
-	if isFinalState(ev.Status) {
-		return c.redis.Delete(ctx, dlrKey)
-	}
 	return nil
 }
 
-func (c *Correlator) onDeliverSMPPS(ctx context.Context, ev DeliverReceiptEvent, dlrKey rediscompat.Key, submitQueueID string, dlr map[string]string) error {
+func (c *Correlator) onDeliverSMPPS(ctx context.Context, ev DeliverReceiptEvent, submitQueueID string, dlr map[string]string) error {
 	rd := dlr["rd_receipt"]
 	success := isSuccessState(ev.Status)
 	forward := (success && rd == rdReceiptRequested) ||
@@ -360,8 +403,16 @@ func (c *Correlator) onDeliverSMPPS(ctx context.Context, ev DeliverReceiptEvent,
 	if err := c.publisher.PublishDLR(ctx, f); err != nil {
 		return fmt.Errorf("%w: %v", ErrForwardPublish, err)
 	}
-	if isFinalState(ev.Status) {
-		return c.redis.Delete(ctx, dlrKey)
+	return nil
+}
+
+func parseCDRReceiptTime(value string) *time.Time {
+	value = strings.TrimSpace(value)
+	for _, layout := range []string{"060102150405", "0601021504"} {
+		if parsed, err := time.ParseInLocation(layout, value, time.UTC); err == nil {
+			parsed = parsed.UTC()
+			return &parsed
+		}
 	}
 	return nil
 }

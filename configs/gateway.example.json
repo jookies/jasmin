@@ -2,18 +2,40 @@
   "role": "http+smppc",
   "pickle_codec": "native",
   "amqp_durable_topology": true,
+  "ha": {
+    "namespace": "gateway-example",
+    "standby_retry_seconds": 1,
+    "standby_listen_address": "0.0.0.0:1401"
+  },
+  "rest_api": {
+    "listen_address": "0.0.0.0:8080",
+    "http_throughput_per_worker": 8,
+    "smart_qos": true,
+    "max_pending_tasks": 10000,
+    "max_attempts": 3,
+    "retry_delay_seconds": 1,
+    "callback_max_attempts": 5,
+    "callback_retry_delay_seconds": 1
+  },
   "outbound": {
     "listen_address": "0.0.0.0:1401",
     "amqp_url": "amqp://guest:guest@rabbitmq:5672/",
     "postgres_dsn": "postgres://jasmin:jasmin@postgres:5432/jasmin?sslmode=disable",
     "python_path": "python3",
+    "cdr_currency": "XXX",
+    "cdr_retention_days": 0,
+    "cdr_retention_batch_size": 1000,
+    "cdr_maintenance_interval_seconds": 86400,
     "users": [
       {
         "username": "smppuser",
         "external_id": "smppuser",
         "password_sha256": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
         "balance": 100.0,
-        "submit_sm_count": 10000
+        "submit_sm_count": 10000,
+        "mt_credential": {
+          "http_bulk": true
+        }
       }
     ],
     "mt_interceptors": [
@@ -139,7 +161,9 @@
     "jcli_listen_address": "0.0.0.0:8990",
     "jcli_username": "jcliadmin",
     "jcli_password": "env:JCLI_PASSWORD",
-    "jcli_idle_timeout": 300
+    "jcli_idle_timeout": 300,
+    "pb_facade_listen_address": "0.0.0.0:8998",
+    "pb_facade_token": "env:JASMIN_PB_FACADE_TOKEN"
   },
   "smpps": {
     "bind_addr": "0.0.0.0:2775",

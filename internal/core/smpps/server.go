@@ -53,8 +53,11 @@ type Server struct {
 
 	mu       sync.Mutex
 	managers map[string]*BindManager // system_id -> its bindings
-	sessions map[*Session]struct{}
-	closed   bool
+	// managerOrder preserves the insertion order of the legacy
+	// bound_connections dict for SMPPServerPB.list_bound_systemids.
+	managerOrder []string
+	sessions     map[*Session]struct{}
+	closed       bool
 
 	listener net.Listener
 	wg       sync.WaitGroup
@@ -180,6 +183,7 @@ func (s *Server) managerFor(systemID string) *BindManager {
 	if !ok {
 		manager = NewBindManager()
 		s.managers[systemID] = manager
+		s.managerOrder = append(s.managerOrder, systemID)
 	}
 	return manager
 }
@@ -256,4 +260,31 @@ func (s *Server) UnbindUser(systemID string) int {
 		session.cleanup()
 	}
 	return len(targets)
+}
+
+// BoundSystemIDs returns the frozen SMPPServerPB list projection: one unique
+// system_id for every principal with at least one live bound session, in first
+// bind order like the legacy bound_connections dict.
+func (s *Server) BoundSystemIDs() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	seen := make(map[string]struct{})
+	for session := range s.sessions {
+		session.mu.Lock()
+		bound := !session.closed &&
+			(session.state == StateBoundRX || session.state == StateBoundTX || session.state == StateBoundTRX)
+		systemID := session.systemID
+		session.mu.Unlock()
+		if bound && systemID != "" {
+			seen[systemID] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for _, systemID := range s.managerOrder {
+		if _, bound := seen[systemID]; bound {
+			result = append(result, systemID)
+		}
+	}
+	return result
 }

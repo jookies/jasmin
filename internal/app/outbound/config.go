@@ -3,6 +3,7 @@ package outbound
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -62,6 +63,15 @@ type Config struct {
 	// Zero selects billing.DefaultQuotaPersistInterval; negative is rejected.
 	// There is no "off" — balances are money and always persist.
 	QuotaPersistIntervalSeconds int `json:"quota_persist_interval_seconds,omitempty"`
+	// CDRCurrency is assigned to newly admitted commercial records. Empty
+	// retains ISO-4217 XXX for unitless legacy route prices.
+	CDRCurrency string `json:"cdr_currency,omitempty"`
+	// A positive retention period enables terminal-record pruning. Zero keeps
+	// records indefinitely. The batch defaults to 1000 when retention is on.
+	CDRRetentionDays      int `json:"cdr_retention_days,omitempty"`
+	CDRRetentionBatchSize int `json:"cdr_retention_batch_size,omitempty"`
+	// Zero runs CDR reconciliation/retention every 24 hours.
+	CDRMaintenanceIntervalSeconds int `json:"cdr_maintenance_interval_seconds,omitempty"`
 }
 
 // quotaPersistInterval resolves the configured flush cadence, falling back to
@@ -82,9 +92,14 @@ type InterceptorConfig struct {
 }
 
 type UserConfig struct {
-	Username                     string   `json:"username"`
-	ExternalID                   string   `json:"external_id"`
-	PasswordSHA256               string   `json:"password_sha256"`
+	Username       string `json:"username"`
+	ExternalID     string `json:"external_id"`
+	PasswordSHA256 string `json:"password_sha256"`
+	// PasswordMD5 accepts the frozen RouterPB User.password digest. New native
+	// configuration should use SHA-256; the trusted PB translator cannot
+	// recover plaintext from a pickled legacy User and therefore preserves its
+	// existing 16-byte MD5 verifier during migration.
+	PasswordMD5                  string   `json:"password_md5,omitempty"`
 	Balance                      *float64 `json:"balance"`
 	SubmitSMCount                *int     `json:"submit_sm_count"`
 	EarlyDecrementBalancePercent *int     `json:"early_decrement_balance_percent"`
@@ -221,7 +236,12 @@ type runtimeDirectory struct {
 	// mu guards passwordHashes, read on the hot Authenticate path and written
 	// by admin user provisioning. billing.Manager has its own lock.
 	mu             sync.RWMutex
-	passwordHashes map[string][sha256.Size]byte
+	passwordHashes map[string]passwordDigest
+}
+
+type passwordDigest struct {
+	algorithm string
+	value     [sha256.Size]byte
 }
 
 func newRuntimeDirectory(config Config) (*runtimeDirectory, error) {
@@ -239,7 +259,7 @@ func newRuntimeDirectoryWithQuotas(config Config, restore billing.QuotaIndex) (*
 	}
 	directory := &runtimeDirectory{
 		users:             billing.NewManager(),
-		passwordHashes:    make(map[string][sha256.Size]byte, len(config.Users)),
+		passwordHashes:    make(map[string]passwordDigest, len(config.Users)),
 		groups:            make(map[string]*billing.Group, len(config.Groups)),
 		groupIDs:          make(map[string]int64, len(config.Groups)),
 		groupDisabled:     make(map[string]bool, len(config.Groups)),
@@ -456,12 +476,11 @@ func (directory *runtimeDirectory) applyUser(entry UserConfig, uid int64) error 
 }
 
 func (directory *runtimeDirectory) validateNewUser(entry UserConfig) error {
-	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
+	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) {
 		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
 	}
-	rawHash, err := hex.DecodeString(entry.PasswordSHA256)
-	if err != nil || len(rawHash) != sha256.Size {
-		return fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
+	if _, err := parsePasswordDigest(entry); err != nil {
+		return err
 	}
 	if entry.Balance != nil {
 		if err := billing.ValidateParams(*entry.Balance, nil); err != nil {
@@ -491,11 +510,34 @@ func (directory *runtimeDirectory) validateNewUser(entry UserConfig) error {
 	return nil
 }
 
+func parsePasswordDigest(entry UserConfig) (passwordDigest, error) {
+	if (entry.PasswordSHA256 == "") == (entry.PasswordMD5 == "") {
+		return passwordDigest{}, fmt.Errorf("%w: user %q must set exactly one of password_sha256 or password_md5",
+			ErrInvalidRuntimeConfig, entry.Username)
+	}
+	algorithm := "sha256"
+	encoded := entry.PasswordSHA256
+	expectedSize := sha256.Size
+	if entry.PasswordMD5 != "" {
+		algorithm = "md5"
+		encoded = entry.PasswordMD5
+		expectedSize = md5.Size
+	}
+	rawHash, err := hex.DecodeString(encoded)
+	if err != nil || len(rawHash) != expectedSize {
+		return passwordDigest{}, fmt.Errorf("%w: user %q password_%s must be %d hexadecimal characters",
+			ErrInvalidRuntimeConfig, entry.Username, algorithm, expectedSize*2)
+	}
+	result := passwordDigest{algorithm: algorithm}
+	copy(result.value[:], rawHash)
+	return result, nil
+}
+
 type userDirectoryReplacement struct {
 	directory            *runtimeDirectory
 	user                 *billing.UserReprovision
 	username             string
-	previousPasswordHash [sha256.Size]byte
+	previousPasswordHash passwordDigest
 	previousDisabled     bool
 	previousGroupID      string
 	previousCredential   *mtcredential.Credential
@@ -535,15 +577,13 @@ func (replacement *userDirectoryReplacement) Rollback() {
 // returned replacement keeps the directory and user locked until the admin
 // store write commits or rolls back.
 func (directory *runtimeDirectory) beginReplaceUser(entry UserConfig, uid int64) (AdminReplacement, error) {
-	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
+	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) {
 		return nil, fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
 	}
-	rawHash, err := hex.DecodeString(entry.PasswordSHA256)
-	if err != nil || len(rawHash) != sha256.Size {
-		return nil, fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
+	passwordHash, err := parsePasswordDigest(entry)
+	if err != nil {
+		return nil, err
 	}
-	var passwordHash [sha256.Size]byte
-	copy(passwordHash[:], rawHash)
 	if entry.Balance != nil {
 		if err := billing.ValidateParams(*entry.Balance, nil); err != nil {
 			return nil, fmt.Errorf("%w: user %q balance: %v", ErrInvalidRuntimeConfig, entry.Username, err)
@@ -634,15 +674,13 @@ func (directory *runtimeDirectory) replaceUser(entry UserConfig, uid int64) erro
 // provisioned and effective quotas. They differ during boot restoration and
 // quota-safe online replacement.
 func (directory *runtimeDirectory) installUser(entry UserConfig, uid int64, provisioned, effective billing.Quota) error {
-	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) || entry.PasswordSHA256 == "" {
+	if !legacyUsernamePattern.MatchString(entry.Username) || !legacyUserIDPattern.MatchString(entry.ExternalID) {
 		return fmt.Errorf("%w: user %q identity must match legacy username/uid constraints", ErrInvalidRuntimeConfig, entry.Username)
 	}
-	rawHash, err := hex.DecodeString(entry.PasswordSHA256)
-	if err != nil || len(rawHash) != sha256.Size {
-		return fmt.Errorf("%w: user %q password_sha256 must be 64 hexadecimal characters", ErrInvalidRuntimeConfig, entry.Username)
+	passwordHash, err := parsePasswordDigest(entry)
+	if err != nil {
+		return err
 	}
-	var passwordHash [sha256.Size]byte
-	copy(passwordHash[:], rawHash)
 	if entry.SubmitSMCount != nil && *entry.SubmitSMCount < 0 {
 		return fmt.Errorf("%w: user %q negative submit_sm_count", ErrInvalidRuntimeConfig, entry.Username)
 	}
@@ -889,6 +927,41 @@ func (directory *runtimeDirectory) resolveUID(username string) (int64, bool) {
 func (directory *runtimeDirectory) Authenticate(_ context.Context, username, password string) error {
 	directory.mu.RLock()
 	expected, ok := directory.passwordHashes[username]
+	directory.mu.RUnlock()
+	if !ok {
+		return core.ErrAuthentication
+	}
+	var actual [sha256.Size]byte
+	size := sha256.Size
+	if expected.algorithm == "md5" {
+		digest := md5.Sum([]byte(password))
+		copy(actual[:], digest[:])
+		size = md5.Size
+	} else {
+		actual = sha256.Sum256([]byte(password))
+	}
+	if subtle.ConstantTimeCompare(actual[:size], expected.value[:size]) != 1 {
+		return core.ErrAuthentication
+	}
+	return directory.authenticateEnabled(username)
+}
+
+func (directory *runtimeDirectory) AuthenticateDigest(_ context.Context, username string, digest []byte) error {
+	directory.mu.RLock()
+	expected, ok := directory.passwordHashes[username]
+	directory.mu.RUnlock()
+	if !ok || expected.algorithm != "sha256" {
+		return core.ErrAuthentication
+	}
+	if len(digest) != sha256.Size || subtle.ConstantTimeCompare(digest, expected.value[:]) != 1 {
+		return core.ErrAuthentication
+	}
+	return directory.authenticateEnabled(username)
+}
+
+func (directory *runtimeDirectory) authenticateEnabled(username string) error {
+	directory.mu.RLock()
+	_, stillKnown := directory.passwordHashes[username]
 	userDisabled := directory.userDisabled[username]
 	groupDisabled := false
 	if gid, grouped := directory.userGroup[username]; grouped && gid != "" {
@@ -902,11 +975,7 @@ func (directory *runtimeDirectory) Authenticate(_ context.Context, username, pas
 		groupDisabled = !known || disabled
 	}
 	directory.mu.RUnlock()
-	if !ok {
-		return core.ErrAuthentication
-	}
-	actual := sha256.Sum256([]byte(password))
-	if subtle.ConstantTimeCompare(actual[:], expected[:]) != 1 {
+	if !stillKnown {
 		return core.ErrAuthentication
 	}
 	// Legacy refuses a disabled user, and a user whose group is disabled, with

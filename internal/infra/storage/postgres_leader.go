@@ -62,6 +62,54 @@ func OpenPostgresLeaderLease(ctx context.Context, dsn, namespace string) (*Postg
 	return openPostgresLeaderLease(ctx, dsn, namespace, defaultLeadershipProbeInterval)
 }
 
+// WaitPostgresLeaderLease keeps a standby process alive until the active node
+// releases its fence. Non-contention errors fail immediately; context
+// cancellation stops the wait. This gives an orchestrator one stable standby
+// process instead of relying on crash-loop timing for takeover.
+func WaitPostgresLeaderLease(
+	ctx context.Context,
+	dsn, namespace string,
+	retryInterval time.Duration,
+) (*PostgresLeaderLease, error) {
+	if retryInterval <= 0 {
+		return nil, errors.New("gateway leadership retry interval must be positive")
+	}
+	return waitPostgresLeaderLease(ctx, retryInterval, func(attemptCtx context.Context) (*PostgresLeaderLease, error) {
+		return OpenPostgresLeaderLease(attemptCtx, dsn, namespace)
+	})
+}
+
+func waitPostgresLeaderLease(
+	ctx context.Context,
+	retryInterval time.Duration,
+	acquire func(context.Context) (*PostgresLeaderLease, error),
+) (*PostgresLeaderLease, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if acquire == nil {
+		return nil, errors.New("nil gateway leadership acquire function")
+	}
+	for {
+		lease, err := acquire(ctx)
+		if err == nil {
+			return lease, nil
+		}
+		if !errors.Is(err, ErrLeadershipHeld) {
+			return nil, err
+		}
+		timer := time.NewTimer(retryInterval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return nil, fmt.Errorf("wait for gateway leadership: %w", ctx.Err())
+		case <-timer.C:
+		}
+	}
+}
+
 func openPostgresLeaderLease(ctx context.Context, dsn, namespace string, probeInterval time.Duration) (*PostgresLeaderLease, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -143,10 +191,20 @@ func (lease *PostgresLeaderLease) monitor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			probeCtx, cancel := context.WithTimeout(ctx, lease.interval)
+			// Do not derive the in-flight Ping context from the monitor
+			// cancellation. Close waits for this short probe before unlocking;
+			// canceling a pgx Ping midway may make database/sql discard the
+			// dedicated session before pg_advisory_unlock runs.
+			if ctx.Err() != nil {
+				return
+			}
+			probeCtx, cancel := context.WithTimeout(context.Background(), lease.interval)
 			err := lease.conn.PingContext(probeCtx)
 			cancel()
 			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				lease.markLost(fmt.Errorf("gateway leadership connection lost: %w", err))
 				return
 			}

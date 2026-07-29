@@ -32,7 +32,7 @@ type StoredNamedSpec struct {
 
 func (s *Store) listNamedSpecs(ctx context.Context, table, idColumn string) ([]StoredNamedSpec, error) {
 	query := fmt.Sprintf(`SELECT %s, spec_json FROM %s ORDER BY %s`, idColumn, table, idColumn)
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.queryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list %s: %w", table, err)
 	}
@@ -51,7 +51,7 @@ func (s *Store) listNamedSpecs(ctx context.Context, table, idColumn string) ([]S
 func (s *Store) getNamedSpec(ctx context.Context, table, idColumn, id string, missing error) (StoredNamedSpec, error) {
 	query := fmt.Sprintf(`SELECT %s, spec_json FROM %s WHERE %s=?`, idColumn, table, idColumn)
 	var spec StoredNamedSpec
-	err := s.db.QueryRowContext(ctx, query, id).Scan(&spec.ID, &spec.SpecJSON)
+	err := s.queryRowContext(ctx, query, id).Scan(&spec.ID, &spec.SpecJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StoredNamedSpec{}, missing
 	}
@@ -66,7 +66,7 @@ func (s *Store) upsertNamedSpec(ctx context.Context, table, idColumn string, spe
 		`INSERT INTO %s (%s, spec_json, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(%s) DO UPDATE SET spec_json=excluded.spec_json, updated_at=excluded.updated_at`,
 		table, idColumn, idColumn)
-	if _, err := s.db.ExecContext(ctx, query, spec.ID, spec.SpecJSON, now); err != nil {
+	if _, err := s.execContext(ctx, query, spec.ID, spec.SpecJSON, now); err != nil {
 		return fmt.Errorf("admin: upsert %s %q: %w", table, spec.ID, err)
 	}
 	return nil
@@ -74,7 +74,7 @@ func (s *Store) upsertNamedSpec(ctx context.Context, table, idColumn string, spe
 
 func (s *Store) deleteNamedSpec(ctx context.Context, table, idColumn, id string, missing error) error {
 	query := fmt.Sprintf(`DELETE FROM %s WHERE %s=?`, table, idColumn)
-	result, err := s.db.ExecContext(ctx, query, id)
+	result, err := s.execContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("admin: delete %s %q: %w", table, id, err)
 	}

@@ -95,6 +95,8 @@ func buildMORouteFilter(spec FilterConfig) (routingfilter.Filter, error) {
 		return routingfilter.NewDateIntervalFilter(spec.Start, spec.End)
 	case "time_interval":
 		return routingfilter.NewTimeIntervalFilter(spec.Start, spec.End)
+	case "eval_py":
+		return routingfilter.NewEvalPyFilter(spec.Value)
 	case "user":
 		return nil, fmt.Errorf("user filter is MT-only, not valid on an MO route")
 	case "connector":

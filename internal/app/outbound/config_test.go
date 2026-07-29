@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -11,6 +12,27 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
 )
+
+func TestRuntimeDirectoryAuthenticatesFrozenRouterPBMD5Digest(t *testing.T) {
+	digest := md5.Sum([]byte("legacy-password"))
+	directory, err := newRuntimeDirectory(Config{Users: []UserConfig{{
+		Username:    "legacy",
+		ExternalID:  "legacy-id",
+		PasswordMD5: hex.EncodeToString(digest[:]),
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := directory.Authenticate(context.Background(), "legacy", "legacy-password"); err != nil {
+		t.Fatalf("legacy MD5 authenticate: %v", err)
+	}
+	if err := directory.Authenticate(context.Background(), "legacy", "wrong"); err == nil {
+		t.Fatal("legacy MD5 accepted a wrong password")
+	}
+	if err := directory.AuthenticateDigest(context.Background(), "legacy", make([]byte, sha256.Size)); err == nil {
+		t.Fatal("legacy MD5 accepted an unrelated SHA-256 replay proof")
+	}
+}
 
 func TestLoadConfigRejectsUnknownAndTrailingContent(t *testing.T) {
 	base := `{"listen_address":"127.0.0.1:1","amqp_url":"amqp://localhost/","users":[],"routes":[]}`
@@ -27,6 +49,39 @@ func TestLoadConfigRejectsUnknownAndTrailingContent(t *testing.T) {
 				t.Fatal("LoadConfig accepted malformed configuration")
 			}
 		})
+	}
+}
+
+func TestValidateConfigRejectsUnsafeCDRPolicy(t *testing.T) {
+	base := Config{
+		ListenAddress: "127.0.0.1:1", AMQPURL: "amqp://localhost/",
+		PythonPath: "python3", PostgresDSN: "postgres://localhost/jasmin",
+		Users:  []UserConfig{{Username: "alice", ExternalID: "alice"}},
+		Routes: []RouteConfig{{ConnectorID: "smsc-a", Default: true}},
+	}
+	for name, mutate := range map[string]func(*Config){
+		"lowercase currency": func(config *Config) { config.CDRCurrency = "usd" },
+		"short currency":     func(config *Config) { config.CDRCurrency = "US" },
+		"negative retention": func(config *Config) { config.CDRRetentionDays = -1 },
+		"oversized batch":    func(config *Config) { config.CDRRetentionBatchSize = 10001 },
+		"negative cadence":   func(config *Config) { config.CDRMaintenanceIntervalSeconds = -1 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			config := base
+			mutate(&config)
+			if err := validateConfig(config); err == nil {
+				t.Fatal("unsafe CDR policy accepted")
+			}
+		})
+	}
+	valid := base
+	valid.CDRCurrency = "USD"
+	valid.CDRRetentionDays = 2555
+	if err := validateConfig(valid); err != nil {
+		t.Fatalf("valid CDR policy: %v", err)
+	}
+	if resolvedCDRRetentionBatch(valid) != 1000 {
+		t.Fatalf("default retention batch=%d", resolvedCDRRetentionBatch(valid))
 	}
 }
 

@@ -58,6 +58,14 @@ Oracle: `jasmin/protocols/http/`, `jasmin/protocols/rest/`, related tests and do
 | R-008 | QoS | per-worker throughput and smart QoS semantics | INVENTORIED |
 | R-009 | errors | auth/validation/upstream failure statuses and body schema | INVENTORIED |
 
+**Go functional audit (2026-07-29).** All nine behaviors are implemented,
+including the standalone JSON `/ping`, PostgreSQL-backed scheduled-job restart
+recovery, credential-safe stable task identity, durable callbacks, per-worker
+smart QoS and bounded retry/backpressure. The statuses intentionally remain
+`INVENTORIED`: the Go tests and the frozen `[rest-api]` config differential are
+implementation evidence, not the committed endpoint fixtures/macros required
+for `MATCH`.
+
 ## Fixture policy
 
 Fixtures record request bytes/parameters, response status, headers, body bytes, normalized nondeterministic fields and the exact upstream test/source citation. UUIDs/timestamps may be normalized only by explicit fixture metadata.

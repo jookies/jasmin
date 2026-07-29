@@ -41,12 +41,20 @@ func TestNamedHTTPLoggersObserveEveryResponse(t *testing.T) {
 }
 
 type authSpy struct {
-	calls int
-	err   error
+	calls       int
+	digestCalls int
+	digest      []byte
+	err         error
 }
 
 func (s *authSpy) Authenticate(context.Context, string, string) error {
 	s.calls++
+	return s.err
+}
+
+func (s *authSpy) AuthenticateDigest(_ context.Context, _ string, digest []byte) error {
+	s.digestCalls++
+	s.digest = append([]byte(nil), digest...)
 	return s.err
 }
 
@@ -69,6 +77,33 @@ func (s *submitSpy) Submit(_ context.Context, request core.SubmitRequest) (strin
 	s.calls++
 	s.request = request
 	return s.id, s.err
+}
+
+func TestTrustedBatchSubmitUsesDigestAndStableMessageID(t *testing.T) {
+	auth := &authSpy{}
+	submit := &submitSpy{id: "stable-task-id"}
+	digest := bytes.Repeat([]byte{0x5a}, 32)
+	request := httptest.NewRequest(http.MethodPost, "/send",
+		strings.NewReader(`{"username":"alice","password":"__batch__","to":"15551234567","content":"hi"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request = request.WithContext(httpcompat.WithTrustedBatchSubmit(
+		request.Context(), "alice", digest, "stable-task-id",
+	))
+	response := httptest.NewRecorder()
+	httpcompat.NewHandler(httpcompat.Dependencies{
+		Authenticator: auth, Submitter: submit,
+	}).ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if auth.calls != 0 || auth.digestCalls != 1 || !bytes.Equal(auth.digest, digest) {
+		t.Fatalf("authentication calls=%d digest_calls=%d digest=%x",
+			auth.calls, auth.digestCalls, auth.digest)
+	}
+	if submit.request.MessageID != "stable-task-id" || submit.request.Username != "alice" {
+		t.Fatalf("submit request = %+v", submit.request)
+	}
 }
 
 func TestSendValidationStopsBeforePorts(t *testing.T) {

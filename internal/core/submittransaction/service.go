@@ -42,6 +42,18 @@ func (service *Service) AggregateStatus(ctx context.Context, messageID string) (
 	return service.repository.AggregateStatus(ctx, messageID)
 }
 
+// SubmissionExists is the narrow idempotency lookup consumed by trusted
+// durable ingress. A recovered task whose stable message id is already in the
+// submit ledger is complete even if the process died before acknowledging the
+// REST batch row.
+func (service *Service) SubmissionExists(ctx context.Context, messageID string) (bool, error) {
+	_, err := service.AggregateStatus(ctx, messageID)
+	if errors.Is(err, ErrPartNotFound) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // AdmitSubmit persists every logical part and its publication event atomically.
 // Repeating the same stable keys is idempotent. The caller intentionally keeps
 // the legacy no-refund rule: authorization/debit happens before this boundary

@@ -313,7 +313,7 @@ func TestSecureSendBatchExpandsGlobalsAndDestinations(t *testing.T) {
 	if string(got[`"333"`]["from"]) != `"Local"` || string(got[`"333"`]["hex-content"]) != `"00ff"` {
 		t.Fatalf("local override = %+v", got[`"333"`])
 	}
-	if string(got[`"333"`]["username"]) != `"alice"` || string(got[`"333"`]["password"]) != `"secret"` {
+	if string(got[`"333"`]["username"]) != `"alice"` || string(got[`"333"`]["password"]) != `"__batch__"` {
 		t.Fatalf("credentials = %+v", got[`"333"`])
 	}
 	if string(got[`"111"`]["custom_tlvs"]) != `{"0x1400":"x"}` {
@@ -407,6 +407,12 @@ func TestSecureSendBatchRejectsAuthenticationAndBadScheduleBeforeDispatch(t *tes
 				"messages":[{"to":"1","content":"hi"}]
 			}`, title: "Cannot schedule batch in past date",
 		},
+		{
+			name: "unsafe callback", body: `{
+				"batch_config":{"callback_url":"file:///etc/passwd"},
+				"messages":[{"to":"1","content":"hi"}]
+			}`, title: "Cannot parse callback_url",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -443,6 +449,156 @@ func TestNonRESTPathsAreUnchanged(t *testing.T) {
 	restcompat.NewHandler(upstream).ServeHTTP(response, request)
 	if response.Code != http.StatusTeapot || response.Body.String() != "legacy" || upstream.call.path != "/ping" {
 		t.Fatalf("response = %d %q, call = %+v", response.Code, response.Body.String(), upstream.call)
+	}
+}
+
+func TestStandaloneRESTPingIsJSONWithoutChangingCombinedLegacyPing(t *testing.T) {
+	upstream := &upstreamSpy{body: "Jasmin/PONG"}
+	handlers, err := restcompat.NewHandlers(upstream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	daemonResponse := httptest.NewRecorder()
+	handlers.Daemon.ServeHTTP(
+		daemonResponse, httptest.NewRequest(http.MethodGet, "/ping", nil))
+	assertJSON(t, daemonResponse, map[string]any{"data": "Jasmin/PONG"})
+
+	legacyResponse := httptest.NewRecorder()
+	handlers.Combined.ServeHTTP(
+		legacyResponse, httptest.NewRequest(http.MethodGet, "/ping", nil))
+	if legacyResponse.Code != http.StatusOK || legacyResponse.Body.String() != "Jasmin/PONG" {
+		t.Fatalf("combined /ping = %d %q", legacyResponse.Code, legacyResponse.Body.String())
+	}
+}
+
+func TestScheduledBatchSurvivesDispatcherRestart(t *testing.T) {
+	store := restcompat.NewMemoryBatchStore()
+	upstream := &batchUpstream{calls: make(chan batchUpstreamCall, 2)}
+	firstContext, cancelFirst := context.WithCancel(context.Background())
+	first := restcompat.NewHandler(upstream,
+		restcompat.WithBatchContext(firstContext),
+		restcompat.WithBatchStore(store),
+		restcompat.WithBatchQoS(0, false),
+	)
+	request := httptest.NewRequest(http.MethodPost, "/secure/sendbatch", strings.NewReader(`{
+		"batch_config":{"schedule_at":"1s"},
+		"messages":[{"to":"111","content":"survives"}]
+	}`))
+	request.Header.Set("Authorization", basic("alice", "secret"))
+	response := httptest.NewRecorder()
+	first.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("admission = %d %s", response.Code, response.Body.String())
+	}
+	cancelFirst()
+
+	secondContext, cancelSecond := context.WithCancel(context.Background())
+	defer cancelSecond()
+	_, err := restcompat.NewHandlers(upstream,
+		restcompat.WithBatchContext(secondContext),
+		restcompat.WithBatchStore(store),
+		restcompat.WithBatchQoS(0, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case call := <-upstream.calls:
+		if string(call.payload["to"]) != `"111"` ||
+			string(call.payload["password"]) != `"__batch__"` {
+			t.Fatalf("recovered payload = %+v", call.payload)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("scheduled durable task was not recovered")
+	}
+	select {
+	case duplicate := <-upstream.calls:
+		t.Fatalf("recovered task ran twice: %+v", duplicate)
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
+func TestBatchBacklogIsRejectedBeforeAcknowledgement(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	upstream := &batchUpstream{calls: make(chan batchUpstreamCall, 2)}
+	handler := restcompat.NewHandler(upstream,
+		restcompat.WithBatchContext(ctx),
+		restcompat.WithBatchStore(restcompat.NewMemoryBatchStore()),
+		restcompat.WithBatchLimits(1, 1, 0, 1, 0),
+	)
+	submit := func(destination string) *httptest.ResponseRecorder {
+		body := fmt.Sprintf(`{
+			"batch_config":{"schedule_at":"10s"},
+			"messages":[{"to":%q,"content":"queued"}]
+		}`, destination)
+		request := httptest.NewRequest(http.MethodPost, "/secure/sendbatch", strings.NewReader(body))
+		request.Header.Set("Authorization", basic("alice", "secret"))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	if response := submit("111"); response.Code != http.StatusOK {
+		t.Fatalf("first admission = %d %s", response.Code, response.Body.String())
+	}
+	if response := submit("222"); response.Code != http.StatusTooManyRequests {
+		t.Fatalf("overflow admission = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBatchCallbackRetriesWithStableTerminalPayload(t *testing.T) {
+	var mu sync.Mutex
+	var seen []url.Values
+	callbackServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		seen = append(seen, request.URL.Query())
+		attempt := len(seen)
+		mu.Unlock()
+		if attempt == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer callbackServer.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	upstream := &batchUpstream{calls: make(chan batchUpstreamCall, 1)}
+	handler := restcompat.NewHandler(upstream,
+		restcompat.WithBatchContext(ctx),
+		restcompat.WithCallbackClient(callbackServer.Client()),
+		restcompat.WithBatchLimits(10, 1, 0, 3, 10*time.Millisecond),
+	)
+	body := fmt.Sprintf(`{
+		"batch_config":{"callback_url":%q},
+		"messages":[{"to":"111","content":"hi"}]
+	}`, callbackServer.URL)
+	request := httptest.NewRequest(http.MethodPost, "/secure/sendbatch", strings.NewReader(body))
+	request.Header.Set("Authorization", basic("alice", "secret"))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("admission = %d %s", response.Code, response.Body.String())
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		mu.Lock()
+		count := len(seen)
+		mu.Unlock()
+		if count >= 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("callback was not retried")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	mu.Lock()
+	first, second := seen[0], seen[1]
+	mu.Unlock()
+	if first.Encode() != second.Encode() || first.Get("status") != "1" ||
+		first.Get("statusText") != `Success "111"` {
+		t.Fatalf("callback retries diverged: first=%v second=%v", first, second)
 	}
 }
 
@@ -495,6 +651,14 @@ func (upstream *batchUpstream) ServeHTTP(w http.ResponseWriter, request *http.Re
 		status := upstream.balanceStatus
 		if status == 0 {
 			status = http.StatusOK
+		}
+		if request.Method != http.MethodGet ||
+			request.Body != http.NoBody ||
+			request.ContentLength != 0 ||
+			request.Header.Get("Content-Type") != "" ||
+			request.URL.Query().Get("username") == "" ||
+			request.URL.Query().Get("password") == "" {
+			status = http.StatusBadRequest
 		}
 		w.WriteHeader(status)
 		_, _ = io.WriteString(w, `{"balance":"ND","sms_count":"ND"}`)

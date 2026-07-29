@@ -57,67 +57,54 @@ Stable error codes are `unauthorized`, `bad_request`,
 `unsupported_version`, `unknown_method`, `unavailable_method`,
 `invalid_params`, `conflict`, `not_found`, and `internal_error`.
 
-## Implemented method projection
+## Implemented compatibility projection
 
-These are facade methods, not claims that a native Go PB listener exists.
-The Python side is responsible for translating the named frozen
-`perspective_*` call and reconstructing its historical Deferred/result shape.
+`jasmin/bin/pbfacaded.py` terminates the four frozen PB services and translates
+them to the private Go facade. It retains the historical digest login,
+Perspective/Deferred call shape, serialized object results, and default ports.
 
-| Frozen PB operation | Go facade method | Status |
-|---|---|---|
-| `perspective_version*` | `version` | Implemented |
-| `perspective_group_add` | `router.group.add` | Implemented |
-| `perspective_group_remove` | `router.group.remove` | Implemented |
-| `perspective_group_get_all` | `router.group.list` | Implemented as normalized JSON list |
-| facade lookup helper | `router.group.get` | Implemented |
-| `perspective_user_add` | `router.user.add` | Implemented |
-| `perspective_user_remove` | `router.user.remove` | Implemented |
-| `perspective_user_get_all` | `router.user.list` | Implemented as normalized JSON list |
-| facade lookup helper | `router.user.get` | Implemented |
-| `perspective_mtroute_add/remove/get_all` | `router.mtroute.add/remove/list` | Implemented |
-| facade lookup helper | `router.mtroute.get` | Implemented |
-| `perspective_moroute_add/remove/get_all` | `router.moroute.add/remove/list` | Implemented |
-| facade lookup helper | `router.moroute.get` | Implemented |
-| `perspective_mtinterceptor_add/remove/get_all` | `router.mtinterceptor.add/remove/list` | Implemented when interceptor editing is enabled |
-| facade lookup helper | `router.mtinterceptor.get` | Implemented when interceptor editing is enabled |
-| `perspective_mointerceptor_add/remove/get_all` | `router.mointerceptor.add/remove/list` | Implemented when interceptor editing is enabled |
-| facade lookup helper | `router.mointerceptor.get` | Implemented when interceptor editing is enabled |
-| `perspective_connector_add` | `client.connector.add` | Implemented |
-| `perspective_connector_remove` | `client.connector.remove` | Implemented |
-| `perspective_connector_list` | `client.connector.list` | Implemented as normalized JSON list |
-| `perspective_connector_details/config` | `client.connector.get` | Implemented as one normalized projection |
-| `perspective_connector_start/stop` | `client.connector.start/stop` | Implemented |
-| `perspective_service_status` | `client.connector.status` | Implemented as normalized desired/observed state |
+| Frozen service/capability | Go facade projection | Functional |
+|---|---|---:|
+| RouterPB digest auth/version | trusted PB listener + `version` | 100% |
+| groups CRUD, bulk remove, enable/disable, list | `router.group.*` | 100% |
+| users CRUD, bulk remove, auth, quotas, enable/disable, list | `router.user.*` | 100% |
+| MO/MT routes CRUD, flush, ordered serialized list | `router.moroute.*`, `router.mtroute.*` | 100% |
+| MO/MT interceptors CRUD, flush, ordered serialized list | `router.mointerceptor.*`, `router.mtinterceptor.*` | 100% |
+| Router profile persist/load/state | `profile.*` with scoped live reconciliation | 100% |
+| connector CRUD/config/list | `client.connector.*` | 100% |
+| connector lifecycle/status/session state/counters | `client.connector.*` | 100% |
+| connector profile persist/load/state | `profile.*` with connector scope | 100% |
+| manager submit (target, bill, DLR, priority, expiry, linked PDUs) | ordered byte-exact `pdu_wires` to `router.submit_sm` | 100% |
+| SMPPServerPB list/unbind/ban/deliver | `smpps.*` | 100% |
+| InterceptorPB script execution | isolated trusted Python avatar | 100% |
 
-Group/user specs, route specs, interceptor specs, and connector configs are
-normalized JSON objects. They are not base64-wrapped pickle. List results are
-JSON arrays in deterministic service order. Stored specs are returned as JSON
-objects rather than JSON strings.
+Only the trusted sidecar calls `pickle.loads`. The Go listener accepts
+normalized JSON and byte-exact SMPP wire PDUs only. PB-origin objects retain an
+opaque legacy pickle for exact list round trips. Objects created through
+REST, jCli, or another HA replica do not have that field, so the translator
+deterministically reconstructs the corresponding frozen Group, User, Route,
+Interceptor, and SMPPClientConfig class. Mixed-origin state is therefore
+visible to legacy PB clients after failover.
 
-## Remaining PB gaps
+Named profile loads are transactional at the stored-row boundary and do not
+return success until every affected live service has reconciled. A failed
+reconcile restores the previous snapshot and live state. Connector lifecycle
+counters are maintained by the facade process, matching their historical
+process-local lifetime.
 
-The following frozen calls are not advertised by `/v1/capabilities` and return
-`unknown_method` if called:
+The manager-submit projection is explicitly downstream of routing,
+interception and early charging, just like the frozen manager. The private Go
+request therefore honors the supplied connector and serialized bill instead
+of selecting a new route or charging again. It keeps durable admission, late
+billing and DLR storage, and preserves a linked multipart `nextPdu` chain as
+bounded, cycle-checked, ordered SMPP frames under one aggregate message ID.
 
-- PB challenge/digest login, PB reconnect behavior, remote references, jelly
-  object identities, Deferred error classes, and direct compatibility-client
-  connectivity. These belong in the trusted Twisted facade.
-- Group/user enable and disable, bulk remove/flush, user authentication, and
-  quota mutation operations.
-- Router and connector `persist`, `load`, and `is_persisted` behavior. The Go
-  admin store is durable after each mutation, while named profile restoration
-  must also reapply all live services atomically before it can be exposed.
-- Connector session-state distinctions, stop-all, queue-deletion semantics,
-  and exact frozen config pickle reconstruction.
-- `perspective_submit_sm`; it carries pickled PDU and billing objects and is a
-  data-plane operation, not admin CRUD.
-- SMPPServerPB bound-session listing, unbind/ban, and deliverer send.
-- InterceptorPB `run_script`; the current Go interceptor worker uses its own
-  bounded protocol and is not exposed through this management seam.
-
-The facade must not synthesize success for any of these calls. A later
-increment must add a normalized Go method, fixture its frozen behavior, and
-only then advertise it.
+`delQueues=True` is deliberately rejected: the Go deployment uses durable
+shared AMQP topology and deleting a per-connector queue is not a safe or
+equivalent operation. The facade never returns a synthetic success for it.
+Native Go interceptor execution remains the final migration step; until then
+the compatibility listener executes the frozen script in its isolated Python
+process.
 
 ## Gateway integration
 
@@ -136,12 +123,41 @@ handler, err := pbfacade.New(pbfacade.Deps{
     MTRoutes:     routeService,
     MORoutes:     moRouteService,
     Interceptors: interceptorService,
+    Profiles:     profiles,
+    Authenticator: outboundRuntime.Authenticator(),
+    Submitter:     outboundRuntime.Submitter(),
+    SMPPServer:    pbSMPPServerSlot,
+    ScriptRunner:  interceptorRunner,
     Token:        configuredFacadeToken,
 })
 ```
 
-The snippet above is the implemented gateway composition, not only a future
-hook. The trusted Twisted translator itself is still a remaining gap.
+The SMPP server dependency uses a late-binding slot because the private PB
+handler is assembled before the public SMPP listener. The slot fails closed
+until the live server exists.
 
-This increment does not promote any `PB_API_MATRIX.md` row: promotion still
-requires a frozen PB fixture/macro and an actual Python facade replay.
+## Running the trusted sidecar
+
+Set the same bearer secret configured by
+`admin.pb_facade_token`, then point the sidecar at the private listener:
+
+```bash
+export JASMIN_PB_FACADE_TOKEN='replace-me'
+python jasmin/bin/pbfacaded.py \
+  --go-url http://127.0.0.1:8998 \
+  --router-bind 127.0.0.1 \
+  --client-bind 127.0.0.1 \
+  --smpps-bind 127.0.0.1 \
+  --interceptor-bind 127.0.0.1
+```
+
+The HA compose deployment builds `docker/Dockerfile.pbfacade`, supplies the
+token through a secret environment file, binds the legacy ports to loopback,
+and restarts the sidecar independently of the active gateway replica. Use
+`--tls-cert` and `--tls-key` together when PB itself crosses a network trust
+boundary.
+
+The PB macro runs both the authenticated Twisted listener replay and the
+focused Go facade/profile tests. Matrix rows are `GO-COMPLETE`, not `MATCH`:
+the compatibility implementation is functionally complete, while a full
+frozen-oracle fixture corpus remains a separate evidence task.

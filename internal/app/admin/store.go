@@ -1,18 +1,21 @@
 // Package admin is the gateway's runtime provisioning plane: an authenticated
-// HTTP API backed by an embedded SQLite store that persists admin-created
-// connectors and applies them live through the smppc manager, surviving
-// restart. It is deliberately additive to the --config connectors (which stay
-// config-driven); admin owns its own set, keyed by cid, and cannot collide
-// with a config connector.
+// HTTP API backed by SQLite in local/single-node mode and a namespace-isolated
+// PostgreSQL schema in HA mode. Persisted entities apply live and survive
+// restart or standby promotion. Admin remains additive to --config connectors
+// and cannot collide with config-owned identities.
 package admin
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite" // pure-Go SQLite driver (works with CGO_ENABLED=0)
 
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
@@ -83,9 +86,18 @@ CREATE TABLE IF NOT EXISTS admin_groups (
     updated_at TEXT NOT NULL
 );`
 
-// Store persists admin provisioning state in SQLite.
+type storeDialect uint8
+
+const (
+	storeDialectSQLite storeDialect = iota
+	storeDialectPostgres
+)
+
+// Store persists admin provisioning state. SQLite remains the local/test and
+// single-node adapter; PostgreSQL is the shared production HA control plane.
 type Store struct {
-	db *sql.DB
+	db      *sql.DB
+	dialect storeDialect
 }
 
 // OpenStore opens (creating if needed) the SQLite admin database at path and
@@ -102,7 +114,53 @@ func OpenStore(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("admin: init schema: %w", err)
 	}
-	return &Store{db: db}, nil
+	return &Store{db: db, dialect: storeDialectSQLite}, nil
+}
+
+// OpenPostgresStore opens the shared production HA control plane and applies
+// the same idempotent schema used by SQLite. It is selected automatically by
+// the gateway when HA is configured, so a promoted standby replays exactly the
+// active node's persisted users/routes/connectors instead of a node-local file.
+func OpenPostgresStore(ctx context.Context, dsn, namespace string) (*Store, error) {
+	if dsn == "" {
+		return nil, errors.New("admin: empty PostgreSQL DSN")
+	}
+	if strings.TrimSpace(namespace) == "" {
+		return nil, errors.New("admin: empty PostgreSQL namespace")
+	}
+	schema := postgresSchema(namespace)
+	pgxConfig, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("admin: parse PostgreSQL DSN: %w", err)
+	}
+	// RuntimeParams are applied to every pooled connection, not just the one
+	// that creates the schema. This keeps independently fenced deployments
+	// sharing one database from reading or mutating each other's control state.
+	pgxConfig.RuntimeParams["search_path"] = schema
+	db := stdlib.OpenDB(*pgxConfig)
+	db.SetMaxOpenConns(8)
+	db.SetMaxIdleConns(2)
+	if err = db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("admin: connect PostgreSQL: %w", err)
+	}
+	if _, err = db.ExecContext(ctx, `CREATE SCHEMA IF NOT EXISTS `+schema); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("admin: create PostgreSQL schema: %w", err)
+	}
+	if _, err = db.ExecContext(ctx, connectorSchema); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("admin: init PostgreSQL schema: %w", err)
+	}
+	return &Store{db: db, dialect: storeDialectPostgres}, nil
+}
+
+// postgresSchema maps an arbitrary operator namespace to a short safe
+// PostgreSQL identifier. The hash avoids quoting/injection concerns and keeps
+// the name below PostgreSQL's 63-byte identifier limit.
+func postgresSchema(namespace string) string {
+	sum := sha256.Sum256([]byte("jasmin-go/admin-control-plane/v1\x00" + namespace))
+	return fmt.Sprintf("jasmin_admin_%x", sum[:12])
 }
 
 func (s *Store) Close() error {
@@ -112,6 +170,64 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+func (s *Store) rebind(query string) string {
+	if s == nil || s.dialect != storeDialectPostgres || !strings.Contains(query, "?") {
+		return query
+	}
+	var output strings.Builder
+	output.Grow(len(query) + 8)
+	parameter := 1
+	for _, character := range query {
+		if character == '?' {
+			fmt.Fprintf(&output, "$%d", parameter)
+			parameter++
+			continue
+		}
+		output.WriteRune(character)
+	}
+	return output.String()
+}
+
+func (s *Store) execContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return s.db.ExecContext(ctx, s.rebind(query), args...)
+}
+
+func (s *Store) queryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return s.db.QueryContext(ctx, s.rebind(query), args...)
+}
+
+func (s *Store) queryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return s.db.QueryRowContext(ctx, s.rebind(query), args...)
+}
+
+type storeTx struct {
+	tx    *sql.Tx
+	store *Store
+}
+
+func (s *Store) beginTx(ctx context.Context) (*storeTx, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &storeTx{tx: tx, store: s}, nil
+}
+
+func (tx *storeTx) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return tx.tx.ExecContext(ctx, tx.store.rebind(query), args...)
+}
+
+func (tx *storeTx) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return tx.tx.QueryContext(ctx, tx.store.rebind(query), args...)
+}
+
+func (tx *storeTx) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return tx.tx.QueryRowContext(ctx, tx.store.rebind(query), args...)
+}
+
+func (tx *storeTx) Commit() error   { return tx.tx.Commit() }
+func (tx *storeTx) Rollback() error { return tx.tx.Rollback() }
+
 // StoredConnector is one persisted admin connector.
 type StoredConnector struct {
 	Config         smppc.Config
@@ -120,7 +236,7 @@ type StoredConnector struct {
 
 // ListConnectors returns every persisted admin connector, ordered by cid.
 func (s *Store) ListConnectors(ctx context.Context) ([]StoredConnector, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT config_json, desired_started FROM admin_connectors ORDER BY cid`)
+	rows, err := s.queryContext(ctx, `SELECT config_json, desired_started FROM admin_connectors ORDER BY cid`)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list connectors: %w", err)
 	}
@@ -145,7 +261,7 @@ func (s *Store) ListConnectors(ctx context.Context) ([]StoredConnector, error) {
 func (s *Store) GetConnector(ctx context.Context, cid string) (StoredConnector, error) {
 	var configJSON string
 	var started int
-	err := s.db.QueryRowContext(ctx, `SELECT config_json, desired_started FROM admin_connectors WHERE cid=?`, cid).Scan(&configJSON, &started)
+	err := s.queryRowContext(ctx, `SELECT config_json, desired_started FROM admin_connectors WHERE cid=?`, cid).Scan(&configJSON, &started)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StoredConnector{}, ErrConnectorNotFound
 	}
@@ -169,7 +285,7 @@ func (s *Store) UpsertConnector(ctx context.Context, connector StoredConnector, 
 	if connector.DesiredStarted {
 		started = 1
 	}
-	_, err = s.db.ExecContext(ctx,
+	_, err = s.execContext(ctx,
 		`INSERT INTO admin_connectors (cid, config_json, desired_started, updated_at) VALUES (?, ?, ?, ?)
 		 ON CONFLICT(cid) DO UPDATE SET config_json=excluded.config_json, desired_started=excluded.desired_started, updated_at=excluded.updated_at`,
 		connector.Config.CID, string(configJSON), started, now)
@@ -185,7 +301,7 @@ func (s *Store) SetDesiredStarted(ctx context.Context, cid string, started bool,
 	if started {
 		flag = 1
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE admin_connectors SET desired_started=?, updated_at=? WHERE cid=?`, flag, now, cid)
+	result, err := s.execContext(ctx, `UPDATE admin_connectors SET desired_started=?, updated_at=? WHERE cid=?`, flag, now, cid)
 	if err != nil {
 		return fmt.Errorf("admin: set desired_started %q: %w", cid, err)
 	}
@@ -198,7 +314,7 @@ func (s *Store) SetDesiredStarted(ctx context.Context, cid string, started bool,
 
 // DeleteConnector removes an admin connector.
 func (s *Store) DeleteConnector(ctx context.Context, cid string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM admin_connectors WHERE cid=?`, cid)
+	result, err := s.execContext(ctx, `DELETE FROM admin_connectors WHERE cid=?`, cid)
 	if err != nil {
 		return fmt.Errorf("admin: delete connector %q: %w", cid, err)
 	}

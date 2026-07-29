@@ -71,6 +71,7 @@ script-files = [
     "jasmin/bin/dlrd.py",
     "jasmin/bin/dlrlookupd.py",
     "jasmin/bin/deliversmd.py",
+    "jasmin/bin/pbfacaded.py",
 ]
 
 [tool.setuptools.packages.find]

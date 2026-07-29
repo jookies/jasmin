@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -17,6 +18,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -34,13 +36,49 @@ const (
 // /secure/sendbatch is registered only when WithBatchContext is supplied,
 // because its asynchronous work must have an explicit process lifetime.
 func NewHandler(legacy http.Handler, options ...Option) http.Handler {
+	handlers, err := NewHandlers(legacy, options...)
+	if err != nil {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			writeAPIError(w, http.StatusServiceUnavailable, "REST API unavailable", err.Error(), "")
+		})
+	}
+	return handlers.Combined
+}
+
+// Handlers exposes two views over one durable dispatcher: Combined preserves
+// the legacy /ping while mounting /secure/* on the public HTTP listener;
+// Daemon implements the historical standalone REST listener, including its
+// JSON-wrapped /ping contract.
+type Handlers struct {
+	Combined   http.Handler
+	Daemon     http.Handler
+	dispatcher *batchDispatcher
+}
+
+// Close cancels in-flight task/callback work and waits until both workers have
+// stopped. Pending or leased work remains durable for the next process.
+func (handlers *Handlers) Close() {
+	if handlers != nil && handlers.dispatcher != nil {
+		handlers.dispatcher.close()
+	}
+}
+
+// NewHandlers builds the combined and standalone REST views. Production uses
+// the error-returning constructor so durable recovery failures stop startup.
+func NewHandlers(legacy http.Handler, options ...Option) (Handlers, error) {
 	if legacy == nil {
 		legacy = http.NotFoundHandler()
 	}
 	settings := handlerOptions{
-		callbackClient:  http.DefaultClient,
-		batchThroughput: 8,
-		smartQoS:        true,
+		callbackClient:      &http.Client{Timeout: 30 * time.Second},
+		batchThroughput:     8,
+		smartQoS:            true,
+		batchStore:          NewMemoryBatchStore(),
+		maxPending:          10000,
+		maxAttempts:         3,
+		retryDelay:          time.Second,
+		callbackMaxAttempts: 5,
+		callbackRetryDelay:  time.Second,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -49,25 +87,46 @@ func NewHandler(legacy http.Handler, options ...Option) http.Handler {
 	}
 	handler := &handler{legacy: legacy}
 	if settings.batchContext != nil {
-		handler.batch = newBatchDispatcher(
+		var err error
+		handler.batch, err = newBatchDispatcher(
 			settings.batchContext,
 			legacy,
 			settings.callbackClient,
+			settings.batchStore,
 			settings.batchThroughput,
 			settings.smartQoS,
+			settings.maxPending,
+			settings.maxAttempts,
+			settings.retryDelay,
+			settings.callbackMaxAttempts,
+			settings.callbackRetryDelay,
 		)
+		if err != nil {
+			return Handlers{}, err
+		}
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/secure/send", handler.send)
-	if handler.batch != nil {
-		mux.HandleFunc("/secure/sendbatch", handler.sendBatch)
+	combined := http.NewServeMux()
+	daemon := http.NewServeMux()
+	for _, mux := range []*http.ServeMux{combined, daemon} {
+		mux.HandleFunc("/secure/send", handler.send)
+		if handler.batch != nil {
+			mux.HandleFunc("/secure/sendbatch", handler.sendBatch)
+		}
+		mux.HandleFunc("/secure/balance", handler.balance)
+		mux.HandleFunc("/secure/rate", handler.rate)
+		mux.HandleFunc("/secure/", handler.notFound)
 	}
-	mux.HandleFunc("/secure/balance", handler.balance)
-	mux.HandleFunc("/secure/rate", handler.rate)
-	mux.HandleFunc("/secure/", handler.notFound)
-	mux.Handle("/", legacy)
-	return mux
+	combined.Handle("/", legacy)
+	daemon.HandleFunc("/ping", handler.ping)
+	daemon.HandleFunc("/", handler.publicNotFound)
+	return Handlers{Combined: combined, Daemon: daemon, dispatcher: handler.batch}, nil
 }
+
+/*
+	The secure route list is intentionally shared by Combined and Daemon above;
+	the only differing resource is /ping. Keeping two dispatchers would double
+	the configured per-worker throughput and race callback recovery.
+*/
 
 type handler struct {
 	legacy http.Handler
@@ -75,10 +134,16 @@ type handler struct {
 }
 
 type handlerOptions struct {
-	batchContext    context.Context
-	callbackClient  *http.Client
-	batchThroughput float64
-	smartQoS        bool
+	batchContext        context.Context
+	callbackClient      *http.Client
+	batchStore          BatchStore
+	batchThroughput     float64
+	smartQoS            bool
+	maxPending          int
+	maxAttempts         int
+	retryDelay          time.Duration
+	callbackMaxAttempts int
+	callbackRetryDelay  time.Duration
 }
 
 // Option customises the REST facade.
@@ -102,6 +167,44 @@ func WithBatchQoS(throughput float64, smart bool) Option {
 			options.batchThroughput = throughput
 		}
 		options.smartQoS = smart
+	}
+}
+
+// WithBatchStore enables durable admission and restart recovery. The gateway
+// supplies PostgreSQL; tests may retain one MemoryBatchStore across handlers.
+func WithBatchStore(store BatchStore) Option {
+	return func(options *handlerOptions) {
+		if store != nil {
+			options.batchStore = store
+		}
+	}
+}
+
+// WithBatchLimits configures durable backlog, submit retry, and callback retry
+// limits. Values must be positive; invalid values retain safe defaults.
+func WithBatchLimits(
+	maxPending int,
+	maxAttempts int,
+	retryDelay time.Duration,
+	callbackMaxAttempts int,
+	callbackRetryDelay time.Duration,
+) Option {
+	return func(options *handlerOptions) {
+		if maxPending > 0 {
+			options.maxPending = maxPending
+		}
+		if maxAttempts > 0 {
+			options.maxAttempts = maxAttempts
+		}
+		if retryDelay >= 0 {
+			options.retryDelay = retryDelay
+		}
+		if callbackMaxAttempts > 0 {
+			options.callbackMaxAttempts = callbackMaxAttempts
+		}
+		if callbackRetryDelay >= 0 {
+			options.callbackRetryDelay = callbackRetryDelay
+		}
 	}
 }
 
@@ -179,12 +282,24 @@ func (h *handler) sendBatch(w http.ResponseWriter, request *http.Request) {
 				"Got unparseable json data: "+err.Error(), "")
 			return
 		}
-		batch, buildErr := buildBatch(payload, username, password)
+		batch, buildErr := buildBatch(payload, username, password, h.batch.maxPending)
 		if buildErr != nil {
-			writeAPIError(w, http.StatusPreconditionFailed, buildErr.title, buildErr.description, "")
+			status := buildErr.status
+			if status == 0 {
+				status = http.StatusPreconditionFailed
+			}
+			writeAPIError(w, status, buildErr.title, buildErr.description, "")
 			return
 		}
-		h.batch.dispatch(batch)
+		if err := h.batch.dispatch(batch); err != nil {
+			if errors.Is(err, ErrBatchQueueFull) {
+				writeAPIError(w, http.StatusTooManyRequests, "Batch queue is full",
+					"The durable sendbatch backlog has reached its configured limit.", "")
+				return
+			}
+			writeAPIError(w, http.StatusServiceUnavailable, "Cannot persist batch", err.Error(), "")
+			return
+		}
 		data := map[string]any{
 			"batchId":      batch.id,
 			"messageCount": len(batch.tasks),
@@ -196,6 +311,34 @@ func (h *handler) sendBatch(w http.ResponseWriter, request *http.Request) {
 	})
 }
 
+func (h *handler) ping(w http.ResponseWriter, request *http.Request) {
+	if !acceptsJSON(request.Header.Get("Accept")) {
+		writeAPIError(w, http.StatusUnsupportedMediaType, "Unsupported media type",
+			"This API supports JSON media type only.", documentation)
+		return
+	}
+	if request.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet+", OPTIONS")
+		writeAPIError(w, http.StatusMethodNotAllowed, "405 Method Not Allowed", "", "")
+		return
+	}
+	upstream := request.Clone(request.Context())
+	upstream.Method = http.MethodGet
+	upstream.URL = &url.URL{Path: "/ping"}
+	upstream.RequestURI = "/ping"
+	h.proxy(w, upstream)
+}
+
+func (h *handler) publicNotFound(w http.ResponseWriter, request *http.Request) {
+	if !acceptsJSON(request.Header.Get("Accept")) {
+		writeAPIError(w, http.StatusUnsupportedMediaType, "Unsupported media type",
+			"This API supports JSON media type only.", documentation)
+		return
+	}
+	writeAPIError(w, http.StatusNotFound, "Resource not found",
+		fmt.Sprintf("No REST resource is registered for %s.", request.URL.Path), "")
+}
+
 func (h *handler) authenticateBatch(request *http.Request, username, password string) error {
 	values := make(url.Values, 2)
 	values.Set("username", username)
@@ -204,6 +347,19 @@ func (h *handler) authenticateBatch(request *http.Request, username, password st
 	upstream.Method = http.MethodGet
 	upstream.URL = &url.URL{Path: "/balance", RawQuery: values.Encode()}
 	upstream.RequestURI = upstream.URL.RequestURI()
+	// Clone retains the sendbatch POST body and Content-Type. The real legacy
+	// handler selects JSON parsing from that header, so without clearing both
+	// it decodes the batch document instead of the credential query and reports
+	// a false authentication failure. This probe is a distinct bodyless GET.
+	upstream.Body = http.NoBody
+	upstream.GetBody = nil
+	upstream.ContentLength = 0
+	upstream.Form = nil
+	upstream.PostForm = nil
+	upstream.MultipartForm = nil
+	upstream.Header = request.Header.Clone()
+	upstream.Header.Del("Content-Type")
+	upstream.Header.Del("Content-Length")
 	response := newCapture()
 	h.legacy.ServeHTTP(response, upstream)
 	if response.statusCode() != http.StatusOK {

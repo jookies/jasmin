@@ -1,8 +1,10 @@
 # ADR-001 — Embedded SQLite for the admin provisioning store
 
 - **Date:** 2026-07-26
-- **Status:** active
-- **Summary:** The runtime provisioning plane (admin-created connectors, later routes/users) persists to an embedded pure-Go SQLite database, applied live through the existing managers. This records why SQLite over Postgres or Redis, and the boundary it draws.
+- **Status:** accepted for single-node; HA storage superseded by ADR-005
+- **Summary:** The runtime provisioning plane uses embedded pure-Go SQLite for
+  local, test and single-node deployments. ADR-005 selects namespace-isolated
+  PostgreSQL for the active-passive HA control plane.
 
 ## Context
 
@@ -23,7 +25,9 @@ Persist admin provisioning state in **embedded SQLite** via the pure-Go `modernc
 
 ## Consequences
 
-- **Gateway-node-local provisioning.** SQLite is single-node. A multi-node gateway or one that must share provisioning with the legacy stack needs a networked store (Postgres/Redis) — a future ADR. For the single-gateway shadow/prod-test target (plans 007/008) node-local is correct and simplest.
+- **Gateway-node-local provisioning.** SQLite remains single-node. When HA is
+  configured, the gateway automatically opens the PostgreSQL adapter approved
+  by ADR-005 and ignores `admin.db_path`.
 - **Single writer.** SQLite allows one writer; the store uses `SetMaxOpenConns(1)` and the service serialises mutations. The admin plane is low-traffic, so this is a non-issue.
 - **New dependency** `modernc.org/sqlite` (pure Go) plus its transitive modules. No CGO, no system libsqlite.
 - **jCli byte-parity console remains deferred** — this ADR covers the HTTP provisioning API and its store, not the legacy interactive console.

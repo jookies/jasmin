@@ -34,7 +34,12 @@ func (r *SQLiteSubmitTransactionRepository) BillingApplied(ctx context.Context, 
 }
 
 func (r *SQLiteSubmitTransactionRepository) MarkBillingApplied(ctx context.Context, eventKey string, appliedAt time.Time) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE submit_billing_intents SET applied_at=COALESCE(applied_at,?) WHERE event_key=?`, nanos(appliedAt.UTC()), eventKey)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE submit_billing_intents SET applied_at=COALESCE(applied_at,?) WHERE event_key=?`, nanos(appliedAt.UTC()), eventKey)
 	if err != nil {
 		return err
 	}
@@ -45,7 +50,26 @@ func (r *SQLiteSubmitTransactionRepository) MarkBillingApplied(ctx context.Conte
 	if rows != 1 {
 		return fmt.Errorf("billing intent %q not found", eventKey)
 	}
-	return nil
+	if err = recordSQLiteLateBillingOutcome(ctx, tx, eventKey, cdr.BillingApplied, appliedAt.UTC()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *SQLiteSubmitTransactionRepository) MarkBillingRejected(ctx context.Context, eventKey string, rejectedAt time.Time) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var exists bool
+	if err = tx.QueryRowContext(ctx, `SELECT 1 FROM submit_billing_intents WHERE event_key=?`, eventKey).Scan(&exists); err != nil {
+		return err
+	}
+	if err = recordSQLiteLateBillingOutcome(ctx, tx, eventKey, cdr.BillingRejected, rejectedAt.UTC()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 const sqliteSubmitTransactionSchema = `

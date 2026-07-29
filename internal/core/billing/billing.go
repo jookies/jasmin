@@ -614,6 +614,13 @@ func validateBill(bill Bill) error {
 	return nil
 }
 
+// ValidateBill applies the same finite, non-negative constraints used by quota
+// admission without mutating a user. Trusted downstream compatibility inputs
+// use it before carrying a caller-supplied bill into durable envelopes.
+func ValidateBill(bill Bill) error {
+	return validateBill(bill)
+}
+
 func cloneFloat64(value *float64) *float64 {
 	if value == nil {
 		return nil

@@ -274,6 +274,9 @@ func (h *handler) send(w http.ResponseWriter, r *http.Request) {
 		writePlainError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if trusted, ok := batchSubmitFromContext(r.Context(), username); ok {
+		req.MessageID = trusted.messageID
+	}
 
 	// 3b. custom_tlvs front door. Runs after authentication, like the legacy
 	// route_routable; a normalization error there escapes as a generic
@@ -477,7 +480,18 @@ func (h *handler) authenticate(
 		h.authenticationFailure(w, username, contentType)
 		return false
 	}
-	if err := h.dependencies.Authenticator.Authenticate(r.Context(), username, password); err != nil {
+	var err error
+	if trusted, ok := batchSubmitFromContext(r.Context(), username); ok {
+		digests, supported := h.dependencies.Authenticator.(core.DigestAuthenticator)
+		if !supported {
+			h.authenticationFailure(w, username, contentType)
+			return false
+		}
+		err = digests.AuthenticateDigest(r.Context(), username, trusted.digest)
+	} else {
+		err = h.dependencies.Authenticator.Authenticate(r.Context(), username, password)
+	}
+	if err != nil {
 		if errors.Is(err, core.ErrAuthentication) {
 			h.authenticationFailure(w, username, contentType)
 			return false

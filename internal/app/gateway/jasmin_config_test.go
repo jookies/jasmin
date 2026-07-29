@@ -29,6 +29,7 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 		"log_level = ERROR\nlog_file = /srv/log/amqp.log\nlog_rotate = W0\n"+
 		"[redis-client]\nhost = redis-x\nport = 6380\n"+
 		"[http-api]\nbind = 10.0.0.5\nport = 8080\nlog_file = /srv/log/http.log\naccess_log = /srv/log/access.log\n"+
+		"[rest-api]\nhttp_throughput_per_worker = 17\nsmart_qos = no\n"+
 		"[router]\nlog_file = /srv/log/router.log\n"+
 		"[dlr]\nlog_file = /srv/log/dlr.log\n"+
 		"[dlr-thrower]\nhttp_timeout = 12\nmax_retries = 7\nlog_file = /srv/log/dlrt.log\n"+
@@ -52,6 +53,9 @@ func TestApplyJasminOverlaysInfraAndEnabledWorkers(t *testing.T) {
 	}
 	if cfg.Outbound.ListenAddress != "10.0.0.5:8080" {
 		t.Errorf("ListenAddress = %q", cfg.Outbound.ListenAddress)
+	}
+	if cfg.REST.EffectiveHTTPThroughputPerWorker() != 17 || cfg.REST.EffectiveSmartQoS() {
+		t.Errorf("REST QoS overlay diverges: %+v", cfg.REST)
 	}
 	if cfg.DLRThrower.HTTPTimeoutSeconds != 12 || cfg.DLRThrower.MaxRetries != 7 {
 		t.Errorf("DLRThrower overlay diverges: %+v", cfg.DLRThrower)

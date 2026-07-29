@@ -4,9 +4,21 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
 )
+
+type finalCDRRecorder struct {
+	values []cdr.FinalDLR
+	err    error
+}
+
+func (recorder *finalCDRRecorder) RecordFinalDLR(_ context.Context, value cdr.FinalDLR) error {
+	recorder.values = append(recorder.values, value)
+	return recorder.err
+}
 
 // TestDeliver_EndToEnd_HTTP runs both legs: the submit_sm_resp leg installs the mapping,
 // then the deliver_sm leg resolves it, forwards the level-2 receipt, and deletes the DLR.
@@ -45,6 +57,52 @@ func TestDeliver_EndToEnd_HTTP(t *testing.T) {
 	}
 	if !dlrDeleted(t, client, "q") {
 		t.Error("DELIVRD is final: dlr must be deleted")
+	}
+}
+
+func TestDeliver_FinalCDRIsRecordedBeforeCorrelationCleanup(t *testing.T) {
+	recorder := &finalCDRRecorder{}
+	now := time.Date(2026, 7, 29, 14, 30, 0, 0, time.UTC)
+	c, client, publisher := newCorrelator(t, Config{})
+	c.cdr = recorder
+	c.now = func() time.Time { return now }
+	ctx := context.Background()
+	writeHTTPDLR(t, client, "q-cdr", 2)
+	if err := c.OnSubmitResp(ctx, SubmitRespEvent{
+		QueueMsgID: "q-cdr", SMPPMsgID: "ABC", Status: "ESME_ROK",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	event := DeliverReceiptEvent{
+		RawDLRID: "abc", Base: MsgIDBaseSame, ConnectorID: "smsc-a",
+		Status: "UNDELIV", DoneDate: "2607291430", Err: "404",
+	}
+	recorder.err = errors.New("postgres unavailable")
+	if err := c.OnDeliverReceipt(ctx, event); !errors.Is(err, recorder.err) {
+		t.Fatalf("record failure=%v", err)
+	}
+	if dlrDeleted(t, client, "q-cdr") {
+		t.Fatal("correlation record deleted before durable CDR commit")
+	}
+	recorder.err = nil
+	if err := c.OnDeliverReceipt(ctx, event); err != nil {
+		t.Fatal(err)
+	}
+	if !dlrDeleted(t, client, "q-cdr") {
+		t.Fatal("correlation record retained after durable CDR commit")
+	}
+	if len(recorder.values) != 2 {
+		t.Fatalf("recorder calls=%d want retry", len(recorder.values))
+	}
+	if len(publisher.forwards) != 1 {
+		t.Fatalf("callback forwards=%d want one after durable settlement", len(publisher.forwards))
+	}
+	got := recorder.values[1]
+	if got.QueueMessageID != "q-cdr" || got.ConnectorID != "smsc-a" ||
+		got.Status != "UNDELIV" || got.Error != "404" ||
+		got.DoneAt == nil || !got.DoneAt.Equal(time.Date(2026, 7, 29, 14, 30, 0, 0, time.UTC)) ||
+		!got.ReceivedAt.Equal(now) {
+		t.Fatalf("final CDR=%+v", got)
 	}
 }
 

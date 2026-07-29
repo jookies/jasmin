@@ -86,6 +86,40 @@ type Result struct {
 	hasReference         bool
 }
 
+// PreservedPart is one already-segmented submit_sm from a trusted protocol
+// boundary. Preserve builds the orchestration Part list without changing its
+// short_message bytes or per-PDU vendor TLVs; SAR/UDH metadata stays in the
+// accompanying raw submit_sm body used by the envelope builder.
+type PreservedPart struct {
+	ShortMessage []byte
+	CustomTLVs   []tlv.TLV
+}
+
+// Preserve returns an ordered Result for a caller-supplied multipart chain.
+// It exists for frozen SMPPClientManagerPB, whose SubmitSM.nextPdu chain is
+// already segmented and must never be flattened or segmented a second time.
+func Preserve(values []PreservedPart) (Result, error) {
+	if len(values) == 0 || len(values) > 255 {
+		return Result{}, ErrInvalidMaxParts
+	}
+	parts := make([]Part, 0, len(values))
+	consumed := 0
+	for index, value := range values {
+		if len(value.ShortMessage) > MaxPayloadBytes-consumed {
+			return Result{}, ErrPayloadTooLarge
+		}
+		message := cloneBytes(value.ShortMessage)
+		parts = append(parts, Part{
+			sequence:     uint8(index + 1),
+			payload:      cloneBytes(message),
+			shortMessage: message,
+			customTLVs:   cloneCustomTLVs(value.CustomTLVs),
+		})
+		consumed += len(message)
+	}
+	return Result{parts: parts, consumedPayloadBytes: consumed}, nil
+}
+
 func Classify(dataCoding uint8) Classification {
 	switch dataCoding {
 	case 3, 6, 7, 10:

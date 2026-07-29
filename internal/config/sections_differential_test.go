@@ -229,6 +229,55 @@ func TestListenerSectionsDifferentialAgainstLegacy(t *testing.T) {
 	}
 }
 
+const restAPIOracleScript = `
+import json, sys, tempfile, os
+from jasmin.protocols.rest.config import RestAPIForJasminConfig
+text = sys.stdin.read()
+path = tempfile.mktemp(suffix=".cfg")
+open(path, "w").write(text)
+r = RestAPIForJasminConfig(path)
+os.remove(path)
+print(json.dumps({
+    "throughput": r.http_throughput_per_worker,
+    "smart_qos": r.smart_qos,
+}))
+`
+
+func TestRESTAPIQoSDifferentialAgainstLegacy(t *testing.T) {
+	pythonPath := os.Getenv("PYTHON_PATH")
+	if pythonPath == "" {
+		t.Skip("PYTHON_PATH is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	text := "[rest-api]\nhttp_throughput_per_worker = 17\nsmart_qos = no\nlog_file = stdout\n"
+	command := exec.CommandContext(ctx, pythonPath, "-c", restAPIOracleScript)
+	command.Env = append(os.Environ(), "PYTHONPATH=../..", "LOG_PATH="+t.TempDir())
+	command.Stdin = bytes.NewReader([]byte(text))
+	output, err := command.Output()
+	if err != nil {
+		t.Fatalf("oracle: %v (%s)", err, output)
+	}
+	var oracle struct {
+		Throughput int  `json:"throughput"`
+		SmartQoS   bool `json:"smart_qos"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(output), &oracle); err != nil {
+		t.Fatalf("oracle output %q: %v", output, err)
+	}
+	file, err := config.ParseString(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rest, err := config.LoadRESTAPI(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rest.HTTPThroughputPerWorker != oracle.Throughput || rest.SmartQoS != oracle.SmartQoS {
+		t.Fatalf("rest-api diverges:\n  go %+v\n  py %+v", rest, oracle)
+	}
+}
+
 const dlrListenerOracleScript = `
 import json, sys, tempfile, os, logging
 from jasmin.managers.configs import DLRLookupConfig, SMPPClientSMListenerConfig

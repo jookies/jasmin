@@ -182,6 +182,28 @@ func TestLoadHTTPAPIEnvDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadRESTAPIBatchQoS(t *testing.T) {
+	file := mustParse(t, "[rest-api]\nhttp_throughput_per_worker = 21\nsmart_qos = no\n")
+	rest, err := LoadRESTAPI(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rest.HTTPThroughputPerWorker != 21 || rest.SmartQoS {
+		t.Fatalf("rest-api fields = %+v", rest)
+	}
+	defaults, err := LoadRESTAPI(mustParse(t, "[other]\nx=1\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.HTTPThroughputPerWorker != 8 || !defaults.SmartQoS {
+		t.Fatalf("rest-api defaults = %+v", defaults)
+	}
+	if _, err = LoadRESTAPI(mustParse(t,
+		"[rest-api]\nhttp_throughput_per_worker = -1\n")); err == nil {
+		t.Fatal("negative REST throughput accepted")
+	}
+}
+
 func TestLoadDLR(t *testing.T) {
 	file := mustParse(t, "[dlr]\npid = worker2\ndlr_lookup_retry_delay = 15\ndlr_lookup_max_retries = 5\nsmpp_receipt_on_success_submit_sm_resp = yes\n")
 	dlr, err := LoadDLR(file)

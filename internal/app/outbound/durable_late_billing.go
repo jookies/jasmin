@@ -14,6 +14,7 @@ import (
 type billingApplicationRepository interface {
 	BillingApplied(context.Context, string) (bool, error)
 	MarkBillingApplied(context.Context, string, time.Time) error
+	MarkBillingRejected(context.Context, string, time.Time) error
 }
 
 // durableLateBillingProcessor gives the current in-memory balance projection a
@@ -76,8 +77,20 @@ func (processor *durableLateBillingProcessor) Process(envelope amqpcompat.Envelo
 		return core.LateBillingAck, nil
 	}
 	action, err := processor.next.Process(envelope)
-	if err != nil || action != core.LateBillingAck {
+	if err != nil {
 		return action, err
+	}
+	if action == core.LateBillingReject {
+		ctx, cancel = billingLedgerContext()
+		err = processor.repository.MarkBillingRejected(ctx, eventKey, time.Now())
+		cancel()
+		if err != nil {
+			return core.LateBillingNone, err
+		}
+		return action, nil
+	}
+	if action != core.LateBillingAck {
+		return action, nil
 	}
 	// Keep the guard before the database mark: if the mark transiently fails,
 	// redelivery in this process must retry only the mark, not mutate balance

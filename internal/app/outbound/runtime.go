@@ -16,6 +16,7 @@ import (
 
 	"github.com/pumpitspace/jasmin/internal/core"
 	"github.com/pumpitspace/jasmin/internal/core/billing"
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/core/interceptor"
 	"github.com/pumpitspace/jasmin/internal/core/routingfilter"
 	"github.com/pumpitspace/jasmin/internal/core/routingtable"
@@ -32,18 +33,21 @@ import (
 // Runtime owns the production outbound composition and all long-lived
 // resources used by the HTTP → routing → billing → RabbitMQ path.
 type Runtime struct {
-	Handler http.Handler
+	Handler     http.Handler
+	RESTHandler http.Handler
 
-	submitter    core.Submitter
-	directory    *runtimeDirectory
-	publisher    *amqpcompat.Publisher
-	bridge       picklecompat.Codec
-	connection   *amqp.Connection
-	billing      *lateBillingConsumer
-	outboxCancel context.CancelFunc
-	outboxWG     sync.WaitGroup
-	ownedBridge  bool
-	ownedStore   *storage.PostgresSubmitTransactionRepository
+	submitter           core.Submitter
+	directory           *runtimeDirectory
+	publisher           *amqpcompat.Publisher
+	bridge              picklecompat.Codec
+	connection          *amqp.Connection
+	billing             *lateBillingConsumer
+	outboxCancel        context.CancelFunc
+	outboxWG            sync.WaitGroup
+	ownedBridge         bool
+	ownedStore          *storage.PostgresSubmitTransactionRepository
+	ownedRESTBatchStore *storage.PostgresRESTBatchStore
+	restClose           func()
 
 	// Durable billing quotas: the persister flushes mutated balances and
 	// submit_sm_count quotas so a restart cannot refund what a customer spent.
@@ -55,6 +59,9 @@ type Runtime struct {
 	quotaCancel      context.CancelFunc
 	quotaWG          sync.WaitGroup
 	quotaFlushOnStop time.Duration
+	cdrService       *cdr.Service
+	cdrCancel        context.CancelFunc
+	cdrWG            sync.WaitGroup
 
 	// Live routing: the submit path selects through routes (atomic); admin
 	// route provisioning rebuilds config + admin routes and swaps it. mu
@@ -117,11 +124,20 @@ type RuntimeDependencies struct {
 	// sink the failures are silent, matching how the outbox dispatcher behaves.
 	QuotaPersistErrors func(error)
 
+	// RESTBatchStore is the durable /secure/sendbatch task and callback queue.
+	// Gateway production wiring supplies PostgreSQL. Tests that omit it use an
+	// in-memory store; standalone NewRuntime opens PostgreSQL itself.
+	RESTBatchStore restcompat.BatchStore
+	RESTConfig     restcompat.Config
+
 	// Named component loggers are built once by the gateway so file rotation is
 	// not split across multiple writers for the same legacy log_file.
 	RouterLogger     *slog.Logger
 	HTTPLogger       *slog.Logger
 	HTTPAccessLogger *slog.Logger
+	// CDRAlert observes every periodic reconciliation report. Nonzero issue
+	// counts are production alerts and are never auto-corrected.
+	CDRAlert func(cdr.ReconciliationReport)
 }
 
 // NewRuntime is the standalone production composition. It never falls back to
@@ -150,19 +166,35 @@ func NewRuntime(ctx context.Context, config Config) (*Runtime, error) {
 		_ = repository.Close()
 		return nil, fmt.Errorf("recover submit attempts: %w", err)
 	}
+	restBatchStore, err := storage.OpenPostgresRESTBatchStore(ctx, config.PostgresDSN)
+	if err != nil {
+		_ = repository.Close()
+		return nil, fmt.Errorf("open REST batch store: %w", err)
+	}
+	if err = restBatchStore.Migrate(ctx); err != nil {
+		_ = restBatchStore.Close()
+		_ = repository.Close()
+		return nil, err
+	}
 	bridge, err := picklecompat.NewBridge(ctx, config.PythonPath)
 	if err != nil {
+		_ = restBatchStore.Close()
 		_ = repository.Close()
 		return nil, fmt.Errorf("start trusted pickle bridge: %w", err)
 	}
-	runtime, err := NewRuntimeWithDependencies(ctx, config, RuntimeDependencies{Bridge: bridge, Transactions: transactions, Repository: repository})
+	runtime, err := NewRuntimeWithDependencies(ctx, config, RuntimeDependencies{
+		Bridge: bridge, Transactions: transactions, Repository: repository,
+		RESTBatchStore: restBatchStore,
+	})
 	if err != nil {
 		_ = bridge.Close()
+		_ = restBatchStore.Close()
 		_ = repository.Close()
 		return nil, err
 	}
 	runtime.ownedBridge = true
 	runtime.ownedStore = repository
+	runtime.ownedRESTBatchStore = restBatchStore
 	return runtime, nil
 }
 
@@ -170,12 +202,34 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	if err := validateConfig(config); err != nil {
 		return nil, err
 	}
+	if err := dependencies.RESTConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidRuntimeConfig, err)
+	}
 	if dependencies.Bridge == nil || dependencies.Transactions == nil || dependencies.Repository == nil {
 		return nil, fmt.Errorf("%w: bridge, transactions and PostgreSQL repository are required", ErrInvalidRuntimeConfig)
 	}
 	if _, err := submittransaction.RequireProductionRepository(dependencies.Repository); err != nil {
 		return nil, err
 	}
+	restBatchStore := dependencies.RESTBatchStore
+	var ownedRESTBatchStore *storage.PostgresRESTBatchStore
+	if restBatchStore == nil {
+		opened, err := storage.OpenPostgresRESTBatchStore(ctx, config.PostgresDSN)
+		if err != nil {
+			return nil, fmt.Errorf("open REST batch store: %w", err)
+		}
+		if err = opened.Migrate(ctx); err != nil {
+			_ = opened.Close()
+			return nil, err
+		}
+		ownedRESTBatchStore = opened
+		restBatchStore = opened
+	}
+	defer func() {
+		if resultErr != nil && ownedRESTBatchStore != nil {
+			_ = ownedRESTBatchStore.Close()
+		}
+	}()
 	// Durable quotas are resolved before anything else is built: the directory
 	// provisions each user's balance exactly once, and it has to provision the
 	// restored value rather than the spec value.
@@ -212,6 +266,16 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	}
 	directory.defaultRate = defaultRate
 	atomicRoutes := routingtable.NewAtomicTable(routes)
+	cdrRepository, ok := dependencies.Repository.(cdr.OperationsRepository)
+	if !ok {
+		return nil, fmt.Errorf("PostgreSQL repository does not implement CDR operations")
+	}
+	cdrService, err := cdr.NewService(cdrRepository, cdr.RetentionPolicy{
+		Days: config.CDRRetentionDays, BatchSize: resolvedCDRRetentionBatch(config),
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create CDR operations service: %w", err)
+	}
 
 	connection, err := amqp.Dial(config.AMQPURL)
 	if err != nil {
@@ -282,6 +346,7 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		SelectConnector:      connectorSelector(dependencies.ConnectorAvailable),
 		ConnectorPDUDefaults: dependencies.ConnectorPDUDefaults,
 		GroupIdentity:        directory.groupIdentity,
+		CDRCurrency:          resolvedCDRCurrency(config),
 		DLRRequestStore:      dependencies.DLRRequestStore,
 		ConnectorDLRExpiry:   dependencies.ConnectorDLRExpiry,
 		Throughput:           newThroughputGate(directory),
@@ -328,7 +393,17 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		Logger:        dependencies.HTTPLogger,
 		AccessLogger:  dependencies.HTTPAccessLogger,
 	})
-	handler := restcompat.NewHandler(legacyHTTPHandler, restcompat.WithBatchContext(ctx))
+	restOptions := []restcompat.Option{restcompat.WithBatchContext(ctx)}
+	restOptions = append(restOptions, dependencies.RESTConfig.Options(restBatchStore)...)
+	restHandlers, err := restcompat.NewHandlers(legacyHTTPHandler, restOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("start REST batch dispatcher: %w", err)
+	}
+	defer func() {
+		if resultErr != nil {
+			restHandlers.Close()
+		}
+	}()
 	outboxOwner, err := newOutboxOwner()
 	if err != nil {
 		return nil, fmt.Errorf("create submit outbox owner: %w", err)
@@ -343,21 +418,25 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 	}
 	outboxCtx, outboxCancel := context.WithCancel(ctx)
 	quotaCtx, quotaCancel := context.WithCancel(ctx)
+	cdrCtx, cdrCancel := context.WithCancel(ctx)
 	runtime := &Runtime{
-		Handler:         handler,
-		submitter:       submitService,
-		directory:       directory,
-		publisher:       publisher,
-		bridge:          dependencies.Bridge,
-		connection:      connection,
-		billing:         billingConsumer,
-		outboxCancel:    outboxCancel,
-		routes:          atomicRoutes,
-		configRoutes:    append([]RouteConfig(nil), config.Routes...),
-		configUsernames: configUsernames(config.Users),
-		configGroupIDs:  configGroupIDs(config.Groups),
-		httpStats:       httpStats,
-		resolveUID:      directory.resolveUID,
+		Handler:             restHandlers.Combined,
+		RESTHandler:         restHandlers.Daemon,
+		restClose:           restHandlers.Close,
+		ownedRESTBatchStore: ownedRESTBatchStore,
+		submitter:           submitService,
+		directory:           directory,
+		publisher:           publisher,
+		bridge:              dependencies.Bridge,
+		connection:          connection,
+		billing:             billingConsumer,
+		outboxCancel:        outboxCancel,
+		routes:              atomicRoutes,
+		configRoutes:        append([]RouteConfig(nil), config.Routes...),
+		configUsernames:     configUsernames(config.Users),
+		configGroupIDs:      configGroupIDs(config.Groups),
+		httpStats:           httpStats,
+		resolveUID:          directory.resolveUID,
 
 		mtInterceptors:       atomicInterceptors,
 		configMTInterceptors: append([]InterceptorConfig(nil), config.MTInterceptors...),
@@ -367,6 +446,8 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		ownedQuotaStore:  ownedQuotaStore,
 		quotaCancel:      quotaCancel,
 		quotaFlushOnStop: shutdownQuotaFlushTimeout,
+		cdrService:       cdrService,
+		cdrCancel:        cdrCancel,
 	}
 	runtime.outboxWG.Add(1)
 	go runtime.runOutbox(outboxCtx, dispatcher)
@@ -375,7 +456,75 @@ func NewRuntimeWithDependencies(ctx context.Context, config Config, dependencies
 		defer runtime.quotaWG.Done()
 		_ = quotaPersister.Run(quotaCtx)
 	}()
+	runtime.cdrWG.Add(1)
+	go func() {
+		defer runtime.cdrWG.Done()
+		runtime.runCDRMaintenance(cdrCtx, config, dependencies.CDRAlert, dependencies.RouterLogger)
+	}()
 	return runtime, nil
+}
+
+// CDRService exposes the authorization-and-audit enforcing read/export
+// boundary to management transports.
+func (runtime *Runtime) CDRService() *cdr.Service {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.cdrService
+}
+
+func (runtime *Runtime) runCDRMaintenance(
+	ctx context.Context,
+	config Config,
+	alert func(cdr.ReconciliationReport),
+	logger *slog.Logger,
+) {
+	interval := 24 * time.Hour
+	if config.CDRMaintenanceIntervalSeconds > 0 {
+		interval = time.Duration(config.CDRMaintenanceIntervalSeconds) * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	principal := cdr.Principal{Subject: "gateway-maintenance", Roles: []cdr.Role{cdr.RoleOperator}}
+	run := func() {
+		report, err := runtime.cdrService.Reconcile(ctx, principal)
+		if err != nil {
+			if logger != nil && ctx.Err() == nil {
+				logger.Error("CDR reconciliation failed", "error", err)
+			}
+		} else {
+			if alert != nil {
+				alert(report)
+			}
+			if !report.Healthy() && logger != nil {
+				logger.Error("CDR reconciliation mismatch", "issues", report.Issues)
+			}
+		}
+		if config.CDRRetentionDays <= 0 {
+			return
+		}
+		for {
+			result, pruneErr := runtime.cdrService.Prune(ctx, principal)
+			if pruneErr != nil {
+				if logger != nil && ctx.Err() == nil {
+					logger.Error("CDR retention prune failed", "error", pruneErr)
+				}
+				return
+			}
+			if result.Records < int64(resolvedCDRRetentionBatch(config)) {
+				return
+			}
+		}
+	}
+	run()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
+		}
+	}
 }
 
 // PruneDurableQuotas removes spent-quota rows for principals that no longer
@@ -638,6 +787,15 @@ func (runtime *Runtime) Submitter() core.Submitter {
 	return runtime.submitter
 }
 
+// Authenticator exposes the live credential directory through its narrow core
+// contract for trusted management compatibility surfaces.
+func (runtime *Runtime) Authenticator() core.Authenticator {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.directory
+}
+
 // BalanceReader and RateReader expose the live user directory to trusted
 // management surfaces. They deliberately return the narrow core interfaces,
 // not the directory itself, so callers cannot mutate billing state.
@@ -682,6 +840,13 @@ func (runtime *Runtime) Close() error {
 		return nil
 	}
 	var errs []error
+	if runtime.restClose != nil {
+		runtime.restClose()
+	}
+	if runtime.cdrCancel != nil {
+		runtime.cdrCancel()
+		runtime.cdrWG.Wait()
+	}
 	if runtime.outboxCancel != nil {
 		runtime.outboxCancel()
 		runtime.outboxWG.Wait()
@@ -725,6 +890,11 @@ func (runtime *Runtime) Close() error {
 			errs = append(errs, err)
 		}
 	}
+	if runtime.ownedRESTBatchStore != nil {
+		if err := runtime.ownedRESTBatchStore.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	if runtime.ownedStore != nil {
 		if err := runtime.ownedStore.Close(); err != nil {
 			errs = append(errs, err)
@@ -752,12 +922,38 @@ func validateConfig(config Config) error {
 	if config.QuotaPersistIntervalSeconds < 0 {
 		return fmt.Errorf("%w: quota_persist_interval_seconds cannot be negative", ErrInvalidRuntimeConfig)
 	}
+	if config.CDRCurrency != "" {
+		if err := cdr.ValidateCurrency(config.CDRCurrency); err != nil {
+			return fmt.Errorf("%w: cdr_currency must be a three-letter uppercase ISO-4217 code", ErrInvalidRuntimeConfig)
+		}
+	}
+	if config.CDRRetentionDays < 0 || config.CDRRetentionBatchSize < 0 ||
+		config.CDRRetentionBatchSize > 10000 || config.CDRMaintenanceIntervalSeconds < 0 {
+		return fmt.Errorf("%w: invalid CDR retention/maintenance settings", ErrInvalidRuntimeConfig)
+	}
 	for index, route := range config.Routes {
 		if len(route.ConnectorCandidates()) == 0 {
 			return fmt.Errorf("%w: route %d has no connectors", ErrInvalidRuntimeConfig, index)
 		}
 	}
 	return nil
+}
+
+func resolvedCDRCurrency(config Config) string {
+	if config.CDRCurrency == "" {
+		return cdr.DefaultCurrency
+	}
+	return config.CDRCurrency
+}
+
+func resolvedCDRRetentionBatch(config Config) int {
+	if config.CDRRetentionDays <= 0 {
+		return 0
+	}
+	if config.CDRRetentionBatchSize == 0 {
+		return 1000
+	}
+	return config.CDRRetentionBatchSize
 }
 
 func buildRoutes(configs []RouteConfig, resolveUID uidResolver, groupResolvers ...gidResolver) (routingtable.Table, []string, float64, error) {

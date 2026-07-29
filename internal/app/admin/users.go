@@ -21,7 +21,7 @@ type StoredUser struct {
 
 // ListUsers returns every persisted admin user, ordered by uid.
 func (s *Store) ListUsers(ctx context.Context) ([]StoredUser, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT username, uid, spec_json FROM admin_users ORDER BY uid`)
+	rows, err := s.queryContext(ctx, `SELECT username, uid, spec_json FROM admin_users ORDER BY uid`)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list users: %w", err)
 	}
@@ -40,7 +40,7 @@ func (s *Store) ListUsers(ctx context.Context) ([]StoredUser, error) {
 // GetUser returns one persisted admin user by username.
 func (s *Store) GetUser(ctx context.Context, username string) (StoredUser, error) {
 	var user StoredUser
-	err := s.db.QueryRowContext(ctx, `SELECT username, uid, spec_json FROM admin_users WHERE username=?`, username).
+	err := s.queryRowContext(ctx, `SELECT username, uid, spec_json FROM admin_users WHERE username=?`, username).
 		Scan(&user.Username, &user.UID, &user.SpecJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StoredUser{}, ErrUserNotFound
@@ -55,7 +55,7 @@ func (s *Store) GetUser(ctx context.Context, username string) (StoredUser, error
 // assigning the next admin uid above both config and existing admin users.
 func (s *Store) MaxUID(ctx context.Context) (int64, error) {
 	var maxUID sql.NullInt64
-	if err := s.db.QueryRowContext(ctx, `SELECT MAX(uid) FROM admin_users`).Scan(&maxUID); err != nil {
+	if err := s.queryRowContext(ctx, `SELECT MAX(uid) FROM admin_users`).Scan(&maxUID); err != nil {
 		return 0, fmt.Errorf("admin: max uid: %w", err)
 	}
 	if !maxUID.Valid {
@@ -66,7 +66,7 @@ func (s *Store) MaxUID(ctx context.Context) (int64, error) {
 
 // UpsertUser persists (insert or replace) an admin user with its assigned uid.
 func (s *Store) UpsertUser(ctx context.Context, user StoredUser, now string) error {
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.execContext(ctx,
 		`INSERT INTO admin_users (username, uid, spec_json, updated_at) VALUES (?, ?, ?, ?)
 		 ON CONFLICT(username) DO UPDATE SET spec_json=excluded.spec_json, updated_at=excluded.updated_at`,
 		user.Username, user.UID, user.SpecJSON, now)
@@ -78,7 +78,7 @@ func (s *Store) UpsertUser(ctx context.Context, user StoredUser, now string) err
 
 // DeleteUser removes an admin user by username.
 func (s *Store) DeleteUser(ctx context.Context, username string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM admin_users WHERE username=?`, username)
+	result, err := s.execContext(ctx, `DELETE FROM admin_users WHERE username=?`, username)
 	if err != nil {
 		return fmt.Errorf("admin: delete user %q: %w", username, err)
 	}

@@ -15,6 +15,7 @@ type Jasmin struct {
 
 	SMPPServer SMPPServer
 	HTTPAPI    HTTPAPI
+	RESTAPI    RESTAPI
 
 	DLR        DLR
 	SMListener SMListener
@@ -62,6 +63,9 @@ func LoadJasminFile(file *File) (*Jasmin, error) {
 		return nil, err
 	}
 	if jasmin.HTTPAPI, err = LoadHTTPAPI(file); err != nil {
+		return nil, err
+	}
+	if jasmin.RESTAPI, err = LoadRESTAPI(file); err != nil {
 		return nil, err
 	}
 	if jasmin.DLR, err = LoadDLR(file); err != nil {

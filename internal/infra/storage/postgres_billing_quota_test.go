@@ -174,7 +174,7 @@ func TestPostgresQuotaStoreSurvivesRestart(t *testing.T) {
 	provisionedGroup := billing.Quota{Balance: float64Ptr(5000)}
 	persister, err := billing.NewQuotaPersister(store, time.Hour, func() []billing.QuotaPrincipal {
 		return []billing.QuotaPrincipal{
-			{Scope: billing.QuotaScopeGroup, Key: "premium", Provisioned: provisionedGroup},
+			{Scope: billing.QuotaScopeGroup, Key: "premium", Group: group, Provisioned: provisionedGroup},
 			{Scope: billing.QuotaScopeUser, Key: "alice", User: user, GroupKey: "premium", Provisioned: provisionedUser},
 		}
 	}, nil)

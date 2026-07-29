@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
+
+	"github.com/pumpitspace/jasmin/internal/transport/httpcompat"
 )
 
 var relativeSchedule = regexp.MustCompile(`^(\d+)s$`)
@@ -20,6 +25,7 @@ var relativeSchedule = regexp.MustCompile(`^(\d+)s$`)
 type batchBuildError struct {
 	title       string
 	description string
+	status      int
 }
 
 func (err *batchBuildError) Error() string {
@@ -29,50 +35,121 @@ func (err *batchBuildError) Error() string {
 type batchJob struct {
 	id          string
 	delay       time.Duration
+	acceptedAt  time.Time
 	tasks       []batchTask
 	callbackURL string
 	errbackURL  string
 }
 
 type batchTask struct {
-	destination string
-	body        []byte
+	id               string
+	destination      string
+	username         string
+	credentialDigest []byte
+	body             []byte
 }
 
 type batchDispatcher struct {
-	ctx            context.Context
-	legacy         http.Handler
-	callbackClient *http.Client
-	throughput     float64
-	smartQoS       bool
-	queue          chan queuedBatchTask
-}
-
-type queuedBatchTask struct {
-	job  batchJob
-	task batchTask
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	wg                  sync.WaitGroup
+	legacy              http.Handler
+	callbackClient      *http.Client
+	store               BatchStore
+	owner               string
+	throughput          float64
+	smartQoS            bool
+	maxPending          int
+	maxAttempts         int
+	retryDelay          time.Duration
+	callbackMaxAttempts int
+	callbackRetryDelay  time.Duration
+	lease               time.Duration
+	wake                chan struct{}
 }
 
 func newBatchDispatcher(
 	ctx context.Context,
 	legacy http.Handler,
 	callbackClient *http.Client,
+	store BatchStore,
 	throughput float64,
 	smartQoS bool,
-) *batchDispatcher {
+	maxPending int,
+	maxAttempts int,
+	retryDelay time.Duration,
+	callbackMaxAttempts int,
+	callbackRetryDelay time.Duration,
+) (*batchDispatcher, error) {
 	if callbackClient == nil {
-		callbackClient = http.DefaultClient
+		callbackClient = &http.Client{Timeout: 30 * time.Second}
 	}
+	if store == nil {
+		store = NewMemoryBatchStore()
+	}
+	owner, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	workerContext, cancel := context.WithCancel(ctx)
 	dispatcher := &batchDispatcher{
-		ctx: ctx, legacy: legacy, callbackClient: callbackClient,
-		throughput: throughput, smartQoS: smartQoS,
-		queue: make(chan queuedBatchTask, 1024),
+		ctx: workerContext, cancel: cancel, legacy: legacy, callbackClient: callbackClient,
+		store: store, owner: "rest-batch-" + owner,
+		throughput: throughput, smartQoS: smartQoS, maxPending: maxPending,
+		maxAttempts: maxAttempts, retryDelay: retryDelay,
+		callbackMaxAttempts: callbackMaxAttempts, callbackRetryDelay: callbackRetryDelay,
+		lease: 2 * time.Minute, wake: make(chan struct{}, 1),
 	}
-	go dispatcher.work()
-	return dispatcher
+	if _, err = dispatcher.store.RecoverExpired(ctx, time.Now()); err != nil {
+		cancel()
+		return nil, fmt.Errorf("recover REST batch tasks: %w", err)
+	}
+	dispatcher.wg.Add(3)
+	go func() {
+		defer dispatcher.wg.Done()
+		dispatcher.work()
+	}()
+	go func() {
+		defer dispatcher.wg.Done()
+		dispatcher.workCallbacks()
+	}()
+	go func() {
+		defer dispatcher.wg.Done()
+		dispatcher.recoverExpired()
+	}()
+	return dispatcher, nil
 }
 
-func buildBatch(payload map[string]json.RawMessage, username, password string) (batchJob, *batchBuildError) {
+func (dispatcher *batchDispatcher) recoverExpired() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-dispatcher.ctx.Done():
+			return
+		case now := <-ticker.C:
+			if recovered, err := dispatcher.store.RecoverExpired(dispatcher.ctx, now); err == nil && recovered > 0 {
+				dispatcher.signal()
+			}
+		}
+	}
+}
+
+func (dispatcher *batchDispatcher) close() {
+	if dispatcher == nil {
+		return
+	}
+	dispatcher.cancel()
+	dispatcher.wg.Wait()
+}
+
+func buildBatch(
+	payload map[string]json.RawMessage,
+	username string,
+	password string,
+	maxTasks int,
+) (batchJob, *batchBuildError) {
+	now := time.Now()
 	id, err := newUUID()
 	if err != nil {
 		return batchJob{}, &batchBuildError{title: "Cannot create batch", description: err.Error()}
@@ -93,7 +170,7 @@ func buildBatch(payload map[string]json.RawMessage, username, password string) (
 			}
 		}
 	}
-	delay, scheduleErr := parseSchedule(configuration["schedule_at"], time.Now())
+	delay, scheduleErr := parseSchedule(configuration["schedule_at"], now)
 	if scheduleErr != nil {
 		return batchJob{}, scheduleErr
 	}
@@ -101,8 +178,14 @@ func buildBatch(payload map[string]json.RawMessage, username, password string) (
 	if err != nil {
 		return batchJob{}, &batchBuildError{title: "Cannot parse callback_url", description: err.Error()}
 	}
+	if err = validateCallbackURL(callbackURL); err != nil {
+		return batchJob{}, &batchBuildError{title: "Cannot parse callback_url", description: err.Error()}
+	}
 	errbackURL, err := optionalString(configuration["errback_url"])
 	if err != nil {
+		return batchJob{}, &batchBuildError{title: "Cannot parse errback_url", description: err.Error()}
+	}
+	if err = validateCallbackURL(errbackURL); err != nil {
 		return batchJob{}, &batchBuildError{title: "Cannot parse errback_url", description: err.Error()}
 	}
 
@@ -115,8 +198,9 @@ func buildBatch(payload map[string]json.RawMessage, username, password string) (
 		}
 	}
 	job := batchJob{
-		id: id, delay: delay, callbackURL: callbackURL, errbackURL: errbackURL,
+		id: id, delay: delay, acceptedAt: now, callbackURL: callbackURL, errbackURL: errbackURL,
 	}
+	credentialDigest := sha256.Sum256([]byte(password))
 	for _, raw := range messages {
 		var local map[string]json.RawMessage
 		if err = json.Unmarshal(raw, &local); err != nil || local == nil {
@@ -143,14 +227,32 @@ func buildBatch(payload map[string]json.RawMessage, username, password string) (
 			return batchJob{}, &batchBuildError{title: "Cannot parse destination", description: destinationErr.Error()}
 		}
 		for _, destination := range destinations {
+			if maxTasks > 0 && len(job.tasks) >= maxTasks {
+				return batchJob{}, &batchBuildError{
+					title:       "Batch queue is full",
+					description: "The request expands beyond the configured durable batch backlog limit.",
+					status:      http.StatusTooManyRequests,
+				}
+			}
+			taskID, uuidErr := newUUID()
+			if uuidErr != nil {
+				return batchJob{}, &batchBuildError{title: "Cannot create batch task", description: uuidErr.Error()}
+			}
 			message := cloneRawMap(merged)
 			message["to"] = destination.raw
 			translated := translatePayload(message, username, password)
+			// A delayed task carries a credential digest, never the password.
+			// The internal HTTP handler receives an unforgeable trusted context
+			// containing this digest and checks it against the current user.
+			delete(translated, "password")
 			body, marshalErr := json.Marshal(translated)
 			if marshalErr != nil {
 				return batchJob{}, &batchBuildError{title: "Cannot encode message", description: marshalErr.Error()}
 			}
-			job.tasks = append(job.tasks, batchTask{destination: destination.text, body: body})
+			job.tasks = append(job.tasks, batchTask{
+				id: taskID, destination: destination.text, username: username,
+				credentialDigest: append([]byte(nil), credentialDigest[:]...), body: body,
+			})
 		}
 	}
 	return job, nil
@@ -245,6 +347,21 @@ func optionalString(raw json.RawMessage) (string, error) {
 	return value, nil
 }
 
+func validateCallbackURL(value string) error {
+	if value == "" {
+		return nil
+	}
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil {
+		return fmt.Errorf("value must be an absolute HTTP(S) URL")
+	}
+	if (parsed.Scheme != "http" && parsed.Scheme != "https") ||
+		parsed.Host == "" || parsed.User != nil {
+		return fmt.Errorf("value must be an absolute HTTP(S) URL without embedded credentials")
+	}
+	return nil
+}
+
 func cloneRawMap(source map[string]json.RawMessage) map[string]json.RawMessage {
 	result := make(map[string]json.RawMessage, len(source))
 	for key, value := range source {
@@ -253,25 +370,26 @@ func cloneRawMap(source map[string]json.RawMessage) map[string]json.RawMessage {
 	return result
 }
 
-func (dispatcher *batchDispatcher) dispatch(job batchJob) {
-	go func() {
-		if job.delay > 0 {
-			timer := time.NewTimer(job.delay)
-			defer timer.Stop()
-			select {
-			case <-dispatcher.ctx.Done():
-				return
-			case <-timer.C:
-			}
-		}
-		for _, task := range job.tasks {
-			select {
-			case <-dispatcher.ctx.Done():
-				return
-			case dispatcher.queue <- queuedBatchTask{job: job, task: task}:
-			}
-		}
-	}()
+func (dispatcher *batchDispatcher) dispatch(job batchJob) error {
+	availableAt := job.acceptedAt.Add(job.delay)
+	stored := StoredBatch{
+		ID: job.id, AcceptedAt: job.acceptedAt,
+		CallbackURL: job.callbackURL, ErrbackURL: job.errbackURL,
+		Tasks: make([]StoredTask, 0, len(job.tasks)),
+	}
+	for sequence, task := range job.tasks {
+		stored.Tasks = append(stored.Tasks, StoredTask{
+			ID: task.id, BatchID: job.id, Sequence: sequence + 1,
+			Destination: task.destination, Username: task.username,
+			CredentialDigest: append([]byte(nil), task.credentialDigest...),
+			Body:             append([]byte(nil), task.body...), AvailableAt: availableAt,
+		})
+	}
+	if err := dispatcher.store.CreateBatch(dispatcher.ctx, stored, dispatcher.maxPending); err != nil {
+		return err
+	}
+	dispatcher.signal()
+	return nil
 }
 
 func (dispatcher *batchDispatcher) work() {
@@ -279,97 +397,247 @@ func (dispatcher *batchDispatcher) work() {
 	var lastCompleted time.Time
 	var lastRequestDuration time.Duration
 	for {
-		select {
-		case <-dispatcher.ctx.Done():
-			return
-		case queued := <-dispatcher.queue:
-			if currentThroughput > 0 && !lastCompleted.IsZero() {
-				minimumDelay := time.Duration(float64(time.Second) / currentThroughput)
-				remaining := minimumDelay - time.Since(lastCompleted)
-				if remaining > 0 {
-					timer := time.NewTimer(remaining)
-					select {
-					case <-dispatcher.ctx.Done():
-						timer.Stop()
-						return
-					case <-timer.C:
-					}
-				}
+		task, err := dispatcher.store.ClaimTask(dispatcher.ctx, dispatcher.owner, time.Now(), dispatcher.lease)
+		if errors.Is(err, ErrNoBatchWork) {
+			if !dispatcher.wait() {
+				return
 			}
-			started := time.Now()
-			dispatcher.run(queued.job, queued.task)
-			elapsed := time.Since(started)
-			lastCompleted = time.Now()
-
-			if currentThroughput == 0 && dispatcher.throughput > 0 {
-				currentThroughput = dispatcher.throughput
-			}
-			if dispatcher.smartQoS {
-				switch {
-				case elapsed > lastRequestDuration:
-					if currentThroughput > 0 && currentThroughput*0.9 > 0 {
-						currentThroughput *= 0.9
-					} else if currentThroughput == 0 {
-						currentThroughput = 0.5
-					}
-				case elapsed < lastRequestDuration && currentThroughput > 0:
-					if dispatcher.throughput > 0 && currentThroughput*1.1 <= dispatcher.throughput {
-						currentThroughput *= 1.1
-					} else if dispatcher.throughput == 0 {
-						currentThroughput = 0
-					}
-				}
-			}
-			lastRequestDuration = elapsed
+			continue
 		}
+		if err != nil {
+			if !dispatcher.wait() {
+				return
+			}
+			continue
+		}
+		if currentThroughput > 0 && !lastCompleted.IsZero() {
+			minimumDelay := time.Duration(float64(time.Second) / currentThroughput)
+			remaining := minimumDelay - time.Since(lastCompleted)
+			if remaining > 0 {
+				timer := time.NewTimer(remaining)
+				select {
+				case <-dispatcher.ctx.Done():
+					timer.Stop()
+					return
+				case <-timer.C:
+				}
+			}
+		}
+		started := time.Now()
+		dispatcher.run(task)
+		elapsed := time.Since(started)
+		lastCompleted = time.Now()
+
+		if currentThroughput == 0 && dispatcher.throughput > 0 {
+			currentThroughput = dispatcher.throughput
+		}
+		if dispatcher.smartQoS {
+			switch {
+			case elapsed > lastRequestDuration:
+				if currentThroughput > 0 && currentThroughput*0.9 > 0 {
+					currentThroughput *= 0.9
+				} else if currentThroughput == 0 {
+					currentThroughput = 0.5
+				}
+			case elapsed < lastRequestDuration && currentThroughput > 0:
+				if dispatcher.throughput > 0 && currentThroughput*1.1 <= dispatcher.throughput {
+					currentThroughput *= 1.1
+				} else if dispatcher.throughput == 0 {
+					currentThroughput = 0
+				}
+			}
+		}
+		lastRequestDuration = elapsed
 	}
 }
 
-func (dispatcher *batchDispatcher) run(job batchJob, task batchTask) {
+func (dispatcher *batchDispatcher) run(task StoredTask) {
 	select {
 	case <-dispatcher.ctx.Done():
 		return
 	default:
 	}
-	request, err := http.NewRequestWithContext(dispatcher.ctx, http.MethodPost, "/send", bytes.NewReader(task.body))
+	body := append([]byte(nil), task.Body...)
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		dispatcher.finishTask(task, false, 0, "Unknown error: corrupt durable task: "+err.Error())
+		return
+	}
+	payload["password"] = mustJSON("__batch__")
+	body, err := json.Marshal(payload)
 	if err != nil {
-		go dispatcher.callback(job.errbackURL, job.id, task.destination, 0, "Unknown error: "+err.Error())
+		dispatcher.finishTask(task, false, 0, "Unknown error: "+err.Error())
+		return
+	}
+	requestContext := httpcompat.WithTrustedBatchSubmit(
+		dispatcher.ctx, task.Username, task.CredentialDigest, task.ID,
+	)
+	request, err := http.NewRequestWithContext(requestContext, http.MethodPost, "/send", bytes.NewReader(body))
+	if err != nil {
+		dispatcher.retryOrFinish(task, 0, "Unknown error: "+err.Error(), true)
 		return
 	}
 	request.Header.Set("Content-Type", jsonContentType)
 	response := newCapture()
 	dispatcher.legacy.ServeHTTP(response, request)
+	statusText := response.body.String()
 	if response.statusCode() != http.StatusOK {
-		go dispatcher.callback(job.errbackURL, job.id, task.destination, 0, "HTTPAPI error: "+response.body.String())
+		dispatcher.retryOrFinish(
+			task,
+			response.statusCode(),
+			"HTTPAPI error: "+statusText,
+			retryableSubmitResponse(response.statusCode(), statusText),
+		)
 		return
 	}
-	go dispatcher.callback(job.callbackURL, job.id, task.destination, 1, response.body.String())
+	dispatcher.finishTask(task, true, response.statusCode(), statusText)
 }
 
-func (dispatcher *batchDispatcher) callback(endpoint, batchID, destination string, status int, statusText string) {
-	if endpoint == "" {
-		return
+func (dispatcher *batchDispatcher) retryOrFinish(
+	task StoredTask,
+	status int,
+	statusText string,
+	retryable bool,
+) {
+	if retryable && task.Attempt < dispatcher.maxAttempts {
+		delay := exponentialBackoff(dispatcher.retryDelay, task.Attempt)
+		if err := dispatcher.store.RetryTask(
+			dispatcher.ctx, task.ID, dispatcher.owner, time.Now().Add(delay), statusText,
+		); err == nil {
+			dispatcher.signal()
+			return
+		}
 	}
-	parsed, err := url.Parse(endpoint)
+	dispatcher.finishTask(task, false, status, statusText)
+}
+
+func (dispatcher *batchDispatcher) finishTask(task StoredTask, successful bool, status int, statusText string) {
+	callbackURL := task.ErrbackURL
+	if successful {
+		callbackURL = task.CallbackURL
+	}
+	if err := dispatcher.store.FinishTask(dispatcher.ctx, task.ID, dispatcher.owner, TaskResult{
+		Successful: successful, HTTPStatus: status, StatusText: statusText, CallbackURL: callbackURL,
+	}, time.Now()); err == nil {
+		dispatcher.signal()
+	}
+}
+
+func (dispatcher *batchDispatcher) workCallbacks() {
+	for {
+		callback, err := dispatcher.store.ClaimCallback(
+			dispatcher.ctx, dispatcher.owner, time.Now(), dispatcher.lease,
+		)
+		if errors.Is(err, ErrNoBatchWork) {
+			if !dispatcher.wait() {
+				return
+			}
+			continue
+		}
+		if err != nil {
+			if !dispatcher.wait() {
+				return
+			}
+			continue
+		}
+		err = dispatcher.callback(callback)
+		if err == nil {
+			_ = dispatcher.store.FinishCallback(
+				dispatcher.ctx, callback.TaskID, dispatcher.owner, time.Now(),
+			)
+			continue
+		}
+		if callback.Attempt >= dispatcher.callbackMaxAttempts {
+			// Delivery is terminally abandoned after the configured attempts;
+			// the task itself remains terminal and is never submitted again.
+			_ = dispatcher.store.FinishCallback(
+				dispatcher.ctx, callback.TaskID, dispatcher.owner, time.Now(),
+			)
+			continue
+		}
+		delay := exponentialBackoff(dispatcher.callbackRetryDelay, callback.Attempt)
+		if retryErr := dispatcher.store.RetryCallback(
+			dispatcher.ctx, callback.TaskID, dispatcher.owner, time.Now().Add(delay), err.Error(),
+		); retryErr == nil {
+			dispatcher.signal()
+		}
+	}
+}
+
+func (dispatcher *batchDispatcher) callback(callback StoredCallback) error {
+	parsed, err := url.Parse(callback.URL)
 	if err != nil {
-		return
+		return err
 	}
 	query := parsed.Query()
-	query.Set("batchId", batchID)
-	query.Set("to", destination)
-	query.Set("status", strconv.Itoa(status))
-	query.Set("statusText", statusText)
+	query.Set("batchId", callback.BatchID)
+	query.Set("to", callback.Destination)
+	query.Set("status", strconv.Itoa(callback.Status))
+	query.Set("statusText", callback.StatusText)
 	parsed.RawQuery = query.Encode()
 	request, err := http.NewRequestWithContext(dispatcher.ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
-		return
+		return err
 	}
 	response, err := dispatcher.callbackClient.Do(request)
-	if err == nil && response != nil {
-		_, _ = io.Copy(io.Discard, response.Body)
-		_ = response.Body.Close()
+	if err != nil {
+		return err
+	}
+	if response == nil {
+		return errors.New("callback client returned a nil response")
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, response.Body)
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("callback returned HTTP %d", response.StatusCode)
+	}
+	return nil
+}
+
+func (dispatcher *batchDispatcher) signal() {
+	select {
+	case dispatcher.wake <- struct{}{}:
+	default:
 	}
 }
+
+func (dispatcher *batchDispatcher) wait() bool {
+	timer := time.NewTimer(100 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-dispatcher.ctx.Done():
+		return false
+	case <-dispatcher.wake:
+		return true
+	case <-timer.C:
+		return true
+	}
+}
+
+func retryableSubmitResponse(status int, body string) bool {
+	return status == http.StatusTooManyRequests ||
+		status == http.StatusBadGateway ||
+		status == http.StatusServiceUnavailable ||
+		status == http.StatusGatewayTimeout ||
+		(status == http.StatusForbidden && bytes.Contains([]byte(body), []byte("throughput exceeded")))
+}
+
+func exponentialBackoff(base time.Duration, attempt int) time.Duration {
+	if base <= 0 {
+		return 0
+	}
+	if attempt < 1 {
+		attempt = 1
+	}
+	shift := min(attempt-1, 10)
+	return base * time.Duration(1<<shift)
+}
+
+/*
+	The old in-memory queue worker lived here. Durable task and callback claims
+	now provide restart recovery and bounded admission, while preserving the same
+	per-worker smart-QoS calculation above.
+*/
 
 func formatDelay(delay time.Duration) string {
 	seconds := delay.Seconds()

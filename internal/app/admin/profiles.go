@@ -61,16 +61,25 @@ func NewProfileService(store *Store, now func() string) (*ProfileService, error)
 // Save snapshots every admin table under the profile name, replacing any
 // previous snapshot of that name.
 func (s *ProfileService) Save(ctx context.Context, profile string) error {
+	return s.SaveScope(ctx, profile, "all")
+}
+
+// SaveScope snapshots only one frozen RouterPB entity family.
+func (s *ProfileService) SaveScope(ctx context.Context, profile, scope string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	tables, err := profileTables(scope)
+	if err != nil {
+		return err
+	}
 
-	transaction, err := s.store.db.BeginTx(ctx, nil)
+	transaction, err := s.store.beginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("admin: begin profile save: %w", err)
 	}
 	defer func() { _ = transaction.Rollback() }()
 
-	for _, table := range snapshotTables {
+	for _, table := range tables {
 		rows, err := readTableRows(ctx, transaction, table)
 		if err != nil {
 			return err
@@ -95,19 +104,33 @@ func (s *ProfileService) Save(ctx context.Context, profile string) error {
 // Load restores a snapshot into the admin tables. The caller must re-apply the
 // services afterwards; this only moves rows.
 func (s *ProfileService) Load(ctx context.Context, profile string) error {
+	return s.LoadScope(ctx, profile, "all")
+}
+
+// LoadScope restores only one frozen RouterPB entity family. The replacement
+// of that family's rows remains one store transaction.
+func (s *ProfileService) LoadScope(ctx context.Context, profile, scope string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	tables, err := profileTables(scope)
+	if err != nil {
+		return err
+	}
 
 	var count int
-	if err := s.store.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM admin_profiles WHERE profile=?`, profile).Scan(&count); err != nil {
-		return fmt.Errorf("admin: look up profile %q: %w", profile, err)
+	for _, table := range tables {
+		var present int
+		if err := s.store.queryRowContext(ctx,
+			`SELECT COUNT(*) FROM admin_profiles WHERE profile=? AND table_name=?`, profile, table).Scan(&present); err != nil {
+			return fmt.Errorf("admin: look up profile %q scope %q: %w", profile, scope, err)
+		}
+		count += present
 	}
 	if count == 0 {
 		return ErrProfileNotFound
 	}
 
-	transaction, err := s.store.db.BeginTx(ctx, nil)
+	transaction, err := s.store.beginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("admin: begin profile load: %w", err)
 	}
@@ -116,12 +139,12 @@ func (s *ProfileService) Load(ctx context.Context, profile string) error {
 	// Restore in reverse order so a table is emptied before anything that might
 	// reference it, and the whole restore is one transaction: a half-restored
 	// configuration is worse than a failed one.
-	for index := len(snapshotTables) - 1; index >= 0; index-- {
-		if _, err := transaction.ExecContext(ctx, "DELETE FROM "+snapshotTables[index]); err != nil {
-			return fmt.Errorf("admin: clear %s: %w", snapshotTables[index], err)
+	for index := len(tables) - 1; index >= 0; index-- {
+		if _, err := transaction.ExecContext(ctx, "DELETE FROM "+tables[index]); err != nil {
+			return fmt.Errorf("admin: clear %s: %w", tables[index], err)
 		}
 	}
-	for _, table := range snapshotTables {
+	for _, table := range tables {
 		var payload string
 		err := transaction.QueryRowContext(ctx,
 			`SELECT payload FROM admin_profiles WHERE profile=? AND table_name=?`, profile, table).Scan(&payload)
@@ -145,8 +168,31 @@ func (s *ProfileService) Load(ctx context.Context, profile string) error {
 	return nil
 }
 
+func profileTables(scope string) ([]string, error) {
+	switch scope {
+	case "", "all":
+		return append([]string(nil), snapshotTables...), nil
+	case "groups":
+		return []string{"admin_groups"}, nil
+	case "users":
+		return []string{"admin_users"}, nil
+	case "mtroutes":
+		return []string{"admin_routes"}, nil
+	case "moroutes":
+		return []string{"admin_mo_routes"}, nil
+	case "mtinterceptors":
+		return []string{"admin_mt_interceptors"}, nil
+	case "mointerceptors":
+		return []string{"admin_mo_interceptors"}, nil
+	case "connectors":
+		return []string{"admin_connectors"}, nil
+	default:
+		return nil, fmt.Errorf("%w: invalid profile scope %q", ErrInvalidRequest, scope)
+	}
+}
+
 // readTableRows reads a whole table as column-keyed maps.
-func readTableRows(ctx context.Context, transaction *sql.Tx, table string) ([]map[string]any, error) {
+func readTableRows(ctx context.Context, transaction *storeTx, table string) ([]map[string]any, error) {
 	rows, err := transaction.QueryContext(ctx, "SELECT * FROM "+table)
 	if err != nil {
 		return nil, fmt.Errorf("admin: read %s: %w", table, err)
@@ -182,7 +228,7 @@ func readTableRows(ctx context.Context, transaction *sql.Tx, table string) ([]ma
 }
 
 // writeTableRows inserts snapshot rows back into a table.
-func writeTableRows(ctx context.Context, transaction *sql.Tx, table string, rows []map[string]any) error {
+func writeTableRows(ctx context.Context, transaction *storeTx, table string, rows []map[string]any) error {
 	for _, row := range rows {
 		columns := make([]string, 0, len(row))
 		placeholders := make([]string, 0, len(row))

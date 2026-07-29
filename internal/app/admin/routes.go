@@ -20,7 +20,7 @@ type StoredRoute struct {
 
 // ListRoutes returns every persisted admin route, ordered by route_order.
 func (s *Store) ListRoutes(ctx context.Context) ([]StoredRoute, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT route_order, spec_json FROM admin_routes ORDER BY route_order`)
+	rows, err := s.queryContext(ctx, `SELECT route_order, spec_json FROM admin_routes ORDER BY route_order`)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list routes: %w", err)
 	}
@@ -39,7 +39,7 @@ func (s *Store) ListRoutes(ctx context.Context) ([]StoredRoute, error) {
 // GetRoute returns one persisted admin route by order.
 func (s *Store) GetRoute(ctx context.Context, order int) (StoredRoute, error) {
 	var route StoredRoute
-	err := s.db.QueryRowContext(ctx, `SELECT route_order, spec_json FROM admin_routes WHERE route_order=?`, order).
+	err := s.queryRowContext(ctx, `SELECT route_order, spec_json FROM admin_routes WHERE route_order=?`, order).
 		Scan(&route.Order, &route.SpecJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StoredRoute{}, ErrRouteNotFound
@@ -52,7 +52,7 @@ func (s *Store) GetRoute(ctx context.Context, order int) (StoredRoute, error) {
 
 // UpsertRoute persists (insert or replace) an admin route by order.
 func (s *Store) UpsertRoute(ctx context.Context, route StoredRoute, now string) error {
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.execContext(ctx,
 		`INSERT INTO admin_routes (route_order, spec_json, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(route_order) DO UPDATE SET spec_json=excluded.spec_json, updated_at=excluded.updated_at`,
 		route.Order, route.SpecJSON, now)
@@ -64,7 +64,7 @@ func (s *Store) UpsertRoute(ctx context.Context, route StoredRoute, now string) 
 
 // DeleteRoute removes an admin route by order.
 func (s *Store) DeleteRoute(ctx context.Context, order int) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM admin_routes WHERE route_order=?`, order)
+	result, err := s.execContext(ctx, `DELETE FROM admin_routes WHERE route_order=?`, order)
 	if err != nil {
 		return fmt.Errorf("admin: delete route %d: %w", order, err)
 	}

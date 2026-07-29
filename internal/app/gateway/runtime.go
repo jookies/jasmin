@@ -43,6 +43,8 @@ type Runtime struct {
 	WebListenAddress   string
 	PBHandler          http.Handler // private normalized seam for the trusted PB facade
 	PBListenAddress    string
+	RESTHandler        http.Handler // standalone legacy REST daemon view
+	RESTListenAddress  string
 	manager            *smppc.Manager
 	outbound           *outbound.Runtime
 	bridge             picklecompat.Codec
@@ -82,7 +84,12 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	var leadership *storage.PostgresLeaderLease
 	if config.HA != nil {
 		var leadershipErr error
-		leadership, leadershipErr = storage.OpenPostgresLeaderLease(ctx, config.Outbound.PostgresDSN, config.HA.Namespace)
+		leadership, leadershipErr = storage.WaitPostgresLeaderLease(
+			ctx,
+			config.Outbound.PostgresDSN,
+			config.HA.Namespace,
+			config.HA.StandbyRetryInterval(),
+		)
 		if leadershipErr != nil {
 			workerCancel()
 			return nil, fmt.Errorf("acquire active-passive gateway fence: %w", leadershipErr)
@@ -270,6 +277,7 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		DLRRequestStore: dlrRequestStore, ConnectorDLRExpiry: dlrExpiryProvider,
 		InterceptorRunner: interceptorRunner, RouterLogger: routerLogger,
 		HTTPLogger: httpAPILogger, HTTPAccessLogger: httpAccessLogger,
+		RESTConfig: config.REST,
 		QuotaPersistErrors: func(err error) {
 			routerLogger.Error("Billing quota persistence failed: " + err.Error())
 		},
@@ -282,6 +290,8 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	routerLogger.Info("Router configured and ready.")
 	httpAPILogger.Info("HTTP API configured and ready.")
 	runtime.outbound = outboundRuntime
+	runtime.RESTHandler = outboundRuntime.RESTHandler
+	runtime.RESTListenAddress = config.REST.ListenAddress
 	runtime.requiredConnectors = config.RequiredConnectors()
 	// Wire deliver_sm ingestion (MO + receipt publications) into every
 	// connector: the config connectors were built before the runtime existed,
@@ -332,15 +342,29 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 	// Assigned inside the admin block; its persisted users are applied after
 	// the SMPPs server is constructed.
 	var smppsUserService *admin.SMPPsUserService
+	// The PB facade is composed before the SMPPs server to keep all admin
+	// services in one block. This late-bound slot receives the server before
+	// any PB listener starts accepting requests.
+	var pbSMPP *pbfacade.SMPPServerSlot
 
 	mux := http.NewServeMux()
 	mux.Handle("/health", runtime.healthHandler())
-	// The runtime provisioning plane (SQLite-backed connector CRUD) mounts at
-	// /admin, applying changes live through the same manager and re-applying
-	// persisted connectors at boot. Config connectors are reserved (config
-	// owns them); admin manages an additive set.
+	mux.Handle("/ready", runtime.healthHandler())
+	mux.Handle("/live", livenessHandler())
+	// The runtime provisioning plane mounts at /admin, applying changes live
+	// through the same manager and replaying them at boot/promotion. The local
+	// adapter is SQLite; HA uses the namespace-isolated PostgreSQL adapter.
+	// Config connectors are reserved; admin manages an additive set.
 	if config.Admin != nil {
-		store, storeErr := admin.OpenStore(ctx, config.Admin.DBPath)
+		var (
+			store    *admin.Store
+			storeErr error
+		)
+		if config.HA != nil {
+			store, storeErr = admin.OpenPostgresStore(ctx, config.Outbound.PostgresDSN, config.HA.Namespace)
+		} else {
+			store, storeErr = admin.OpenStore(ctx, config.Admin.DBPath)
+		}
 		if storeErr != nil {
 			return nil, fmt.Errorf("open admin store: %w", storeErr)
 		}
@@ -453,14 +477,34 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 		}
 		mux.Handle("/admin/", adminHandler.Routes())
 		if config.Admin.PBFacadeListenAddress != "" {
+			reconcilers := []pbfacade.LiveReconciler{
+				groupService,
+				userService,
+				routeService,
+				moRouteService,
+			}
+			if interceptorService != nil {
+				reconcilers = append(reconcilers, interceptorService)
+			}
+			reconcilers = append(reconcilers, smppsUserService, adminService)
+			profiles, profilesErr := pbfacade.NewRuntimeProfiles(profileService, reconcilers...)
+			if profilesErr != nil {
+				return nil, fmt.Errorf("build PB runtime profiles: %w", profilesErr)
+			}
+			pbSMPP = &pbfacade.SMPPServerSlot{}
 			pbHandler, pbErr := pbfacade.New(pbfacade.Deps{
-				Connectors:   adminService,
-				Users:        userService,
-				Groups:       groupService,
-				MTRoutes:     routeService,
-				MORoutes:     moRouteService,
-				Interceptors: interceptorService,
-				Token:        config.Admin.PBFacadeToken,
+				Connectors:    adminService,
+				Users:         userService,
+				Groups:        groupService,
+				MTRoutes:      routeService,
+				MORoutes:      moRouteService,
+				Interceptors:  interceptorService,
+				Profiles:      profiles,
+				Authenticator: outboundRuntime.Authenticator(),
+				Submitter:     outboundRuntime.Submitter(),
+				SMPPServer:    pbSMPP,
+				ScriptRunner:  interceptorRunner,
+				Token:         config.Admin.PBFacadeToken,
 			})
 			if pbErr != nil {
 				return nil, fmt.Errorf("build PB compatibility facade: %w", pbErr)
@@ -587,7 +631,10 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			lookupConfig.AMQPURL = config.Outbound.AMQPURL
 		}
 		lookupConfig.AMQPDurableTopology = lookupConfig.AMQPDurableTopology || config.AMQPDurableTopology
-		lookupService, lookupErr := dlrlookup.NewService(lookupConfig)
+		lookupService, lookupErr := dlrlookup.NewService(
+			lookupConfig,
+			dlrlookup.WithFinalDLRRecorder(repository, nil),
+		)
 		if lookupErr != nil {
 			return nil, fmt.Errorf("start DLR lookup worker: %w", lookupErr)
 		}
@@ -619,6 +666,11 @@ func NewRuntime(ctx context.Context, config Config) (_ *Runtime, resultErr error
 			return nil, fmt.Errorf("start SMPPS server: %w", smppsErr)
 		}
 		runtime.smppsServer = smppsService
+		if pbSMPP != nil {
+			if slotErr := pbSMPP.Set(smppsService.Server()); slotErr != nil {
+				return nil, fmt.Errorf("wire PB SMPP server: %w", slotErr)
+			}
+		}
 		sink, sinkErr := smppsdelivery.NewReceiptSink(smppsService.Server())
 		if sinkErr != nil {
 			return nil, fmt.Errorf("wire SMPPS receipt delivery: %w", sinkErr)

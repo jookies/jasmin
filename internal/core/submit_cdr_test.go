@@ -58,6 +58,7 @@ func TestSubmitServiceUsesTypedCommercialAdmissionWithoutAMQPHeaders(t *testing.
 		BillingUsers:     users,
 		EnvelopeBuilder:  builder,
 		Transaction:      transaction,
+		CDRCurrency:      "EUR",
 		GroupIdentity: func(username string) (string, bool) {
 			return "customers", username == "alice"
 		},
@@ -83,7 +84,7 @@ func TestSubmitServiceUsesTypedCommercialAdmissionWithoutAMQPHeaders(t *testing.
 	}
 	want := cdr.SubmitMetadata{
 		GroupID: "customers", RouteID: "mt:0", Ingress: "httpapi",
-		Rate: 1, Currency: "XXX", EarlyAmount: 0.5, LateAmount: 0.5,
+		Rate: 1, Currency: "EUR", EarlyAmount: 0.5, LateAmount: 0.5,
 	}
 	if transaction.metadata != want {
 		t.Fatalf("metadata=%+v want=%+v", transaction.metadata, want)

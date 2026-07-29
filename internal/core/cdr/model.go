@@ -16,6 +16,8 @@ import (
 var (
 	ErrNotFound     = errors.New("cdr not found")
 	ErrInvalidInput = errors.New("invalid cdr input")
+	ErrForbidden    = errors.New("cdr access forbidden")
+	ErrDisabled     = errors.New("cdr operation disabled")
 )
 
 // DefaultCurrency is ISO 4217 XXX ("no currency"). Existing Jasmin route
@@ -43,6 +45,46 @@ func (state State) Terminal() bool {
 	}
 }
 
+// DeliveryState is the normalized final handset-delivery outcome. Submission
+// and delivery are separate dimensions: SMSC_ACCEPTED remains the immutable
+// submission result while a later final DLR fills these fields.
+type DeliveryState string
+
+const (
+	DeliveryNone          DeliveryState = ""
+	DeliveryDelivered     DeliveryState = "DELIVERED"
+	DeliveryExpired       DeliveryState = "EXPIRED"
+	DeliveryDeleted       DeliveryState = "DELETED"
+	DeliveryUndeliverable DeliveryState = "UNDELIVERABLE"
+	DeliveryRejected      DeliveryState = "REJECTED"
+)
+
+func DeliveryStateForStatus(status string) (DeliveryState, error) {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "DELIVRD":
+		return DeliveryDelivered, nil
+	case "EXPIRED":
+		return DeliveryExpired, nil
+	case "DELETED":
+		return DeliveryDeleted, nil
+	case "UNDELIV":
+		return DeliveryUndeliverable, nil
+	case "REJECTD":
+		return DeliveryRejected, nil
+	default:
+		return DeliveryNone, ErrInvalidInput
+	}
+}
+
+type BillingOutcome string
+
+const (
+	BillingNotApplicable BillingOutcome = "NOT_APPLICABLE"
+	BillingPending       BillingOutcome = "PENDING"
+	BillingApplied       BillingOutcome = "APPLIED"
+	BillingRejected      BillingOutcome = "REJECTED"
+)
+
 type EventKind string
 
 const (
@@ -52,6 +94,9 @@ const (
 	EventSMSCAccepted     EventKind = "SMSC_ACCEPTED"
 	EventSMSCRejected     EventKind = "SMSC_REJECTED"
 	EventTerminalTimeout  EventKind = "TERMINAL_TIMEOUT"
+	EventFinalDLR         EventKind = "FINAL_DLR"
+	EventLateBillApplied  EventKind = "LATE_BILLING_APPLIED"
+	EventLateBillRejected EventKind = "LATE_BILLING_REJECTED"
 )
 
 type BillingMode string
@@ -117,12 +162,20 @@ type Admission struct {
 // existing idempotent late-billing ledger.
 type Record struct {
 	Admission
-	State         State
-	AttemptID     int64
-	SMPPStatus    string
-	SMSCMessageID string
-	UpdatedAt     time.Time
-	TerminalAt    *time.Time
+	State              State
+	AttemptID          int64
+	SMPPStatus         string
+	SMSCMessageID      string
+	DeliveryState      DeliveryState
+	DeliveryStatus     string
+	DeliveryError      string
+	DeliveryDoneAt     *time.Time
+	DeliveryReceivedAt *time.Time
+	BillingOutcome     BillingOutcome
+	ActualLateAmount   float64
+	LateBillingAt      *time.Time
+	UpdatedAt          time.Time
+	TerminalAt         *time.Time
 }
 
 // Event is the immutable audit trail. Event.Key is the dedupe identity:
@@ -134,19 +187,43 @@ type Record struct {
 // Replaying the same lifecycle transition therefore cannot create a second
 // commercial event.
 type Event struct {
-	Key           string
-	CDRID         string
-	Kind          EventKind
-	State         State
-	AttemptID     int64
-	SMPPStatus    string
-	SMSCMessageID string
-	OccurredAt    time.Time
+	Key              string
+	CDRID            string
+	Kind             EventKind
+	State            State
+	AttemptID        int64
+	SMPPStatus       string
+	SMSCMessageID    string
+	DeliveryState    DeliveryState
+	DeliveryStatus   string
+	DeliveryError    string
+	DeliveryDoneAt   *time.Time
+	BillingOutcome   BillingOutcome
+	ActualLateAmount float64
+	OccurredAt       time.Time
 }
 
 type Repository interface {
 	GetCDR(context.Context, string) (Record, error)
 	ListCDREvents(context.Context, string) ([]Event, error)
+}
+
+// FinalDLR is the content-free terminal receipt projection recorded after the
+// legacy correlation map has resolved the submit identity. DoneAt is the SMSC
+// timestamp when parseable; ReceivedAt is the gateway's authoritative receipt
+// observation time.
+type FinalDLR struct {
+	QueueMessageID string
+	ConnectorID    string
+	SMSCMessageID  string
+	Status         string
+	Error          string
+	DoneAt         *time.Time
+	ReceivedAt     time.Time
+}
+
+type FinalDLRRecorder interface {
+	RecordFinalDLR(context.Context, FinalDLR) error
 }
 
 func AdmissionEventKey(cdrID string) string {
@@ -159,6 +236,14 @@ func UnknownEventKey(cdrID string, attemptID int64) string {
 
 func ResultEventKey(cdrID string, attemptID int64) string {
 	return fmt.Sprintf("cdr:%s:attempt:%d:result", cdrID, attemptID)
+}
+
+func FinalDLREventKey(cdrID string) string {
+	return fmt.Sprintf("cdr:%s:dlr:final", cdrID)
+}
+
+func LateBillingEventKey(cdrID string, outcome BillingOutcome) string {
+	return fmt.Sprintf("cdr:%s:late-billing:%s", cdrID, strings.ToLower(string(outcome)))
 }
 
 func ValidateAdmission(value Admission) error {
@@ -200,4 +285,13 @@ func validCurrency(value string) bool {
 		}
 	}
 	return true
+}
+
+// ValidateCurrency accepts the ISO-4217-shaped currency code stored in a CDR.
+// XXX remains the safe default for unitless legacy route prices.
+func ValidateCurrency(value string) error {
+	if !validCurrency(value) {
+		return ErrInvalidInput
+	}
+	return nil
 }

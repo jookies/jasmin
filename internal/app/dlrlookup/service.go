@@ -13,6 +13,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	redis "github.com/redis/go-redis/v9"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/core/dlr"
 	"github.com/pumpitspace/jasmin/internal/state/rediscompat"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
@@ -119,7 +120,23 @@ type Service struct {
 	OnError func(error)
 }
 
-func NewService(config Config) (*Service, error) {
+type serviceOptions struct {
+	cdrRecorder cdr.FinalDLRRecorder
+	now         func() time.Time
+}
+
+type Option func(*serviceOptions)
+
+// WithFinalDLRRecorder wires the durable commercial receipt projection into
+// the in-process DLR worker.
+func WithFinalDLRRecorder(recorder cdr.FinalDLRRecorder, now func() time.Time) Option {
+	return func(options *serviceOptions) {
+		options.cdrRecorder = recorder
+		options.now = now
+	}
+}
+
+func NewService(config Config, optionFunctions ...Option) (*Service, error) {
 	if err := ValidateConfig(config); err != nil {
 		return nil, err
 	}
@@ -129,6 +146,12 @@ func NewService(config Config) (*Service, error) {
 		return nil, fmt.Errorf("%w: redis_url: %v", ErrInvalidConfig, err)
 	}
 	client := redis.NewClient(options)
+	var serviceSettings serviceOptions
+	for _, option := range optionFunctions {
+		if option != nil {
+			option(&serviceSettings)
+		}
+	}
 
 	switcher := &switchablePublisher{}
 	forwardPublisher, err := dlr.NewForwardPublisher(switcher)
@@ -136,9 +159,16 @@ func NewService(config Config) (*Service, error) {
 		_ = client.Close()
 		return nil, err
 	}
-	correlator := dlr.NewCorrelator(rediscompat.NewClient(client), forwardPublisher, dlr.Config{
-		SMPPReceiptOnSuccessSubmitSmResp: config.SMPPReceiptOnSuccessSubmitSmResp,
-	})
+	correlatorOptions := make([]dlr.CorrelatorOption, 0, 1)
+	if serviceSettings.cdrRecorder != nil {
+		correlatorOptions = append(correlatorOptions,
+			dlr.WithFinalDLRRecorder(serviceSettings.cdrRecorder, serviceSettings.now))
+	}
+	correlator := dlr.NewCorrelator(
+		rediscompat.NewClient(client), forwardPublisher,
+		dlr.Config{SMPPReceiptOnSuccessSubmitSmResp: config.SMPPReceiptOnSuccessSubmitSmResp},
+		correlatorOptions...,
+	)
 	consumer, err := dlr.NewLookupConsumer(correlator, dlr.LookupConsumerConfig{
 		MaxRetries: config.MaxRetries,
 		RetryDelay: time.Duration(config.RetryDelaySeconds * float64(time.Second)),

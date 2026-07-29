@@ -87,6 +87,9 @@ type smppsUserProvisioner struct {
 func (p smppsUserProvisioner) ApplySMPPsUsers(_ context.Context, specsJSON []string) error {
 	service := p.runtime.smppsServer
 	if service == nil || service.Directory() == nil {
+		if len(specsJSON) == 0 {
+			return nil
+		}
 		return errors.New("the SMPPs server is not running; bind users cannot be applied")
 	}
 	users := make([]smppsserver.UserConfig, 0, len(specsJSON))

@@ -137,8 +137,16 @@ func (runtime *Runtime) healthProbe() func(ctx context.Context) (string, map[str
 // with the per-check detail otherwise. Distinct from the legacy-parity /ping,
 // which answers unconditionally.
 func (runtime *Runtime) healthHandler() http.Handler {
-	dependencies := runtime.healthDeps()
+	return readinessHandler(runtime.healthDeps())
+}
+
+func readinessHandler(dependencies healthDependencies) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.Header().Set("Allow", http.MethodGet)
+			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		ctx, cancel := context.WithTimeout(request.Context(), healthTimeout)
 		defer cancel()
 		report := buildHealthReport(ctx, dependencies)
@@ -147,5 +155,20 @@ func (runtime *Runtime) healthHandler() http.Handler {
 			writer.WriteHeader(http.StatusServiceUnavailable)
 		}
 		_ = json.NewEncoder(writer).Encode(report)
+	})
+}
+
+// livenessHandler reports only process/admission identity. Readiness is kept
+// separate because a live active node may temporarily lose a dependency and
+// must leave the load-balancer pool without being restart-looped.
+func livenessHandler() http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.Header().Set("Allow", http.MethodGet)
+			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"status":"active","live":true}`))
 	})
 }

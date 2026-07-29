@@ -144,7 +144,7 @@ func (s *SMPPsUserService) GetUser(ctx context.Context, systemID string) (Stored
 
 // ListSMPPsUsers returns every persisted admin SMPPs user, ordered by system_id.
 func (s *Store) ListSMPPsUsers(ctx context.Context) ([]StoredSMPPsUser, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT system_id, spec_json FROM admin_smpps_users ORDER BY system_id`)
+	rows, err := s.queryContext(ctx, `SELECT system_id, spec_json FROM admin_smpps_users ORDER BY system_id`)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list SMPPs users: %w", err)
 	}
@@ -166,7 +166,7 @@ func (s *Store) ListSMPPsUsers(ctx context.Context) ([]StoredSMPPsUser, error) {
 // GetSMPPsUser returns one persisted SMPPs user.
 func (s *Store) GetSMPPsUser(ctx context.Context, systemID string) (StoredSMPPsUser, error) {
 	var user StoredSMPPsUser
-	err := s.db.QueryRowContext(ctx,
+	err := s.queryRowContext(ctx,
 		`SELECT system_id, spec_json FROM admin_smpps_users WHERE system_id = ?`, systemID).
 		Scan(&user.SystemID, &user.SpecJSON)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -180,7 +180,7 @@ func (s *Store) GetSMPPsUser(ctx context.Context, systemID string) (StoredSMPPsU
 
 // UpsertSMPPsUser inserts or replaces a persisted SMPPs user.
 func (s *Store) UpsertSMPPsUser(ctx context.Context, user StoredSMPPsUser, now string) error {
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.execContext(ctx,
 		`INSERT INTO admin_smpps_users (system_id, spec_json, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(system_id) DO UPDATE SET spec_json = excluded.spec_json, updated_at = excluded.updated_at`,
 		user.SystemID, user.SpecJSON, now)
@@ -192,7 +192,7 @@ func (s *Store) UpsertSMPPsUser(ctx context.Context, user StoredSMPPsUser, now s
 
 // DeleteSMPPsUser forgets a persisted SMPPs user.
 func (s *Store) DeleteSMPPsUser(ctx context.Context, systemID string) error {
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM admin_smpps_users WHERE system_id = ?`, systemID); err != nil {
+	if _, err := s.execContext(ctx, `DELETE FROM admin_smpps_users WHERE system_id = ?`, systemID); err != nil {
 		return fmt.Errorf("admin: delete SMPPs user %q: %w", systemID, err)
 	}
 	return nil

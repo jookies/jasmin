@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"time"
 
 	"github.com/warthog618/sms/encoding/gsm7"
@@ -55,6 +56,13 @@ type SubmitPublicationBoundary interface {
 	AdmitSubmit(context.Context, []amqpcompat.Envelope) error
 }
 
+// StableSubmitLookup lets a durable ingress retry a task after a crash without
+// charging or publishing it again. The lookup key is the stable message id the
+// ingress supplied for that task.
+type StableSubmitLookup interface {
+	SubmissionExists(context.Context, string) (bool, error)
+}
+
 type SubmitCommercialPublicationBoundary interface {
 	AdmitSubmitWithCDR(context.Context, []amqpcompat.Envelope, cdr.SubmitMetadata) error
 }
@@ -81,6 +89,7 @@ type SubmitEnvelopeRequest struct {
 	SmDefaultMsgID       uint8
 	ScheduleAt           *time.Time
 	ValidityPeriod       *time.Duration
+	Expiration           string
 	DLR                  bool
 	DLRURL               string
 	DLRLevel             int
@@ -90,6 +99,7 @@ type SubmitEnvelopeRequest struct {
 	Parts                []segmentation.Part
 	CustomTLVs           []tlv.TLV
 	SMPPSubmit           *smppwire.SubmitSMBody
+	SMPPSubmits          []*smppwire.SubmitSMBody
 }
 
 type SubmitEnvelopeBuilder interface {
@@ -127,10 +137,13 @@ type SubmitServiceDependencies struct {
 	// group id is an in-process routing identity and can change after a config
 	// reorder, so it must never become the commercial identifier.
 	GroupIdentity func(username string) (string, bool)
-	NewMessageID  func() (string, error)
-	NewBillID     func() (string, error)
-	NewReference  func() (uint16, error)
-	Now           func() time.Time
+	// CDRCurrency is the operator-owned ISO-4217 settlement currency. Empty
+	// preserves the unitless legacy-safe XXX value.
+	CDRCurrency  string
+	NewMessageID func() (string, error)
+	NewBillID    func() (string, error)
+	NewReference func() (uint16, error)
+	Now          func() time.Time
 	// DLRRequestStore, when set, persists the submit-side DLR callback record
 	// (dlr:<msgid>) so the DLRLookup correlation legs can resolve a receipt
 	// back to this submit. Nil disables it (level-1 callbacks still work via
@@ -179,6 +192,12 @@ func NewSubmitService(dependencies SubmitServiceDependencies) (*SubmitService, e
 	if dependencies.Now == nil {
 		dependencies.Now = time.Now
 	}
+	if dependencies.CDRCurrency == "" {
+		dependencies.CDRCurrency = cdr.DefaultCurrency
+	}
+	if err := cdr.ValidateCurrency(dependencies.CDRCurrency); err != nil {
+		return nil, ErrInvalidSubmitConfig
+	}
 	return &SubmitService{dependencies: dependencies}, nil
 }
 
@@ -186,6 +205,24 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 	user, externalUserID, err := service.dependencies.BillingUsers.GetUserIdentity(request.Username)
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrAuthentication, err)
+	}
+	if trusted := request.TrustedManagerSubmit; trusted != nil && trusted.HasBill {
+		if err := billing.ValidateBill(trusted.Bill); err != nil {
+			return "", fmt.Errorf("%w: invalid trusted submit bill: %v", ErrInvalidParameter, err)
+		}
+	}
+	if request.MessageID != "" {
+		lookup, ok := service.dependencies.Transaction.(StableSubmitLookup)
+		if !ok {
+			return "", fmt.Errorf("%w: stable message id requires a durable idempotency lookup", ErrInvalidSubmitConfig)
+		}
+		exists, lookupErr := lookup.SubmissionExists(ctx, request.MessageID)
+		if lookupErr != nil {
+			return "", lookupErr
+		}
+		if exists {
+			return request.MessageID, nil
+		}
 	}
 
 	payload, err := submitPayload(request)
@@ -226,79 +263,141 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		return "", fmt.Errorf("%w: %v", ErrInvalidParameter, err)
 	}
 
-	intercepted, err := service.dependencies.InterceptorTable.Intercept(ctx, service.dependencies.InterceptorRunner, routable)
-	if err != nil {
-		return "", err
-	}
-	if intercepted.Action == interceptor.ActionReject {
-		service.logWarn("MT submit rejected by interceptor [user:%s] [source:%s]", request.Username, sourceConnectorOf(request))
-		return "", ErrFilterRejected
-	}
-	route, found, err := service.dependencies.RoutingTable.Select(intercepted.Routable)
-	if err != nil {
-		service.logError("MT route selection failed [user:%s]: %v", request.Username, err)
-		return "", err
-	}
-	if !found {
-		service.logWarn("No MT route matched [user:%s] [source:%s]", request.Username, sourceConnectorOf(request))
-		return "", ErrNoRouteMatched
-	}
-	connectorID := route.Connector().ID()
-	if service.dependencies.SelectConnector != nil {
-		selected, available := service.dependencies.SelectConnector(route)
-		if !available {
-			service.logWarn("MT route has no available connector [user:%s]", request.Username)
+	effectiveRoutable := routable
+	connectorID := ""
+	routeID := ""
+	routeRate := float64(0)
+	if trusted := request.TrustedManagerSubmit; trusted != nil {
+		if trusted.ConnectorID == "" {
+			return "", fmt.Errorf("%w: trusted manager submit is missing connector id", ErrInvalidParameter)
+		}
+		// The frozen client manager is downstream of interception and routing.
+		// Re-running either here could mutate the PDU twice or select a different
+		// connector after failover, so the authenticated PB input is authoritative.
+		connectorID = trusted.ConnectorID
+		routeID = "connector:" + connectorID
+		if trusted.HasBill {
+			routeRate = trusted.Bill.SubmitSmAmount + trusted.Bill.SubmitSmRespAmount
+		}
+		service.logDebug("Trusted manager submit [user:%s] [cid:%s]", request.Username, connectorID)
+	} else {
+		intercepted, interceptErr := service.dependencies.InterceptorTable.Intercept(ctx, service.dependencies.InterceptorRunner, routable)
+		if interceptErr != nil {
+			return "", interceptErr
+		}
+		if intercepted.Action == interceptor.ActionReject {
+			service.logWarn("MT submit rejected by interceptor [user:%s] [source:%s]", request.Username, sourceConnectorOf(request))
+			return "", ErrFilterRejected
+		}
+		effectiveRoutable = intercepted.Routable
+		route, found, routeErr := service.dependencies.RoutingTable.Select(effectiveRoutable)
+		if routeErr != nil {
+			service.logError("MT route selection failed [user:%s]: %v", request.Username, routeErr)
+			return "", routeErr
+		}
+		if !found {
+			service.logWarn("No MT route matched [user:%s] [source:%s]", request.Username, sourceConnectorOf(request))
 			return "", ErrNoRouteMatched
 		}
-		connectorID = selected
+		connectorID = route.Connector().ID()
+		if service.dependencies.SelectConnector != nil {
+			selected, available := service.dependencies.SelectConnector(route)
+			if !available {
+				service.logWarn("MT route has no available connector [user:%s]", request.Username)
+				return "", ErrNoRouteMatched
+			}
+			connectorID = selected
+		}
+		routeID = route.ID()
+		routeRate = route.Rate()
+		service.logDebug("Selected MT route [user:%s] [cid:%s] [rate:%g]", request.Username, connectorID, routeRate)
 	}
-	service.logDebug("Selected MT route [user:%s] [cid:%s] [rate:%g]", request.Username, connectorID, route.Rate())
 
 	// QoS ceiling. Legacy checks this after routing and before billing, so an
 	// over-rate submit is refused without being charged and without consuming a
 	// message id (send.py:294, factory.py:427). One check per logical submit,
 	// not per segment — a long message costs the user one slot regardless of
 	// how many parts it becomes.
-	if service.dependencies.Throughput != nil {
+	if request.TrustedManagerSubmit == nil && service.dependencies.Throughput != nil {
 		if !service.dependencies.Throughput.AllowSubmit(request.Username, sourceConnectorOf(request), createdAt) {
 			return "", ErrThroughputExceeded
 		}
 	}
 
-	reference, err := service.dependencies.NewReference()
-	if err != nil {
-		return "", err
-	}
-	messageField := intercepted.Routable.ShortMessage()
+	messageField := effectiveRoutable.ShortMessage()
 	if !messageField.Present {
-		messageField = intercepted.Routable.MessagePayload()
+		messageField = effectiveRoutable.MessagePayload()
 	}
-	segmented, err := segmentation.Segment(segmentation.Request{
-		Payload:            messageField.Value,
-		DataCoding:         uint8(request.Coding),
-		SplitMethod:        segmentation.SplitSAR,
-		MaxParts:           10,
-		Reference:          reference,
-		CustomTLVs:         request.CustomTLVs,
-		PreEncodedUDH:      request.HasUDHI(),
-		PreserveSinglePart: request.SMPPSubmit != nil,
-	})
+	var segmented segmentation.Result
+	if trusted := request.TrustedManagerSubmit; trusted != nil && len(trusted.SubmitSMChain) > 0 {
+		preserved := make([]segmentation.PreservedPart, 0, len(trusted.SubmitSMChain))
+		for _, body := range trusted.SubmitSMChain {
+			if body == nil {
+				return "", fmt.Errorf("%w: trusted submit chain contains nil PDU", ErrInvalidParameter)
+			}
+			preserved = append(preserved, segmentation.PreservedPart{
+				ShortMessage: body.ShortMessage,
+				CustomTLVs:   capturedTLVs(body.CapturedVendorTLVs),
+			})
+		}
+		segmented, err = segmentation.Preserve(preserved)
+	} else {
+		reference, referenceErr := service.dependencies.NewReference()
+		if referenceErr != nil {
+			return "", referenceErr
+		}
+		segmented, err = segmentation.Segment(segmentation.Request{
+			Payload:            messageField.Value,
+			DataCoding:         uint8(request.Coding),
+			SplitMethod:        segmentation.SplitSAR,
+			MaxParts:           10,
+			Reference:          reference,
+			CustomTLVs:         request.CustomTLVs,
+			PreEncodedUDH:      request.HasUDHI(),
+			PreserveSinglePart: request.SMPPSubmit != nil,
+		})
+	}
 	if err != nil {
 		return "", err
 	}
 	parts := segmented.Parts()
-	aggregateBill := billing.CalculateBill(route.Rate(), len(parts), user)
-	perPartBill := billing.CalculateBill(route.Rate(), 1, user)
-	messageID, err := service.dependencies.NewMessageID()
-	if err != nil {
-		return "", err
+	aggregateBill := billing.CalculateBill(routeRate, len(parts), user)
+	perPartBill := billing.CalculateBill(routeRate, 1, user)
+	if trusted := request.TrustedManagerSubmit; trusted != nil {
+		if trusted.HasBill {
+			aggregateBill = trusted.Bill
+			perPartBill = trusted.Bill
+		} else {
+			aggregateBill = billing.Bill{}
+			perPartBill = billing.Bill{}
+		}
 	}
-	billID, err := service.dependencies.NewBillID()
-	if err != nil {
-		return "", err
+	messageID := request.MessageID
+	if messageID == "" {
+		messageID, err = service.dependencies.NewMessageID()
+		if err != nil {
+			return "", err
+		}
+	}
+	billID := ""
+	if request.TrustedManagerSubmit != nil {
+		billID = request.TrustedManagerSubmit.BillID
+	}
+	if billID == "" {
+		billID, err = service.dependencies.NewBillID()
+		if err != nil {
+			return "", err
+		}
 	}
 	priority := request.Priority
-	if priority < 0 || priority > 3 {
+	maxPriority := 3
+	if request.TrustedManagerSubmit != nil {
+		// Frozen SubmitSmContent rejects non-integers and negative values but
+		// does not enforce its stated 0..3 ceiling. AMQP carries an octet, so
+		// preserve the observable 0..255 compatibility range on PB only.
+		maxPriority = 255
+	}
+	if priority < 0 || priority > maxPriority {
 		return "", fmt.Errorf("%w: priority %d", ErrInvalidParameter, priority)
 	}
 	// Resolve the routed connector's default submit_sm PDU params (GAP 4). The
@@ -310,7 +409,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 			pduDefaults = resolved
 		}
 	}
-	sourceAddr := intercepted.Routable.SourceAddr().Value
+	sourceAddr := effectiveRoutable.SourceAddr().Value
 	if len(sourceAddr) == 0 && pduDefaults.SourceAddr != "" {
 		sourceAddr = []byte(pduDefaults.SourceAddr)
 	}
@@ -322,7 +421,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		UserID:               externalUserID,
 		ConnectorID:          connectorID,
 		SourceAddr:           sourceAddr,
-		DestinationAddr:      intercepted.Routable.DestinationAddr().Value,
+		DestinationAddr:      effectiveRoutable.DestinationAddr().Value,
 		DataCoding:           uint8(request.Coding),
 		Priority:             uint8(priority),
 		SourceAddrTON:        pduDefaults.SourceAddrTON,
@@ -335,6 +434,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		SmDefaultMsgID:       pduDefaults.SmDefaultMsgID,
 		ScheduleAt:           cloneTime(request.SDT),
 		ValidityPeriod:       cloneDuration(request.ValidityPeriod),
+		Expiration:           trustedExpiration(request),
 		DLR:                  request.DLR,
 		DLRURL:               request.DLRUrl,
 		DLRLevel:             request.DLRLevel,
@@ -344,6 +444,7 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		Parts:                parts,
 		CustomTLVs:           cloneTLVs(request.CustomTLVs),
 		SMPPSubmit:           cloneSubmitSMBody(request.SMPPSubmit),
+		SMPPSubmits:          cloneSubmitSMBodies(trustedSubmitChain(request)),
 	}
 	envelopes := make([]amqpcompat.Envelope, 0, len(parts))
 	for index, part := range parts {
@@ -371,11 +472,15 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 				expiry = resolved
 			}
 		}
+		dlrConnector := connectorID
+		if request.TrustedManagerSubmit != nil && request.TrustedManagerSubmit.DLRConnector != "" {
+			dlrConnector = request.TrustedManagerSubmit.DLRConnector
+		}
 		if err := service.dependencies.DLRRequestStore.StoreHTTPDLRRequest(ctx, messageID, dlr.HTTPDLRRequest{
 			URL:           request.DLRUrl,
 			Level:         request.DLRLevel,
 			Method:        request.DLRMethod,
-			Connector:     connectorID,
+			Connector:     dlrConnector,
 			ExpirySeconds: expiry,
 		}); err != nil {
 			return "", fmt.Errorf("persist DLR request: %w", err)
@@ -411,18 +516,20 @@ func (service *SubmitService) Submit(ctx context.Context, request SubmitRequest)
 		}
 	}
 
-	if err := user.AuthorizeAndApplyCalculatedSubmit(route.Rate(), len(parts), aggregateBill); err != nil {
-		service.logWarn("Charging user failed [user:%s] [cid:%s] [parts:%d]: %v",
-			request.Username, connectorID, len(parts), err)
-		return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
+	if request.TrustedManagerSubmit == nil {
+		if err := user.AuthorizeAndApplyCalculatedSubmit(routeRate, len(parts), aggregateBill); err != nil {
+			service.logWarn("Charging user failed [user:%s] [cid:%s] [parts:%d]: %v",
+				request.Username, connectorID, len(parts), err)
+			return "", fmt.Errorf("%w: %v", ErrQuotaExceeded, err)
+		}
 	}
 	if service.dependencies.Transaction != nil {
 		var admissionErr error
 		if commercial, ok := service.dependencies.Transaction.(SubmitCommercialPublicationBoundary); ok {
 			admissionErr = commercial.AdmitSubmitWithCDR(ctx, envelopes, cdr.SubmitMetadata{
-				GroupID: cdrGroupID, RouteID: route.ID(),
-				Ingress: sourceConnectorOf(request), Rate: route.Rate(),
-				Currency:    cdr.DefaultCurrency,
+				GroupID: cdrGroupID, RouteID: routeID,
+				Ingress: sourceConnectorOf(request), Rate: routeRate,
+				Currency:    service.dependencies.CDRCurrency,
 				EarlyAmount: perPartBill.SubmitSmAmount,
 				LateAmount:  perPartBill.SubmitSmRespAmount,
 			})
@@ -558,6 +665,45 @@ func cloneTLVs(values []tlv.TLV) []tlv.TLV {
 		return nil
 	}
 	return append([]tlv.TLV(nil), values...)
+}
+
+func capturedTLVs(values []smppwire.CapturedVendorTLV) []tlv.TLV {
+	result := make([]tlv.TLV, 0, len(values))
+	for _, value := range values {
+		length := len(value.Value)
+		result = append(result, tlv.TLV{
+			Tag:    new(big.Int).SetUint64(uint64(value.Tag)),
+			Length: &length,
+			Type:   "OctetString",
+			Value:  append([]byte(nil), value.Value...),
+		})
+	}
+	return result
+}
+
+func trustedSubmitChain(request SubmitRequest) []*smppwire.SubmitSMBody {
+	if request.TrustedManagerSubmit == nil {
+		return nil
+	}
+	return request.TrustedManagerSubmit.SubmitSMChain
+}
+
+func trustedExpiration(request SubmitRequest) string {
+	if request.TrustedManagerSubmit == nil {
+		return ""
+	}
+	return request.TrustedManagerSubmit.ValidityPeriod
+}
+
+func cloneSubmitSMBodies(values []*smppwire.SubmitSMBody) []*smppwire.SubmitSMBody {
+	if values == nil {
+		return nil
+	}
+	result := make([]*smppwire.SubmitSMBody, len(values))
+	for index, value := range values {
+		result[index] = cloneSubmitSMBody(value)
+	}
+	return result
 }
 
 func cloneSubmitSMBody(value *smppwire.SubmitSMBody) *smppwire.SubmitSMBody {

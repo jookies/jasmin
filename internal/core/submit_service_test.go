@@ -375,6 +375,142 @@ func (wrongRouteBuilder) BuildSubmitEnvelope(_ context.Context, request core.Sub
 	return envelope, nil
 }
 
+type stableSubmitBoundary struct {
+	exists bool
+}
+
+func (boundary *stableSubmitBoundary) SubmissionExists(context.Context, string) (bool, error) {
+	return boundary.exists, nil
+}
+
+func (boundary *stableSubmitBoundary) AdmitSubmit(context.Context, []amqpcompat.Envelope) error {
+	return nil
+}
+
+func TestStableRecoveredSubmitReturnsBeforeRoutingOrCharging(t *testing.T) {
+	user := fundedUser(t)
+	users := billing.NewManager()
+	if err := users.AddUserWithID("alice", "user-opaque", user); err != nil {
+		t.Fatal(err)
+	}
+	builder := &recordingBuilder{}
+	boundary := &stableSubmitBoundary{exists: true}
+	routes := routeTable(t, true)
+	service, err := core.NewSubmitService(core.SubmitServiceDependencies{
+		InterceptorTable: emptyInterceptors(), RoutingTable: &routes,
+		BillingUsers: users, EnvelopeBuilder: builder, Transaction: boundary,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := service.Submit(context.Background(), core.SubmitRequest{
+		MessageID: "rest-task-stable-id", Username: "alice",
+		Destination: "15551234567", Content: "hi",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != "rest-task-stable-id" || len(builder.sequences) != 0 || user.Balance() != 10 {
+		t.Fatalf("id=%q builds=%v balance=%v", id, builder.sequences, user.Balance())
+	}
+}
+
+func TestTrustedManagerSubmitHonorsConnectorBillAndDLRWithoutDoubleCharging(t *testing.T) {
+	user := billing.NewUser(7)
+	if err := user.SetBalance(10); err != nil {
+		t.Fatal(err)
+	}
+	user.SetSubmitSmCountQuota(5)
+	users := billing.NewManager()
+	if err := users.AddUserWithID("alice", "user-opaque", user); err != nil {
+		t.Fatal(err)
+	}
+	builder := &recordingBuilder{}
+	publisher := &recordingPublisher{}
+	store := &recordingDLRStore{}
+	routes := routeTable(t, false) // trusted manager submits are already routed
+	service, err := core.NewSubmitService(core.SubmitServiceDependencies{
+		InterceptorTable:  emptyInterceptors(),
+		InterceptorRunner: fixedRunner{},
+		RoutingTable:      &routes,
+		BillingUsers:      users,
+		EnvelopeBuilder:   builder,
+		Publisher:         publisher,
+		DLRRequestStore:   store,
+		NewMessageID: func() (string, error) {
+			return "11111111-1111-4111-8111-111111111111", nil
+		},
+		NewReference: func() (uint16, error) { return 41, nil },
+		Now:          func() time.Time { return time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	suppliedBill := billing.Bill{
+		SubmitSmAmount:         0.25,
+		SubmitSmRespAmount:     0.75,
+		DecrementSubmitSmCount: 1,
+		AuthorizationAmount:    1,
+	}
+	firstPDU := &smppwire.SubmitSMBody{
+		SourceAddress: []byte("123"), DestinationAddress: []byte("15551230000"),
+		ShortMessage: []byte("part-1"), PriorityFlag: 1,
+	}
+	secondPDU := &smppwire.SubmitSMBody{
+		SourceAddress: []byte("123"), DestinationAddress: []byte("15551230000"),
+		ShortMessage: []byte("part-2"), PriorityFlag: 1,
+	}
+	messageID, err := service.Submit(context.Background(), core.SubmitRequest{
+		Username:    "alice",
+		Destination: "15551230000",
+		HexContent:  "706172742d31",
+		Priority:    3,
+		DLR:         true,
+		DLRUrl:      "https://example.test/dlr",
+		DLRLevel:    3,
+		DLRMethod:   "POST",
+		TrustedManagerSubmit: &core.TrustedManagerSubmit{
+			ConnectorID:    "forced-cid",
+			BillID:         "legacy-bill-id",
+			Bill:           suppliedBill,
+			HasBill:        true,
+			DLRConnector:   "receipt-cid",
+			ValidityPeriod: "2026-07-29 12:34:56.123456",
+			SubmitSMChain:  []*smppwire.SubmitSMBody{firstPDU, secondPDU},
+		},
+		SMPPSubmit: firstPDU,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if messageID != "11111111-1111-4111-8111-111111111111" {
+		t.Fatalf("message ID=%q", messageID)
+	}
+	if len(publisher.routingKeys) != 2 || publisher.routingKeys[0] != "submit.sm.forced-cid" ||
+		publisher.routingKeys[1] != "submit.sm.forced-cid" {
+		t.Fatalf("routing keys=%v", publisher.routingKeys)
+	}
+	if builder.request.ConnectorID != "forced-cid" ||
+		builder.request.BillID != "legacy-bill-id" ||
+		builder.request.Bill != suppliedBill ||
+		builder.request.Priority != 3 ||
+		builder.request.Expiration != "2026-07-29 12:34:56.123456" ||
+		len(builder.request.SMPPSubmits) != 2 ||
+		string(builder.request.SMPPSubmits[0].ShortMessage) != "part-1" ||
+		string(builder.request.SMPPSubmits[1].ShortMessage) != "part-2" ||
+		len(builder.sequences) != 2 {
+		t.Fatalf("trusted envelope request=%+v", builder.request)
+	}
+	state := user.GetState()
+	if state.Balance == nil || *state.Balance != 10 ||
+		state.SubmitSmCountQuota == nil || *state.SubmitSmCountQuota != 5 {
+		t.Fatalf("trusted manager submit double charged user: %+v", state)
+	}
+	if store.calls != 1 || store.request.Connector != "receipt-cid" {
+		t.Fatalf("DLR store calls=%d request=%+v", store.calls, store.request)
+	}
+}
+
 func newSubmitService(
 	t *testing.T,
 	user *billing.User,

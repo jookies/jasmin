@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/dlrlookup"
@@ -18,6 +19,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
 	"github.com/pumpitspace/jasmin/internal/app/smppsserver"
 	"github.com/pumpitspace/jasmin/internal/core/smppc"
+	"github.com/pumpitspace/jasmin/internal/transport/restcompat"
 )
 
 var ErrInvalidConfig = errors.New("invalid gateway configuration")
@@ -72,12 +74,15 @@ type Config struct {
 	DeliverSMThrowerLog ComponentLogConfig `json:"deliver_sm_thrower_log,omitempty"`
 	// HTTPS, when present, serves the HTTP API over TLS instead of plaintext.
 	HTTPS *HTTPSConfig `json:"https,omitempty"`
+	// REST configures the durable /secure API batch worker and, when
+	// listen_address is set, its historical standalone JSON listener.
+	REST restcompat.Config `json:"rest_api,omitempty"`
 	// Admin, when present, runs the authenticated runtime provisioning API
 	// (SQLite-backed connector CRUD, live-applied) mounted at /admin.
 	Admin *AdminConfig `json:"admin,omitempty"`
 	// HA, when present, fences the whole gateway active-passive through a
-	// PostgreSQL session advisory lock. It prevents two processes from spending
-	// the same in-memory quotas; it does not replicate the node-local admin DB.
+	// PostgreSQL session advisory lock and moves admin state into a shared,
+	// namespace-isolated PostgreSQL control plane.
 	HA *HAConfig `json:"ha,omitempty"`
 	// MORoutes, when present, runs the MO router dispatch in-process: MOs the
 	// connectors ingest (deliver.sm.*) route to HTTP/SMPPS destinations via
@@ -90,11 +95,17 @@ type Config struct {
 // HAConfig identifies one active-passive deployment. Gateways sharing the
 // outbound PostgreSQL database and namespace contend for the same leader lock.
 type HAConfig struct {
-	Namespace string `json:"namespace"`
+	Namespace           string  `json:"namespace"`
+	StandbyRetrySeconds float64 `json:"standby_retry_seconds,omitempty"`
+	// StandbyListenAddress exposes /live and /ready before promotion. It may
+	// equal Outbound.ListenAddress: the standby server closes before the active
+	// admission listener binds that address.
+	StandbyListenAddress string `json:"standby_listen_address"`
 }
 
 // AdminConfig configures the runtime provisioning plane. DBPath is the SQLite
-// file (admin-created connectors persist here and survive restart). Token
+// file for single-node deployments. HA deployments use the outbound PostgreSQL
+// database as the shared control plane and may leave DBPath empty. Token
 // authenticates every admin request as a bearer token; it accepts the same
 // env:/file:/literal: secret references as the other credentials and must be
 // non-empty (the admin API is never unauthenticated).
@@ -237,11 +248,34 @@ func ValidateConfig(config Config) error {
 	if config.HTTPS != nil && (config.HTTPS.CertFile == "" || config.HTTPS.KeyFile == "") {
 		return fmt.Errorf("%w: https requires both cert_file and key_file", ErrInvalidConfig)
 	}
-	if config.HA != nil && config.HA.Namespace == "" {
-		return fmt.Errorf("%w: ha requires a non-empty namespace", ErrInvalidConfig)
+	if err := config.REST.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+	if config.REST.ListenAddress != "" {
+		if _, _, err := net.SplitHostPort(config.REST.ListenAddress); err != nil {
+			return fmt.Errorf("%w: rest_api.listen_address %q is not host:port: %v",
+				ErrInvalidConfig, config.REST.ListenAddress, err)
+		}
+	}
+	if config.HA != nil {
+		if strings.TrimSpace(config.HA.Namespace) == "" {
+			return fmt.Errorf("%w: ha requires a non-empty namespace", ErrInvalidConfig)
+		}
+		if math.IsNaN(config.HA.StandbyRetrySeconds) || math.IsInf(config.HA.StandbyRetrySeconds, 0) ||
+			config.HA.StandbyRetrySeconds < 0 ||
+			config.HA.StandbyRetrySeconds*float64(time.Second) >= float64(math.MaxInt64) {
+			return fmt.Errorf("%w: ha standby retry must be finite, non-negative and representable", ErrInvalidConfig)
+		}
+		if config.HA.StandbyListenAddress == "" {
+			return fmt.Errorf("%w: ha requires standby_listen_address for liveness and readiness", ErrInvalidConfig)
+		}
+		if _, _, err := net.SplitHostPort(config.HA.StandbyListenAddress); err != nil {
+			return fmt.Errorf("%w: ha.standby_listen_address %q is not host:port: %v",
+				ErrInvalidConfig, config.HA.StandbyListenAddress, err)
+		}
 	}
 	if config.Admin != nil {
-		if config.Admin.DBPath == "" {
+		if config.Admin.DBPath == "" && config.HA == nil {
 			return fmt.Errorf("%w: admin requires db_path", ErrInvalidConfig)
 		}
 		if config.Admin.Token == "" {
@@ -276,6 +310,43 @@ func ValidateConfig(config Config) error {
 			}
 		} else if config.Admin.PBFacadeToken != "" {
 			return fmt.Errorf("%w: admin.pb_facade_token requires pb_facade_listen_address", ErrInvalidConfig)
+		}
+	}
+	listeners := []listenerConfig{
+		{name: "outbound.listen_address", address: config.Outbound.ListenAddress},
+		{name: "rest_api.listen_address", address: config.REST.ListenAddress},
+	}
+	if config.Admin != nil {
+		listeners = append(listeners,
+			listenerConfig{name: "admin.web_listen_address", address: config.Admin.WebListenAddress},
+			listenerConfig{name: "admin.jcli_listen_address", address: config.Admin.JCliListenAddress},
+			listenerConfig{name: "admin.pb_facade_listen_address", address: config.Admin.PBFacadeListenAddress},
+		)
+	}
+	if config.SMPPS != nil && config.SMPPS.BindAddr != "" {
+		listeners = append(listeners, listenerConfig{name: "smpps.bind_addr", address: config.SMPPS.BindAddr})
+	}
+	if err := validateConcurrentListeners(listeners...); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+	// The standby server closes before the public/REST/admin-web/PB servers
+	// bind, so sharing one of those addresses is intentional and supports an
+	// in-place /ready transition. jCli and SMPPs start inside NewRuntime while
+	// standby health is still serving, so only those two overlap it.
+	if config.HA != nil {
+		overlappingStandby := []listenerConfig{
+			{name: "ha.standby_listen_address", address: config.HA.StandbyListenAddress},
+		}
+		if config.Admin != nil {
+			overlappingStandby = append(overlappingStandby,
+				listenerConfig{name: "admin.jcli_listen_address", address: config.Admin.JCliListenAddress})
+		}
+		if config.SMPPS != nil {
+			overlappingStandby = append(overlappingStandby,
+				listenerConfig{name: "smpps.bind_addr", address: config.SMPPS.BindAddr})
+		}
+		if err := validateConcurrentListeners(overlappingStandby...); err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 		}
 	}
 	if len(config.MORoutes) > 0 {
@@ -328,11 +399,69 @@ func ValidateConfig(config Config) error {
 	return nil
 }
 
+type listenerConfig struct {
+	name    string
+	address string
+}
+
+func validateConcurrentListeners(listeners ...listenerConfig) error {
+	for leftIndex, left := range listeners {
+		if left.address == "" {
+			continue
+		}
+		for rightIndex := leftIndex + 1; rightIndex < len(listeners); rightIndex++ {
+			right := listeners[rightIndex]
+			if right.address == "" {
+				continue
+			}
+			conflict, err := listenerAddressesConflict(left.address, right.address)
+			if err != nil {
+				return err
+			}
+			if conflict {
+				return fmt.Errorf("%s (%s) collides with %s (%s)",
+					left.name, left.address, right.name, right.address)
+			}
+		}
+	}
+	return nil
+}
+
+func listenerAddressesConflict(left, right string) (bool, error) {
+	leftHost, leftPort, err := net.SplitHostPort(left)
+	if err != nil {
+		return false, fmt.Errorf("listener address %q is not host:port: %v", left, err)
+	}
+	rightHost, rightPort, err := net.SplitHostPort(right)
+	if err != nil {
+		return false, fmt.Errorf("listener address %q is not host:port: %v", right, err)
+	}
+	if leftPort != rightPort {
+		return false, nil
+	}
+	return wildcardHost(leftHost) || wildcardHost(rightHost) || strings.EqualFold(leftHost, rightHost), nil
+}
+
+func wildcardHost(host string) bool {
+	if host == "" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsUnspecified()
+}
+
 func (config Config) BindTimeout() time.Duration {
 	if config.BindTimeoutSeconds == 0 {
 		return 30 * time.Second
 	}
 	return time.Duration(config.BindTimeoutSeconds * float64(time.Second))
+}
+
+func (config HAConfig) StandbyRetryInterval() time.Duration {
+	if config.StandbyRetrySeconds == 0 {
+		return 2 * time.Second
+	}
+	return time.Duration(config.StandbyRetrySeconds * float64(time.Second))
 }
 
 func (config Config) RequiredConnectors() []string {

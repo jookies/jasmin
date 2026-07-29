@@ -19,6 +19,10 @@ import "github.com/pumpitspace/jasmin/internal/config"
 func ApplyJasmin(cfg *Config, jasmin *config.Jasmin) {
 	cfg.Outbound.AMQPURL = jasmin.AMQP.URL()
 	cfg.Outbound.ListenAddress = jasmin.HTTPAPI.BindAddr()
+	restThroughput := float64(jasmin.RESTAPI.HTTPThroughputPerWorker)
+	restSmartQoS := jasmin.RESTAPI.SmartQoS
+	cfg.REST.HTTPThroughputPerWorker = &restThroughput
+	cfg.REST.SmartQoS = &restSmartQoS
 
 	if cfg.DLRThrower != nil {
 		cfg.DLRThrower.HTTPTimeoutSeconds = float64(jasmin.DLRThrower.TimeoutSecs)

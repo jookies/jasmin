@@ -257,6 +257,32 @@ func (h HTTPAPI) BindAddr() string {
 	return fmt.Sprintf("%s:%d", h.Bind, h.Port)
 }
 
+// RESTAPI is the batch-worker portion of jasmin.protocols.rest.config. The
+// legacy REST daemon's listen address belongs to its process manager rather
+// than rest-api.cfg; the Go gateway therefore owns that address in JSON while
+// these two parity settings may be overlaid from a [rest-api] section.
+type RESTAPI struct {
+	HTTPThroughputPerWorker int
+	SmartQoS                bool
+}
+
+func LoadRESTAPI(file *File) (RESTAPI, error) {
+	rest := RESTAPI{}
+	var err error
+	if rest.HTTPThroughputPerWorker, err =
+		file.GetInt("rest-api", "http_throughput_per_worker", 8); err != nil {
+		return RESTAPI{}, err
+	}
+	if rest.HTTPThroughputPerWorker < 0 {
+		return RESTAPI{}, fmt.Errorf(
+			"config: [rest-api] http_throughput_per_worker must not be negative")
+	}
+	if rest.SmartQoS, err = file.GetBool("rest-api", "smart_qos", true); err != nil {
+		return RESTAPI{}, err
+	}
+	return rest, nil
+}
+
 // DLR is the parsed 'dlr' section (DLRLookupConfig): the DLRLookup worker's
 // identity and retry policy. It maps directly to the dlrlookup worker config.
 type DLR struct {

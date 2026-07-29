@@ -2,6 +2,86 @@
 
 <!-- Newest entries on top. One entry per significant working session. -->
 
+## 2026-07-29 — Roadmap #20 PB and #21 active-passive HA completed
+
+- The trusted Twisted sidecar now terminates RouterPB,
+  SMPPClientManagerPB, SMPPServerPB and InterceptorPB on their frozen ports
+  with digest authentication, Deferred/result shapes and serialized object
+  reconstruction. Every normalized call is bearer-authenticated at the
+  private Go listener.
+- All PB method families are live: groups/users/routes/interceptors, scoped
+  profile persist/load with rollback, connector CRUD/lifecycle/stats,
+  SMPP-server session operations, manager submit and isolated legacy-script
+  execution. Native Go interceptor execution remains intentionally last.
+- Objects created by jCli, REST, the web UI or another HA replica are
+  deterministically reconstructed for frozen PB list/get calls when no opaque
+  legacy pickle exists. A real frozen `RouterPBProxy` connected through the
+  sidecar after failover and observed normalized state created before it.
+- Manager submit now honors the supplied connector, bill and bill ID, DLR
+  connector, queue priority and expiration. Linked `SubmitSM.nextPdu` chains
+  cross the normalized boundary as bounded, cycle-checked ordered wire frames;
+  Go admits every byte-exact part under one aggregate message ID without
+  rerouting, re-intercepting or charging the already-applied early bill again.
+- `delQueues=True` returns an explicit failure without stopping or mutating the
+  connector. Deleting a connector queue is intentionally unavailable because
+  the supported deployment uses shared durable AMQP topology.
+- Active-passive HA is complete for the supported topology. A deterministic
+  PostgreSQL schema holds shared admin/profile state; exactly one process owns
+  the namespace advisory fence while standbys serve `/live` 200 and `/ready`
+  503. Fence loss closes public, REST, admin, PB, jCli and SMPP admission before
+  release.
+- The executable two-gateway HAProxy drill passed: healthy active/standby,
+  pre-failover MT send, shared PB-created state, forced active stop, standby
+  promotion, post-failover MT send, state retention, and old-node rejoin as an
+  unready standby. Multi-active remains explicitly unsupported by ADR-005.
+- Focused PB macro: 30 tests, zero skipped/failed. Integrated Go and live
+  PostgreSQL suites, affected race suites, the real PB client replay, compose
+  validation and HAProxy syntax validation pass. The compatibility registry is
+  structurally green at 205 rows: 37 `MATCH`, 17 `GO-COMPLETE`, 60
+  `GO-PARTIAL`, 91 `INVENTORIED`.
+
+## 2026-07-29 — Roadmap #19 REST completed
+
+- `/secure/send`, `/secure/sendbatch`, `/secure/balance` and `/secure/rate`
+  retain the frozen Basic-auth, JSON mapping, response and error contracts.
+  The separate optional REST listener now adds the JSON-wrapped `/ping`;
+  combined public `/ping` remains the legacy `Jasmin/PONG` bytes.
+- PostgreSQL migration 0005 makes batch admission, scheduled work, terminal
+  state and callback/errback delivery durable. Complete destination expansion
+  commits before acknowledgement; leased `SKIP LOCKED` claims recover after
+  restart and permit safe worker/process concurrency.
+- A stable UUID per batch task becomes its trusted internal submit message ID.
+  Recovery consults the durable submit ledger before routing/billing, so a
+  process crash after admission cannot charge and enqueue that task again.
+- Durable tasks store a SHA-256 credential proof, never the password. Dispatch
+  rechecks the current digest and user/group enabled state. Callback URLs are
+  limited to absolute HTTP(S) URLs without embedded credentials; requests have
+  a timeout and bounded retry.
+- `rest_api` JSON exposes the daemon address, per-worker throughput, smart QoS,
+  backlog ceiling and submit/callback retry policy. A frozen Python config
+  differential proves `[rest-api] http_throughput_per_worker` and `smart_qos`
+  parsing/defaults.
+- Focused REST/HTTP/core/config/storage/outbound suites pass. The PostgreSQL
+  lifecycle test passed in the parent integration environment. R-001–R-009
+  remain `INVENTORIED`: functionality is complete, but the registry still
+  requires committed frozen endpoint macros/fixtures before promotion.
+
+## 2026-07-29 — Roadmap #18 CDR completed
+
+- Correlated final DLRs now append one immutable per-part event and retain
+  normalized delivery state plus SMSC/gateway timestamps before Redis cleanup.
+- The durable late-billing ledger and CDR projection now settle atomically as
+  `APPLIED` (actual amount) or `REJECTED` (zero); contradictory terminal
+  transitions are refused.
+- `cdr_currency`, retention days/batch and maintenance cadence are
+  operator-configurable. The production runtime runs reconciliation alerts and
+  bounded pruning; zero retention remains the safe no-delete default.
+- Versioned opaque-cursor JSONL/CSV export, role-based read/export/operator
+  access and durable fail-closed access auditing are implemented.
+- SQLite lifecycle/authorization/export/pruning/reconciliation tests and a
+  live PostgreSQL completion test pass. No registry row changed: Python has no
+  CDR oracle.
+
 ## 2026-07-29 — Roadmap 18–21 started; quota GC and data_sm TLVs closed
 
 Goal (user): use three additional agents to start functional roadmap items

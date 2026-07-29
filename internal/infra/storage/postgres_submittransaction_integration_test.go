@@ -7,9 +7,102 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pumpitspace/jasmin/internal/core/cdr"
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 	"github.com/pumpitspace/jasmin/internal/transport/amqpcompat"
 )
+
+func TestPostgresCDRCompletionLifecycleAndOperations(t *testing.T) {
+	dsn := os.Getenv("TEST_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("TEST_POSTGRES_DSN is not set")
+	}
+	ctx := context.Background()
+	repository, err := OpenPostgresSubmitTransactionRepository(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = repository.Close() })
+	if err = repository.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repository.db.ExecContext(ctx, `TRUNCATE
+ cdr_access_audit,cdr_events,cdr_records,submit_billing_intents,submit_outbox,
+ submit_results,submit_attempts,submit_parts RESTART IDENTITY CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	clock := now
+	service, err := submittransaction.NewProductionService(repository, func() time.Time { return clock })
+	if err != nil {
+		t.Fatal(err)
+	}
+	properties, _ := amqpcompat.NewProperties("pg-cdr-complete", map[string]amqpcompat.Field{
+		"user-id": amqpcompat.StringField("finance-user"),
+		"bill-id": amqpcompat.StringField("bill-pg-cdr"),
+	})
+	envelope, _ := amqpcompat.NewEnvelope("submit.sm.connector-a", properties, []byte("opaque"))
+	if err = service.AdmitSubmitWithCDR(ctx, []amqpcompat.Envelope{envelope}, cdr.SubmitMetadata{
+		RouteID: "mt:10", Ingress: "httpapi", Rate: 1, Currency: "GBP",
+		EarlyAmount: 0.5, LateAmount: 0.5,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	id := "pg-cdr-complete/000001"
+	attempt, _, err := service.BeginAttempt(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(time.Second)
+	billingProperties, _ := amqpcompat.NewProperties("bill-pg-cdr", map[string]amqpcompat.Field{
+		"event-key": amqpcompat.StringField(id + ":20-late-billing"),
+	})
+	billingEnvelope, _ := amqpcompat.NewEnvelope(
+		"bill_request.submit_sm_resp.finance-user", billingProperties, nil)
+	billingEvent, err := submittransaction.NewEnvelopeEvent(
+		id+":20-late-billing", id, submittransaction.EventLateBilling,
+		"billing", billingEnvelope, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := service.CommitResponse(ctx, submittransaction.Result{
+		PartKey: id, AttemptID: attempt.ID, Kind: submittransaction.ResultSuccess,
+		SMPPStatus: "ESME_ROK", SMSCMessageID: "ABC",
+	}, billingEvent)
+	if err != nil || !fresh {
+		t.Fatalf("commit=(%v,%v)", fresh, err)
+	}
+	if err = repository.MarkBillingApplied(ctx, id+":20-late-billing", clock.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err = repository.RecordFinalDLR(ctx, cdr.FinalDLR{
+		QueueMessageID: "pg-cdr-complete", ConnectorID: "connector-a",
+		SMSCMessageID: "ABC", Status: "DELIVRD", Error: "000",
+		ReceivedAt: clock.Add(2 * time.Second),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	record, err := repository.GetCDR(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Currency != "GBP" || record.BillingOutcome != cdr.BillingApplied ||
+		record.ActualLateAmount != 0.5 || record.DeliveryState != cdr.DeliveryDelivered {
+		t.Fatalf("record=%+v", record)
+	}
+	records, err := repository.ExportCDRs(ctx, cdr.ExportQuery{Limit: 10})
+	if err != nil || len(records) != 1 {
+		t.Fatalf("export=(%d,%v)", len(records), err)
+	}
+	report, err := repository.ReconcileCDRs(ctx, clock.Add(3*time.Second))
+	if err != nil || !report.Healthy() {
+		t.Fatalf("reconcile=(%+v,%v)", report, err)
+	}
+	pruned, err := repository.PruneCDRs(ctx, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 10)
+	if err != nil || pruned.Records != 1 || pruned.Events < 4 {
+		t.Fatalf("prune=(%+v,%v)", pruned, err)
+	}
+}
 
 func TestPostgresSubmitTransactionMigrationAndRecovery(t *testing.T) {
 	dsn := os.Getenv("TEST_POSTGRES_DSN")

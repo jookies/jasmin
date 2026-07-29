@@ -213,6 +213,62 @@ func TestSubmitEnvelopeBuilderCarriesSMPPsRawPDU(t *testing.T) {
 	}
 }
 
+func TestSubmitEnvelopeBuilderPreservesTrustedLinkedPDUChain(t *testing.T) {
+	encoder := &recordingEncoder{}
+	builder, err := outbound.NewSubmitEnvelopeBuilder(encoder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	partTLV := tlv.TLV{Tag: big.NewInt(0x1400), Type: "OctetString", Value: []byte{0x01}}
+	segmented, err := segmentation.Preserve([]segmentation.PreservedPart{
+		{ShortMessage: []byte("part-1"), CustomTLVs: []tlv.TLV{partTLV}},
+		{ShortMessage: []byte("part-2")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := segmented.Parts()
+	first := &smppwire.SubmitSMBody{ShortMessage: []byte("part-1"), PriorityFlag: 1}
+	second := &smppwire.SubmitSMBody{ShortMessage: []byte("part-2"), PriorityFlag: 2}
+	request := core.SubmitEnvelopeRequest{
+		MessageID: "aggregate-linked", BillID: "legacy-bill", CreatedAt: time.Now(),
+		Username: "alice", UserID: "user-1", ConnectorID: "forced-cid",
+		DestinationAddr: []byte("15551230000"), Priority: 3,
+		Expiration: "2026-07-29 12:34:56.123456",
+		Parts:      parts, SMPPSubmit: first, SMPPSubmits: []*smppwire.SubmitSMBody{first, second},
+		Bill: billing.Bill{SubmitSmAmount: 0.25, SubmitSmRespAmount: 0.75, DecrementSubmitSmCount: 1},
+	}
+	for index, part := range parts {
+		envelope, err := builder.BuildSubmitEnvelope(context.Background(), request, part)
+		if err != nil {
+			t.Fatalf("part %d: %v", index+1, err)
+		}
+		if envelope.RoutingKey() != "submit.sm.forced-cid" {
+			t.Fatalf("part %d routing key=%q", index+1, envelope.RoutingKey())
+		}
+		if priority, _ := envelope.Properties().Priority(); priority != 3 {
+			t.Fatalf("part %d AMQP priority=%d", index+1, priority)
+		}
+		headers := envelope.Properties().Headers()
+		if aggregate, _ := headers["aggregate-message-id"].String(); aggregate != "aggregate-linked" {
+			t.Fatalf("part %d aggregate id=%q", index+1, aggregate)
+		}
+		if expiration, _ := headers["expiration"].String(); expiration != "2026-07-29 12:34:56.123456" {
+			t.Fatalf("part %d expiration=%q", index+1, expiration)
+		}
+	}
+	if len(encoder.requests) != 2 ||
+		string(encoder.requests[0].RawPDU.ShortMessage) != "part-1" ||
+		string(encoder.requests[1].RawPDU.ShortMessage) != "part-2" ||
+		encoder.requests[0].RawPDU.PriorityFlag != 1 ||
+		encoder.requests[1].RawPDU.PriorityFlag != 2 {
+		t.Fatalf("ordered raw encode requests=%+v", encoder.requests)
+	}
+	if len(encoder.requests[0].CustomTLVs) != 1 || len(encoder.requests[1].CustomTLVs) != 0 {
+		t.Fatalf("per-part custom TLVs=%+v", encoder.requests)
+	}
+}
+
 func TestSubmitEnvelopeBuilderUsesPythonCompatibleScientificLateAmount(t *testing.T) {
 	encoder := &recordingEncoder{}
 	builder, err := outbound.NewSubmitEnvelopeBuilder(encoder)

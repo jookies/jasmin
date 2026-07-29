@@ -13,7 +13,7 @@ import (
 	"github.com/pumpitspace/jasmin/internal/core/submittransaction"
 )
 
-//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql
+//go:embed migrations/0001_submit_transaction.sql migrations/0003_cdr.sql migrations/0004_cdr_completion.sql
 var submitTransactionMigrations embed.FS
 
 type PostgresSubmitTransactionRepository struct{ db *sql.DB }
@@ -51,7 +51,12 @@ func (r *PostgresSubmitTransactionRepository) BillingApplied(ctx context.Context
 }
 
 func (r *PostgresSubmitTransactionRepository) MarkBillingApplied(ctx context.Context, eventKey string, appliedAt time.Time) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE submit_billing_intents SET applied_at=COALESCE(applied_at,$2) WHERE event_key=$1`, eventKey, appliedAt.UTC())
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE submit_billing_intents SET applied_at=COALESCE(applied_at,$2) WHERE event_key=$1`, eventKey, appliedAt.UTC())
 	if err != nil {
 		return err
 	}
@@ -62,7 +67,26 @@ func (r *PostgresSubmitTransactionRepository) MarkBillingApplied(ctx context.Con
 	if rows != 1 {
 		return fmt.Errorf("billing intent %q not found", eventKey)
 	}
-	return nil
+	if err = recordPostgresLateBillingOutcome(ctx, tx, eventKey, cdr.BillingApplied, appliedAt.UTC()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *PostgresSubmitTransactionRepository) MarkBillingRejected(ctx context.Context, eventKey string, rejectedAt time.Time) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var exists bool
+	if err = tx.QueryRowContext(ctx, `SELECT true FROM submit_billing_intents WHERE event_key=$1`, eventKey).Scan(&exists); err != nil {
+		return err
+	}
+	if err = recordPostgresLateBillingOutcome(ctx, tx, eventKey, cdr.BillingRejected, rejectedAt.UTC()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *PostgresSubmitTransactionRepository) Migrate(ctx context.Context) error {
@@ -77,7 +101,14 @@ func (r *PostgresSubmitTransactionRepository) Migrate(ctx context.Context) error
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, string(cdrMigration))
+	if _, err = r.db.ExecContext(ctx, string(cdrMigration)); err != nil {
+		return err
+	}
+	completionMigration, err := submitTransactionMigrations.ReadFile("migrations/0004_cdr_completion.sql")
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, string(completionMigration))
 	return err
 }
 

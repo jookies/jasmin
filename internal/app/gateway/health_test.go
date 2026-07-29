@@ -3,6 +3,9 @@ package gateway
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +21,33 @@ func healthyDependencies() healthDependencies {
 			return smppc.ManagedStatus{CID: cid, Observed: smppc.StatusBound}, nil
 		},
 		required: []string{"smsc-primary"},
+	}
+}
+
+func TestActiveLivenessAndReadinessHandlers(t *testing.T) {
+	liveResponse := httptest.NewRecorder()
+	livenessHandler().ServeHTTP(liveResponse, httptest.NewRequest(http.MethodGet, "/live", nil))
+	if liveResponse.Code != http.StatusOK || !strings.Contains(liveResponse.Body.String(), `"status":"active"`) {
+		t.Fatalf("liveness=(%d,%q)", liveResponse.Code, liveResponse.Body.String())
+	}
+
+	readyResponse := httptest.NewRecorder()
+	readinessHandler(healthyDependencies()).ServeHTTP(
+		readyResponse,
+		httptest.NewRequest(http.MethodGet, "/ready", nil),
+	)
+	if readyResponse.Code != http.StatusOK || !strings.Contains(readyResponse.Body.String(), `"status":"ok"`) {
+		t.Fatalf("readiness=(%d,%q)", readyResponse.Code, readyResponse.Body.String())
+	}
+
+	postResponse := httptest.NewRecorder()
+	readinessHandler(healthyDependencies()).ServeHTTP(
+		postResponse,
+		httptest.NewRequest(http.MethodPost, "/ready", nil),
+	)
+	if postResponse.Code != http.StatusMethodNotAllowed ||
+		postResponse.Header().Get("Allow") != http.MethodGet {
+		t.Fatalf("POST readiness=(%d, Allow=%q)", postResponse.Code, postResponse.Header().Get("Allow"))
 	}
 }
 

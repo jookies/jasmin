@@ -1,8 +1,10 @@
 # ADR-005 — PostgreSQL advisory-lock fencing for active-passive gateway HA
 
 - **Date:** 2026-07-29
-- **Status:** active, phase 1
-- **Summary:** Multi-node work starts with one active gateway per deployment namespace, fenced by a session-level PostgreSQL advisory lock. This prevents two processes from concurrently spending the same in-memory billing quota while the shared control-plane design remains unfinished.
+- **Status:** accepted
+- **Summary:** The supported HA topology is active-passive: one fenced active
+  gateway, one or more in-process waiting standbys, and a shared,
+  namespace-isolated PostgreSQL control plane.
 
 ## Context
 
@@ -12,21 +14,30 @@ The existing PostgreSQL service is mandatory for the outbound submit transaction
 
 ## Decision
 
-Implement an active-passive leadership lease on a dedicated PostgreSQL connection:
+Implement active-passive HA on a dedicated PostgreSQL leadership connection:
 
 - the lock key is a stable SHA-256-derived signed 64-bit value scoped by an operator deployment namespace;
-- acquisition uses `pg_try_advisory_lock` and fails fast when another node is active;
+- acquisition uses `pg_try_advisory_lock`; a contending node remains alive and
+  retries in process until it can promote;
 - the dedicated connection is periodically probed;
 - connection loss closes a `Lost` fencing signal;
 - orderly shutdown explicitly unlocks and closes the session;
-- a standby can acquire the lock after the previous session releases it.
+- a standby acquires the lock after the previous session releases it;
+- the gateway acquires leadership before constructing mutable billing objects,
+  workers, or admission listeners and releases it only after those resources
+  stop;
+- a standby serves `GET /live` as 200 and `GET /ready` as 503; the active
+  process serves `/live` as 200 and dependency-backed `/ready` as 200/503;
+- when HA is enabled, admin entities and named profiles live in PostgreSQL,
+  isolated in a deterministic schema derived from the HA namespace. SQLite
+  remains the local/test and supported single-node adapter.
 
 The primitive lives in `internal/infra/storage/postgres_leader.go`. The gateway
 acquires it before opening workers/listeners, exposes the loss signal to the
 executable, stops public/admin/PB admission immediately on loss, and releases
-the lock only after its message workers have stopped. A contending node fails
-startup fast and can acquire after the old session releases. This remains a
-phase-one active-passive fence, not a claim of complete production HA.
+the lock only after its message workers have stopped. The executable compose
+drill in `docker-compose.gateway-ha.yml` runs two identical nodes behind
+HAProxy; HAProxy admits only the node whose `/ready` succeeds.
 
 ## Rejected alternatives
 
@@ -36,16 +47,24 @@ Rejected because balances and group ceilings are mutated in process memory. Post
 
 ### Treat node-local SQLite as a replicated control plane
 
-Rejected. Independent files can diverge, and file copying has no safe conflict or live-apply protocol. An approved shared control-plane store or replication design is still required before multi-active administration.
+Rejected. Independent files can diverge, and file copying has no safe conflict
+or live-apply protocol. PostgreSQL is used for the HA control plane instead.
 
 ### A time-based lease row
 
 Deferred. A lease row needs clock/expiry policy and robust fencing tokens. The session advisory lock has connection-lifetime semantics and is sufficient for the initial active-passive process fence.
 
-## Consequences and remaining work
+## Consequences
 
-- This starts item #21 but does not complete it.
-- Standby health/readiness semantics, retry-in-process behavior, and a real
-  orchestrator takeover drill remain.
-- Admin SQLite remains node-local. A shared control-plane ADR and migration are still required for seamless failover of live provisioning changes.
-- Multi-active requires centralized atomic billing admission (or fencing tokens carried through every charge), not merely this leader lock.
+- Item #21 is functionally complete for the supported active-passive topology.
+  Unit tests cover retry, cancellation and shutdown races; PostgreSQL
+  integration tests cover mutual exclusion, in-process promotion, shared admin
+  state, atomic profile restore and namespace isolation.
+- A promoted standby replays the same connectors, users, groups, routes,
+  filters, interceptors, SMPPs credentials and profiles before it becomes
+  ready.
+- Leadership-loss handling is fail-closed. The old active closes all admission
+  listeners immediately; it never attempts to keep serving on a lost fence.
+- Multi-active is explicitly unsupported, not an unfinished mode. It would
+  require centralized atomic billing admission (or end-to-end fencing tokens)
+  and is rejected while quotas remain live in process.

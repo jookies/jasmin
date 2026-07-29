@@ -63,6 +63,7 @@ func BuildMOInterceptorTable(configs []InterceptorConfig) (*interceptor.Table, e
 //	user                                           : Username (resolved to uid)
 //	date_interval                                  : Start, End (YYYY-MM-DD)
 //	time_interval                                  : Start, End (HH:MM:SS)
+//	eval_py                                        : Value (legacy Python expression body)
 //
 // The connector filter is MO-only and is not accepted on an MT route.
 type FilterConfig struct {
@@ -118,6 +119,8 @@ func buildRouteFilter(spec FilterConfig, resolveUID uidResolver, resolveGID gidR
 		return routingfilter.NewDateIntervalFilter(spec.Start, spec.End)
 	case "time_interval":
 		return routingfilter.NewTimeIntervalFilter(spec.Start, spec.End)
+	case "eval_py":
+		return routingfilter.NewEvalPyFilter(spec.Value)
 	case "user":
 		if resolveUID == nil {
 			return nil, fmt.Errorf("user filter unsupported in this context")

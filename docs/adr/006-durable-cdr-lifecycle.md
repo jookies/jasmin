@@ -1,10 +1,10 @@
 # ADR-006 — Durable content-free CDR lifecycle
 
 - **Date:** 2026-07-29
-- **Status:** active, phase 1 implemented
-- **Scope:** successful durable MT admission through the SMSC response; DLR
-  terminal delivery, export/retention automation and reconciliation reports
-  remain cutover blockers.
+- **Status:** accepted, implemented
+- **Scope:** durable MT admission, SMSC response, late-billing application,
+  correlated final DLR, retention, versioned export, reconciliation and audited
+  role-based access.
 
 ## Context
 
@@ -43,7 +43,7 @@ lock remain the first fence; the CDR key is a second commercial dedupe fence.
 
 ### Lifecycle
 
-Phase 1 records:
+The submission projection records:
 
 | State | Terminal | Meaning |
 |---|---:|---|
@@ -55,8 +55,13 @@ Phase 1 records:
 | `TERMINAL_TIMEOUT` | Yes | A terminal timeout result was explicitly committed |
 
 `SMSC_ACCEPTED` is a terminal **submission** outcome, not proof of handset
-delivery. A later phase must append the correlated final DLR without replacing
-the accepted event.
+delivery. A correlated final DLR appends the stable
+`cdr:<cdr-id>:dlr:final` event and fills the separate delivery projection
+(`DELIVERED`, `EXPIRED`, `DELETED`, `UNDELIVERABLE` or `REJECTED`) without
+replacing the accepted submission event. The SMSC done timestamp is retained
+when valid and the gateway receipt timestamp is always retained. The event is
+written before the Redis correlation record is removed, so a PostgreSQL
+failure remains retryable.
 
 ### Identifiers and commercial fields
 
@@ -68,9 +73,10 @@ Each record contains:
 - per-part route rate, early amount, late amount, billing mode and currency;
 - attempt id, SMPP status and opaque SMSC message id after a result.
 
-Existing Jasmin rates are unitless. Currency is therefore ISO 4217 `XXX`
-("no currency") until an operator-owned settlement currency becomes explicit;
-silently labelling historical route units as USD/EUR would be incorrect.
+Existing Jasmin rates are unitless. `outbound.cdr_currency` is therefore
+operator-configurable for new records and defaults to ISO 4217 `XXX` ("no
+currency"). It accepts only three uppercase letters. Changing it never
+relabels historical records.
 
 Billing modes are derived, never caller supplied:
 
@@ -79,9 +85,11 @@ Billing modes are derived, never caller supplied:
 - `POSTPAID`: value is eligible only after SMSC acceptance;
 - `SPLIT`: an early charge plus an acceptance-time remainder.
 
-The late amount is the quoted/idempotent billing intent. Actual late application
-remains owned by `submit_billing_intents` and its billing ledger; reconciliation
-must join by the part's stable `:20-late-billing` event key.
+The late amount is the quoted/idempotent billing intent. Actual application is
+committed with the billing ledger update and records `APPLIED` plus the actual
+amount, or `REJECTED` plus zero actual amount, using the part's stable
+`:20-late-billing` event key. A replay cannot move an already-final billing
+outcome to a contradictory state.
 
 ### Privacy
 
@@ -95,16 +103,23 @@ follow database access controls and audit policy.
 - Durability and retry use the production PostgreSQL submit transaction and its
   existing idempotent retry fences. CDR failure aborts the enclosing durable
   admission/result transaction.
-- No automatic deletion is enabled in phase 1. This is safer than silently
-  deleting billable history before legal/finance owners approve a retention
-  period. A retention decision and tested pruner remain required before
-  production cutover.
-- No exporter is enabled in phase 1. The normalized tables are the source of
-  truth; a cursor-based JSONL/CSV export with checkpointing and schema version
-  remains required before settlement use.
-- Reconciliation must compare admitted parts to submit results, accepted
-  late-amount rows to the billing application ledger, and final DLRs once that
-  phase exists. Missing/duplicate joins are alerts, never silent correction.
+- `cdr_retention_days` is the operator-owned retention policy. Zero (the safe
+  default) disables deletion; a positive value runs bounded batches
+  (`cdr_retention_batch_size`, default 1000). Only terminal records whose
+  billing outcome is no longer pending are eligible. Access audit rows are not
+  deleted with CDR data.
+- Export is schema-versioned JSONL or CSV. The opaque base64url cursor contains
+  version, admitted timestamp and CDR id; ordering is stable and every page is
+  independently checkpointable. Filters are limited to commercial identity
+  and time—content fields do not exist in the projection.
+- Reconciliation compares CDR/submit-part existence, final submit results,
+  accepted late intents, billing ledger/application projection and final-DLR
+  event/projection consistency. It emits named nonzero issue counts as alerts
+  and never silently corrects commercial data.
+- The management boundary requires `cdr_reader`, `cdr_exporter` or
+  `cdr_operator`. Every allowed or denied read/export/maintenance request is
+  written to `cdr_access_audit`; access fails closed if its audit cannot be
+  persisted.
 
 ## Billing compatibility mapping
 
@@ -131,16 +146,17 @@ retry then success, ambiguous send then redelivery; duplicate admission/result;
 and equivalent HTTP/SMPPs submits. Oracle fixtures prove the underlying billing
 values only—there is no legacy CDR output to label `MATCH`.
 
-## Consequences and remaining work
+## Consequences
 
-Phase 1 gives every successfully admitted MT part a durable, deduplicated,
-content-free commercial lifecycle through SMSC acceptance/rejection. It does
-not yet make roadmap item 18 complete. Required follow-ups are:
+Roadmap item 18 is functionally complete. Every successfully admitted part has
+a durable, deduplicated, content-free lifecycle through submission, actual
+late-billing outcome and final DLR when requested/received. Reconciliation and
+bounded retention run in the production outbound runtime; management
+transports consume the authorization/audit-enforcing CDR service.
 
-1. append correlated final DLR state and delivery timestamps;
-2. record/settle the actual late-billing application outcome;
-3. operator approval for currency and retention, followed by a tested pruner;
-4. versioned cursor export and reconciliation/alert jobs;
-5. read/export authorization and audit logging;
-6. CDRs for pre-admission front-door rejections only if commercial owners
-   decide rejected traffic belongs in the settlement record.
+Pre-admission rejections intentionally do not produce CDRs: this record is a
+commercial *admission* ledger, while authentication, validation, routing and
+insufficient-quota refusals remain operational/security events. Operators must
+still choose their settlement currency and retention duration; leaving the
+defaults (`XXX`, retention disabled) is an explicit safe policy, not missing
+functionality.

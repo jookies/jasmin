@@ -21,7 +21,7 @@ type StoredGroup struct {
 
 // ListGroups returns every persisted admin group, ordered by its numeric gid.
 func (s *Store) ListGroups(ctx context.Context) ([]StoredGroup, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT gid, gid_number, spec_json FROM admin_groups ORDER BY gid_number`)
+	rows, err := s.queryContext(ctx, `SELECT gid, gid_number, spec_json FROM admin_groups ORDER BY gid_number`)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list groups: %w", err)
 	}
@@ -40,7 +40,7 @@ func (s *Store) ListGroups(ctx context.Context) ([]StoredGroup, error) {
 // GetGroup returns one persisted admin group by gid.
 func (s *Store) GetGroup(ctx context.Context, gid string) (StoredGroup, error) {
 	var group StoredGroup
-	err := s.db.QueryRowContext(ctx, `SELECT gid, gid_number, spec_json FROM admin_groups WHERE gid=?`, gid).
+	err := s.queryRowContext(ctx, `SELECT gid, gid_number, spec_json FROM admin_groups WHERE gid=?`, gid).
 		Scan(&group.GID, &group.Number, &group.SpecJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StoredGroup{}, ErrGroupNotFound
@@ -54,7 +54,7 @@ func (s *Store) GetGroup(ctx context.Context, gid string) (StoredGroup, error) {
 // MaxGroupNumber returns the highest numeric gid stored (0 when empty).
 func (s *Store) MaxGroupNumber(ctx context.Context) (int64, error) {
 	var maxNumber sql.NullInt64
-	if err := s.db.QueryRowContext(ctx, `SELECT MAX(gid_number) FROM admin_groups`).Scan(&maxNumber); err != nil {
+	if err := s.queryRowContext(ctx, `SELECT MAX(gid_number) FROM admin_groups`).Scan(&maxNumber); err != nil {
 		return 0, fmt.Errorf("admin: max group number: %w", err)
 	}
 	if !maxNumber.Valid {
@@ -65,7 +65,7 @@ func (s *Store) MaxGroupNumber(ctx context.Context) (int64, error) {
 
 // UpsertGroup persists (insert or replace) an admin group with its number.
 func (s *Store) UpsertGroup(ctx context.Context, group StoredGroup, now string) error {
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.execContext(ctx,
 		`INSERT INTO admin_groups (gid, gid_number, spec_json, updated_at) VALUES (?, ?, ?, ?)
 		 ON CONFLICT(gid) DO UPDATE SET spec_json=excluded.spec_json, updated_at=excluded.updated_at`,
 		group.GID, group.Number, group.SpecJSON, now)
@@ -77,7 +77,7 @@ func (s *Store) UpsertGroup(ctx context.Context, group StoredGroup, now string) 
 
 // DeleteGroup removes an admin group by gid.
 func (s *Store) DeleteGroup(ctx context.Context, gid string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM admin_groups WHERE gid=?`, gid)
+	result, err := s.execContext(ctx, `DELETE FROM admin_groups WHERE gid=?`, gid)
 	if err != nil {
 		return fmt.Errorf("admin: delete group %q: %w", gid, err)
 	}

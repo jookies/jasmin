@@ -31,7 +31,7 @@ type orderedSpecTable struct {
 
 func (s *Store) listOrderedSpecs(ctx context.Context, table orderedSpecTable) ([]StoredSpec, error) {
 	query := fmt.Sprintf(`SELECT %s, spec_json FROM %s ORDER BY %s`, table.orderColumn, table.name, table.orderColumn)
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.queryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("admin: list %s: %w", table.name, err)
 	}
@@ -53,7 +53,7 @@ func (s *Store) listOrderedSpecs(ctx context.Context, table orderedSpecTable) ([
 func (s *Store) getOrderedSpec(ctx context.Context, table orderedSpecTable, order int) (StoredSpec, error) {
 	query := fmt.Sprintf(`SELECT %s, spec_json FROM %s WHERE %s = ?`, table.orderColumn, table.name, table.orderColumn)
 	var spec StoredSpec
-	err := s.db.QueryRowContext(ctx, query, order).Scan(&spec.Order, &spec.SpecJSON)
+	err := s.queryRowContext(ctx, query, order).Scan(&spec.Order, &spec.SpecJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StoredSpec{}, fmt.Errorf("%w: %d", table.notFound, order)
 	}
@@ -68,7 +68,7 @@ func (s *Store) upsertOrderedSpec(ctx context.Context, table orderedSpecTable, s
 		`INSERT INTO %s (%s, spec_json, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT(%s) DO UPDATE SET spec_json = excluded.spec_json, updated_at = excluded.updated_at`,
 		table.name, table.orderColumn, table.orderColumn)
-	if _, err := s.db.ExecContext(ctx, query, spec.Order, spec.SpecJSON, now); err != nil {
+	if _, err := s.execContext(ctx, query, spec.Order, spec.SpecJSON, now); err != nil {
 		return fmt.Errorf("admin: upsert %s %d: %w", table.name, spec.Order, err)
 	}
 	return nil
@@ -76,7 +76,7 @@ func (s *Store) upsertOrderedSpec(ctx context.Context, table orderedSpecTable, s
 
 func (s *Store) deleteOrderedSpec(ctx context.Context, table orderedSpecTable, order int) error {
 	query := fmt.Sprintf(`DELETE FROM %s WHERE %s = ?`, table.name, table.orderColumn)
-	if _, err := s.db.ExecContext(ctx, query, order); err != nil {
+	if _, err := s.execContext(ctx, query, order); err != nil {
 		return fmt.Errorf("admin: delete %s %d: %w", table.name, order, err)
 	}
 	return nil

@@ -75,8 +75,16 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		ReplaceIfPresentFlag:   request.ReplaceIfPresentFlag,
 		SmDefaultMsgID:         request.SmDefaultMsgID,
 	}
-	if request.SMPPSubmit != nil {
-		encodeRequest.RawPDU = rawSubmitSM(request.SMPPSubmit)
+	rawBody := request.SMPPSubmit
+	if len(request.SMPPSubmits) > 0 {
+		index := int(part.Sequence()) - 1
+		if index < 0 || index >= len(request.SMPPSubmits) {
+			return amqpcompat.Envelope{}, fmt.Errorf("%w: missing raw submit_sm chain part %d", ErrInvalidSubmitEnvelope, part.Sequence())
+		}
+		rawBody = request.SMPPSubmits[index]
+	}
+	if rawBody != nil {
+		encodeRequest.RawPDU = rawSubmitSM(rawBody)
 		// Routing/interception may deliberately rewrite these three fields; all
 		// other raw PDU values remain exactly what the ESME supplied.
 		encodeRequest.RawPDU.SourceAddr = picklecompat.Bytes(request.SourceAddr)
@@ -102,7 +110,7 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 	if _, _, ok := part.UDH(); ok {
 		encodeRequest.UDH = true
 	}
-	encodeRequest.CustomTLVs = tupleTLVs(request.CustomTLVs)
+	encodeRequest.CustomTLVs = tupleTLVs(part.CustomTLVs())
 
 	encoded, err := builder.encoder.EncodeSubmitSM(ctx, encodeRequest)
 	if err != nil {
@@ -125,7 +133,9 @@ func (builder *SubmitEnvelopeBuilder) BuildSubmitEnvelope(
 		"bill-id":          amqpcompat.StringField(request.BillID),
 		"late-bill-amount": amqpcompat.StringField(pythonFloatString(request.Bill.SubmitSmRespAmount)),
 	}
-	if request.ValidityPeriod != nil {
+	if request.Expiration != "" {
+		headers["expiration"] = amqpcompat.StringField(request.Expiration)
+	} else if request.ValidityPeriod != nil {
 		headers["expiration"] = amqpcompat.StringField(legacyDateTime(request.CreatedAt.Add(*request.ValidityPeriod)))
 	}
 	messageID := request.MessageID

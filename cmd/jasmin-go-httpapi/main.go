@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,11 +52,34 @@ func run() error {
 
 	lifetime, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var (
+		standbyServer   *http.Server
+		standbyListener net.Listener
+	)
+	if runtimeConfig.HA != nil && runtimeConfig.HA.StandbyListenAddress != "" {
+		standbyServer, standbyListener, err = newStandbyHealthServer(runtimeConfig.HA.StandbyListenAddress)
+		if err != nil {
+			return err
+		}
+		defer standbyServer.Close()
+		go func() {
+			if serveErr := standbyServer.Serve(standbyListener); serveErr != nil && serveErr != http.ErrServerClosed {
+				log.Printf("jasmin-go-httpapi standby health: %v", serveErr)
+			}
+		}()
+		log.Printf("jasmin-go-httpapi waiting for leadership; standby health listening on %s",
+			runtimeConfig.HA.StandbyListenAddress)
+	}
 	runtime, err := gateway.NewRuntime(lifetime, runtimeConfig)
 	if err != nil {
 		return err
 	}
 	defer runtime.Close()
+	if standbyServer != nil {
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = standbyServer.Shutdown(shutdownContext)
+		cancel()
+	}
 
 	https := runtimeConfig.HTTPS
 	server := &http.Server{
@@ -66,7 +90,7 @@ func run() error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-	errCh := make(chan error, 3)
+	errCh := make(chan error, 4)
 	serve(server, https, errCh)
 	if https != nil {
 		log.Printf("jasmin-go-httpapi listening on %s (TLS)", runtimeConfig.Outbound.ListenAddress)
@@ -102,6 +126,19 @@ func run() error {
 		serve(pbServer, https, errCh)
 		log.Printf("jasmin-go-httpapi PB compatibility facade listening on %s", runtime.PBListenAddress)
 	}
+	var restServer *http.Server
+	if runtime.RESTListenAddress != "" {
+		restServer = &http.Server{
+			Addr:              runtime.RESTListenAddress,
+			Handler:           runtime.RESTHandler,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+		}
+		serve(restServer, https, errCh)
+		log.Printf("jasmin-go-httpapi REST compatibility daemon listening on %s", runtime.RESTListenAddress)
+	}
 
 	select {
 	case <-lifetime.Done():
@@ -121,6 +158,11 @@ func run() error {
 				err = fmt.Errorf("graceful PB facade shutdown: %w", pbErr)
 			}
 		}
+		if restServer != nil {
+			if restErr := restServer.Shutdown(shutdownContext); restErr != nil && err == nil {
+				err = fmt.Errorf("graceful REST daemon shutdown: %w", restErr)
+			}
+		}
 		return err
 	case <-runtime.LeadershipLost():
 		// A lost database session means the advisory fence no longer belongs to
@@ -133,6 +175,9 @@ func run() error {
 		if pbServer != nil {
 			_ = pbServer.Close()
 		}
+		if restServer != nil {
+			_ = restServer.Close()
+		}
 		_ = runtime.Close()
 		return fmt.Errorf("active-passive gateway fence lost: %w", runtime.LeadershipError())
 	case err := <-errCh:
@@ -141,6 +186,42 @@ func run() error {
 		}
 		return err
 	}
+}
+
+func newStandbyHealthServer(address string) (*http.Server, net.Listener, error) {
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return nil, nil, fmt.Errorf("listen for standby health on %s: %w", address, err)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/live", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.Header().Set("Allow", http.MethodGet)
+			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(`{"status":"standby","live":true,"ready":false}`))
+	})
+	mux.HandleFunc("/ready", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.Header().Set("Allow", http.MethodGet)
+			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = writer.Write([]byte(`{"status":"standby","live":true,"ready":false}`))
+	})
+	return &http.Server{
+		Addr:              address,
+		Handler:           mux,
+		ReadHeaderTimeout: 2 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       30 * time.Second,
+	}, listener, nil
 }
 
 // serve starts an HTTP server in a goroutine, using TLS when https is set, and

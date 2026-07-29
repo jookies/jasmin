@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/pumpitspace/jasmin/internal/app/gateway"
 	"github.com/pumpitspace/jasmin/internal/app/outbound"
@@ -33,6 +34,7 @@ func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {
 		t.Fatal("HA without a namespace was accepted")
 	}
 	config.HA.Namespace = "production"
+	config.HA.StandbyListenAddress = config.Outbound.ListenAddress
 	if err := gateway.ValidateConfig(config); err != nil {
 		t.Fatalf("valid HA gateway config: %v", err)
 	}
@@ -48,5 +50,37 @@ func TestValidateConfigRequiresRouteConnectorClosure(t *testing.T) {
 	config.Admin.PBFacadeToken = "facade-token"
 	if err := gateway.ValidateConfig(config); err != nil {
 		t.Fatalf("valid PB facade config: %v", err)
+	}
+	config.Admin.DBPath = ""
+	config.HA.StandbyRetrySeconds = 0.01
+	if err := gateway.ValidateConfig(config); err != nil {
+		t.Fatalf("HA PostgreSQL admin store without SQLite path: %v", err)
+	}
+	if got := config.HA.StandbyRetryInterval(); got != 10*time.Millisecond {
+		t.Fatalf("standby retry=%s", got)
+	}
+	config.HA.StandbyListenAddress = ""
+	if err := gateway.ValidateConfig(config); err == nil {
+		t.Fatal("HA without standby health listener was accepted")
+	}
+	config.HA.StandbyListenAddress = config.Outbound.ListenAddress
+	config.REST.ListenAddress = "0.0.0.0:0"
+	if err := gateway.ValidateConfig(config); err == nil {
+		t.Fatal("wildcard REST listener colliding with public HTTP was accepted")
+	}
+	config.REST.ListenAddress = "127.0.0.1:8998"
+	if err := gateway.ValidateConfig(config); err == nil {
+		t.Fatal("REST listener colliding with PB facade was accepted")
+	}
+	config.REST.ListenAddress = "127.0.0.1:8080"
+	if err := gateway.ValidateConfig(config); err != nil {
+		t.Fatalf("valid distinct REST listener: %v", err)
+	}
+	config.Admin.JCliListenAddress = "127.0.0.1:8990"
+	config.Admin.JCliUsername = "jcli"
+	config.Admin.JCliPassword = "secret"
+	config.HA.StandbyListenAddress = "0.0.0.0:8990"
+	if err := gateway.ValidateConfig(config); err == nil {
+		t.Fatal("standby listener overlapping jCli during promotion was accepted")
 	}
 }
