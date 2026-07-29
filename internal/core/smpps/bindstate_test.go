@@ -36,19 +36,32 @@ func TestCommandAllowed_Bind(t *testing.T) {
 	}
 }
 
-func TestCommandAllowed_SubmitAndData(t *testing.T) {
-	for _, cmd := range []uint32{CommandSubmitSM, CommandDataSM} {
-		// Allowed from BOUND_TX and BOUND_TRX.
-		for _, state := range []SessionState{StateBoundTX, StateBoundTRX} {
-			if allowed, status := CommandAllowed(state, cmd); !allowed || status != StatusROK {
-				t.Errorf("%#x from %s = (%v,%#x), want (true,ROK)", cmd, state, allowed, status)
-			}
+func TestCommandAllowed_Submit(t *testing.T) {
+	// Allowed from BOUND_TX and BOUND_TRX.
+	for _, state := range []SessionState{StateBoundTX, StateBoundTRX} {
+		if allowed, status := CommandAllowed(state, CommandSubmitSM); !allowed || status != StatusROK {
+			t.Errorf("submit_sm from %s = (%v,%#x), want (true,ROK)", state, allowed, status)
 		}
-		// Rejected from BOUND_RX (the explicit Jasmin rule), OPEN and UNBOUND -> RINVBNDSTS.
-		for _, state := range []SessionState{StateBoundRX, StateOpen, StateUnbound} {
-			if allowed, status := CommandAllowed(state, cmd); allowed || status != StatusInvalidBindStatus {
-				t.Errorf("%#x from %s = (%v,%#x), want (false,RINVBNDSTS)", cmd, state, allowed, status)
-			}
+	}
+	// Rejected from BOUND_RX (the explicit Jasmin rule), OPEN and UNBOUND -> RINVBNDSTS.
+	for _, state := range []SessionState{StateBoundRX, StateOpen, StateUnbound} {
+		if allowed, status := CommandAllowed(state, CommandSubmitSM); allowed || status != StatusInvalidBindStatus {
+			t.Errorf("submit_sm from %s = (%v,%#x), want (false,RINVBNDSTS)", state, allowed, status)
+		}
+	}
+}
+
+func TestCommandAllowed_DataSM(t *testing.T) {
+	// This gate delegates data_sm from transmit-capable binds. The session then
+	// applies Jasmin's application-level ESME_RSYSERR before submission.
+	for _, state := range []SessionState{StateBoundTX, StateBoundTRX} {
+		if allowed, status := CommandAllowed(state, CommandDataSM); !allowed || status != StatusROK {
+			t.Errorf("data_sm from %s = (%v,%#x), want (true,ROK)", state, allowed, status)
+		}
+	}
+	for _, state := range []SessionState{StateBoundRX, StateOpen, StateUnbound} {
+		if allowed, status := CommandAllowed(state, CommandDataSM); allowed || status != StatusInvalidBindStatus {
+			t.Errorf("data_sm from %s = (%v,%#x), want (false,RINVBNDSTS)", state, allowed, status)
 		}
 	}
 }

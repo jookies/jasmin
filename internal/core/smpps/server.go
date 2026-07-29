@@ -24,11 +24,11 @@ type UserResolver interface {
 	ResolveUser(systemID string) (UserAuth, bool)
 }
 
-// SubmitHandler ingests a bound ESME's submit_sm/data_sm: it runs smpps
-// credential validation and hands the message to the MT pipeline (routing,
-// billing, publication), returning the assigned message id and the SMPP
-// command_status to answer with. A nil handler makes the server answer
-// ESME_RSYSERR — a deployment that binds ESMEs but ingests no MT.
+// SubmitHandler ingests a bound ESME's submit_sm: it runs smpps credential
+// validation and hands the message to the MT pipeline (routing, billing,
+// publication), returning the assigned message id and the SMPP command_status
+// to answer with. A nil handler makes the server answer ESME_RSYSERR — a
+// deployment that binds ESMEs but ingests no MT.
 type SubmitHandler interface {
 	HandleSubmit(ctx context.Context, systemID string, sm *smppwire.SMBody) (messageID string, status uint32)
 }

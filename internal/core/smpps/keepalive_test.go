@@ -1,6 +1,7 @@
 package smpps
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -46,6 +47,48 @@ func TestQuietSessionGetsAnEnquireLinkInsteadOfADisconnect(t *testing.T) {
 	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	if second := readPDU(t, conn); second.Header.CommandID != smppwire.CommandEnquireLink {
 		t.Fatalf("after enquire_link_resp the session answered %#x, want another enquire_link", second.Header.CommandID)
+	}
+}
+
+func TestDeliverSMUsesTheSessionRequestSequence(t *testing.T) {
+	server, addr := startServer(t, mapResolver{"u": testUser("p")}, ServerConfig{
+		EnquireLinkTimeout: 50 * time.Millisecond,
+		InactivityTimeout:  10 * time.Second,
+	})
+	conn := dial(t, addr)
+	writePDU(t, conn, bindPDU(CommandBindReceiver, "u", "p", 1))
+	if readPDU(t, conn).Header.CommandStatus != StatusROK {
+		t.Fatal("bind should succeed")
+	}
+
+	enquire := readPDU(t, conn)
+	if enquire.Header.CommandID != smppwire.CommandEnquireLink {
+		t.Fatalf("quiet session got %#x, want enquire_link", enquire.Header.CommandID)
+	}
+	writePDU(t, conn, smppwire.PDU{Header: smppwire.Header{
+		CommandID:      smppwire.CommandEnquireLinkResp,
+		SequenceNumber: enquire.Header.SequenceNumber,
+		CommandStatus:  StatusROK,
+	}})
+
+	err := server.Deliver(context.Background(), "u", smppwire.PDU{
+		Header: smppwire.Header{CommandID: smppwire.CommandDeliverSM},
+		SM: &smppwire.SMBody{
+			SourceAddress:      []byte("111"),
+			DestinationAddress: []byte("222"),
+			ShortMessage:       []byte("mo"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deliver := readPDU(t, conn)
+	if deliver.Header.CommandID != smppwire.CommandDeliverSM {
+		t.Fatalf("after enquire_link_resp the session sent %#x, want deliver_sm", deliver.Header.CommandID)
+	}
+	if want := enquire.Header.SequenceNumber + 1; deliver.Header.SequenceNumber != want {
+		t.Fatalf("deliver_sm sequence = %d, want %d from the shared session counter",
+			deliver.Header.SequenceNumber, want)
 	}
 }
 
